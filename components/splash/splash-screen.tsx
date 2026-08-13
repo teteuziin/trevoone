@@ -1,8 +1,10 @@
 import { TrevoOneLogo } from "../brand/trevo-one-logo";
+import { SplashRedirect } from "./splash-redirect";
 
 export function SplashScreen() {
   return (
     <main className="min-h-svh w-full flex flex-col items-center justify-between p-6 py-12 bg-white text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
+      <SplashRedirect />
       {/* Top spacing element for vertical centering balance */}
       <div className="aria-hidden:true" />
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import Link from "next/link";
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -127,12 +128,12 @@ export function LoginForm() {
       {/* Área Criar Conta */}
       <div className="text-center text-xs sm:text-sm text-zinc-500 pt-4 border-t border-zinc-100">
         <span>Ainda não possui uma conta? </span>
-        <button
-          type="button"
+        <Link
+          href="/cadastro"
           className="font-semibold text-[#00A859] hover:underline focus:outline-none focus:ring-1 focus:ring-[#00A859] rounded px-1 py-0.5"
         >
           Criar conta
-        </button>
+        </Link>
       </div>
     </form>
   );

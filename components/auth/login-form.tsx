@@ -1,25 +1,34 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
+import { loginAccount, LoginFormState } from "@/app/login/actions";
+
+const initialState: LoginFormState = {
+  success: false,
+};
 
 export function LoginForm() {
+  const [state, formAction, isPending] = useActionState(loginAccount, initialState);
   const [showPassword, setShowPassword] = useState(false);
-  const [keepConnected, setKeepConnected] = useState(false);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // Autenticação não implementada nesta etapa (escopo exclusivo de UI/UX)
-  };
+  const errors = state.errors || {};
 
   return (
-    <form onSubmit={handleSubmit} className="w-full space-y-5" noValidate>
+    <form action={formAction} className="w-full space-y-5" noValidate>
+      {state.message && !state.success && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="p-3.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-medium leading-relaxed text-left"
+        >
+          {state.message}
+        </div>
+      )}
+
       {/* Campo de E-mail */}
       <div className="space-y-1.5 text-left">
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-zinc-700"
-        >
+        <label htmlFor="email" className="block text-sm font-medium text-zinc-700">
           E-mail
         </label>
         <input
@@ -28,16 +37,22 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           placeholder="seuemail@exemplo.com"
-          className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent transition-all"
+          aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? "email-error" : undefined}
+          className={`w-full h-11 px-3.5 rounded-lg border bg-white text-zinc-900 placeholder:text-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent transition-all ${
+            errors.email ? "border-red-500" : "border-zinc-300"
+          }`}
         />
+        {errors.email && (
+          <p id="email-error" className="text-xs text-red-600 font-medium pt-0.5">
+            {errors.email}
+          </p>
+        )}
       </div>
 
       {/* Campo de Senha */}
       <div className="space-y-1.5 text-left">
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-zinc-700"
-        >
+        <label htmlFor="password" className="block text-sm font-medium text-zinc-700">
           Senha
         </label>
         <div className="relative flex items-center">
@@ -47,7 +62,11 @@ export function LoginForm() {
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             placeholder="••••••••"
-            className="w-full h-11 pl-3.5 pr-11 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent transition-all"
+            aria-invalid={!!errors.password}
+            aria-describedby={errors.password ? "password-error" : undefined}
+            className={`w-full h-11 pl-3.5 pr-11 rounded-lg border bg-white text-zinc-900 placeholder:text-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent transition-all ${
+              errors.password ? "border-red-500" : "border-zinc-300"
+            }`}
           />
           <button
             type="button"
@@ -56,7 +75,6 @@ export function LoginForm() {
             aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
           >
             {showPassword ? (
-              /* Ícone Olho Fechado (Eye Slash SVG Inline) */
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -72,7 +90,6 @@ export function LoginForm() {
                 />
               </svg>
             ) : (
-              /* Ícone Olho Aberto (Eye SVG Inline) */
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -95,6 +112,11 @@ export function LoginForm() {
             )}
           </button>
         </div>
+        {errors.password && (
+          <p id="password-error" className="text-xs text-red-600 font-medium pt-0.5">
+            {errors.password}
+          </p>
+        )}
       </div>
 
       {/* Opção Manter Conectado & Esqueci Minha Senha */}
@@ -102,8 +124,7 @@ export function LoginForm() {
         <label className="flex items-center space-x-2 cursor-pointer select-none text-zinc-600">
           <input
             type="checkbox"
-            checked={keepConnected}
-            onChange={(e) => setKeepConnected(e.target.checked)}
+            name="remember_me"
             className="w-4 h-4 rounded border-zinc-300 text-[#00A859] focus:ring-[#00A859] accent-[#00A859] cursor-pointer"
           />
           <span>Manter conectado</span>
@@ -120,9 +141,10 @@ export function LoginForm() {
       {/* Botão Principal Entrar */}
       <button
         type="submit"
-        className="w-full h-11 mt-2 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
+        disabled={isPending}
+        className="w-full h-11 mt-2 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2 flex items-center justify-center"
       >
-        Entrar
+        {isPending ? "Entrando..." : "Entrar"}
       </button>
 
       {/* Área Criar Conta */}

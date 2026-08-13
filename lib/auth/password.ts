@@ -9,6 +9,11 @@ const SCRYPT_PARAMS = {
   saltLen: 16,
 };
 
+// Static well-formed dummy hash for non-existent users (prevents timing side-channel attacks)
+// 16-byte salt base64url (22 chars), 64-byte key base64url (86 chars)
+export const DUMMY_SCRYPT_HASH =
+  "$scrypt$v=1$N=32768$r=8$p=3$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
 export async function hashPassword(password: string): Promise<string> {
   const normalizedPassword = password.normalize("NFC");
   const salt = crypto.randomBytes(SCRYPT_PARAMS.saltLen);
@@ -41,4 +46,69 @@ export async function hashPassword(password: string): Promise<string> {
   }
 
   return formattedHash;
+}
+
+export async function verifyPassword(
+  password: string,
+  storedHash: string
+): Promise<boolean> {
+  try {
+    if (!storedHash || typeof storedHash !== "string") {
+      return false;
+    }
+
+    const parts = storedHash.split("$");
+    if (parts.length !== 8) {
+      return false;
+    }
+
+    const [, algo, version, costStr, blockSizeStr, parallelStr, saltB64, hashB64] = parts;
+
+    if (
+      algo !== "scrypt" ||
+      version !== "v=1" ||
+      costStr !== `N=${SCRYPT_PARAMS.cost}` ||
+      blockSizeStr !== `r=${SCRYPT_PARAMS.blockSize}` ||
+      parallelStr !== `p=${SCRYPT_PARAMS.parallelization}` ||
+      !saltB64 ||
+      !hashB64
+    ) {
+      return false;
+    }
+
+    const salt = Buffer.from(saltB64, "base64url");
+    const storedDerivedKey = Buffer.from(hashB64, "base64url");
+
+    if (salt.length !== SCRYPT_PARAMS.saltLen || storedDerivedKey.length !== SCRYPT_PARAMS.keyLen) {
+      return false;
+    }
+
+    const normalizedPassword = password.normalize("NFC");
+
+    const derivedKey = await new Promise<Buffer>((resolve, reject) => {
+      crypto.scrypt(
+        normalizedPassword,
+        salt,
+        SCRYPT_PARAMS.keyLen,
+        {
+          cost: SCRYPT_PARAMS.cost,
+          blockSize: SCRYPT_PARAMS.blockSize,
+          parallelization: SCRYPT_PARAMS.parallelization,
+          maxmem: SCRYPT_PARAMS.maxmem,
+        },
+        (err, key) => {
+          if (err) reject(err);
+          else resolve(key);
+        }
+      );
+    });
+
+    if (derivedKey.length !== storedDerivedKey.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(derivedKey, storedDerivedKey);
+  } catch {
+    return false;
+  }
 }

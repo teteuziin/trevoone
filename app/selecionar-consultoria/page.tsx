@@ -7,6 +7,7 @@ import {
 } from "@/lib/consultancies/context";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
+import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
 import { logoutFromConsultancyArea } from "./actions";
 
 export default async function SelecionarConsultoriaPage() {
@@ -52,16 +53,19 @@ export default async function SelecionarConsultoriaPage() {
               className="group block w-full p-4 sm:p-5 rounded-xl border border-zinc-200 hover:border-[#00A859] bg-white hover:bg-emerald-50/30 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859]"
             >
               <div className="flex items-center justify-between">
-                <div className="space-y-2 text-left">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base sm:text-lg font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-12 h-12 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0 p-1">
+                    <TrevoOneLogo size={36} />
+                  </div>
+                  <div className="space-y-1.5 text-left min-w-0">
+                    <h2 className="text-base sm:text-lg font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors truncate">
                       Administração Trevo One
                     </h2>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100/70 text-[#008f4c]">
-                      Administrador global
-                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100/70 text-[#008f4c]">
+                        Administrador global
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -91,19 +95,26 @@ export default async function SelecionarConsultoriaPage() {
                 className="group block w-full p-4 sm:p-5 rounded-xl border border-zinc-200 hover:border-[#00A859] bg-white hover:bg-emerald-50/30 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859]"
               >
                 <div className="flex items-center justify-between">
-                  <div className="space-y-2 text-left">
-                    <h2 className="text-base sm:text-lg font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors">
-                      {item.consultancyName}
-                    </h2>
-                    <div className="flex flex-wrap gap-1.5">
-                      {item.roles.map((role) => (
-                        <span
-                          key={role}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100/70 text-[#008f4c]"
-                        >
-                          {ROLE_LABELS[role]}
-                        </span>
-                      ))}
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <ConsultancyLogo
+                      logoUrl={item.consultancyLogoUrl}
+                      name={item.consultancyName}
+                      size={48}
+                    />
+                    <div className="space-y-1.5 text-left min-w-0">
+                      <h2 className="text-base sm:text-lg font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors truncate">
+                        {item.consultancyName}
+                      </h2>
+                      <div className="flex flex-wrap gap-1.5">
+                        {item.roles.map((role) => (
+                          <span
+                            key={role}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100/70 text-[#008f4c]"
+                          >
+                            {ROLE_LABELS[role]}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -236,19 +247,26 @@ export default async function SelecionarConsultoriaPage() {
               className="group block w-full p-4 sm:p-5 rounded-xl border border-zinc-200 hover:border-[#00A859] bg-white hover:bg-emerald-50/30 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859]"
             >
               <div className="flex items-center justify-between">
-                <div className="space-y-2 text-left">
-                  <h2 className="text-base sm:text-lg font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors">
-                    {item.consultancyName}
-                  </h2>
-                  <div className="flex flex-wrap gap-1.5">
-                    {item.roles.map((role) => (
-                      <span
-                        key={role}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100/70 text-[#008f4c]"
-                      >
-                        {ROLE_LABELS[role]}
-                      </span>
-                    ))}
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <ConsultancyLogo
+                    logoUrl={item.consultancyLogoUrl}
+                    name={item.consultancyName}
+                    size={48}
+                  />
+                  <div className="space-y-1.5 text-left min-w-0">
+                    <h2 className="text-base sm:text-lg font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors truncate">
+                      {item.consultancyName}
+                    </h2>
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.roles.map((role) => (
+                        <span
+                          key={role}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100/70 text-[#008f4c]"
+                        >
+                          {ROLE_LABELS[role]}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -286,3 +304,4 @@ export default async function SelecionarConsultoriaPage() {
     </main>
   );
 }
+

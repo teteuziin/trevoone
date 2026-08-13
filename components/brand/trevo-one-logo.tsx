@@ -12,14 +12,16 @@ export function TrevoOneLogo({
   size = 180,
 }: TrevoOneLogoProps) {
   return (
-    <div className={`relative inline-block ${className}`}>
+    <div
+      className={`relative inline-flex items-center justify-center ${className}`}
+    >
       <Image
         src="/trevo-one-logo.png"
-        alt="Trevo One Logo"
+        alt="Trevo One"
         width={size}
         height={size}
         priority={priority}
-        className="w-full h-auto object-contain"
+        className="w-full h-auto max-h-full object-contain drop-shadow-none"
       />
     </div>
   );

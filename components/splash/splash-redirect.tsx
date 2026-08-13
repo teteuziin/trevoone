@@ -3,17 +3,22 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export function SplashRedirect() {
+export type SplashTarget = "/login" | "/selecionar-consultoria";
+
+interface SplashRedirectProps {
+  target?: SplashTarget;
+}
+
+export function SplashRedirect({ target = "/login" }: SplashRedirectProps) {
   const router = useRouter();
 
   useEffect(() => {
-    // Temporary redirect until session-based routing is implemented.
     const timer = setTimeout(() => {
-      router.replace("/login");
+      router.replace(target);
     }, 1300);
 
     return () => clearTimeout(timer);
-  }, [router]);
+  }, [router, target]);
 
   return null;
 }

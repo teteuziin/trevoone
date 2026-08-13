@@ -2,6 +2,7 @@
 
 import type { RowDataPacket } from "mysql2/promise";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getDbConnection } from "../../lib/db/mysql";
 import { verifyPassword, DUMMY_SCRYPT_HASH } from "../../lib/auth/password";
 import { createSession, revokeCurrentSession } from "../../lib/auth/session";
@@ -131,10 +132,7 @@ export async function loginAccount(
     // Ignorado fora do contexto de requisição HTTP do Next.js
   }
 
-  return {
-    success: true,
-    message: "Login realizado com sucesso.",
-  };
+  redirect("/selecionar-consultoria");
 }
 
 export async function logoutAccount(): Promise<void> {

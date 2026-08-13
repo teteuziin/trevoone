@@ -148,7 +148,7 @@ export function RegisterForm() {
         </div>
         {!errors.password && (
           <p id="password-hint" className="text-xs text-zinc-400 font-normal">
-            Use pelo menos 15 caracteres.
+            Use pelo menos 6 caracteres.
           </p>
         )}
         {errors.password && (

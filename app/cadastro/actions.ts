@@ -59,8 +59,8 @@ export async function registerAccount(
   const password = passwordRaw.normalize("NFC");
   const passwordLen = [...password].length;
 
-  if (passwordLen < 15) {
-    errors.password = "Use pelo menos 15 caracteres na senha.";
+  if (passwordLen < 6) {
+    errors.password = "Use pelo menos 6 caracteres na senha.";
   } else if (passwordLen > 128) {
     errors.password = "A senha pode ter no máximo 128 caracteres.";
   }

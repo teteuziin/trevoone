@@ -1,4 +1,4 @@
-import mysql, { Pool } from "mysql2/promise";
+import mysql, { type Pool, type PoolConnection } from "mysql2/promise";
 
 declare global {
   var _mysqlPool: Pool | undefined;
@@ -46,3 +46,11 @@ export function getDbPool(): Pool {
 
   return pool;
 }
+
+export async function getDbConnection(): Promise<PoolConnection> {
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+  await connection.query("SET SESSION time_zone = '+00:00';");
+  return connection;
+}
+

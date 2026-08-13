@@ -109,12 +109,12 @@ export function LoginForm() {
           <span>Manter conectado</span>
         </label>
 
-        <button
-          type="button"
+        <Link
+          href="/recuperar-senha"
           className="font-medium text-[#00A859] hover:underline focus:outline-none focus:ring-1 focus:ring-[#00A859] rounded px-1 py-0.5"
         >
           Esqueci minha senha
-        </button>
+        </Link>
       </div>
 
       {/* Botão Principal Entrar */}

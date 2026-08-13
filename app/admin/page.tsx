@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
@@ -22,7 +23,8 @@ export default async function AdminDashboardPage() {
       title: "Consultorias",
       description:
         "Gestão centralizada de consultorias parceiras, criação e configurações de tenant.",
-      status: "Em preparação",
+      status: "Disponível",
+      href: "/admin/consultorias",
       icon: (
         <svg
           className="w-5 h-5 text-[#00A859]"
@@ -175,32 +177,64 @@ export default async function AdminDashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            {modules.map((m) => (
-              <div
-                key={m.title}
-                className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm flex flex-col justify-between space-y-4"
-              >
-                <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-                    {m.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-zinc-900">
-                      {m.title}
-                    </h3>
-                    <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
-                      {m.description}
-                    </p>
-                  </div>
-                </div>
+            {modules.map((m) => {
+              if (m.href) {
+                return (
+                  <Link
+                    key={m.title}
+                    href={m.href}
+                    className="group bg-white rounded-xl border border-zinc-200 hover:border-[#00A859] p-5 shadow-sm flex flex-col justify-between space-y-4 transition-all hover:bg-emerald-50/20 focus:outline-none focus:ring-2 focus:ring-[#00A859]"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center group-hover:bg-emerald-100/60 transition-colors">
+                        {m.icon}
+                      </div>
+                      <div>
+                        <h3 className="text-base font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors">
+                          {m.title}
+                        </h3>
+                        <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                          {m.description}
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 text-zinc-600">
-                    {m.status}
-                  </span>
+                    <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-[#008f4c]">
+                        {m.status} →
+                      </span>
+                    </div>
+                  </Link>
+                );
+              }
+
+              return (
+                <div
+                  key={m.title}
+                  className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm flex flex-col justify-between space-y-4"
+                >
+                  <div className="space-y-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                      {m.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-zinc-900">
+                        {m.title}
+                      </h3>
+                      <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                        {m.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 text-zinc-600">
+                      {m.status}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

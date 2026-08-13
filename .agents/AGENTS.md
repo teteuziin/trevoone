@@ -107,6 +107,16 @@ Este documento contém as **regras permanentes de arquitetura, desenvolvimento, 
 - Sempre tratar estados: `loading`, `success`, `empty`, `error`.
 - Mensagens amigáveis no front-end, logs técnicos no servidor sem expor secrets.
 
+# 55. POLÍTICA DE CACHE, PWA E ATUALIZAÇÕES
+- **REGRA DE OURO DE ATUALIZAÇÃO**: O Trevo One deve receber novas versões em produção sem exigir que o usuário limpe manualmente o cache do navegador ou utilize atalhos de atualização forçada (ex: Ctrl + F5). Exigir limpeza manual de cache nunca será aceito como solução normal de produto.
+- **Cache de Assets Estáticos**: Assets imutáveis e versionados pelo build do Next.js (JS, CSS, chunks, fontes) devem utilizar cache eficiente com estratégias seguras de invalidação.
+- **Navegação e Páginas HTML**: Páginas e rotas da aplicação (`/`, `/login`, `/cadastro`, `/recuperar-senha`, `/app`, painéis) não devem utilizar cache permanente que impeça o carregamento da versão atualizada após novos deploys.
+- **Dados Autenticados e de Saúde**: Dados de usuários, vínculos com consultorias, treinos, dietas, avaliações e informações de saúde devem priorizar dados atualizados do servidor. É proibido aplicar cache offline automático para dados sensíveis de saúde sem análise prévia de segurança, criptografia, expiração e conformidade com a LGPD.
+- **Service Worker e Bibliotecas PWA**: É proibido criar Service Worker (`sw.js`, `service-worker.js`) ou instalar bibliotecas PWA (`next-pwa`, `workbox`, `serwist`) sem planejamento e autorização explícita.
+- **Versionamento de Cache e Purga**: Quando o Service Worker for implementado, os caches devem utilizar chaves versionadas (ex: `trevo-one-v1`) e incluir remoção automática de versões velhas obsoletas no evento de ativação.
+- **Experiência de Atualização (UX)**: A detecção de nova versão deve notificar o usuário discretamente ("Nova versão disponível" -> "Atualizar"), recarregando de forma controlada sem interromper o preenchimento de formulários ou tarefas em andamento.
+- **Segurança de Sessão e Logout**: O cache client-side jamais determina permissões ou papéis (ex: `localStorage.role`). A autorização ocorre 100% no servidor. O logout deve limpar qualquer armazenamento local associado à sessão no dispositivo.
+
 # 54. FORMATO DO RELATÓRIO OBRIGATÓRIO AO TERMINAR TAREFA
 ```text
 TAREFA CONCLUÍDA

@@ -6,6 +6,7 @@ import {
   ROLE_LABELS,
 } from "@/lib/consultancies/context";
 import { getConsultancyAdminOverview } from "@/lib/consultancies/admin";
+import { getStudentOnboardingStatus } from "@/lib/consultancies/student-onboarding";
 import { ConsultancyAdminShell } from "@/components/consultancies/consultancy-admin-shell";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
 import { logoutFromConsultancyArea } from "../../selecionar-consultoria/actions";
@@ -128,6 +129,12 @@ export default async function ConsultancyPage({ params }: PageProps) {
     );
   }
 
+  // Se for membro STUDENT
+  const isStudent = context.roles.includes("STUDENT");
+  const studentOnboarding = isStudent
+    ? await getStudentOnboardingStatus(session.userId, slug)
+    : null;
+
   // Se for membro válido comum (STUDENT, PERSONAL, NUTRITIONIST sem CONSULTANCY_ADMIN)
   return (
     <main className="min-h-svh w-full flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-white text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
@@ -147,6 +154,41 @@ export default async function ConsultancyPage({ params }: PageProps) {
             Seu ambiente de consultoria está sendo preparado.
           </p>
         </div>
+
+        {/* Card de Onboarding para STUDENT */}
+        {isStudent && studentOnboarding && studentOnboarding.applicable && (
+          <div className="w-full p-5 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-3 text-left">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                Onboarding
+              </span>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  studentOnboarding.isComplete
+                    ? "bg-emerald-50 text-[#00A859] border border-emerald-200"
+                    : "bg-amber-50 text-amber-800 border border-amber-200"
+                }`}
+              >
+                {studentOnboarding.isComplete
+                  ? "Concluído"
+                  : `${studentOnboarding.confirmedRequirements} de ${studentOnboarding.totalRequirements} confirmadas`}
+              </span>
+            </div>
+
+            <p className="text-xs text-zinc-600 leading-relaxed">
+              {studentOnboarding.isComplete
+                ? "Todas as etapas obrigatórias de onboarding foram confirmadas."
+                : "Preencha os formulários obrigatórios para liberar seus acessos de treino e dieta."}
+            </p>
+
+            <Link
+              href={`/consultoria/${context.consultancySlug}/onboarding`}
+              className="inline-flex items-center justify-center w-full py-2 px-4 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-xs rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
+            >
+              {studentOnboarding.isComplete ? "Ver etapas" : "Continuar onboarding"}
+            </Link>
+          </div>
+        )}
 
         <div className="w-full p-4 rounded-xl border border-zinc-200 bg-zinc-50/50 space-y-3 text-left">
           <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">

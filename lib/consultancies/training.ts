@@ -20,6 +20,17 @@ export const ALLOWED_BLOCK_TYPES: readonly TrainingBlockType[] = [
   "CIRCUIT",
 ];
 
+export type ValidationIssue = {
+  code: string;
+  path: string;
+  message: string;
+};
+
+export type PlanActivationValidationResult = {
+  valid: boolean;
+  issues: ValidationIssue[];
+};
+
 export type TrainingBlockExerciseDto = {
   publicId: string;
   exercisePublicId: string | null;
@@ -84,7 +95,7 @@ export type TrainingPlanDto = {
   workouts: TrainingWorkoutDto[];
 };
 
-export type DraftTrainingPlanItemDto = {
+export type PersonalTrainingPlanItemDto = {
   publicId: string;
   title: string;
   subtitle: string | null;
@@ -95,9 +106,13 @@ export type DraftTrainingPlanItemDto = {
   studentName: string;
   studentEmail: string;
   studentMembershipPublicId: string;
+  activatedAt: Date | null;
+  archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type DraftTrainingPlanItemDto = PersonalTrainingPlanItemDto;
 
 export type DraftTrainingPlanEditorDto = TrainingPlanDto & {
   studentName: string;
@@ -177,6 +192,311 @@ export function parseVideoUrl(rawUrl: string | null | undefined): ParsedVideo {
     videoUrl: trimmed,
     videoProvider: "EXTERNAL",
     videoExternalId: null,
+  };
+}
+
+/**
+ * Validador central puro de completude e prontidão de um Training Plan para ativação.
+ */
+export function validateTrainingPlanForActivation(
+  plan: TrainingPlanDto
+): PlanActivationValidationResult {
+  const issues: ValidationIssue[] = [];
+
+  // 1. Título do Plano
+  const title = (plan.title || "").trim();
+  if (!title) {
+    issues.push({
+      code: "PLAN_TITLE_REQUIRED",
+      path: "title",
+      message: "O título do plano de treino é obrigatório.",
+    });
+  } else if (title.length > 255) {
+    issues.push({
+      code: "PLAN_TITLE_TOO_LONG",
+      path: "title",
+      message: "O título do plano deve ter no máximo 255 caracteres.",
+    });
+  }
+
+  // 2. Datas do Plano
+  if (plan.startsOn && plan.endsOn && plan.endsOn < plan.startsOn) {
+    issues.push({
+      code: "INVALID_DATE_RANGE",
+      path: "endsOn",
+      message: "A data final do plano deve ser igual ou posterior à data inicial.",
+    });
+  }
+
+  // 3. Workouts (Treinos)
+  const activeWorkouts = plan.workouts || [];
+  if (activeWorkouts.length === 0) {
+    issues.push({
+      code: "NO_WORKOUTS",
+      path: "workouts",
+      message: "Adicione pelo menos um treino ao plano (ex: Treino A).",
+    });
+  }
+
+  for (let wIdx = 0; wIdx < activeWorkouts.length; wIdx++) {
+    const workout = activeWorkouts[wIdx];
+    const wPath = `workouts[${wIdx}]`;
+    const wTitle = (workout.title || "").trim();
+
+    if (!wTitle) {
+      issues.push({
+        code: "WORKOUT_TITLE_REQUIRED",
+        path: `${wPath}.title`,
+        message: `O treino ${wIdx + 1} precisa ter um título preenchido.`,
+      });
+    }
+
+    if (
+      workout.scheduledWeekday !== null &&
+      workout.scheduledWeekday !== undefined
+    ) {
+      const wk = Number(workout.scheduledWeekday);
+      if (!Number.isInteger(wk) || wk < 1 || wk > 7) {
+        issues.push({
+          code: "INVALID_WEEKDAY",
+          path: `${wPath}.scheduledWeekday`,
+          message: `O dia da semana do treino "${wTitle || wIdx + 1}" é inválido.`,
+        });
+      }
+    }
+
+    const activeSections = workout.sections || [];
+    if (activeSections.length === 0) {
+      issues.push({
+        code: "NO_SECTIONS",
+        path: `${wPath}.sections`,
+        message: `O treino "${wTitle || wIdx + 1}" precisa conter pelo menos uma divisão/seção muscular.`,
+      });
+    }
+
+    for (let sIdx = 0; sIdx < activeSections.length; sIdx++) {
+      const section = activeSections[sIdx];
+      const sPath = `${wPath}.sections[${sIdx}]`;
+      const sTitle = (section.title || "").trim();
+
+      if (!sTitle) {
+        issues.push({
+          code: "SECTION_TITLE_REQUIRED",
+          path: `${sPath}.title`,
+          message: `A seção ${sIdx + 1} do treino "${wTitle || wIdx + 1}" precisa ter um título preenchido.`,
+        });
+      }
+
+      const activeBlocks = section.blocks || [];
+      if (activeBlocks.length === 0) {
+        issues.push({
+          code: "NO_BLOCKS",
+          path: `${sPath}.blocks`,
+          message: `A seção "${sTitle || sIdx + 1}" precisa conter pelo menos um bloco de exercícios.`,
+        });
+      }
+
+      for (let bIdx = 0; bIdx < activeBlocks.length; bIdx++) {
+        const block = activeBlocks[bIdx];
+        const bPath = `${sPath}.blocks[${bIdx}]`;
+        const bType = block.blockType as TrainingBlockType;
+
+        if (!ALLOWED_BLOCK_TYPES.includes(bType)) {
+          issues.push({
+            code: "INVALID_BLOCK_TYPE",
+            path: `${bPath}.blockType`,
+            message: `O bloco na seção "${sTitle || sIdx + 1}" possui um tipo inválido.`,
+          });
+        }
+
+        if (block.rounds !== null && block.rounds !== undefined) {
+          const rounds = Number(block.rounds);
+          if (!Number.isInteger(rounds) || rounds <= 0) {
+            issues.push({
+              code: "INVALID_ROUNDS",
+              path: `${bPath}.rounds`,
+              message: `O número de rounds no bloco "${block.title || bIdx + 1}" deve ser maior que zero.`,
+            });
+          }
+        }
+
+        if (
+          block.restBetweenExercisesSeconds !== null &&
+          block.restBetweenExercisesSeconds !== undefined
+        ) {
+          const rBe = Number(block.restBetweenExercisesSeconds);
+          if (!Number.isInteger(rBe) || rBe < 0) {
+            issues.push({
+              code: "INVALID_REST_BETWEEN",
+              path: `${bPath}.restBetweenExercisesSeconds`,
+              message: `O tempo de descanso entre exercícios no bloco "${block.title || bIdx + 1}" não pode ser negativo.`,
+            });
+          }
+        }
+
+        if (
+          block.restAfterBlockSeconds !== null &&
+          block.restAfterBlockSeconds !== undefined
+        ) {
+          const rAf = Number(block.restAfterBlockSeconds);
+          if (!Number.isInteger(rAf) || rAf < 0) {
+            issues.push({
+              code: "INVALID_REST_AFTER",
+              path: `${bPath}.restAfterBlockSeconds`,
+              message: `O tempo de descanso final no bloco "${block.title || bIdx + 1}" não pode ser negativo.`,
+            });
+          }
+        }
+
+        const activeExercises = block.exercises || [];
+        const exCount = activeExercises.length;
+
+        if (bType === "SINGLE" && exCount !== 1) {
+          issues.push({
+            code: "SINGLE_EXERCISE_COUNT",
+            path: `${bPath}.exercises`,
+            message: `O bloco isolado "${block.title || 'Exercício ' + (bIdx + 1)}" precisa conter exatamente 1 exercício (atual: ${exCount}).`,
+          });
+        } else if (bType === "BI_SET" && exCount !== 2) {
+          issues.push({
+            code: "BI_SET_EXERCISE_COUNT",
+            path: `${bPath}.exercises`,
+            message: `O bi-set "${block.title || 'Bi-Set ' + (bIdx + 1)}" precisa conter exatamente 2 exercícios (atual: ${exCount}).`,
+          });
+        } else if (bType === "TRI_SET" && exCount !== 3) {
+          issues.push({
+            code: "TRI_SET_EXERCISE_COUNT",
+            path: `${bPath}.exercises`,
+            message: `O tri-set "${block.title || 'Tri-Set ' + (bIdx + 1)}" precisa conter exatamente 3 exercícios (atual: ${exCount}).`,
+          });
+        } else if (bType === "SUPERSET" && exCount < 2) {
+          issues.push({
+            code: "SUPERSET_EXERCISE_COUNT",
+            path: `${bPath}.exercises`,
+            message: `O superset "${block.title || 'Superset ' + (bIdx + 1)}" precisa conter no mínimo 2 exercícios (atual: ${exCount}).`,
+          });
+        } else if (bType === "CIRCUIT" && exCount < 2) {
+          issues.push({
+            code: "CIRCUIT_EXERCISE_COUNT",
+            path: `${bPath}.exercises`,
+            message: `O circuito "${block.title || 'Circuito ' + (bIdx + 1)}" precisa conter no mínimo 2 exercícios (atual: ${exCount}).`,
+          });
+        }
+
+        for (let eIdx = 0; eIdx < activeExercises.length; eIdx++) {
+          const exercise = activeExercises[eIdx];
+          const ePath = `${bPath}.exercises[${eIdx}]`;
+          const exName = (exercise.exerciseName || "").trim();
+
+          if (!exName) {
+            issues.push({
+              code: "EXERCISE_NAME_REQUIRED",
+              path: `${ePath}.exerciseName`,
+              message: `O exercício ${eIdx + 1} no bloco "${block.title || bIdx + 1}" precisa ter um nome.`,
+            });
+          }
+
+          // Orientação de execução real: sets, reps, load, technique, notes, instructions
+          const hasSets =
+            exercise.sets !== null &&
+            exercise.sets !== undefined &&
+            Number(exercise.sets) > 0;
+          const hasReps =
+            typeof exercise.repetitionsText === "string" &&
+            exercise.repetitionsText.trim().length > 0;
+          const hasLoad =
+            typeof exercise.loadGuidance === "string" &&
+            exercise.loadGuidance.trim().length > 0;
+          const hasTech =
+            typeof exercise.technique === "string" &&
+            exercise.technique.trim().length > 0;
+          const hasNotes =
+            typeof exercise.notes === "string" &&
+            exercise.notes.trim().length > 0;
+          const hasInst =
+            typeof exercise.instructions === "string" &&
+            exercise.instructions.trim().length > 0;
+
+          if (
+            !hasSets &&
+            !hasReps &&
+            !hasLoad &&
+            !hasTech &&
+            !hasNotes &&
+            !hasInst
+          ) {
+            issues.push({
+              code: "NO_PRESCRIPTION_GUIDANCE",
+              path: `${ePath}.prescription`,
+              message: `O exercício "${exName || eIdx + 1}" precisa ter pelo menos uma orientação de execução (séries, repetições, carga, técnica ou observações).`,
+            });
+          }
+
+          if (
+            exercise.sets !== null &&
+            exercise.sets !== undefined &&
+            Number(exercise.sets) <= 0
+          ) {
+            issues.push({
+              code: "INVALID_SETS",
+              path: `${ePath}.sets`,
+              message: `O número de séries do exercício "${exName || eIdx + 1}" deve ser maior que zero.`,
+            });
+          }
+
+          if (
+            exercise.restSeconds !== null &&
+            exercise.restSeconds !== undefined &&
+            Number(exercise.restSeconds) < 0
+          ) {
+            issues.push({
+              code: "INVALID_REST",
+              path: `${ePath}.restSeconds`,
+              message: `O tempo de descanso do exercício "${exName || eIdx + 1}" não pode ser negativo.`,
+            });
+          }
+
+          // Vídeo
+          if (exercise.videoUrl) {
+            try {
+              const parsed = parseVideoUrl(exercise.videoUrl);
+              if (parsed.videoProvider !== exercise.videoProvider) {
+                issues.push({
+                  code: "VIDEO_PROVIDER_MISMATCH",
+                  path: `${ePath}.videoUrl`,
+                  message: `A URL de vídeo do exercício "${exName || eIdx + 1}" está inconsistente com o provedor registrado.`,
+                });
+              }
+            } catch (err: unknown) {
+              issues.push({
+                code: "INVALID_VIDEO_URL",
+                path: `${ePath}.videoUrl`,
+                message:
+                  err instanceof Error
+                    ? err.message
+                    : `URL de vídeo inválida no exercício "${exName || eIdx + 1}".`,
+              });
+            }
+          } else {
+            if (
+              exercise.videoProvider !== null ||
+              exercise.videoExternalId !== null
+            ) {
+              issues.push({
+                code: "VIDEO_METADATA_INCONSISTENT",
+                path: `${ePath}.videoProvider`,
+                message: `Inconsistência de vídeo no exercício "${exName || eIdx + 1}".`,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
   };
 }
 
@@ -448,26 +768,38 @@ function assemblePlanTree(
 }
 
 /**
- * Lista planos em rascunho (DRAFT) criados pelo PERSONAL no tenant.
+ * Lista planos de treino criados pelo PERSONAL no tenant filtrados por status (DRAFT, ACTIVE, ARCHIVED).
  */
-export async function listDraftTrainingPlansForPersonal(params: {
+export async function listPersonalTrainingPlans(params: {
   actorUserId: number;
   consultancySlug: string;
+  statusFilter?: "DRAFT" | "ACTIVE" | "ARCHIVED";
   page?: number;
   pageSize?: number;
 }): Promise<{
-  items: DraftTrainingPlanItemDto[];
+  items: PersonalTrainingPlanItemDto[];
   total: number;
   page: number;
   pageSize: number;
   totalPages: number;
 } | null> {
-  const { actorUserId, consultancySlug, page = 1, pageSize = 25 } = params;
+  const {
+    actorUserId,
+    consultancySlug,
+    statusFilter = "DRAFT",
+    page = 1,
+    pageSize = 25,
+  } = params;
 
   if (!actorUserId || !consultancySlug) return null;
 
   const context = await resolveConsultancyContext(actorUserId, consultancySlug);
   if (!context || !context.roles.includes("PERSONAL")) return null;
+
+  const validStatus =
+    statusFilter === "ACTIVE" || statusFilter === "ARCHIVED"
+      ? statusFilter
+      : "DRAFT";
 
   const validPage = Number.isInteger(page) && page >= 1 ? page : 1;
   const validPageSize =
@@ -485,9 +817,9 @@ export async function listDraftTrainingPlansForPersonal(params: {
        FROM training_plans tp
        WHERE tp.consultancy_id = ?
          AND tp.created_by_user_id = ?
-         AND tp.status = 'DRAFT'
+         AND tp.status = ?
          AND tp.deleted_at IS NULL;`,
-      [context.consultancyId, actorUserId]
+      [context.consultancyId, actorUserId, validStatus]
     );
     const total = Number(countRows[0]?.total || 0);
 
@@ -500,6 +832,8 @@ export async function listDraftTrainingPlansForPersonal(params: {
         tp.status,
         DATE_FORMAT(tp.starts_on, '%Y-%m-%d') AS starts_on,
         DATE_FORMAT(tp.ends_on, '%Y-%m-%d') AS ends_on,
+        tp.activated_at,
+        tp.archived_at,
         tp.created_at,
         tp.updated_at,
         u.full_name AS student_name,
@@ -510,14 +844,20 @@ export async function listDraftTrainingPlansForPersonal(params: {
        INNER JOIN users u ON u.id = cm.user_id
        WHERE tp.consultancy_id = ?
          AND tp.created_by_user_id = ?
-         AND tp.status = 'DRAFT'
+         AND tp.status = ?
          AND tp.deleted_at IS NULL
        ORDER BY tp.updated_at DESC, tp.public_id ASC
        LIMIT ? OFFSET ?;`,
-      [context.consultancyId, actorUserId, String(validPageSize), String(offset)]
+      [
+        context.consultancyId,
+        actorUserId,
+        validStatus,
+        String(validPageSize),
+        String(offset),
+      ]
     );
 
-    const items: DraftTrainingPlanItemDto[] = rows.map((r) => ({
+    const items: PersonalTrainingPlanItemDto[] = rows.map((r) => ({
       publicId: String(r.public_id),
       title: String(r.title),
       subtitle: r.subtitle ? String(r.subtitle) : null,
@@ -528,6 +868,8 @@ export async function listDraftTrainingPlansForPersonal(params: {
       studentName: String(r.student_name),
       studentEmail: String(r.student_email),
       studentMembershipPublicId: String(r.student_membership_public_id),
+      activatedAt: r.activated_at ? new Date(r.activated_at) : null,
+      archivedAt: r.archived_at ? new Date(r.archived_at) : null,
       createdAt: new Date(r.created_at),
       updatedAt: new Date(r.updated_at),
     }));
@@ -546,6 +888,24 @@ export async function listDraftTrainingPlansForPersonal(params: {
   } finally {
     if (connection) connection.release();
   }
+}
+
+/**
+ * Alias compatível para listagem de planos em rascunho.
+ */
+export async function listDraftTrainingPlansForPersonal(params: {
+  actorUserId: number;
+  consultancySlug: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<{
+  items: DraftTrainingPlanItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+} | null> {
+  return listPersonalTrainingPlans({ ...params, statusFilter: "DRAFT" });
 }
 
 /**
@@ -742,6 +1102,424 @@ export async function getDraftTrainingPlanForEditor(params: {
     };
   } catch {
     return null;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Preflight de validação de prontidão para ativação de um Training Plan.
+ */
+export async function checkTrainingPlanActivationReadiness(params: {
+  actorUserId: number;
+  consultancySlug: string;
+  planPublicId: string;
+}): Promise<
+  | {
+      success: true;
+      valid: boolean;
+      issues: ValidationIssue[];
+      planTitle: string;
+      studentName: string;
+    }
+  | { success: false; error: string }
+> {
+  const { actorUserId, consultancySlug, planPublicId } = params;
+
+  if (!actorUserId || !consultancySlug || !planPublicId) {
+    return { success: false, error: "Parâmetros inválidos." };
+  }
+
+  const plan = await getDraftTrainingPlanForEditor({
+    actorUserId,
+    consultancySlug,
+    planPublicId,
+  });
+
+  if (!plan) {
+    return {
+      success: false,
+      error: "Plano de treino em rascunho não encontrado ou sem permissão de acesso.",
+    };
+  }
+
+  const validation = validateTrainingPlanForActivation(plan);
+
+  return {
+    success: true,
+    valid: validation.valid,
+    issues: validation.issues,
+    planTitle: plan.title,
+    studentName: plan.studentName,
+  };
+}
+
+/**
+ * Ativação transacional e atômica de um Training Plan (DRAFT -> ACTIVE).
+ * Arquiva o plano ACTIVE anterior do aluno caso exista (ACTIVE -> ARCHIVED).
+ * Garante unicidade lógica de exatamente 1 plano ACTIVE por aluno/consultoria.
+ */
+export async function activateTrainingPlan(params: {
+  actorUserId: number;
+  consultancySlug: string;
+  planPublicId: string;
+}): Promise<
+  | {
+      success: true;
+      alreadyActive?: boolean;
+      activatedPlanPublicId: string;
+      studentMembershipPublicId: string;
+      studentName: string;
+    }
+  | { success: false; error: string; issues?: ValidationIssue[] }
+> {
+  const { actorUserId, consultancySlug, planPublicId } = params;
+
+  if (!actorUserId || !consultancySlug || !planPublicId) {
+    return { success: false, error: "Parâmetros obrigatórios ausentes." };
+  }
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Revalidar consultoria
+    const [cRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id FROM consultancies WHERE slug = ? AND status = 'ACTIVE' AND deleted_at IS NULL LIMIT 1;`,
+      [consultancySlug.trim()]
+    );
+    if (!Array.isArray(cRows) || cRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Consultoria indisponível." };
+    }
+    const consultancyId = Number(cRows[0].id);
+    const consultancyPublicId = String(cRows[0].public_id);
+
+    // 2. Lock & revalidar actor membership com role PERSONAL
+    const [mRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id
+       FROM consultancy_members cm
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'PERSONAL'
+       WHERE cm.user_id = ?
+         AND cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+       LIMIT 1
+       FOR UPDATE;`,
+      [actorUserId, consultancyId]
+    );
+    if (!Array.isArray(mRows) || mRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Permissão insuficiente para ativar planos de treino." };
+    }
+
+    // 3. Lock target plan
+    const [pRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        tp.id,
+        tp.public_id,
+        tp.student_membership_id,
+        tp.created_by_user_id,
+        tp.status,
+        tp.title,
+        tp.subtitle,
+        tp.description,
+        DATE_FORMAT(tp.starts_on, '%Y-%m-%d') AS starts_on,
+        DATE_FORMAT(tp.ends_on, '%Y-%m-%d') AS ends_on,
+        tp.activated_at,
+        tp.archived_at
+       FROM training_plans tp
+       WHERE tp.public_id = ?
+         AND tp.consultancy_id = ?
+         AND tp.created_by_user_id = ?
+         AND tp.deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
+      [planPublicId.trim(), consultancyId, actorUserId]
+    );
+
+    if (!Array.isArray(pRows) || pRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Plano de treino não encontrado ou não pertence a você." };
+    }
+
+    const targetPlan = pRows[0];
+    const targetPlanId = Number(targetPlan.id);
+    const targetStatus = String(targetPlan.status);
+    const studentMembershipId = Number(targetPlan.student_membership_id);
+
+    // 4. Lock target student membership (serialização lógica por aluno)
+    const [stRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id, cm.public_id, u.full_name, u.email
+       FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
+       WHERE cm.id = ?
+         AND cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND u.deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
+      [studentMembershipId, consultancyId]
+    );
+
+    if (!Array.isArray(stRows) || stRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Aluno vinculado ao plano não está ativo nesta consultoria." };
+    }
+    const student = stRows[0];
+
+    // Idempotência / Double submit check
+    if (targetStatus === "ACTIVE") {
+      const [curActiveCheck] = await connection.execute<RowDataPacket[]>(
+        `SELECT id FROM training_plans
+         WHERE consultancy_id = ? AND student_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL;`,
+        [consultancyId, studentMembershipId]
+      );
+      if (
+        Array.isArray(curActiveCheck) &&
+        curActiveCheck.length === 1 &&
+        Number(curActiveCheck[0].id) === targetPlanId
+      ) {
+        await connection.rollback();
+        return {
+          success: true,
+          alreadyActive: true,
+          activatedPlanPublicId: String(targetPlan.public_id),
+          studentMembershipPublicId: String(student.public_id),
+          studentName: String(student.full_name),
+        };
+      }
+    }
+
+    if (targetStatus === "ARCHIVED") {
+      await connection.rollback();
+      return { success: false, error: "Não é possível ativar um plano que já foi arquivado." };
+    }
+
+    if (targetStatus !== "DRAFT") {
+      await connection.rollback();
+      return { success: false, error: "Apenas planos em rascunho (DRAFT) podem ser ativados." };
+    }
+
+    // 5. Recarregar árvore completa do plano sob Lock e revalidar completude
+    const [itemRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        tw.id AS workout_id,
+        tw.public_id AS workout_public_id,
+        tw.title AS workout_title,
+        tw.subtitle AS workout_subtitle,
+        tw.scheduled_weekday AS workout_scheduled_weekday,
+        tw.sort_order AS workout_sort_order,
+        tw.notes AS workout_notes,
+
+        tws.id AS section_id,
+        tws.public_id AS section_public_id,
+        tws.title AS section_title,
+        tws.description AS section_description,
+        tws.sort_order AS section_sort_order,
+
+        twb.id AS block_id,
+        twb.public_id AS block_public_id,
+        twb.block_type AS block_type,
+        twb.title AS block_title,
+        twb.rounds AS block_rounds,
+        twb.rest_between_exercises_seconds AS block_rest_between_exercises_seconds,
+        twb.rest_after_block_seconds AS block_rest_after_block_seconds,
+        twb.instructions AS block_instructions,
+        twb.sort_order AS block_sort_order,
+
+        twbe.id AS exercise_item_id,
+        twbe.public_id AS exercise_item_public_id,
+        te.public_id AS catalog_exercise_public_id,
+        twbe.sort_order AS exercise_sort_order,
+        twbe.exercise_name_snapshot,
+        twbe.description_snapshot,
+        twbe.muscle_group_snapshot,
+        twbe.equipment_snapshot,
+        twbe.instructions_snapshot,
+        twbe.sets,
+        twbe.repetitions_text,
+        twbe.rest_seconds,
+        twbe.load_guidance,
+        twbe.technique,
+        twbe.notes AS exercise_notes,
+        twbe.video_url,
+        twbe.video_provider,
+        twbe.video_external_id
+       FROM training_workouts tw
+       LEFT JOIN training_workout_sections tws
+         ON tws.workout_id = tw.id AND tws.deleted_at IS NULL
+       LEFT JOIN training_workout_blocks twb
+         ON twb.section_id = tws.id AND twb.deleted_at IS NULL
+       LEFT JOIN training_workout_block_exercises twbe
+         ON twbe.block_id = twb.id AND twbe.deleted_at IS NULL
+       LEFT JOIN training_exercises te
+         ON te.id = twbe.exercise_id AND te.deleted_at IS NULL
+       WHERE tw.training_plan_id = ?
+         AND tw.deleted_at IS NULL
+       ORDER BY
+         tw.sort_order ASC, tw.id ASC,
+         tws.sort_order ASC, tws.id ASC,
+         twb.sort_order ASC, twb.id ASC,
+         twbe.sort_order ASC, twbe.id ASC;`,
+      [targetPlanId]
+    );
+
+    const assembledPlan = assemblePlanTree(
+      targetPlan,
+      itemRows,
+      consultancyPublicId
+    );
+
+    // Validação estrita de completude
+    const validation = validateTrainingPlanForActivation(assembledPlan);
+    if (!validation.valid) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "O plano de treino não está completo para ser disponibilizado.",
+        issues: validation.issues,
+      };
+    }
+
+    // 6. Verificar se há referências a exercícios de outro tenant (cross-tenant check)
+    const [foreignExRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total
+       FROM training_workout_block_exercises twbe
+       INNER JOIN training_workout_blocks twb ON twb.id = twbe.block_id
+       INNER JOIN training_workout_sections tws ON tws.id = twb.section_id
+       INNER JOIN training_workouts tw ON tw.id = tws.workout_id
+       INNER JOIN training_exercises te ON te.id = twbe.exercise_id
+       WHERE tw.training_plan_id = ?
+         AND twbe.exercise_id IS NOT NULL
+         AND te.consultancy_id != ?
+         AND twbe.deleted_at IS NULL;`,
+      [targetPlanId, consultancyId]
+    );
+    if (Number(foreignExRows[0]?.total || 0) > 0) {
+      await connection.rollback();
+      return { success: false, error: "Exercício de outra consultoria detectado no plano." };
+    }
+
+    // 7. Lock nos planos ACTIVE atuais deste aluno no tenant
+    const [currentActivePlans] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, activated_at
+       FROM training_plans
+       WHERE consultancy_id = ?
+         AND student_membership_id = ?
+         AND status = 'ACTIVE'
+         AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [consultancyId, studentMembershipId]
+    );
+
+    // Se houver mais de 1 ACTIVE -> fail-closed (inconsistência crítica)
+    if (currentActivePlans.length > 1) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Inconsistência de integridade detectada: múltiplos planos ativos para o mesmo aluno.",
+      };
+    }
+
+    // Se houver 1 ACTIVE anterior diferente do target -> arquivá-lo
+    if (currentActivePlans.length === 1) {
+      const prevActivePlan = currentActivePlans[0];
+      if (Number(prevActivePlan.id) !== targetPlanId) {
+        const [archiveRes] = await connection.execute<ResultSetHeader>(
+          `UPDATE training_plans
+           SET status = 'ARCHIVED',
+               archived_at = UTC_TIMESTAMP(3),
+               updated_at = UTC_TIMESTAMP(3)
+           WHERE id = ? AND status = 'ACTIVE';`,
+          [prevActivePlan.id]
+        );
+
+        if (archiveRes.affectedRows !== 1) {
+          await connection.rollback();
+          return { success: false, error: "Falha ao arquivar o plano de treino anterior." };
+        }
+
+        // Auditoria do plano arquivado
+        await connection.execute<ResultSetHeader>(
+          `INSERT INTO audit_events (
+            public_id,
+            actor_user_id,
+            consultancy_id,
+            action,
+            target_type,
+            target_public_id,
+            metadata_json,
+            created_at
+          ) VALUES (UUID(), ?, ?, 'TRAINING_PLAN_ARCHIVED', 'TRAINING_PLAN', ?, NULL, UTC_TIMESTAMP(3));`,
+          [actorUserId, consultancyId, String(prevActivePlan.public_id)]
+        );
+      }
+    }
+
+    // 8. Promover target DRAFT -> ACTIVE
+    const [activateRes] = await connection.execute<ResultSetHeader>(
+      `UPDATE training_plans
+       SET status = 'ACTIVE',
+           activated_at = UTC_TIMESTAMP(3),
+           archived_at = NULL,
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ? AND status = 'DRAFT';`,
+      [targetPlanId]
+    );
+
+    if (activateRes.affectedRows !== 1) {
+      await connection.rollback();
+      return { success: false, error: "Não foi possível ativar o plano de treino." };
+    }
+
+    // Auditoria do novo plano ativado
+    await connection.execute<ResultSetHeader>(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (UUID(), ?, ?, 'TRAINING_PLAN_ACTIVATED', 'TRAINING_PLAN', ?, NULL, UTC_TIMESTAMP(3));`,
+      [actorUserId, consultancyId, String(targetPlan.public_id)]
+    );
+
+    // 9. Assert defensivo final antes do commit: exatamente 1 ACTIVE para este aluno no tenant
+    const [finalActiveCount] = await connection.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total
+       FROM training_plans
+       WHERE consultancy_id = ?
+         AND student_membership_id = ?
+         AND status = 'ACTIVE'
+         AND deleted_at IS NULL;`,
+      [consultancyId, studentMembershipId]
+    );
+
+    if (Number(finalActiveCount[0]?.total) !== 1) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Falha na garantia de unicidade: o aluno deve ter exatamente 1 plano ativo.",
+      };
+    }
+
+    await connection.commit();
+
+    return {
+      success: true,
+      activatedPlanPublicId: String(targetPlan.public_id),
+      studentMembershipPublicId: String(student.public_id),
+      studentName: String(student.full_name),
+    };
+  } catch {
+    if (connection) await connection.rollback();
+    return { success: false, error: "Erro interno ao ativar o plano de treino." };
   } finally {
     if (connection) connection.release();
   }

@@ -22,7 +22,10 @@ import {
   updateTrainingBlockExercise,
   moveTrainingBlockExercise,
   removeTrainingBlockExercise,
+  checkTrainingPlanActivationReadiness,
+  activateTrainingPlan,
   type TrainingBlockType,
+  type ValidationIssue,
 } from "@/lib/consultancies/training";
 
 export type PlanActionState = {
@@ -546,5 +549,77 @@ export async function removeTrainingBlockExerciseAction(
   if (result.success) {
     revalidatePath(`/consultoria/${slug}/personal/treinos/${planPublicId}`);
   }
+  return result;
+}
+
+/**
+ * Server Action de preflight para validação de completude antes de disponibilizar para o aluno.
+ */
+export async function validateTrainingPlanActivationAction(
+  slug: string,
+  planPublicId: string
+): Promise<
+  | {
+      success: true;
+      valid: boolean;
+      issues: ValidationIssue[];
+      planTitle: string;
+      studentName: string;
+    }
+  | { success: false; error: string }
+> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada." };
+  }
+
+  return checkTrainingPlanActivationReadiness({
+    actorUserId: session.userId,
+    consultancySlug: slug,
+    planPublicId,
+  });
+}
+
+/**
+ * Server Action de ativação atômica e transacional de um plano de treino.
+ */
+export async function activateTrainingPlanAction(
+  slug: string,
+  planPublicId: string
+): Promise<
+  | {
+      success: true;
+      alreadyActive?: boolean;
+      activatedPlanPublicId: string;
+      studentMembershipPublicId: string;
+      studentName: string;
+      message: string;
+    }
+  | { success: false; error: string; issues?: ValidationIssue[] }
+> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada." };
+  }
+
+  const result = await activateTrainingPlan({
+    actorUserId: session.userId,
+    consultancySlug: slug,
+    planPublicId,
+  });
+
+  if (result.success) {
+    revalidatePath(`/consultoria/${slug}/personal/treinos`);
+    revalidatePath(`/consultoria/${slug}/personal/treinos/${planPublicId}`);
+    revalidatePath(`/consultoria/${slug}/treinos`);
+
+    return {
+      ...result,
+      message: result.alreadyActive
+        ? "Este plano já está ativo para o aluno."
+        : "Plano de treino disponibilizado para o aluno com sucesso!",
+    };
+  }
+
   return result;
 }

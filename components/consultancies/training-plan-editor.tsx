@@ -11,6 +11,7 @@ import type {
   TrainingWorkoutSectionDto,
   TrainingWorkoutBlockDto,
   TrainingBlockExerciseDto,
+  ValidationIssue,
 } from "@/lib/consultancies/training";
 import { TrainingPlanRenderer } from "./training-plan-renderer";
 import {
@@ -32,6 +33,8 @@ import {
   updateTrainingBlockExerciseAction,
   moveTrainingBlockExerciseAction,
   removeTrainingBlockExerciseAction,
+  validateTrainingPlanActivationAction,
+  activateTrainingPlanAction,
 } from "@/app/consultoria/[slug]/personal/treinos/actions";
 
 type Props = {
@@ -74,6 +77,11 @@ export function TrainingPlanEditor({
   const [currentBlockIdForExercise, setCurrentBlockIdForExercise] = useState<string | null>(null);
   const [exerciseMode, setExerciseMode] = useState<"library" | "custom">("library");
   const [editingExerciseItem, setEditingExerciseItem] = useState<TrainingBlockExerciseDto | null>(null);
+
+  // Activation & Validation Modal state
+  const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
+  const [isValidatingReadiness, setIsValidatingReadiness] = useState(false);
+  const [activationIssues, setActivationIssues] = useState<ValidationIssue[]>([]);
 
   // Form Fields State - Metadata
   const [metaTitle, setMetaTitle] = useState(plan.title);
@@ -165,38 +173,41 @@ export function TrainingPlanEditor({
     e.preventDefault();
     setFeedback(null);
 
-    const payload = {
-      title: wTitle,
-      subtitle: wSubtitle || null,
-      scheduledWeekday: wWeekday !== "" ? Number(wWeekday) : null,
-      notes: wNotes || null,
-    };
-
     startTransition(async () => {
       if (editingWorkout) {
         const res = await updateTrainingWorkoutAction(
           consultancySlug,
           plan.publicId,
           editingWorkout.publicId,
-          payload
+          {
+            title: wTitle,
+            subtitle: wSubtitle || null,
+            scheduledWeekday: wWeekday !== "" ? Number(wWeekday) : null,
+            notes: wNotes || null,
+          }
         );
         if (res.success) {
           setIsWorkoutModalOpen(false);
           router.refresh();
         } else {
-          setFeedback({ type: "error", message: res.error || "Erro ao atualizar treino." });
+          setFeedback({ type: "error", message: res.error || "Erro ao salvar treino." });
         }
       } else {
         const res = await createTrainingWorkoutAction(
           consultancySlug,
           plan.publicId,
-          payload
+          {
+            title: wTitle,
+            subtitle: wSubtitle || null,
+            scheduledWeekday: wWeekday !== "" ? Number(wWeekday) : null,
+            notes: wNotes || null,
+          }
         );
         if (res.success) {
           setIsWorkoutModalOpen(false);
           router.refresh();
         } else {
-          setFeedback({ type: "error", message: res.error || "Erro ao adicionar treino." });
+          setFeedback({ type: "error", message: res.error || "Erro ao criar treino." });
         }
       }
     });
@@ -248,31 +259,33 @@ export function TrainingPlanEditor({
     e.preventDefault();
     setFeedback(null);
 
-    const payload = {
-      title: sTitle,
-      description: sDesc || null,
-    };
-
     startTransition(async () => {
       if (editingSection) {
         const res = await updateTrainingWorkoutSectionAction(
           consultancySlug,
           plan.publicId,
           editingSection.publicId,
-          payload
+          {
+            title: sTitle,
+            description: sDesc || null,
+          }
         );
         if (res.success) {
           setIsSectionModalOpen(false);
           router.refresh();
         } else {
-          setFeedback({ type: "error", message: res.error || "Erro ao atualizar seção." });
+          setFeedback({ type: "error", message: res.error || "Erro ao salvar seção." });
         }
-      } else if (currentWorkoutIdForSection) {
+      } else {
+        if (!currentWorkoutIdForSection) return;
         const res = await createTrainingWorkoutSectionAction(
           consultancySlug,
           plan.publicId,
           currentWorkoutIdForSection,
-          payload
+          {
+            title: sTitle,
+            description: sDesc || null,
+          }
         );
         if (res.success) {
           setIsSectionModalOpen(false);
@@ -298,7 +311,7 @@ export function TrainingPlanEditor({
   }
 
   function handleRemoveSection(sectionPublicId: string) {
-    if (!confirm("Deseja remover esta divisão muscular e todos os seus blocos?")) return;
+    if (!confirm("Deseja remover esta seção muscular e todos os seus blocos?")) return;
     startTransition(async () => {
       const res = await removeTrainingWorkoutSectionAction(
         consultancySlug,
@@ -328,14 +341,8 @@ export function TrainingPlanEditor({
     setBType(block.blockType as TrainingBlockType);
     setBTitle(block.title || "");
     setBRounds(block.rounds !== null ? block.rounds : "");
-    setBRestBetween(
-      block.restBetweenExercisesSeconds !== null
-        ? block.restBetweenExercisesSeconds
-        : ""
-    );
-    setBRestAfter(
-      block.restAfterBlockSeconds !== null ? block.restAfterBlockSeconds : ""
-    );
+    setBRestBetween(block.restBetweenExercisesSeconds !== null ? block.restBetweenExercisesSeconds : "");
+    setBRestAfter(block.restAfterBlockSeconds !== null ? block.restAfterBlockSeconds : "");
     setBInstructions(block.instructions || "");
     setIsBlockModalOpen(true);
   }
@@ -344,35 +351,41 @@ export function TrainingPlanEditor({
     e.preventDefault();
     setFeedback(null);
 
-    const payload = {
-      blockType: bType,
-      title: bTitle || null,
-      rounds: bRounds !== "" ? Number(bRounds) : null,
-      restBetweenExercisesSeconds: bRestBetween !== "" ? Number(bRestBetween) : null,
-      restAfterBlockSeconds: bRestAfter !== "" ? Number(bRestAfter) : null,
-      instructions: bInstructions || null,
-    };
-
     startTransition(async () => {
       if (editingBlock) {
         const res = await updateTrainingWorkoutBlockAction(
           consultancySlug,
           plan.publicId,
           editingBlock.publicId,
-          payload
+          {
+            blockType: bType,
+            title: bTitle || null,
+            rounds: bRounds !== "" ? Number(bRounds) : null,
+            restBetweenExercisesSeconds: bRestBetween !== "" ? Number(bRestBetween) : null,
+            restAfterBlockSeconds: bRestAfter !== "" ? Number(bRestAfter) : null,
+            instructions: bInstructions || null,
+          }
         );
         if (res.success) {
           setIsBlockModalOpen(false);
           router.refresh();
         } else {
-          setFeedback({ type: "error", message: res.error || "Erro ao atualizar bloco." });
+          setFeedback({ type: "error", message: res.error || "Erro ao salvar bloco." });
         }
-      } else if (currentSectionIdForBlock) {
+      } else {
+        if (!currentSectionIdForBlock) return;
         const res = await createTrainingWorkoutBlockAction(
           consultancySlug,
           plan.publicId,
           currentSectionIdForBlock,
-          payload
+          {
+            blockType: bType,
+            title: bTitle || null,
+            rounds: bRounds !== "" ? Number(bRounds) : null,
+            restBetweenExercisesSeconds: bRestBetween !== "" ? Number(bRestBetween) : null,
+            restAfterBlockSeconds: bRestAfter !== "" ? Number(bRestAfter) : null,
+            instructions: bInstructions || null,
+          }
         );
         if (res.success) {
           setIsBlockModalOpen(false);
@@ -398,7 +411,7 @@ export function TrainingPlanEditor({
   }
 
   function handleRemoveBlock(blockPublicId: string) {
-    if (!confirm("Deseja remover este bloco de exercícios?")) return;
+    if (!confirm("Deseja remover este bloco e os exercícios contidos nele?")) return;
     startTransition(async () => {
       const res = await removeTrainingWorkoutBlockAction(
         consultancySlug,
@@ -410,7 +423,7 @@ export function TrainingPlanEditor({
     });
   }
 
-  // --- Handlers: Exercises / Prescription ---
+  // --- Handlers: Exercises / Prescriptions ---
   function openAddExerciseModal(blockPublicId: string) {
     setCurrentBlockIdForExercise(blockPublicId);
     setEditingExerciseItem(null);
@@ -423,7 +436,7 @@ export function TrainingPlanEditor({
     setExDesc("");
     setExInst("");
     setExSets(3);
-    setExReps("12-15");
+    setExReps("12");
     setExRest(60);
     setExLoad("");
     setExTech("");
@@ -432,20 +445,21 @@ export function TrainingPlanEditor({
     setIsAddExerciseModalOpen(true);
   }
 
-  function openEditExerciseItemModal(exerciseItem: TrainingBlockExerciseDto) {
-    setEditingExerciseItem(exerciseItem);
-    setExName(exerciseItem.exerciseName);
-    setExMuscle(exerciseItem.muscleGroup || "");
-    setExEquip(exerciseItem.equipment || "");
-    setExDesc(exerciseItem.description || "");
-    setExInst(exerciseItem.instructions || "");
-    setExSets(exerciseItem.sets !== null ? exerciseItem.sets : "");
-    setExReps(exerciseItem.repetitionsText || "");
-    setExRest(exerciseItem.restSeconds !== null ? exerciseItem.restSeconds : "");
-    setExLoad(exerciseItem.loadGuidance || "");
-    setExTech(exerciseItem.technique || "");
-    setExNotes(exerciseItem.notes || "");
-    setExVideoUrl(exerciseItem.videoUrl || "");
+  function openEditExerciseModal(exercise: TrainingBlockExerciseDto) {
+    setEditingExerciseItem(exercise);
+    setExerciseMode("custom");
+    setExName(exercise.exerciseName);
+    setExMuscle(exercise.muscleGroup || "");
+    setExEquip(exercise.equipment || "");
+    setExDesc(exercise.description || "");
+    setExInst(exercise.instructions || "");
+    setExSets(exercise.sets !== null ? exercise.sets : "");
+    setExReps(exercise.repetitionsText || "");
+    setExRest(exercise.restSeconds !== null ? exercise.restSeconds : "");
+    setExLoad(exercise.loadGuidance || "");
+    setExTech(exercise.technique || "");
+    setExNotes(exercise.notes || "");
+    setExVideoUrl(exercise.videoUrl || "");
     setIsAddExerciseModalOpen(true);
   }
 
@@ -484,7 +498,8 @@ export function TrainingPlanEditor({
         } else {
           setFeedback({ type: "error", message: res.error || "Erro ao atualizar exercício." });
         }
-      } else if (currentBlockIdForExercise) {
+      } else {
+        if (!currentBlockIdForExercise) return;
         if (exerciseMode === "library") {
           if (!selectedLibraryPublicId) {
             setFeedback({ type: "error", message: "Selecione um exercício da biblioteca." });
@@ -554,6 +569,49 @@ export function TrainingPlanEditor({
     });
   }
 
+  // --- Handlers: Preflight & Activation ---
+  async function handleOpenActivation() {
+    setFeedback(null);
+    setIsValidatingReadiness(true);
+
+    try {
+      const res = await validateTrainingPlanActivationAction(consultancySlug, plan.publicId);
+      setIsValidatingReadiness(false);
+
+      if (!res.success) {
+        setFeedback({ type: "error", message: res.error || "Não foi possível validar o plano." });
+        return;
+      }
+
+      if (res.valid) {
+        setActivationIssues([]);
+      } else {
+        setActivationIssues(res.issues || []);
+      }
+      setIsActivationModalOpen(true);
+    } catch {
+      setIsValidatingReadiness(false);
+      setFeedback({ type: "error", message: "Erro inesperado ao validar prontidão do plano." });
+    }
+  }
+
+  function handleConfirmActivation() {
+    startTransition(async () => {
+      const res = await activateTrainingPlanAction(consultancySlug, plan.publicId);
+      if (res.success) {
+        setIsActivationModalOpen(false);
+        router.push(`/consultoria/${consultancySlug}/personal/treinos?status=ACTIVE`);
+      } else {
+        if (res.issues && res.issues.length > 0) {
+          setActivationIssues(res.issues);
+        } else {
+          setIsActivationModalOpen(false);
+          setFeedback({ type: "error", message: res.error || "Erro ao ativar plano de treino." });
+        }
+      }
+    });
+  }
+
   const filteredLibrary = activeLibraryExercises.filter((item) => {
     if (!librarySearch.trim()) return true;
     const q = librarySearch.toLowerCase();
@@ -590,30 +648,41 @@ export function TrainingPlanEditor({
           </p>
         </div>
 
-        {/* Mobile Tab Toggle */}
-        <div className="flex lg:hidden items-center p-1 bg-zinc-200/80 rounded-xl">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setActiveTab("editor")}
-            className={`flex-1 py-1.5 px-4 text-xs font-semibold rounded-lg transition-all ${
-              activeTab === "editor"
-                ? "bg-white text-zinc-900 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
-            }`}
+            onClick={handleOpenActivation}
+            disabled={isPending || isValidatingReadiness}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold text-white bg-[#00A859] hover:bg-[#008f4c] disabled:opacity-50 rounded-xl shadow-xs transition-all cursor-pointer"
           >
-            Editar Ficha
+            {isValidatingReadiness ? "Validando..." : "Disponibilizar para o aluno"}
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("preview")}
-            className={`flex-1 py-1.5 px-4 text-xs font-semibold rounded-lg transition-all ${
-              activeTab === "preview"
-                ? "bg-white text-zinc-900 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
-            }`}
-          >
-            Prévia do Aluno
-          </button>
+
+          {/* Mobile Tab Toggle */}
+          <div className="flex lg:hidden items-center p-1 bg-zinc-200/80 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setActiveTab("editor")}
+              className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all ${
+                activeTab === "editor"
+                  ? "bg-white text-zinc-900 shadow-2xs"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Editar Ficha
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("preview")}
+              className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all ${
+                activeTab === "preview"
+                  ? "bg-white text-zinc-900 shadow-2xs"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Prévia do Aluno
+            </button>
+          </div>
         </div>
       </div>
 
@@ -647,173 +716,191 @@ export function TrainingPlanEditor({
               <button
                 type="button"
                 onClick={() => setIsMetaModalOpen(true)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 transition-all"
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 transition-all cursor-pointer"
               >
                 Editar Informações
               </button>
             </div>
-            {plan.subtitle && <p className="text-xs text-zinc-600 font-medium">{plan.subtitle}</p>}
-            {(plan.startsOn || plan.endsOn) && (
-              <p className="text-xs text-zinc-500">
-                Período: {plan.startsOn || "—"} até {plan.endsOn || "—"}
-              </p>
+            {plan.subtitle && (
+              <p className="text-xs text-zinc-600 font-medium">{plan.subtitle}</p>
             )}
             {plan.description && (
-              <p className="text-xs text-zinc-600 border-t border-zinc-100 pt-2 leading-relaxed">
-                {plan.description}
-              </p>
+              <p className="text-xs text-zinc-500 whitespace-pre-wrap">{plan.description}</p>
             )}
+            <div className="flex flex-wrap gap-4 text-xs text-zinc-500 pt-1">
+              <span>
+                Início: <strong className="text-zinc-700">{plan.startsOn ? new Date(plan.startsOn + "T00:00:00").toLocaleDateString("pt-BR") : "Não definido"}</strong>
+              </span>
+              <span>
+                Término: <strong className="text-zinc-700">{plan.endsOn ? new Date(plan.endsOn + "T00:00:00").toLocaleDateString("pt-BR") : "Não definido"}</strong>
+              </span>
+            </div>
           </div>
 
-          {/* Workouts List */}
+          {/* Workouts Container */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-zinc-900">
-                Treinos da Ficha ({plan.workouts.length})
+                Treinos Prescritos ({plan.workouts.length})
               </h2>
               <button
                 type="button"
                 onClick={openNewWorkoutModal}
-                disabled={isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#00A859] hover:bg-[#008f4c] text-white text-xs font-semibold rounded-lg shadow-2xs transition-all"
+                className="px-3 py-1.5 text-xs font-bold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-xl shadow-xs transition-all cursor-pointer"
               >
                 + Adicionar Treino
               </button>
             </div>
 
             {plan.workouts.length === 0 ? (
-              <div className="p-8 rounded-2xl bg-white border border-zinc-200 shadow-2xs text-center space-y-2">
-                <p className="text-xs font-semibold text-zinc-700">Nenhum treino adicionado</p>
-                <p className="text-xs text-zinc-400">
-                  Clique em &quot;+ Adicionar Treino&quot; para criar a primeira divisão (ex: Treino A).
+              <div className="p-8 text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-300 space-y-2">
+                <p className="text-xs font-semibold text-zinc-600">
+                  Nenhum treino adicionado neste plano.
                 </p>
+                <p className="text-xs text-zinc-500">
+                  Adicione o primeiro treino (ex: Treino A - Peitoral e Tríceps).
+                </p>
+                <button
+                  type="button"
+                  onClick={openNewWorkoutModal}
+                  className="mt-2 px-3 py-1.5 text-xs font-bold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-all cursor-pointer"
+                >
+                  Criar Primeiro Treino
+                </button>
               </div>
             ) : (
-              plan.workouts.map((workout, wIndex) => (
+              plan.workouts.map((workout, wIdx) => (
                 <div
                   key={workout.publicId}
                   className="p-4 sm:p-5 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4"
                 >
-                  {/* Workout Header Controls */}
-                  <div className="flex items-center justify-between border-b border-zinc-100 pb-3 gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-zinc-900 text-white text-[10px] font-bold flex items-center justify-center">
-                        {String.fromCharCode(65 + wIndex)}
-                      </span>
-                      <div>
-                        <h3 className="text-sm font-bold text-zinc-900">{workout.title}</h3>
-                        {workout.subtitle && (
-                          <p className="text-[11px] text-zinc-500">{workout.subtitle}</p>
+                  {/* Workout Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-zinc-100 text-zinc-700 font-bold text-xs flex items-center justify-center">
+                          {wIdx + 1}
+                        </span>
+                        <h3 className="text-sm sm:text-base font-bold text-zinc-900">
+                          {workout.title}
+                        </h3>
+                        {workout.scheduledWeekday && (
+                          <span className="text-[11px] px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 font-medium">
+                            {["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"][workout.scheduledWeekday - 1]}
+                          </span>
                         )}
                       </div>
+                      {workout.subtitle && (
+                        <p className="text-xs text-zinc-500 mt-0.5">{workout.subtitle}</p>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 self-end sm:self-auto">
                       <button
                         type="button"
-                        aria-label="Mover treino para cima"
+                        disabled={wIdx === 0 || isPending}
                         onClick={() => handleMoveWorkout(workout.publicId, "UP")}
-                        disabled={isPending || wIndex === 0}
-                        className="p-1 text-zinc-400 hover:text-zinc-900 disabled:opacity-30"
+                        className="p-1 text-xs font-bold text-zinc-500 hover:text-zinc-800 disabled:opacity-30 rounded hover:bg-zinc-100 cursor-pointer"
+                        title="Mover para cima"
                       >
                         ▲
                       </button>
                       <button
                         type="button"
-                        aria-label="Mover treino para baixo"
+                        disabled={wIdx === plan.workouts.length - 1 || isPending}
                         onClick={() => handleMoveWorkout(workout.publicId, "DOWN")}
-                        disabled={isPending || wIndex === plan.workouts.length - 1}
-                        className="p-1 text-zinc-400 hover:text-zinc-900 disabled:opacity-30"
+                        className="p-1 text-xs font-bold text-zinc-500 hover:text-zinc-800 disabled:opacity-30 rounded hover:bg-zinc-100 cursor-pointer"
+                        title="Mover para baixo"
                       >
                         ▼
                       </button>
                       <button
                         type="button"
                         onClick={() => openEditWorkoutModal(workout)}
-                        className="px-2 py-1 text-xs font-semibold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 rounded"
+                        className="px-2 py-1 text-xs font-semibold text-zinc-600 hover:text-zinc-900 rounded hover:bg-zinc-100 cursor-pointer"
                       >
                         Editar
                       </button>
                       <button
                         type="button"
                         onClick={() => handleRemoveWorkout(workout.publicId)}
-                        className="px-2 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded"
+                        className="px-2 py-1 text-xs font-semibold text-red-600 hover:text-red-800 rounded hover:bg-red-50 cursor-pointer"
                       >
-                        Remover
+                        Excluir
                       </button>
                     </div>
                   </div>
 
                   {/* Sections List */}
-                  <div className="space-y-4 pl-1 sm:pl-2">
+                  <div className="space-y-3 pl-0 sm:pl-2">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-                        Divisões Musculares / Seções ({workout.sections.length})
+                        Divisões / Seções ({workout.sections.length})
                       </h4>
                       <button
                         type="button"
                         onClick={() => openNewSectionModal(workout.publicId)}
-                        disabled={isPending}
-                        className="text-xs font-semibold text-[#00A859] hover:underline"
+                        className="text-xs font-bold text-[#00A859] hover:text-[#008f4c] cursor-pointer"
                       >
-                        + Adicionar Seção
+                        + Nova Seção
                       </button>
                     </div>
 
                     {workout.sections.length === 0 ? (
                       <p className="text-xs text-zinc-400 italic py-2">
-                        Nenhuma seção (ex: Peitoral, Tríceps) neste treino.
+                        Nenhuma seção nesta divisão (ex: Aquecimento, Principal, etc).
                       </p>
                     ) : (
-                      workout.sections.map((section, sIndex) => (
+                      workout.sections.map((section, sIdx) => (
                         <div
                           key={section.publicId}
-                          className="p-3 sm:p-4 rounded-xl bg-zinc-50/70 border border-zinc-200/80 space-y-3"
+                          className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/80 space-y-3"
                         >
-                          {/* Section Header Controls */}
-                          <div className="flex items-center justify-between border-b border-zinc-200/60 pb-2">
-                            <h5 className="text-xs font-bold text-zinc-800">
-                              {section.title}
-                            </h5>
-
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h5 className="text-xs font-bold text-zinc-800">
+                                {section.title}
+                              </h5>
+                              {section.description && (
+                                <p className="text-[11px] text-zinc-500">{section.description}</p>
+                              )}
+                            </div>
                             <div className="flex items-center gap-1">
                               <button
                                 type="button"
-                                aria-label="Mover seção para cima"
+                                disabled={sIdx === 0 || isPending}
                                 onClick={() => handleMoveSection(section.publicId, "UP")}
-                                disabled={isPending || sIndex === 0}
-                                className="p-0.5 text-zinc-400 hover:text-zinc-900 disabled:opacity-30 text-xs"
+                                className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
                               >
                                 ▲
                               </button>
                               <button
                                 type="button"
-                                aria-label="Mover seção para baixo"
+                                disabled={sIdx === workout.sections.length - 1 || isPending}
                                 onClick={() => handleMoveSection(section.publicId, "DOWN")}
-                                disabled={isPending || sIndex === workout.sections.length - 1}
-                                className="p-0.5 text-zinc-400 hover:text-zinc-900 disabled:opacity-30 text-xs"
+                                className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
                               >
                                 ▼
                               </button>
                               <button
                                 type="button"
                                 onClick={() => openEditSectionModal(section)}
-                                className="px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 bg-white border border-zinc-200 rounded"
+                                className="px-1.5 py-0.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer"
                               >
                                 Editar
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveSection(section.publicId)}
-                                className="px-1.5 py-0.5 text-[11px] font-semibold text-red-600 bg-red-50 rounded"
+                                className="px-1.5 py-0.5 text-xs font-medium text-red-600 hover:text-red-800 cursor-pointer"
                               >
-                                Remover
+                                Excluir
                               </button>
                             </div>
                           </div>
 
                           {/* Blocks List */}
-                          <div className="space-y-3">
+                          <div className="space-y-2.5 pl-0 sm:pl-2">
                             <div className="flex items-center justify-between">
                               <span className="text-[11px] font-semibold text-zinc-500">
                                 Blocos de Exercício ({section.blocks.length})
@@ -821,21 +908,32 @@ export function TrainingPlanEditor({
                               <button
                                 type="button"
                                 onClick={() => openNewBlockModal(section.publicId)}
-                                disabled={isPending}
-                                className="text-xs font-semibold text-[#00A859] hover:underline"
+                                className="text-[11px] font-bold text-[#00A859] hover:text-[#008f4c] cursor-pointer"
                               >
                                 + Adicionar Bloco
                               </button>
                             </div>
 
-                            {section.blocks.map((block, bIndex) => (
+                            {section.blocks.map((block, bIdx) => (
                               <div
                                 key={block.publicId}
-                                className="p-3 rounded-lg bg-white border border-zinc-200 shadow-2xs space-y-3"
+                                className="p-3 rounded-lg bg-white border border-zinc-200 space-y-2.5 shadow-2xs"
                               >
-                                <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+                                <div className="flex flex-wrap items-center justify-between gap-1 border-b border-zinc-100 pb-1.5">
                                   <div className="flex items-center gap-1.5">
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 text-zinc-800">
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                        block.blockType === "BI_SET"
+                                          ? "bg-purple-100 text-purple-800 border border-purple-200"
+                                          : block.blockType === "TRI_SET"
+                                          ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
+                                          : block.blockType === "SUPERSET"
+                                          ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                          : block.blockType === "CIRCUIT"
+                                          ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                          : "bg-zinc-100 text-zinc-800 border border-zinc-200"
+                                      }`}
+                                    >
                                       {block.blockType}
                                     </span>
                                     {block.title && (
@@ -843,110 +941,110 @@ export function TrainingPlanEditor({
                                         {block.title}
                                       </span>
                                     )}
+                                    {block.rounds && (
+                                      <span className="text-[11px] text-zinc-500">
+                                        • {block.rounds} rounds
+                                      </span>
+                                    )}
                                   </div>
 
                                   <div className="flex items-center gap-1">
                                     <button
                                       type="button"
-                                      aria-label="Mover bloco para cima"
+                                      disabled={bIdx === 0 || isPending}
                                       onClick={() => handleMoveBlock(block.publicId, "UP")}
-                                      disabled={isPending || bIndex === 0}
-                                      className="p-0.5 text-zinc-400 hover:text-zinc-900 disabled:opacity-30 text-xs"
+                                      className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
                                     >
                                       ▲
                                     </button>
                                     <button
                                       type="button"
-                                      aria-label="Mover bloco para baixo"
+                                      disabled={bIdx === section.blocks.length - 1 || isPending}
                                       onClick={() => handleMoveBlock(block.publicId, "DOWN")}
-                                      disabled={isPending || bIndex === section.blocks.length - 1}
-                                      className="p-0.5 text-zinc-400 hover:text-zinc-900 disabled:opacity-30 text-xs"
+                                      className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
                                     >
                                       ▼
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => openEditBlockModal(block)}
-                                      className="px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 bg-zinc-50 border border-zinc-200 rounded"
+                                      className="px-1.5 py-0.5 text-xs text-zinc-600 hover:text-zinc-900 cursor-pointer"
                                     >
-                                      Editar
+                                      Editar Bloco
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleRemoveBlock(block.publicId)}
-                                      className="px-1.5 py-0.5 text-[11px] font-semibold text-red-600 bg-red-50 rounded"
+                                      className="px-1.5 py-0.5 text-xs text-red-600 hover:text-red-800 cursor-pointer"
                                     >
-                                      Remover
+                                      Excluir
                                     </button>
                                   </div>
                                 </div>
 
-                                {/* Exercises in Block */}
-                                <div className="space-y-2">
-                                  {block.exercises.map((exercise, eIndex) => (
+                                {/* Exercises in this Block */}
+                                <div className="space-y-1.5">
+                                  {block.exercises.map((ex, eIdx) => (
                                     <div
-                                      key={exercise.publicId}
-                                      className="p-2.5 rounded-lg bg-zinc-50/70 border border-zinc-200/60 flex items-center justify-between gap-2"
+                                      key={ex.publicId}
+                                      className="flex items-center justify-between p-2 rounded bg-zinc-50 border border-zinc-100 text-xs"
                                     >
                                       <div className="space-y-0.5">
-                                        <p className="text-xs font-bold text-zinc-900">
-                                          {exercise.exerciseName}
-                                        </p>
-                                        <p className="text-[11px] text-zinc-500">
-                                          {exercise.sets ? `${exercise.sets} séries` : ""}{" "}
-                                          {exercise.repetitionsText ? `• ${exercise.repetitionsText} reps` : ""}
-                                          {exercise.loadGuidance ? ` • ${exercise.loadGuidance}` : ""}
-                                        </p>
+                                        <div className="font-bold text-zinc-900">
+                                          {ex.exerciseName}
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 text-[11px] text-zinc-500">
+                                          {ex.sets && <span>{ex.sets} séries</span>}
+                                          {ex.repetitionsText && <span>{ex.repetitionsText} reps</span>}
+                                          {ex.restSeconds !== null && <span>{ex.restSeconds}s rest</span>}
+                                          {ex.loadGuidance && <span>Carga: {ex.loadGuidance}</span>}
+                                          {ex.technique && <span className="text-purple-700 font-medium">{ex.technique}</span>}
+                                          {ex.videoUrl && <span className="text-blue-600 font-semibold">▶ Vídeo</span>}
+                                        </div>
                                       </div>
 
                                       <div className="flex items-center gap-1">
                                         <button
                                           type="button"
-                                          aria-label="Mover exercício para cima"
-                                          onClick={() => handleMoveExercise(exercise.publicId, "UP")}
-                                          disabled={isPending || eIndex === 0}
-                                          className="p-0.5 text-zinc-400 hover:text-zinc-900 disabled:opacity-30 text-xs"
+                                          disabled={eIdx === 0 || isPending}
+                                          onClick={() => handleMoveExercise(ex.publicId, "UP")}
+                                          className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
                                         >
                                           ▲
                                         </button>
                                         <button
                                           type="button"
-                                          aria-label="Mover exercício para baixo"
-                                          onClick={() =>
-                                            handleMoveExercise(exercise.publicId, "DOWN")
-                                          }
-                                          disabled={
-                                            isPending || eIndex === block.exercises.length - 1
-                                          }
-                                          className="p-0.5 text-zinc-400 hover:text-zinc-900 disabled:opacity-30 text-xs"
+                                          disabled={eIdx === block.exercises.length - 1 || isPending}
+                                          onClick={() => handleMoveExercise(ex.publicId, "DOWN")}
+                                          className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
                                         >
                                           ▼
                                         </button>
                                         <button
                                           type="button"
-                                          onClick={() => openEditExerciseItemModal(exercise)}
-                                          className="px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 bg-white border border-zinc-200 rounded"
+                                          onClick={() => openEditExerciseModal(ex)}
+                                          className="px-1 py-0.5 text-xs text-zinc-600 hover:text-zinc-900 cursor-pointer"
                                         >
                                           Editar
                                         </button>
                                         <button
                                           type="button"
-                                          onClick={() => handleRemoveExercise(exercise.publicId)}
-                                          className="px-1.5 py-0.5 text-[11px] font-semibold text-red-600 bg-red-50 rounded"
+                                          onClick={() => handleRemoveExercise(ex.publicId)}
+                                          className="px-1 py-0.5 text-xs text-red-600 hover:text-red-800 cursor-pointer"
                                         >
-                                          ✕
+                                          Excluir
                                         </button>
                                       </div>
                                     </div>
                                   ))}
 
-                                  {/* Button to add exercise */}
+                                  {/* Add Exercise CTA to this block */}
                                   <button
                                     type="button"
                                     onClick={() => openAddExerciseModal(block.publicId)}
-                                    className="w-full py-2 border border-dashed border-zinc-300 hover:border-[#00A859] text-zinc-600 hover:text-[#00A859] text-xs font-semibold rounded-lg transition-all"
+                                    className="w-full py-1.5 text-xs font-semibold text-[#00A859] hover:bg-emerald-50/60 rounded border border-dashed border-emerald-200 transition-all cursor-pointer"
                                   >
-                                    + Adicionar Exercício ao Bloco
+                                    + Adicionar Exercício neste Bloco
                                   </button>
                                 </div>
                               </div>
@@ -962,106 +1060,181 @@ export function TrainingPlanEditor({
           </div>
         </div>
 
-        {/* Right Column: Live Student Preview */}
+        {/* Right Column: Real-time Canonical Preview */}
         <div
-          className={`lg:col-span-6 xl:col-span-5 lg:sticky lg:top-6 ${
+          className={`space-y-4 lg:col-span-6 xl:col-span-5 ${
             activeTab === "preview" ? "block" : "hidden lg:block"
           }`}
         >
-          <div className="space-y-2 pb-2">
+          <div className="sticky top-6 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500">
-                Prévia do Aluno
+              <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                Prévia em Tempo Real (Visual do Aluno)
               </h2>
-              <span className="text-[11px] text-zinc-400">Atualização em tempo real</span>
+              <span className="text-[11px] text-zinc-400">Canonical Renderer</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-sm max-h-[80vh] overflow-y-auto">
+              <TrainingPlanRenderer plan={plan} />
             </div>
           </div>
-
-          <TrainingPlanRenderer
-            plan={plan}
-            studentName={plan.studentName}
-            isDraft={true}
-          />
         </div>
       </div>
 
-      {/* --- MODAL: EDIT PLAN METADATA --- */}
-      {isMetaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="w-full max-w-[500px] bg-white rounded-2xl border border-zinc-200 shadow-xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
-              <h3 className="text-base font-bold text-zinc-900">Editar Informações do Plano</h3>
-              <button
-                type="button"
-                onClick={() => setIsMetaModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-700 text-sm font-bold"
-              >
-                ✕
-              </button>
-            </div>
+      {/* --- MODAL 0: Activation & Readiness Preflight Confirmation --- */}
+      {isActivationModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 max-h-[90vh] overflow-y-auto space-y-4">
+            {activationIssues.length > 0 ? (
+              <>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 font-bold text-sm">
+                    !
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-zinc-900">
+                      Pendências no Plano de Treino
+                    </h3>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Não é possível disponibilizar este plano ainda. Por favor, ajuste as seguintes inconsistências:
+                    </p>
+                  </div>
+                </div>
 
+                <div className="space-y-2 max-h-60 overflow-y-auto p-3 bg-amber-50/60 rounded-xl border border-amber-200/80">
+                  {activationIssues.map((issue, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-xs text-amber-900">
+                      <span className="text-amber-600 font-bold">•</span>
+                      <span>{issue.message}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-zinc-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsActivationModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-zinc-800 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-all cursor-pointer"
+                  >
+                    Entendido / Fechar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-[#00A859] flex items-center justify-center shrink-0 font-bold text-sm">
+                    ✓
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-zinc-900">
+                      Disponibilizar Plano de Treino?
+                    </h3>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Confirmação de ativação para o aluno
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2 text-xs text-zinc-700">
+                  <p>
+                    O plano <strong className="text-zinc-900">{plan.title}</strong> ficará <strong>ativo</strong> e acessível para o aluno <strong className="text-zinc-900">{plan.studentName}</strong>.
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    Se já existir outro plano ativo para este aluno, ele será automaticamente <strong>arquivado</strong> no histórico e substituído por este.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => setIsActivationModalOpen(false)}
+                    className="px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50 disabled:opacity-50 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={handleConfirmActivation}
+                    className="px-4 py-2 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm disabled:opacity-50 transition-all cursor-pointer"
+                  >
+                    {isPending ? "Disponibilizando..." : "Disponibilizar Agora"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 1: Edit Plan Metadata --- */}
+      {isMetaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 space-y-4">
+            <h3 className="text-base font-bold text-zinc-900">
+              Editar Informações do Plano
+            </h3>
             <form onSubmit={handleUpdateMetadata} className="space-y-3">
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">
-                  Título do plano <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-bold text-zinc-700">Título do Plano *</label>
                 <input
                   type="text"
                   required
+                  maxLength={255}
                   value={metaTitle}
                   onChange={(e) => setMetaTitle(e.target.value)}
-                  maxLength={255}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">Subtítulo</label>
+                <label className="block text-xs font-bold text-zinc-700">Subtítulo (opcional)</label>
                 <input
                   type="text"
+                  maxLength={255}
                   value={metaSubtitle}
                   onChange={(e) => setMetaSubtitle(e.target.value)}
-                  maxLength={255}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-zinc-700">Descrição / Objetivo</label>
+                <textarea
+                  rows={3}
+                  value={metaDesc}
+                  onChange={(e) => setMetaDesc(e.target.value)}
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-zinc-800">Data Inicial</label>
+                  <label className="block text-xs font-bold text-zinc-700">Início</label>
                   <input
                     type="date"
                     value={metaStart}
                     onChange={(e) => setMetaStart(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-zinc-800">Data Final</label>
+                  <label className="block text-xs font-bold text-zinc-700">Término</label>
                   <input
                     type="date"
                     value={metaEnd}
                     onChange={(e) => setMetaEnd(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">Descrição / Metas</label>
-                <textarea
-                  rows={3}
-                  value={metaDesc}
-                  onChange={(e) => setMetaDesc(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
-                />
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
                 <button
                   type="button"
                   onClick={() => setIsMetaModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg"
+                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
                 >
                   Cancelar
                 </button>
@@ -1070,7 +1243,7 @@ export function TrainingPlanEditor({
                   disabled={isPending}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm"
                 >
-                  Salvar
+                  {isPending ? "Salvando..." : "Salvar"}
                 </button>
               </div>
             </form>
@@ -1078,57 +1251,45 @@ export function TrainingPlanEditor({
         </div>
       )}
 
-      {/* --- MODAL: WORKOUT FORM --- */}
+      {/* --- MODAL 2: Create / Edit Workout --- */}
       {isWorkoutModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="w-full max-w-[480px] bg-white rounded-2xl border border-zinc-200 shadow-xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
-              <h3 className="text-base font-bold text-zinc-900">
-                {editingWorkout ? "Editar Treino" : "Novo Treino"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsWorkoutModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-700 text-sm font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 space-y-4">
+            <h3 className="text-base font-bold text-zinc-900">
+              {editingWorkout ? "Editar Treino" : "Novo Treino (Divisão)"}
+            </h3>
             <form onSubmit={handleSaveWorkout} className="space-y-3">
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">
-                  Título do Treino (ex: Treino A - Peito e Tríceps) <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-bold text-zinc-700">Título do Treino *</label>
                 <input
                   type="text"
                   required
+                  placeholder="Ex: Treino A ou Dorsal e Bíceps"
+                  maxLength={255}
                   value={wTitle}
                   onChange={(e) => setWTitle(e.target.value)}
-                  placeholder="Ex: Treino A"
-                  maxLength={255}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">Subtítulo (opcional)</label>
+                <label className="block text-xs font-bold text-zinc-700">Subtítulo (opcional)</label>
                 <input
                   type="text"
+                  placeholder="Ex: Ênfase em Costas e Deltoide Posterior"
+                  maxLength={255}
                   value={wSubtitle}
                   onChange={(e) => setWSubtitle(e.target.value)}
-                  placeholder="Ex: Foco em força e hipertrofia"
-                  maxLength={255}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">Dia sugerido (opcional)</label>
+                <label className="block text-xs font-bold text-zinc-700">Dia sugerido (opcional)</label>
                 <select
                   value={wWeekday}
                   onChange={(e) => setWWeekday(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 >
                   <option value="">Sem dia fixo</option>
                   <option value="1">Segunda-feira</option>
@@ -1142,13 +1303,13 @@ export function TrainingPlanEditor({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">Observações gerais do treino</label>
+                <label className="block text-xs font-bold text-zinc-700">Orientações do Treino</label>
                 <textarea
                   rows={2}
                   value={wNotes}
                   onChange={(e) => setWNotes(e.target.value)}
-                  placeholder="Orientações de aquecimento, cardio ou descanso..."
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
+                  placeholder="Ex: Aquecer 10min no manguito antes de iniciar..."
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
                 />
               </div>
 
@@ -1156,7 +1317,7 @@ export function TrainingPlanEditor({
                 <button
                   type="button"
                   onClick={() => setIsWorkoutModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg"
+                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
                 >
                   Cancelar
                 </button>
@@ -1165,7 +1326,7 @@ export function TrainingPlanEditor({
                   disabled={isPending}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm"
                 >
-                  Salvar
+                  {isPending ? "Salvando..." : "Salvar Treino"}
                 </button>
               </div>
             </form>
@@ -1173,47 +1334,35 @@ export function TrainingPlanEditor({
         </div>
       )}
 
-      {/* --- MODAL: SECTION FORM --- */}
+      {/* --- MODAL 3: Create / Edit Section --- */}
       {isSectionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="w-full max-w-[440px] bg-white rounded-2xl border border-zinc-200 shadow-xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
-              <h3 className="text-base font-bold text-zinc-900">
-                {editingSection ? "Editar Seção" : "Nova Seção / Divisão"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsSectionModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-700 text-sm font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 space-y-4">
+            <h3 className="text-base font-bold text-zinc-900">
+              {editingSection ? "Editar Seção" : "Nova Seção Muscular"}
+            </h3>
             <form onSubmit={handleSaveSection} className="space-y-3">
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">
-                  Título da seção <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-bold text-zinc-700">Título da Seção *</label>
                 <input
                   type="text"
                   required
+                  placeholder="Ex: Aquecimento, Parte Principal ou Cardio"
+                  maxLength={255}
                   value={sTitle}
                   onChange={(e) => setSTitle(e.target.value)}
-                  placeholder="Ex: Peitoral, Tríceps, Mobilidade"
-                  maxLength={255}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">Descrição (opcional)</label>
-                <input
-                  type="text"
+                <label className="block text-xs font-bold text-zinc-700">Descrição (opcional)</label>
+                <textarea
+                  rows={2}
                   value={sDesc}
                   onChange={(e) => setSDesc(e.target.value)}
-                  placeholder="Ex: Ênfase em porção superior"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                  placeholder="Orientações sobre esta seção..."
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
                 />
               </div>
 
@@ -1221,7 +1370,7 @@ export function TrainingPlanEditor({
                 <button
                   type="button"
                   onClick={() => setIsSectionModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg"
+                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
                 >
                   Cancelar
                 </button>
@@ -1230,7 +1379,7 @@ export function TrainingPlanEditor({
                   disabled={isPending}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm"
                 >
-                  Salvar
+                  {isPending ? "Salvando..." : "Salvar Seção"}
                 </button>
               </div>
             </form>
@@ -1238,55 +1387,44 @@ export function TrainingPlanEditor({
         </div>
       )}
 
-      {/* --- MODAL: BLOCK FORM --- */}
+      {/* --- MODAL 4: Create / Edit Block --- */}
       {isBlockModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="w-full max-w-[480px] bg-white rounded-2xl border border-zinc-200 shadow-xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
-              <h3 className="text-base font-bold text-zinc-900">
-                {editingBlock ? "Editar Bloco" : "Novo Bloco de Exercícios"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsBlockModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-700 text-sm font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 space-y-4">
+            <h3 className="text-base font-bold text-zinc-900">
+              {editingBlock ? "Editar Bloco de Exercício" : "Novo Bloco de Exercício"}
+            </h3>
             <form onSubmit={handleSaveBlock} className="space-y-3">
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">
-                  Tipo de Bloco <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-bold text-zinc-700">Tipo de Estrutura *</label>
                 <select
                   value={bType}
                   onChange={(e) => setBType(e.target.value as TrainingBlockType)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white font-medium"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 >
-                  <option value="SINGLE">Exercício Isolado (Normal)</option>
+                  <option value="SINGLE">Exercício Isolado / Normal (1 exercício)</option>
                   <option value="BI_SET">Bi-Set (2 exercícios combinados)</option>
                   <option value="TRI_SET">Tri-Set (3 exercícios combinados)</option>
-                  <option value="SUPERSET">Superset</option>
-                  <option value="CIRCUIT">Circuito</option>
+                  <option value="SUPERSET">Superset (múltiplos exercícios)</option>
+                  <option value="CIRCUIT">Circuito (múltiplos exercícios)</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">Título do Bloco (opcional)</label>
+                <label className="block text-xs font-bold text-zinc-700">Título do Bloco (opcional)</label>
                 <input
                   type="text"
+                  placeholder="Ex: Bloco A - Peitoral"
+                  maxLength={255}
                   value={bTitle}
                   onChange={(e) => setBTitle(e.target.value)}
-                  placeholder="Ex: Combinado Peito + Ombro"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-zinc-700">Rounds</label>
+                  <label className="block text-xs font-bold text-zinc-700">Rounds</label>
                   <input
                     type="number"
                     min="1"
@@ -1297,37 +1435,37 @@ export function TrainingPlanEditor({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-zinc-700">Descanso entre ex.</label>
+                  <label className="block text-xs font-bold text-zinc-700">Desc. Entre (s)</label>
                   <input
                     type="number"
                     min="0"
                     value={bRestBetween}
                     onChange={(e) => setBRestBetween(e.target.value ? Number(e.target.value) : "")}
-                    placeholder="0s"
+                    placeholder="0"
                     className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-zinc-700">Descanso final</label>
+                  <label className="block text-xs font-bold text-zinc-700">Desc. Final (s)</label>
                   <input
                     type="number"
                     min="0"
                     value={bRestAfter}
                     onChange={(e) => setBRestAfter(e.target.value ? Number(e.target.value) : "")}
-                    placeholder="90s"
+                    placeholder="90"
                     className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-800">Instruções do bloco</label>
+                <label className="block text-xs font-bold text-zinc-700">Instruções do Bloco</label>
                 <textarea
                   rows={2}
                   value={bInstructions}
                   onChange={(e) => setBInstructions(e.target.value)}
-                  placeholder="Ex: Executar sem pausa entre A1 e A2..."
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
+                  placeholder="Orientações de transição entre exercícios..."
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
                 />
               </div>
 
@@ -1335,7 +1473,7 @@ export function TrainingPlanEditor({
                 <button
                   type="button"
                   onClick={() => setIsBlockModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg"
+                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
                 >
                   Cancelar
                 </button>
@@ -1344,7 +1482,7 @@ export function TrainingPlanEditor({
                   disabled={isPending}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm"
                 >
-                  Salvar
+                  {isPending ? "Salvando..." : "Salvar Bloco"}
                 </button>
               </div>
             </form>
@@ -1352,95 +1490,94 @@ export function TrainingPlanEditor({
         </div>
       )}
 
-      {/* --- MODAL: EXERCISE FORM (LIBRARY / CUSTOM / EDIT) --- */}
+      {/* --- MODAL 5: Add / Edit Exercise --- */}
       {isAddExerciseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="w-full max-w-[560px] max-h-[90vh] overflow-y-auto bg-white rounded-2xl border border-zinc-200 shadow-xl p-5 space-y-4 text-left">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
-              <h3 className="text-base font-bold text-zinc-900">
-                {editingExerciseItem
-                  ? "Editar Exercício na Prescrição"
-                  : "Adicionar Exercício ao Bloco"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsAddExerciseModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-700 text-sm font-bold"
-              >
-                ✕
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-base font-bold text-zinc-900">
+              {editingExerciseItem ? "Editar Prescrição do Exercício" : "Adicionar Exercício ao Bloco"}
+            </h3>
 
             {!editingExerciseItem && (
-              <div className="flex p-1 bg-zinc-100 rounded-lg">
+              <div className="flex items-center p-1 bg-zinc-100 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setExerciseMode("library")}
-                  className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all ${
-                    exerciseMode === "library"
-                      ? "bg-white text-zinc-900 shadow-2xs"
-                      : "text-zinc-600"
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    exerciseMode === "library" ? "bg-white text-zinc-900 shadow-2xs" : "text-zinc-500"
                   }`}
                 >
-                  Selecionar da Biblioteca
+                  Da Biblioteca de Exercícios
                 </button>
                 <button
                   type="button"
                   onClick={() => setExerciseMode("custom")}
-                  className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all ${
-                    exerciseMode === "custom"
-                      ? "bg-white text-zinc-900 shadow-2xs"
-                      : "text-zinc-600"
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    exerciseMode === "custom" ? "bg-white text-zinc-900 shadow-2xs" : "text-zinc-500"
                   }`}
                 >
-                  Criar Personalizado
+                  Personalizado (Exclusivo)
                 </button>
               </div>
             )}
 
             <form onSubmit={handleSaveExercise} className="space-y-3">
-              {/* Exercise Selector / Inputs */}
-              {!editingExerciseItem && exerciseMode === "library" ? (
-                <div className="space-y-2 p-3 bg-zinc-50 rounded-xl border border-zinc-200/80">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold text-zinc-800">
-                      Buscar na biblioteca
-                    </label>
-                    <input
-                      type="text"
-                      value={librarySearch}
-                      onChange={(e) => setLibrarySearch(e.target.value)}
-                      placeholder="Filtrar por nome, grupo muscular ou equipamento..."
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold text-zinc-800">
-                      Exercício <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={selectedLibraryPublicId}
-                      onChange={(e) => setSelectedLibraryPublicId(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white font-medium"
-                    >
-                      {filteredLibrary.length === 0 ? (
-                        <option value="">Nenhum exercício encontrado</option>
-                      ) : (
-                        filteredLibrary.map((item) => (
-                          <option key={item.publicId} value={item.publicId}>
-                            {item.name} {item.muscleGroup ? `(${item.muscleGroup})` : ""}
-                          </option>
-                        ))
-                      )}
-                    </select>
+              {/* Library Mode */}
+              {!editingExerciseItem && exerciseMode === "library" && (
+                <div className="space-y-2 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
+                  <label className="block text-xs font-bold text-zinc-700">
+                    Selecione da sua Biblioteca de Exercícios
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Buscar exercício..."
+                    value={librarySearch}
+                    onChange={(e) => setLibrarySearch(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                  />
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {filteredLibrary.length === 0 ? (
+                      <p className="text-xs text-zinc-400 py-2 text-center">
+                        Nenhum exercício encontrado.
+                      </p>
+                    ) : (
+                      filteredLibrary.map((item) => (
+                        <label
+                          key={item.publicId}
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer border transition-all ${
+                            selectedLibraryPublicId === item.publicId
+                              ? "bg-emerald-50 border-emerald-300 font-bold text-[#00A859]"
+                              : "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="libraryExercise"
+                              checked={selectedLibraryPublicId === item.publicId}
+                              onChange={() => setSelectedLibraryPublicId(item.publicId)}
+                              className="text-[#00A859] focus:ring-[#00A859]"
+                            />
+                            <span>{item.name}</span>
+                          </div>
+                          {item.muscleGroup && (
+                            <span className="text-[10px] text-zinc-400 font-normal">
+                              {item.muscleGroup}
+                            </span>
+                          )}
+                        </label>
+                      ))
+                    )}
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-2 p-3 bg-zinc-50 rounded-xl border border-zinc-200/80">
+              )}
+
+              {/* Custom Mode / Editing Snapshot Name */}
+              {(editingExerciseItem || exerciseMode === "custom") && (
+                <div className="space-y-3 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-zinc-800">
-                      Nome do exercício <span className="text-red-500">*</span>
+                    <label className="block text-xs font-bold text-zinc-700">
+                      Nome do Exercício *
                     </label>
                     <input
                       type="text"
@@ -1578,7 +1715,7 @@ export function TrainingPlanEditor({
                 <button
                   type="button"
                   onClick={() => setIsAddExerciseModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg"
+                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
                 >
                   Cancelar
                 </button>

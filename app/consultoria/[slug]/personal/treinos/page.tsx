@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import {
-  listDraftTrainingPlansForPersonal,
+  listPersonalTrainingPlans,
   listStudentsForPersonal,
 } from "@/lib/consultancies/training";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
@@ -15,6 +15,7 @@ type PageProps = {
   }>;
   searchParams: Promise<{
     page?: string;
+    status?: string;
     new?: string;
   }>;
 };
@@ -24,7 +25,7 @@ export default async function PersonalTrainingPlansPage({
   searchParams,
 }: PageProps) {
   const { slug } = await params;
-  const { page, new: isNewOpen } = await searchParams;
+  const { page, status: rawStatus, new: isNewOpen } = await searchParams;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -41,12 +42,16 @@ export default async function PersonalTrainingPlansPage({
     redirect(`/consultoria/${slug}`);
   }
 
+  const validStatus: "DRAFT" | "ACTIVE" | "ARCHIVED" =
+    rawStatus === "ACTIVE" || rawStatus === "ARCHIVED" ? rawStatus : "DRAFT";
+
   const parsedPage = Number(page);
   const validPage = Number.isInteger(parsedPage) && parsedPage >= 1 ? parsedPage : 1;
 
-  const draftPlansResult = await listDraftTrainingPlansForPersonal({
+  const plansResult = await listPersonalTrainingPlans({
     actorUserId: session.userId,
     consultancySlug: slug,
+    statusFilter: validStatus,
     page: validPage,
     pageSize: 25,
   });
@@ -57,9 +62,9 @@ export default async function PersonalTrainingPlansPage({
     limit: 100,
   });
 
-  const items = draftPlansResult?.items || [];
-  const total = draftPlansResult?.total || 0;
-  const totalPages = draftPlansResult?.totalPages || 1;
+  const items = plansResult?.items || [];
+  const total = plansResult?.total || 0;
+  const totalPages = plansResult?.totalPages || 1;
 
   async function handleCreateAction(formData: FormData) {
     "use server";
@@ -97,7 +102,7 @@ export default async function PersonalTrainingPlansPage({
               Planos de Treino
             </h1>
             <p className="text-sm text-zinc-500">
-              Crie e edite as fichas e prescrições de treino para seus alunos.
+              Crie, gerencie e acompanhe as prescrições de treino para seus alunos.
             </p>
           </div>
 
@@ -118,7 +123,41 @@ export default async function PersonalTrainingPlansPage({
           </div>
         </div>
 
-        {/* Draft Plans List */}
+        {/* Status Tabs Navigation */}
+        <div className="flex items-center gap-2 border-b border-zinc-200 pb-2">
+          <Link
+            href={`/consultoria/${slug}/personal/treinos?status=DRAFT`}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              validStatus === "DRAFT"
+                ? "bg-zinc-900 text-white shadow-2xs"
+                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+            }`}
+          >
+            Rascunhos {validStatus === "DRAFT" && `(${total})`}
+          </Link>
+          <Link
+            href={`/consultoria/${slug}/personal/treinos?status=ACTIVE`}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              validStatus === "ACTIVE"
+                ? "bg-[#00A859] text-white shadow-2xs"
+                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+            }`}
+          >
+            Ativos {validStatus === "ACTIVE" && `(${total})`}
+          </Link>
+          <Link
+            href={`/consultoria/${slug}/personal/treinos?status=ARCHIVED`}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              validStatus === "ARCHIVED"
+                ? "bg-zinc-700 text-white shadow-2xs"
+                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+            }`}
+          >
+            Arquivados {validStatus === "ARCHIVED" && `(${total})`}
+          </Link>
+        </div>
+
+        {/* Plans List */}
         {items.length === 0 ? (
           <div className="p-8 sm:p-12 rounded-2xl bg-white border border-zinc-200 shadow-2xs text-center space-y-3">
             <div className="w-12 h-12 rounded-full bg-zinc-100 text-zinc-400 mx-auto flex items-center justify-center">
@@ -127,64 +166,112 @@ export default async function PersonalTrainingPlansPage({
               </svg>
             </div>
             <h3 className="text-base font-bold text-zinc-900">
-              Nenhum plano em rascunho
+              {validStatus === "DRAFT"
+                ? "Nenhum plano em rascunho"
+                : validStatus === "ACTIVE"
+                ? "Nenhum plano ativo no momento"
+                : "Nenhum plano arquivado"}
             </h3>
             <p className="text-xs text-zinc-500 max-w-[360px] mx-auto">
-              Você ainda não possui fichas de treino em edição. Comece criando um novo plano para um aluno.
+              {validStatus === "DRAFT"
+                ? "Você não possui fichas de treino em edição. Comece criando um novo plano para um aluno."
+                : validStatus === "ACTIVE"
+                ? "Quando você disponibilizar um plano para um aluno, ele aparecerá aqui como ativo."
+                : "Planos anteriores substituídos por novas fichas aparecerão aqui no histórico."}
             </p>
-            <Link
-              href={`/consultoria/${slug}/personal/treinos?new=1`}
-              className="inline-flex items-center justify-center px-4 py-2 bg-[#00A859] hover:bg-[#008f4c] text-white text-xs font-semibold rounded-lg shadow-2xs transition-all"
-            >
-              Criar Primeiro Plano
-            </Link>
+            {validStatus === "DRAFT" && (
+              <Link
+                href={`/consultoria/${slug}/personal/treinos?new=1`}
+                className="inline-flex items-center justify-center px-4 py-2 bg-[#00A859] hover:bg-[#008f4c] text-white text-xs font-semibold rounded-lg shadow-2xs transition-all"
+              >
+                Criar Primeiro Plano
+              </Link>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-                Seus Rascunhos ({total})
+                {validStatus === "DRAFT"
+                  ? `Seus Rascunhos (${total})`
+                  : validStatus === "ACTIVE"
+                  ? `Planos Ativos para Alunos (${total})`
+                  : `Histórico de Planos Arquivados (${total})`}
               </span>
             </div>
 
             <div className="grid grid-cols-1 gap-3">
-              {items.map((draft) => (
+              {items.map((planItem) => (
                 <div
-                  key={draft.publicId}
+                  key={planItem.publicId}
                   className="p-4 sm:p-5 rounded-xl bg-white border border-zinc-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="space-y-1.5 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-base font-bold text-zinc-900">
-                        {draft.title}
+                        {planItem.title}
                       </h3>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                        Rascunho
-                      </span>
+                      {planItem.status === "DRAFT" && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                          Rascunho
+                        </span>
+                      )}
+                      {planItem.status === "ACTIVE" && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-[#00A859] border border-emerald-200">
+                          Ativo para o aluno
+                        </span>
+                      )}
+                      {planItem.status === "ARCHIVED" && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-600 border border-zinc-200">
+                          Arquivado
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-xs font-medium text-zinc-700">
-                      Aluno: <span className="font-bold">{draft.studentName}</span> ({draft.studentEmail})
+                      Aluno: <span className="font-bold">{planItem.studentName}</span> ({planItem.studentEmail})
                     </p>
 
-                    {draft.subtitle && (
-                      <p className="text-xs text-zinc-500">{draft.subtitle}</p>
+                    {planItem.subtitle && (
+                      <p className="text-xs text-zinc-500">{planItem.subtitle}</p>
                     )}
 
-                    {(draft.startsOn || draft.endsOn) && (
-                      <p className="text-[11px] text-zinc-400">
-                        Validade: {draft.startsOn || "—"} até {draft.endsOn || "—"}
-                      </p>
-                    )}
+                    <div className="flex flex-wrap gap-3 text-[11px] text-zinc-400 pt-0.5">
+                      {(planItem.startsOn || planItem.endsOn) && (
+                        <span>
+                          Validade: {planItem.startsOn || "—"} até {planItem.endsOn || "—"}
+                        </span>
+                      )}
+                      {planItem.activatedAt && (
+                        <span>
+                          Ativado em: {new Date(planItem.activatedAt).toLocaleDateString("pt-BR")}
+                        </span>
+                      )}
+                      {planItem.archivedAt && (
+                        <span>
+                          Arquivado em: {new Date(planItem.archivedAt).toLocaleDateString("pt-BR")}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-zinc-100">
-                    <Link
-                      href={`/consultoria/${slug}/personal/treinos/${draft.publicId}`}
-                      className="px-4 py-2 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-2xs transition-all"
-                    >
-                      Editar Ficha
-                    </Link>
+                    {planItem.status === "DRAFT" ? (
+                      <Link
+                        href={`/consultoria/${slug}/personal/treinos/${planItem.publicId}`}
+                        className="px-4 py-2 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-2xs transition-all"
+                      >
+                        Editar Ficha
+                      </Link>
+                    ) : planItem.status === "ACTIVE" ? (
+                      <span className="px-3 py-1.5 text-xs font-semibold text-[#00A859] bg-emerald-50 rounded-lg border border-emerald-200">
+                        Disponibilizado
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1.5 text-xs font-semibold text-zinc-500 bg-zinc-100 rounded-lg border border-zinc-200">
+                        Somente Leitura
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -200,7 +287,7 @@ export default async function PersonalTrainingPlansPage({
                 <div className="flex items-center gap-2">
                   {validPage > 1 ? (
                     <Link
-                      href={`/consultoria/${slug}/personal/treinos?page=${validPage - 1}`}
+                      href={`/consultoria/${slug}/personal/treinos?status=${validStatus}&page=${validPage - 1}`}
                       className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
                     >
                       ← Anterior
@@ -213,7 +300,7 @@ export default async function PersonalTrainingPlansPage({
 
                   {validPage < totalPages ? (
                     <Link
-                      href={`/consultoria/${slug}/personal/treinos?page=${validPage + 1}`}
+                      href={`/consultoria/${slug}/personal/treinos?status=${validStatus}&page=${validPage + 1}`}
                       className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
                     >
                       Próxima →
@@ -236,7 +323,7 @@ export default async function PersonalTrainingPlansPage({
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <h2 className="text-lg font-bold text-zinc-900">Novo Plano de Treino</h2>
                 <Link
-                  href={`/consultoria/${slug}/personal/treinos`}
+                  href={`/consultoria/${slug}/personal/treinos?status=${validStatus}`}
                   className="text-zinc-400 hover:text-zinc-700 text-sm font-semibold p-1"
                 >
                   ✕
@@ -328,7 +415,7 @@ export default async function PersonalTrainingPlansPage({
 
                 <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-zinc-100">
                   <Link
-                    href={`/consultoria/${slug}/personal/treinos`}
+                    href={`/consultoria/${slug}/personal/treinos?status=${validStatus}`}
                     className="px-4 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 hover:bg-zinc-50 rounded-lg transition-all"
                   >
                     Cancelar

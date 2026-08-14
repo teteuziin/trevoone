@@ -196,7 +196,7 @@ export default async function ConsultancyMembersPage({
                         {inv.email}
                       </p>
                       <p className="text-[11px] text-zinc-400">
-                        Criado em {formatDate(inv.createdAt)}
+                            Criado em {formatDate(inv.createdAt)}
                       </p>
                     </div>
                     <span
@@ -326,6 +326,9 @@ export default async function ConsultancyMembersPage({
                       <th scope="col" className="px-5 py-3.5">
                         Status
                       </th>
+                      <th scope="col" className="px-5 py-3.5 text-right">
+                        Ações
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200">
@@ -375,6 +378,17 @@ export default async function ConsultancyMembersPage({
                           >
                             {member.statusLabel}
                           </span>
+                        </td>
+
+                        <td className="px-5 py-4 text-right whitespace-nowrap">
+                          {member.roles.includes("STUDENT") && member.status === "ACTIVE" && (
+                            <Link
+                              href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
+                              className="inline-flex items-center justify-center px-3 py-1.5 bg-white hover:bg-zinc-50 active:bg-zinc-100 border border-zinc-300 text-zinc-800 text-xs font-semibold rounded-lg shadow-2xs transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859]"
+                            >
+                              Ver onboarding
+                            </Link>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -429,6 +443,17 @@ export default async function ConsultancyMembersPage({
                         </span>
                       )}
                     </div>
+
+                    {member.roles.includes("STUDENT") && member.status === "ACTIVE" && (
+                      <div className="pt-2 border-t border-zinc-100 flex items-center justify-end">
+                        <Link
+                          href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
+                          className="inline-flex items-center text-xs font-semibold text-[#00A859] hover:underline"
+                        >
+                          Ver onboarding →
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

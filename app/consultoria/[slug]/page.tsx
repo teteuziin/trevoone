@@ -151,7 +151,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             {context.consultancyName}
           </h1>
           <p className="text-sm text-zinc-500 leading-relaxed">
-            Seu ambiente de consultoria está sendo preparado.
+            Seu ambiente de consultoria está pronto para acesso.
           </p>
         </div>
 
@@ -187,6 +187,85 @@ export default async function ConsultancyPage({ params }: PageProps) {
             >
               {studentOnboarding.isComplete ? "Ver etapas" : "Continuar onboarding"}
             </Link>
+          </div>
+        )}
+
+        {/* Módulos do Aluno (Treinos & Nutrição) */}
+        {isStudent && studentOnboarding && studentOnboarding.applicable && (
+          <div className="w-full space-y-3 text-left">
+            <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+              Seus Módulos
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Card Treinos */}
+              <div className="p-4 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-2.5 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-zinc-900">Treinos</h3>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+                        studentOnboarding.isComplete
+                          ? "bg-emerald-50 text-[#00A859] border border-emerald-200"
+                          : "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                      }`}
+                    >
+                      {studentOnboarding.isComplete ? "Liberado" : "Bloqueado"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    {studentOnboarding.isComplete
+                      ? "Acesse seus treinos e rotinas."
+                      : "Conclua o onboarding para liberar."}
+                  </p>
+                </div>
+
+                <Link
+                  href={`/consultoria/${context.consultancySlug}/treinos`}
+                  className={`inline-flex items-center justify-center w-full py-1.5 px-3 text-xs font-semibold rounded-lg shadow-2xs transition-all ${
+                    studentOnboarding.isComplete
+                      ? "bg-[#00A859] hover:bg-[#008f4c] text-white focus:ring-2 focus:ring-[#00A859]"
+                      : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 focus:ring-2 focus:ring-zinc-400"
+                  }`}
+                >
+                  {studentOnboarding.isComplete ? "Acessar treinos" : "Ver módulo"}
+                </Link>
+              </div>
+
+              {/* Card Dieta e Nutrição */}
+              <div className="p-4 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-2.5 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-zinc-900">Dieta e Nutrição</h3>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+                        studentOnboarding.isComplete
+                          ? "bg-emerald-50 text-[#00A859] border border-emerald-200"
+                          : "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                      }`}
+                    >
+                      {studentOnboarding.isComplete ? "Liberado" : "Bloqueado"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    {studentOnboarding.isComplete
+                      ? "Acesse seus planos alimentares."
+                      : "Conclua o onboarding para liberar."}
+                  </p>
+                </div>
+
+                <Link
+                  href={`/consultoria/${context.consultancySlug}/nutricao`}
+                  className={`inline-flex items-center justify-center w-full py-1.5 px-3 text-xs font-semibold rounded-lg shadow-2xs transition-all ${
+                    studentOnboarding.isComplete
+                      ? "bg-[#00A859] hover:bg-[#008f4c] text-white focus:ring-2 focus:ring-[#00A859]"
+                      : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 focus:ring-2 focus:ring-zinc-400"
+                  }`}
+                >
+                  {studentOnboarding.isComplete ? "Acessar nutrição" : "Ver módulo"}
+                </Link>
+              </div>
+            </div>
           </div>
         )}
 

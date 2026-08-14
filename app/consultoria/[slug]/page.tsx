@@ -5,6 +5,8 @@ import {
   resolveConsultancyContext,
   ROLE_LABELS,
 } from "@/lib/consultancies/context";
+import { getConsultancyAdminOverview } from "@/lib/consultancies/admin";
+import { ConsultancyAdminShell } from "@/components/consultancies/consultancy-admin-shell";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
 import { logoutFromConsultancyArea } from "../../selecionar-consultoria/actions";
 
@@ -27,6 +29,106 @@ export default async function ConsultancyPage({ params }: PageProps) {
     redirect("/selecionar-consultoria");
   }
 
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+
+  // Se o usuário possui CONSULTANCY_ADMIN na consultoria
+  if (isConsultancyAdmin) {
+    const overview = await getConsultancyAdminOverview(context.consultancyId);
+
+    const metrics = [
+      {
+        id: "active_members",
+        title: "Membros ativos",
+        value: overview.activeMembers,
+        description: "Usuários com acesso ativo à consultoria",
+      },
+      {
+        id: "students",
+        title: "Alunos",
+        value: overview.students,
+        description: "Cadastrados com papel de aluno",
+      },
+      {
+        id: "personals",
+        title: "Personais",
+        value: overview.personals,
+        description: "Treinadores e profissionais de treino",
+      },
+      {
+        id: "nutritionists",
+        title: "Nutricionistas",
+        value: overview.nutritionists,
+        description: "Profissionais de nutrição e dieta",
+      },
+      {
+        id: "admins",
+        title: "Administradores",
+        value: overview.admins,
+        description: "Gestores com acesso administrativo",
+      },
+    ];
+
+    return (
+      <ConsultancyAdminShell
+        consultancyName={context.consultancyName}
+        consultancySlug={context.consultancySlug}
+        consultancyLogoUrl={context.consultancyLogoUrl}
+        currentSection="overview"
+      >
+        <div className="space-y-6">
+          {/* Header section */}
+          <div className="space-y-1">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
+              Visão geral
+            </h2>
+            <p className="text-sm text-zinc-500 font-normal">
+              Acompanhe as métricas e a estrutura de membros da sua consultoria.
+            </p>
+          </div>
+
+          {/* Metrics grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {metrics.map((metric) => (
+              <div
+                key={metric.id}
+                className="p-5 rounded-xl bg-white border border-zinc-200 shadow-2xs space-y-2"
+              >
+                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                  {metric.title}
+                </p>
+                <p className="text-3xl font-bold text-zinc-900 tracking-tight">
+                  {metric.value}
+                </p>
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  {metric.description}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Quick link to Members */}
+          <div className="p-5 rounded-xl bg-white border border-zinc-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-zinc-900">
+                Diretório de Membros
+              </h3>
+              <p className="text-xs sm:text-sm text-zinc-500">
+                Consulte todos os alunos, profissionais e administradores vinculados à consultoria.
+              </p>
+            </div>
+            <Link
+              href={`/consultoria/${context.consultancySlug}/membros`}
+              className="inline-flex items-center justify-center px-4 py-2 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
+            >
+              Ver membros
+            </Link>
+          </div>
+        </div>
+      </ConsultancyAdminShell>
+    );
+  }
+
+  // Se for membro válido comum (STUDENT, PERSONAL, NUTRITIONIST sem CONSULTANCY_ADMIN)
   return (
     <main className="min-h-svh w-full flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-white text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
       <div className="w-full max-w-[480px] mx-auto flex flex-col items-center space-y-6 sm:space-y-8 text-center">

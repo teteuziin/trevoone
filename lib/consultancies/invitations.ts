@@ -17,6 +17,30 @@ export type ConsultancyInvitationItem = {
   statusLabel: string;
 };
 
+export type InvitationPreviewResult =
+  | {
+      status: "PENDING";
+      invitationPublicId: string;
+      consultancyName: string;
+      consultancySlug: string;
+      consultancyLogoUrl: string | null;
+      invitedEmail: string;
+      roles: ConsultancyRole[];
+      createdAt: Date;
+      expiresAt: Date;
+    }
+  | {
+      status: "ACCEPTED" | "REVOKED" | "EXPIRED";
+      consultancyName: string;
+      consultancySlug: string;
+      consultancyLogoUrl: string | null;
+      invitedEmail: string;
+      roles: ConsultancyRole[];
+    }
+  | {
+      status: "INVALID";
+    };
+
 export const INVITATION_STATUS_LABELS: Record<InvitationStatus, string> = {
   PENDING: "Pendente",
   ACCEPTED: "Aceito",
@@ -473,6 +497,365 @@ export async function revokeConsultancyInvitation(params: {
     return {
       success: false,
       error: "Não foi possível revogar o convite agora. Tente novamente.",
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export async function getInvitationPreviewByToken(
+  token: string
+): Promise<InvitationPreviewResult> {
+  if (!token || typeof token !== "string") {
+    return { status: "INVALID" };
+  }
+
+  const trimmedToken = token.trim();
+  if (!/^[A-Za-z0-9_-]{43}$/.test(trimmedToken)) {
+    return { status: "INVALID" };
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(trimmedToken).digest("hex");
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        ci.public_id,
+        ci.email,
+        ci.created_at,
+        ci.expires_at,
+        ci.accepted_at,
+        ci.revoked_at,
+        c.name AS consultancy_name,
+        c.slug AS consultancy_slug,
+        c.logo_url AS consultancy_logo_url,
+        c.status AS consultancy_status,
+        c.deleted_at AS consultancy_deleted_at,
+        GROUP_CONCAT(DISTINCT cir.role ORDER BY cir.role ASC SEPARATOR ',') AS roles_csv,
+        CASE
+          WHEN ci.accepted_at IS NOT NULL THEN 'ACCEPTED'
+          WHEN ci.revoked_at IS NOT NULL THEN 'REVOKED'
+          WHEN ci.expires_at <= UTC_TIMESTAMP(3) THEN 'EXPIRED'
+          ELSE 'PENDING'
+        END AS derived_status
+      FROM consultancy_invitations ci
+      INNER JOIN consultancies c ON c.id = ci.consultancy_id
+      LEFT JOIN consultancy_invitation_roles cir ON cir.invitation_id = ci.id
+      WHERE ci.token_hash = ?
+      GROUP BY ci.id, ci.public_id, ci.email, ci.created_at, ci.expires_at, ci.accepted_at, ci.revoked_at, c.name, c.slug, c.logo_url, c.status, c.deleted_at;`,
+      [tokenHash]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { status: "INVALID" };
+    }
+
+    const row = rows[0];
+    if (row.consultancy_status !== "ACTIVE" || row.consultancy_deleted_at !== null) {
+      return { status: "INVALID" };
+    }
+
+    const rawRolesCsv = row.roles_csv ? String(row.roles_csv).split(",").map((s) => s.trim()).filter(Boolean) : [];
+    if (rawRolesCsv.length === 0) {
+      return { status: "INVALID" };
+    }
+
+    for (const r of rawRolesCsv) {
+      if (!VALID_ROLES.includes(r as ConsultancyRole)) {
+        return { status: "INVALID" };
+      }
+    }
+
+    const roles = Array.from(new Set(rawRolesCsv as ConsultancyRole[])).sort(
+      (a, b) => VALID_ROLES.indexOf(a) - VALID_ROLES.indexOf(b)
+    );
+
+    const derivedStatus = String(row.derived_status) as InvitationStatus;
+
+    if (derivedStatus === "PENDING") {
+      return {
+        status: "PENDING",
+        invitationPublicId: String(row.public_id),
+        consultancyName: String(row.consultancy_name),
+        consultancySlug: String(row.consultancy_slug),
+        consultancyLogoUrl: row.consultancy_logo_url ? String(row.consultancy_logo_url) : null,
+        invitedEmail: String(row.email),
+        roles,
+        createdAt: new Date(row.created_at),
+        expiresAt: new Date(row.expires_at),
+      };
+    }
+
+    return {
+      status: derivedStatus,
+      consultancyName: String(row.consultancy_name),
+      consultancySlug: String(row.consultancy_slug),
+      consultancyLogoUrl: row.consultancy_logo_url ? String(row.consultancy_logo_url) : null,
+      invitedEmail: String(row.email),
+      roles,
+    };
+  } catch {
+    return { status: "INVALID" };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export async function acceptConsultancyInvitation(params: {
+  token: string;
+  userId: number;
+}): Promise<{ success: true; consultancySlug: string } | { success: false; error: string }> {
+  const { token, userId } = params;
+
+  if (!token || typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token.trim())) {
+    return { success: false, error: "Convite inválido." };
+  }
+  if (!userId || typeof userId !== "number" || userId <= 0) {
+    return { success: false, error: "Usuário não autenticado." };
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(token.trim()).digest("hex");
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Localizar convite com FOR UPDATE
+    const [invRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        ci.id,
+        ci.public_id,
+        ci.consultancy_id,
+        ci.email,
+        ci.expires_at,
+        ci.accepted_at,
+        ci.revoked_at,
+        (ci.expires_at <= UTC_TIMESTAMP(3)) AS is_expired
+       FROM consultancy_invitations ci
+       WHERE ci.token_hash = ?
+       LIMIT 1
+       FOR UPDATE;`,
+      [tokenHash]
+    );
+
+    if (!Array.isArray(invRows) || invRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Convite inválido ou não disponível." };
+    }
+
+    const inv = invRows[0];
+    if (inv.accepted_at !== null) {
+      await connection.rollback();
+      return { success: false, error: "Este convite já foi utilizado." };
+    }
+    if (inv.revoked_at !== null) {
+      await connection.rollback();
+      return { success: false, error: "Este convite foi revogado." };
+    }
+    if (Number(inv.is_expired) === 1) {
+      await connection.rollback();
+      return { success: false, error: "Este convite expirou." };
+    }
+
+    const invitationId = Number(inv.id);
+    const consultancyId = Number(inv.consultancy_id);
+    const invitationEmail = String(inv.email).trim().normalize("NFC").toLowerCase();
+
+    // 2. Revalidar consultoria
+    const [consultancyRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, name, slug
+       FROM consultancies
+       WHERE id = ?
+         AND status = 'ACTIVE'
+         AND deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
+      [consultancyId]
+    );
+
+    if (!Array.isArray(consultancyRows) || consultancyRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "A consultoria associada não está ativa." };
+    }
+
+    const consultancySlug = String(consultancyRows[0].slug);
+
+    // 3. Revalidar usuário autenticado
+    const [userRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, email
+       FROM users
+       WHERE id = ?
+         AND status = 'ACTIVE'
+         AND deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
+      [userId]
+    );
+
+    if (!Array.isArray(userRows) || userRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Usuário inválido ou inativo." };
+    }
+
+    const userEmail = String(userRows[0].email).trim().normalize("NFC").toLowerCase();
+
+    // 4. Comparar e-mails normalizados
+    if (userEmail !== invitationEmail) {
+      await connection.rollback();
+      return { success: false, error: "Este convite pertence a outro e-mail." };
+    }
+
+    // 5. Obter e validar roles do convite
+    const [roleRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT role
+       FROM consultancy_invitation_roles
+       WHERE invitation_id = ?
+       FOR UPDATE;`,
+      [invitationId]
+    );
+
+    if (!Array.isArray(roleRows) || roleRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "O convite não possui funções válidas." };
+    }
+
+    const rawRoles = roleRows.map((r) => String(r.role));
+    for (const r of rawRoles) {
+      if (!VALID_ROLES.includes(r as ConsultancyRole)) {
+        await connection.rollback();
+        return { success: false, error: "Função inválida detectada no convite." };
+      }
+    }
+
+    const validatedRoles = Array.from(new Set(rawRoles as ConsultancyRole[]));
+    if (validatedRoles.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "O convite não possui funções válidas." };
+    }
+
+    // 6. Verificar se o usuário já possui membership nesta consultoria
+    const [existingMemberRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id
+       FROM consultancy_members
+       WHERE consultancy_id = ?
+         AND user_id = ?
+       LIMIT 1
+       FOR UPDATE;`,
+      [consultancyId, userId]
+    );
+
+    if (Array.isArray(existingMemberRows) && existingMemberRows.length > 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Já existe um vínculo entre esta conta e a consultoria.",
+      };
+    }
+
+    // 7. Inserir membership ativa
+    const membershipPublicId = crypto.randomUUID();
+    const [memberInsertResult] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO consultancy_members (
+        public_id,
+        consultancy_id,
+        user_id,
+        status,
+        joined_at
+      ) VALUES (
+        ?,
+        ?,
+        ?,
+        'ACTIVE',
+        UTC_TIMESTAMP(3)
+      );`,
+      [membershipPublicId, consultancyId, userId]
+    );
+
+    if (memberInsertResult.affectedRows !== 1) {
+      await connection.rollback();
+      return { success: false, error: "Não foi possível registrar o membro." };
+    }
+
+    const memberId = memberInsertResult.insertId;
+
+    // 8. Inserir roles da membership
+    for (const role of validatedRoles) {
+      const [roleInsertResult] = await connection.execute<ResultSetHeader>(
+        `INSERT INTO consultancy_member_roles (member_id, role)
+         VALUES (?, ?);`,
+        [memberId, role]
+      );
+
+      if (roleInsertResult.affectedRows !== 1) {
+        await connection.rollback();
+        return { success: false, error: "Não foi possível registrar os papéis do membro." };
+      }
+    }
+
+    // 9. Marcar convite como aceito
+    const [updateInvResult] = await connection.execute<ResultSetHeader>(
+      `UPDATE consultancy_invitations
+       SET accepted_at = UTC_TIMESTAMP(3),
+           accepted_by_user_id = ?
+       WHERE id = ?
+         AND accepted_at IS NULL
+         AND revoked_at IS NULL
+         AND expires_at > UTC_TIMESTAMP(3);`,
+      [userId, invitationId]
+    );
+
+    if (updateInvResult.affectedRows !== 1) {
+      await connection.rollback();
+      return { success: false, error: "Não foi possível concluir o aceite do convite." };
+    }
+
+    // 10. Registrar evento de auditoria
+    const auditPublicId = crypto.randomUUID();
+    await connection.execute<ResultSetHeader>(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json
+      ) VALUES (
+        ?,
+        ?,
+        ?,
+        'CONSULTANCY_INVITATION_ACCEPTED',
+        'CONSULTANCY_INVITATION',
+        ?,
+        NULL
+      );`,
+      [auditPublicId, userId, consultancyId, String(inv.public_id)]
+    );
+
+    await connection.commit();
+
+    return {
+      success: true,
+      consultancySlug,
+    };
+  } catch {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {
+        // Ignorado
+      }
+    }
+    return {
+      success: false,
+      error: "Não foi possível aceitar o convite agora. Tente novamente.",
     };
   } finally {
     if (connection) {

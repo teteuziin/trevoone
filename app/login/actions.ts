@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getDbConnection } from "../../lib/db/mysql";
 import { verifyPassword, DUMMY_SCRYPT_HASH } from "../../lib/auth/password";
 import { createSession, revokeCurrentSession } from "../../lib/auth/session";
+import { validateInvitationReturnTo } from "../../lib/auth/invitation-return-to";
 
 export type LoginFormErrors = {
   email?: string;
@@ -126,10 +127,17 @@ export async function loginAccount(
     };
   }
 
+  const returnToRaw = formData.get("returnTo")?.toString();
+  const safeReturnTo = validateInvitationReturnTo(returnToRaw);
+
   try {
     revalidatePath("/login");
   } catch {
     // Ignorado fora do contexto de requisição HTTP do Next.js
+  }
+
+  if (safeReturnTo) {
+    redirect(safeReturnTo);
   }
 
   redirect("/selecionar-consultoria");

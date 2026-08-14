@@ -8,7 +8,7 @@ const initialState: LoginFormState = {
   success: false,
 };
 
-export function LoginForm() {
+export function LoginForm({ returnTo }: { returnTo?: string }) {
   const [state, formAction, isPending] = useActionState(loginAccount, initialState);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -16,6 +16,7 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="w-full space-y-5" noValidate>
+      {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {state.message && !state.success && (
         <div
           role="alert"
@@ -151,7 +152,7 @@ export function LoginForm() {
       <div className="text-center text-xs sm:text-sm text-zinc-500 pt-4 border-t border-zinc-100">
         <span>Ainda não possui uma conta? </span>
         <Link
-          href="/cadastro"
+          href={`/cadastro${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}
           className="font-semibold text-[#00A859] hover:underline focus:outline-none focus:ring-1 focus:ring-[#00A859] rounded px-1 py-0.5"
         >
           Criar conta

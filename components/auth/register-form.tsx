@@ -8,11 +8,13 @@ const initialState: RegisterFormState = {
   success: false,
 };
 
-export function RegisterForm() {
+export function RegisterForm({ returnTo }: { returnTo?: string }) {
   const [state, formAction, isPending] = useActionState(registerAccount, initialState);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const loginHref = `/login${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`;
 
   if (state.success) {
     return (
@@ -38,7 +40,7 @@ export function RegisterForm() {
         </div>
         <div className="pt-2">
           <Link
-            href="/login"
+            href={loginHref}
             className="inline-flex items-center justify-center w-full h-11 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
           >
             Ir para o login
@@ -237,7 +239,7 @@ export function RegisterForm() {
       <div className="text-center text-xs sm:text-sm text-zinc-500 pt-3 border-t border-zinc-100">
         <span>Já possui uma conta? </span>
         <Link
-          href="/login"
+          href={loginHref}
           className="font-semibold text-[#00A859] hover:underline focus:outline-none focus:ring-1 focus:ring-[#00A859] rounded px-1 py-0.5"
         >
           Entrar

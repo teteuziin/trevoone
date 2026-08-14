@@ -1,4 +1,5 @@
-import type { RowDataPacket } from "mysql2/promise";
+import crypto from "node:crypto";
+import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { resolveConsultancyContext } from "./context";
 
@@ -84,6 +85,15 @@ export type TrainingExerciseItemDto = {
   instructions: string | null;
   status: TrainingExerciseStatus | string;
   createdAt: Date;
+  updatedAt?: Date;
+};
+
+export type ListTrainingExercisesResult = {
+  items: TrainingExerciseItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };
 
 /**
@@ -344,13 +354,24 @@ export async function getActiveTrainingPlanForStudent(
 
 /**
  * Lista exercícios da biblioteca para um PERSONAL da consultoria.
- * Apenas leitura (read-only), tenant-scoped.
+ * Suporta busca server-side (name, muscle_group, equipment), filtro de status e paginação.
  */
 export async function listTrainingExercisesForPersonal(params: {
   actorUserId: number;
   consultancySlug: string;
-}): Promise<TrainingExerciseItemDto[] | null> {
-  const { actorUserId, consultancySlug } = params;
+  search?: string;
+  statusFilter?: "ALL" | "ACTIVE" | "INACTIVE";
+  page?: number;
+  pageSize?: number;
+}): Promise<ListTrainingExercisesResult | null> {
+  const {
+    actorUserId,
+    consultancySlug,
+    search = "",
+    statusFilter = "ALL",
+    page = 1,
+    pageSize = 25,
+  } = params;
 
   if (
     !actorUserId ||
@@ -359,6 +380,129 @@ export async function listTrainingExercisesForPersonal(params: {
     !consultancySlug ||
     typeof consultancySlug !== "string" ||
     !consultancySlug.trim()
+  ) {
+    return null;
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("PERSONAL")) {
+    return null;
+  }
+
+  const validPage = Number.isInteger(page) && page >= 1 ? page : 1;
+  const validPageSize =
+    Number.isInteger(pageSize) && pageSize >= 1 && pageSize <= 100
+      ? pageSize
+      : 25;
+  const offset = (validPage - 1) * validPageSize;
+
+  const validStatus =
+    statusFilter === "ACTIVE" || statusFilter === "INACTIVE"
+      ? statusFilter
+      : "ALL";
+
+  const rawSearch = (search || "").trim().normalize("NFC");
+  const hasSearch = rawSearch.length > 0;
+  // Escapar caracteres especiais do LIKE (% e _)
+  const escapedSearch = rawSearch.replace(/[%_\\]/g, "\\$&");
+  const searchPattern = `%${escapedSearch}%`;
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+
+    // Montar filtros dinâmicos parametrizados
+    const whereConditions: string[] = [
+      "consultancy_id = ?",
+      "deleted_at IS NULL",
+    ];
+    const queryParams: (string | number)[] = [context.consultancyId];
+
+    if (validStatus !== "ALL") {
+      whereConditions.push("status = ?");
+      queryParams.push(validStatus);
+    }
+
+    if (hasSearch) {
+      whereConditions.push(
+        "(name LIKE ? OR muscle_group LIKE ? OR equipment LIKE ?)"
+      );
+      queryParams.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    const whereClause = whereConditions.join(" AND ");
+
+    // 1. Contagem total
+    const [countRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total FROM training_exercises WHERE ${whereClause};`,
+      queryParams
+    );
+    const total = Number(countRows[0]?.total || 0);
+
+    // 2. Registros paginados
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        public_id,
+        name,
+        description,
+        muscle_group,
+        equipment,
+        instructions,
+        status,
+        created_at,
+        updated_at
+       FROM training_exercises
+       WHERE ${whereClause}
+       ORDER BY name ASC, public_id ASC
+       LIMIT ? OFFSET ?;`,
+      [...queryParams, String(validPageSize), String(offset)]
+    );
+
+    const items: TrainingExerciseItemDto[] = rows.map((row) => ({
+      publicId: String(row.public_id),
+      name: String(row.name),
+      description: row.description ? String(row.description) : null,
+      muscleGroup: row.muscle_group ? String(row.muscle_group) : null,
+      equipment: row.equipment ? String(row.equipment) : null,
+      instructions: row.instructions ? String(row.instructions) : null,
+      status: String(row.status) as TrainingExerciseStatus,
+      createdAt: new Date(row.created_at),
+      updatedAt: row.updated_at ? new Date(row.updated_at) : undefined,
+    }));
+
+    const totalPages = Math.ceil(total / validPageSize) || 1;
+
+    return {
+      items,
+      total,
+      page: validPage,
+      pageSize: validPageSize,
+      totalPages,
+    };
+  } catch {
+    return null;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+/**
+ * Busca um exercício específico da biblioteca para o PERSONAL.
+ */
+export async function getTrainingExerciseForPersonal(params: {
+  actorUserId: number;
+  consultancySlug: string;
+  exercisePublicId: string;
+}): Promise<TrainingExerciseItemDto | null> {
+  const { actorUserId, consultancySlug, exercisePublicId } = params;
+
+  if (
+    !actorUserId ||
+    !consultancySlug ||
+    !exercisePublicId ||
+    typeof exercisePublicId !== "string"
   ) {
     return null;
   }
@@ -380,26 +524,588 @@ export async function listTrainingExercisesForPersonal(params: {
         equipment,
         instructions,
         status,
-        created_at
+        created_at,
+        updated_at
        FROM training_exercises
-       WHERE consultancy_id = ?
+       WHERE public_id = ?
+         AND consultancy_id = ?
          AND deleted_at IS NULL
-       ORDER BY name ASC, id ASC;`,
-      [context.consultancyId]
+       LIMIT 1;`,
+      [exercisePublicId.trim(), context.consultancyId]
     );
 
-    return rows.map((row) => ({
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return null;
+    }
+
+    const row = rows[0];
+    return {
       publicId: String(row.public_id),
       name: String(row.name),
       description: row.description ? String(row.description) : null,
       muscleGroup: row.muscle_group ? String(row.muscle_group) : null,
       equipment: row.equipment ? String(row.equipment) : null,
       instructions: row.instructions ? String(row.instructions) : null,
-      status: String(row.status),
+      status: String(row.status) as TrainingExerciseStatus,
       createdAt: new Date(row.created_at),
-    }));
+      updatedAt: row.updated_at ? new Date(row.updated_at) : undefined,
+    };
   } catch {
     return null;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+/**
+ * Cria um novo exercício na biblioteca da consultoria (PERSONAL obrigatório, status ACTIVE).
+ */
+export async function createTrainingExercise(params: {
+  actorUserId: number;
+  consultancySlug: string;
+  name: string;
+  description?: string | null;
+  muscleGroup?: string | null;
+  equipment?: string | null;
+  instructions?: string | null;
+}): Promise<
+  { success: true; exercisePublicId: string } | { success: false; error: string }
+> {
+  const { actorUserId, consultancySlug } = params;
+
+  if (!actorUserId || typeof actorUserId !== "number" || actorUserId <= 0) {
+    return { success: false, error: "Usuário não autenticado." };
+  }
+  if (!consultancySlug || typeof consultancySlug !== "string" || !consultancySlug.trim()) {
+    return { success: false, error: "Consultoria inválida." };
+  }
+
+  // Normalização defensiva dos campos
+  const name = (params.name || "").trim().normalize("NFC");
+  if (!name || name.length > 255) {
+    return { success: false, error: "O nome do exercício é obrigatório (máximo 255 caracteres)." };
+  }
+
+  const description = (params.description || "").trim().normalize("NFC") || null;
+  const muscleGroup = (params.muscleGroup || "").trim().normalize("NFC") || null;
+  if (muscleGroup && muscleGroup.length > 100) {
+    return { success: false, error: "O grupo muscular deve ter no máximo 100 caracteres." };
+  }
+
+  const equipment = (params.equipment || "").trim().normalize("NFC") || null;
+  if (equipment && equipment.length > 100) {
+    return { success: false, error: "O equipamento deve ter no máximo 100 caracteres." };
+  }
+
+  const instructions = (params.instructions || "").trim().normalize("NFC") || null;
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Revalidar consultoria
+    const [cRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM consultancies WHERE slug = ? AND status = 'ACTIVE' AND deleted_at IS NULL LIMIT 1;`,
+      [consultancySlug.trim()]
+    );
+    if (!Array.isArray(cRows) || cRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Consultoria inválida ou indisponível." };
+    }
+    const consultancyId = Number(cRows[0].id);
+
+    // 2. Revalidar actor user
+    const [uRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM users WHERE id = ? AND status = 'ACTIVE' AND deleted_at IS NULL LIMIT 1;`,
+      [actorUserId]
+    );
+    if (!Array.isArray(uRows) || uRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Usuário inválido ou inativo." };
+    }
+
+    // 3. Lock & revalidar actor membership com role PERSONAL
+    const [mRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id
+       FROM consultancy_members cm
+       INNER JOIN consultancy_member_roles cmr
+         ON cmr.member_id = cm.id AND cmr.role = 'PERSONAL'
+       WHERE cm.user_id = ?
+         AND cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+       LIMIT 1
+       FOR UPDATE;`,
+      [actorUserId, consultancyId]
+    );
+    if (!Array.isArray(mRows) || mRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Permissão insuficiente. Apenas Personal Trainers podem cadastrar exercícios." };
+    }
+
+    // 4. Inserir exercício na biblioteca
+    const exercisePublicId = crypto.randomUUID();
+    const [insertResult] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO training_exercises (
+        public_id,
+        consultancy_id,
+        name,
+        description,
+        muscle_group,
+        equipment,
+        instructions,
+        status,
+        created_by_user_id,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3));`,
+      [
+        exercisePublicId,
+        consultancyId,
+        name,
+        description,
+        muscleGroup,
+        equipment,
+        instructions,
+        actorUserId,
+      ]
+    );
+
+    if (insertResult.affectedRows !== 1) {
+      await connection.rollback();
+      return { success: false, error: "Erro ao cadastrar exercício." };
+    }
+
+    // 5. Registrar evento de auditoria
+    await connection.execute<ResultSetHeader>(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (UUID(), ?, ?, 'TRAINING_EXERCISE_CREATED', 'TRAINING_EXERCISE', ?, NULL, UTC_TIMESTAMP(3));`,
+      [actorUserId, consultancyId, exercisePublicId]
+    );
+
+    await connection.commit();
+    return { success: true, exercisePublicId };
+  } catch {
+    if (connection) {
+      await connection.rollback();
+    }
+    return { success: false, error: "Erro interno ao processar cadastro do exercício." };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+/**
+ * Atualiza os dados de um exercício da biblioteca (PERSONAL obrigatório, no-op detectado).
+ */
+export async function updateTrainingExercise(params: {
+  actorUserId: number;
+  consultancySlug: string;
+  exercisePublicId: string;
+  name: string;
+  description?: string | null;
+  muscleGroup?: string | null;
+  equipment?: string | null;
+  instructions?: string | null;
+}): Promise<
+  | { success: true; updated: boolean; message?: string }
+  | { success: false; error: string }
+> {
+  const { actorUserId, consultancySlug, exercisePublicId } = params;
+
+  if (!actorUserId || typeof actorUserId !== "number" || actorUserId <= 0) {
+    return { success: false, error: "Usuário não autenticado." };
+  }
+  if (!consultancySlug || typeof consultancySlug !== "string" || !consultancySlug.trim()) {
+    return { success: false, error: "Consultoria inválida." };
+  }
+  if (!exercisePublicId || typeof exercisePublicId !== "string" || !exercisePublicId.trim()) {
+    return { success: false, error: "Identificador do exercício inválido." };
+  }
+
+  const name = (params.name || "").trim().normalize("NFC");
+  if (!name || name.length > 255) {
+    return { success: false, error: "O nome do exercício é obrigatório (máximo 255 caracteres)." };
+  }
+
+  const description = (params.description || "").trim().normalize("NFC") || null;
+  const muscleGroup = (params.muscleGroup || "").trim().normalize("NFC") || null;
+  if (muscleGroup && muscleGroup.length > 100) {
+    return { success: false, error: "O grupo muscular deve ter no máximo 100 caracteres." };
+  }
+
+  const equipment = (params.equipment || "").trim().normalize("NFC") || null;
+  if (equipment && equipment.length > 100) {
+    return { success: false, error: "O equipamento deve ter no máximo 100 caracteres." };
+  }
+
+  const instructions = (params.instructions || "").trim().normalize("NFC") || null;
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Revalidar consultoria
+    const [cRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM consultancies WHERE slug = ? AND status = 'ACTIVE' AND deleted_at IS NULL LIMIT 1;`,
+      [consultancySlug.trim()]
+    );
+    if (!Array.isArray(cRows) || cRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Consultoria inválida ou indisponível." };
+    }
+    const consultancyId = Number(cRows[0].id);
+
+    // 2. Lock & revalidar actor membership com role PERSONAL
+    const [mRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id
+       FROM consultancy_members cm
+       INNER JOIN consultancy_member_roles cmr
+         ON cmr.member_id = cm.id AND cmr.role = 'PERSONAL'
+       WHERE cm.user_id = ?
+         AND cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+       LIMIT 1
+       FOR UPDATE;`,
+      [actorUserId, consultancyId]
+    );
+    if (!Array.isArray(mRows) || mRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Permissão insuficiente para editar exercícios." };
+    }
+
+    // 3. Lock & revalidar exercício tenant-scoped
+    const [eRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, name, description, muscle_group, equipment, instructions, status
+       FROM training_exercises
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
+      [exercisePublicId.trim(), consultancyId]
+    );
+    if (!Array.isArray(eRows) || eRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Exercício não encontrado nesta consultoria." };
+    }
+
+    const current = eRows[0];
+    const status = String(current.status);
+    if (status !== "ACTIVE" && status !== "INACTIVE") {
+      await connection.rollback();
+      return { success: false, error: "Estado do exercício inválido para edição." };
+    }
+
+    // 4. Detecção de no-op
+    const currentName = String(current.name);
+    const currentDesc = current.description ? String(current.description) : null;
+    const currentMuscle = current.muscle_group ? String(current.muscle_group) : null;
+    const currentEquip = current.equipment ? String(current.equipment) : null;
+    const currentInst = current.instructions ? String(current.instructions) : null;
+
+    const isIdentical =
+      currentName === name &&
+      currentDesc === description &&
+      currentMuscle === muscleGroup &&
+      currentEquip === equipment &&
+      currentInst === instructions;
+
+    if (isIdentical) {
+      await connection.rollback();
+      return { success: true, updated: false, message: "Nenhuma alteração necessária." };
+    }
+
+    // 5. UPDATE dos dados cadastrais
+    const exerciseId = Number(current.id);
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      `UPDATE training_exercises
+       SET name = ?,
+           description = ?,
+           muscle_group = ?,
+           equipment = ?,
+           instructions = ?,
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ? AND consultancy_id = ?;`,
+      [name, description, muscleGroup, equipment, instructions, exerciseId, consultancyId]
+    );
+
+    if (updateResult.affectedRows !== 1) {
+      await connection.rollback();
+      return { success: false, error: "Não foi possível atualizar o exercício." };
+    }
+
+    // 6. Registrar auditoria de update
+    await connection.execute<ResultSetHeader>(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (UUID(), ?, ?, 'TRAINING_EXERCISE_UPDATED', 'TRAINING_EXERCISE', ?, NULL, UTC_TIMESTAMP(3));`,
+      [actorUserId, consultancyId, exercisePublicId.trim()]
+    );
+
+    await connection.commit();
+    return { success: true, updated: true };
+  } catch {
+    if (connection) {
+      await connection.rollback();
+    }
+    return { success: false, error: "Erro interno ao atualizar o exercício." };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+/**
+ * Desativa um exercício da biblioteca (ACTIVE -> INACTIVE, idempotente).
+ */
+export async function deactivateTrainingExercise(params: {
+  actorUserId: number;
+  consultancySlug: string;
+  exercisePublicId: string;
+}): Promise<{ success: true; updated: boolean } | { success: false; error: string }> {
+  const { actorUserId, consultancySlug, exercisePublicId } = params;
+
+  if (!actorUserId || !consultancySlug || !exercisePublicId) {
+    return { success: false, error: "Parâmetros inválidos." };
+  }
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Revalidar consultoria
+    const [cRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM consultancies WHERE slug = ? AND status = 'ACTIVE' AND deleted_at IS NULL LIMIT 1;`,
+      [consultancySlug.trim()]
+    );
+    if (!Array.isArray(cRows) || cRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Consultoria inválida ou indisponível." };
+    }
+    const consultancyId = Number(cRows[0].id);
+
+    // 2. Lock & revalidar actor membership com role PERSONAL
+    const [mRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id
+       FROM consultancy_members cm
+       INNER JOIN consultancy_member_roles cmr
+         ON cmr.member_id = cm.id AND cmr.role = 'PERSONAL'
+       WHERE cm.user_id = ?
+         AND cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+       LIMIT 1
+       FOR UPDATE;`,
+      [actorUserId, consultancyId]
+    );
+    if (!Array.isArray(mRows) || mRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Permissão insuficiente para desativar exercícios." };
+    }
+
+    // 3. Lock exercício
+    const [eRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status
+       FROM training_exercises
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
+      [exercisePublicId.trim(), consultancyId]
+    );
+    if (!Array.isArray(eRows) || eRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Exercício não encontrado nesta consultoria." };
+    }
+
+    const currentStatus = String(eRows[0].status);
+    if (currentStatus === "INACTIVE") {
+      // Idempotente
+      await connection.rollback();
+      return { success: true, updated: false };
+    }
+    if (currentStatus !== "ACTIVE") {
+      await connection.rollback();
+      return { success: false, error: "Estado do exercício inválido para desativação." };
+    }
+
+    const exerciseId = Number(eRows[0].id);
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      `UPDATE training_exercises
+       SET status = 'INACTIVE',
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ? AND consultancy_id = ? AND status = 'ACTIVE';`,
+      [exerciseId, consultancyId]
+    );
+
+    if (updateResult.affectedRows !== 1) {
+      await connection.rollback();
+      return { success: false, error: "Não foi possível desativar o exercício." };
+    }
+
+    // Auditoria de desativação
+    await connection.execute<ResultSetHeader>(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (UUID(), ?, ?, 'TRAINING_EXERCISE_DEACTIVATED', 'TRAINING_EXERCISE', ?, NULL, UTC_TIMESTAMP(3));`,
+      [actorUserId, consultancyId, exercisePublicId.trim()]
+    );
+
+    await connection.commit();
+    return { success: true, updated: true };
+  } catch {
+    if (connection) {
+      await connection.rollback();
+    }
+    return { success: false, error: "Erro interno ao desativar o exercício." };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+/**
+ * Reativa um exercício da biblioteca (INACTIVE -> ACTIVE, idempotente).
+ */
+export async function reactivateTrainingExercise(params: {
+  actorUserId: number;
+  consultancySlug: string;
+  exercisePublicId: string;
+}): Promise<{ success: true; updated: boolean } | { success: false; error: string }> {
+  const { actorUserId, consultancySlug, exercisePublicId } = params;
+
+  if (!actorUserId || !consultancySlug || !exercisePublicId) {
+    return { success: false, error: "Parâmetros inválidos." };
+  }
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Revalidar consultoria
+    const [cRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM consultancies WHERE slug = ? AND status = 'ACTIVE' AND deleted_at IS NULL LIMIT 1;`,
+      [consultancySlug.trim()]
+    );
+    if (!Array.isArray(cRows) || cRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Consultoria inválida ou indisponível." };
+    }
+    const consultancyId = Number(cRows[0].id);
+
+    // 2. Lock & revalidar actor membership com role PERSONAL
+    const [mRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id
+       FROM consultancy_members cm
+       INNER JOIN consultancy_member_roles cmr
+         ON cmr.member_id = cm.id AND cmr.role = 'PERSONAL'
+       WHERE cm.user_id = ?
+         AND cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+       LIMIT 1
+       FOR UPDATE;`,
+      [actorUserId, consultancyId]
+    );
+    if (!Array.isArray(mRows) || mRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Permissão insuficiente para reativar exercícios." };
+    }
+
+    // 3. Lock exercício
+    const [eRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status
+       FROM training_exercises
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
+      [exercisePublicId.trim(), consultancyId]
+    );
+    if (!Array.isArray(eRows) || eRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Exercício não encontrado nesta consultoria." };
+    }
+
+    const currentStatus = String(eRows[0].status);
+    if (currentStatus === "ACTIVE") {
+      // Idempotente
+      await connection.rollback();
+      return { success: true, updated: false };
+    }
+    if (currentStatus !== "INACTIVE") {
+      await connection.rollback();
+      return { success: false, error: "Estado do exercício inválido para reativação." };
+    }
+
+    const exerciseId = Number(eRows[0].id);
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      `UPDATE training_exercises
+       SET status = 'ACTIVE',
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ? AND consultancy_id = ? AND status = 'INACTIVE';`,
+      [exerciseId, consultancyId]
+    );
+
+    if (updateResult.affectedRows !== 1) {
+      await connection.rollback();
+      return { success: false, error: "Não foi possível reativar o exercício." };
+    }
+
+    // Auditoria de reativação
+    await connection.execute<ResultSetHeader>(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (UUID(), ?, ?, 'TRAINING_EXERCISE_REACTIVATED', 'TRAINING_EXERCISE', ?, NULL, UTC_TIMESTAMP(3));`,
+      [actorUserId, consultancyId, exercisePublicId.trim()]
+    );
+
+    await connection.commit();
+    return { success: true, updated: true };
+  } catch {
+    if (connection) {
+      await connection.rollback();
+    }
+    return { success: false, error: "Erro interno ao reativar o exercício." };
   } finally {
     if (connection) {
       connection.release();

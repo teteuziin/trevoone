@@ -131,6 +131,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
   // Se for membro STUDENT
   const isStudent = context.roles.includes("STUDENT");
+  const isPersonal = context.roles.includes("PERSONAL");
   const studentOnboarding = isStudent
     ? await getStudentOnboardingStatus(session.userId, slug)
     : null;
@@ -266,6 +267,36 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 </Link>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Card Profissional para PERSONAL */}
+        {isPersonal && (
+          <div className="w-full p-5 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-3 text-left">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                Área do Personal
+              </span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-[#00A859] border border-emerald-200">
+                Profissional
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-zinc-900">
+                Biblioteca de Exercícios
+              </h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Cadastre e gerencie o catálogo de exercícios para a prescrição de treinos.
+              </p>
+            </div>
+
+            <Link
+              href={`/consultoria/${context.consultancySlug}/personal/exercicios`}
+              className="inline-flex items-center justify-center w-full py-2 px-4 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-xs rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
+            >
+              Acessar biblioteca
+            </Link>
           </div>
         )}
 

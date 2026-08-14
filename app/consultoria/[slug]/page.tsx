@@ -284,19 +284,27 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-zinc-900">
-                Biblioteca de Exercícios
+                Prescrição de Treinos
               </h3>
               <p className="text-xs text-zinc-600 leading-relaxed">
-                Cadastre e gerencie o catálogo de exercícios para a prescrição de treinos.
+                Crie e monte as fichas de treino para seus alunos e gerencie o catálogo de exercícios.
               </p>
             </div>
 
-            <Link
-              href={`/consultoria/${context.consultancySlug}/personal/exercicios`}
-              className="inline-flex items-center justify-center w-full py-2 px-4 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-xs rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
-            >
-              Acessar biblioteca
-            </Link>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <Link
+                href={`/consultoria/${context.consultancySlug}/personal/treinos`}
+                className="inline-flex items-center justify-center w-full py-2 px-3 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-xs rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
+              >
+                Planos de treino
+              </Link>
+              <Link
+                href={`/consultoria/${context.consultancySlug}/personal/exercicios`}
+                className="inline-flex items-center justify-center w-full py-2 px-3 bg-white hover:bg-zinc-50 active:bg-zinc-100 text-zinc-700 font-semibold text-xs border border-zinc-300 rounded-lg shadow-2xs transition-all focus:outline-none focus:ring-2 focus:ring-zinc-400"
+              >
+                Biblioteca de exercícios
+              </Link>
+            </div>
           </div>
         )}
 

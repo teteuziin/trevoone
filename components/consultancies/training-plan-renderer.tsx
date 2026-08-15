@@ -10,6 +10,7 @@ type Props = {
   plan: TrainingPlanDto;
   studentName?: string;
   isDraft?: boolean;
+  onVideoRequest?: (exercise: TrainingBlockExerciseDto) => void;
 };
 
 const WEEKDAY_NAMES: Record<number, string> = {
@@ -39,7 +40,12 @@ function formatDate(dateStr: string | null) {
   return dateStr;
 }
 
-export function TrainingPlanRenderer({ plan, studentName, isDraft = false }: Props) {
+export function TrainingPlanRenderer({
+  plan,
+  studentName,
+  isDraft = false,
+  onVideoRequest,
+}: Props) {
   const formattedStart = formatDate(plan.startsOn);
   const formattedEnd = formatDate(plan.endsOn);
 
@@ -83,7 +89,7 @@ export function TrainingPlanRenderer({ plan, studentName, isDraft = false }: Pro
         )}
 
         {plan.description && (
-          <p className="text-xs text-zinc-600 leading-relaxed border-t border-zinc-100 pt-3">
+          <p className="text-xs text-zinc-600 leading-relaxed border-t border-zinc-100 pt-3 whitespace-pre-wrap">
             {plan.description}
           </p>
         )}
@@ -100,7 +106,12 @@ export function TrainingPlanRenderer({ plan, studentName, isDraft = false }: Pro
       ) : (
         <div className="space-y-6">
           {plan.workouts.map((workout, wIndex) => (
-            <WorkoutCard key={workout.publicId || wIndex} workout={workout} index={wIndex} />
+            <WorkoutCard
+              key={workout.publicId || wIndex}
+              workout={workout}
+              index={wIndex}
+              onVideoRequest={onVideoRequest}
+            />
           ))}
         </div>
       )}
@@ -108,7 +119,15 @@ export function TrainingPlanRenderer({ plan, studentName, isDraft = false }: Pro
   );
 }
 
-function WorkoutCard({ workout, index }: { workout: TrainingWorkoutDto; index: number }) {
+function WorkoutCard({
+  workout,
+  index,
+  onVideoRequest,
+}: {
+  workout: TrainingWorkoutDto;
+  index: number;
+  onVideoRequest?: (exercise: TrainingBlockExerciseDto) => void;
+}) {
   const weekdayLabel = workout.scheduledWeekday ? WEEKDAY_NAMES[workout.scheduledWeekday] : null;
 
   return (
@@ -150,7 +169,11 @@ function WorkoutCard({ workout, index }: { workout: TrainingWorkoutDto; index: n
           </p>
         ) : (
           workout.sections.map((section, sIndex) => (
-            <SectionCard key={section.publicId || sIndex} section={section} />
+            <SectionCard
+              key={section.publicId || sIndex}
+              section={section}
+              onVideoRequest={onVideoRequest}
+            />
           ))
         )}
       </div>
@@ -158,7 +181,13 @@ function WorkoutCard({ workout, index }: { workout: TrainingWorkoutDto; index: n
   );
 }
 
-function SectionCard({ section }: { section: TrainingWorkoutSectionDto }) {
+function SectionCard({
+  section,
+  onVideoRequest,
+}: {
+  section: TrainingWorkoutSectionDto;
+  onVideoRequest?: (exercise: TrainingBlockExerciseDto) => void;
+}) {
   return (
     <div className="space-y-3">
       <div className="border-b border-zinc-100 pb-1.5 flex items-center justify-between">
@@ -178,7 +207,12 @@ function SectionCard({ section }: { section: TrainingWorkoutSectionDto }) {
           </p>
         ) : (
           section.blocks.map((block, bIndex) => (
-            <BlockCard key={block.publicId || bIndex} block={block} blockIndex={bIndex} />
+            <BlockCard
+              key={block.publicId || bIndex}
+              block={block}
+              blockIndex={bIndex}
+              onVideoRequest={onVideoRequest}
+            />
           ))
         )}
       </div>
@@ -186,7 +220,15 @@ function SectionCard({ section }: { section: TrainingWorkoutSectionDto }) {
   );
 }
 
-function BlockCard({ block, blockIndex }: { block: TrainingWorkoutBlockDto; blockIndex: number }) {
+function BlockCard({
+  block,
+  blockIndex,
+  onVideoRequest,
+}: {
+  block: TrainingWorkoutBlockDto;
+  blockIndex: number;
+  onVideoRequest?: (exercise: TrainingBlockExerciseDto) => void;
+}) {
   const typeConfig = BLOCK_TYPE_LABELS[block.blockType] || BLOCK_TYPE_LABELS.SINGLE;
   const isMultiExercise = block.blockType !== "SINGLE";
 
@@ -252,6 +294,7 @@ function BlockCard({ block, blockIndex }: { block: TrainingWorkoutBlockDto; bloc
                   ? `${String.fromCharCode(65 + blockIndex)}${eIndex + 1}`
                   : undefined
               }
+              onVideoRequest={onVideoRequest}
             />
           ))
         )}
@@ -263,9 +306,11 @@ function BlockCard({ block, blockIndex }: { block: TrainingWorkoutBlockDto; bloc
 function ExerciseItemCard({
   exercise,
   orderLabel,
+  onVideoRequest,
 }: {
   exercise: TrainingBlockExerciseDto;
   orderLabel?: string;
+  onVideoRequest?: (exercise: TrainingBlockExerciseDto) => void;
 }) {
   return (
     <div className="p-3 rounded-lg bg-white border border-zinc-200/80 shadow-2xs space-y-2">
@@ -282,13 +327,27 @@ function ExerciseItemCard({
         </div>
 
         {exercise.videoUrl && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-[#00A859] border border-emerald-200">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Vídeo disponível
-          </span>
+          onVideoRequest ? (
+            <button
+              type="button"
+              onClick={() => onVideoRequest(exercise)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-[#00A859] hover:bg-emerald-100 border border-emerald-200 shadow-2xs transition-all cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Ver execução
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-[#00A859] border border-emerald-200">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Vídeo disponível
+            </span>
+          )
         )}
       </div>
 
@@ -337,8 +396,14 @@ function ExerciseItemCard({
         )}
       </div>
 
+      {exercise.instructions && (
+        <p className="text-xs text-zinc-600 bg-zinc-50 p-2 rounded border border-zinc-100">
+          <strong className="text-zinc-700">Instruções:</strong> {exercise.instructions}
+        </p>
+      )}
+
       {exercise.notes && (
-        <p className="text-xs text-zinc-500 italic pt-1">
+        <p className="text-xs text-zinc-500 italic pt-0.5">
           Obs: {exercise.notes}
         </p>
       )}

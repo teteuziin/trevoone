@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveStudentModuleAccess } from "@/lib/consultancies/student-module-access";
+import { getActiveTrainingPlanForStudent } from "@/lib/consultancies/training";
 import { StudentModuleAccessPanel } from "@/components/consultancies/student-module-access-panel";
+import { StudentTrainingPlan } from "@/components/consultancies/student-training-plan";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
 
 type PageProps = {
@@ -32,9 +35,40 @@ export default async function StudentTreinosPage({ params }: PageProps) {
     redirect(`/consultoria/${access.context.consultancySlug}`);
   }
 
+  // Se onboarding incompleto, exibe painel com pendências
+  if (!access.allowed) {
+    return (
+      <main className="min-h-svh w-full flex flex-col items-center justify-start p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-zinc-50/50 text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
+        <div className="w-full max-w-[640px] mx-auto space-y-6">
+          <div className="flex items-center justify-between pb-2">
+            <div className="w-[120px] sm:w-[130px] shrink-0">
+              <TrevoOneLogo priority size={130} />
+            </div>
+            <span className="text-xs font-semibold text-zinc-500 bg-white border border-zinc-200 px-3 py-1 rounded-full shadow-2xs">
+              {access.context.consultancyName}
+            </span>
+          </div>
+
+          <StudentModuleAccessPanel
+            moduleType="TRAINING"
+            consultancySlug={access.context.consultancySlug}
+            consultancyName={access.context.consultancyName}
+            allowed={access.allowed}
+            confirmedRequirements={access.confirmedRequirements}
+            totalRequirements={access.totalRequirements}
+          />
+        </div>
+      </main>
+    );
+  }
+
+  // Se autorizado, busca o plano de treino ACTIVE do aluno nesta consultoria
+  const activePlan = await getActiveTrainingPlanForStudent(session.userId, slug);
+
   return (
     <main className="min-h-svh w-full flex flex-col items-center justify-start p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-zinc-50/50 text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-      <div className="w-full max-w-[640px] mx-auto space-y-6">
+      <div className="w-full max-w-[760px] mx-auto space-y-6">
+        {/* Top Header */}
         <div className="flex items-center justify-between pb-2">
           <div className="w-[120px] sm:w-[130px] shrink-0">
             <TrevoOneLogo priority size={130} />
@@ -44,14 +78,39 @@ export default async function StudentTreinosPage({ params }: PageProps) {
           </span>
         </div>
 
-        <StudentModuleAccessPanel
-          moduleType="TRAINING"
-          consultancySlug={access.context.consultancySlug}
-          consultancyName={access.context.consultancyName}
-          allowed={access.allowed}
-          confirmedRequirements={access.confirmedRequirements}
-          totalRequirements={access.totalRequirements}
-        />
+        {/* Back Link */}
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/consultoria/${access.context.consultancySlug}`}
+            className="inline-flex items-center text-xs font-semibold text-zinc-500 hover:text-zinc-800 transition-colors"
+          >
+            ← Voltar ao painel
+          </Link>
+        </div>
+
+        {/* Estado vazio (quando não há plano ativo liberado) */}
+        {!activePlan ? (
+          <div className="p-8 sm:p-12 rounded-2xl bg-white border border-zinc-200 shadow-2xs text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-emerald-50 text-[#00A859] mx-auto flex items-center justify-center font-bold">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-base font-bold text-zinc-900">
+              Seu treino ainda não foi disponibilizado
+            </h3>
+            <p className="text-xs sm:text-sm text-zinc-500 max-w-[380px] mx-auto leading-relaxed">
+              Assim que seu Personal Trainer liberar e ativar sua nova ficha de treino, ela aparecerá aqui com todos os exercícios, vídeos e orientações.
+            </p>
+          </div>
+        ) : (
+          <StudentTrainingPlan
+            consultancySlug={access.context.consultancySlug}
+            consultancyName={access.context.consultancyName}
+            consultancyLogoUrl={access.context.consultancyLogoUrl}
+            plan={activePlan}
+          />
+        )}
       </div>
     </main>
   );

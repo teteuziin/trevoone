@@ -8,6 +8,8 @@ import {
 import { getConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import { getStudentOnboardingStatus } from "@/lib/consultancies/student-onboarding";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { PageHeader } from "@/components/ui/page-header";
+import { Badge } from "@/components/ui/badge";
 
 type PageProps = {
   params: Promise<{
@@ -28,115 +30,23 @@ export default async function ConsultancyPage({ params }: PageProps) {
     redirect("/selecionar-consultoria");
   }
 
-  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
-
-  // Se o usuário possui CONSULTANCY_ADMIN na consultoria
-  if (isConsultancyAdmin) {
-    const overview = await getConsultancyAdminOverview(context.consultancyId);
-
-    const metrics = [
-      {
-        id: "active_members",
-        title: "Membros ativos",
-        value: overview.activeMembers,
-        description: "Usuários com acesso ativo à consultoria",
-      },
-      {
-        id: "students",
-        title: "Alunos",
-        value: overview.students,
-        description: "Cadastrados com papel de aluno",
-      },
-      {
-        id: "personals",
-        title: "Personais",
-        value: overview.personals,
-        description: "Treinadores e profissionais de treino",
-      },
-      {
-        id: "nutritionists",
-        title: "Nutricionistas",
-        value: overview.nutritionists,
-        description: "Profissionais de nutrição e dieta",
-      },
-      {
-        id: "admins",
-        title: "Administradores",
-        value: overview.admins,
-        description: "Gestores com acesso administrativo",
-      },
-    ];
-
-    return (
-      <ConsultancyAppShell
-        consultancyName={context.consultancyName}
-        consultancySlug={context.consultancySlug}
-        consultancyLogoUrl={context.consultancyLogoUrl}
-        roles={context.roles}
-        userName={session.fullName}
-        userEmail={session.email}
-      >
-        <div className="space-y-6">
-          {/* Header section */}
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-              Visão geral
-            </h1>
-            <p className="text-sm text-zinc-500 font-normal">
-              Acompanhe as métricas e a estrutura de membros da sua consultoria.
-            </p>
-          </div>
-
-          {/* Metrics grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {metrics.map((metric) => (
-              <div
-                key={metric.id}
-                className="p-5 rounded-xl bg-white border border-zinc-200 shadow-2xs space-y-2"
-              >
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                  {metric.title}
-                </p>
-                <p className="text-3xl font-bold text-zinc-900 tracking-tight">
-                  {metric.value}
-                </p>
-                <p className="text-xs text-zinc-500 leading-relaxed">
-                  {metric.description}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Quick link to Members */}
-          <div className="p-5 rounded-xl bg-white border border-zinc-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h2 className="text-base font-semibold text-zinc-900">
-                Diretório de Membros
-              </h2>
-              <p className="text-xs sm:text-sm text-zinc-500">
-                Consulte todos os alunos, profissionais e administradores vinculados à consultoria.
-              </p>
-            </div>
-            <Link
-              href={`/consultoria/${context.consultancySlug}/membros`}
-              className="inline-flex items-center justify-center px-4 py-2 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
-            >
-              Ver membros
-            </Link>
-          </div>
-        </div>
-      </ConsultancyAppShell>
-    );
-  }
-
-  // Se for membro STUDENT
   const isStudent = context.roles.includes("STUDENT");
   const isPersonal = context.roles.includes("PERSONAL");
-  const studentOnboarding = isStudent
-    ? await getStudentOnboardingStatus(session.userId, slug)
-    : null;
+  const isNutritionist = context.roles.includes("NUTRITIONIST");
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
 
-  // Se for membro comum (STUDENT, PERSONAL, NUTRITIONIST sem CONSULTANCY_ADMIN)
+  // Dados existentes resolvidos condicionalmente sem novas queries
+  const [studentOnboarding, adminOverview] = await Promise.all([
+    isStudent ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
+    isConsultancyAdmin ? getConsultancyAdminOverview(context.consultancyId) : Promise.resolve(null),
+  ]);
+
+  const hasIncompleteOnboarding =
+    isStudent &&
+    studentOnboarding &&
+    studentOnboarding.applicable &&
+    !studentOnboarding.isComplete;
+
   return (
     <ConsultancyAppShell
       consultancyName={context.consultancyName}
@@ -146,195 +56,298 @@ export default async function ConsultancyPage({ params }: PageProps) {
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full max-w-2xl mx-auto space-y-6">
-        <div className="space-y-1">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-            Painel Principal
-          </h1>
-          <p className="text-sm text-zinc-500">
-            Bem-vindo ao ambiente da sua consultoria.
-          </p>
-        </div>
-
-        <div className="w-full space-y-2">
-          <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-[#00A859] border border-emerald-200">
-            Acesso Confirmado
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">
-            {context.consultancyName}
-          </h1>
-          <p className="text-sm text-zinc-500 leading-relaxed">
-            Seu ambiente de consultoria está pronto para acesso.
-          </p>
-        </div>
-
-        {/* Card de Onboarding para STUDENT */}
-        {isStudent && studentOnboarding && studentOnboarding.applicable && (
-          <div className="w-full p-5 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-3 text-left">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                Onboarding
-              </span>
-              <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                  studentOnboarding.isComplete
-                    ? "bg-emerald-50 text-[#00A859] border border-emerald-200"
-                    : "bg-amber-50 text-amber-800 border border-amber-200"
-                }`}
-              >
-                {studentOnboarding.isComplete
-                  ? "Concluído"
-                  : `${studentOnboarding.confirmedRequirements} de ${studentOnboarding.totalRequirements} confirmadas`}
-              </span>
+      <div className="space-y-8">
+        {/* Header Principal */}
+        <PageHeader
+          title="Visão geral"
+          description={`Ambiente integrado da consultoria ${context.consultancyName}. Acesse seus recursos e acompanhamentos.`}
+          actions={
+            <div className="flex flex-wrap gap-1.5">
+              {context.roles.map((role) => (
+                <Badge key={role} variant="brand" size="sm">
+                  {ROLE_LABELS[role] || role}
+                </Badge>
+              ))}
             </div>
+          }
+        />
 
-            <p className="text-xs text-zinc-600 leading-relaxed">
-              {studentOnboarding.isComplete
-                ? "Todas as etapas obrigatórias de onboarding foram confirmadas."
-                : "Preencha os formulários obrigatórios para liberar seus acessos de treino e dieta."}
-            </p>
-
-            <Link
-              href={`/consultoria/${context.consultancySlug}/onboarding`}
-              className="inline-flex items-center justify-center w-full py-2 px-4 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-xs rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
-            >
-              {studentOnboarding.isComplete ? "Ver etapas" : "Continuar onboarding"}
-            </Link>
-          </div>
-        )}
-
-        {/* Módulos do Aluno (Treinos & Nutrição) */}
-        {isStudent && studentOnboarding && studentOnboarding.applicable && (
-          <div className="w-full space-y-3 text-left">
-            <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-              Seus Módulos
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Card Treinos */}
-              <div className="p-4 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-2.5 flex flex-col justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-zinc-900">Treinos</h3>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
-                        studentOnboarding.isComplete
-                          ? "bg-emerald-50 text-[#00A859] border border-emerald-200"
-                          : "bg-zinc-100 text-zinc-600 border border-zinc-200"
-                      }`}
-                    >
-                      {studentOnboarding.isComplete ? "Liberado" : "Bloqueado"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-500">
-                    {studentOnboarding.isComplete
-                      ? "Acesse seus treinos e rotinas."
-                      : "Conclua o onboarding para liberar."}
-                  </p>
+        {/* 1. Bloco Prioritário: Onboarding Pendente para Aluno */}
+        {hasIncompleteOnboarding && (
+          <div className="p-5 sm:p-6 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-300">
+                    Etapa Obrigatória
+                  </span>
+                  <span className="text-xs font-medium text-[var(--warning-foreground)]">
+                    {studentOnboarding.confirmedRequirements} de {studentOnboarding.totalRequirements} etapas confirmadas
+                  </span>
                 </div>
-
-                <Link
-                  href={`/consultoria/${context.consultancySlug}/treinos`}
-                  className={`inline-flex items-center justify-center w-full py-1.5 px-3 text-xs font-semibold rounded-lg shadow-2xs transition-all ${
-                    studentOnboarding.isComplete
-                      ? "bg-[#00A859] hover:bg-[#008f4c] text-white focus:ring-2 focus:ring-[#00A859]"
-                      : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 focus:ring-2 focus:ring-zinc-400"
-                  }`}
-                >
-                  {studentOnboarding.isComplete ? "Acessar treinos" : "Ver módulo"}
-                </Link>
+                <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                  Complete seu cadastro inicial
+                </h2>
+                <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                  Conclua os formulários obrigatórios de onboarding para liberar o acesso aos seus treinos e planos alimentares.
+                </p>
               </div>
 
-              {/* Card Dieta e Nutrição */}
-              <div className="p-4 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-2.5 flex flex-col justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-zinc-900">Dieta e Nutrição</h3>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
-                        studentOnboarding.isComplete
-                          ? "bg-emerald-50 text-[#00A859] border border-emerald-200"
-                          : "bg-zinc-100 text-zinc-600 border border-zinc-200"
-                      }`}
-                    >
-                      {studentOnboarding.isComplete ? "Liberado" : "Bloqueado"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-500">
-                    {studentOnboarding.isComplete
-                      ? "Acesse seus planos alimentares."
-                      : "Conclua o onboarding para liberar."}
-                  </p>
-                </div>
-
+              <div className="shrink-0 pt-1 sm:pt-0">
                 <Link
-                  href={`/consultoria/${context.consultancySlug}/nutricao`}
-                  className={`inline-flex items-center justify-center w-full py-1.5 px-3 text-xs font-semibold rounded-lg shadow-2xs transition-all ${
-                    studentOnboarding.isComplete
-                      ? "bg-[#00A859] hover:bg-[#008f4c] text-white focus:ring-2 focus:ring-[#00A859]"
-                      : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 focus:ring-2 focus:ring-zinc-400"
-                  }`}
+                  href={`/consultoria/${context.consultancySlug}/onboarding`}
+                  className="inline-flex items-center justify-center px-4 py-2.5 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)]"
                 >
-                  {studentOnboarding.isComplete ? "Acessar nutrição" : "Ver módulo"}
+                  Continuar onboarding
                 </Link>
               </div>
             </div>
           </div>
         )}
 
-        {/* Card Profissional para PERSONAL */}
-        {isPersonal && (
-          <div className="w-full p-5 rounded-xl border border-zinc-200 bg-white shadow-2xs space-y-3 text-left">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                Área do Personal
-              </span>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-[#00A859] border border-emerald-200">
-                Profissional
-              </span>
-            </div>
-
+        {/* 2. Seção: Seu Acompanhamento (Aluno) */}
+        {isStudent && (
+          <div className="space-y-4">
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-zinc-900">
-                Prescrição de Treinos
-              </h3>
-              <p className="text-xs text-zinc-600 leading-relaxed">
-                Crie e monte as fichas de treino para seus alunos e gerencie o catálogo de exercícios.
+              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
+                Seu acompanhamento
+              </h2>
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                Acesse suas rotinas prescritas de treino e planos nutricionais.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              <Link
-                href={`/consultoria/${context.consultancySlug}/personal/treinos`}
-                className="inline-flex items-center justify-center w-full py-2 px-3 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-xs rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
-              >
-                Planos de treino
-              </Link>
-              <Link
-                href={`/consultoria/${context.consultancySlug}/personal/exercicios`}
-                className="inline-flex items-center justify-center w-full py-2 px-3 bg-white hover:bg-zinc-50 active:bg-zinc-100 text-zinc-700 font-semibold text-xs border border-zinc-300 rounded-lg shadow-2xs transition-all focus:outline-none focus:ring-2 focus:ring-zinc-400"
-              >
-                Biblioteca de exercícios
-              </Link>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Card Treinos */}
+              <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4 hover:border-[var(--border-strong)] transition-colors">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                      Treinos
+                    </h3>
+                    <Badge
+                      variant={studentOnboarding?.isComplete ? "success" : "neutral"}
+                      size="sm"
+                    >
+                      {studentOnboarding?.isComplete ? "Liberado" : "Pendente"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                    {studentOnboarding?.isComplete
+                      ? "Acesse suas fichas ativas de treino, vídeos dos exercícios e orientações."
+                      : "Conclua o onboarding para liberar sua ficha de treino prescrita."}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-[var(--border-subtle)]">
+                  <Link
+                    href={`/consultoria/${context.consultancySlug}/treinos`}
+                    className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--surface-hover)] hover:bg-[var(--brand-soft)] hover:text-[var(--brand-foreground)] text-[var(--text-primary)] text-xs font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+                  >
+                    {studentOnboarding?.isComplete ? "Acessar treinos" : "Ver módulo"}
+                  </Link>
+                </div>
+              </div>
+
+              {/* Card Nutrição */}
+              <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4 hover:border-[var(--border-strong)] transition-colors">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                      Nutrição
+                    </h3>
+                    <Badge
+                      variant={studentOnboarding?.isComplete ? "success" : "neutral"}
+                      size="sm"
+                    >
+                      {studentOnboarding?.isComplete ? "Liberado" : "Pendente"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                    {studentOnboarding?.isComplete
+                      ? "Acesse seus planos alimentares e orientações de dieta."
+                      : "Conclua o onboarding para liberar o acesso ao plano nutricional."}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-[var(--border-subtle)]">
+                  <Link
+                    href={`/consultoria/${context.consultancySlug}/nutricao`}
+                    className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--surface-hover)] hover:bg-[var(--brand-soft)] hover:text-[var(--brand-foreground)] text-[var(--text-primary)] text-xs font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+                  >
+                    {studentOnboarding?.isComplete ? "Acessar nutrição" : "Ver módulo"}
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        <div className="w-full p-4 rounded-xl border border-zinc-200 bg-zinc-50/50 space-y-3 text-left">
-          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-            Seus acessos nesta consultoria
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {context.roles.map((role) => (
-              <span
-                key={role}
-                className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-zinc-200 text-zinc-800 shadow-2xs"
-              >
-                {ROLE_LABELS[role]}
-              </span>
-            ))}
+        {/* 3. Seção: Área Profissional (Personal / Nutricionista) */}
+        {(isPersonal || isNutritionist) && (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
+                Área profissional
+              </h2>
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                Ferramentas de prescrição e acompanhamento para profissionais da consultoria.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {isPersonal && (
+                <>
+                  {/* Card Planos de Treino */}
+                  <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4 hover:border-[var(--border-strong)] transition-colors">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                          Planos de Treino
+                        </h3>
+                        <Badge variant="brand" size="sm">
+                          Personal
+                        </Badge>
+                      </div>
+                      <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                        Crie e gerencie prescrições de treino personalizadas para seus alunos vinculados.
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-[var(--border-subtle)]">
+                      <Link
+                        href={`/consultoria/${context.consultancySlug}/personal/treinos`}
+                        className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)]"
+                      >
+                        Gerenciar planos
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Card Biblioteca de Exercícios */}
+                  <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4 hover:border-[var(--border-strong)] transition-colors">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                          Biblioteca de Exercícios
+                        </h3>
+                        <Badge variant="neutral" size="sm">
+                          Catálogo
+                        </Badge>
+                      </div>
+                      <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                        Consulte o catálogo de exercícios, vídeos de execução e instruções de movimento.
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-[var(--border-subtle)]">
+                      <Link
+                        href={`/consultoria/${context.consultancySlug}/personal/exercicios`}
+                        className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] text-xs font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+                      >
+                        Acessar exercícios
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {isNutritionist && !isPersonal && (
+                <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-2 col-span-full">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                      Prescrição Nutricional
+                    </h3>
+                    <Badge variant="brand" size="sm">
+                      Nutricionista
+                    </Badge>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                    As ferramentas de prescrição e acompanhamento dietético estão vinculadas ao seu papel profissional nesta consultoria.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* 4. Seção: Gestão da Consultoria (Admin) */}
+        {isConsultancyAdmin && (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
+                Gestão da consultoria
+              </h2>
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                Estrutura de membros e administração de acessos da consultoria.
+              </p>
+            </div>
+
+            {/* Resumo de métricas reais se disponível */}
+            {adminOverview && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs space-y-1">
+                  <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    Total Membros
+                  </p>
+                  <p className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+                    {adminOverview.activeMembers}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs space-y-1">
+                  <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    Alunos
+                  </p>
+                  <p className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+                    {adminOverview.students}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs space-y-1">
+                  <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    Personais
+                  </p>
+                  <p className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+                    {adminOverview.personals}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs space-y-1">
+                  <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    Nutricionistas
+                  </p>
+                  <p className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+                    {adminOverview.nutritionists}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs space-y-1 col-span-2 sm:col-span-1">
+                  <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    Administradores
+                  </p>
+                  <p className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+                    {adminOverview.admins}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Ação de Gestão de Membros */}
+            <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                  Membros e Convites
+                </h3>
+                <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                  Consulte, convide e gerencie todos os alunos, profissionais e gestores vinculados a esta consultoria.
+                </p>
+              </div>
+              <Link
+                href={`/consultoria/${context.consultancySlug}/membros`}
+                className="inline-flex items-center justify-center px-4 py-2.5 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-xs transition-colors shrink-0 focus-visible:outline-[var(--brand)]"
+              >
+                Gerenciar membros
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </ConsultancyAppShell>
   );

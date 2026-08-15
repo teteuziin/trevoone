@@ -1,22 +1,127 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #111827;
-  --primary: #00A859;
+  /* Surface & Backgrounds */
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --surface-subtle: #f8fafc;
+  --surface-hover: #f1f5f9;
+  --surface-active: #e2e8f0;
+  --surface-elevated: #ffffff;
+
+  /* Typography & Foregrounds */
+  --foreground: #0f172a;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --text-inverse: #ffffff;
+
+  /* Borders */
+  --border-subtle: #f1f5f9;
+  --border-default: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* Trevo One Brand Identity */
+  --primary: #00a859;
   --primary-hover: #008f4c;
-  --muted: #6b7280;
-  --border: #e5e7eb;
+  --brand: #00a859;
+  --brand-hover: #00944e;
+  --brand-active: #007a40;
+  --brand-strong: #008746;
+  --brand-soft: #ecfdf5;
+  --brand-soft-border: #a7f3d0;
+  --brand-foreground: #065f46;
+
+  /* Semantic Status Tokens */
+  --success: #10b981;
+  --success-hover: #059669;
+  --success-soft: #ecfdf5;
+  --success-border: #a7f3d0;
+  --success-foreground: #065f46;
+
+  --warning: #f59e0b;
+  --warning-hover: #d97706;
+  --warning-soft: #fffbeb;
+  --warning-border: #fde68a;
+  --warning-foreground: #92400e;
+
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --danger-soft: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-foreground: #991b1b;
+
+  --info: #3b82f6;
+  --info-hover: #2563eb;
+  --info-soft: #eff6ff;
+  --info-border: #bfdbfe;
+  --info-foreground: #1e40af;
+
+  /* Focus & Elevation */
+  --focus-ring: rgba(0, 168, 89, 0.35);
+  --focus-ring-danger: rgba(239, 68, 68, 0.35);
+  --muted: #64748b;
+  --border: #e2e8f0;
 }
 
 @theme inline {
+  /* Colors */
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-surface-elevated: var(--surface-elevated);
+
   --color-foreground: var(--foreground);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-inverse: var(--text-inverse);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-active: var(--brand-active);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-soft-border: var(--brand-soft-border);
+  --color-brand-foreground: var(--brand-foreground);
+
+  --color-success: var(--success);
+  --color-success-hover: var(--success-hover);
+  --color-success-soft: var(--success-soft);
+  --color-success-border: var(--success-border);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-warning: var(--warning);
+  --color-warning-hover: var(--warning-hover);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
+  --color-danger-foreground: var(--danger-foreground);
+
+  --color-info: var(--info);
+  --color-info-hover: var(--info-hover);
+  --color-info-soft: var(--info-soft);
+  --color-info-border: var(--info-border);
+  --color-info-foreground: var(--info-foreground);
+
   --color-muted: var(--muted);
   --color-border: var(--border);
-  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Typography */
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 *,
@@ -32,6 +137,32 @@ body {
   min-height: 100%;
   width: 100%;
   background-color: var(--background);
-  color: var(--foreground);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--brand-soft);
+  color: var(--brand-foreground);
+}
+
+/* Accessible focus visible utility */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 

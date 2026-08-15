@@ -7,7 +7,7 @@ import {
   ADMIN_ROLE_LABELS,
 } from "@/lib/consultancies/admin";
 import { listConsultancyInvitations } from "@/lib/consultancies/invitations";
-import { ConsultancyAdminShell } from "@/components/consultancies/consultancy-admin-shell";
+import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { InvitationForm } from "@/components/consultancies/invitation-form";
 import { InvitationRevokeButton } from "@/components/consultancies/invitation-revoke-button";
 
@@ -69,11 +69,13 @@ export default async function ConsultancyMembersPage({
     ]);
 
   return (
-    <ConsultancyAdminShell
+    <ConsultancyAppShell
       consultancyName={context.consultancyName}
       consultancySlug={context.consultancySlug}
       consultancyLogoUrl={context.consultancyLogoUrl}
-      currentSection="members"
+      roles={context.roles}
+      userName={session.fullName}
+      userEmail={session.email}
     >
       <div className="space-y-8">
         {/* Header */}
@@ -503,6 +505,6 @@ export default async function ConsultancyMembersPage({
           )}
         </section>
       </div>
-    </ConsultancyAdminShell>
+    </ConsultancyAppShell>
   );
 }

@@ -5,6 +5,7 @@ import type {
   TrainingWorkoutBlockDto,
   TrainingBlockExerciseDto,
 } from "@/lib/consultancies/training";
+import { Badge } from "@/components/ui/badge";
 
 type Props = {
   plan: TrainingPlanDto;
@@ -23,12 +24,12 @@ const WEEKDAY_NAMES: Record<number, string> = {
   7: "Domingo",
 };
 
-const BLOCK_TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  SINGLE: { label: "Exercício Isolado", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
-  BI_SET: { label: "Bi-Set", color: "bg-emerald-50 text-[#00A859] border-emerald-200 font-bold" },
-  TRI_SET: { label: "Tri-Set", color: "bg-blue-50 text-blue-700 border-blue-200 font-bold" },
-  SUPERSET: { label: "Superset", color: "bg-purple-50 text-purple-700 border-purple-200 font-bold" },
-  CIRCUIT: { label: "Circuito", color: "bg-amber-50 text-amber-800 border-amber-200 font-bold" },
+const BLOCK_TYPE_LABELS: Record<string, { label: string; variant: "neutral" | "brand" | "success" | "warning" }> = {
+  SINGLE: { label: "Exercício Isolado", variant: "neutral" },
+  BI_SET: { label: "Bi-Set", variant: "brand" },
+  TRI_SET: { label: "Tri-Set", variant: "brand" },
+  SUPERSET: { label: "Superset", variant: "brand" },
+  CIRCUIT: { label: "Circuito", variant: "warning" },
 };
 
 function formatDate(dateStr: string | null) {
@@ -52,34 +53,34 @@ export function TrainingPlanRenderer({
   return (
     <div className="w-full space-y-6 text-left">
       {/* Plan Header Card */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-3">
+      <div className="p-5 sm:p-6 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {studentName && (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-[#00A859] border border-emerald-200">
+            <Badge variant="brand" size="sm">
               Aluno: {studentName}
-            </span>
+            </Badge>
           )}
           {isDraft && (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+            <Badge variant="warning" size="sm">
               Rascunho
-            </span>
+            </Badge>
           )}
         </div>
 
         <div className="space-y-1">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
             {plan.title || "Plano de Treino Sem Título"}
           </h1>
           {plan.subtitle && (
-            <p className="text-sm font-medium text-zinc-600">
+            <p className="text-sm font-medium text-[var(--text-secondary)]">
               {plan.subtitle}
             </p>
           )}
         </div>
 
         {(formattedStart || formattedEnd) && (
-          <div className="flex items-center gap-2 text-xs text-zinc-500 font-medium pt-1">
-            <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-medium pt-1">
+            <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <span>
@@ -89,7 +90,7 @@ export function TrainingPlanRenderer({
         )}
 
         {plan.description && (
-          <p className="text-xs text-zinc-600 leading-relaxed border-t border-zinc-100 pt-3 whitespace-pre-wrap">
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border-subtle)] pt-3 whitespace-pre-wrap">
             {plan.description}
           </p>
         )}
@@ -97,9 +98,9 @@ export function TrainingPlanRenderer({
 
       {/* Workouts List */}
       {plan.workouts.length === 0 ? (
-        <div className="p-8 rounded-2xl bg-white border border-zinc-200 shadow-2xs text-center space-y-2">
-          <p className="text-sm font-semibold text-zinc-700">Nenhum treino adicionado ainda</p>
-          <p className="text-xs text-zinc-500 max-w-[320px] mx-auto">
+        <div className="p-8 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs text-center space-y-2">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">Nenhum treino adicionado ainda</p>
+          <p className="text-xs text-[var(--text-secondary)] max-w-[320px] mx-auto">
             Adicione o primeiro treino (ex: Treino A) para começar a estruturar a prescrição.
           </p>
         </div>
@@ -131,32 +132,32 @@ function WorkoutCard({
   const weekdayLabel = workout.scheduledWeekday ? WEEKDAY_NAMES[workout.scheduledWeekday] : null;
 
   return (
-    <div className="rounded-2xl bg-white border border-zinc-200 shadow-2xs overflow-hidden">
+    <div className="rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs overflow-hidden">
       {/* Workout Header */}
-      <div className="p-4 sm:p-5 bg-zinc-50/80 border-b border-zinc-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="p-4 sm:p-5 bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-zinc-900 text-white text-[10px] font-bold flex items-center justify-center">
+            <span className="w-5 h-5 rounded-full bg-[var(--text-primary)] text-[var(--surface)] text-[10px] font-bold flex items-center justify-center">
               {String.fromCharCode(65 + index)}
             </span>
-            <h2 className="text-base font-bold text-zinc-900">
+            <h2 className="text-base font-bold text-[var(--text-primary)]">
               {workout.title}
             </h2>
           </div>
           {workout.subtitle && (
-            <p className="text-xs text-zinc-500">{workout.subtitle}</p>
+            <p className="text-xs text-[var(--text-secondary)]">{workout.subtitle}</p>
           )}
         </div>
 
         {weekdayLabel && (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-zinc-200 text-zinc-700 shadow-2xs">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-secondary)] shadow-2xs">
             {weekdayLabel}
           </span>
         )}
       </div>
 
       {workout.notes && (
-        <div className="px-5 py-2.5 bg-amber-50/60 border-b border-amber-100 text-xs text-amber-900">
+        <div className="px-5 py-2.5 bg-[var(--warning-soft)] border-b border-[var(--warning-border)] text-xs text-[var(--warning-foreground)]">
           <span className="font-semibold">Orientação:</span> {workout.notes}
         </div>
       )}
@@ -164,7 +165,7 @@ function WorkoutCard({
       {/* Sections List */}
       <div className="p-4 sm:p-5 space-y-5">
         {workout.sections.length === 0 ? (
-          <p className="text-xs text-zinc-400 italic text-center py-3">
+          <p className="text-xs text-[var(--text-tertiary)] italic text-center py-3">
             Nenhuma divisão muscular ou seção cadastrada neste treino.
           </p>
         ) : (
@@ -190,19 +191,19 @@ function SectionCard({
 }) {
   return (
     <div className="space-y-3">
-      <div className="border-b border-zinc-100 pb-1.5 flex items-center justify-between">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-700">
+      <div className="border-b border-[var(--border-subtle)] pb-1.5 flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
           {section.title}
         </h3>
         {section.description && (
-          <span className="text-[11px] text-zinc-400">{section.description}</span>
+          <span className="text-[11px] text-[var(--text-tertiary)]">{section.description}</span>
         )}
       </div>
 
       {/* Blocks List */}
       <div className="space-y-3">
         {section.blocks.length === 0 ? (
-          <p className="text-xs text-zinc-400 italic py-2">
+          <p className="text-xs text-[var(--text-tertiary)] italic py-2">
             Nenhum bloco de exercícios nesta seção.
           </p>
         ) : (
@@ -236,36 +237,34 @@ function BlockCard({
     <div
       className={`rounded-xl border p-3 sm:p-4 space-y-3 ${
         isMultiExercise
-          ? "bg-zinc-50/60 border-zinc-200/90"
-          : "bg-white border-zinc-200/80 shadow-2xs"
+          ? "bg-[var(--surface-subtle)] border-[var(--border-default)]"
+          : "bg-[var(--surface)] border-[var(--border-default)] shadow-2xs"
       }`}
     >
       {/* Block Meta Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100/80 pb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2">
         <div className="flex items-center gap-2">
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] border ${typeConfig.color}`}
-          >
+          <Badge variant={typeConfig.variant} size="sm">
             {typeConfig.label}
-          </span>
+          </Badge>
           {block.title && (
-            <span className="text-xs font-semibold text-zinc-800">{block.title}</span>
+            <span className="text-xs font-semibold text-[var(--text-primary)]">{block.title}</span>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500 font-medium">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-secondary)] font-medium">
           {block.rounds && (
-            <span className="bg-white border border-zinc-200 px-2 py-0.5 rounded shadow-2xs">
+            <span className="bg-[var(--surface)] border border-[var(--border-default)] px-2 py-0.5 rounded shadow-2xs">
               {block.rounds} {block.rounds === 1 ? "round" : "rounds"}
             </span>
           )}
           {block.restBetweenExercisesSeconds !== null && block.restBetweenExercisesSeconds > 0 && (
-            <span className="bg-white border border-zinc-200 px-2 py-0.5 rounded shadow-2xs">
+            <span className="bg-[var(--surface)] border border-[var(--border-default)] px-2 py-0.5 rounded shadow-2xs">
               {block.restBetweenExercisesSeconds}s entre ex.
             </span>
           )}
           {block.restAfterBlockSeconds !== null && block.restAfterBlockSeconds > 0 && (
-            <span className="bg-white border border-zinc-200 px-2 py-0.5 rounded shadow-2xs">
+            <span className="bg-[var(--surface)] border border-[var(--border-default)] px-2 py-0.5 rounded shadow-2xs">
               {block.restAfterBlockSeconds}s descanso final
             </span>
           )}
@@ -273,15 +272,15 @@ function BlockCard({
       </div>
 
       {block.instructions && (
-        <p className="text-xs text-zinc-600 leading-relaxed bg-white p-2 rounded-lg border border-zinc-100">
-          <span className="font-semibold text-zinc-700">Instruções do bloco:</span> {block.instructions}
+        <p className="text-xs text-[var(--text-secondary)] leading-relaxed bg-[var(--surface)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+          <span className="font-semibold text-[var(--text-primary)]">Instruções do bloco:</span> {block.instructions}
         </p>
       )}
 
       {/* Exercises in Block */}
       <div className="space-y-2.5">
         {block.exercises.length === 0 ? (
-          <p className="text-xs text-zinc-400 italic py-1 text-center">
+          <p className="text-xs text-[var(--text-tertiary)] italic py-1 text-center">
             Adicione exercícios a este bloco.
           </p>
         ) : (
@@ -313,15 +312,15 @@ function ExerciseItemCard({
   onVideoRequest?: (exercise: TrainingBlockExerciseDto) => void;
 }) {
   return (
-    <div className="p-3 rounded-lg bg-white border border-zinc-200/80 shadow-2xs space-y-2">
+    <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           {orderLabel && (
-            <span className="px-1.5 py-0.5 rounded bg-zinc-900 text-white text-[10px] font-bold">
+            <span className="px-1.5 py-0.5 rounded bg-[var(--text-primary)] text-[var(--surface)] text-[10px] font-bold">
               {orderLabel}
             </span>
           )}
-          <h4 className="text-sm font-bold text-zinc-900">
+          <h4 className="text-sm font-bold text-[var(--text-primary)]">
             {exercise.exerciseName}
           </h4>
         </div>
@@ -331,17 +330,17 @@ function ExerciseItemCard({
             <button
               type="button"
               onClick={() => onVideoRequest(exercise)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-[#00A859] hover:bg-emerald-100 border border-emerald-200 shadow-2xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-[var(--brand-soft)] text-[var(--brand-foreground)] hover:bg-[var(--brand-soft-border)] border border-[var(--brand-soft-border)] shadow-2xs transition-colors cursor-pointer"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Ver execução
             </button>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-[#00A859] border border-emerald-200">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)]">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -353,16 +352,16 @@ function ExerciseItemCard({
 
       {/* Muscle / Equipment tags */}
       {(exercise.muscleGroup || exercise.equipment) && (
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
           {exercise.muscleGroup && (
-            <span className="px-1.5 py-0.5 rounded bg-zinc-100 font-medium">
+            <Badge variant="neutral" size="sm">
               {exercise.muscleGroup}
-            </span>
+            </Badge>
           )}
           {exercise.equipment && (
-            <span className="px-1.5 py-0.5 rounded bg-zinc-100 font-medium">
+            <Badge variant="neutral" size="sm">
               {exercise.equipment}
-            </span>
+            </Badge>
           )}
         </div>
       )}
@@ -370,40 +369,40 @@ function ExerciseItemCard({
       {/* Prescription Badges */}
       <div className="flex flex-wrap items-center gap-1.5 pt-1">
         {exercise.sets !== null && (
-          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-zinc-100 text-zinc-800">
+          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-subtle)]">
             {exercise.sets} {exercise.sets === 1 ? "série" : "séries"}
           </span>
         )}
         {exercise.repetitionsText && (
-          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-zinc-100 text-zinc-800">
+          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-subtle)]">
             {exercise.repetitionsText} reps
           </span>
         )}
         {exercise.loadGuidance && (
-          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-zinc-100 text-zinc-800">
+          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-subtle)]">
             {exercise.loadGuidance}
           </span>
         )}
         {exercise.restSeconds !== null && exercise.restSeconds > 0 && (
-          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-zinc-100 text-zinc-800">
+          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-subtle)]">
             {exercise.restSeconds}s descanso
           </span>
         )}
         {exercise.technique && (
-          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)]">
             {exercise.technique}
           </span>
         )}
       </div>
 
       {exercise.instructions && (
-        <p className="text-xs text-zinc-600 bg-zinc-50 p-2 rounded border border-zinc-100">
-          <strong className="text-zinc-700">Instruções:</strong> {exercise.instructions}
+        <p className="text-xs text-[var(--text-secondary)] bg-[var(--surface-subtle)] p-2.5 rounded border border-[var(--border-subtle)]">
+          <strong className="text-[var(--text-primary)]">Instruções:</strong> {exercise.instructions}
         </p>
       )}
 
       {exercise.notes && (
-        <p className="text-xs text-zinc-500 italic pt-0.5">
+        <p className="text-xs text-[var(--text-tertiary)] italic pt-0.5">
           Obs: {exercise.notes}
         </p>
       )}

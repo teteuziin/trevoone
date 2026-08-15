@@ -7,6 +7,7 @@ import {
 } from "@/lib/consultancies/training";
 import { TrainingPlanEditor } from "@/components/consultancies/training-plan-editor";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
+import { Badge } from "@/components/ui/badge";
 
 type PageProps = {
   params: Promise<{
@@ -55,15 +56,15 @@ export default async function PersonalTrainingPlanEditorPage({
   });
 
   return (
-    <main className="min-h-svh w-full flex flex-col items-center justify-start p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-zinc-50/50 text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
+    <main className="min-h-svh w-full flex flex-col items-center justify-start p-4 sm:p-6 md:p-8 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--surface-subtle)] text-[var(--text-primary)]">
       <div className="w-full max-w-[1240px] mx-auto space-y-6">
-        <div className="flex items-center justify-between pb-2">
+        <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
           <div className="w-[120px] sm:w-[130px] shrink-0">
             <TrevoOneLogo priority size={130} />
           </div>
-          <span className="text-xs font-semibold text-zinc-500 bg-white border border-zinc-200 px-3 py-1 rounded-full shadow-2xs">
+          <Badge variant="neutral" size="sm">
             {context.consultancyName}
-          </span>
+          </Badge>
         </div>
 
         <TrainingPlanEditor

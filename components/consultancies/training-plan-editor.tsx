@@ -36,11 +36,33 @@ import {
   validateTrainingPlanActivationAction,
   activateTrainingPlanAction,
 } from "@/app/consultoria/[slug]/personal/treinos/actions";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { FormField, Input, Textarea, Select } from "@/components/ui/form-controls";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Props = {
   consultancySlug: string;
   plan: DraftTrainingPlanEditorDto;
   activeLibraryExercises: TrainingExerciseItemDto[];
+};
+
+const WEEKDAY_NAMES = [
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+  "Domingo",
+];
+
+const BLOCK_TYPE_MAP: Record<string, { label: string; variant: "neutral" | "brand" | "success" | "warning" }> = {
+  SINGLE: { label: "Exercício Isolado", variant: "neutral" },
+  BI_SET: { label: "Bi-Set", variant: "brand" },
+  TRI_SET: { label: "Tri-Set", variant: "brand" },
+  SUPERSET: { label: "Superset", variant: "brand" },
+  CIRCUIT: { label: "Circuito", variant: "warning" },
 };
 
 export function TrainingPlanEditor({
@@ -630,43 +652,45 @@ export function TrainingPlanEditor({
           <div className="flex items-center gap-2 pb-1">
             <Link
               href={`/consultoria/${consultancySlug}/personal/treinos`}
-              className="inline-flex items-center text-xs font-semibold text-zinc-500 hover:text-zinc-800 transition-colors"
+              className="inline-flex items-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               ← Voltar aos planos
             </Link>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               {plan.title}
             </h1>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+            <Badge variant="warning" size="sm">
               Rascunho
-            </span>
+            </Badge>
           </div>
-          <p className="text-xs text-zinc-500">
-            Aluno: <span className="font-semibold text-zinc-800">{plan.studentName}</span> ({plan.studentEmail})
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+            Aluno: <span className="font-semibold text-[var(--text-primary)]">{plan.studentName}</span> ({plan.studentEmail})
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             onClick={handleOpenActivation}
             disabled={isPending || isValidatingReadiness}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold text-white bg-[#00A859] hover:bg-[#008f4c] disabled:opacity-50 rounded-xl shadow-xs transition-all cursor-pointer"
+            isLoading={isValidatingReadiness}
           >
-            {isValidatingReadiness ? "Validando..." : "Disponibilizar para o aluno"}
-          </button>
+            Disponibilizar para o aluno
+          </Button>
 
           {/* Mobile Tab Toggle */}
-          <div className="flex lg:hidden items-center p-1 bg-zinc-200/80 rounded-xl">
+          <div className="flex lg:hidden items-center p-1 bg-[var(--surface-hover)] rounded-xl border border-[var(--border-subtle)]">
             <button
               type="button"
               onClick={() => setActiveTab("editor")}
               className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all ${
                 activeTab === "editor"
-                  ? "bg-white text-zinc-900 shadow-2xs"
-                  : "text-zinc-600 hover:text-zinc-900"
+                  ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-2xs"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               Editar Ficha
@@ -676,8 +700,8 @@ export function TrainingPlanEditor({
               onClick={() => setActiveTab("preview")}
               className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all ${
                 activeTab === "preview"
-                  ? "bg-white text-zinc-900 shadow-2xs"
-                  : "text-zinc-600 hover:text-zinc-900"
+                  ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-2xs"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               Prévia do Aluno
@@ -689,10 +713,12 @@ export function TrainingPlanEditor({
       {/* Global Feedback Banner */}
       {feedback && (
         <div
-          className={`p-3 rounded-xl text-xs font-semibold border ${
+          role="alert"
+          aria-live="polite"
+          className={`p-3.5 rounded-xl text-xs font-semibold border ${
             feedback.type === "success"
-              ? "bg-emerald-50 text-[#00A859] border-emerald-200"
-              : "bg-red-50 text-red-800 border-red-200"
+              ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
+              : "bg-[var(--danger-soft)] text-[var(--danger-foreground)] border-[var(--danger-soft-border)]"
           }`}
         >
           {feedback.message}
@@ -708,31 +734,32 @@ export function TrainingPlanEditor({
           }`}
         >
           {/* Metadata Overview Card */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-3">
+          <div className="p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-zinc-900">
+              <h2 className="text-sm font-bold text-[var(--text-primary)]">
                 Informações do Plano
               </h2>
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setIsMetaModalOpen(true)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 transition-all cursor-pointer"
               >
                 Editar Informações
-              </button>
+              </Button>
             </div>
             {plan.subtitle && (
-              <p className="text-xs text-zinc-600 font-medium">{plan.subtitle}</p>
+              <p className="text-xs text-[var(--text-secondary)] font-medium">{plan.subtitle}</p>
             )}
             {plan.description && (
-              <p className="text-xs text-zinc-500 whitespace-pre-wrap">{plan.description}</p>
+              <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">{plan.description}</p>
             )}
-            <div className="flex flex-wrap gap-4 text-xs text-zinc-500 pt-1">
+            <div className="flex flex-wrap gap-4 text-xs text-[var(--text-secondary)] pt-1 border-t border-[var(--border-subtle)]">
               <span>
-                Início: <strong className="text-zinc-700">{plan.startsOn ? new Date(plan.startsOn + "T00:00:00").toLocaleDateString("pt-BR") : "Não definido"}</strong>
+                Início: <strong className="text-[var(--text-primary)]">{plan.startsOn ? new Date(plan.startsOn + "T00:00:00").toLocaleDateString("pt-BR") : "Não definido"}</strong>
               </span>
               <span>
-                Término: <strong className="text-zinc-700">{plan.endsOn ? new Date(plan.endsOn + "T00:00:00").toLocaleDateString("pt-BR") : "Não definido"}</strong>
+                Término: <strong className="text-[var(--text-primary)]">{plan.endsOn ? new Date(plan.endsOn + "T00:00:00").toLocaleDateString("pt-BR") : "Não definido"}</strong>
               </span>
             </div>
           </div>
@@ -740,58 +767,58 @@ export function TrainingPlanEditor({
           {/* Workouts Container */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-zinc-900">
+              <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight">
                 Treinos Prescritos ({plan.workouts.length})
               </h2>
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="sm"
                 onClick={openNewWorkoutModal}
-                className="px-3 py-1.5 text-xs font-bold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-xl shadow-xs transition-all cursor-pointer"
               >
                 + Adicionar Treino
-              </button>
+              </Button>
             </div>
 
             {plan.workouts.length === 0 ? (
-              <div className="p-8 text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-300 space-y-2">
-                <p className="text-xs font-semibold text-zinc-600">
-                  Nenhum treino adicionado neste plano.
-                </p>
-                <p className="text-xs text-zinc-500">
-                  Adicione o primeiro treino (ex: Treino A - Peitoral e Tríceps).
-                </p>
-                <button
-                  type="button"
-                  onClick={openNewWorkoutModal}
-                  className="mt-2 px-3 py-1.5 text-xs font-bold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-all cursor-pointer"
-                >
-                  Criar Primeiro Treino
-                </button>
-              </div>
+              <EmptyState
+                title="Nenhum treino adicionado neste plano"
+                description="Adicione o primeiro treino (ex: Treino A - Peitoral e Tríceps) para estruturar a ficha."
+                action={
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={openNewWorkoutModal}
+                  >
+                    Criar Primeiro Treino
+                  </Button>
+                }
+              />
             ) : (
               plan.workouts.map((workout, wIdx) => (
                 <div
                   key={workout.publicId}
-                  className="p-4 sm:p-5 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4"
+                  className="p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4"
                 >
                   {/* Workout Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-zinc-100 text-zinc-700 font-bold text-xs flex items-center justify-center">
-                          {wIdx + 1}
+                        <span className="w-5 h-5 rounded-full bg-[var(--text-primary)] text-[var(--surface)] font-bold text-xs flex items-center justify-center">
+                          {String.fromCharCode(65 + wIdx)}
                         </span>
-                        <h3 className="text-sm sm:text-base font-bold text-zinc-900">
+                        <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
                           {workout.title}
                         </h3>
                         {workout.scheduledWeekday && (
-                          <span className="text-[11px] px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 font-medium">
-                            {["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"][workout.scheduledWeekday - 1]}
-                          </span>
+                          <Badge variant="neutral" size="sm">
+                            {WEEKDAY_NAMES[workout.scheduledWeekday - 1]}
+                          </Badge>
                         )}
                       </div>
                       {workout.subtitle && (
-                        <p className="text-xs text-zinc-500 mt-0.5">{workout.subtitle}</p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-0.5">{workout.subtitle}</p>
                       )}
                     </div>
 
@@ -800,8 +827,9 @@ export function TrainingPlanEditor({
                         type="button"
                         disabled={wIdx === 0 || isPending}
                         onClick={() => handleMoveWorkout(workout.publicId, "UP")}
-                        className="p-1 text-xs font-bold text-zinc-500 hover:text-zinc-800 disabled:opacity-30 rounded hover:bg-zinc-100 cursor-pointer"
-                        title="Mover para cima"
+                        className="p-1 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 rounded hover:bg-[var(--surface-hover)] transition-colors"
+                        title="Mover treino para cima"
+                        aria-label="Mover treino para cima"
                       >
                         ▲
                       </button>
@@ -809,22 +837,23 @@ export function TrainingPlanEditor({
                         type="button"
                         disabled={wIdx === plan.workouts.length - 1 || isPending}
                         onClick={() => handleMoveWorkout(workout.publicId, "DOWN")}
-                        className="p-1 text-xs font-bold text-zinc-500 hover:text-zinc-800 disabled:opacity-30 rounded hover:bg-zinc-100 cursor-pointer"
-                        title="Mover para baixo"
+                        className="p-1 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 rounded hover:bg-[var(--surface-hover)] transition-colors"
+                        title="Mover treino para baixo"
+                        aria-label="Mover treino para baixo"
                       >
                         ▼
                       </button>
                       <button
                         type="button"
                         onClick={() => openEditWorkoutModal(workout)}
-                        className="px-2 py-1 text-xs font-semibold text-zinc-600 hover:text-zinc-900 rounded hover:bg-zinc-100 cursor-pointer"
+                        className="px-2 py-1 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--surface-hover)] transition-colors"
                       >
                         Editar
                       </button>
                       <button
                         type="button"
                         onClick={() => handleRemoveWorkout(workout.publicId)}
-                        className="px-2 py-1 text-xs font-semibold text-red-600 hover:text-red-800 rounded hover:bg-red-50 cursor-pointer"
+                        className="px-2 py-1 text-xs font-semibold text-[var(--danger)] hover:text-[var(--danger-foreground)] rounded hover:bg-[var(--danger-soft)] transition-colors"
                       >
                         Excluir
                       </button>
@@ -832,37 +861,37 @@ export function TrainingPlanEditor({
                   </div>
 
                   {/* Sections List */}
-                  <div className="space-y-3 pl-0 sm:pl-2">
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                         Divisões / Seções ({workout.sections.length})
                       </h4>
                       <button
                         type="button"
                         onClick={() => openNewSectionModal(workout.publicId)}
-                        className="text-xs font-bold text-[#00A859] hover:text-[#008f4c] cursor-pointer"
+                        className="text-xs font-bold text-[var(--brand-foreground)] hover:underline"
                       >
                         + Nova Seção
                       </button>
                     </div>
 
                     {workout.sections.length === 0 ? (
-                      <p className="text-xs text-zinc-400 italic py-2">
+                      <p className="text-xs text-[var(--text-tertiary)] italic py-2">
                         Nenhuma seção nesta divisão (ex: Aquecimento, Principal, etc).
                       </p>
                     ) : (
                       workout.sections.map((section, sIdx) => (
                         <div
                           key={section.publicId}
-                          className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/80 space-y-3"
+                          className="p-3.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-3"
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <h5 className="text-xs font-bold text-zinc-800">
+                              <h5 className="text-xs font-bold text-[var(--text-primary)]">
                                 {section.title}
                               </h5>
                               {section.description && (
-                                <p className="text-[11px] text-zinc-500">{section.description}</p>
+                                <p className="text-[11px] text-[var(--text-secondary)]">{section.description}</p>
                               )}
                             </div>
                             <div className="flex items-center gap-1">
@@ -870,7 +899,9 @@ export function TrainingPlanEditor({
                                 type="button"
                                 disabled={sIdx === 0 || isPending}
                                 onClick={() => handleMoveSection(section.publicId, "UP")}
-                                className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
+                                className="p-0.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-colors"
+                                title="Mover seção para cima"
+                                aria-label="Mover seção para cima"
                               >
                                 ▲
                               </button>
@@ -878,21 +909,23 @@ export function TrainingPlanEditor({
                                 type="button"
                                 disabled={sIdx === workout.sections.length - 1 || isPending}
                                 onClick={() => handleMoveSection(section.publicId, "DOWN")}
-                                className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
+                                className="p-0.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-colors"
+                                title="Mover seção para baixo"
+                                aria-label="Mover seção para baixo"
                               >
                                 ▼
                               </button>
                               <button
                                 type="button"
                                 onClick={() => openEditSectionModal(section)}
-                                className="px-1.5 py-0.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer"
+                                className="px-1.5 py-0.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                               >
                                 Editar
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveSection(section.publicId)}
-                                className="px-1.5 py-0.5 text-xs font-medium text-red-600 hover:text-red-800 cursor-pointer"
+                                className="px-1.5 py-0.5 text-xs font-medium text-[var(--danger)] hover:text-[var(--danger-foreground)] transition-colors"
                               >
                                 Excluir
                               </button>
@@ -900,155 +933,155 @@ export function TrainingPlanEditor({
                           </div>
 
                           {/* Blocks List */}
-                          <div className="space-y-2.5 pl-0 sm:pl-2">
+                          <div className="space-y-2.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-semibold text-zinc-500">
+                              <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
                                 Blocos de Exercício ({section.blocks.length})
                               </span>
                               <button
                                 type="button"
                                 onClick={() => openNewBlockModal(section.publicId)}
-                                className="text-[11px] font-bold text-[#00A859] hover:text-[#008f4c] cursor-pointer"
+                                className="text-[11px] font-bold text-[var(--brand-foreground)] hover:underline"
                               >
                                 + Adicionar Bloco
                               </button>
                             </div>
 
-                            {section.blocks.map((block, bIdx) => (
-                              <div
-                                key={block.publicId}
-                                className="p-3 rounded-lg bg-white border border-zinc-200 space-y-2.5 shadow-2xs"
-                              >
-                                <div className="flex flex-wrap items-center justify-between gap-1 border-b border-zinc-100 pb-1.5">
-                                  <div className="flex items-center gap-1.5">
-                                    <span
-                                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                        block.blockType === "BI_SET"
-                                          ? "bg-purple-100 text-purple-800 border border-purple-200"
-                                          : block.blockType === "TRI_SET"
-                                          ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
-                                          : block.blockType === "SUPERSET"
-                                          ? "bg-blue-100 text-blue-800 border border-blue-200"
-                                          : block.blockType === "CIRCUIT"
-                                          ? "bg-amber-100 text-amber-800 border border-amber-200"
-                                          : "bg-zinc-100 text-zinc-800 border border-zinc-200"
-                                      }`}
-                                    >
-                                      {block.blockType}
-                                    </span>
-                                    {block.title && (
-                                      <span className="text-xs font-semibold text-zinc-800">
-                                        {block.title}
-                                      </span>
-                                    )}
-                                    {block.rounds && (
-                                      <span className="text-[11px] text-zinc-500">
-                                        • {block.rounds} rounds
-                                      </span>
-                                    )}
-                                  </div>
+                            {section.blocks.map((block, bIdx) => {
+                              const blockTypeInfo = BLOCK_TYPE_MAP[block.blockType] || BLOCK_TYPE_MAP.SINGLE;
 
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      type="button"
-                                      disabled={bIdx === 0 || isPending}
-                                      onClick={() => handleMoveBlock(block.publicId, "UP")}
-                                      className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
-                                    >
-                                      ▲
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={bIdx === section.blocks.length - 1 || isPending}
-                                      onClick={() => handleMoveBlock(block.publicId, "DOWN")}
-                                      className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
-                                    >
-                                      ▼
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => openEditBlockModal(block)}
-                                      className="px-1.5 py-0.5 text-xs text-zinc-600 hover:text-zinc-900 cursor-pointer"
-                                    >
-                                      Editar Bloco
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveBlock(block.publicId)}
-                                      className="px-1.5 py-0.5 text-xs text-red-600 hover:text-red-800 cursor-pointer"
-                                    >
-                                      Excluir
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Exercises in this Block */}
-                                <div className="space-y-1.5">
-                                  {block.exercises.map((ex, eIdx) => (
-                                    <div
-                                      key={ex.publicId}
-                                      className="flex items-center justify-between p-2 rounded bg-zinc-50 border border-zinc-100 text-xs"
-                                    >
-                                      <div className="space-y-0.5">
-                                        <div className="font-bold text-zinc-900">
-                                          {ex.exerciseName}
-                                        </div>
-                                        <div className="flex flex-wrap gap-2 text-[11px] text-zinc-500">
-                                          {ex.sets && <span>{ex.sets} séries</span>}
-                                          {ex.repetitionsText && <span>{ex.repetitionsText} reps</span>}
-                                          {ex.restSeconds !== null && <span>{ex.restSeconds}s rest</span>}
-                                          {ex.loadGuidance && <span>Carga: {ex.loadGuidance}</span>}
-                                          {ex.technique && <span className="text-purple-700 font-medium">{ex.technique}</span>}
-                                          {ex.videoUrl && <span className="text-blue-600 font-semibold">▶ Vídeo</span>}
-                                        </div>
-                                      </div>
-
-                                      <div className="flex items-center gap-1">
-                                        <button
-                                          type="button"
-                                          disabled={eIdx === 0 || isPending}
-                                          onClick={() => handleMoveExercise(ex.publicId, "UP")}
-                                          className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
-                                        >
-                                          ▲
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={eIdx === block.exercises.length - 1 || isPending}
-                                          onClick={() => handleMoveExercise(ex.publicId, "DOWN")}
-                                          className="p-0.5 text-xs text-zinc-400 hover:text-zinc-700 disabled:opacity-30 cursor-pointer"
-                                        >
-                                          ▼
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => openEditExerciseModal(ex)}
-                                          className="px-1 py-0.5 text-xs text-zinc-600 hover:text-zinc-900 cursor-pointer"
-                                        >
-                                          Editar
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleRemoveExercise(ex.publicId)}
-                                          className="px-1 py-0.5 text-xs text-red-600 hover:text-red-800 cursor-pointer"
-                                        >
-                                          Excluir
-                                        </button>
-                                      </div>
+                              return (
+                                <div
+                                  key={block.publicId}
+                                  className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border-default)] space-y-2.5 shadow-2xs"
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-1 border-b border-[var(--border-subtle)] pb-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <Badge variant={blockTypeInfo.variant} size="sm">
+                                        {blockTypeInfo.label}
+                                      </Badge>
+                                      {block.title && (
+                                        <span className="text-xs font-semibold text-[var(--text-primary)]">
+                                          {block.title}
+                                        </span>
+                                      )}
+                                      {block.rounds && (
+                                        <span className="text-[11px] text-[var(--text-secondary)]">
+                                          • {block.rounds} rounds
+                                        </span>
+                                      )}
                                     </div>
-                                  ))}
 
-                                  {/* Add Exercise CTA to this block */}
-                                  <button
-                                    type="button"
-                                    onClick={() => openAddExerciseModal(block.publicId)}
-                                    className="w-full py-1.5 text-xs font-semibold text-[#00A859] hover:bg-emerald-50/60 rounded border border-dashed border-emerald-200 transition-all cursor-pointer"
-                                  >
-                                    + Adicionar Exercício neste Bloco
-                                  </button>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        disabled={bIdx === 0 || isPending}
+                                        onClick={() => handleMoveBlock(block.publicId, "UP")}
+                                        className="p-0.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-colors"
+                                        title="Mover bloco para cima"
+                                        aria-label="Mover bloco para cima"
+                                      >
+                                        ▲
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={bIdx === section.blocks.length - 1 || isPending}
+                                        onClick={() => handleMoveBlock(block.publicId, "DOWN")}
+                                        className="p-0.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-colors"
+                                        title="Mover bloco para baixo"
+                                        aria-label="Mover bloco para baixo"
+                                      >
+                                        ▼
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => openEditBlockModal(block)}
+                                        className="px-1.5 py-0.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                                      >
+                                        Editar Bloco
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveBlock(block.publicId)}
+                                        className="px-1.5 py-0.5 text-xs font-medium text-[var(--danger)] hover:text-[var(--danger-foreground)] transition-colors"
+                                      >
+                                        Excluir
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Exercises in this Block */}
+                                  <div className="space-y-1.5">
+                                    {block.exercises.map((ex, eIdx) => (
+                                      <div
+                                        key={ex.publicId}
+                                        className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs"
+                                      >
+                                        <div className="space-y-0.5 min-w-0 flex-1">
+                                          <div className="font-bold text-[var(--text-primary)] truncate">
+                                            {ex.exerciseName}
+                                          </div>
+                                          <div className="flex flex-wrap gap-2 text-[11px] text-[var(--text-secondary)]">
+                                            {ex.sets && <span>{ex.sets} séries</span>}
+                                            {ex.repetitionsText && <span>{ex.repetitionsText} reps</span>}
+                                            {ex.restSeconds !== null && <span>{ex.restSeconds}s rest</span>}
+                                            {ex.loadGuidance && <span>Carga: {ex.loadGuidance}</span>}
+                                            {ex.technique && <Badge variant="brand" size="sm">{ex.technique}</Badge>}
+                                            {ex.videoUrl && <span className="text-[var(--brand-foreground)] font-semibold">▶ Vídeo</span>}
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                                          <button
+                                            type="button"
+                                            disabled={eIdx === 0 || isPending}
+                                            onClick={() => handleMoveExercise(ex.publicId, "UP")}
+                                            className="p-0.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-colors"
+                                            title="Mover exercício para cima"
+                                            aria-label="Mover exercício para cima"
+                                          >
+                                            ▲
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={eIdx === block.exercises.length - 1 || isPending}
+                                            onClick={() => handleMoveExercise(ex.publicId, "DOWN")}
+                                            className="p-0.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-colors"
+                                            title="Mover exercício para baixo"
+                                            aria-label="Mover exercício para baixo"
+                                          >
+                                            ▼
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => openEditExerciseModal(ex)}
+                                            className="px-1 py-0.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                                          >
+                                            Editar
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveExercise(ex.publicId)}
+                                            className="px-1 py-0.5 text-xs text-[var(--danger)] hover:text-[var(--danger-foreground)] transition-colors"
+                                          >
+                                            Excluir
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+
+                                    {/* Add Exercise CTA to this block */}
+                                    <button
+                                      type="button"
+                                      onClick={() => openAddExerciseModal(block.publicId)}
+                                      className="w-full py-2 text-xs font-semibold text-[var(--brand-foreground)] bg-[var(--brand-soft)] hover:bg-[var(--brand-soft-border)] rounded-lg border border-dashed border-[var(--brand-soft-border)] transition-colors"
+                                    >
+                                      + Adicionar Exercício neste Bloco
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       ))
@@ -1068,12 +1101,12 @@ export function TrainingPlanEditor({
         >
           <div className="sticky top-6 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                 Prévia em Tempo Real (Visual do Aluno)
               </h2>
-              <span className="text-[11px] text-zinc-400">Canonical Renderer</span>
+              <span className="text-[11px] text-[var(--text-tertiary)]">Visualização canônica</span>
             </div>
-            <div className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-sm max-h-[80vh] overflow-y-auto">
+            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs max-h-[80vh] overflow-y-auto">
               <TrainingPlanRenderer plan={plan} />
             </div>
           </div>
@@ -1082,85 +1115,94 @@ export function TrainingPlanEditor({
 
       {/* --- MODAL 0: Activation & Readiness Preflight Confirmation --- */}
       {isActivationModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 max-h-[90vh] overflow-y-auto space-y-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="activation_modal_title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-[var(--surface)] p-5 sm:p-6 shadow-2xl border border-[var(--border-default)] max-h-[90vh] overflow-y-auto space-y-4 text-left">
             {activationIssues.length > 0 ? (
               <>
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 font-bold text-sm">
+                  <div className="w-8 h-8 rounded-full bg-[var(--warning-soft)] text-[var(--warning-foreground)] flex items-center justify-center shrink-0 font-bold text-sm">
                     !
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-zinc-900">
+                    <h3 id="activation_modal_title" className="text-base font-bold text-[var(--text-primary)]">
                       Pendências no Plano de Treino
                     </h3>
-                    <p className="text-xs text-zinc-500 mt-0.5">
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                       Não é possível disponibilizar este plano ainda. Por favor, ajuste as seguintes inconsistências:
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-2 max-h-60 overflow-y-auto p-3 bg-amber-50/60 rounded-xl border border-amber-200/80">
+                <div className="space-y-2 max-h-60 overflow-y-auto p-3.5 bg-[var(--warning-soft)] rounded-xl border border-[var(--warning-border)]">
                   {activationIssues.map((issue, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-xs text-amber-900">
-                      <span className="text-amber-600 font-bold">•</span>
+                    <div key={idx} className="flex items-start gap-2 text-xs text-[var(--warning-foreground)]">
+                      <span className="font-bold">•</span>
                       <span>{issue.message}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex justify-end pt-2 border-t border-zinc-100">
-                  <button
+                <div className="flex justify-end pt-3 border-t border-[var(--border-subtle)]">
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => setIsActivationModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-zinc-800 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-all cursor-pointer"
                   >
                     Entendido / Fechar
-                  </button>
+                  </Button>
                 </div>
               </>
             ) : (
               <>
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-[#00A859] flex items-center justify-center shrink-0 font-bold text-sm">
+                  <div className="w-8 h-8 rounded-full bg-[var(--brand-soft)] text-[var(--brand-foreground)] flex items-center justify-center shrink-0 font-bold text-sm">
                     ✓
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-zinc-900">
+                    <h3 id="activation_modal_title" className="text-base font-bold text-[var(--text-primary)]">
                       Disponibilizar Plano de Treino?
                     </h3>
-                    <p className="text-xs text-zinc-500 mt-0.5">
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                       Confirmação de ativação para o aluno
                     </p>
                   </div>
                 </div>
 
-                <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2 text-xs text-zinc-700">
+                <div className="p-4 bg-[var(--surface-subtle)] rounded-xl border border-[var(--border-subtle)] space-y-2 text-xs text-[var(--text-secondary)]">
                   <p>
-                    O plano <strong className="text-zinc-900">{plan.title}</strong> ficará <strong>ativo</strong> e acessível para o aluno <strong className="text-zinc-900">{plan.studentName}</strong>.
+                    O plano <strong className="text-[var(--text-primary)]">{plan.title}</strong> ficará <strong>ativo</strong> e acessível para o aluno <strong className="text-[var(--text-primary)]">{plan.studentName}</strong>.
                   </p>
-                  <p className="text-[11px] text-zinc-500">
-                    Se já existir outro plano ativo para este aluno, ele será automaticamente <strong>arquivado</strong> no histórico e substituído por este.
+                  <p className="text-[11px] text-[var(--text-tertiary)]">
+                    Após a ativação, esta versão ficará estável para o aluno. Se já existir outro plano ativo para este aluno, ele será automaticamente arquivado no histórico.
                   </p>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
-                  <button
+                <div className="flex justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     disabled={isPending}
                     onClick={() => setIsActivationModalOpen(false)}
-                    className="px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50 disabled:opacity-50 cursor-pointer"
                   >
                     Cancelar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="sm"
                     disabled={isPending}
+                    isLoading={isPending}
                     onClick={handleConfirmActivation}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm disabled:opacity-50 transition-all cursor-pointer"
                   >
                     {isPending ? "Disponibilizando..." : "Disponibilizar Agora"}
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -1170,81 +1212,112 @@ export function TrainingPlanEditor({
 
       {/* --- MODAL 1: Edit Plan Metadata --- */}
       {isMetaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 space-y-4">
-            <h3 className="text-base font-bold text-zinc-900">
-              Editar Informações do Plano
-            </h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="meta_modal_title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-[var(--surface)] p-5 sm:p-6 shadow-2xl border border-[var(--border-default)] space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <h3 id="meta_modal_title" className="text-base font-bold text-[var(--text-primary)]">
+                Editar Informações do Plano
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsMetaModalOpen(false)}
+                aria-label="Fechar modal"
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm font-semibold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
             <form onSubmit={handleUpdateMetadata} className="space-y-3">
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Título do Plano *</label>
-                <input
+              <FormField
+                label="Título do Plano"
+                id="meta_plan_title"
+                required
+              >
+                <Input
+                  id="meta_plan_title"
                   type="text"
                   required
                   maxLength={255}
                   value={metaTitle}
                   onChange={(e) => setMetaTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Subtítulo (opcional)</label>
-                <input
+              <FormField
+                label="Subtítulo (opcional)"
+                id="meta_plan_subtitle"
+              >
+                <Input
+                  id="meta_plan_subtitle"
                   type="text"
                   maxLength={255}
                   value={metaSubtitle}
                   onChange={(e) => setMetaSubtitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Descrição / Objetivo</label>
-                <textarea
+              <FormField
+                label="Descrição / Objetivo"
+                id="meta_plan_desc"
+              >
+                <Textarea
+                  id="meta_plan_desc"
                   rows={3}
                   value={metaDesc}
                   onChange={(e) => setMetaDesc(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
                 />
-              </div>
+              </FormField>
 
               <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-zinc-700">Início</label>
-                  <input
+                <FormField
+                  label="Início"
+                  id="meta_plan_start"
+                >
+                  <Input
+                    id="meta_plan_start"
                     type="date"
                     value={metaStart}
                     onChange={(e) => setMetaStart(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-zinc-700">Término</label>
-                  <input
+                </FormField>
+
+                <FormField
+                  label="Término"
+                  id="meta_plan_end"
+                >
+                  <Input
+                    id="meta_plan_end"
                     type="date"
                     value={metaEnd}
                     onChange={(e) => setMetaEnd(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
-                </div>
+                </FormField>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
-                <button
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setIsMetaModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="sm"
                   disabled={isPending}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm"
+                  isLoading={isPending}
                 >
-                  {isPending ? "Salvando..." : "Salvar"}
-                </button>
+                  Salvar
+                </Button>
               </div>
             </form>
           </div>
@@ -1253,43 +1326,66 @@ export function TrainingPlanEditor({
 
       {/* --- MODAL 2: Create / Edit Workout --- */}
       {isWorkoutModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 space-y-4">
-            <h3 className="text-base font-bold text-zinc-900">
-              {editingWorkout ? "Editar Treino" : "Novo Treino (Divisão)"}
-            </h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="workout_modal_title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-[var(--surface)] p-5 sm:p-6 shadow-2xl border border-[var(--border-default)] space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <h3 id="workout_modal_title" className="text-base font-bold text-[var(--text-primary)]">
+                {editingWorkout ? "Editar Treino" : "Novo Treino (Divisão)"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsWorkoutModalOpen(false)}
+                aria-label="Fechar modal"
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm font-semibold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
             <form onSubmit={handleSaveWorkout} className="space-y-3">
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Título do Treino *</label>
-                <input
+              <FormField
+                label="Título do Treino"
+                id="w_title_input"
+                required
+              >
+                <Input
+                  id="w_title_input"
                   type="text"
                   required
                   placeholder="Ex: Treino A ou Dorsal e Bíceps"
                   maxLength={255}
                   value={wTitle}
                   onChange={(e) => setWTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Subtítulo (opcional)</label>
-                <input
+              <FormField
+                label="Subtítulo (opcional)"
+                id="w_subtitle_input"
+              >
+                <Input
+                  id="w_subtitle_input"
                   type="text"
                   placeholder="Ex: Ênfase em Costas e Deltoide Posterior"
                   maxLength={255}
                   value={wSubtitle}
                   onChange={(e) => setWSubtitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Dia sugerido (opcional)</label>
-                <select
+              <FormField
+                label="Dia sugerido (opcional)"
+                id="w_weekday_select"
+              >
+                <Select
+                  id="w_weekday_select"
                   value={wWeekday}
                   onChange={(e) => setWWeekday(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 >
                   <option value="">Sem dia fixo</option>
                   <option value="1">Segunda-feira</option>
@@ -1299,35 +1395,40 @@ export function TrainingPlanEditor({
                   <option value="5">Sexta-feira</option>
                   <option value="6">Sábado</option>
                   <option value="7">Domingo</option>
-                </select>
-              </div>
+                </Select>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Orientações do Treino</label>
-                <textarea
+              <FormField
+                label="Orientações do Treino"
+                id="w_notes_input"
+              >
+                <Textarea
+                  id="w_notes_input"
                   rows={2}
                   value={wNotes}
                   onChange={(e) => setWNotes(e.target.value)}
                   placeholder="Ex: Aquecer 10min no manguito antes de iniciar..."
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
                 />
-              </div>
+              </FormField>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
-                <button
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setIsWorkoutModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="sm"
                   disabled={isPending}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm"
+                  isLoading={isPending}
                 >
-                  {isPending ? "Salvando..." : "Salvar Treino"}
-                </button>
+                  Salvar Treino
+                </Button>
               </div>
             </form>
           </div>
@@ -1336,51 +1437,75 @@ export function TrainingPlanEditor({
 
       {/* --- MODAL 3: Create / Edit Section --- */}
       {isSectionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 space-y-4">
-            <h3 className="text-base font-bold text-zinc-900">
-              {editingSection ? "Editar Seção" : "Nova Seção Muscular"}
-            </h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="section_modal_title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-[var(--surface)] p-5 sm:p-6 shadow-2xl border border-[var(--border-default)] space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <h3 id="section_modal_title" className="text-base font-bold text-[var(--text-primary)]">
+                {editingSection ? "Editar Seção" : "Nova Seção Muscular"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsSectionModalOpen(false)}
+                aria-label="Fechar modal"
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm font-semibold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
             <form onSubmit={handleSaveSection} className="space-y-3">
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Título da Seção *</label>
-                <input
+              <FormField
+                label="Título da Seção"
+                id="s_title_input"
+                required
+              >
+                <Input
+                  id="s_title_input"
                   type="text"
                   required
                   placeholder="Ex: Aquecimento, Parte Principal ou Cardio"
                   maxLength={255}
                   value={sTitle}
                   onChange={(e) => setSTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Descrição (opcional)</label>
-                <textarea
+              <FormField
+                label="Descrição (opcional)"
+                id="s_desc_input"
+              >
+                <Textarea
+                  id="s_desc_input"
                   rows={2}
                   value={sDesc}
                   onChange={(e) => setSDesc(e.target.value)}
                   placeholder="Orientações sobre esta seção..."
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
                 />
-              </div>
+              </FormField>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
-                <button
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setIsSectionModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="sm"
                   disabled={isPending}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm"
+                  isLoading={isPending}
                 >
-                  {isPending ? "Salvando..." : "Salvar Seção"}
-                </button>
+                  Salvar Seção
+                </Button>
               </div>
             </form>
           </div>
@@ -1389,101 +1514,135 @@ export function TrainingPlanEditor({
 
       {/* --- MODAL 4: Create / Edit Block --- */}
       {isBlockModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 space-y-4">
-            <h3 className="text-base font-bold text-zinc-900">
-              {editingBlock ? "Editar Bloco de Exercício" : "Novo Bloco de Exercício"}
-            </h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="block_modal_title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-[var(--surface)] p-5 sm:p-6 shadow-2xl border border-[var(--border-default)] space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <h3 id="block_modal_title" className="text-base font-bold text-[var(--text-primary)]">
+                {editingBlock ? "Editar Bloco de Exercício" : "Novo Bloco de Exercício"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsBlockModalOpen(false)}
+                aria-label="Fechar modal"
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm font-semibold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
             <form onSubmit={handleSaveBlock} className="space-y-3">
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Tipo de Estrutura *</label>
-                <select
+              <FormField
+                label="Tipo de Estrutura"
+                id="b_type_select"
+                required
+              >
+                <Select
+                  id="b_type_select"
                   value={bType}
                   onChange={(e) => setBType(e.target.value as TrainingBlockType)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 >
                   <option value="SINGLE">Exercício Isolado / Normal (1 exercício)</option>
                   <option value="BI_SET">Bi-Set (2 exercícios combinados)</option>
                   <option value="TRI_SET">Tri-Set (3 exercícios combinados)</option>
                   <option value="SUPERSET">Superset (múltiplos exercícios)</option>
                   <option value="CIRCUIT">Circuito (múltiplos exercícios)</option>
-                </select>
-              </div>
+                </Select>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Título do Bloco (opcional)</label>
-                <input
+              <FormField
+                label="Título do Bloco (opcional)"
+                id="b_title_input"
+              >
+                <Input
+                  id="b_title_input"
                   type="text"
                   placeholder="Ex: Bloco A - Peitoral"
                   maxLength={255}
                   value={bTitle}
                   onChange={(e) => setBTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                 />
-              </div>
+              </FormField>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-zinc-700">Rounds</label>
-                  <input
+                <FormField
+                  label="Rounds"
+                  id="b_rounds_input"
+                >
+                  <Input
+                    id="b_rounds_input"
                     type="number"
                     min="1"
                     value={bRounds}
                     onChange={(e) => setBRounds(e.target.value ? Number(e.target.value) : "")}
                     placeholder="3"
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-zinc-700">Desc. Entre (s)</label>
-                  <input
+                </FormField>
+
+                <FormField
+                  label="Desc. Entre (s)"
+                  id="b_rest_between_input"
+                >
+                  <Input
+                    id="b_rest_between_input"
                     type="number"
                     min="0"
                     value={bRestBetween}
                     onChange={(e) => setBRestBetween(e.target.value ? Number(e.target.value) : "")}
                     placeholder="0"
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-zinc-700">Desc. Final (s)</label>
-                  <input
+                </FormField>
+
+                <FormField
+                  label="Desc. Final (s)"
+                  id="b_rest_after_input"
+                >
+                  <Input
+                    id="b_rest_after_input"
                     type="number"
                     min="0"
                     value={bRestAfter}
                     onChange={(e) => setBRestAfter(e.target.value ? Number(e.target.value) : "")}
                     placeholder="90"
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
-                </div>
+                </FormField>
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-zinc-700">Instruções do Bloco</label>
-                <textarea
+              <FormField
+                label="Instruções do Bloco"
+                id="b_instructions_input"
+              >
+                <Textarea
+                  id="b_instructions_input"
                   rows={2}
                   value={bInstructions}
                   onChange={(e) => setBInstructions(e.target.value)}
                   placeholder="Orientações de transição entre exercícios..."
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
                 />
-              </div>
+              </FormField>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
-                <button
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setIsBlockModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="sm"
                   disabled={isPending}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm"
+                  isLoading={isPending}
                 >
-                  {isPending ? "Salvando..." : "Salvar Bloco"}
-                </button>
+                  Salvar Bloco
+                </Button>
               </div>
             </form>
           </div>
@@ -1492,19 +1651,34 @@ export function TrainingPlanEditor({
 
       {/* --- MODAL 5: Add / Edit Exercise --- */}
       {isAddExerciseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-zinc-200 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-bold text-zinc-900">
-              {editingExerciseItem ? "Editar Prescrição do Exercício" : "Adicionar Exercício ao Bloco"}
-            </h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exercise_modal_title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-[var(--surface)] p-5 sm:p-6 shadow-2xl border border-[var(--border-default)] space-y-4 max-h-[90vh] overflow-y-auto text-left">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <h3 id="exercise_modal_title" className="text-base font-bold text-[var(--text-primary)]">
+                {editingExerciseItem ? "Editar Prescrição do Exercício" : "Adicionar Exercício ao Bloco"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsAddExerciseModalOpen(false)}
+                aria-label="Fechar modal"
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm font-semibold p-1"
+              >
+                ✕
+              </button>
+            </div>
 
             {!editingExerciseItem && (
-              <div className="flex items-center p-1 bg-zinc-100 rounded-xl">
+              <div className="flex items-center p-1 bg-[var(--surface-hover)] rounded-xl border border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setExerciseMode("library")}
                   className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    exerciseMode === "library" ? "bg-white text-zinc-900 shadow-2xs" : "text-zinc-500"
+                    exerciseMode === "library" ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-2xs" : "text-[var(--text-secondary)]"
                   }`}
                 >
                   Da Biblioteca de Exercícios
@@ -1513,7 +1687,7 @@ export function TrainingPlanEditor({
                   type="button"
                   onClick={() => setExerciseMode("custom")}
                   className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    exerciseMode === "custom" ? "bg-white text-zinc-900 shadow-2xs" : "text-zinc-500"
+                    exerciseMode === "custom" ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-2xs" : "text-[var(--text-secondary)]"
                   }`}
                 >
                   Personalizado (Exclusivo)
@@ -1524,30 +1698,30 @@ export function TrainingPlanEditor({
             <form onSubmit={handleSaveExercise} className="space-y-3">
               {/* Library Mode */}
               {!editingExerciseItem && exerciseMode === "library" && (
-                <div className="space-y-2 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
-                  <label className="block text-xs font-bold text-zinc-700">
+                <div className="space-y-2.5 p-3.5 bg-[var(--surface-subtle)] rounded-xl border border-[var(--border-subtle)]">
+                  <label htmlFor="library_exercise_search" className="block text-xs font-bold text-[var(--text-primary)]">
                     Selecione da sua Biblioteca de Exercícios
                   </label>
-                  <input
+                  <Input
+                    id="library_exercise_search"
                     type="text"
-                    placeholder="Buscar exercício..."
+                    placeholder="Buscar por nome ou grupo muscular..."
                     value={librarySearch}
                     onChange={(e) => setLibrarySearch(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
                   <div className="max-h-40 overflow-y-auto space-y-1">
                     {filteredLibrary.length === 0 ? (
-                      <p className="text-xs text-zinc-400 py-2 text-center">
+                      <p className="text-xs text-[var(--text-tertiary)] py-2 text-center">
                         Nenhum exercício encontrado.
                       </p>
                     ) : (
                       filteredLibrary.map((item) => (
                         <label
                           key={item.publicId}
-                          className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer border transition-all ${
+                          className={`flex items-center justify-between p-2.5 rounded-lg text-xs cursor-pointer border transition-all ${
                             selectedLibraryPublicId === item.publicId
-                              ? "bg-emerald-50 border-emerald-300 font-bold text-[#00A859]"
-                              : "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+                              ? "bg-[var(--brand-soft)] border-[var(--brand-soft-border)] font-bold text-[var(--brand-foreground)]"
+                              : "bg-[var(--surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -1556,14 +1730,14 @@ export function TrainingPlanEditor({
                               name="libraryExercise"
                               checked={selectedLibraryPublicId === item.publicId}
                               onChange={() => setSelectedLibraryPublicId(item.publicId)}
-                              className="text-[#00A859] focus:ring-[#00A859]"
+                              className="accent-[var(--brand)] text-[var(--brand)]"
                             />
                             <span>{item.name}</span>
                           </div>
                           {item.muscleGroup && (
-                            <span className="text-[10px] text-zinc-400 font-normal">
+                            <Badge variant="neutral" size="sm">
                               {item.muscleGroup}
-                            </span>
+                            </Badge>
                           )}
                         </label>
                       ))
@@ -1574,158 +1748,175 @@ export function TrainingPlanEditor({
 
               {/* Custom Mode / Editing Snapshot Name */}
               {(editingExerciseItem || exerciseMode === "custom") && (
-                <div className="space-y-3 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold text-zinc-700">
-                      Nome do Exercício *
-                    </label>
-                    <input
+                <div className="space-y-3 p-3.5 bg-[var(--surface-subtle)] rounded-xl border border-[var(--border-subtle)]">
+                  <FormField
+                    label="Nome do Exercício"
+                    id="ex_custom_name"
+                    required
+                  >
+                    <Input
+                      id="ex_custom_name"
                       type="text"
                       required
                       value={exName}
                       onChange={(e) => setExName(e.target.value)}
                       placeholder="Ex: Supino Inclinado com Halteres"
                       maxLength={255}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                     />
-                  </div>
+                  </FormField>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-zinc-700">
-                        Grupo muscular
-                      </label>
-                      <input
+                    <FormField
+                      label="Grupo muscular"
+                      id="ex_custom_muscle"
+                    >
+                      <Input
+                        id="ex_custom_muscle"
                         type="text"
                         value={exMuscle}
                         onChange={(e) => setExMuscle(e.target.value)}
                         placeholder="Ex: Peitoral"
-                        className="w-full px-2.5 py-1 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-zinc-700">
-                        Equipamento
-                      </label>
-                      <input
+                    </FormField>
+
+                    <FormField
+                      label="Equipamento"
+                      id="ex_custom_equip"
+                    >
+                      <Input
+                        id="ex_custom_equip"
                         type="text"
                         value={exEquip}
                         onChange={(e) => setExEquip(e.target.value)}
                         placeholder="Ex: Halteres"
-                        className="w-full px-2.5 py-1 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                       />
-                    </div>
+                    </FormField>
                   </div>
                 </div>
               )}
 
               {/* Prescription Fields */}
-              <div className="space-y-2 pt-1">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-600">
+              <div className="space-y-2.5 pt-1">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                   Parâmetros de Prescrição
                 </h4>
 
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-zinc-700">Séries</label>
-                    <input
+                  <FormField
+                    label="Séries"
+                    id="ex_sets_input"
+                  >
+                    <Input
+                      id="ex_sets_input"
                       type="number"
                       min="1"
                       value={exSets}
                       onChange={(e) => setExSets(e.target.value ? Number(e.target.value) : "")}
                       placeholder="3"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                     />
-                  </div>
+                  </FormField>
 
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-zinc-700">Repetições</label>
-                    <input
+                  <FormField
+                    label="Repetições"
+                    id="ex_reps_input"
+                  >
+                    <Input
+                      id="ex_reps_input"
                       type="text"
                       value={exReps}
                       onChange={(e) => setExReps(e.target.value)}
                       placeholder="12-15"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                     />
-                  </div>
+                  </FormField>
 
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-zinc-700">Descanso (s)</label>
-                    <input
+                  <FormField
+                    label="Descanso (s)"
+                    id="ex_rest_input"
+                  >
+                    <Input
+                      id="ex_rest_input"
                       type="number"
                       min="0"
                       value={exRest}
                       onChange={(e) => setExRest(e.target.value ? Number(e.target.value) : "")}
                       placeholder="60"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                     />
-                  </div>
+                  </FormField>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-zinc-700">Carga / RIR</label>
-                    <input
+                  <FormField
+                    label="Carga / RIR"
+                    id="ex_load_input"
+                  >
+                    <Input
+                      id="ex_load_input"
                       type="text"
                       value={exLoad}
                       onChange={(e) => setExLoad(e.target.value)}
                       placeholder="Ex: 20kg ou RIR 2"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                     />
-                  </div>
+                  </FormField>
 
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-zinc-700">Técnica Avançada</label>
-                    <input
+                  <FormField
+                    label="Técnica Avançada"
+                    id="ex_tech_input"
+                  >
+                    <Input
+                      id="ex_tech_input"
                       type="text"
                       value={exTech}
                       onChange={(e) => setExTech(e.target.value)}
                       placeholder="Ex: Drop-set, Rest-pause"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                     />
-                  </div>
+                  </FormField>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-zinc-700">
-                    URL do Vídeo de Execução (HTTPS - YouTube / Vimeo)
-                  </label>
-                  <input
+                <FormField
+                  label="URL do Vídeo de Execução (HTTPS - YouTube / Vimeo)"
+                  id="ex_video_url_input"
+                >
+                  <Input
+                    id="ex_video_url_input"
                     type="url"
                     value={exVideoUrl}
                     onChange={(e) => setExVideoUrl(e.target.value)}
                     placeholder="https://www.youtube.com/watch?v=..."
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
-                </div>
+                </FormField>
 
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-zinc-700">Observações específicas</label>
-                  <textarea
+                <FormField
+                  label="Observações específicas"
+                  id="ex_notes_input"
+                >
+                  <Textarea
+                    id="ex_notes_input"
                     rows={2}
                     value={exNotes}
                     onChange={(e) => setExNotes(e.target.value)}
                     placeholder="Orientações de postura, pegada ou cadência..."
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
                   />
-                </div>
+                </FormField>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
-                <button
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setIsAddExerciseModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="sm"
                   disabled={isPending}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-sm"
+                  isLoading={isPending}
                 >
-                  {isPending ? "Salvando..." : "Salvar Exercício"}
-                </button>
+                  Salvar Exercício
+                </Button>
               </div>
             </form>
           </div>

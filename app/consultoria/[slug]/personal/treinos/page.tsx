@@ -8,6 +8,11 @@ import {
 } from "@/lib/consultancies/training";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { createDraftTrainingPlanAction } from "./actions";
+import { PageHeader } from "@/components/ui/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FormField, Input, Textarea, Select } from "@/components/ui/form-controls";
 
 type PageProps = {
   params: Promise<{
@@ -83,72 +88,59 @@ export default async function PersonalTrainingPlansPage({
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full max-w-4xl mx-auto space-y-6">
-
-        {/* Header & New Plan CTA */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 pb-1">
+      <div className="w-full max-w-5xl mx-auto space-y-6">
+        {/* Page Header */}
+        <PageHeader
+          title="Planos de Treino"
+          description="Crie, gerencie e acompanhe as prescrições de treino para seus alunos."
+          backHref={`/consultoria/${slug}`}
+          backLabel="Voltar à visão geral"
+          actions={
+            <div className="flex items-center gap-2">
               <Link
-                href={`/consultoria/${slug}`}
-                className="inline-flex items-center text-xs font-semibold text-zinc-500 hover:text-zinc-800 transition-colors"
+                href={`/consultoria/${slug}/personal/exercicios`}
+                className="px-3.5 py-2 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface)] border border-[var(--border-default)] hover:bg-[var(--surface-hover)] rounded-lg shadow-2xs transition-colors"
               >
-                ← Voltar à consultoria
+                Biblioteca de Exercícios
+              </Link>
+              <Link
+                href={`/consultoria/${slug}/personal/treinos?new=1&status=${validStatus}`}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)]"
+              >
+                + Novo Plano
               </Link>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">
-              Planos de Treino
-            </h1>
-            <p className="text-sm text-zinc-500">
-              Crie, gerencie e acompanhe as prescrições de treino para seus alunos.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/consultoria/${slug}/personal/exercicios`}
-              className="px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 hover:bg-zinc-50 rounded-lg shadow-2xs transition-all"
-            >
-              Biblioteca de Exercícios
-            </Link>
-
-            <Link
-              href={`/consultoria/${slug}/personal/treinos?new=1`}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#00A859] hover:bg-[#008f4c] text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
-            >
-              + Novo Plano
-            </Link>
-          </div>
-        </div>
+          }
+        />
 
         {/* Status Tabs Navigation */}
-        <div className="flex items-center gap-2 border-b border-zinc-200 pb-2">
+        <div className="flex items-center gap-1.5 border-b border-[var(--border-subtle)] pb-2">
           <Link
             href={`/consultoria/${slug}/personal/treinos?status=DRAFT`}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
               validStatus === "DRAFT"
-                ? "bg-zinc-900 text-white shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+                ? "bg-[var(--text-primary)] text-[var(--surface)] shadow-2xs"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
             }`}
           >
             Rascunhos {validStatus === "DRAFT" && `(${total})`}
           </Link>
           <Link
             href={`/consultoria/${slug}/personal/treinos?status=ACTIVE`}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
               validStatus === "ACTIVE"
-                ? "bg-[#00A859] text-white shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+                ? "bg-[var(--brand-strong)] text-white shadow-2xs"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
             }`}
           >
             Ativos {validStatus === "ACTIVE" && `(${total})`}
           </Link>
           <Link
             href={`/consultoria/${slug}/personal/treinos?status=ARCHIVED`}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
               validStatus === "ARCHIVED"
-                ? "bg-zinc-700 text-white shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+                ? "bg-[var(--text-secondary)] text-[var(--surface)] shadow-2xs"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
             }`}
           >
             Arquivados {validStatus === "ARCHIVED" && `(${total})`}
@@ -157,39 +149,36 @@ export default async function PersonalTrainingPlansPage({
 
         {/* Plans List */}
         {items.length === 0 ? (
-          <div className="p-8 sm:p-12 rounded-2xl bg-white border border-zinc-200 shadow-2xs text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-zinc-100 text-zinc-400 mx-auto flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-base font-bold text-zinc-900">
-              {validStatus === "DRAFT"
+          <EmptyState
+            title={
+              validStatus === "DRAFT"
                 ? "Nenhum plano em rascunho"
                 : validStatus === "ACTIVE"
                 ? "Nenhum plano ativo no momento"
-                : "Nenhum plano arquivado"}
-            </h3>
-            <p className="text-xs text-zinc-500 max-w-[360px] mx-auto">
-              {validStatus === "DRAFT"
+                : "Nenhum plano arquivado"
+            }
+            description={
+              validStatus === "DRAFT"
                 ? "Você não possui fichas de treino em edição. Comece criando um novo plano para um aluno."
                 : validStatus === "ACTIVE"
                 ? "Quando você disponibilizar um plano para um aluno, ele aparecerá aqui como ativo."
-                : "Planos anteriores substituídos por novas fichas aparecerão aqui no histórico."}
-            </p>
-            {validStatus === "DRAFT" && (
-              <Link
-                href={`/consultoria/${slug}/personal/treinos?new=1`}
-                className="inline-flex items-center justify-center px-4 py-2 bg-[#00A859] hover:bg-[#008f4c] text-white text-xs font-semibold rounded-lg shadow-2xs transition-all"
-              >
-                Criar Primeiro Plano
-              </Link>
-            )}
-          </div>
+                : "Planos anteriores substituídos por novas fichas aparecerão aqui no histórico da consultoria."
+            }
+            action={
+              validStatus === "DRAFT" ? (
+                <Link
+                  href={`/consultoria/${slug}/personal/treinos?new=1&status=DRAFT`}
+                  className="inline-flex items-center justify-center px-4 py-2 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                >
+                  Criar Primeiro Plano
+                </Link>
+              ) : undefined
+            }
+          />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
                 {validStatus === "DRAFT"
                   ? `Seus Rascunhos (${total})`
                   : validStatus === "ACTIVE"
@@ -202,39 +191,39 @@ export default async function PersonalTrainingPlansPage({
               {items.map((planItem) => (
                 <div
                   key={planItem.publicId}
-                  className="p-4 sm:p-5 rounded-xl bg-white border border-zinc-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors hover:border-[var(--border-strong)]"
                 >
-                  <div className="space-y-1.5 flex-1">
+                  <div className="space-y-2 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-bold text-zinc-900">
+                      <h2 className="text-base font-bold text-[var(--text-primary)] truncate">
                         {planItem.title}
-                      </h3>
+                      </h2>
                       {planItem.status === "DRAFT" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                        <Badge variant="warning" size="sm">
                           Rascunho
-                        </span>
+                        </Badge>
                       )}
                       {planItem.status === "ACTIVE" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-[#00A859] border border-emerald-200">
+                        <Badge variant="success" size="sm">
                           Ativo para o aluno
-                        </span>
+                        </Badge>
                       )}
                       {planItem.status === "ARCHIVED" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-100 text-zinc-600 border border-zinc-200">
+                        <Badge variant="neutral" size="sm">
                           Arquivado
-                        </span>
+                        </Badge>
                       )}
                     </div>
 
-                    <p className="text-xs font-medium text-zinc-700">
-                      Aluno: <span className="font-bold">{planItem.studentName}</span> ({planItem.studentEmail})
+                    <p className="text-xs font-medium text-[var(--text-secondary)]">
+                      Aluno: <span className="font-semibold text-[var(--text-primary)]">{planItem.studentName}</span> ({planItem.studentEmail})
                     </p>
 
                     {planItem.subtitle && (
-                      <p className="text-xs text-zinc-500">{planItem.subtitle}</p>
+                      <p className="text-xs text-[var(--text-secondary)] line-clamp-1">{planItem.subtitle}</p>
                     )}
 
-                    <div className="flex flex-wrap gap-3 text-[11px] text-zinc-400 pt-0.5">
+                    <div className="flex flex-wrap gap-3 text-[11px] text-[var(--text-tertiary)] pt-0.5">
                       {(planItem.startsOn || planItem.endsOn) && (
                         <span>
                           Validade: {planItem.startsOn || "—"} até {planItem.endsOn || "—"}
@@ -253,20 +242,20 @@ export default async function PersonalTrainingPlansPage({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-zinc-100">
+                  <div className="flex items-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-[var(--border-subtle)]">
                     {planItem.status === "DRAFT" ? (
                       <Link
                         href={`/consultoria/${slug}/personal/treinos/${planItem.publicId}`}
-                        className="px-4 py-2 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] rounded-lg shadow-2xs transition-all"
+                        className="px-4 py-2 text-xs font-semibold text-white bg-[var(--brand-strong)] hover:bg-[var(--brand)] rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)]"
                       >
                         Editar Ficha
                       </Link>
                     ) : planItem.status === "ACTIVE" ? (
-                      <span className="px-3 py-1.5 text-xs font-semibold text-[#00A859] bg-emerald-50 rounded-lg border border-emerald-200">
+                      <span className="px-3 py-1.5 text-xs font-semibold text-[var(--brand-foreground)] bg-[var(--brand-soft)] rounded-lg border border-[var(--brand-soft-border)]">
                         Disponibilizado
                       </span>
                     ) : (
-                      <span className="px-3 py-1.5 text-xs font-semibold text-zinc-500 bg-zinc-100 rounded-lg border border-zinc-200">
+                      <span className="px-3 py-1.5 text-xs font-semibold text-[var(--text-tertiary)] bg-[var(--surface-subtle)] rounded-lg border border-[var(--border-subtle)]">
                         Somente Leitura
                       </span>
                     )}
@@ -277,8 +266,11 @@ export default async function PersonalTrainingPlansPage({
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="p-4 rounded-xl bg-white border border-zinc-200 shadow-2xs flex items-center justify-between gap-2">
-                <span className="text-xs text-zinc-500 font-medium">
+              <nav
+                aria-label="Paginação da lista de treinos"
+                className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex items-center justify-between gap-2"
+              >
+                <span className="text-xs text-[var(--text-secondary)] font-medium">
                   Página {validPage} de {totalPages}
                 </span>
 
@@ -286,12 +278,12 @@ export default async function PersonalTrainingPlansPage({
                   {validPage > 1 ? (
                     <Link
                       href={`/consultoria/${slug}/personal/treinos?status=${validStatus}&page=${validPage - 1}`}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
                     >
                       ← Anterior
                     </Link>
                   ) : (
-                    <span className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-400 cursor-not-allowed">
+                    <span className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)] cursor-not-allowed select-none">
                       ← Anterior
                     </span>
                   )}
@@ -299,30 +291,38 @@ export default async function PersonalTrainingPlansPage({
                   {validPage < totalPages ? (
                     <Link
                       href={`/consultoria/${slug}/personal/treinos?status=${validStatus}&page=${validPage + 1}`}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
                     >
                       Próxima →
                     </Link>
                   ) : (
-                    <span className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-400 cursor-not-allowed">
+                    <span className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)] cursor-not-allowed select-none">
                       Próxima →
                     </span>
                   )}
                 </div>
-              </div>
+              </nav>
             )}
           </div>
         )}
 
         {/* Modal: Novo Plano DRAFT */}
         {isNewOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-            <div className="w-full max-w-[500px] bg-white rounded-2xl border border-zinc-200 shadow-xl p-5 sm:p-6 space-y-4 text-left">
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-                <h2 className="text-lg font-bold text-zinc-900">Novo Plano de Treino</h2>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create_plan_modal_title"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150"
+          >
+            <div className="w-full max-w-[520px] bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xl p-5 sm:p-6 space-y-4 text-left">
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+                <h2 id="create_plan_modal_title" className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
+                  Novo Plano de Treino
+                </h2>
                 <Link
                   href={`/consultoria/${slug}/personal/treinos?status=${validStatus}`}
-                  className="text-zinc-400 hover:text-zinc-700 text-sm font-semibold p-1"
+                  aria-label="Fechar modal"
+                  className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm font-semibold p-1 transition-colors"
                 >
                   ✕
                 </Link>
@@ -331,100 +331,105 @@ export default async function PersonalTrainingPlansPage({
               <form action={handleCreateAction} className="space-y-4">
                 <input type="hidden" name="slug" value={slug} />
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-800">
-                    Selecione o Aluno <span className="text-red-500">*</span>
-                  </label>
-                  <select
+                <FormField
+                  label="Selecione o Aluno"
+                  id="create_plan_student_select"
+                  required
+                >
+                  <Select
+                    id="create_plan_student_select"
                     name="studentMembershipPublicId"
                     required
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
+                    defaultValue=""
                   >
-                    <option value="">Selecione um aluno cadastrado...</option>
+                    <option value="" disabled>Selecione um aluno cadastrado...</option>
                     {(students || []).map((st) => (
                       <option key={st.membershipPublicId} value={st.membershipPublicId}>
                         {st.studentName} ({st.studentEmail})
                       </option>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </FormField>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-800">
-                    Título do Plano <span className="text-red-500">*</span>
-                  </label>
-                  <input
+                <FormField
+                  label="Título do Plano"
+                  id="create_plan_title_input"
+                  required
+                >
+                  <Input
+                    id="create_plan_title_input"
                     type="text"
                     name="title"
                     required
                     placeholder="Ex: Ficha de Hipertrofia - Fase 1"
                     maxLength={255}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
-                </div>
+                </FormField>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-800">
-                    Subtítulo (opcional)
-                  </label>
-                  <input
+                <FormField
+                  label="Subtítulo (opcional)"
+                  id="create_plan_subtitle_input"
+                >
+                  <Input
+                    id="create_plan_subtitle_input"
                     type="text"
                     name="subtitle"
                     placeholder="Ex: Adaptação neuromuscular e força"
                     maxLength={255}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                   />
-                </div>
+                </FormField>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-zinc-800">
-                      Data Inicial
-                    </label>
-                    <input
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField
+                    label="Data Inicial"
+                    id="create_plan_starts_on"
+                  >
+                    <Input
+                      id="create_plan_starts_on"
                       type="date"
                       name="startsOn"
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                     />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-zinc-800">
-                      Data Final
-                    </label>
-                    <input
+                  </FormField>
+
+                  <FormField
+                    label="Data Final"
+                    id="create_plan_ends_on"
+                  >
+                    <Input
+                      id="create_plan_ends_on"
                       type="date"
                       name="endsOn"
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white"
                     />
-                  </div>
+                  </FormField>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-800">
-                    Descrição / Metas do Plano
-                  </label>
-                  <textarea
+                <FormField
+                  label="Descrição / Metas do Plano"
+                  id="create_plan_description_input"
+                >
+                  <Textarea
+                    id="create_plan_description_input"
                     name="description"
                     rows={2}
                     placeholder="Orientações e objetivos gerais do plano..."
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 text-zinc-900 bg-white resize-none"
                   />
-                </div>
+                </FormField>
 
-                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-zinc-100">
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
                   <Link
                     href={`/consultoria/${slug}/personal/treinos?status=${validStatus}`}
-                    className="px-4 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-300 hover:bg-zinc-50 rounded-lg transition-all"
+                    className="px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border-default)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
                   >
                     Cancelar
                   </Link>
 
-                  <button
+                  <Button
                     type="submit"
-                    className="px-5 py-2 text-xs font-semibold text-white bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] rounded-lg shadow-sm transition-all"
+                    variant="primary"
+                    size="sm"
                   >
                     Criar Rascunho
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>

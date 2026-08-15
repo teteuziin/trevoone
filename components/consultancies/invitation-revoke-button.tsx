@@ -37,12 +37,12 @@ export function InvitationRevokeButton({
       <button
         type="submit"
         disabled={isPending}
-        className="px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 active:bg-red-100 rounded-md border border-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-2.5 py-1 text-xs font-semibold text-[var(--danger)] hover:text-[var(--danger-foreground)] hover:bg-[var(--danger-soft)] active:bg-[var(--danger-soft-border)] rounded-lg border border-[var(--danger-soft-border)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-[var(--danger)]"
       >
         {isPending ? "Revogando..." : "Revogar"}
       </button>
       {state.error && (
-        <span className="block text-[11px] text-red-600 font-medium pt-1">
+        <span role="alert" className="block text-[11px] text-[var(--danger-foreground)] font-medium pt-1">
           {state.error}
         </span>
       )}

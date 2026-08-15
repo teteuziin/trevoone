@@ -8,6 +8,9 @@ import {
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
 import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { logoutFromConsultancyArea } from "./actions";
 
 export default async function SelecionarConsultoriaPage() {
@@ -31,17 +34,17 @@ export default async function SelecionarConsultoriaPage() {
 
     // Caso possua 1 ou mais consultorias acessíveis: exibir seletor de ambientes
     return (
-      <main className="min-h-svh w-full flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-white text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-        <div className="w-full max-w-[520px] mx-auto flex flex-col items-center space-y-6 sm:space-y-8">
-          <div className="w-[130px] sm:w-[150px] shrink-0">
+      <main className="min-h-dvh w-full flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+        <div className="w-full max-w-[540px] mx-auto flex flex-col items-center space-y-6 sm:space-y-7 my-auto">
+          <div className="w-[130px] sm:w-[150px] shrink-0 transition-transform duration-200 hover:scale-[1.02]">
             <TrevoOneLogo priority size={150} />
           </div>
 
           <div className="w-full text-center space-y-1.5 px-2">
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
               Escolha seu ambiente
             </h1>
-            <p className="text-sm text-zinc-500 font-normal leading-relaxed">
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal leading-relaxed">
               Selecione o ambiente que você deseja acessar neste momento.
             </p>
           </div>
@@ -50,32 +53,33 @@ export default async function SelecionarConsultoriaPage() {
             {/* Card Global: Administração Trevo One */}
             <Link
               href="/admin"
-              className="group block w-full p-4 sm:p-5 rounded-xl border border-zinc-200 hover:border-[#00A859] bg-white hover:bg-emerald-50/30 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859]"
+              className="group block w-full p-4 sm:p-5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] shadow-xs transition-all duration-150 focus-visible:outline-[var(--brand)]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-12 h-12 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0 p-1">
+                  <div className="w-12 h-12 rounded-lg bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] flex items-center justify-center shrink-0 p-1">
                     <TrevoOneLogo size={36} />
                   </div>
                   <div className="space-y-1.5 text-left min-w-0">
-                    <h2 className="text-base sm:text-lg font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors truncate">
+                    <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors truncate">
                       Administração Trevo One
                     </h2>
                     <div className="flex flex-wrap gap-1.5">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100/70 text-[#008f4c]">
+                      <Badge variant="brand" size="sm">
                         Administrador global
-                      </span>
+                      </Badge>
                     </div>
                   </div>
                 </div>
 
-                <div className="text-zinc-400 group-hover:text-[#00A859] transition-colors shrink-0 pl-2">
+                <div className="text-[var(--text-tertiary)] group-hover:text-[var(--brand)] transition-colors shrink-0 pl-2">
                   <svg
                     className="w-5 h-5"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
                     strokeWidth={2}
+                    aria-hidden="true"
                   >
                     <path
                       strokeLinecap="round"
@@ -92,7 +96,7 @@ export default async function SelecionarConsultoriaPage() {
               <Link
                 key={item.membershipId}
                 href={`/consultoria/${item.consultancySlug}`}
-                className="group block w-full p-4 sm:p-5 rounded-xl border border-zinc-200 hover:border-[#00A859] bg-white hover:bg-emerald-50/30 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859]"
+                className="group block w-full p-4 sm:p-5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] shadow-xs transition-all duration-150 focus-visible:outline-[var(--brand)]"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3.5 min-w-0">
@@ -102,29 +106,31 @@ export default async function SelecionarConsultoriaPage() {
                       size={48}
                     />
                     <div className="space-y-1.5 text-left min-w-0">
-                      <h2 className="text-base sm:text-lg font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors truncate">
+                      <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors truncate">
                         {item.consultancyName}
                       </h2>
                       <div className="flex flex-wrap gap-1.5">
                         {item.roles.map((role) => (
-                          <span
+                          <Badge
                             key={role}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100/70 text-[#008f4c]"
+                            variant="brand"
+                            size="sm"
                           >
                             {ROLE_LABELS[role]}
-                          </span>
+                          </Badge>
                         ))}
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-zinc-400 group-hover:text-[#00A859] transition-colors shrink-0 pl-2">
+                  <div className="text-[var(--text-tertiary)] group-hover:text-[var(--brand)] transition-colors shrink-0 pl-2">
                     <svg
                       className="w-5 h-5"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
                       strokeWidth={2}
+                      aria-hidden="true"
                     >
                       <path
                         strokeLinecap="round"
@@ -140,12 +146,14 @@ export default async function SelecionarConsultoriaPage() {
 
           <div className="w-full pt-2">
             <form action={logoutFromConsultancyArea}>
-              <button
+              <Button
                 type="submit"
-                className="w-full h-11 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 text-zinc-700 font-semibold text-sm rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                variant="secondary"
+                fullWidth
+                size="md"
               >
                 Sair
-              </button>
+              </Button>
             </form>
           </div>
         </div>
@@ -163,29 +171,28 @@ export default async function SelecionarConsultoriaPage() {
   // 2. Caso haja 0 consultorias acessíveis e 0 em configuração
   if (accessible.length === 0 && configuring.length === 0) {
     return (
-      <main className="min-h-svh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-white text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-        <div className="w-full max-w-[420px] mx-auto flex flex-col items-center space-y-6 sm:space-y-8">
+      <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+        <div className="w-full max-w-[440px] mx-auto flex flex-col items-center space-y-6 sm:space-y-7">
           <div className="w-[130px] sm:w-[150px] shrink-0">
             <TrevoOneLogo priority size={150} />
           </div>
 
-          <div className="w-full text-center space-y-2">
-            <h1 className="text-xl sm:text-2xl font-semibold text-zinc-900">
-              Nenhuma consultoria vinculada
-            </h1>
-            <p className="text-sm text-zinc-600 leading-relaxed">
-              Sua conta está ativa, mas você ainda não está vinculado a uma consultoria parceira no Trevo One.
-            </p>
-          </div>
-
-          <form action={logoutFromConsultancyArea} className="w-full">
-            <button
-              type="submit"
-              className="w-full h-11 bg-zinc-900 hover:bg-zinc-800 active:bg-black text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2"
-            >
-              Sair
-            </button>
-          </form>
+          <EmptyState
+            title="Nenhuma consultoria vinculada"
+            description="Sua conta está ativa, mas você ainda não está vinculado a uma consultoria parceira no Trevo One."
+            action={
+              <form action={logoutFromConsultancyArea} className="w-full">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                >
+                  Sair
+                </Button>
+              </form>
+            }
+            className="w-full bg-[var(--surface)] border-[var(--border-default)]"
+          />
         </div>
       </main>
     );
@@ -194,29 +201,28 @@ export default async function SelecionarConsultoriaPage() {
   // 3. Caso haja 0 consultorias acessíveis e 1+ em configuração (sem roles)
   if (accessible.length === 0 && configuring.length > 0) {
     return (
-      <main className="min-h-svh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-white text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-        <div className="w-full max-w-[420px] mx-auto flex flex-col items-center space-y-6 sm:space-y-8">
+      <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+        <div className="w-full max-w-[440px] mx-auto flex flex-col items-center space-y-6 sm:space-y-7">
           <div className="w-[130px] sm:w-[150px] shrink-0">
             <TrevoOneLogo priority size={150} />
           </div>
 
-          <div className="w-full text-center space-y-2">
-            <h1 className="text-xl sm:text-2xl font-semibold text-zinc-900">
-              Acesso em configuração
-            </h1>
-            <p className="text-sm text-zinc-600 leading-relaxed">
-              Seu vínculo com a consultoria existe, mas suas permissões ainda não foram definidas. Entre em contato com o administrador da consultoria.
-            </p>
-          </div>
-
-          <form action={logoutFromConsultancyArea} className="w-full">
-            <button
-              type="submit"
-              className="w-full h-11 bg-zinc-900 hover:bg-zinc-800 active:bg-black text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2"
-            >
-              Sair
-            </button>
-          </form>
+          <EmptyState
+            title="Acesso em configuração"
+            description="Seu vínculo com a consultoria existe, mas suas permissões ainda não foram definidas. Entre em contato com o administrador da consultoria."
+            action={
+              <form action={logoutFromConsultancyArea} className="w-full">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                >
+                  Sair
+                </Button>
+              </form>
+            }
+            className="w-full bg-[var(--surface)] border-[var(--border-default)]"
+          />
         </div>
       </main>
     );
@@ -224,17 +230,17 @@ export default async function SelecionarConsultoriaPage() {
 
   // 4. Caso haja 2 ou mais consultorias acessíveis para usuário comum
   return (
-    <main className="min-h-svh w-full flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-white text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-      <div className="w-full max-w-[520px] mx-auto flex flex-col items-center space-y-6 sm:space-y-8">
-        <div className="w-[130px] sm:w-[150px] shrink-0">
+    <main className="min-h-dvh w-full flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+      <div className="w-full max-w-[540px] mx-auto flex flex-col items-center space-y-6 sm:space-y-7 my-auto">
+        <div className="w-[130px] sm:w-[150px] shrink-0 transition-transform duration-200 hover:scale-[1.02]">
           <TrevoOneLogo priority size={150} />
         </div>
 
         <div className="w-full text-center space-y-1.5 px-2">
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
             Escolha sua consultoria
           </h1>
-          <p className="text-sm text-zinc-500 font-normal leading-relaxed">
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal leading-relaxed">
             Selecione a consultoria que você deseja acessar neste momento.
           </p>
         </div>
@@ -244,7 +250,7 @@ export default async function SelecionarConsultoriaPage() {
             <Link
               key={item.membershipId}
               href={`/consultoria/${item.consultancySlug}`}
-              className="group block w-full p-4 sm:p-5 rounded-xl border border-zinc-200 hover:border-[#00A859] bg-white hover:bg-emerald-50/30 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859]"
+              className="group block w-full p-4 sm:p-5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] shadow-xs transition-all duration-150 focus-visible:outline-[var(--brand)]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3.5 min-w-0">
@@ -254,29 +260,31 @@ export default async function SelecionarConsultoriaPage() {
                     size={48}
                   />
                   <div className="space-y-1.5 text-left min-w-0">
-                    <h2 className="text-base sm:text-lg font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors truncate">
+                    <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors truncate">
                       {item.consultancyName}
                     </h2>
                     <div className="flex flex-wrap gap-1.5">
                       {item.roles.map((role) => (
-                        <span
+                        <Badge
                           key={role}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100/70 text-[#008f4c]"
+                          variant="brand"
+                          size="sm"
                         >
                           {ROLE_LABELS[role]}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="text-zinc-400 group-hover:text-[#00A859] transition-colors shrink-0 pl-2">
+                <div className="text-[var(--text-tertiary)] group-hover:text-[var(--brand)] transition-colors shrink-0 pl-2">
                   <svg
                     className="w-5 h-5"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
                     strokeWidth={2}
+                    aria-hidden="true"
                   >
                     <path
                       strokeLinecap="round"
@@ -292,16 +300,17 @@ export default async function SelecionarConsultoriaPage() {
 
         <div className="w-full pt-2">
           <form action={logoutFromConsultancyArea}>
-            <button
+            <Button
               type="submit"
-              className="w-full h-11 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 text-zinc-700 font-semibold text-sm rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-zinc-400"
+              variant="secondary"
+              fullWidth
+              size="md"
             >
               Sair
-            </button>
+            </Button>
           </form>
         </div>
       </div>
     </main>
   );
 }
-

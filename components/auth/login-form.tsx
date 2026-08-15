@@ -3,6 +3,8 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { loginAccount, LoginFormState } from "@/app/login/actions";
+import { Button } from "@/components/ui/button";
+import { FormField, Input } from "@/components/ui/form-controls";
 
 const initialState: LoginFormState = {
   success: false,
@@ -15,69 +17,79 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
   const errors = state.errors || {};
 
   return (
-    <form action={formAction} className="w-full space-y-5" noValidate>
+    <form action={formAction} className="w-full space-y-4.5" noValidate>
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
+
+      {/* Alerta de erro geral */}
       {state.message && !state.success && (
         <div
           role="alert"
           aria-live="polite"
-          className="p-3.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-medium leading-relaxed text-left"
+          className="p-3.5 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger-foreground)] text-xs font-medium leading-relaxed text-left flex items-start gap-2.5"
         >
-          {state.message}
+          <svg
+            className="w-4 h-4 text-[var(--danger)] shrink-0 mt-0.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+            />
+          </svg>
+          <span>{state.message}</span>
         </div>
       )}
 
-      {/* Campo de E-mail */}
-      <div className="space-y-1.5 text-left">
-        <label htmlFor="email" className="block text-sm font-medium text-zinc-700">
-          E-mail
-        </label>
-        <input
+      {/* Campo E-mail */}
+      <FormField
+        label="E-mail"
+        id="email"
+        error={errors.email}
+      >
+        <Input
           id="email"
           name="email"
           type="email"
           autoComplete="email"
           placeholder="seuemail@exemplo.com"
+          hasError={!!errors.email}
           aria-invalid={!!errors.email}
           aria-describedby={errors.email ? "email-error" : undefined}
-          className={`w-full h-11 px-3.5 rounded-lg border bg-white text-zinc-900 placeholder:text-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent transition-all ${
-            errors.email ? "border-red-500" : "border-zinc-300"
-          }`}
         />
-        {errors.email && (
-          <p id="email-error" className="text-xs text-red-600 font-medium pt-0.5">
-            {errors.email}
-          </p>
-        )}
-      </div>
+      </FormField>
 
-      {/* Campo de Senha */}
-      <div className="space-y-1.5 text-left">
-        <label htmlFor="password" className="block text-sm font-medium text-zinc-700">
-          Senha
-        </label>
+      {/* Campo Senha */}
+      <FormField
+        label="Senha"
+        id="password"
+        error={errors.password}
+      >
         <div className="relative flex items-center">
-          <input
+          <Input
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             placeholder="••••••••"
+            hasError={!!errors.password}
             aria-invalid={!!errors.password}
             aria-describedby={errors.password ? "password-error" : undefined}
-            className={`w-full h-11 pl-3.5 pr-11 rounded-lg border bg-white text-zinc-900 placeholder:text-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent transition-all ${
-              errors.password ? "border-red-500" : "border-zinc-300"
-            }`}
+            className="pr-11"
           />
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-zinc-500 hover:text-zinc-700 focus:outline-none focus:text-[#00A859] transition-colors"
+            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors"
             aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
           >
             {showPassword ? (
               <svg
-                className="w-5 h-5"
+                className="w-4.5 h-4.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -92,7 +104,7 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
               </svg>
             ) : (
               <svg
-                className="w-5 h-5"
+                className="w-4.5 h-4.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -113,47 +125,44 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
             )}
           </button>
         </div>
-        {errors.password && (
-          <p id="password-error" className="text-xs text-red-600 font-medium pt-0.5">
-            {errors.password}
-          </p>
-        )}
-      </div>
+      </FormField>
 
-      {/* Opção Manter Conectado & Esqueci Minha Senha */}
+      {/* Opções: Manter conectado & Esqueci minha senha */}
       <div className="flex items-center justify-between text-xs sm:text-sm pt-0.5">
-        <label className="flex items-center space-x-2 cursor-pointer select-none text-zinc-600">
+        <label className="flex items-center space-x-2 cursor-pointer select-none text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
           <input
             type="checkbox"
             name="remember_me"
-            className="w-4 h-4 rounded border-zinc-300 text-[#00A859] focus:ring-[#00A859] accent-[#00A859] cursor-pointer"
+            className="w-4 h-4 rounded border-[var(--border-default)] text-[var(--brand)] focus:ring-[var(--brand)] accent-[var(--brand)] cursor-pointer"
           />
-          <span>Manter conectado</span>
+          <span className="text-xs font-normal">Manter conectado</span>
         </label>
 
         <Link
           href="/recuperar-senha"
-          className="font-medium text-[#00A859] hover:underline focus:outline-none focus:ring-1 focus:ring-[#00A859] rounded px-1 py-0.5"
+          className="text-xs font-medium text-[var(--brand-strong)] hover:text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors"
         >
           Esqueci minha senha
         </Link>
       </div>
 
-      {/* Botão Principal Entrar */}
-      <button
+      {/* Botão Entrar */}
+      <Button
         type="submit"
-        disabled={isPending}
-        className="w-full h-11 mt-2 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2 flex items-center justify-center"
+        fullWidth
+        size="md"
+        isLoading={isPending}
+        className="mt-2 font-semibold"
       >
         {isPending ? "Entrando..." : "Entrar"}
-      </button>
+      </Button>
 
-      {/* Área Criar Conta */}
-      <div className="text-center text-xs sm:text-sm text-zinc-500 pt-4 border-t border-zinc-100">
+      {/* Link para Criar Conta */}
+      <div className="text-center text-xs sm:text-sm text-[var(--text-secondary)] pt-4 border-t border-[var(--border-subtle)]">
         <span>Ainda não possui uma conta? </span>
         <Link
           href={`/cadastro${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}
-          className="font-semibold text-[#00A859] hover:underline focus:outline-none focus:ring-1 focus:ring-[#00A859] rounded px-1 py-0.5"
+          className="font-semibold text-[var(--brand-strong)] hover:text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors"
         >
           Criar conta
         </Link>

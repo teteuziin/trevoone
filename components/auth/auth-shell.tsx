@@ -1,33 +1,50 @@
-import { ReactNode } from "react";
+import React, { ReactNode } from "react";
 import { TrevoOneLogo } from "../brand/trevo-one-logo";
 
 interface AuthShellProps {
   title: string;
   subtitle: string;
+  badge?: string;
   children: ReactNode;
 }
 
-export function AuthShell({ title, subtitle, children }: AuthShellProps) {
+export function AuthShell({ title, subtitle, badge, children }: AuthShellProps) {
   return (
-    <main className="min-h-svh w-full flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-white text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-      <div className="w-full max-w-[420px] mx-auto sm:my-auto flex flex-col items-center space-y-6 sm:space-y-8">
-        {/* Logo Header */}
-        <div className="w-[130px] sm:w-[150px] shrink-0 transition-all duration-300">
-          <TrevoOneLogo priority size={150} />
+    <main className="min-h-dvh w-full flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 lg:p-10 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+      {/* Container Principal */}
+      <div className="w-full max-w-[440px] mx-auto flex flex-col items-center space-y-6 sm:space-y-7 my-auto">
+        {/* Brand / Logo */}
+        <div className="flex flex-col items-center space-y-3">
+          <div className="w-[130px] sm:w-[150px] shrink-0 transition-transform duration-200 hover:scale-[1.02]">
+            <TrevoOneLogo priority size={150} />
+          </div>
+          {badge && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)]">
+              {badge}
+            </span>
+          )}
         </div>
 
-        {/* Title & Subtitle */}
-        <div className="text-center space-y-2 w-full px-2 shrink-0">
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">
-            {title}
-          </h1>
-          <p className="text-sm text-zinc-500 font-normal leading-relaxed">
-            {subtitle}
-          </p>
+        {/* Card do Formulário */}
+        <div className="w-full bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+          {/* Header do Form */}
+          <div className="text-center space-y-1.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+              {title}
+            </h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal leading-relaxed">
+              {subtitle}
+            </p>
+          </div>
+
+          {/* Conteúdo Injetado (Formulário) */}
+          <div className="w-full">{children}</div>
         </div>
 
-        {/* Content Box */}
-        <div className="w-full px-2 sm:px-0 shrink-0">{children}</div>
+        {/* Rodapé institucional discreto */}
+        <p className="text-[11px] text-[var(--text-tertiary)] text-center tracking-tight select-none">
+          Trevo One &bull; Plataforma para consultorias de saúde e treino
+        </p>
       </div>
     </main>
   );

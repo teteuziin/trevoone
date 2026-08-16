@@ -1,0 +1,2 @@
+ALTER TABLE nutrition_foods
+    MODIFY COLUMN created_by_user_id BIGINT UNSIGNED NULL DEFAULT NULL;

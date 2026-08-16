@@ -360,6 +360,197 @@ export async function searchFoodsForNutritionist({
   }
 }
 
+export type ListNutritionFoodsParams = {
+  actorUserId: number;
+  consultancySlug: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type NutritionFoodListItemDto = {
+  publicId: string;
+  name: string;
+  category: string | null;
+  referenceAmount: number;
+  referenceUnit: string;
+  caloriesKcal: number;
+  proteinG: number;
+  carbohydrateG: number;
+  fatG: number;
+  status: NutritionFoodStatus;
+  sourceType: NutritionFoodSourceType;
+  sourceKey: string | null;
+  sourceLabel: string | null;
+  sourceExternalCode: string | null;
+  sourceVersion: string | null;
+};
+
+export type ListNutritionFoodsResult = {
+  items: NutritionFoodListItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+/**
+ * Lista alimentos paginados da biblioteca da consultoria para o Nutricionista.
+ * Suporta busca por prefixo e aliases com paginação server-side determinística.
+ */
+export async function listNutritionFoodsForNutritionist({
+  actorUserId,
+  consultancySlug,
+  search = "",
+  page = 1,
+  pageSize = 24,
+}: ListNutritionFoodsParams): Promise<ListNutritionFoodsResult> {
+  const defaultResult: ListNutritionFoodsResult = {
+    items: [],
+    total: 0,
+    page: 1,
+    pageSize: 24,
+    totalPages: 1,
+  };
+
+  if (
+    !actorUserId ||
+    typeof actorUserId !== "number" ||
+    actorUserId <= 0 ||
+    !consultancySlug ||
+    typeof consultancySlug !== "string" ||
+    !consultancySlug.trim()
+  ) {
+    return defaultResult;
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("NUTRITIONIST")) {
+    return defaultResult;
+  }
+
+  const normalizedQuery = normalizeSearchText(search);
+  const isSearchActive = normalizedQuery.length >= 2;
+
+  const validPageSize =
+    typeof pageSize === "number" && Number.isInteger(pageSize) && pageSize >= 1 && pageSize <= 100
+      ? pageSize
+      : 24;
+  const parsedPage = Number(page);
+  const initialPage = Number.isInteger(parsedPage) && parsedPage >= 1 ? parsedPage : 1;
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+
+    let countSql = `
+      SELECT COUNT(DISTINCT f.id) AS total
+      FROM nutrition_foods f
+      LEFT JOIN nutrition_food_aliases a ON a.food_id = f.id
+      WHERE f.consultancy_id = ?
+        AND f.status = 'ACTIVE'
+        AND f.deleted_at IS NULL
+    `;
+    const countParams: (string | number)[] = [context.consultancyId];
+
+    if (isSearchActive) {
+      const searchPattern = `${normalizedQuery}%`;
+      countSql += ` AND (f.normalized_name LIKE ? OR a.normalized_alias LIKE ?)`;
+      countParams.push(searchPattern, searchPattern);
+    }
+
+    const [countRows] = await connection.execute<RowDataPacket[]>(countSql, countParams);
+    const total = Number(countRows[0]?.total || 0);
+
+    if (total === 0) {
+      return {
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: validPageSize,
+        totalPages: 1,
+      };
+    }
+
+    const totalPages = Math.max(1, Math.ceil(total / validPageSize));
+    const validPage = Math.min(initialPage, totalPages);
+    const offset = (validPage - 1) * validPageSize;
+
+    let selectSql = `
+      SELECT DISTINCT
+        f.public_id,
+        f.name,
+        f.category,
+        f.reference_amount,
+        f.reference_unit,
+        f.calories_kcal,
+        f.protein_g,
+        f.carbohydrate_g,
+        f.fat_g,
+        f.status,
+        f.source_type,
+        f.source_key,
+        f.source_label,
+        f.source_external_code,
+        f.source_version,
+        f.normalized_name
+      FROM nutrition_foods f
+      LEFT JOIN nutrition_food_aliases a ON a.food_id = f.id
+      WHERE f.consultancy_id = ?
+        AND f.status = 'ACTIVE'
+        AND f.deleted_at IS NULL
+    `;
+    const selectParams: (string | number)[] = [context.consultancyId];
+
+    if (isSearchActive) {
+      const searchPattern = `${normalizedQuery}%`;
+      selectSql += ` AND (f.normalized_name LIKE ? OR a.normalized_alias LIKE ?)`;
+      selectParams.push(searchPattern, searchPattern);
+    }
+
+    selectSql += `
+      ORDER BY f.normalized_name ASC, f.public_id ASC
+      LIMIT ? OFFSET ?;
+    `;
+    selectParams.push(validPageSize, offset);
+
+    const [foodRows] = await connection.execute<RowDataPacket[]>(selectSql, selectParams);
+
+    const items: NutritionFoodListItemDto[] = (foodRows || []).map((r) => ({
+      publicId: String(r.public_id),
+      name: String(r.name),
+      category: r.category ? String(r.category) : null,
+      referenceAmount: Number(r.reference_amount),
+      referenceUnit: String(r.reference_unit),
+      caloriesKcal: Number(r.calories_kcal),
+      proteinG: Number(r.protein_g),
+      carbohydrateG: Number(r.carbohydrate_g),
+      fatG: Number(r.fat_g),
+      status: r.status as NutritionFoodStatus,
+      sourceType: (r.source_type || "MANUAL") as NutritionFoodSourceType,
+      sourceKey: r.source_key ? String(r.source_key) : null,
+      sourceLabel: r.source_label ? String(r.source_label) : null,
+      sourceExternalCode: r.source_external_code ? String(r.source_external_code) : null,
+      sourceVersion: r.source_version ? String(r.source_version) : null,
+    }));
+
+    return {
+      items,
+      total,
+      page: validPage,
+      pageSize: validPageSize,
+      totalPages,
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export const getNutritionFoodForNutritionist = getFoodDetailsForNutritionist;
+
+
 export type GetFoodDetailsParams = {
   actorUserId: number;
   consultancySlug: string;

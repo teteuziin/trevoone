@@ -65,6 +65,15 @@ export function ConsultancyAppShell({
     });
   }
 
+  if (roles.includes("NUTRITIONIST")) {
+    items.push({
+      id: "nutritionist-alimentos",
+      label: "Alimentos",
+      href: `/consultoria/${consultancySlug}/nutricao/alimentos`,
+      iconName: "nutrition",
+    });
+  }
+
   if (roles.includes("CONSULTANCY_ADMIN")) {
     items.push({
       id: "admin-membros",

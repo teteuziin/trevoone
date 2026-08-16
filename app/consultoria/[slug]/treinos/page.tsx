@@ -6,6 +6,8 @@ import { getActiveTrainingPlanForStudent } from "@/lib/consultancies/training";
 import { StudentModuleAccessPanel } from "@/components/consultancies/student-module-access-panel";
 import { StudentTrainingPlan } from "@/components/consultancies/student-training-plan";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type PageProps = {
   params: Promise<{
@@ -77,7 +79,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
         <div className="flex items-center gap-2">
           <Link
             href={`/consultoria/${access.context.consultancySlug}`}
-            className="inline-flex items-center text-xs font-semibold text-zinc-500 hover:text-zinc-800 transition-colors"
+            className="inline-flex items-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
             ← Voltar ao painel
           </Link>
@@ -85,18 +87,15 @@ export default async function StudentTreinosPage({ params }: PageProps) {
 
         {/* Estado vazio (quando não há plano ativo liberado) */}
         {!activePlan ? (
-          <div className="p-8 sm:p-12 rounded-2xl bg-white border border-zinc-200 shadow-2xs text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 text-[#00A859] mx-auto flex items-center justify-center font-bold">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-base font-bold text-zinc-900">
-              Seu treino ainda não foi disponibilizado
-            </h3>
-            <p className="text-xs sm:text-sm text-zinc-500 max-w-[380px] mx-auto leading-relaxed">
-              Assim que seu Personal Trainer liberar e ativar sua nova ficha de treino, ela aparecerá aqui com todos os exercícios, vídeos e orientações.
-            </p>
+          <div className="space-y-6">
+            <PageHeader
+              title="Seu Treino"
+              description="Acompanhe sua prescrição atual, exercícios e orientações do seu Personal."
+            />
+            <EmptyState
+              title="Seu treino ainda não foi disponibilizado"
+              description="Assim que seu Personal Trainer liberar e ativar sua nova ficha de treino, ela aparecerá aqui com todos os exercícios, vídeos e orientações."
+            />
           </div>
         ) : (
           <StudentTrainingPlan

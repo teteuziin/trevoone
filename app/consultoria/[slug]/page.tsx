@@ -78,9 +78,9 @@ export default async function ConsultancyPage({ params }: PageProps) {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-300">
+                  <Badge variant="warning" size="sm">
                     Etapa Obrigatória
-                  </span>
+                  </Badge>
                   <span className="text-xs font-medium text-[var(--warning-foreground)]">
                     {studentOnboarding.confirmedRequirements} de {studentOnboarding.totalRequirements} etapas confirmadas
                   </span>
@@ -89,7 +89,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
                   Complete seu cadastro inicial
                 </h2>
                 <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                  Conclua os formulários obrigatórios de onboarding para liberar o acesso aos seus treinos e planos alimentares.
+                  Conclua os formulários obrigatórios de onboarding para liberar o acesso aos módulos da sua consultoria.
                 </p>
               </div>
 
@@ -113,7 +113,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 Seu acompanhamento
               </h2>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                Acesse suas rotinas prescritas de treino e planos nutricionais.
+                Acesse suas rotinas prescritas de treino e acompanhamento da consultoria.
               </p>
             </div>
 
@@ -165,8 +165,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
                   </div>
                   <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
                     {studentOnboarding?.isComplete
-                      ? "Acesse seus planos alimentares e orientações de dieta."
-                      : "Conclua o onboarding para liberar o acesso ao plano nutricional."}
+                      ? "Acesse o espaço de nutrição e acompanhamentos da sua consultoria."
+                      : "Conclua o onboarding para liberar o acesso ao módulo de nutrição."}
                   </p>
                 </div>
 

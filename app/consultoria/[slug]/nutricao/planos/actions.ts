@@ -23,6 +23,7 @@ import {
   moveNutritionMealChoiceGroup,
   moveNutritionMealItem,
   removeNutritionMealItem,
+  activateNutritionPlan,
   type NutritionFoodDto,
 } from "@/lib/consultancies/nutrition";
 
@@ -664,4 +665,46 @@ export async function removeItemAction(
   revalidatePath(`/consultoria/${slug}/nutricao/planos/${planPublicId}`);
   return { success: true, message: "Alimento removido com sucesso!" };
 }
+
+// ============================================================================
+// PLAN ACTIVATION ACTION
+// ============================================================================
+
+export async function activateNutritionPlanAction(
+  slug: string,
+  planPublicId: string
+): Promise<ActionResult<{ alreadyActive?: boolean }>> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  if (!planPublicId || typeof planPublicId !== "string" || !planPublicId.trim()) {
+    return { success: false, error: "Identificador do plano inválido." };
+  }
+
+  const result = await activateNutritionPlan({
+    actorUserId: session.userId,
+    consultancySlug: slug,
+    planPublicId: planPublicId.trim(),
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error || "Erro ao ativar plano alimentar.",
+    };
+  }
+
+  revalidatePath(`/consultoria/${slug}/nutricao/planos/${planPublicId}`);
+  revalidatePath(`/consultoria/${slug}/nutricao/planos`);
+  return {
+    success: true,
+    data: { alreadyActive: result.alreadyActive },
+    message: result.alreadyActive
+      ? "Este plano alimentar já se encontra ativo."
+      : "Plano alimentar ativado com sucesso!",
+  };
+}
+
 

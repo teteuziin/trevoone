@@ -19,6 +19,8 @@ import { NutritionMealModal } from "./nutrition-meal-modal";
 import { NutritionSectionModal } from "./nutrition-section-modal";
 import { NutritionFoodModal } from "./nutrition-food-modal";
 import { NutritionItemQuantityModal } from "./nutrition-item-quantity-modal";
+import { NutritionPlanActivateButton } from "./nutrition-plan-activate-button";
+import { formatMacroRange } from "@/lib/consultancies/nutrition-totals";
 import type {
   NutritionistPlanEditorDto,
   NutritionMealDto,
@@ -259,21 +261,28 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
           {/* Action buttons */}
           <div className="flex items-center gap-2 shrink-0">
             {isDraft && (
-              <button
-                type="button"
-                onClick={() => setIsEditingDetails(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 shadow-sm transition-all"
-              >
-                <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                  />
-                </svg>
-                Editar dados gerais
-              </button>
+              <>
+                <NutritionPlanActivateButton
+                  slug={slug}
+                  planPublicId={plan.publicId}
+                  planStatus={plan.status}
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsEditingDetails(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 shadow-sm transition-all"
+                >
+                  <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    />
+                  </svg>
+                  Editar dados gerais
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -286,6 +295,55 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
           </div>
         )}
       </div>
+
+      {/* Daily Nutritional Summary Card */}
+      {plan.totals && (
+        <div className="bg-white rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50/40 via-white to-slate-50/50 p-5 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-950">
+                {plan.totals.isExact.all ? "Total Diário Estimado" : "Faixa Nutricional Diária"}
+              </span>
+            </div>
+            {!plan.totals.isExact.all && (
+              <span className="text-[11px] text-slate-500">
+                Os limites são calculados separadamente para cada nutriente, considerando as alternativas do plano.
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-0.5">
+            <div className="bg-white/90 p-3 rounded-xl border border-slate-200/70 shadow-2xs">
+              <span className="text-[11px] font-semibold text-slate-500 block uppercase">Calorias</span>
+              <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                {formatMacroRange(plan.totals.min.calories, plan.totals.max.calories, "kcal")}
+              </span>
+            </div>
+
+            <div className="bg-white/90 p-3 rounded-xl border border-slate-200/70 shadow-2xs">
+              <span className="text-[11px] font-semibold text-slate-500 block uppercase">Proteínas</span>
+              <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                {formatMacroRange(plan.totals.min.protein, plan.totals.max.protein, "g")}
+              </span>
+            </div>
+
+            <div className="bg-white/90 p-3 rounded-xl border border-slate-200/70 shadow-2xs">
+              <span className="text-[11px] font-semibold text-slate-500 block uppercase">Carboidratos</span>
+              <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                {formatMacroRange(plan.totals.min.carbohydrate, plan.totals.max.carbohydrate, "g")}
+              </span>
+            </div>
+
+            <div className="bg-white/90 p-3 rounded-xl border border-slate-200/70 shadow-2xs">
+              <span className="text-[11px] font-semibold text-slate-500 block uppercase">Gorduras</span>
+              <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                {formatMacroRange(plan.totals.min.fat, plan.totals.max.fat, "g")}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Meals Structure Section */}
       <div className="space-y-4">
@@ -371,10 +429,23 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
                         </span>
                       )}
 
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-bold text-slate-900 tracking-tight truncate">
-                          {meal.title}
-                        </h3>
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-bold text-slate-900 tracking-tight truncate">
+                            {meal.title}
+                          </h3>
+                          {meal.totals && (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-700 border border-slate-200/80 shadow-2xs">
+                              <span>{formatMacroRange(meal.totals.min.calories, meal.totals.max.calories, "kcal")}</span>
+                              <span className="text-slate-300">•</span>
+                              <span>P: {formatMacroRange(meal.totals.min.protein, meal.totals.max.protein, "g")}</span>
+                              <span className="text-slate-300">•</span>
+                              <span>C: {formatMacroRange(meal.totals.min.carbohydrate, meal.totals.max.carbohydrate, "g")}</span>
+                              <span className="text-slate-300">•</span>
+                              <span>G: {formatMacroRange(meal.totals.min.fat, meal.totals.max.fat, "g")}</span>
+                            </span>
+                          )}
+                        </div>
                         {meal.notes && (
                           <p className="text-xs text-slate-500 line-clamp-1">{meal.notes}</p>
                         )}
@@ -853,6 +924,26 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
                                   </div>
                                 )}
                               </div>
+
+                              {/* Option Totals Summary Footer */}
+                              {option.totals && (
+                                <div className="mt-3 pt-2.5 border-t border-slate-200/70 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                  <span className="font-semibold text-slate-700">
+                                    {option.totals.isExact.all ? "Total da opção:" : "Faixa da opção:"}
+                                  </span>
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-600">
+                                    <span className="font-bold text-slate-900">
+                                      {formatMacroRange(option.totals.min.calories, option.totals.max.calories, "kcal")}
+                                    </span>
+                                    <span className="text-slate-300">•</span>
+                                    <span>P: {formatMacroRange(option.totals.min.protein, option.totals.max.protein, "g")}</span>
+                                    <span className="text-slate-300">•</span>
+                                    <span>C: {formatMacroRange(option.totals.min.carbohydrate, option.totals.max.carbohydrate, "g")}</span>
+                                    <span className="text-slate-300">•</span>
+                                    <span>G: {formatMacroRange(option.totals.min.fat, option.totals.max.fat, "g")}</span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })}

@@ -7,11 +7,31 @@ import {
   type MacroCalculationInput,
   type CalculatedMacros,
 } from "./nutrition-calc";
+import {
+  calculateChoiceGroupTotals,
+  calculateSectionTotals,
+  calculateMealOptionTotals,
+  calculateMealTotals,
+  calculatePlanTotals,
+  formatMacroValue,
+  formatMacroRange,
+  type NutritionMacroValues,
+  type NutritionMacroRange,
+} from "./nutrition-totals";
 
 export {
   calculateItemMacros,
+  calculateChoiceGroupTotals,
+  calculateSectionTotals,
+  calculateMealOptionTotals,
+  calculateMealTotals,
+  calculatePlanTotals,
+  formatMacroValue,
+  formatMacroRange,
   type MacroCalculationInput,
   type CalculatedMacros,
+  type NutritionMacroValues,
+  type NutritionMacroRange,
 };
 
 // ============================================================================
@@ -116,6 +136,7 @@ export type NutritionMealOptionDto = {
   description: string | null;
   sortOrder: number;
   sections: NutritionMealSectionDto[];
+  totals?: NutritionMacroRange | null;
 };
 
 export type NutritionMealDto = {
@@ -125,6 +146,7 @@ export type NutritionMealDto = {
   notes: string | null;
   sortOrder: number;
   options: NutritionMealOptionDto[];
+  totals?: NutritionMacroRange | null;
 };
 
 export type NutritionPlanDto = {
@@ -139,6 +161,7 @@ export type NutritionPlanDto = {
   activatedAt: Date | null;
   archivedAt: Date | null;
   meals: NutritionMealDto[];
+  totals?: NutritionMacroRange | null;
 };
 
 export type NutritionistPlanEditorDto = NutritionPlanDto & {
@@ -4238,6 +4261,23 @@ export async function getNutritionPlanForNutritionist({
       }
     }
 
+    const mealsList = Array.from(mealsMap.values()).map((meal) => {
+      const optionsWithTotals = meal.options.map((opt) => ({
+        ...opt,
+        totals: calculateMealOptionTotals(opt),
+      }));
+      const mealWithTotals = {
+        ...meal,
+        options: optionsWithTotals,
+      };
+      return {
+        ...mealWithTotals,
+        totals: calculateMealTotals(mealWithTotals),
+      };
+    });
+
+    const planTotals = calculatePlanTotals({ meals: mealsList });
+
     return {
       publicId: String(pRow.public_id),
       consultancyPublicId: context.consultancySlug,
@@ -4249,7 +4289,8 @@ export async function getNutritionPlanForNutritionist({
       endsOn: pRow.ends_on ? String(pRow.ends_on) : null,
       activatedAt: pRow.activated_at ? new Date(pRow.activated_at) : null,
       archivedAt: pRow.archived_at ? new Date(pRow.archived_at) : null,
-      meals: Array.from(mealsMap.values()),
+      meals: mealsList,
+      totals: planTotals,
       studentName: String(pRow.student_name),
       studentEmail: String(pRow.student_email),
       studentMembershipPublicId: String(pRow.student_membership_public_id),
@@ -4807,6 +4848,23 @@ export async function getActiveNutritionPlanForStudent(
       }
     }
 
+    const mealsList = Array.from(mealsMap.values()).map((meal) => {
+      const optionsWithTotals = meal.options.map((opt) => ({
+        ...opt,
+        totals: calculateMealOptionTotals(opt),
+      }));
+      const mealWithTotals = {
+        ...meal,
+        options: optionsWithTotals,
+      };
+      return {
+        ...mealWithTotals,
+        totals: calculateMealTotals(mealWithTotals),
+      };
+    });
+
+    const planTotals = calculatePlanTotals({ meals: mealsList });
+
     return {
       publicId: String(pRow.public_id),
       consultancyPublicId: context.consultancySlug,
@@ -4818,7 +4876,8 @@ export async function getActiveNutritionPlanForStudent(
       endsOn: pRow.ends_on ? String(pRow.ends_on) : null,
       activatedAt: pRow.activated_at ? new Date(pRow.activated_at) : null,
       archivedAt: pRow.archived_at ? new Date(pRow.archived_at) : null,
-      meals: Array.from(mealsMap.values()),
+      meals: mealsList,
+      totals: planTotals,
     };
   } finally {
     if (connection) {

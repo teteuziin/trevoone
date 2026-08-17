@@ -698,6 +698,7 @@ export async function activateNutritionPlanAction(
 
   revalidatePath(`/consultoria/${slug}/nutricao/planos/${planPublicId}`);
   revalidatePath(`/consultoria/${slug}/nutricao/planos`);
+  revalidatePath(`/consultoria/${slug}/nutricao`);
   return {
     success: true,
     data: { alreadyActive: result.alreadyActive },

@@ -16,6 +16,14 @@ import {
   updateNutritionMealSection,
   moveNutritionMealSection,
   removeNutritionMealSection,
+  searchFoodsForNutritionist,
+  createNutritionMealChoiceGroupWithFirstItem,
+  addNutritionMealItemAlternative,
+  updateNutritionMealItemQuantity,
+  moveNutritionMealChoiceGroup,
+  moveNutritionMealItem,
+  removeNutritionMealItem,
+  type NutritionFoodDto,
 } from "@/lib/consultancies/nutrition";
 
 export type ActionResult<T = unknown> =
@@ -449,3 +457,211 @@ export async function removeNutritionMealSectionAction(
   revalidatePath(`/consultoria/${slug}/nutricao/planos/${planPublicId}`);
   return { success: true, message: "Seção removida com sucesso!" };
 }
+
+// ============================================================================
+// FOOD AUTOCOMPLETE & CHOICE GROUP / ITEM ACTIONS
+// ============================================================================
+
+export async function searchNutritionFoodsAction(
+  slug: string,
+  query: string
+): Promise<ActionResult<NutritionFoodDto[]>> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const results = await searchFoodsForNutritionist({
+    actorUserId: session.userId,
+    consultancySlug: slug,
+    query,
+    limit: 20,
+  });
+
+  return { success: true, data: results };
+}
+
+export async function createChoiceGroupWithItemAction(
+  slug: string,
+  planPublicId: string,
+  sectionPublicId: string,
+  foodPublicId: string,
+  prescribedQuantity: number | string,
+  notes?: string | null
+): Promise<ActionResult<{ groupPublicId: string; itemPublicId: string }>> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const result = await createNutritionMealChoiceGroupWithFirstItem({
+    actorUserId: session.userId,
+    consultancySlug: slug,
+    planPublicId,
+    sectionPublicId,
+    foodPublicId,
+    prescribedQuantity,
+    notes,
+  });
+
+  if (!result.success || !result.groupPublicId || !result.itemPublicId) {
+    return { success: false, error: result.error || "Erro ao adicionar alimento à refeição." };
+  }
+
+  revalidatePath(`/consultoria/${slug}/nutricao/planos/${planPublicId}`);
+  return {
+    success: true,
+    data: { groupPublicId: result.groupPublicId, itemPublicId: result.itemPublicId },
+    message: "Alimento adicionado com sucesso!",
+  };
+}
+
+export async function addItemAlternativeAction(
+  slug: string,
+  planPublicId: string,
+  choiceGroupPublicId: string,
+  foodPublicId: string,
+  prescribedQuantity: number | string,
+  notes?: string | null
+): Promise<ActionResult<{ itemPublicId: string }>> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const result = await addNutritionMealItemAlternative({
+    actorUserId: session.userId,
+    consultancySlug: slug,
+    planPublicId,
+    choiceGroupPublicId,
+    foodPublicId,
+    prescribedQuantity,
+    notes,
+  });
+
+  if (!result.success || !result.itemPublicId) {
+    return { success: false, error: result.error || "Erro ao adicionar alternativa." };
+  }
+
+  revalidatePath(`/consultoria/${slug}/nutricao/planos/${planPublicId}`);
+  return {
+    success: true,
+    data: { itemPublicId: result.itemPublicId },
+    message: "Alternativa adicionada com sucesso!",
+  };
+}
+
+export async function updateItemQuantityAction(
+  slug: string,
+  planPublicId: string,
+  itemPublicId: string,
+  prescribedQuantity: number | string
+): Promise<ActionResult> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const result = await updateNutritionMealItemQuantity({
+    actorUserId: session.userId,
+    consultancySlug: slug,
+    planPublicId,
+    itemPublicId,
+    prescribedQuantity,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error || "Erro ao atualizar quantidade." };
+  }
+
+  revalidatePath(`/consultoria/${slug}/nutricao/planos/${planPublicId}`);
+  return { success: true, message: "Quantidade atualizada com sucesso!" };
+}
+
+export async function moveChoiceGroupAction(
+  slug: string,
+  planPublicId: string,
+  choiceGroupPublicId: string,
+  direction: "UP" | "DOWN"
+): Promise<ActionResult> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  if (direction !== "UP" && direction !== "DOWN") {
+    return { success: false, error: "Direção de movimento inválida." };
+  }
+
+  const result = await moveNutritionMealChoiceGroup({
+    actorUserId: session.userId,
+    consultancySlug: slug,
+    planPublicId,
+    choiceGroupPublicId,
+    direction,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error || "Erro ao mover grupo." };
+  }
+
+  revalidatePath(`/consultoria/${slug}/nutricao/planos/${planPublicId}`);
+  return { success: true };
+}
+
+export async function moveItemAction(
+  slug: string,
+  planPublicId: string,
+  itemPublicId: string,
+  direction: "UP" | "DOWN"
+): Promise<ActionResult> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  if (direction !== "UP" && direction !== "DOWN") {
+    return { success: false, error: "Direção de movimento inválida." };
+  }
+
+  const result = await moveNutritionMealItem({
+    actorUserId: session.userId,
+    consultancySlug: slug,
+    planPublicId,
+    itemPublicId,
+    direction,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error || "Erro ao mover alimento." };
+  }
+
+  revalidatePath(`/consultoria/${slug}/nutricao/planos/${planPublicId}`);
+  return { success: true };
+}
+
+export async function removeItemAction(
+  slug: string,
+  planPublicId: string,
+  itemPublicId: string
+): Promise<ActionResult> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const result = await removeNutritionMealItem({
+    actorUserId: session.userId,
+    consultancySlug: slug,
+    planPublicId,
+    itemPublicId,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error || "Erro ao remover alimento." };
+  }
+
+  revalidatePath(`/consultoria/${slug}/nutricao/planos/${planPublicId}`);
+  return { success: true, message: "Alimento removido com sucesso!" };
+}
+

@@ -11,13 +11,19 @@ import {
   removeNutritionMealOptionAction,
   moveNutritionMealSectionAction,
   removeNutritionMealSectionAction,
+  moveChoiceGroupAction,
+  moveItemAction,
+  removeItemAction,
 } from "@/app/consultoria/[slug]/nutricao/planos/actions";
 import { NutritionMealModal } from "./nutrition-meal-modal";
 import { NutritionSectionModal } from "./nutrition-section-modal";
+import { NutritionFoodModal } from "./nutrition-food-modal";
+import { NutritionItemQuantityModal } from "./nutrition-item-quantity-modal";
 import type {
   NutritionistPlanEditorDto,
   NutritionMealDto,
   NutritionMealSectionDto,
+  NutritionMealItemDto,
 } from "@/lib/consultancies/nutrition";
 
 interface NutritionPlanEditorProps {
@@ -47,10 +53,19 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
   const [selectedOptionForSection, setSelectedOptionForSection] = useState<string | null>(null);
   const [selectedSection, setSelectedSection] = useState<NutritionMealSectionDto | null>(null);
 
+  // State for Food Search / Modal
+  const [foodModalOpen, setFoodModalOpen] = useState(false);
+  const [foodModalSectionPublicId, setFoodModalSectionPublicId] = useState<string | null>(null);
+  const [foodModalChoiceGroupPublicId, setFoodModalChoiceGroupPublicId] = useState<string | null>(null);
+
+  // State for Quantity Edit Modal
+  const [quantityModalOpen, setQuantityModalOpen] = useState(false);
+  const [selectedItemForQuantity, setSelectedItemForQuantity] = useState<NutritionMealItemDto | null>(null);
+
   // Pending states for quick actions
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<{
-    type: "MEAL" | "OPTION" | "SECTION";
+    type: "MEAL" | "OPTION" | "SECTION" | "ITEM";
     publicId: string;
     title: string;
   } | null>(null);
@@ -122,6 +137,26 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
     }
   }
 
+  // Handlers for Choice Group actions
+  async function handleMoveChoiceGroup(choiceGroupPublicId: string, direction: "UP" | "DOWN") {
+    setPendingActionId(`cg-move-${choiceGroupPublicId}`);
+    try {
+      await moveChoiceGroupAction(slug, plan.publicId, choiceGroupPublicId, direction);
+    } finally {
+      setPendingActionId(null);
+    }
+  }
+
+  // Handlers for Food Item actions
+  async function handleMoveItem(itemPublicId: string, direction: "UP" | "DOWN") {
+    setPendingActionId(`item-move-${itemPublicId}`);
+    try {
+      await moveItemAction(slug, plan.publicId, itemPublicId, direction);
+    } finally {
+      setPendingActionId(null);
+    }
+  }
+
   // Unified Delete Execution
   async function handleExecuteDelete() {
     if (!deleteConfirmTarget) return;
@@ -135,6 +170,8 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
         await removeNutritionMealOptionAction(slug, plan.publicId, publicId);
       } else if (type === "SECTION") {
         await removeNutritionMealSectionAction(slug, plan.publicId, publicId);
+      } else if (type === "ITEM") {
+        await removeItemAction(slug, plan.publicId, publicId);
       }
       setDeleteConfirmTarget(null);
     } finally {
@@ -500,13 +537,13 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
                               </div>
 
                               {/* Option Sections */}
-                              <div className="space-y-2.5">
+                              <div className="space-y-3">
                                 {option.sections.length === 0 ? (
                                   <div className="text-center py-4 px-3 bg-white rounded-lg border border-dashed border-slate-200 text-xs text-slate-500">
                                     Nenhuma seção nesta opção (ex: Proteínas, Carboidratos, Frutas).
                                   </div>
                                 ) : (
-                                  <div className="grid grid-cols-1 gap-2">
+                                  <div className="space-y-3">
                                     {option.sections.map((section, secIdx) => {
                                       const isFirstSec = secIdx === 0;
                                       const isLastSec = secIdx === option.sections.length - 1;
@@ -514,96 +551,306 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
                                       return (
                                         <div
                                           key={section.publicId}
-                                          className="bg-white rounded-xl border border-slate-200/90 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs"
+                                          className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-3 shadow-2xs"
                                         >
-                                          <div className="flex items-center gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                            <span className="text-xs font-bold text-slate-800">
-                                              {section.title}
-                                            </span>
+                                          {/* Section Header */}
+                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                                            <div className="flex items-center gap-2">
+                                              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                                              <span className="text-xs font-bold text-slate-900 tracking-tight uppercase">
+                                                {section.title}
+                                              </span>
+                                              <span className="text-[11px] text-slate-400 font-normal">
+                                                ({section.choiceGroups.length} {section.choiceGroups.length === 1 ? "componente" : "componentes"})
+                                              </span>
+                                            </div>
+
+                                            {isDraft && (
+                                              <div className="flex items-center gap-1 self-end sm:self-center">
+                                                {/* Add Food to this section */}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setFoodModalSectionPublicId(section.publicId);
+                                                    setFoodModalChoiceGroupPublicId(null);
+                                                    setFoodModalOpen(true);
+                                                  }}
+                                                  className="px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-lg transition-all flex items-center gap-1"
+                                                >
+                                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                  </svg>
+                                                  Adicionar Alimento
+                                                </button>
+
+                                                <div className="h-3 w-px bg-slate-200 mx-0.5" />
+
+                                                {/* Move Section UP */}
+                                                <button
+                                                  type="button"
+                                                  disabled={isFirstSec || pendingActionId === `sec-move-${section.publicId}`}
+                                                  onClick={() => handleMoveSection(section.publicId, "UP")}
+                                                  aria-label={`Mover seção ${section.title} para cima`}
+                                                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed rounded transition-all"
+                                                >
+                                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                                  </svg>
+                                                </button>
+
+                                                {/* Move Section DOWN */}
+                                                <button
+                                                  type="button"
+                                                  disabled={isLastSec || pendingActionId === `sec-move-${section.publicId}`}
+                                                  onClick={() => handleMoveSection(section.publicId, "DOWN")}
+                                                  aria-label={`Mover seção ${section.title} para baixo`}
+                                                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed rounded transition-all"
+                                                >
+                                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                  </svg>
+                                                </button>
+
+                                                {/* Edit Section */}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setSelectedSection(section);
+                                                    setSelectedOptionForSection(option.publicId);
+                                                    setSectionModalOpen(true);
+                                                  }}
+                                                  className="px-2 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-all"
+                                                >
+                                                  Editar
+                                                </button>
+
+                                                {/* Remove Section */}
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    setDeleteConfirmTarget({
+                                                      type: "SECTION",
+                                                      publicId: section.publicId,
+                                                      title: `seção ${section.title}`,
+                                                    })
+                                                  }
+                                                  className="px-2 py-1 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-all"
+                                                >
+                                                  Remover
+                                                </button>
+                                              </div>
+                                            )}
                                           </div>
 
-                                          {isDraft && (
-                                            <div className="flex items-center gap-1 self-end sm:self-center">
-                                              {/* Move Section UP */}
-                                              <button
-                                                type="button"
-                                                disabled={isFirstSec || pendingActionId === `sec-move-${section.publicId}`}
-                                                onClick={() => handleMoveSection(section.publicId, "UP")}
-                                                aria-label={`Mover seção ${section.title} para cima`}
-                                                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed rounded transition-all"
-                                              >
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                                </svg>
-                                              </button>
+                                          {/* Section Food Groups / Items */}
+                                          {section.choiceGroups.length === 0 ? (
+                                            <div className="py-4 px-3 bg-slate-50/70 rounded-xl border border-dashed border-slate-200 text-center space-y-2">
+                                              <p className="text-xs text-slate-500">Nenhum alimento adicionado a esta seção.</p>
+                                              {isDraft && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setFoodModalSectionPublicId(section.publicId);
+                                                    setFoodModalChoiceGroupPublicId(null);
+                                                    setFoodModalOpen(true);
+                                                  }}
+                                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-lg shadow-2xs transition-all"
+                                                >
+                                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                  </svg>
+                                                  Adicionar primeiro alimento
+                                                </button>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <div className="space-y-3">
+                                              {section.choiceGroups.map((cg, cgIdx) => {
+                                                const isFirstCg = cgIdx === 0;
+                                                const isLastCg = cgIdx === section.choiceGroups.length - 1;
 
-                                              {/* Move Section DOWN */}
-                                              <button
-                                                type="button"
-                                                disabled={isLastSec || pendingActionId === `sec-move-${section.publicId}`}
-                                                onClick={() => handleMoveSection(section.publicId, "DOWN")}
-                                                aria-label={`Mover seção ${section.title} para baixo`}
-                                                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed rounded transition-all"
-                                              >
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                </svg>
-                                              </button>
+                                                return (
+                                                  <div
+                                                    key={cg.publicId}
+                                                    className="bg-slate-50/80 rounded-xl border border-slate-200/90 p-3 space-y-2.5"
+                                                  >
+                                                    {/* Items in this choice group */}
+                                                    <div className="space-y-2">
+                                                      {cg.items.map((item, itemIdx) => {
+                                                        const isFirstItem = itemIdx === 0;
+                                                        const isLastItem = itemIdx === cg.items.length - 1;
 
-                                              <div className="h-3 w-px bg-slate-200 mx-0.5" />
+                                                        return (
+                                                          <div key={item.publicId} className="space-y-2">
+                                                            {/* OU separator between alternatives */}
+                                                            {itemIdx > 0 && (
+                                                              <div className="flex items-center gap-2 py-0.5">
+                                                                <div className="h-px flex-1 bg-amber-200/80" />
+                                                                <span className="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-200 uppercase tracking-wider">
+                                                                  ou
+                                                                </span>
+                                                                <div className="h-px flex-1 bg-amber-200/80" />
+                                                              </div>
+                                                            )}
 
-                                              {/* Edit Section */}
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  setSelectedSection(section);
-                                                  setSelectedOptionForSection(option.publicId);
-                                                  setSectionModalOpen(true);
-                                                }}
-                                                className="px-2 py-0.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-all"
-                                              >
-                                                Editar
-                                              </button>
+                                                            {/* Food Item Card */}
+                                                            <div className="bg-white rounded-lg border border-slate-200 p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
+                                                              <div className="space-y-1 min-w-0">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                  <span className="font-semibold text-xs text-slate-900">
+                                                                    {item.foodNameSnapshot}
+                                                                  </span>
+                                                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/70">
+                                                                    {item.prescribedQuantity} {item.prescribedUnitLabel}
+                                                                  </span>
+                                                                </div>
 
-                                              {/* Remove Section */}
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  setDeleteConfirmTarget({
-                                                    type: "SECTION",
-                                                    publicId: section.publicId,
-                                                    title: `seção ${section.title}`,
-                                                  })
-                                                }
-                                                className="px-2 py-0.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-all"
-                                              >
-                                                Remover
-                                              </button>
+                                                                <div className="flex flex-wrap items-center gap-x-2.5 text-[11px] text-slate-500">
+                                                                  <span className="font-semibold text-slate-700">
+                                                                    {item.calculatedCalories !== null ? item.calculatedCalories.toFixed(0) : 0} kcal
+                                                                  </span>
+                                                                  <span>•</span>
+                                                                  <span>
+                                                                    P: {item.calculatedProtein !== null ? item.calculatedProtein.toFixed(1) : 0}g
+                                                                  </span>
+                                                                  <span>•</span>
+                                                                  <span>
+                                                                    C: {item.calculatedCarbohydrate !== null ? item.calculatedCarbohydrate.toFixed(1) : 0}g
+                                                                  </span>
+                                                                  <span>•</span>
+                                                                  <span>
+                                                                    G: {item.calculatedFat !== null ? item.calculatedFat.toFixed(1) : 0}g
+                                                                  </span>
+                                                                </div>
+
+                                                                {item.notes && (
+                                                                  <p className="text-[11px] text-slate-500 italic">
+                                                                    Obs: {item.notes}
+                                                                  </p>
+                                                                )}
+                                                              </div>
+
+                                                              {isDraft && (
+                                                                <div className="flex items-center gap-1 self-end sm:self-center shrink-0">
+                                                                  {/* Move Item UP (within group) */}
+                                                                  {cg.items.length > 1 && (
+                                                                    <>
+                                                                      <button
+                                                                        type="button"
+                                                                        disabled={isFirstItem || pendingActionId === `item-move-${item.publicId}`}
+                                                                        onClick={() => handleMoveItem(item.publicId, "UP")}
+                                                                        aria-label={`Mover ${item.foodNameSnapshot} para cima`}
+                                                                        className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed rounded transition-all"
+                                                                      >
+                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                                                        </svg>
+                                                                      </button>
+                                                                      <button
+                                                                        type="button"
+                                                                        disabled={isLastItem || pendingActionId === `item-move-${item.publicId}`}
+                                                                        onClick={() => handleMoveItem(item.publicId, "DOWN")}
+                                                                        aria-label={`Mover ${item.foodNameSnapshot} para baixo`}
+                                                                        className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed rounded transition-all"
+                                                                      >
+                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                        </svg>
+                                                                      </button>
+                                                                      <div className="h-3 w-px bg-slate-200 mx-0.5" />
+                                                                    </>
+                                                                  )}
+
+                                                                  {/* Edit Quantity */}
+                                                                  <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                      setSelectedItemForQuantity(item);
+                                                                      setQuantityModalOpen(true);
+                                                                    }}
+                                                                    className="px-2 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-all"
+                                                                  >
+                                                                    Qtd
+                                                                  </button>
+
+                                                                  {/* Remove Item */}
+                                                                  <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                      setDeleteConfirmTarget({
+                                                                        type: "ITEM",
+                                                                        publicId: item.publicId,
+                                                                        title: `${item.foodNameSnapshot} (${item.prescribedQuantity} ${item.prescribedUnitLabel})`,
+                                                                      })
+                                                                    }
+                                                                    className="px-2 py-1 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-all"
+                                                                  >
+                                                                    Remover
+                                                                  </button>
+                                                                </div>
+                                                              )}
+                                                            </div>
+                                                          </div>
+                                                        );
+                                                      })}
+                                                    </div>
+
+                                                    {/* Choice Group Footer Controls (Add Alternative & Move Group) */}
+                                                    {isDraft && (
+                                                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/50">
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                            setFoodModalChoiceGroupPublicId(cg.publicId);
+                                                            setFoodModalSectionPublicId(null);
+                                                            setFoodModalOpen(true);
+                                                          }}
+                                                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition-all"
+                                                        >
+                                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                          </svg>
+                                                          Adicionar alternativa (OU)
+                                                        </button>
+
+                                                        {section.choiceGroups.length > 1 && (
+                                                          <div className="flex items-center gap-1">
+                                                            <span className="text-[10px] text-slate-400 font-medium">Mover grupo:</span>
+                                                            <button
+                                                              type="button"
+                                                              disabled={isFirstCg || pendingActionId === `cg-move-${cg.publicId}`}
+                                                              onClick={() => handleMoveChoiceGroup(cg.publicId, "UP")}
+                                                              aria-label="Mover grupo para cima"
+                                                              className="p-1 text-slate-400 hover:text-slate-700 hover:bg-white disabled:opacity-20 disabled:cursor-not-allowed rounded transition-all"
+                                                            >
+                                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                                              </svg>
+                                                            </button>
+                                                            <button
+                                                              type="button"
+                                                              disabled={isLastCg || pendingActionId === `cg-move-${cg.publicId}`}
+                                                              onClick={() => handleMoveChoiceGroup(cg.publicId, "DOWN")}
+                                                              aria-label="Mover grupo para baixo"
+                                                              className="p-1 text-slate-400 hover:text-slate-700 hover:bg-white disabled:opacity-20 disabled:cursor-not-allowed rounded transition-all"
+                                                            >
+                                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                              </svg>
+                                                            </button>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
                                             </div>
                                           )}
                                         </div>
                                       );
                                     })}
                                   </div>
-                                )}
-
-                                {/* Add Section CTA */}
-                                {isDraft && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedSection(null);
-                                      setSelectedOptionForSection(option.publicId);
-                                      setSectionModalOpen(true);
-                                    }}
-                                    className="w-full py-1.5 text-xs font-semibold text-slate-600 hover:text-emerald-700 bg-white hover:bg-emerald-50/50 rounded-lg border border-dashed border-slate-200 hover:border-emerald-300 transition-all flex items-center justify-center gap-1.5"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                    </svg>
-                                    Adicionar Seção à {optionDisplayLabel}
-                                  </button>
                                 )}
                               </div>
                             </div>
@@ -789,6 +1036,32 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
         }}
       />
 
+      {/* Modal: Food Search / Selection */}
+      <NutritionFoodModal
+        slug={slug}
+        planPublicId={plan.publicId}
+        sectionPublicId={foodModalSectionPublicId || undefined}
+        choiceGroupPublicId={foodModalChoiceGroupPublicId || undefined}
+        isOpen={foodModalOpen}
+        onClose={() => {
+          setFoodModalOpen(false);
+          setFoodModalSectionPublicId(null);
+          setFoodModalChoiceGroupPublicId(null);
+        }}
+      />
+
+      {/* Modal: Item Quantity Edit */}
+      <NutritionItemQuantityModal
+        slug={slug}
+        planPublicId={plan.publicId}
+        item={selectedItemForQuantity}
+        isOpen={quantityModalOpen}
+        onClose={() => {
+          setQuantityModalOpen(false);
+          setSelectedItemForQuantity(null);
+        }}
+      />
+
       {/* Modal: Delete Confirmation */}
       {deleteConfirmTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-150">
@@ -806,7 +1079,7 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
 
             <div className="text-center space-y-1">
               <h3 className="text-base font-bold text-slate-900">
-                Remover {deleteConfirmTarget.type === "MEAL" ? "refeição" : deleteConfirmTarget.type === "OPTION" ? "opção" : "seção"}?
+                Remover {deleteConfirmTarget.type === "MEAL" ? "refeição" : deleteConfirmTarget.type === "OPTION" ? "opção" : deleteConfirmTarget.type === "SECTION" ? "seção" : "alimento"}?
               </h3>
               <p className="text-xs text-slate-500">
                 Tem certeza que deseja remover {deleteConfirmTarget.title} deste rascunho?
@@ -823,11 +1096,11 @@ export function NutritionPlanEditor({ slug, plan }: NutritionPlanEditorProps) {
               </button>
               <button
                 type="button"
-                disabled={pendingActionId === `delete-${deleteConfirmTarget.publicId}`}
+                disabled={!!pendingActionId}
                 onClick={handleExecuteDelete}
-                className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-sm transition-all"
+                className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 rounded-xl shadow-xs transition-all"
               >
-                {pendingActionId === `delete-${deleteConfirmTarget.publicId}` ? "Removendo..." : "Sim, remover"}
+                {pendingActionId ? "Removendo..." : "Confirmar remoção"}
               </button>
             </div>
           </div>

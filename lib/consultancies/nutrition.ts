@@ -1,7 +1,18 @@
 import crypto from "node:crypto";
-import type { PoolConnection, RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { resolveConsultancyContext } from "./context";
+import {
+  calculateItemMacros,
+  type MacroCalculationInput,
+  type CalculatedMacros,
+} from "./nutrition-calc";
+
+export {
+  calculateItemMacros,
+  type MacroCalculationInput,
+  type CalculatedMacros,
+};
 
 // ============================================================================
 // TYPES & CONSTANTS
@@ -205,62 +216,6 @@ export function parseAndValidateDecimal(
   }
 
   return { valid: true, value: num };
-}
-
-export type MacroCalculationInput = {
-  referenceAmount: number;
-  caloriesKcal: number;
-  proteinG: number;
-  carbohydrateG: number;
-  fatG: number;
-  portionEquivalentAmount?: number | null;
-  prescribedQuantity: number;
-};
-
-export type CalculatedMacros = {
-  totalReferenceAmountUsed: number;
-  calculatedCalories: number;
-  calculatedProtein: number;
-  calculatedCarbohydrate: number;
-  calculatedFat: number;
-};
-
-/**
- * Calcula macros proporcionais de forma determinística e segura contra NaN, Infinity e valores negativos.
- */
-export function calculateItemMacros(input: MacroCalculationInput): CalculatedMacros {
-  const refAmount = Number(input.referenceAmount);
-  const qty = Number(input.prescribedQuantity);
-
-  if (!Number.isFinite(refAmount) || refAmount <= 0 || !Number.isFinite(qty) || qty <= 0) {
-    return {
-      totalReferenceAmountUsed: 0,
-      calculatedCalories: 0,
-      calculatedProtein: 0,
-      calculatedCarbohydrate: 0,
-      calculatedFat: 0,
-    };
-  }
-
-  const portionEq = input.portionEquivalentAmount ? Number(input.portionEquivalentAmount) : null;
-  const totalRefUsed = portionEq && Number.isFinite(portionEq) && portionEq > 0
-    ? qty * portionEq
-    : qty;
-
-  const ratio = totalRefUsed / refAmount;
-
-  const round2 = (v: number): number => {
-    if (!Number.isFinite(v) || v < 0) return 0;
-    return Math.round(v * 100) / 100;
-  };
-
-  return {
-    totalReferenceAmountUsed: round2(totalRefUsed),
-    calculatedCalories: round2(Number(input.caloriesKcal || 0) * ratio),
-    calculatedProtein: round2(Number(input.proteinG || 0) * ratio),
-    calculatedCarbohydrate: round2(Number(input.carbohydrateG || 0) * ratio),
-    calculatedFat: round2(Number(input.fatG || 0) * ratio),
-  };
 }
 
 // ============================================================================
@@ -2983,6 +2938,1070 @@ export async function removeNutritionMealSection({
       } catch {}
     }
     const message = err instanceof Error ? err.message : "Erro ao remover seção.";
+    return { success: false, error: message };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+// ============================================================================
+// CHOICE GROUP & FOOD ITEM MUTATION SERVICES (DRAFT ONLY)
+// ============================================================================
+
+export type CreateNutritionMealChoiceGroupWithFirstItemParams = {
+  actorUserId: number;
+  consultancySlug: string;
+  planPublicId: string;
+  sectionPublicId: string;
+  foodPublicId: string;
+  prescribedQuantity: number | string;
+  notes?: string | null;
+};
+
+export async function createNutritionMealChoiceGroupWithFirstItem({
+  actorUserId,
+  consultancySlug,
+  planPublicId,
+  sectionPublicId,
+  foodPublicId,
+  prescribedQuantity,
+  notes = null,
+}: CreateNutritionMealChoiceGroupWithFirstItemParams): Promise<{
+  success: boolean;
+  groupPublicId?: string;
+  itemPublicId?: string;
+  error?: string;
+}> {
+  if (
+    !actorUserId ||
+    typeof actorUserId !== "number" ||
+    actorUserId <= 0 ||
+    !consultancySlug ||
+    typeof consultancySlug !== "string" ||
+    !planPublicId ||
+    typeof planPublicId !== "string" ||
+    !sectionPublicId ||
+    typeof sectionPublicId !== "string" ||
+    !foodPublicId ||
+    typeof foodPublicId !== "string"
+  ) {
+    return { success: false, error: "Parâmetros inválidos." };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("NUTRITIONIST")) {
+    return { success: false, error: "Acesso não autorizado." };
+  }
+
+  const qtyVal = parseAndValidateDecimal(prescribedQuantity, "Quantidade", {
+    min: 0.01,
+    max: 999999.99,
+    allowZero: false,
+  });
+  if (!qtyVal.valid) {
+    return { success: false, error: qtyVal.error };
+  }
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Validar e travar o plano (somente DRAFT)
+    const [planRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status
+       FROM nutrition_plans
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [planPublicId, context.consultancyId]
+    );
+
+    if (!Array.isArray(planRows) || planRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Plano nutricional não encontrado." };
+    }
+
+    if (planRows[0].status !== "DRAFT") {
+      await connection.rollback();
+      return { success: false, error: "Apenas planos em rascunho (DRAFT) podem ser alterados." };
+    }
+
+    const planId = Number(planRows[0].id);
+
+    // 2. Validar cadeia hierárquica da seção até o plano
+    const [sectionRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT nms.id AS section_id
+       FROM nutrition_meal_sections nms
+       JOIN nutrition_meal_options nmo ON nmo.id = nms.option_id
+       JOIN nutrition_meals nm ON nm.id = nmo.meal_id
+       WHERE nms.public_id = ?
+         AND nm.nutrition_plan_id = ?
+         AND nms.deleted_at IS NULL
+       FOR UPDATE;`,
+      [sectionPublicId, planId]
+    );
+
+    if (!Array.isArray(sectionRows) || sectionRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Seção não encontrada neste plano." };
+    }
+
+    const sectionId = Number(sectionRows[0].section_id);
+
+    // 3. Recarregar o alimento ativo da biblioteca na mesma consultoria
+    const [foodRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        id,
+        public_id,
+        name,
+        category,
+        reference_amount,
+        reference_unit,
+        calories_kcal,
+        protein_g,
+        carbohydrate_g,
+        fat_g,
+        status
+       FROM nutrition_foods
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND status = 'ACTIVE'
+         AND deleted_at IS NULL
+       LIMIT 1;`,
+      [foodPublicId, context.consultancyId]
+    );
+
+    if (!Array.isArray(foodRows) || foodRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Alimento não encontrado ou inativo na biblioteca." };
+    }
+
+    const food = foodRows[0];
+    const foodId = Number(food.id);
+
+    // 4. Derivar a ordenação do novo Choice Group na seção
+    const [groupOrderRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order
+       FROM nutrition_meal_choice_groups
+       WHERE section_id = ?
+         AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [sectionId]
+    );
+
+    const nextGroupOrder = Number(groupOrderRows[0]?.next_order || 0);
+    const groupPublicId = crypto.randomUUID();
+
+    // 5. Inserir o Choice Group
+    const [groupInsert] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO nutrition_meal_choice_groups (
+        public_id,
+        section_id,
+        title,
+        selection_min,
+        selection_max,
+        sort_order,
+        created_at,
+        updated_at
+       ) VALUES (?, ?, NULL, 1, 1, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3));`,
+      [groupPublicId, sectionId, nextGroupOrder]
+    );
+
+    const choiceGroupId = groupInsert.insertId;
+
+    // 6. Calcular macros determinísticos baseados no snapshot do alimento
+    const refAmount = Number(food.reference_amount);
+    const calKcal = Number(food.calories_kcal);
+    const protG = Number(food.protein_g);
+    const carbG = Number(food.carbohydrate_g);
+    const fatG = Number(food.fat_g);
+
+    const macros = calculateItemMacros({
+      referenceAmount: refAmount,
+      caloriesKcal: calKcal,
+      proteinG: protG,
+      carbohydrateG: carbG,
+      fatG: fatG,
+      prescribedQuantity: qtyVal.value,
+    });
+
+    const itemPublicId = crypto.randomUUID();
+
+    // 7. Inserir o primeiro Food Item no grupo (unidade atômica)
+    await connection.execute(
+      `INSERT INTO nutrition_meal_items (
+        public_id,
+        choice_group_id,
+        food_id,
+        food_portion_id,
+        sort_order,
+        food_name_snapshot,
+        category_snapshot,
+        reference_amount_snapshot,
+        reference_unit_snapshot,
+        calories_reference_snapshot,
+        protein_reference_snapshot,
+        carbohydrate_reference_snapshot,
+        fat_reference_snapshot,
+        portion_label_snapshot,
+        equivalent_reference_amount_snapshot,
+        prescribed_quantity,
+        prescribed_unit_label,
+        calculated_calories,
+        calculated_protein,
+        calculated_carbohydrate,
+        calculated_fat,
+        notes,
+        created_at,
+        updated_at
+       ) VALUES (?, ?, ?, NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3));`,
+      [
+        itemPublicId,
+        choiceGroupId,
+        foodId,
+        String(food.name),
+        food.category ? String(food.category) : null,
+        refAmount,
+        String(food.reference_unit),
+        calKcal,
+        protG,
+        carbG,
+        fatG,
+        qtyVal.value,
+        String(food.reference_unit), // Unidade derivada do snapshot de referência
+        macros.calculatedCalories,
+        macros.calculatedProtein,
+        macros.calculatedCarbohydrate,
+        macros.calculatedFat,
+        notes ? String(notes).trim() : null,
+      ]
+    );
+
+    // 8. Atualizar timestamp do plano
+    await connection.execute(
+      `UPDATE nutrition_plans SET updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?;`,
+      [planId]
+    );
+
+    await connection.commit();
+    return { success: true, groupPublicId, itemPublicId };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    const message = err instanceof Error ? err.message : "Erro ao adicionar item à refeição.";
+    return { success: false, error: message };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type AddNutritionMealItemAlternativeParams = {
+  actorUserId: number;
+  consultancySlug: string;
+  planPublicId: string;
+  choiceGroupPublicId: string;
+  foodPublicId: string;
+  prescribedQuantity: number | string;
+  notes?: string | null;
+};
+
+export async function addNutritionMealItemAlternative({
+  actorUserId,
+  consultancySlug,
+  planPublicId,
+  choiceGroupPublicId,
+  foodPublicId,
+  prescribedQuantity,
+  notes = null,
+}: AddNutritionMealItemAlternativeParams): Promise<{
+  success: boolean;
+  itemPublicId?: string;
+  error?: string;
+}> {
+  if (
+    !actorUserId ||
+    typeof actorUserId !== "number" ||
+    actorUserId <= 0 ||
+    !consultancySlug ||
+    typeof consultancySlug !== "string" ||
+    !planPublicId ||
+    typeof planPublicId !== "string" ||
+    !choiceGroupPublicId ||
+    typeof choiceGroupPublicId !== "string" ||
+    !foodPublicId ||
+    typeof foodPublicId !== "string"
+  ) {
+    return { success: false, error: "Parâmetros inválidos." };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("NUTRITIONIST")) {
+    return { success: false, error: "Acesso não autorizado." };
+  }
+
+  const qtyVal = parseAndValidateDecimal(prescribedQuantity, "Quantidade", {
+    min: 0.01,
+    max: 999999.99,
+    allowZero: false,
+  });
+  if (!qtyVal.valid) {
+    return { success: false, error: qtyVal.error };
+  }
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Validar e travar o plano (somente DRAFT)
+    const [planRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status
+       FROM nutrition_plans
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [planPublicId, context.consultancyId]
+    );
+
+    if (!Array.isArray(planRows) || planRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Plano nutricional não encontrado." };
+    }
+
+    if (planRows[0].status !== "DRAFT") {
+      await connection.rollback();
+      return { success: false, error: "Apenas planos em rascunho (DRAFT) podem ser alterados." };
+    }
+
+    const planId = Number(planRows[0].id);
+
+    // 2. Validar cadeia hierárquica do grupo até o plano
+    const [groupRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT nmcg.id AS choice_group_id
+       FROM nutrition_meal_choice_groups nmcg
+       JOIN nutrition_meal_sections nms ON nms.id = nmcg.section_id
+       JOIN nutrition_meal_options nmo ON nmo.id = nms.option_id
+       JOIN nutrition_meals nm ON nm.id = nmo.meal_id
+       WHERE nmcg.public_id = ?
+         AND nm.nutrition_plan_id = ?
+         AND nmcg.deleted_at IS NULL
+       FOR UPDATE;`,
+      [choiceGroupPublicId, planId]
+    );
+
+    if (!Array.isArray(groupRows) || groupRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Grupo de alimentos não encontrado neste plano." };
+    }
+
+    const choiceGroupId = Number(groupRows[0].choice_group_id);
+
+    // 3. Recarregar o alimento ativo da biblioteca
+    const [foodRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        id,
+        public_id,
+        name,
+        category,
+        reference_amount,
+        reference_unit,
+        calories_kcal,
+        protein_g,
+        carbohydrate_g,
+        fat_g,
+        status
+       FROM nutrition_foods
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND status = 'ACTIVE'
+         AND deleted_at IS NULL
+       LIMIT 1;`,
+      [foodPublicId, context.consultancyId]
+    );
+
+    if (!Array.isArray(foodRows) || foodRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Alimento não encontrado ou inativo na biblioteca." };
+    }
+
+    const food = foodRows[0];
+    const foodId = Number(food.id);
+
+    // 4. Derivar a posição do novo item dentro do grupo
+    const [itemOrderRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order
+       FROM nutrition_meal_items
+       WHERE choice_group_id = ?
+         AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [choiceGroupId]
+    );
+
+    const nextItemOrder = Number(itemOrderRows[0]?.next_order || 0);
+
+    // 5. Calcular macros
+    const refAmount = Number(food.reference_amount);
+    const calKcal = Number(food.calories_kcal);
+    const protG = Number(food.protein_g);
+    const carbG = Number(food.carbohydrate_g);
+    const fatG = Number(food.fat_g);
+
+    const macros = calculateItemMacros({
+      referenceAmount: refAmount,
+      caloriesKcal: calKcal,
+      proteinG: protG,
+      carbohydrateG: carbG,
+      fatG: fatG,
+      prescribedQuantity: qtyVal.value,
+    });
+
+    const itemPublicId = crypto.randomUUID();
+
+    // 6. Inserir a alternativa no grupo
+    await connection.execute(
+      `INSERT INTO nutrition_meal_items (
+        public_id,
+        choice_group_id,
+        food_id,
+        food_portion_id,
+        sort_order,
+        food_name_snapshot,
+        category_snapshot,
+        reference_amount_snapshot,
+        reference_unit_snapshot,
+        calories_reference_snapshot,
+        protein_reference_snapshot,
+        carbohydrate_reference_snapshot,
+        fat_reference_snapshot,
+        portion_label_snapshot,
+        equivalent_reference_amount_snapshot,
+        prescribed_quantity,
+        prescribed_unit_label,
+        calculated_calories,
+        calculated_protein,
+        calculated_carbohydrate,
+        calculated_fat,
+        notes,
+        created_at,
+        updated_at
+       ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3));`,
+      [
+        itemPublicId,
+        choiceGroupId,
+        foodId,
+        nextItemOrder,
+        String(food.name),
+        food.category ? String(food.category) : null,
+        refAmount,
+        String(food.reference_unit),
+        calKcal,
+        protG,
+        carbG,
+        fatG,
+        qtyVal.value,
+        String(food.reference_unit),
+        macros.calculatedCalories,
+        macros.calculatedProtein,
+        macros.calculatedCarbohydrate,
+        macros.calculatedFat,
+        notes ? String(notes).trim() : null,
+      ]
+    );
+
+    // 7. Atualizar timestamp do plano
+    await connection.execute(
+      `UPDATE nutrition_plans SET updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?;`,
+      [planId]
+    );
+
+    await connection.commit();
+    return { success: true, itemPublicId };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    const message = err instanceof Error ? err.message : "Erro ao adicionar alternativa ao alimento.";
+    return { success: false, error: message };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type UpdateNutritionMealItemQuantityParams = {
+  actorUserId: number;
+  consultancySlug: string;
+  planPublicId: string;
+  itemPublicId: string;
+  prescribedQuantity: number | string;
+};
+
+export async function updateNutritionMealItemQuantity({
+  actorUserId,
+  consultancySlug,
+  planPublicId,
+  itemPublicId,
+  prescribedQuantity,
+}: UpdateNutritionMealItemQuantityParams): Promise<{ success: boolean; error?: string }> {
+  if (
+    !actorUserId ||
+    typeof actorUserId !== "number" ||
+    actorUserId <= 0 ||
+    !consultancySlug ||
+    typeof consultancySlug !== "string" ||
+    !planPublicId ||
+    typeof planPublicId !== "string" ||
+    !itemPublicId ||
+    typeof itemPublicId !== "string"
+  ) {
+    return { success: false, error: "Parâmetros inválidos." };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("NUTRITIONIST")) {
+    return { success: false, error: "Acesso não autorizado." };
+  }
+
+  const qtyVal = parseAndValidateDecimal(prescribedQuantity, "Quantidade", {
+    min: 0.01,
+    max: 999999.99,
+    allowZero: false,
+  });
+  if (!qtyVal.valid) {
+    return { success: false, error: qtyVal.error };
+  }
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Validar e travar o plano (somente DRAFT)
+    const [planRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status
+       FROM nutrition_plans
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [planPublicId, context.consultancyId]
+    );
+
+    if (!Array.isArray(planRows) || planRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Plano nutricional não encontrado." };
+    }
+
+    if (planRows[0].status !== "DRAFT") {
+      await connection.rollback();
+      return { success: false, error: "Apenas planos em rascunho (DRAFT) podem ser alterados." };
+    }
+
+    const planId = Number(planRows[0].id);
+
+    // 2. Travar o item e recuperar seus snapshots nutricionais salvos
+    const [itemRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        nmi.id,
+        nmi.prescribed_quantity,
+        nmi.reference_amount_snapshot,
+        nmi.calories_reference_snapshot,
+        nmi.protein_reference_snapshot,
+        nmi.carbohydrate_reference_snapshot,
+        nmi.fat_reference_snapshot,
+        nmi.equivalent_reference_amount_snapshot
+       FROM nutrition_meal_items nmi
+       JOIN nutrition_meal_choice_groups nmcg ON nmcg.id = nmi.choice_group_id
+       JOIN nutrition_meal_sections nms ON nms.id = nmcg.section_id
+       JOIN nutrition_meal_options nmo ON nmo.id = nms.option_id
+       JOIN nutrition_meals nm ON nm.id = nmo.meal_id
+       WHERE nmi.public_id = ?
+         AND nm.nutrition_plan_id = ?
+         AND nmi.deleted_at IS NULL
+       FOR UPDATE;`,
+      [itemPublicId, planId]
+    );
+
+    if (!Array.isArray(itemRows) || itemRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Item de alimento não encontrado neste plano." };
+    }
+
+    const item = itemRows[0];
+    const itemId = Number(item.id);
+    const currentQty = Number(item.prescribed_quantity);
+
+    if (currentQty === qtyVal.value) {
+      await connection.commit();
+      return { success: true };
+    }
+
+    // 3. Recalcular macros usando ESTRITAMENTE os snapshots salvos no item
+    const macros = calculateItemMacros({
+      referenceAmount: Number(item.reference_amount_snapshot) || 100,
+      caloriesKcal: Number(item.calories_reference_snapshot) || 0,
+      proteinG: Number(item.protein_reference_snapshot) || 0,
+      carbohydrateG: Number(item.carbohydrate_reference_snapshot) || 0,
+      fatG: Number(item.fat_reference_snapshot) || 0,
+      portionEquivalentAmount: item.equivalent_reference_amount_snapshot ? Number(item.equivalent_reference_amount_snapshot) : null,
+      prescribedQuantity: qtyVal.value,
+    });
+
+    // 4. Atualizar item
+    await connection.execute(
+      `UPDATE nutrition_meal_items
+       SET prescribed_quantity = ?,
+           calculated_calories = ?,
+           calculated_protein = ?,
+           calculated_carbohydrate = ?,
+           calculated_fat = ?,
+           updated_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ?;`,
+      [
+        qtyVal.value,
+        macros.calculatedCalories,
+        macros.calculatedProtein,
+        macros.calculatedCarbohydrate,
+        macros.calculatedFat,
+        itemId,
+      ]
+    );
+
+    await connection.execute(
+      `UPDATE nutrition_plans SET updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?;`,
+      [planId]
+    );
+
+    await connection.commit();
+    return { success: true };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    const message = err instanceof Error ? err.message : "Erro ao atualizar quantidade do alimento.";
+    return { success: false, error: message };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type MoveNutritionMealChoiceGroupParams = {
+  actorUserId: number;
+  consultancySlug: string;
+  planPublicId: string;
+  choiceGroupPublicId: string;
+  direction: "UP" | "DOWN";
+};
+
+export async function moveNutritionMealChoiceGroup({
+  actorUserId,
+  consultancySlug,
+  planPublicId,
+  choiceGroupPublicId,
+  direction,
+}: MoveNutritionMealChoiceGroupParams): Promise<{ success: boolean; error?: string }> {
+  if (direction !== "UP" && direction !== "DOWN") {
+    return { success: false, error: "Direção de movimentação inválida." };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("NUTRITIONIST")) {
+    return { success: false, error: "Acesso não autorizado." };
+  }
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    const [planRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status
+       FROM nutrition_plans
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [planPublicId, context.consultancyId]
+    );
+
+    if (!Array.isArray(planRows) || planRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Plano nutricional não encontrado." };
+    }
+
+    if (planRows[0].status !== "DRAFT") {
+      await connection.rollback();
+      return { success: false, error: "Apenas planos em rascunho (DRAFT) podem ser alterados." };
+    }
+
+    const planId = Number(planRows[0].id);
+
+    const [groupRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT nmcg.id, nmcg.section_id
+       FROM nutrition_meal_choice_groups nmcg
+       JOIN nutrition_meal_sections nms ON nms.id = nmcg.section_id
+       JOIN nutrition_meal_options nmo ON nmo.id = nms.option_id
+       JOIN nutrition_meals nm ON nm.id = nmo.meal_id
+       WHERE nmcg.public_id = ?
+         AND nm.nutrition_plan_id = ?
+         AND nmcg.deleted_at IS NULL
+       FOR UPDATE;`,
+      [choiceGroupPublicId, planId]
+    );
+
+    if (!Array.isArray(groupRows) || groupRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Grupo de alimentos não encontrado neste plano." };
+    }
+
+    const sectionId = Number(groupRows[0].section_id);
+
+    const [siblingRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, sort_order
+       FROM nutrition_meal_choice_groups
+       WHERE section_id = ?
+         AND deleted_at IS NULL
+       ORDER BY sort_order ASC, id ASC
+       FOR UPDATE;`,
+      [sectionId]
+    );
+
+    const groups = (siblingRows || []) as { id: number; public_id: string; sort_order: number }[];
+    const targetIdx = groups.findIndex((g) => g.public_id === choiceGroupPublicId);
+
+    if (targetIdx === -1) {
+      await connection.rollback();
+      return { success: false, error: "Grupo não encontrado." };
+    }
+
+    const neighborIdx = direction === "UP" ? targetIdx - 1 : targetIdx + 1;
+    if (neighborIdx < 0 || neighborIdx >= groups.length) {
+      await connection.commit();
+      return { success: true };
+    }
+
+    const temp = groups[targetIdx];
+    groups[targetIdx] = groups[neighborIdx];
+    groups[neighborIdx] = temp;
+
+    for (let i = 0; i < groups.length; i++) {
+      await connection.execute(
+        `UPDATE nutrition_meal_choice_groups SET sort_order = ?, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?;`,
+        [i, groups[i].id]
+      );
+    }
+
+    await connection.execute(
+      `UPDATE nutrition_plans SET updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?;`,
+      [planId]
+    );
+
+    await connection.commit();
+    return { success: true };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    const message = err instanceof Error ? err.message : "Erro ao mover grupo de alimentos.";
+    return { success: false, error: message };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type MoveNutritionMealItemParams = {
+  actorUserId: number;
+  consultancySlug: string;
+  planPublicId: string;
+  itemPublicId: string;
+  direction: "UP" | "DOWN";
+};
+
+export async function moveNutritionMealItem({
+  actorUserId,
+  consultancySlug,
+  planPublicId,
+  itemPublicId,
+  direction,
+}: MoveNutritionMealItemParams): Promise<{ success: boolean; error?: string }> {
+  if (direction !== "UP" && direction !== "DOWN") {
+    return { success: false, error: "Direção de movimentação inválida." };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("NUTRITIONIST")) {
+    return { success: false, error: "Acesso não autorizado." };
+  }
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    const [planRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status
+       FROM nutrition_plans
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [planPublicId, context.consultancyId]
+    );
+
+    if (!Array.isArray(planRows) || planRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Plano nutricional não encontrado." };
+    }
+
+    if (planRows[0].status !== "DRAFT") {
+      await connection.rollback();
+      return { success: false, error: "Apenas planos em rascunho (DRAFT) podem ser alterados." };
+    }
+
+    const planId = Number(planRows[0].id);
+
+    const [itemRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT nmi.id, nmi.choice_group_id
+       FROM nutrition_meal_items nmi
+       JOIN nutrition_meal_choice_groups nmcg ON nmcg.id = nmi.choice_group_id
+       JOIN nutrition_meal_sections nms ON nms.id = nmcg.section_id
+       JOIN nutrition_meal_options nmo ON nmo.id = nms.option_id
+       JOIN nutrition_meals nm ON nm.id = nmo.meal_id
+       WHERE nmi.public_id = ?
+         AND nm.nutrition_plan_id = ?
+         AND nmi.deleted_at IS NULL
+       FOR UPDATE;`,
+      [itemPublicId, planId]
+    );
+
+    if (!Array.isArray(itemRows) || itemRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Item de alimento não encontrado neste plano." };
+    }
+
+    const choiceGroupId = Number(itemRows[0].choice_group_id);
+
+    const [siblingRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, sort_order
+       FROM nutrition_meal_items
+       WHERE choice_group_id = ?
+         AND deleted_at IS NULL
+       ORDER BY sort_order ASC, id ASC
+       FOR UPDATE;`,
+      [choiceGroupId]
+    );
+
+    const items = (siblingRows || []) as { id: number; public_id: string; sort_order: number }[];
+    const targetIdx = items.findIndex((i) => i.public_id === itemPublicId);
+
+    if (targetIdx === -1) {
+      await connection.rollback();
+      return { success: false, error: "Item não encontrado." };
+    }
+
+    const neighborIdx = direction === "UP" ? targetIdx - 1 : targetIdx + 1;
+    if (neighborIdx < 0 || neighborIdx >= items.length) {
+      await connection.commit();
+      return { success: true };
+    }
+
+    const temp = items[targetIdx];
+    items[targetIdx] = items[neighborIdx];
+    items[neighborIdx] = temp;
+
+    for (let i = 0; i < items.length; i++) {
+      await connection.execute(
+        `UPDATE nutrition_meal_items SET sort_order = ?, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?;`,
+        [i, items[i].id]
+      );
+    }
+
+    await connection.execute(
+      `UPDATE nutrition_plans SET updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?;`,
+      [planId]
+    );
+
+    await connection.commit();
+    return { success: true };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    const message = err instanceof Error ? err.message : "Erro ao mover alimento.";
+    return { success: false, error: message };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type RemoveNutritionMealItemParams = {
+  actorUserId: number;
+  consultancySlug: string;
+  planPublicId: string;
+  itemPublicId: string;
+};
+
+export async function removeNutritionMealItem({
+  actorUserId,
+  consultancySlug,
+  planPublicId,
+  itemPublicId,
+}: RemoveNutritionMealItemParams): Promise<{ success: boolean; error?: string }> {
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("NUTRITIONIST")) {
+    return { success: false, error: "Acesso não autorizado." };
+  }
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Validar e travar o plano (somente DRAFT)
+    const [planRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status
+       FROM nutrition_plans
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [planPublicId, context.consultancyId]
+    );
+
+    if (!Array.isArray(planRows) || planRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Plano nutricional não encontrado." };
+    }
+
+    if (planRows[0].status !== "DRAFT") {
+      await connection.rollback();
+      return { success: false, error: "Apenas planos em rascunho (DRAFT) podem ser alterados." };
+    }
+
+    const planId = Number(planRows[0].id);
+
+    // 2. Travar o item e a cadeia completa
+    const [itemRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        nmi.id,
+        nmi.choice_group_id,
+        nmcg.section_id
+       FROM nutrition_meal_items nmi
+       JOIN nutrition_meal_choice_groups nmcg ON nmcg.id = nmi.choice_group_id
+       JOIN nutrition_meal_sections nms ON nms.id = nmcg.section_id
+       JOIN nutrition_meal_options nmo ON nmo.id = nms.option_id
+       JOIN nutrition_meals nm ON nm.id = nmo.meal_id
+       WHERE nmi.public_id = ?
+         AND nm.nutrition_plan_id = ?
+         AND nmi.deleted_at IS NULL
+       FOR UPDATE;`,
+      [itemPublicId, planId]
+    );
+
+    if (!Array.isArray(itemRows) || itemRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Item de alimento não encontrado neste plano." };
+    }
+
+    const itemId = Number(itemRows[0].id);
+    const choiceGroupId = Number(itemRows[0].choice_group_id);
+    const sectionId = Number(itemRows[0].section_id);
+
+    // 3. Excluir o item
+    await connection.execute(
+      `UPDATE nutrition_meal_items
+       SET deleted_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ?;`,
+      [itemId]
+    );
+
+    // 4. Verificar se restam outros itens no grupo
+    const [remainingItems] = await connection.execute<RowDataPacket[]>(
+      `SELECT id
+       FROM nutrition_meal_items
+       WHERE choice_group_id = ?
+         AND deleted_at IS NULL
+       ORDER BY sort_order ASC, id ASC
+       FOR UPDATE;`,
+      [choiceGroupId]
+    );
+
+    if (Array.isArray(remainingItems) && remainingItems.length > 0) {
+      // Recompactar posições dos itens restantes no grupo
+      for (let i = 0; i < remainingItems.length; i++) {
+        await connection.execute(
+          `UPDATE nutrition_meal_items SET sort_order = ? WHERE id = ?;`,
+          [i, Number(remainingItems[i].id)]
+        );
+      }
+    } else {
+      // Nenhum item restou: excluir o Choice Group vazio (invariante de grupos sem itens vazios)
+      await connection.execute(
+        `UPDATE nutrition_meal_choice_groups
+         SET deleted_at = CURRENT_TIMESTAMP(3)
+         WHERE id = ?;`,
+        [choiceGroupId]
+      );
+
+      // Recompactar posições dos Choice Groups restantes na seção
+      const [remainingGroups] = await connection.execute<RowDataPacket[]>(
+        `SELECT id
+         FROM nutrition_meal_choice_groups
+         WHERE section_id = ?
+           AND deleted_at IS NULL
+         ORDER BY sort_order ASC, id ASC
+         FOR UPDATE;`,
+        [sectionId]
+      );
+
+      for (let i = 0; i < remainingGroups.length; i++) {
+        await connection.execute(
+          `UPDATE nutrition_meal_choice_groups SET sort_order = ?, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?;`,
+          [i, Number(remainingGroups[i].id)]
+        );
+      }
+    }
+
+    // 5. Atualizar timestamp do plano
+    await connection.execute(
+      `UPDATE nutrition_plans SET updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?;`,
+      [planId]
+    );
+
+    await connection.commit();
+    return { success: true };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    const message = err instanceof Error ? err.message : "Erro ao remover alimento.";
     return { success: false, error: message };
   } finally {
     if (connection) {

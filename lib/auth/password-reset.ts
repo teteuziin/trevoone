@@ -107,6 +107,40 @@ export async function requestPasswordReset(
   }
 }
 
+/**
+ * Revokes a specific active password reset token (e.g. if email delivery fails).
+ * Matches the token by its SHA-256 hash.
+ */
+export async function revokePasswordResetToken(rawToken: string): Promise<boolean> {
+  const token = validatePasswordResetTokenFormat(rawToken);
+  if (!token) {
+    return false;
+  }
+
+  const tokenHash = hashPasswordResetToken(token);
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    const [result] = await connection.execute<ResultSetHeader>(
+      `UPDATE password_reset_tokens
+       SET revoked_at = UTC_TIMESTAMP(3)
+       WHERE token_hash = ?
+         AND used_at IS NULL
+         AND revoked_at IS NULL;`,
+      [tokenHash]
+    );
+
+    return result.affectedRows > 0;
+  } catch {
+    return false;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
 export type VerifyPasswordResetTokenResult = {
   valid: boolean;
   userId?: number;

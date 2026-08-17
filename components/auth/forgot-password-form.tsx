@@ -18,8 +18,33 @@ export function ForgotPasswordForm() {
 
   return (
     <form action={formAction} className="w-full space-y-4.5" noValidate>
-      {/* Alerta informativo sobre status da recuperação */}
-      {state.success && state.message && (
+      {/* Alerta de envio / conclusão genérica com entrega configurada */}
+      {state.success && state.status === "COMPLETED" && state.message && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs font-medium leading-relaxed text-left flex items-start gap-2.5"
+        >
+          <svg
+            className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <span>{state.message}</span>
+        </div>
+      )}
+
+      {/* Alerta informativo quando SMTP não está configurado no ambiente */}
+      {state.success && state.status === "UNAVAILABLE" && state.message && (
         <div
           role="status"
           aria-live="polite"

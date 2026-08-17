@@ -1,9 +1,11 @@
 "use server";
 
 import { isValidAuthEmail, normalizeAuthEmail } from "@/lib/auth/password";
+import { dispatchPasswordResetRecovery } from "@/lib/email/password-reset-email";
 
 export type ForgotPasswordFormState = {
   success: boolean;
+  status?: "COMPLETED" | "UNAVAILABLE";
   message?: string;
   error?: string;
 };
@@ -29,12 +31,21 @@ export async function requestPasswordRecovery(
     };
   }
 
-  // Under E2 infrastructure (no email delivery configured yet),
-  // no token is generated or persisted to avoid creating undeliverable records.
-  // Delivery will be connected in T099B.
+  const result = await dispatchPasswordResetRecovery(email);
+
+  if (result.status === "UNAVAILABLE") {
+    return {
+      success: true,
+      status: "UNAVAILABLE",
+      message:
+        "A recuperação de senha por e-mail ainda não está disponível. Tente novamente após a ativação deste recurso.",
+    };
+  }
+
   return {
     success: true,
+    status: "COMPLETED",
     message:
-      "A recuperação de senha por e-mail ainda não está disponível. Tente novamente após a ativação deste recurso.",
+      "Se existir uma conta associada a este e-mail, você receberá uma mensagem com as instruções para redefinir sua senha.",
   };
 }

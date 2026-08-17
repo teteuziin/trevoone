@@ -4,6 +4,7 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { getFoodDetailsForNutritionist } from "@/lib/consultancies/nutrition";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { NutritionFoodInactivateButton } from "@/components/consultancies/nutrition-food-inactivate-button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -82,8 +83,8 @@ export default async function NutritionistFoodDetailPage({ params }: PageProps) 
         ) : (
           <div className="space-y-6">
             {/* Header */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
-              <div className="flex items-start justify-between gap-4">
+            <div className="p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="space-y-1">
                   <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight">
                     {food.name}
@@ -94,14 +95,32 @@ export default async function NutritionistFoodDetailPage({ params }: PageProps) 
                     </p>
                   )}
                 </div>
+
                 <div className="shrink-0 flex items-center gap-2">
-                  {food.sourceKey === "TACO" ? (
+                  {food.sourceType === "EXTERNAL" ? (
                     <Badge variant="neutral">Fonte TACO</Badge>
                   ) : (
-                    <Badge variant="neutral">Alimento Manual</Badge>
+                    <Badge variant="neutral">Manual</Badge>
                   )}
                 </div>
               </div>
+
+              {/* Action Buttons for MANUAL ACTIVE foods only */}
+              {food.sourceType === "MANUAL" && food.status === "ACTIVE" && (
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                  <Link
+                    href={`/consultoria/${context.consultancySlug}/nutricao/alimentos/${food.publicId}/editar`}
+                    className="px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] bg-[var(--surface)] border border-[var(--border-default)] rounded-lg transition-colors"
+                  >
+                    Editar alimento
+                  </Link>
+                  <NutritionFoodInactivateButton
+                    consultancySlug={context.consultancySlug}
+                    foodPublicId={food.publicId}
+                    foodName={food.name}
+                  />
+                </div>
+              )}
 
               <div className="pt-2 border-t border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
                 Base de cálculo e referência:{" "}
@@ -175,7 +194,7 @@ export default async function NutritionistFoodDetailPage({ params }: PageProps) 
                 <div>
                   <dt className="text-[var(--text-secondary)]">Tipo de Origem</dt>
                   <dd className="font-semibold text-[var(--text-primary)] mt-0.5">
-                    {food.sourceType === "EXTERNAL" ? "Tabela Nutricional Oficial (Externa)" : "Manual"}
+                    {food.sourceType === "EXTERNAL" ? "Tabela Nutricional Oficial (Externa)" : "Cadastro manual"}
                   </dd>
                 </div>
 

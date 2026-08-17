@@ -154,6 +154,59 @@ export function normalizeSearchText(text: string): string {
     .trim();
 }
 
+/**
+ * Valida e converte entrada de valor decimal com rigor estrito de precisão (até 2 casas decimais).
+ * Suporta vírgula ou ponto como separador e rejeita valores negativos, NaN, Infinity ou precisão excedente.
+ */
+export function parseAndValidateDecimal(
+  rawValue: unknown,
+  fieldName: string,
+  options: { min?: number; max?: number; allowZero?: boolean } = {}
+): { valid: true; value: number } | { valid: false; error: string } {
+  if (rawValue === undefined || rawValue === null || rawValue === "") {
+    return { valid: false, error: `O campo ${fieldName} é obrigatório.` };
+  }
+
+  const str = String(rawValue).trim();
+  if (!str) {
+    return { valid: false, error: `O campo ${fieldName} é obrigatório.` };
+  }
+
+  // Permite vírgula ou ponto
+  const normalizedStr = str.replace(",", ".");
+
+  // Regex para número decimal com até 2 casas decimais, sem notação científica
+  if (!/^\d+(\.\d{1,2})?$/.test(normalizedStr)) {
+    return {
+      valid: false,
+      error: `O campo ${fieldName} deve ser um número válido com no máximo 2 casas decimais.`,
+    };
+  }
+
+  const num = Number(normalizedStr);
+  if (!Number.isFinite(num) || Number.isNaN(num)) {
+    return { valid: false, error: `O campo ${fieldName} é inválido.` };
+  }
+
+  const min = options.min !== undefined ? options.min : options.allowZero === false ? 0.01 : 0;
+  if (num < min) {
+    return {
+      valid: false,
+      error:
+        options.allowZero === false
+          ? `O campo ${fieldName} deve ser maior que zero.`
+          : `O campo ${fieldName} não pode ser negativo.`,
+    };
+  }
+
+  const max = options.max !== undefined ? options.max : 99999999.99;
+  if (num > max) {
+    return { valid: false, error: `O campo ${fieldName} excede o valor máximo permitido.` };
+  }
+
+  return { valid: true, value: num };
+}
+
 export type MacroCalculationInput = {
   referenceAmount: number;
   caloriesKcal: number;
@@ -663,6 +716,491 @@ export async function getFoodDetailsForNutritionist({
       sourceImportedAt: foodRow.source_imported_at ? new Date(foodRow.source_imported_at) : null,
       portions,
     };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+// ============================================================================
+// MANUAL FOOD MANAGEMENT (NUTRITIONIST ONLY)
+// ============================================================================
+
+export type CreateManualNutritionFoodParams = {
+  actorUserId: number;
+  consultancySlug: string;
+  name: string;
+  referenceAmount: number | string;
+  referenceUnit: string;
+  caloriesKcal: number | string;
+  proteinG: number | string;
+  carbohydrateG: number | string;
+  fatG: number | string;
+};
+
+export type CreateManualNutritionFoodResult =
+  | { success: true; foodPublicId: string }
+  | { success: false; error: string; fieldErrors?: Record<string, string> };
+
+export type UpdateManualNutritionFoodParams = {
+  actorUserId: number;
+  consultancySlug: string;
+  foodPublicId: string;
+  name: string;
+  referenceAmount: number | string;
+  referenceUnit: string;
+  caloriesKcal: number | string;
+  proteinG: number | string;
+  carbohydrateG: number | string;
+  fatG: number | string;
+};
+
+export type UpdateManualNutritionFoodResult =
+  | { success: true; updated: boolean; foodPublicId: string; message?: string }
+  | { success: false; error: string; fieldErrors?: Record<string, string> };
+
+export type InactivateManualNutritionFoodParams = {
+  actorUserId: number;
+  consultancySlug: string;
+  foodPublicId: string;
+};
+
+export type InactivateManualNutritionFoodResult =
+  | { success: true; inactivated: boolean; message?: string }
+  | { success: false; error: string };
+
+/**
+ * Cadastra um novo alimento MANUAL na biblioteca da consultoria (NUTRITIONIST obrigatório).
+ */
+export async function createManualNutritionFood(
+  params: CreateManualNutritionFoodParams
+): Promise<CreateManualNutritionFoodResult> {
+  const { actorUserId, consultancySlug } = params;
+
+  if (!actorUserId || typeof actorUserId !== "number" || actorUserId <= 0) {
+    return { success: false, error: "Usuário não autenticado." };
+  }
+  if (!consultancySlug || typeof consultancySlug !== "string" || !consultancySlug.trim()) {
+    return { success: false, error: "Consultoria inválida." };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("NUTRITIONIST")) {
+    return { success: false, error: "Permissão insuficiente para cadastrar alimentos." };
+  }
+
+  const fieldErrors: Record<string, string> = {};
+
+  const name = String(params.name || "").trim().normalize("NFC");
+  if (!name) {
+    fieldErrors.name = "O nome do alimento é obrigatório.";
+  } else if (name.length > 255) {
+    fieldErrors.name = "O nome deve ter no máximo 255 caracteres.";
+  }
+
+  const refUnit = String(params.referenceUnit || "").trim().toUpperCase();
+  if (!ALLOWED_REFERENCE_UNITS.includes(refUnit as NutritionReferenceUnit)) {
+    fieldErrors.referenceUnit = "Unidade de referência inválida. Permitidas: G, ML ou UNIT.";
+  }
+
+  const refAmountVal = parseAndValidateDecimal(params.referenceAmount, "Quantidade de referência", { allowZero: false });
+  if (!refAmountVal.valid) {
+    fieldErrors.referenceAmount = refAmountVal.error;
+  }
+
+  const calVal = parseAndValidateDecimal(params.caloriesKcal, "Calorias", { allowZero: true });
+  if (!calVal.valid) {
+    fieldErrors.caloriesKcal = calVal.error;
+  }
+
+  const protVal = parseAndValidateDecimal(params.proteinG, "Proteínas", { allowZero: true });
+  if (!protVal.valid) {
+    fieldErrors.proteinG = protVal.error;
+  }
+
+  const carbVal = parseAndValidateDecimal(params.carbohydrateG, "Carboidratos", { allowZero: true });
+  if (!carbVal.valid) {
+    fieldErrors.carbohydrateG = carbVal.error;
+  }
+
+  const fatVal = parseAndValidateDecimal(params.fatG, "Gorduras", { allowZero: true });
+  if (
+    !refAmountVal.valid ||
+    !calVal.valid ||
+    !protVal.valid ||
+    !carbVal.valid ||
+    !fatVal.valid ||
+    Object.keys(fieldErrors).length > 0
+  ) {
+    return { success: false, error: "Verifique os dados informados.", fieldErrors };
+  }
+
+  const normalizedName = normalizeSearchText(name);
+  const foodPublicId = crypto.randomUUID();
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    await connection.execute(
+      `INSERT INTO nutrition_foods (
+        public_id,
+        consultancy_id,
+        name,
+        normalized_name,
+        category,
+        reference_amount,
+        reference_unit,
+        calories_kcal,
+        protein_g,
+        carbohydrate_g,
+        fat_g,
+        status,
+        source_type,
+        source_key,
+        source_label,
+        source_external_code,
+        source_version,
+        source_reference,
+        source_imported_at,
+        created_by_user_id,
+        created_at,
+        updated_at
+      ) VALUES (
+        ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'MANUAL', NULL, NULL, NULL, NULL, NULL, NULL, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3)
+      );`,
+      [
+        foodPublicId,
+        context.consultancyId,
+        name,
+        normalizedName,
+        refAmountVal.value,
+        refUnit,
+        calVal.value,
+        protVal.value,
+        carbVal.value,
+        fatVal.value,
+        actorUserId,
+      ]
+    );
+
+    const auditPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (?, ?, ?, 'NUTRITION_MANUAL_FOOD_CREATED', 'NUTRITION_FOOD', ?, NULL, UTC_TIMESTAMP(3));`,
+      [auditPublicId, actorUserId, context.consultancyId, foodPublicId]
+    );
+
+    await connection.commit();
+    return { success: true, foodPublicId };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    const message = err instanceof Error ? err.message : "Erro ao cadastrar alimento.";
+    return { success: false, error: message };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+/**
+ * Atualiza um alimento MANUAL existente na consultoria (NUTRITIONIST obrigatório).
+ * Alimentos de fontes externas (como TACO) são rejeitados pelo servidor.
+ */
+export async function updateManualNutritionFood(
+  params: UpdateManualNutritionFoodParams
+): Promise<UpdateManualNutritionFoodResult> {
+  const { actorUserId, consultancySlug, foodPublicId } = params;
+
+  if (!actorUserId || typeof actorUserId !== "number" || actorUserId <= 0) {
+    return { success: false, error: "Usuário não autenticado." };
+  }
+  if (!consultancySlug || typeof consultancySlug !== "string" || !consultancySlug.trim()) {
+    return { success: false, error: "Consultoria inválida." };
+  }
+  if (!foodPublicId || typeof foodPublicId !== "string" || !foodPublicId.trim()) {
+    return { success: false, error: "Identificador do alimento inválido." };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("NUTRITIONIST")) {
+    return { success: false, error: "Permissão insuficiente para editar alimentos." };
+  }
+
+  const fieldErrors: Record<string, string> = {};
+
+  const name = String(params.name || "").trim().normalize("NFC");
+  if (!name) {
+    fieldErrors.name = "O nome do alimento é obrigatório.";
+  } else if (name.length > 255) {
+    fieldErrors.name = "O nome deve ter no máximo 255 caracteres.";
+  }
+
+  const refUnit = String(params.referenceUnit || "").trim().toUpperCase();
+  if (!ALLOWED_REFERENCE_UNITS.includes(refUnit as NutritionReferenceUnit)) {
+    fieldErrors.referenceUnit = "Unidade de referência inválida. Permitidas: G, ML ou UNIT.";
+  }
+
+  const refAmountVal = parseAndValidateDecimal(params.referenceAmount, "Quantidade de referência", { allowZero: false });
+  if (!refAmountVal.valid) {
+    fieldErrors.referenceAmount = refAmountVal.error;
+  }
+
+  const calVal = parseAndValidateDecimal(params.caloriesKcal, "Calorias", { allowZero: true });
+  if (!calVal.valid) {
+    fieldErrors.caloriesKcal = calVal.error;
+  }
+
+  const protVal = parseAndValidateDecimal(params.proteinG, "Proteínas", { allowZero: true });
+  if (!protVal.valid) {
+    fieldErrors.proteinG = protVal.error;
+  }
+
+  const carbVal = parseAndValidateDecimal(params.carbohydrateG, "Carboidratos", { allowZero: true });
+  if (!carbVal.valid) {
+    fieldErrors.carbohydrateG = carbVal.error;
+  }
+
+  const fatVal = parseAndValidateDecimal(params.fatG, "Gorduras", { allowZero: true });
+  if (!fatVal.valid) {
+    fieldErrors.fatG = fatVal.error;
+  }
+
+  if (
+    !refAmountVal.valid ||
+    !calVal.valid ||
+    !protVal.valid ||
+    !carbVal.valid ||
+    !fatVal.valid ||
+    Object.keys(fieldErrors).length > 0
+  ) {
+    return { success: false, error: "Verifique os dados informados.", fieldErrors };
+  }
+
+  const normalizedName = normalizeSearchText(name);
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    const [foodRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        id,
+        name,
+        normalized_name,
+        category,
+        reference_amount,
+        reference_unit,
+        calories_kcal,
+        protein_g,
+        carbohydrate_g,
+        fat_g,
+        status,
+        source_type
+       FROM nutrition_foods
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
+      [foodPublicId.trim(), context.consultancyId]
+    );
+
+    if (!Array.isArray(foodRows) || foodRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Alimento não encontrado nesta consultoria." };
+    }
+
+    const current = foodRows[0];
+    if (current.source_type !== "MANUAL") {
+      await connection.rollback();
+      return { success: false, error: "Alimentos de fontes externas não podem ser alterados." };
+    }
+
+    if (current.status !== "ACTIVE") {
+      await connection.rollback();
+      return { success: false, error: "Apenas alimentos ativos podem ser editados." };
+    }
+
+    const isIdentical =
+      String(current.name) === name &&
+      Number(current.reference_amount) === refAmountVal.value &&
+      String(current.reference_unit) === refUnit &&
+      Number(current.calories_kcal) === calVal.value &&
+      Number(current.protein_g) === protVal.value &&
+      Number(current.carbohydrate_g) === carbVal.value &&
+      Number(current.fat_g) === fatVal.value;
+
+    if (isIdentical) {
+      await connection.rollback();
+      return { success: true, updated: false, foodPublicId, message: "Nenhuma alteração necessária." };
+    }
+
+    const foodId = Number(current.id);
+    await connection.execute(
+      `UPDATE nutrition_foods
+       SET name = ?,
+           normalized_name = ?,
+           reference_amount = ?,
+           reference_unit = ?,
+           calories_kcal = ?,
+           protein_g = ?,
+           carbohydrate_g = ?,
+           fat_g = ?,
+           updated_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ? AND consultancy_id = ?;`,
+      [
+        name,
+        normalizedName,
+        refAmountVal.value,
+        refUnit,
+        calVal.value,
+        protVal.value,
+        carbVal.value,
+        fatVal.value,
+        foodId,
+        context.consultancyId,
+      ]
+    );
+
+    const auditPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (?, ?, ?, 'NUTRITION_MANUAL_FOOD_UPDATED', 'NUTRITION_FOOD', ?, NULL, UTC_TIMESTAMP(3));`,
+      [auditPublicId, actorUserId, context.consultancyId, foodPublicId]
+    );
+
+    await connection.commit();
+    return { success: true, updated: true, foodPublicId, message: "Alimento atualizado com sucesso!" };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    const message = err instanceof Error ? err.message : "Erro ao atualizar alimento.";
+    return { success: false, error: message };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+/**
+ * Inativa um alimento MANUAL na consultoria (NUTRITIONIST obrigatório).
+ * Alimentos de fontes externas (como TACO) são rejeitados pelo servidor.
+ */
+export async function inactivateManualNutritionFood(
+  params: InactivateManualNutritionFoodParams
+): Promise<InactivateManualNutritionFoodResult> {
+  const { actorUserId, consultancySlug, foodPublicId } = params;
+
+  if (!actorUserId || typeof actorUserId !== "number" || actorUserId <= 0) {
+    return { success: false, error: "Usuário não autenticado." };
+  }
+  if (!consultancySlug || typeof consultancySlug !== "string" || !consultancySlug.trim()) {
+    return { success: false, error: "Consultoria inválida." };
+  }
+  if (!foodPublicId || typeof foodPublicId !== "string" || !foodPublicId.trim()) {
+    return { success: false, error: "Identificador do alimento inválido." };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context || !context.roles.includes("NUTRITIONIST")) {
+    return { success: false, error: "Permissão insuficiente para inativar alimentos." };
+  }
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    const [foodRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status, source_type
+       FROM nutrition_foods
+       WHERE public_id = ?
+         AND consultancy_id = ?
+         AND deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
+      [foodPublicId.trim(), context.consultancyId]
+    );
+
+    if (!Array.isArray(foodRows) || foodRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Alimento não encontrado nesta consultoria." };
+    }
+
+    const current = foodRows[0];
+    if (current.source_type !== "MANUAL") {
+      await connection.rollback();
+      return { success: false, error: "Alimentos de fontes externas não podem ser inativados." };
+    }
+
+    if (current.status === "INACTIVE") {
+      await connection.rollback();
+      return { success: true, inactivated: false, message: "Alimento já se encontra inativo." };
+    }
+
+    const foodId = Number(current.id);
+    await connection.execute(
+      `UPDATE nutrition_foods
+       SET status = 'INACTIVE',
+           updated_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ? AND consultancy_id = ?;`,
+      [foodId, context.consultancyId]
+    );
+
+    const auditPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (?, ?, ?, 'NUTRITION_MANUAL_FOOD_INACTIVATED', 'NUTRITION_FOOD', ?, NULL, UTC_TIMESTAMP(3));`,
+      [auditPublicId, actorUserId, context.consultancyId, foodPublicId]
+    );
+
+    await connection.commit();
+    return { success: true, inactivated: true, message: "Alimento inativado com sucesso!" };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    const message = err instanceof Error ? err.message : "Erro ao inativar alimento.";
+    return { success: false, error: message };
   } finally {
     if (connection) {
       connection.release();

@@ -53,6 +53,23 @@ export function NutritionFoodLibrary({
         description="Consulte alimentos e informações nutricionais disponíveis para esta consultoria."
         backHref={`/consultoria/${consultancySlug}`}
         backLabel="Voltar à visão geral"
+        actions={
+          <Link
+            href={`/consultoria/${consultancySlug}/nutricao/alimentos/novo`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white transition-colors cursor-pointer"
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Novo alimento</span>
+          </Link>
+        }
       />
 
       {/* Search and Filters Bar */}

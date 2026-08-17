@@ -67,6 +67,12 @@ export function ConsultancyAppShell({
 
   if (roles.includes("NUTRITIONIST")) {
     items.push({
+      id: "nutritionist-planos",
+      label: "Planos Alimentares",
+      href: `/consultoria/${consultancySlug}/nutricao/planos`,
+      iconName: "prescriptions",
+    });
+    items.push({
       id: "nutritionist-alimentos",
       label: "Alimentos",
       href: `/consultoria/${consultancySlug}/nutricao/alimentos`,

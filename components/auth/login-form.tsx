@@ -10,7 +10,13 @@ const initialState: LoginFormState = {
   success: false,
 };
 
-export function LoginForm({ returnTo }: { returnTo?: string }) {
+export function LoginForm({
+  returnTo,
+  resetSuccess,
+}: {
+  returnTo?: string;
+  resetSuccess?: boolean;
+}) {
   const [state, formAction, isPending] = useActionState(loginAccount, initialState);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -19,6 +25,31 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
   return (
     <form action={formAction} className="w-full space-y-4.5" noValidate>
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
+
+      {/* Alerta de sucesso após redefinição de senha */}
+      {resetSuccess && !state.message && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs font-medium leading-relaxed text-left flex items-start gap-2.5"
+        >
+          <svg
+            className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <span>Sua senha foi redefinida com sucesso. Faça login com a nova senha.</span>
+        </div>
+      )}
 
       {/* Alerta de erro geral */}
       {state.message && !state.success && (

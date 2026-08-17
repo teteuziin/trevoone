@@ -7,12 +7,14 @@ import { validateInvitationReturnTo } from "@/lib/auth/invitation-return-to";
 type PageProps = {
   searchParams: Promise<{
     returnTo?: string;
+    "senha-redefinida"?: string;
   }>;
 };
 
 export default async function LoginPage({ searchParams }: PageProps) {
-  const { returnTo } = await searchParams;
+  const { returnTo, "senha-redefinida": senhaRedefinida } = await searchParams;
   const safeReturnTo = validateInvitationReturnTo(returnTo);
+  const resetSuccess = senhaRedefinida === "1";
 
   const session = await getCurrentSession();
 
@@ -28,7 +30,10 @@ export default async function LoginPage({ searchParams }: PageProps) {
       title="Bem-vindo de volta"
       subtitle="Entre na sua conta para acessar o Trevo One."
     >
-      <LoginForm returnTo={safeReturnTo || undefined} />
+      <LoginForm
+        returnTo={safeReturnTo || undefined}
+        resetSuccess={resetSuccess}
+      />
     </AuthShell>
   );
 }

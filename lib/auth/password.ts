@@ -14,6 +14,41 @@ const SCRYPT_PARAMS = {
 export const DUMMY_SCRYPT_HASH =
   "$scrypt$v=1$N=32768$r=8$p=3$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
+export function normalizeAuthEmail(rawEmail: string): string {
+  return rawEmail.trim().normalize("NFC").toLowerCase();
+}
+
+export function isValidAuthEmail(email: string): boolean {
+  const parts = email.split("@");
+  return !(
+    email.length === 0 ||
+    email.length > 254 ||
+    parts.length !== 2 ||
+    !parts[0] ||
+    !parts[1] ||
+    !parts[1].includes(".")
+  );
+}
+
+export function validatePasswordPolicy(password: string): { valid: boolean; error?: string } {
+  if (typeof password !== "string") {
+    return { valid: false, error: "Informe sua senha." };
+  }
+
+  const normalizedPassword = password.normalize("NFC");
+  const passwordLen = [...normalizedPassword].length;
+
+  if (passwordLen < 6) {
+    return { valid: false, error: "Use pelo menos 6 caracteres na senha." };
+  }
+
+  if (passwordLen > 128) {
+    return { valid: false, error: "A senha pode ter no máximo 128 caracteres." };
+  }
+
+  return { valid: true };
+}
+
 export async function hashPassword(password: string): Promise<string> {
   const normalizedPassword = password.normalize("NFC");
   const salt = crypto.randomBytes(SCRYPT_PARAMS.saltLen);

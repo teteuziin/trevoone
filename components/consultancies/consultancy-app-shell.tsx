@@ -48,6 +48,12 @@ export function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/nutricao`,
       iconName: "nutrition",
     });
+    items.push({
+      id: "student-progresso",
+      label: "Evolução",
+      href: `/consultoria/${consultancySlug}/progresso`,
+      iconName: "prescriptions",
+    });
   }
 
   if (roles.includes("PERSONAL")) {
@@ -63,6 +69,12 @@ export function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/personal/exercicios`,
       iconName: "exercises",
     });
+    items.push({
+      id: "personal-progresso",
+      label: "Evolução dos Alunos",
+      href: `/consultoria/${consultancySlug}/progresso/alunos`,
+      iconName: "prescriptions",
+    });
   }
 
   if (roles.includes("NUTRITIONIST")) {
@@ -77,6 +89,12 @@ export function ConsultancyAppShell({
       label: "Alimentos",
       href: `/consultoria/${consultancySlug}/nutricao/alimentos`,
       iconName: "nutrition",
+    });
+    items.push({
+      id: "nutritionist-progresso",
+      label: "Evolução dos Alunos",
+      href: `/consultoria/${consultancySlug}/progresso/alunos`,
+      iconName: "prescriptions",
     });
   }
 

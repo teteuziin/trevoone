@@ -833,15 +833,26 @@ export async function cancelStudentCharge(
   }
 }
 
+export type StudentFinancialBlockingCharge = {
+  publicId: string;
+  title: string;
+  amountCents: number;
+  currencyCode: string;
+  dueOn: string;
+  hasSubmittedReceipt: boolean;
+};
+
 export type StudentFinancialAccessResult = {
   isConfigured: boolean;
   isRestricted: boolean;
   overdueChargeCount: number;
+  blockingCharge?: StudentFinancialBlockingCharge;
 };
 
 /**
  * Evaluates a student's financial access status in a consultancy.
  * Determines if there are any overdue, unpaid charges with blocks_access = true.
+ * Returns the deterministic oldest blocking charge (due_on ASC, id ASC) for UI regularization.
  */
 export async function getStudentFinancialAccessState(params: {
   consultancyId: number;
@@ -877,7 +888,17 @@ export async function getStudentFinancialAccessState(params: {
     const localToday = getConsultancyLocalDate(billingTimezone);
 
     const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT COUNT(*) AS overdue_count
+      `SELECT
+         sc.id,
+         sc.public_id,
+         sc.title,
+         sc.amount_cents,
+         sc.currency_code,
+         DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+         EXISTS(
+           SELECT 1 FROM student_payment_receipts spr
+           WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED'
+         ) AS has_submitted_receipt
        FROM student_charges sc
        WHERE sc.consultancy_id = ?
          AND sc.student_membership_id = ?
@@ -886,16 +907,35 @@ export async function getStudentFinancialAccessState(params: {
          AND sc.due_on < ?
          AND NOT EXISTS (
            SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id
-         );`,
+         )
+       ORDER BY sc.due_on ASC, sc.id ASC;`,
       [consultancyId, studentMembershipId, localToday]
     );
 
-    const overdueCount = Number(rows[0]?.overdue_count || 0);
+    const overdueCount = Array.isArray(rows) ? rows.length : 0;
+
+    if (overdueCount === 0) {
+      return {
+        isConfigured: true,
+        isRestricted: false,
+        overdueChargeCount: 0,
+      };
+    }
+
+    const oldest = rows[0];
 
     return {
       isConfigured: true,
-      isRestricted: overdueCount > 0,
+      isRestricted: true,
       overdueChargeCount: overdueCount,
+      blockingCharge: {
+        publicId: String(oldest.public_id),
+        title: String(oldest.title),
+        amountCents: Number(oldest.amount_cents),
+        currencyCode: String(oldest.currency_code),
+        dueOn: String(oldest.due_on),
+        hasSubmittedReceipt: Boolean(oldest.has_submitted_receipt),
+      },
     };
   } catch {
     return { isConfigured: false, isRestricted: false, overdueChargeCount: 0 };

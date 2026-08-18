@@ -37,6 +37,10 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
     redirect(`/consultoria/${access.context.consultancySlug}`);
   }
 
+  if (access.reason === "FINANCIALLY_RESTRICTED") {
+    redirect(`/consultoria/${access.context.consultancySlug}/pagamentos/regularizar`);
+  }
+
   // Se onboarding incompleto, exibe painel com pendências
   if (!access.allowed) {
     return (

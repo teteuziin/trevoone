@@ -32,7 +32,9 @@ export async function GET(request: Request, { params }: RouteProps) {
   const access = await resolveStudentModuleAccess(session.userId, slug);
   if (!access.allowed || !access.context) {
     const errorMsg =
-      access.reason === "ONBOARDING_INCOMPLETE"
+      access.reason === "FINANCIALLY_RESTRICTED"
+        ? "Acesso temporariamente restrito por pendência financeira."
+        : access.reason === "ONBOARDING_INCOMPLETE"
         ? "Onboarding pendente para acessar os treinos desta consultoria."
         : access.reason === "NOT_STUDENT"
         ? "Apenas alunos matriculados podem baixar a ficha de treino."

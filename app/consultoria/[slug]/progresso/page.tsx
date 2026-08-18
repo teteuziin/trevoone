@@ -29,6 +29,9 @@ export default async function StudentProgressPage({ params, searchParams }: Page
   const access = await resolveStudentModuleAccess(session.userId, slug);
 
   if (!access.allowed || !access.context) {
+    if (access.reason === "FINANCIALLY_RESTRICTED") {
+      redirect(`/consultoria/${slug}/pagamentos/regularizar`);
+    }
     if (access.reason === "ONBOARDING_INCOMPLETE") {
       redirect(`/consultoria/${slug}/onboarding`);
     }

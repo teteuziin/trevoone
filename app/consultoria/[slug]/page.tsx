@@ -7,6 +7,7 @@ import {
 } from "@/lib/consultancies/context";
 import { getConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import { getStudentOnboardingStatus } from "@/lib/consultancies/student-onboarding";
+import { getStudentFinancialAccessState } from "@/lib/consultancies/finance";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -36,10 +37,22 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
 
   // Dados existentes resolvidos condicionalmente sem novas queries
-  const [studentOnboarding, adminOverview] = await Promise.all([
+  const [studentOnboarding, adminOverview, studentFinancialStatus] = await Promise.all([
     isStudent ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
     isConsultancyAdmin ? getConsultancyAdminOverview(context.consultancyId) : Promise.resolve(null),
+    isStudent
+      ? getStudentFinancialAccessState({
+          consultancyId: context.consultancyId,
+          studentMembershipId: context.membershipId,
+        })
+      : Promise.resolve(null),
   ]);
+
+  if (isStudent && !isPersonal && !isNutritionist && !isConsultancyAdmin) {
+    if (studentFinancialStatus?.isRestricted) {
+      redirect(`/consultoria/${slug}/pagamentos/regularizar`);
+    }
+  }
 
   const hasIncompleteOnboarding =
     isStudent &&

@@ -1,12 +1,17 @@
 import { resolveConsultancyContext, type AccessibleConsultancy } from "./context";
 import { getStudentOnboardingStatus } from "./student-onboarding";
+import {
+  getStudentFinancialAccessState,
+  type StudentFinancialBlockingCharge,
+} from "./finance";
 
 export type StudentModuleAccessReason =
   | "ALLOWED"
   | "UNAUTHENTICATED"
   | "INVALID_CONTEXT"
   | "NOT_STUDENT"
-  | "ONBOARDING_INCOMPLETE";
+  | "ONBOARDING_INCOMPLETE"
+  | "FINANCIALLY_RESTRICTED";
 
 export type StudentModuleAccessResult = {
   allowed: boolean;
@@ -15,6 +20,7 @@ export type StudentModuleAccessResult = {
   confirmedRequirements: number;
   totalRequirements: number;
   isComplete: boolean;
+  blockingCharge?: StudentFinancialBlockingCharge;
 };
 
 export async function resolveStudentModuleAccess(
@@ -74,6 +80,24 @@ export async function resolveStudentModuleAccess(
       confirmedRequirements: onboardingStatus.confirmedRequirements,
       totalRequirements: onboardingStatus.totalRequirements,
       isComplete: false,
+    };
+  }
+
+  // Financial access enforcement for student
+  const financialStatus = await getStudentFinancialAccessState({
+    consultancyId: context.consultancyId,
+    studentMembershipId: context.membershipId,
+  });
+
+  if (financialStatus.isRestricted) {
+    return {
+      allowed: false,
+      reason: "FINANCIALLY_RESTRICTED",
+      context,
+      confirmedRequirements: onboardingStatus.confirmedRequirements,
+      totalRequirements: onboardingStatus.totalRequirements,
+      isComplete: true,
+      blockingCharge: financialStatus.blockingCharge,
     };
   }
 

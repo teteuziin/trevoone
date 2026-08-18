@@ -105,6 +105,12 @@ export function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/membros`,
       iconName: "members",
     });
+    items.push({
+      id: "admin-financeiro",
+      label: "Financeiro",
+      href: `/consultoria/${consultancySlug}/financeiro`,
+      iconName: "prescriptions",
+    });
   }
 
   // Deduplicate items by href just in case

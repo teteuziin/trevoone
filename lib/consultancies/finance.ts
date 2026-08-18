@@ -31,6 +31,14 @@ export type StudentChargeDerivedStatus =
   | "PAID"
   | "CANCELED";
 
+export const STATUS_LABELS: Record<StudentChargeDerivedStatus, string> = {
+  PENDING: "Pendente",
+  OVERDUE: "Vencido",
+  UNDER_REVIEW: "Em análise",
+  PAID: "Pago",
+  CANCELED: "Cancelado",
+};
+
 export const MAX_CHARGE_AMOUNT_CENTS = 100_000_000; // R$ 1.000.000,00
 
 export type ConsultancyFinanceSettings = {
@@ -71,7 +79,6 @@ export function getConsultancyLocalDate(timeZone: string, instant: Date = new Da
     });
     return formatter.format(instant); // Returns YYYY-MM-DD in en-CA
   } catch {
-    // Fallback to UTC if timezone is invalid
     return instant.toISOString().slice(0, 10);
   }
 }
@@ -94,7 +101,6 @@ export function isValidIsoCalendarDate(dateStr: unknown): boolean {
     return false;
   }
 
-  // Days per month check including leap year
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
   return day <= daysInMonth;
 }
@@ -140,7 +146,6 @@ export function validatePixKey(type: PixKeyType, rawKey: unknown): { valid: bool
       return { valid: true };
     }
     case "RANDOM": {
-      // UUID / EVP random key
       const randomRegex = /^[0-9a-fA-F-]{32,36}$/;
       if (!randomRegex.test(key)) {
         return { valid: false, error: "Chave aleatória Pix inválida (formato EVP esperado)." };
@@ -150,6 +155,106 @@ export function validatePixKey(type: PixKeyType, rawKey: unknown): { valid: bool
     default:
       return { valid: false, error: "Tipo de chave Pix não suportado." };
   }
+}
+
+/**
+ * Pure string-based money parser.
+ * Converts Brazilian Real formatted strings to integer cents without floating point arithmetic.
+ * Examples: "297", "297,00", "1.297,50", "0,01", "1.000.000,00" -> cents.
+ */
+export function parseBrlToCents(raw: unknown): { valid: boolean; cents?: number; error?: string } {
+  if (typeof raw !== "string" || !raw.trim()) {
+    return { valid: false, error: "O valor é obrigatório." };
+  }
+
+  const trimmed = raw.trim();
+
+  // Validate format: integer or dot-grouped thousands, comma with 1 or 2 decimals
+  const brlRegex = /^(?:\d{1,3}(?:\.\d{3})*|\d+)(?:,\d{1,2})?$/;
+  if (!brlRegex.test(trimmed)) {
+    return { valid: false, error: "Formato de valor inválido. Exemplo: 297,00 ou 1.250,50" };
+  }
+
+  const withoutDots = trimmed.replace(/\./g, "");
+  const [integers, decimals = ""] = withoutDots.split(",");
+  const paddedDecimals = (decimals + "00").slice(0, 2);
+  const centsStr = integers + paddedDecimals;
+  const cents = parseInt(centsStr, 10);
+
+  if (!Number.isSafeInteger(cents) || cents <= 0) {
+    return { valid: false, error: "O valor deve ser maior que zero." };
+  }
+
+  if (cents > MAX_CHARGE_AMOUNT_CENTS) {
+    return { valid: false, error: "O valor máximo permitido é de R$ 1.000.000,00." };
+  }
+
+  return { valid: true, cents };
+}
+
+/**
+ * Formats integer cents to Brazilian Real string (R$ 1.250,00).
+ */
+export function formatCentsToBrl(amountCents: number): string {
+  if (!Number.isSafeInteger(amountCents) || amountCents < 0) {
+    return "R$ 0,00";
+  }
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(amountCents / 100);
+}
+
+/**
+ * Calculates start and end UTC bounds for the current month in the consultancy's billing timezone.
+ */
+export function getLocalMonthUtcBounds(
+  timeZone: string,
+  now: Date = new Date()
+): { startUtc: string; nextMonthStartUtc: string } {
+  const localDateStr = getConsultancyLocalDate(timeZone, now);
+  const [yearStr, monthStr] = localDateStr.split("-");
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+
+  function localToUtc(y: number, m: number, d: number): Date {
+    const guess = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timeZone.trim(),
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hour12: false,
+    }).formatToParts(guess);
+
+    const p: Record<string, number> = {};
+    for (const part of parts) {
+      if (part.type !== "literal") {
+        p[part.type] = parseInt(part.value, 10);
+      }
+    }
+    if (p.hour === 24) p.hour = 0;
+
+    const targetLocalUtc = Date.UTC(y, m - 1, d, 0, 0, 0, 0);
+    const parsedLocalUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second, 0);
+    const diffMs = targetLocalUtc - parsedLocalUtc;
+
+    return new Date(guess.getTime() + diffMs);
+  }
+
+  const startUtcDate = localToUtc(year, month, 1);
+  const nextStartUtcDate = localToUtc(nextYear, nextMonth, 1);
+
+  return {
+    startUtc: startUtcDate.toISOString().slice(0, 19).replace("T", " "),
+    nextMonthStartUtc: nextStartUtcDate.toISOString().slice(0, 19).replace("T", " "),
+  };
 }
 
 export type DeriveStatusParams = {
@@ -333,7 +438,6 @@ export async function saveConsultancyFinanceSettings(
     connection = await getDbConnection();
     await connection.beginTransaction();
 
-    // Check if existing settings row exists
     const [existingRows] = await connection.execute<RowDataPacket[]>(
       `SELECT id, public_id FROM consultancy_finance_settings WHERE consultancy_id = ? FOR UPDATE;`,
       [consultancyId]
@@ -393,7 +497,6 @@ export async function saveConsultancyFinanceSettings(
       );
     }
 
-    // Record audit event without exposing full sensitive key
     const auditPublicId = crypto.randomUUID();
     await connection.execute(
       `INSERT INTO audit_events (
@@ -513,7 +616,6 @@ export async function createStudentCharge(
     connection = await getDbConnection();
     await connection.beginTransaction();
 
-    // 1. If blocksAccess is true, verify finance settings exist
     if (blocksAccess) {
       const [settingsRows] = await connection.execute<RowDataPacket[]>(
         `SELECT id FROM consultancy_finance_settings WHERE consultancy_id = ? LIMIT 1;`,
@@ -528,7 +630,6 @@ export async function createStudentCharge(
       }
     }
 
-    // 2. Resolve and verify target student membership in the same consultancy
     const [memberRows] = await connection.execute<RowDataPacket[]>(
       `SELECT cm.id, cm.status, u.status AS user_status, u.deleted_at
        FROM consultancy_members cm
@@ -552,7 +653,6 @@ export async function createStudentCharge(
     const studentMembershipId = Number(memberRows[0].id);
     const chargePublicId = crypto.randomUUID();
 
-    // 3. Insert student charge
     await connection.execute<ResultSetHeader>(
       `INSERT INTO student_charges (
         public_id,
@@ -585,7 +685,6 @@ export async function createStudentCharge(
       ]
     );
 
-    // 4. Audit event
     const auditPublicId = crypto.randomUUID();
     await connection.execute(
       `INSERT INTO audit_events (
@@ -658,7 +757,6 @@ export async function cancelStudentCharge(
     connection = await getDbConnection();
     await connection.beginTransaction();
 
-    // 1. Select and lock charge FOR UPDATE
     const [rows] = await connection.execute<RowDataPacket[]>(
       `SELECT sc.id, sc.consultancy_id, sc.state, sp.id AS payment_id
        FROM student_charges sc
@@ -686,7 +784,6 @@ export async function cancelStudentCharge(
       return { success: false, error: "Esta cobrança já se encontra cancelada." };
     }
 
-    // 2. Mark charge as canceled
     await connection.execute(
       `UPDATE student_charges
        SET state = 'CANCELED',
@@ -697,7 +794,6 @@ export async function cancelStudentCharge(
       [userId, cleanReason, Number(row.id)]
     );
 
-    // 3. Audit event
     const auditPublicId = crypto.randomUUID();
     await connection.execute(
       `INSERT INTO audit_events (
@@ -768,7 +864,6 @@ export async function getStudentFinancialAccessState(params: {
   try {
     connection = await getDbConnection();
 
-    // 1. Get finance settings to obtain billing timezone
     const [settingsRows] = await connection.execute<RowDataPacket[]>(
       `SELECT billing_timezone FROM consultancy_finance_settings WHERE consultancy_id = ? LIMIT 1;`,
       [consultancyId]
@@ -781,7 +876,6 @@ export async function getStudentFinancialAccessState(params: {
     const billingTimezone = String(settingsRows[0].billing_timezone);
     const localToday = getConsultancyLocalDate(billingTimezone);
 
-    // 2. Query overdue, unpaid, blocking charges
     const [rows] = await connection.execute<RowDataPacket[]>(
       `SELECT COUNT(*) AS overdue_count
        FROM student_charges sc
@@ -805,6 +899,491 @@ export async function getStudentFinancialAccessState(params: {
     };
   } catch {
     return { isConfigured: false, isRestricted: false, overdueChargeCount: 0 };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+// ============================================================================
+// ADMIN READ SERVICES FOR T100B UI
+// ============================================================================
+
+export type FinanceDashboardMetrics = {
+  toReceiveCents: number;
+  overdueCount: number;
+  paidThisMonthCents: number;
+  underReviewCount: number;
+  billingTimezone: string;
+};
+
+export async function getConsultancyFinanceDashboard(
+  consultancyId: number
+): Promise<FinanceDashboardMetrics> {
+  if (!consultancyId || typeof consultancyId !== "number" || consultancyId <= 0) {
+    return {
+      toReceiveCents: 0,
+      overdueCount: 0,
+      paidThisMonthCents: 0,
+      underReviewCount: 0,
+      billingTimezone: "America/Sao_Paulo",
+    };
+  }
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+
+    // 1. Get timezone from settings (default to America/Sao_Paulo)
+    const [settingsRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT billing_timezone FROM consultancy_finance_settings WHERE consultancy_id = ? LIMIT 1;`,
+      [consultancyId]
+    );
+    const billingTimezone =
+      Array.isArray(settingsRows) && settingsRows.length > 0 && settingsRows[0].billing_timezone
+        ? String(settingsRows[0].billing_timezone)
+        : "America/Sao_Paulo";
+
+    const localToday = getConsultancyLocalDate(billingTimezone);
+    const { startUtc, nextMonthStartUtc } = getLocalMonthUtcBounds(billingTimezone);
+
+    // 2. Query metrics in parallel or aggregated safely without cartesian product
+    const [openStatsRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        COALESCE(SUM(sc.amount_cents), 0) AS to_receive_cents,
+        COUNT(DISTINCT CASE WHEN sc.due_on < ? THEN sc.id END) AS overdue_count,
+        COUNT(DISTINCT CASE WHEN EXISTS (
+          SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED'
+        ) THEN sc.id END) AS under_review_count
+       FROM student_charges sc
+       WHERE sc.consultancy_id = ?
+         AND sc.state = 'OPEN'
+         AND NOT EXISTS (
+           SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id
+         );`,
+      [localToday, consultancyId]
+    );
+
+    const [paidMonthRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(sp.amount_cents), 0) AS paid_month_cents
+       FROM student_payments sp
+       WHERE sp.consultancy_id = ?
+         AND sp.confirmed_at >= ?
+         AND sp.confirmed_at < ?;`,
+      [consultancyId, startUtc, nextMonthStartUtc]
+    );
+
+    const openRow = openStatsRows[0] || {};
+    const paidRow = paidMonthRows[0] || {};
+
+    return {
+      toReceiveCents: Number(openRow.to_receive_cents) || 0,
+      overdueCount: Number(openRow.overdue_count) || 0,
+      paidThisMonthCents: Number(paidRow.paid_month_cents) || 0,
+      underReviewCount: Number(openRow.under_review_count) || 0,
+      billingTimezone,
+    };
+  } catch {
+    return {
+      toReceiveCents: 0,
+      overdueCount: 0,
+      paidThisMonthCents: 0,
+      underReviewCount: 0,
+      billingTimezone: "America/Sao_Paulo",
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type StudentSearchItem = {
+  membershipPublicId: string;
+  fullName: string;
+  email: string;
+};
+
+export async function searchConsultancyStudents(params: {
+  consultancyId: number;
+  query: string;
+  limit?: number;
+}): Promise<StudentSearchItem[]> {
+  const { consultancyId, query, limit = 20 } = params;
+
+  if (!consultancyId || consultancyId <= 0 || !query || query.trim().length < 2) {
+    return [];
+  }
+
+  const rawQuery = query.trim().normalize("NFC").slice(0, 100);
+  const escapedQuery = rawQuery.replace(/([\\%_])/g, "\\$1");
+  const likeParam = `%${escapedQuery}%`;
+  const safeLimit = Math.min(Math.max(1, limit), 50);
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        cm.public_id AS membership_public_id,
+        u.full_name,
+        u.email
+       FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND u.deleted_at IS NULL
+         AND cmr.role = 'STUDENT'
+         AND (u.full_name LIKE ? ESCAPE '\\\\' OR u.email LIKE ? ESCAPE '\\\\')
+       ORDER BY u.full_name ASC
+       LIMIT ${safeLimit};`,
+      [consultancyId, likeParam, likeParam]
+    );
+
+    if (!Array.isArray(rows)) {
+      return [];
+    }
+
+    return rows.map((r) => ({
+      membershipPublicId: String(r.membership_public_id),
+      fullName: String(r.full_name),
+      email: String(r.email),
+    }));
+  } catch {
+    return [];
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type ChargeListItem = {
+  publicId: string;
+  studentMembershipPublicId: string;
+  studentName: string;
+  studentEmail: string;
+  title: string;
+  amountCents: number;
+  currencyCode: string;
+  dueOn: string;
+  referencePeriodStart: string | null;
+  referencePeriodEnd: string | null;
+  blocksAccess: boolean;
+  state: ChargePersistedState;
+  derivedStatus: StudentChargeDerivedStatus;
+  createdAt: string;
+};
+
+export type ListChargesResult = {
+  charges: ChargeListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type ListChargesParams = {
+  consultancyId: number;
+  statusFilter?: string;
+  query?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export async function listConsultancyCharges(
+  params: ListChargesParams
+): Promise<ListChargesResult> {
+  const { consultancyId } = params;
+
+  if (!consultancyId || typeof consultancyId !== "number" || consultancyId <= 0) {
+    return { charges: [], total: 0, page: 1, pageSize: 20, totalPages: 1 };
+  }
+
+  const pageSize = 20;
+  const rawPage = Number(params.page);
+  const page = !isNaN(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
+  const offset = (page - 1) * pageSize;
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+
+    // 1. Get timezone from settings to determine localToday
+    const [settingsRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT billing_timezone FROM consultancy_finance_settings WHERE consultancy_id = ? LIMIT 1;`,
+      [consultancyId]
+    );
+    const billingTimezone =
+      Array.isArray(settingsRows) && settingsRows.length > 0 && settingsRows[0].billing_timezone
+        ? String(settingsRows[0].billing_timezone)
+        : "America/Sao_Paulo";
+
+    const localToday = getConsultancyLocalDate(billingTimezone);
+
+    // 2. Build WHERE clauses
+    const whereConditions: string[] = ["sc.consultancy_id = ?"];
+    const queryParams: (string | number)[] = [consultancyId];
+
+    // Status filter
+    const filter = (params.statusFilter || "").toUpperCase().trim();
+    if (filter === "CANCELED") {
+      whereConditions.push("sc.state = 'CANCELED'");
+    } else if (filter === "PAID") {
+      whereConditions.push("EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)");
+    } else if (filter === "UNDER_REVIEW") {
+      whereConditions.push(
+        "sc.state = 'OPEN'",
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)",
+        "EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED')"
+      );
+    } else if (filter === "OVERDUE") {
+      whereConditions.push(
+        "sc.state = 'OPEN'",
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)",
+        "NOT EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED')",
+        "sc.due_on < ?"
+      );
+      queryParams.push(localToday);
+    } else if (filter === "PENDING") {
+      whereConditions.push(
+        "sc.state = 'OPEN'",
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)",
+        "NOT EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED')",
+        "sc.due_on >= ?"
+      );
+      queryParams.push(localToday);
+    }
+
+    // Search query filter (matches student name, student email, or charge title)
+    const rawQ = params.query ? String(params.query).trim().normalize("NFC") : "";
+    if (rawQ.length > 0) {
+      const escapedQ = rawQ.replace(/([\\%_])/g, "\\$1").slice(0, 100);
+      whereConditions.push(
+        "(u.full_name LIKE ? ESCAPE '\\\\' OR u.email LIKE ? ESCAPE '\\\\' OR sc.title LIKE ? ESCAPE '\\\\')"
+      );
+      queryParams.push(`%${escapedQ}%`, `%${escapedQ}%`, `%${escapedQ}%`);
+    }
+
+    const whereSql = whereConditions.join(" AND ");
+
+    // 3. Count query
+    const countSql = `
+      SELECT COUNT(DISTINCT sc.id) AS total
+      FROM student_charges sc
+      INNER JOIN consultancy_members cm ON cm.id = sc.student_membership_id
+      INNER JOIN users u ON u.id = cm.user_id
+      WHERE ${whereSql};
+    `;
+
+    const [countRows] = await connection.execute<RowDataPacket[]>(countSql, queryParams);
+    const total = Array.isArray(countRows) && countRows.length > 0 ? Number(countRows[0].total) || 0 : 0;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    if (total === 0) {
+      return { charges: [], total: 0, page, pageSize, totalPages: 1 };
+    }
+
+    // 4. Paginated list query
+    const listSql = `
+      SELECT
+        sc.public_id AS charge_public_id,
+        cm.public_id AS student_membership_public_id,
+        u.full_name AS student_name,
+        u.email AS student_email,
+        sc.title,
+        sc.amount_cents,
+        sc.currency_code,
+        DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+        DATE_FORMAT(sc.reference_period_start, '%Y-%m-%d') AS reference_period_start,
+        DATE_FORMAT(sc.reference_period_end, '%Y-%m-%d') AS reference_period_end,
+        sc.blocks_access,
+        sc.state,
+        sc.created_at,
+        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id) AS has_payment,
+        EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED') AS has_submitted_receipt
+      FROM student_charges sc
+      INNER JOIN consultancy_members cm ON cm.id = sc.student_membership_id
+      INNER JOIN users u ON u.id = cm.user_id
+      WHERE ${whereSql}
+      ORDER BY sc.due_on DESC, sc.created_at DESC, sc.id DESC
+      LIMIT ${pageSize} OFFSET ${offset};
+    `;
+
+    const [rows] = await connection.execute<RowDataPacket[]>(listSql, queryParams);
+
+    if (!Array.isArray(rows)) {
+      return { charges: [], total, page, pageSize, totalPages };
+    }
+
+    const charges: ChargeListItem[] = rows.map((r) => {
+      const derivedStatus = deriveStudentChargeStatus({
+        state: r.state as ChargePersistedState,
+        dueOn: String(r.due_on),
+        localToday,
+        hasConfirmedPayment: Boolean(r.has_payment),
+        hasSubmittedReceipt: Boolean(r.has_submitted_receipt),
+      });
+
+      return {
+        publicId: String(r.charge_public_id),
+        studentMembershipPublicId: String(r.student_membership_public_id),
+        studentName: String(r.student_name),
+        studentEmail: String(r.student_email),
+        title: String(r.title),
+        amountCents: Number(r.amount_cents),
+        currencyCode: String(r.currency_code),
+        dueOn: String(r.due_on),
+        referencePeriodStart: r.reference_period_start ? String(r.reference_period_start) : null,
+        referencePeriodEnd: r.reference_period_end ? String(r.reference_period_end) : null,
+        blocksAccess: Boolean(r.blocks_access),
+        state: r.state as ChargePersistedState,
+        derivedStatus,
+        createdAt: String(r.created_at),
+      };
+    });
+
+    return { charges, total, page, pageSize, totalPages };
+  } catch {
+    return { charges: [], total: 0, page: 1, pageSize: 20, totalPages: 1 };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type StudentChargeDetail = {
+  publicId: string;
+  studentMembershipPublicId: string;
+  studentName: string;
+  studentEmail: string;
+  title: string;
+  description: string | null;
+  amountCents: number;
+  currencyCode: string;
+  dueOn: string;
+  referencePeriodStart: string | null;
+  referencePeriodEnd: string | null;
+  blocksAccess: boolean;
+  state: ChargePersistedState;
+  derivedStatus: StudentChargeDerivedStatus;
+  createdAt: string;
+  createdByUserName: string;
+  canceledAt: string | null;
+  canceledByUserName: string | null;
+  cancelReason: string | null;
+  isPaid: boolean;
+  canBeCanceled: boolean;
+};
+
+export async function getStudentChargeDetail(params: {
+  consultancyId: number;
+  chargePublicId: string;
+}): Promise<StudentChargeDetail | null> {
+  const { consultancyId, chargePublicId } = params;
+
+  if (!consultancyId || consultancyId <= 0 || !chargePublicId?.trim()) {
+    return null;
+  }
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+
+    // 1. Get timezone
+    const [settingsRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT billing_timezone FROM consultancy_finance_settings WHERE consultancy_id = ? LIMIT 1;`,
+      [consultancyId]
+    );
+    const billingTimezone =
+      Array.isArray(settingsRows) && settingsRows.length > 0 && settingsRows[0].billing_timezone
+        ? String(settingsRows[0].billing_timezone)
+        : "America/Sao_Paulo";
+
+    const localToday = getConsultancyLocalDate(billingTimezone);
+
+    // 2. Query charge detail with student and creator details
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        sc.public_id AS charge_public_id,
+        cm.public_id AS student_membership_public_id,
+        u_student.full_name AS student_name,
+        u_student.email AS student_email,
+        sc.title,
+        sc.description,
+        sc.amount_cents,
+        sc.currency_code,
+        DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+        DATE_FORMAT(sc.reference_period_start, '%Y-%m-%d') AS reference_period_start,
+        DATE_FORMAT(sc.reference_period_end, '%Y-%m-%d') AS reference_period_end,
+        sc.blocks_access,
+        sc.state,
+        sc.created_at,
+        u_creator.full_name AS created_by_user_name,
+        sc.canceled_at,
+        u_canceler.full_name AS canceled_by_user_name,
+        sc.cancel_reason,
+        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id) AS has_payment,
+        EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED') AS has_submitted_receipt
+       FROM student_charges sc
+       INNER JOIN consultancy_members cm ON cm.id = sc.student_membership_id
+       INNER JOIN users u_student ON u_student.id = cm.user_id
+       INNER JOIN users u_creator ON u_creator.id = sc.created_by_user_id
+       LEFT JOIN users u_canceler ON u_canceler.id = sc.canceled_by_user_id
+       WHERE sc.public_id = ?
+         AND sc.consultancy_id = ?
+       LIMIT 1;`,
+      [chargePublicId.trim(), consultancyId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return null;
+    }
+
+    const r = rows[0];
+    const hasPayment = Boolean(r.has_payment);
+    const hasSubmittedReceipt = Boolean(r.has_submitted_receipt);
+    const state = r.state as ChargePersistedState;
+
+    const derivedStatus = deriveStudentChargeStatus({
+      state,
+      dueOn: String(r.due_on),
+      localToday,
+      hasConfirmedPayment: hasPayment,
+      hasSubmittedReceipt,
+    });
+
+    const canBeCanceled = state === "OPEN" && !hasPayment;
+
+    return {
+      publicId: String(r.charge_public_id),
+      studentMembershipPublicId: String(r.student_membership_public_id),
+      studentName: String(r.student_name),
+      studentEmail: String(r.student_email),
+      title: String(r.title),
+      description: r.description ? String(r.description) : null,
+      amountCents: Number(r.amount_cents),
+      currencyCode: String(r.currency_code),
+      dueOn: String(r.due_on),
+      referencePeriodStart: r.reference_period_start ? String(r.reference_period_start) : null,
+      referencePeriodEnd: r.reference_period_end ? String(r.reference_period_end) : null,
+      blocksAccess: Boolean(r.blocks_access),
+      state,
+      derivedStatus,
+      createdAt: String(r.created_at),
+      createdByUserName: String(r.created_by_user_name),
+      canceledAt: r.canceled_at ? String(r.canceled_at) : null,
+      canceledByUserName: r.canceled_by_user_name ? String(r.canceled_by_user_name) : null,
+      cancelReason: r.cancel_reason ? String(r.cancel_reason) : null,
+      isPaid: hasPayment,
+      canBeCanceled,
+    };
+  } catch {
+    return null;
   } finally {
     if (connection) {
       connection.release();

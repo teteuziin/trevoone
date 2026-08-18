@@ -10,6 +10,9 @@ import {
 
 export const PASSWORD_RESET_TOKEN_BYTES = 32;
 export const PASSWORD_RESET_TTL_MINUTES = 30;
+export const PASSWORD_RESET_COOLDOWN_SECONDS = 60;
+export const PASSWORD_RESET_MAX_ISSUES_PER_HOUR = 5;
+export const PASSWORD_RESET_RATE_WINDOW_MINUTES = 60;
 
 // Base64url encoded 32 bytes produces 43 characters
 const TOKEN_FORMAT_REGEX = /^[A-Za-z0-9_-]{40,50}$/;
@@ -52,8 +55,10 @@ export type RequestPasswordResetResult = {
 };
 
 /**
- * Creates a password reset token for the specified email if an active user exists.
- * Returns a generic success status regardless of whether the user exists to prevent enumeration.
+ * Creates a password reset token for the specified email if an active user exists
+ * and the per-account rate limit rules (60s cooldown, max 5 issues/hour) are satisfied.
+ * Uses SELECT ... FOR UPDATE on the user row to serialize concurrent requests for the same account.
+ * Returns a generic success status regardless of whether the user exists or is rate-limited to prevent enumeration.
  */
 export async function requestPasswordReset(
   rawEmail: string
@@ -67,31 +72,67 @@ export async function requestPasswordReset(
   let connection: PoolConnection | null = null;
   try {
     connection = await getDbConnection();
+    await connection.beginTransaction();
 
+    // 1. Lock the eligible user row FOR UPDATE to serialize concurrent requests for the same account
     const [rows] = await connection.execute<RowDataPacket[]>(
       `SELECT id, email, status, deleted_at
        FROM users
        WHERE email = ?
-       LIMIT 1;`,
+       FOR UPDATE;`,
       [email]
     );
 
     if (!Array.isArray(rows) || rows.length === 0) {
+      await connection.commit();
       return { success: true };
     }
 
     const user = rows[0];
     if (user.status !== "ACTIVE" || user.deleted_at !== null) {
+      await connection.commit();
       return { success: true };
     }
 
+    const targetUserId = Number(user.id);
+
+    // 2. Check per-account rate limit (cooldown & hourly quota)
+    // Counts all non-revoked token emissions (active, used, and expired) in the rolling window.
+    // Revoked tokens (e.g. failed SMTP deliveries) are excluded (revoked_at IS NULL).
+    const [rateRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+         COUNT(*) AS hourly_count,
+         SUM(CASE WHEN created_at > UTC_TIMESTAMP(3) - INTERVAL ? SECOND THEN 1 ELSE 0 END) AS cooldown_count
+       FROM password_reset_tokens
+       WHERE user_id = ?
+         AND revoked_at IS NULL
+         AND created_at > UTC_TIMESTAMP(3) - INTERVAL ? MINUTE;`,
+      [
+        PASSWORD_RESET_COOLDOWN_SECONDS,
+        targetUserId,
+        PASSWORD_RESET_RATE_WINDOW_MINUTES,
+      ]
+    );
+
+    const hourlyCount = Number(rateRows[0]?.hourly_count || 0);
+    const cooldownCount = Number(rateRows[0]?.cooldown_count || 0);
+
+    // If cooldown is active or hourly limit reached, commit and return without issuing a new token
+    if (cooldownCount > 0 || hourlyCount >= PASSWORD_RESET_MAX_ISSUES_PER_HOUR) {
+      await connection.commit();
+      return { success: true };
+    }
+
+    // 3. Rate limit passed: generate and persist the new reset token
     const { rawToken, tokenHash, expiresAt } = generatePasswordResetToken();
 
     await connection.execute<ResultSetHeader>(
       `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
        VALUES (?, ?, ?);`,
-      [user.id, tokenHash, expiresAt]
+      [targetUserId, tokenHash, expiresAt]
     );
+
+    await connection.commit();
 
     return {
       success: true,
@@ -99,6 +140,11 @@ export async function requestPasswordReset(
       userEmail: String(user.email),
     };
   } catch {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
     return { success: true };
   } finally {
     if (connection) {

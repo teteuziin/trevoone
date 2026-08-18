@@ -54,6 +54,12 @@ export function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/progresso`,
       iconName: "prescriptions",
     });
+    items.push({
+      id: "student-pagamentos",
+      label: "Pagamentos",
+      href: `/consultoria/${consultancySlug}/pagamentos`,
+      iconName: "prescriptions",
+    });
   }
 
   if (roles.includes("PERSONAL")) {

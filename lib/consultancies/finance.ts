@@ -1390,3 +1390,590 @@ export async function getStudentChargeDetail(params: {
     }
   }
 }
+
+// ============================================================================
+// STUDENT READ & RECEIPT SUBMISSION SERVICES FOR T100C
+// ============================================================================
+
+export type StudentChargeItem = {
+  publicId: string;
+  title: string;
+  amountCents: number;
+  currencyCode: string;
+  dueOn: string;
+  referencePeriodStart: string | null;
+  referencePeriodEnd: string | null;
+  blocksAccess: boolean;
+  state: ChargePersistedState;
+  derivedStatus: StudentChargeDerivedStatus;
+  createdAt: string;
+};
+
+export type StudentChargesListResult = {
+  charges: StudentChargeItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type GetStudentChargesPageParams = {
+  consultancyId: number;
+  studentMembershipId: number;
+  view?: "pending" | "history";
+  page?: number;
+  pageSize?: number;
+};
+
+/**
+ * Lists charges belonging exclusively to the authenticated student's active membership.
+ * - view === "pending": OPEN charges with no confirmed payment (PENDING, OVERDUE, UNDER_REVIEW).
+ *   Ordered by due_on ASC, created_at DESC, id DESC (most urgent due dates first).
+ * - view === "history": CANCELED charges or charges with confirmed payment (PAID, CANCELED).
+ *   Ordered by due_on DESC, created_at DESC, id DESC.
+ */
+export async function getStudentChargesPage(
+  params: GetStudentChargesPageParams
+): Promise<StudentChargesListResult> {
+  const { consultancyId, studentMembershipId, view = "pending" } = params;
+
+  if (
+    !consultancyId ||
+    typeof consultancyId !== "number" ||
+    consultancyId <= 0 ||
+    !studentMembershipId ||
+    typeof studentMembershipId !== "number" ||
+    studentMembershipId <= 0
+  ) {
+    return { charges: [], total: 0, page: 1, pageSize: 20, totalPages: 1 };
+  }
+
+  const pageSize = 20;
+  const rawPage = Number(params.page);
+  const page = !isNaN(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
+  const offset = (page - 1) * pageSize;
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+
+    // 1. Get billing timezone for localToday
+    const [settingsRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT billing_timezone FROM consultancy_finance_settings WHERE consultancy_id = ? LIMIT 1;`,
+      [consultancyId]
+    );
+    const billingTimezone =
+      Array.isArray(settingsRows) && settingsRows.length > 0 && settingsRows[0].billing_timezone
+        ? String(settingsRows[0].billing_timezone)
+        : "America/Sao_Paulo";
+
+    const localToday = getConsultancyLocalDate(billingTimezone);
+
+    // 2. Build WHERE and ORDER conditions strictly isolated to student's membership
+    const isHistory = view === "history";
+    const whereConditions = [
+      "sc.consultancy_id = ?",
+      "sc.student_membership_id = ?",
+    ];
+    const queryParams: (string | number)[] = [consultancyId, studentMembershipId];
+
+    if (isHistory) {
+      whereConditions.push(
+        "(sc.state = 'CANCELED' OR EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id))"
+      );
+    } else {
+      whereConditions.push(
+        "sc.state = 'OPEN'",
+        "NOT EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id)"
+      );
+    }
+
+    const whereSql = whereConditions.join(" AND ");
+    const orderSql = isHistory
+      ? "ORDER BY sc.due_on DESC, sc.created_at DESC, sc.id DESC"
+      : "ORDER BY sc.due_on ASC, sc.created_at DESC, sc.id DESC";
+
+    // 3. Count query
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM student_charges sc
+      WHERE ${whereSql};
+    `;
+
+    const [countRows] = await connection.execute<RowDataPacket[]>(countSql, queryParams);
+    const total = Array.isArray(countRows) && countRows.length > 0 ? Number(countRows[0].total) || 0 : 0;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    if (total === 0) {
+      return { charges: [], total: 0, page, pageSize, totalPages: 1 };
+    }
+
+    // 4. Paginated list query with EXISTS subqueries (no N+1)
+    const listSql = `
+      SELECT
+        sc.public_id AS charge_public_id,
+        sc.title,
+        sc.amount_cents,
+        sc.currency_code,
+        DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+        DATE_FORMAT(sc.reference_period_start, '%Y-%m-%d') AS reference_period_start,
+        DATE_FORMAT(sc.reference_period_end, '%Y-%m-%d') AS reference_period_end,
+        sc.blocks_access,
+        sc.state,
+        sc.created_at,
+        EXISTS (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id) AS has_payment,
+        EXISTS (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED') AS has_submitted_receipt
+      FROM student_charges sc
+      WHERE ${whereSql}
+      ${orderSql}
+      LIMIT ${pageSize} OFFSET ${offset};
+    `;
+
+    const [rows] = await connection.execute<RowDataPacket[]>(listSql, queryParams);
+
+    if (!Array.isArray(rows)) {
+      return { charges: [], total, page, pageSize, totalPages };
+    }
+
+    const charges: StudentChargeItem[] = rows.map((r) => {
+      const derivedStatus = deriveStudentChargeStatus({
+        state: r.state as ChargePersistedState,
+        dueOn: String(r.due_on),
+        localToday,
+        hasConfirmedPayment: Boolean(r.has_payment),
+        hasSubmittedReceipt: Boolean(r.has_submitted_receipt),
+      });
+
+      return {
+        publicId: String(r.charge_public_id),
+        title: String(r.title),
+        amountCents: Number(r.amount_cents),
+        currencyCode: String(r.currency_code),
+        dueOn: String(r.due_on),
+        referencePeriodStart: r.reference_period_start ? String(r.reference_period_start) : null,
+        referencePeriodEnd: r.reference_period_end ? String(r.reference_period_end) : null,
+        blocksAccess: Boolean(r.blocks_access),
+        state: r.state as ChargePersistedState,
+        derivedStatus,
+        createdAt: String(r.created_at),
+      };
+    });
+
+    return { charges, total, page, pageSize, totalPages };
+  } catch {
+    return { charges: [], total: 0, page: 1, pageSize: 20, totalPages: 1 };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type StudentPaymentChargeDetail = {
+  publicId: string;
+  title: string;
+  description: string | null;
+  amountCents: number;
+  currencyCode: string;
+  dueOn: string;
+  referencePeriodStart: string | null;
+  referencePeriodEnd: string | null;
+  blocksAccess: boolean;
+  state: ChargePersistedState;
+  derivedStatus: StudentChargeDerivedStatus;
+  createdAt: string;
+  isPaid: boolean;
+  paidAmountCents: number | null;
+  paidConfirmedAt: string | null;
+  hasSubmittedReceipt: boolean;
+  hasPreviousRejection: boolean;
+  previousRejectionReason: string | null;
+  pixSettings: {
+    pixKeyType: PixKeyType;
+    pixKey: string;
+    pixReceiverName: string;
+    paymentInstructions: string | null;
+  } | null;
+};
+
+/**
+ * Retrieves charge details for student resolution with Pix instructions and receipt submission state.
+ * Validates strictly that the charge belongs to the student's own membership and active consultancy.
+ */
+export async function getStudentChargePaymentDetail(params: {
+  consultancyId: number;
+  studentMembershipId: number;
+  chargePublicId: string;
+}): Promise<StudentPaymentChargeDetail | null> {
+  const { consultancyId, studentMembershipId, chargePublicId } = params;
+
+  if (
+    !consultancyId ||
+    consultancyId <= 0 ||
+    !studentMembershipId ||
+    studentMembershipId <= 0 ||
+    !chargePublicId?.trim()
+  ) {
+    return null;
+  }
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+
+    // 1. Get billing timezone
+    const [settingsRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        pix_key_type,
+        pix_key,
+        pix_receiver_name,
+        payment_instructions,
+        billing_timezone
+       FROM consultancy_finance_settings
+       WHERE consultancy_id = ?
+       LIMIT 1;`,
+      [consultancyId]
+    );
+
+    const financeSettings =
+      Array.isArray(settingsRows) && settingsRows.length > 0
+        ? settingsRows[0]
+        : null;
+
+    const billingTimezone =
+      financeSettings && financeSettings.billing_timezone
+        ? String(financeSettings.billing_timezone)
+        : "America/Sao_Paulo";
+
+    const localToday = getConsultancyLocalDate(billingTimezone);
+
+    // 2. Query charge with own student membership guarantee
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        sc.id AS internal_charge_id,
+        sc.public_id AS charge_public_id,
+        sc.title,
+        sc.description,
+        sc.amount_cents,
+        sc.currency_code,
+        DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+        DATE_FORMAT(sc.reference_period_start, '%Y-%m-%d') AS reference_period_start,
+        DATE_FORMAT(sc.reference_period_end, '%Y-%m-%d') AS reference_period_end,
+        sc.blocks_access,
+        sc.state,
+        sc.created_at,
+        sp.amount_cents AS payment_amount_cents,
+        DATE_FORMAT(sp.confirmed_at, '%Y-%m-%d %H:%i:%s') AS payment_confirmed_at,
+        EXISTS (
+          SELECT 1 FROM student_payment_receipts spr
+          WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED'
+        ) AS has_submitted_receipt
+       FROM student_charges sc
+       LEFT JOIN student_payments sp ON sp.charge_id = sc.id
+       WHERE sc.public_id = ?
+         AND sc.consultancy_id = ?
+         AND sc.student_membership_id = ?
+       LIMIT 1;`,
+      [chargePublicId.trim(), consultancyId, studentMembershipId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return null;
+    }
+
+    const r = rows[0];
+    const internalChargeId = Number(r.internal_charge_id);
+    const hasPayment = r.payment_amount_cents !== null && r.payment_amount_cents !== undefined;
+    const hasSubmittedReceipt = Boolean(r.has_submitted_receipt);
+    const state = r.state as ChargePersistedState;
+
+    const derivedStatus = deriveStudentChargeStatus({
+      state,
+      dueOn: String(r.due_on),
+      localToday,
+      hasConfirmedPayment: hasPayment,
+      hasSubmittedReceipt,
+    });
+
+    // Check latest receipt for previous rejection notice if not currently submitted/paid
+    let hasPreviousRejection = false;
+    let previousRejectionReason: string | null = null;
+
+    if (!hasPayment && !hasSubmittedReceipt && state === "OPEN") {
+      const [latestReceiptRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT status, rejection_reason
+         FROM student_payment_receipts
+         WHERE charge_id = ?
+         ORDER BY id DESC
+         LIMIT 1;`,
+        [internalChargeId]
+      );
+
+      if (Array.isArray(latestReceiptRows) && latestReceiptRows.length > 0) {
+        if (latestReceiptRows[0].status === "REJECTED") {
+          hasPreviousRejection = true;
+          previousRejectionReason = latestReceiptRows[0].rejection_reason
+            ? String(latestReceiptRows[0].rejection_reason)
+            : null;
+        }
+      }
+    }
+
+    // Pix settings are exposed only when charge is open and unpaid, returning strictly payment fields
+    let pixSettings: StudentPaymentChargeDetail["pixSettings"] = null;
+    if (financeSettings && state === "OPEN" && !hasPayment) {
+      pixSettings = {
+        pixKeyType: financeSettings.pix_key_type as PixKeyType,
+        pixKey: String(financeSettings.pix_key),
+        pixReceiverName: String(financeSettings.pix_receiver_name),
+        paymentInstructions: financeSettings.payment_instructions
+          ? String(financeSettings.payment_instructions)
+          : null,
+      };
+    }
+
+    return {
+      publicId: String(r.charge_public_id),
+      title: String(r.title),
+      description: r.description ? String(r.description) : null,
+      amountCents: Number(r.amount_cents),
+      currencyCode: String(r.currency_code),
+      dueOn: String(r.due_on),
+      referencePeriodStart: r.reference_period_start ? String(r.reference_period_start) : null,
+      referencePeriodEnd: r.reference_period_end ? String(r.reference_period_end) : null,
+      blocksAccess: Boolean(r.blocks_access),
+      state,
+      derivedStatus,
+      createdAt: String(r.created_at),
+      isPaid: hasPayment,
+      paidAmountCents: hasPayment ? Number(r.payment_amount_cents) : null,
+      paidConfirmedAt: r.payment_confirmed_at ? String(r.payment_confirmed_at) : null,
+      hasSubmittedReceipt,
+      hasPreviousRejection,
+      previousRejectionReason,
+      pixSettings,
+    };
+  } catch {
+    return null;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type SubmitReceiptParams = {
+  consultancyId: number;
+  studentMembershipId: number;
+  userId: number;
+  chargePublicId: string;
+  fileStorageKey: string;
+  originalFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  fileSha256: string;
+};
+
+export type SubmitReceiptResult = {
+  success: boolean;
+  receiptPublicId?: string;
+  error?: string;
+  code?:
+    | "NOT_FOUND"
+    | "CHARGE_CANCELED"
+    | "ALREADY_PAID"
+    | "ALREADY_SUBMITTED"
+    | "SETTINGS_MISSING"
+    | "DB_ERROR";
+};
+
+/**
+ * Transactionally inserts a student payment receipt in SUBMITTED status with row-level charge locking.
+ * Enforces:
+ * 1. Charge exists and strictly belongs to the student's active membership and consultancy.
+ * 2. Charge is in OPEN state (cannot submit to canceled charge).
+ * 3. Charge has no existing confirmed payment (cannot submit to already paid charge).
+ * 4. Charge has no existing receipt in SUBMITTED status (serializes concurrent uploads).
+ * 5. Consultancy finance settings exist.
+ * 6. Atomically inserts audit event STUDENT_PAYMENT_RECEIPT_SUBMITTED in the same transaction.
+ *
+ * CRITICAL: This function NEVER inserts into student_payments and NEVER marks a charge as PAID.
+ */
+export async function submitStudentPaymentReceipt(
+  params: SubmitReceiptParams
+): Promise<SubmitReceiptResult> {
+  const {
+    consultancyId,
+    studentMembershipId,
+    userId,
+    chargePublicId,
+    fileStorageKey,
+    originalFileName,
+    mimeType,
+    sizeBytes,
+    fileSha256,
+  } = params;
+
+  if (
+    !consultancyId ||
+    consultancyId <= 0 ||
+    !studentMembershipId ||
+    studentMembershipId <= 0 ||
+    !userId ||
+    userId <= 0 ||
+    !chargePublicId?.trim() ||
+    !fileStorageKey?.trim() ||
+    !originalFileName?.trim() ||
+    !mimeType?.trim() ||
+    !sizeBytes ||
+    sizeBytes <= 0 ||
+    !fileSha256?.trim()
+  ) {
+    return { success: false, code: "DB_ERROR", error: "Parâmetros de comprovante inválidos." };
+  }
+
+  let connection: PoolConnection | null = null;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Lock charge row FOR UPDATE and evaluate concurrent state
+    const [chargeRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        sc.id,
+        sc.state,
+        sc.consultancy_id,
+        sc.student_membership_id,
+        (SELECT 1 FROM student_payments sp WHERE sp.charge_id = sc.id LIMIT 1) AS payment_exists,
+        (SELECT 1 FROM student_payment_receipts spr WHERE spr.charge_id = sc.id AND spr.status = 'SUBMITTED' LIMIT 1) AS submitted_exists
+       FROM student_charges sc
+       WHERE sc.public_id = ?
+         AND sc.consultancy_id = ?
+         AND sc.student_membership_id = ?
+       FOR UPDATE;`,
+      [chargePublicId.trim(), consultancyId, studentMembershipId]
+    );
+
+    if (!Array.isArray(chargeRows) || chargeRows.length === 0) {
+      await connection.rollback();
+      return { success: false, code: "NOT_FOUND", error: "Cobrança não encontrada para este aluno." };
+    }
+
+    const charge = chargeRows[0];
+    const internalChargeId = Number(charge.id);
+
+    if (charge.state === "CANCELED") {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "CHARGE_CANCELED",
+        error: "Esta cobrança foi cancelada e não aceita envio de comprovantes.",
+      };
+    }
+
+    if (charge.payment_exists) {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "ALREADY_PAID",
+        error: "Esta cobrança já foi confirmada como paga.",
+      };
+    }
+
+    if (charge.submitted_exists) {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "ALREADY_SUBMITTED",
+        error: "Já existe um comprovante em análise para esta cobrança. Aguarde a validação da consultoria.",
+      };
+    }
+
+    // 2. Re-verify finance settings exist
+    const [settingsRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM consultancy_finance_settings WHERE consultancy_id = ? LIMIT 1;`,
+      [consultancyId]
+    );
+
+    if (!Array.isArray(settingsRows) || settingsRows.length === 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "SETTINGS_MISSING",
+        error: "A consultoria ainda não configurou as informações de pagamento Pix.",
+      };
+    }
+
+    // 3. Insert student_payment_receipts row (status = SUBMITTED only)
+    const receiptPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO student_payment_receipts (
+        public_id,
+        consultancy_id,
+        charge_id,
+        submitted_by_user_id,
+        file_storage_key,
+        original_file_name,
+        mime_type,
+        size_bytes,
+        file_sha256,
+        status,
+        submitted_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED', UTC_TIMESTAMP(3));`,
+      [
+        receiptPublicId,
+        consultancyId,
+        internalChargeId,
+        userId,
+        fileStorageKey.trim(),
+        originalFileName.trim().slice(0, 255),
+        mimeType.trim().slice(0, 100),
+        sizeBytes,
+        fileSha256.trim().slice(0, 64),
+      ]
+    );
+
+    // 4. Record audit event atomically in the same transaction
+    const auditPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (?, ?, ?, 'STUDENT_PAYMENT_RECEIPT_SUBMITTED', 'STUDENT_PAYMENT_RECEIPT', ?, ?, UTC_TIMESTAMP(3));`,
+      [
+        auditPublicId,
+        userId,
+        consultancyId,
+        receiptPublicId,
+        JSON.stringify({
+          chargePublicId: chargePublicId.trim(),
+          receiptPublicId,
+        }),
+      ]
+    );
+
+    await connection.commit();
+    return { success: true, receiptPublicId };
+  } catch {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    return {
+      success: false,
+      code: "DB_ERROR",
+      error: "Ocorreu um erro ao registrar o comprovante de pagamento no banco de dados.",
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}

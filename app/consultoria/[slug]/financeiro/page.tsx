@@ -177,13 +177,23 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
           </div>
 
           {/* 4. Em análise */}
-          <div className="p-4 sm:p-5 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-1">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Em análise</p>
-            <p className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
+          <Link
+            href={`/consultoria/${slug}/financeiro/comprovantes`}
+            className="p-4 sm:p-5 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-1 hover:border-emerald-300 hover:shadow-sm transition group block"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider group-hover:text-emerald-700 transition">
+                Em análise
+              </p>
+              <svg className="w-3.5 h-3.5 text-zinc-400 group-hover:text-emerald-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <p className={`text-xl sm:text-2xl font-bold tracking-tight ${dashboard.underReviewCount > 0 ? "text-amber-600" : "text-zinc-900"}`}>
               {dashboard.underReviewCount}
             </p>
-            <p className="text-[11px] text-zinc-400">Comprovantes pendentes</p>
-          </div>
+            <p className="text-[11px] text-zinc-400">Ver fila de comprovantes</p>
+          </Link>
         </div>
 
         {/* Seção Alternável: Configurações Pix OU Lista de Cobranças */}

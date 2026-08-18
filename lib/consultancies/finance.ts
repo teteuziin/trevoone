@@ -1977,3 +1977,667 @@ export async function submitStudentPaymentReceipt(
     }
   }
 }
+
+export type PaymentReceiptQueueItem = {
+  receiptPublicId: string;
+  receiptStatus: ReceiptStatus;
+  originalFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  submittedAt: string;
+  chargePublicId: string;
+  chargeTitle: string;
+  amountCents: number;
+  currencyCode: string;
+  dueOn: string;
+  blocksAccess: boolean;
+  studentName: string;
+  studentEmail: string;
+  studentMembershipPublicId: string;
+};
+
+export type SubmittedPaymentReceiptsPageResult = {
+  receipts: PaymentReceiptQueueItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+/**
+ * Returns paginated list of SUBMITTED payment receipts for admin review queue.
+ * Scoped strictly to the authenticated consultancy.
+ */
+export async function getSubmittedPaymentReceiptsPage(params: {
+  consultancyId: number;
+  page?: number;
+  pageSize?: number;
+}): Promise<SubmittedPaymentReceiptsPageResult> {
+  const { consultancyId, page = 1, pageSize = 20 } = params;
+  const safePage = Math.max(1, Math.floor(page));
+  const safePageSize = Math.max(1, Math.min(100, Math.floor(pageSize)));
+  const offset = (safePage - 1) * safePageSize;
+
+  const connection = await getDbConnection();
+
+  try {
+    // 1. Get total count
+    const [countRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total
+       FROM student_payment_receipts spr
+       WHERE spr.consultancy_id = ?
+         AND spr.status = 'SUBMITTED'`,
+      [consultancyId]
+    );
+    const total = Number(countRows[0]?.total ?? 0);
+    const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+
+    if (total === 0) {
+      return {
+        receipts: [],
+        total: 0,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages: 1,
+      };
+    }
+
+    // 2. Query page items with joined charge and student info
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+         spr.public_id AS receipt_public_id,
+         spr.status AS receipt_status,
+         spr.original_file_name,
+         spr.mime_type,
+         spr.size_bytes,
+         spr.submitted_at,
+         sc.public_id AS charge_public_id,
+         sc.title AS charge_title,
+         sc.amount_cents,
+         sc.currency_code,
+         DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+         sc.blocks_access,
+         u.full_name AS student_name,
+         u.email AS student_email,
+         cm.public_id AS student_membership_public_id
+       FROM student_payment_receipts spr
+       JOIN student_charges sc ON sc.id = spr.charge_id
+       JOIN consultancy_members cm ON cm.id = sc.student_membership_id
+       JOIN users u ON u.id = cm.user_id
+       WHERE spr.consultancy_id = ?
+         AND spr.status = 'SUBMITTED'
+       ORDER BY spr.submitted_at ASC, spr.id ASC
+       LIMIT ? OFFSET ?`,
+      [consultancyId, String(safePageSize), String(offset)]
+    );
+
+    const receipts: PaymentReceiptQueueItem[] = (rows as RowDataPacket[]).map((r) => ({
+      receiptPublicId: r.receipt_public_id,
+      receiptStatus: r.receipt_status as ReceiptStatus,
+      originalFileName: r.original_file_name,
+      mimeType: r.mime_type,
+      sizeBytes: Number(r.size_bytes),
+      submittedAt: r.submitted_at instanceof Date ? r.submitted_at.toISOString() : String(r.submitted_at),
+      chargePublicId: r.charge_public_id,
+      chargeTitle: r.charge_title,
+      amountCents: Number(r.amount_cents),
+      currencyCode: r.currency_code,
+      dueOn: String(r.due_on),
+      blocksAccess: Boolean(r.blocks_access),
+      studentName: r.student_name,
+      studentEmail: r.student_email,
+      studentMembershipPublicId: r.student_membership_public_id,
+    }));
+
+    return {
+      receipts,
+      total,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages,
+    };
+  } finally {
+    connection.release();
+  }
+}
+
+export type PaymentReceiptReviewDetail = {
+  receiptPublicId: string;
+  receiptStatus: ReceiptStatus;
+  originalFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  fileSha256: string;
+  fileStorageKey: string;
+  submittedAt: string;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  reviewerName: string | null;
+  chargePublicId: string;
+  chargeTitle: string;
+  chargeDescription: string | null;
+  amountCents: number;
+  currencyCode: string;
+  dueOn: string;
+  chargeState: ChargePersistedState;
+  chargeDerivedStatus: StudentChargeDerivedStatus;
+  blocksAccess: boolean;
+  studentName: string;
+  studentEmail: string;
+  studentMembershipPublicId: string;
+  hasPayment: boolean;
+};
+
+/**
+ * Returns review detail for a payment receipt.
+ * Scoped strictly to the authenticated consultancy.
+ */
+export async function getPaymentReceiptReviewDetail(params: {
+  consultancyId: number;
+  receiptPublicId: string;
+}): Promise<PaymentReceiptReviewDetail | null> {
+  const { consultancyId, receiptPublicId } = params;
+  if (!receiptPublicId || typeof receiptPublicId !== "string" || !receiptPublicId.trim()) {
+    return null;
+  }
+
+  const connection = await getDbConnection();
+
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+         spr.id AS receipt_id,
+         spr.public_id AS receipt_public_id,
+         spr.status AS receipt_status,
+         spr.original_file_name,
+         spr.mime_type,
+         spr.size_bytes,
+         spr.file_sha256,
+         spr.file_storage_key,
+         spr.submitted_at,
+         spr.reviewed_at,
+         spr.rejection_reason,
+         reviewer.full_name AS reviewer_name,
+         sc.id AS charge_id,
+         sc.public_id AS charge_public_id,
+         sc.title AS charge_title,
+         sc.description AS charge_description,
+         sc.amount_cents,
+         sc.currency_code,
+         DATE_FORMAT(sc.due_on, '%Y-%m-%d') AS due_on,
+         sc.state AS charge_state,
+         sc.blocks_access,
+         u.full_name AS student_name,
+         u.email AS student_email,
+         cm.public_id AS student_membership_public_id,
+         (SELECT COUNT(*) FROM student_payments sp WHERE sp.charge_id = sc.id) AS payment_count,
+         cfs.billing_timezone
+       FROM student_payment_receipts spr
+       JOIN student_charges sc ON sc.id = spr.charge_id
+       JOIN consultancy_members cm ON cm.id = sc.student_membership_id
+       JOIN users u ON u.id = cm.user_id
+       LEFT JOIN users reviewer ON reviewer.id = spr.reviewed_by_user_id
+       LEFT JOIN consultancy_finance_settings cfs ON cfs.consultancy_id = spr.consultancy_id
+       WHERE spr.consultancy_id = ?
+         AND spr.public_id = ?
+       LIMIT 1`,
+      [consultancyId, receiptPublicId.trim()]
+    );
+
+    if (!rows || rows.length === 0) {
+      return null;
+    }
+
+    const r = rows[0];
+    const hasPayment = Number(r.payment_count) > 0;
+    const persistedState = r.charge_state as ChargePersistedState;
+    const receiptStatus = r.receipt_status as ReceiptStatus;
+    const timeZone = r.billing_timezone || "America/Sao_Paulo";
+    const localToday = getConsultancyLocalDate(timeZone);
+    const dueOnStr = String(r.due_on);
+
+    let derivedStatus: StudentChargeDerivedStatus = "PENDING";
+    if (persistedState === "CANCELED") {
+      derivedStatus = "CANCELED";
+    } else if (hasPayment) {
+      derivedStatus = "PAID";
+    } else if (receiptStatus === "SUBMITTED") {
+      derivedStatus = "UNDER_REVIEW";
+    } else if (dueOnStr < localToday) {
+      derivedStatus = "OVERDUE";
+    } else {
+      derivedStatus = "PENDING";
+    }
+
+    return {
+      receiptPublicId: r.receipt_public_id,
+      receiptStatus,
+      originalFileName: r.original_file_name,
+      mimeType: r.mime_type,
+      sizeBytes: Number(r.size_bytes),
+      fileSha256: r.file_sha256,
+      fileStorageKey: r.file_storage_key,
+      submittedAt: r.submitted_at instanceof Date ? r.submitted_at.toISOString() : String(r.submitted_at),
+      reviewedAt: r.reviewed_at instanceof Date ? r.reviewed_at.toISOString() : r.reviewed_at ? String(r.reviewed_at) : null,
+      rejectionReason: r.rejection_reason || null,
+      reviewerName: r.reviewer_name || null,
+      chargePublicId: r.charge_public_id,
+      chargeTitle: r.charge_title,
+      chargeDescription: r.charge_description || null,
+      amountCents: Number(r.amount_cents),
+      currencyCode: r.currency_code,
+      dueOn: dueOnStr,
+      chargeState: persistedState,
+      chargeDerivedStatus: derivedStatus,
+      blocksAccess: Boolean(r.blocks_access),
+      studentName: r.student_name,
+      studentEmail: r.student_email,
+      studentMembershipPublicId: r.student_membership_public_id,
+      hasPayment,
+    };
+  } finally {
+    connection.release();
+  }
+}
+
+export type RejectPaymentReceiptResult =
+  | { success: true; receiptPublicId: string }
+  | {
+      success: false;
+      code:
+        | "NOT_FOUND"
+        | "INVALID_REASON"
+        | "CHARGE_CANCELED"
+        | "ALREADY_REVIEWED"
+        | "ALREADY_PAID"
+        | "DB_ERROR";
+      error: string;
+    };
+
+/**
+ * Rejects a submitted payment receipt.
+ * Enforces lock order: charge FOR UPDATE -> receipt FOR UPDATE.
+ * Rejection reason is required (1-255 characters).
+ * Atomic audit event STUDENT_PAYMENT_RECEIPT_REJECTED.
+ */
+export async function rejectStudentPaymentReceipt(params: {
+  consultancyId: number;
+  userId: number;
+  receiptPublicId: string;
+  rejectionReason: string;
+}): Promise<RejectPaymentReceiptResult> {
+  const { consultancyId, userId, receiptPublicId, rejectionReason } = params;
+
+  if (!receiptPublicId || typeof receiptPublicId !== "string" || !receiptPublicId.trim()) {
+    return { success: false, code: "NOT_FOUND", error: "Comprovante não encontrado." };
+  }
+
+  const trimmedReason = typeof rejectionReason === "string" ? rejectionReason.trim() : "";
+  if (!trimmedReason) {
+    return {
+      success: false,
+      code: "INVALID_REASON",
+      error: "O motivo da rejeição é obrigatório.",
+    };
+  }
+
+  if (trimmedReason.length > 255) {
+    return {
+      success: false,
+      code: "INVALID_REASON",
+      error: "O motivo da rejeição deve ter no máximo 255 caracteres.",
+    };
+  }
+
+  let connection: PoolConnection | null = null;
+
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Lock charge row first (Lock order step 1: charge FOR UPDATE)
+    const [chargeRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT sc.id, sc.public_id, sc.state
+       FROM student_charges sc
+       WHERE sc.id = (
+         SELECT spr.charge_id
+         FROM student_payment_receipts spr
+         WHERE spr.public_id = ? AND spr.consultancy_id = ?
+       )
+       AND sc.consultancy_id = ?
+       FOR UPDATE`,
+      [receiptPublicId.trim(), consultancyId, consultancyId]
+    );
+
+    if (!chargeRows || chargeRows.length === 0) {
+      await connection.rollback();
+      return { success: false, code: "NOT_FOUND", error: "Cobrança associada não encontrada." };
+    }
+
+    const lockedCharge = chargeRows[0];
+    if (lockedCharge.state === "CANCELED") {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "CHARGE_CANCELED",
+        error: "Esta cobrança se encontra cancelada.",
+      };
+    }
+
+    // 2. Lock receipt row (Lock order step 2: receipt FOR UPDATE)
+    const [receiptRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT spr.id, spr.public_id, spr.status, spr.charge_id
+       FROM student_payment_receipts spr
+       WHERE spr.public_id = ? AND spr.consultancy_id = ?
+       FOR UPDATE`,
+      [receiptPublicId.trim(), consultancyId]
+    );
+
+    if (!receiptRows || receiptRows.length === 0) {
+      await connection.rollback();
+      return { success: false, code: "NOT_FOUND", error: "Comprovante não encontrado." };
+    }
+
+    const lockedReceipt = receiptRows[0];
+    if (lockedReceipt.status !== "SUBMITTED") {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "ALREADY_REVIEWED",
+        error: "Este comprovante já foi revisado anteriormente.",
+      };
+    }
+
+    // 3. Verify no payment already exists for this charge
+    const [paymentRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM student_payments WHERE charge_id = ? LIMIT 1 FOR UPDATE`,
+      [lockedCharge.id]
+    );
+
+    if (paymentRows && paymentRows.length > 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "ALREADY_PAID",
+        error: "Esta cobrança já possui um pagamento confirmado.",
+      };
+    }
+
+    // 4. Update receipt to REJECTED
+    await connection.execute(
+      `UPDATE student_payment_receipts
+       SET status = 'REJECTED',
+           reviewed_by_user_id = ?,
+           reviewed_at = UTC_TIMESTAMP(3),
+           rejection_reason = ?
+       WHERE id = ?`,
+      [userId, trimmedReason, lockedReceipt.id]
+    );
+
+    // 5. Atomic audit event
+    const auditPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO audit_events (
+         public_id,
+         actor_user_id,
+         consultancy_id,
+         action,
+         target_type,
+         target_public_id,
+         metadata_json,
+         created_at
+       ) VALUES (?, ?, ?, 'STUDENT_PAYMENT_RECEIPT_REJECTED', 'STUDENT_PAYMENT_RECEIPT', ?, ?, UTC_TIMESTAMP(3))`,
+      [
+        auditPublicId,
+        userId,
+        consultancyId,
+        lockedReceipt.public_id,
+        JSON.stringify({
+          chargePublicId: lockedCharge.public_id,
+          receiptPublicId: lockedReceipt.public_id,
+          rejectionReason: trimmedReason,
+        }),
+      ]
+    );
+
+    await connection.commit();
+    return { success: true, receiptPublicId: lockedReceipt.public_id };
+  } catch {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    return {
+      success: false,
+      code: "DB_ERROR",
+      error: "Ocorreu um erro ao rejeitar o comprovante no banco de dados.",
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type ApprovePaymentReceiptResult =
+  | { success: true; receiptPublicId: string; paymentPublicId: string }
+  | {
+      success: false;
+      code:
+        | "NOT_FOUND"
+        | "CHARGE_CANCELED"
+        | "ALREADY_REVIEWED"
+        | "ALREADY_PAID"
+        | "DB_ERROR";
+      error: string;
+    };
+
+/**
+ * Approves a submitted payment receipt and manually confirms the payment in MySQL.
+ * Enforces lock order: charge FOR UPDATE -> receipt FOR UPDATE.
+ * Atomically updates receipt to APPROVED and inserts exactly 1 student_payments row.
+ * Monetary amount and currency are strictly snapshot from the locked charge row.
+ * Payment method is hardcoded server-side to PIX_MANUAL.
+ * Persisted student_charges.state remains OPEN (derived status becomes PAID via student_payments).
+ */
+export async function approveStudentPaymentReceipt(params: {
+  consultancyId: number;
+  userId: number;
+  receiptPublicId: string;
+}): Promise<ApprovePaymentReceiptResult> {
+  const { consultancyId, userId, receiptPublicId } = params;
+
+  if (!receiptPublicId || typeof receiptPublicId !== "string" || !receiptPublicId.trim()) {
+    return { success: false, code: "NOT_FOUND", error: "Comprovante não encontrado." };
+  }
+
+  let connection: PoolConnection | null = null;
+
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Lock charge row first (Lock order step 1: charge FOR UPDATE)
+    const [chargeRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT sc.id, sc.public_id, sc.state, sc.amount_cents, sc.currency_code
+       FROM student_charges sc
+       WHERE sc.id = (
+         SELECT spr.charge_id
+         FROM student_payment_receipts spr
+         WHERE spr.public_id = ? AND spr.consultancy_id = ?
+       )
+       AND sc.consultancy_id = ?
+       FOR UPDATE`,
+      [receiptPublicId.trim(), consultancyId, consultancyId]
+    );
+
+    if (!chargeRows || chargeRows.length === 0) {
+      await connection.rollback();
+      return { success: false, code: "NOT_FOUND", error: "Cobrança associada não encontrada." };
+    }
+
+    const lockedCharge = chargeRows[0];
+    if (lockedCharge.state === "CANCELED") {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "CHARGE_CANCELED",
+        error: "Esta cobrança se encontra cancelada.",
+      };
+    }
+
+    // 2. Lock receipt row (Lock order step 2: receipt FOR UPDATE)
+    const [receiptRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT spr.id, spr.public_id, spr.status, spr.charge_id
+       FROM student_payment_receipts spr
+       WHERE spr.public_id = ? AND spr.consultancy_id = ?
+       FOR UPDATE`,
+      [receiptPublicId.trim(), consultancyId]
+    );
+
+    if (!receiptRows || receiptRows.length === 0) {
+      await connection.rollback();
+      return { success: false, code: "NOT_FOUND", error: "Comprovante não encontrado." };
+    }
+
+    const lockedReceipt = receiptRows[0];
+    if (lockedReceipt.status !== "SUBMITTED") {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "ALREADY_REVIEWED",
+        error: "Este comprovante já foi revisado anteriormente.",
+      };
+    }
+
+    // 3. Verify no payment already exists for this charge or receipt
+    const [paymentRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM student_payments WHERE charge_id = ? OR receipt_id = ? LIMIT 1 FOR UPDATE`,
+      [lockedCharge.id, lockedReceipt.id]
+    );
+
+    if (paymentRows && paymentRows.length > 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        code: "ALREADY_PAID",
+        error: "Esta cobrança já possui um pagamento confirmado.",
+      };
+    }
+
+    // 4. Update receipt status to APPROVED
+    await connection.execute(
+      `UPDATE student_payment_receipts
+       SET status = 'APPROVED',
+           reviewed_by_user_id = ?,
+           reviewed_at = UTC_TIMESTAMP(3),
+           rejection_reason = NULL
+       WHERE id = ?`,
+      [userId, lockedReceipt.id]
+    );
+
+    // 5. Insert student_payments row atomically
+    const paymentPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO student_payments (
+         public_id,
+         consultancy_id,
+         charge_id,
+         receipt_id,
+         amount_cents,
+         currency_code,
+         payment_method,
+         confirmed_by_user_id,
+         confirmed_at,
+         created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, 'PIX_MANUAL', ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))`,
+      [
+        paymentPublicId,
+        consultancyId,
+        lockedCharge.id,
+        lockedReceipt.id,
+        lockedCharge.amount_cents,
+        lockedCharge.currency_code,
+        userId,
+      ]
+    );
+
+    // 6. Atomic audit events: receipt approved + payment confirmed
+    const auditReceiptPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO audit_events (
+         public_id,
+         actor_user_id,
+         consultancy_id,
+         action,
+         target_type,
+         target_public_id,
+         metadata_json,
+         created_at
+       ) VALUES (?, ?, ?, 'STUDENT_PAYMENT_RECEIPT_APPROVED', 'STUDENT_PAYMENT_RECEIPT', ?, ?, UTC_TIMESTAMP(3))`,
+      [
+        auditReceiptPublicId,
+        userId,
+        consultancyId,
+        lockedReceipt.public_id,
+        JSON.stringify({
+          chargePublicId: lockedCharge.public_id,
+          receiptPublicId: lockedReceipt.public_id,
+          paymentPublicId,
+        }),
+      ]
+    );
+
+    const auditPaymentPublicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO audit_events (
+         public_id,
+         actor_user_id,
+         consultancy_id,
+         action,
+         target_type,
+         target_public_id,
+         metadata_json,
+         created_at
+       ) VALUES (?, ?, ?, 'STUDENT_PAYMENT_CONFIRMED', 'STUDENT_PAYMENT', ?, ?, UTC_TIMESTAMP(3))`,
+      [
+        auditPaymentPublicId,
+        userId,
+        consultancyId,
+        paymentPublicId,
+        JSON.stringify({
+          chargePublicId: lockedCharge.public_id,
+          receiptPublicId: lockedReceipt.public_id,
+          paymentPublicId,
+          amountCents: Number(lockedCharge.amount_cents),
+          paymentMethod: "PIX_MANUAL",
+        }),
+      ]
+    );
+
+    await connection.commit();
+    return {
+      success: true,
+      receiptPublicId: lockedReceipt.public_id,
+      paymentPublicId,
+    };
+  } catch {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    return {
+      success: false,
+      code: "DB_ERROR",
+      error: "Ocorreu um erro ao aprovar o comprovante e confirmar o pagamento no banco de dados.",
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+

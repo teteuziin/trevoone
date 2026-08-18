@@ -297,3 +297,90 @@ export async function deletePrivateFile(storageKey: string): Promise<boolean> {
     return false;
   }
 }
+
+export type ReadVerifiedPrivateFileParams = {
+  fileStorageKey: string;
+  expectedSizeBytes: number;
+  expectedFileSha256: string;
+  expectedMimeType: string;
+};
+
+export type ReadVerifiedPrivateFileResult = {
+  success: boolean;
+  buffer?: Buffer;
+  mimeType?: SupportedReceiptMimeType;
+  error?: string;
+  code?: "NOT_FOUND" | "INTEGRITY_MISMATCH" | "STORAGE_ERROR";
+};
+
+/**
+ * Reads a private receipt file and strictly re-verifies its integrity before serving:
+ * 1. Safe storage path containment.
+ * 2. Exact file size matching DB metadata.
+ * 3. Exact SHA-256 hash matching DB metadata.
+ * 4. Binary magic bytes signature matching approved receipt types.
+ */
+export async function readVerifiedPrivateFile(
+  params: ReadVerifiedPrivateFileParams
+): Promise<ReadVerifiedPrivateFileResult> {
+  const { fileStorageKey, expectedSizeBytes, expectedFileSha256, expectedMimeType } = params;
+
+  if (!fileStorageKey || !expectedFileSha256 || !expectedSizeBytes || expectedSizeBytes <= 0) {
+    return { success: false, code: "INTEGRITY_MISMATCH", error: "Metadados de arquivo inválidos." };
+  }
+
+  let storageRoot: string;
+  let targetPath: string;
+  try {
+    storageRoot = getPrivateStorageRoot();
+    targetPath = resolveSafeStoragePath(storageRoot, fileStorageKey);
+  } catch {
+    return { success: false, code: "STORAGE_ERROR", error: "Caminho de armazenamento inválido." };
+  }
+
+  let buffer: Buffer;
+  try {
+    buffer = await fs.readFile(/*turbopackIgnore: true*/ targetPath);
+  } catch (err: unknown) {
+    if (typeof err === "object" && err !== null && "code" in err && (err as { code: string }).code === "ENOENT") {
+      return { success: false, code: "NOT_FOUND", error: "Arquivo não encontrado no armazenamento." };
+    }
+    return { success: false, code: "STORAGE_ERROR", error: "Erro ao ler arquivo do armazenamento." };
+  }
+
+  // 1. Size integrity check
+  if (buffer.length !== Number(expectedSizeBytes)) {
+    return {
+      success: false,
+      code: "INTEGRITY_MISMATCH",
+      error: "Inconsistência no tamanho do arquivo armazenado.",
+    };
+  }
+
+  // 2. SHA-256 integrity check
+  const actualSha256 = crypto.createHash("sha256").update(buffer).digest("hex");
+  if (actualSha256.toLowerCase() !== expectedFileSha256.trim().toLowerCase()) {
+    return {
+      success: false,
+      code: "INTEGRITY_MISMATCH",
+      error: "Inconsistência no checksum do arquivo armazenado.",
+    };
+  }
+
+  // 3. Format/magic bytes integrity check
+  const detection = detectReceiptFileType(buffer, expectedMimeType);
+  if (!detection.valid || !detection.mimeType) {
+    return {
+      success: false,
+      code: "INTEGRITY_MISMATCH",
+      error: "O conteúdo do arquivo não corresponde ao formato esperado.",
+    };
+  }
+
+  return {
+    success: true,
+    buffer,
+    mimeType: detection.mimeType,
+  };
+}
+

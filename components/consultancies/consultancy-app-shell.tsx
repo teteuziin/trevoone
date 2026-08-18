@@ -35,25 +35,29 @@ export function ConsultancyAppShell({
     },
   ];
 
-  if (roles.includes("STUDENT")) {
+  const isLearner = roles.includes("STUDENT") || roles.includes("INFLUENCER");
+  if (isLearner) {
     items.push({
-      id: "student-treinos",
+      id: "learner-treinos",
       label: "Treinos",
       href: `/consultoria/${consultancySlug}/treinos`,
       iconName: "training",
     });
     items.push({
-      id: "student-nutricao",
+      id: "learner-nutricao",
       label: "Nutrição",
       href: `/consultoria/${consultancySlug}/nutricao`,
       iconName: "nutrition",
     });
     items.push({
-      id: "student-progresso",
+      id: "learner-progresso",
       label: "Evolução",
       href: `/consultoria/${consultancySlug}/progresso`,
       iconName: "prescriptions",
     });
+  }
+
+  if (roles.includes("STUDENT")) {
     items.push({
       id: "student-pagamentos",
       label: "Pagamentos",

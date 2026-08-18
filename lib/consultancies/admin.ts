@@ -32,6 +32,7 @@ export const ADMIN_ROLE_LABELS: Record<ConsultancyRole, string> = {
   PERSONAL: "Personal",
   NUTRITIONIST: "Nutricionista",
   CONSULTANCY_ADMIN: "Administrador",
+  INFLUENCER: "Influenciador / VIP",
 };
 
 export const MEMBERSHIP_STATUS_LABELS: Record<string, string> = {

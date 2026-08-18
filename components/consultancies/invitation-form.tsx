@@ -179,6 +179,18 @@ export function InvitationForm({ slug }: { slug: string }) {
                 Administrador
               </span>
             </label>
+
+            <label className="flex items-center gap-2.5 p-3 rounded-lg border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors sm:col-span-2">
+              <input
+                type="checkbox"
+                name="roles"
+                value="INFLUENCER"
+                className="w-4 h-4 rounded border-[var(--border-default)] text-[var(--brand)] focus-visible:outline-[var(--brand)] accent-[var(--brand)] cursor-pointer"
+              />
+              <span className="text-xs font-medium text-[var(--text-primary)]">
+                Influenciador / VIP
+              </span>
+            </label>
           </div>
         </div>
 

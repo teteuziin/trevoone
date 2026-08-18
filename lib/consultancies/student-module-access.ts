@@ -59,7 +59,9 @@ export async function resolveStudentModuleAccess(
   }
 
   const isStudent = context.roles.includes("STUDENT");
-  if (!isStudent) {
+  const isInfluencer = context.roles.includes("INFLUENCER");
+
+  if (!isStudent && !isInfluencer) {
     return {
       allowed: false,
       reason: "NOT_STUDENT",
@@ -70,43 +72,56 @@ export async function resolveStudentModuleAccess(
     };
   }
 
-  const onboardingStatus = await getStudentOnboardingStatus(userId, consultancySlug);
+  // If membership has STUDENT role (even if also INFLUENCER), student obligations apply strictly (onboarding & finance)
+  if (isStudent) {
+    const onboardingStatus = await getStudentOnboardingStatus(userId, consultancySlug);
 
-  if (!onboardingStatus.isComplete) {
+    if (!onboardingStatus.isComplete) {
+      return {
+        allowed: false,
+        reason: "ONBOARDING_INCOMPLETE",
+        context,
+        confirmedRequirements: onboardingStatus.confirmedRequirements,
+        totalRequirements: onboardingStatus.totalRequirements,
+        isComplete: false,
+      };
+    }
+
+    // Financial access enforcement for student
+    const financialStatus = await getStudentFinancialAccessState({
+      consultancyId: context.consultancyId,
+      studentMembershipId: context.membershipId,
+    });
+
+    if (financialStatus.isRestricted) {
+      return {
+        allowed: false,
+        reason: "FINANCIALLY_RESTRICTED",
+        context,
+        confirmedRequirements: onboardingStatus.confirmedRequirements,
+        totalRequirements: onboardingStatus.totalRequirements,
+        isComplete: true,
+        blockingCharge: financialStatus.blockingCharge,
+      };
+    }
+
     return {
-      allowed: false,
-      reason: "ONBOARDING_INCOMPLETE",
-      context,
-      confirmedRequirements: onboardingStatus.confirmedRequirements,
-      totalRequirements: onboardingStatus.totalRequirements,
-      isComplete: false,
-    };
-  }
-
-  // Financial access enforcement for student
-  const financialStatus = await getStudentFinancialAccessState({
-    consultancyId: context.consultancyId,
-    studentMembershipId: context.membershipId,
-  });
-
-  if (financialStatus.isRestricted) {
-    return {
-      allowed: false,
-      reason: "FINANCIALLY_RESTRICTED",
+      allowed: true,
+      reason: "ALLOWED",
       context,
       confirmedRequirements: onboardingStatus.confirmedRequirements,
       totalRequirements: onboardingStatus.totalRequirements,
       isComplete: true,
-      blockingCharge: financialStatus.blockingCharge,
     };
   }
 
+  // INFLUENCER-only: not subject to student onboarding or student financial restriction
   return {
     allowed: true,
     reason: "ALLOWED",
     context,
-    confirmedRequirements: onboardingStatus.confirmedRequirements,
-    totalRequirements: onboardingStatus.totalRequirements,
+    confirmedRequirements: 0,
+    totalRequirements: 0,
     isComplete: true,
   };
 }

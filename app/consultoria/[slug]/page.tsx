@@ -32,9 +32,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
   }
 
   const isStudent = context.roles.includes("STUDENT");
+  const isInfluencer = context.roles.includes("INFLUENCER");
   const isPersonal = context.roles.includes("PERSONAL");
   const isNutritionist = context.roles.includes("NUTRITIONIST");
   const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const isLearner = isStudent || isInfluencer;
 
   // Dados existentes resolvidos condicionalmente sem novas queries
   const [studentOnboarding, adminOverview, studentFinancialStatus] = await Promise.all([
@@ -118,8 +120,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* 2. Seção: Seu Acompanhamento (Aluno) */}
-        {isStudent && (
+        {/* 2. Seção: Seu Acompanhamento (Aluno / Influenciador) */}
+        {isLearner && (
           <div className="space-y-4">
             <div className="space-y-1">
               <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
@@ -139,14 +141,14 @@ export default async function ConsultancyPage({ params }: PageProps) {
                       Treinos
                     </h3>
                     <Badge
-                      variant={studentOnboarding?.isComplete ? "success" : "neutral"}
+                      variant={!isStudent || studentOnboarding?.isComplete ? "success" : "neutral"}
                       size="sm"
                     >
-                      {studentOnboarding?.isComplete ? "Liberado" : "Pendente"}
+                      {!isStudent || studentOnboarding?.isComplete ? "Liberado" : "Pendente"}
                     </Badge>
                   </div>
                   <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                    {studentOnboarding?.isComplete
+                    {!isStudent || studentOnboarding?.isComplete
                       ? "Acesse suas fichas ativas de treino, vídeos dos exercícios e orientações."
                       : "Conclua o onboarding para liberar sua ficha de treino prescrita."}
                   </p>
@@ -157,7 +159,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
                     href={`/consultoria/${context.consultancySlug}/treinos`}
                     className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--surface-hover)] hover:bg-[var(--brand-soft)] hover:text-[var(--brand-foreground)] text-[var(--text-primary)] text-xs font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
                   >
-                    {studentOnboarding?.isComplete ? "Acessar treinos" : "Ver módulo"}
+                    {!isStudent || studentOnboarding?.isComplete ? "Acessar treinos" : "Ver módulo"}
                   </Link>
                 </div>
               </div>
@@ -170,14 +172,14 @@ export default async function ConsultancyPage({ params }: PageProps) {
                       Nutrição
                     </h3>
                     <Badge
-                      variant={studentOnboarding?.isComplete ? "success" : "neutral"}
+                      variant={!isStudent || studentOnboarding?.isComplete ? "success" : "neutral"}
                       size="sm"
                     >
-                      {studentOnboarding?.isComplete ? "Liberado" : "Pendente"}
+                      {!isStudent || studentOnboarding?.isComplete ? "Liberado" : "Pendente"}
                     </Badge>
                   </div>
                   <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                    {studentOnboarding?.isComplete
+                    {!isStudent || studentOnboarding?.isComplete
                       ? "Acesse o espaço de nutrição e acompanhamentos da sua consultoria."
                       : "Conclua o onboarding para liberar o acesso ao módulo de nutrição."}
                   </p>
@@ -188,7 +190,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
                     href={`/consultoria/${context.consultancySlug}/nutricao`}
                     className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--surface-hover)] hover:bg-[var(--brand-soft)] hover:text-[var(--brand-foreground)] text-[var(--text-primary)] text-xs font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
                   >
-                    {studentOnboarding?.isComplete ? "Acessar nutrição" : "Ver módulo"}
+                    {!isStudent || studentOnboarding?.isComplete ? "Acessar nutrição" : "Ver módulo"}
                   </Link>
                 </div>
               </div>

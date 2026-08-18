@@ -214,7 +214,7 @@ export async function createStudentOwnProgressEntry(params: {
        WHERE cm.user_id = ?
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
-         AND cmr.role = 'STUDENT'
+         AND cmr.role IN ('STUDENT', 'INFLUENCER')
          AND cm.deleted_at IS NULL
        LIMIT 1;`,
       [userId, access.context.consultancyId]
@@ -339,7 +339,7 @@ export async function createProfessionalProgressEntry(params: {
        WHERE cm.public_id = ?
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
-         AND cmr.role = 'STUDENT'
+         AND cmr.role IN ('STUDENT', 'INFLUENCER')
          AND cm.deleted_at IS NULL
        LIMIT 1;`,
       [studentPublicId.trim(), context.consultancyId]
@@ -475,7 +475,7 @@ export async function getStudentOwnProgressHistory(params: {
        WHERE cm.user_id = ?
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
-         AND cmr.role = 'STUDENT'
+         AND cmr.role IN ('STUDENT', 'INFLUENCER')
          AND cm.deleted_at IS NULL
        LIMIT 1;`,
       [userId, access.context.consultancyId]
@@ -611,7 +611,7 @@ export async function getProfessionalStudentProgressHistory(params: {
        WHERE cm.public_id = ?
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
-         AND cmr.role = 'STUDENT'
+         AND cmr.role IN ('STUDENT', 'INFLUENCER')
          AND cm.deleted_at IS NULL
        LIMIT 1;`,
       [studentPublicId.trim(), context.consultancyId]
@@ -739,7 +739,7 @@ export async function listProfessionalStudentsForProgress(params: {
        JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
        WHERE cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
-         AND cmr.role = 'STUDENT'
+         AND cmr.role IN ('STUDENT', 'INFLUENCER')
          AND cm.deleted_at IS NULL
        ORDER BY u.full_name ASC;`,
       [context.consultancyId]

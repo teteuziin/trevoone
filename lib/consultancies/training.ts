@@ -520,7 +520,7 @@ export async function getActiveTrainingPlanForStudent(
   }
 
   const context = await resolveConsultancyContext(userId, consultancySlug);
-  if (!context || !context.roles.includes("STUDENT")) {
+  if (!context || (!context.roles.includes("STUDENT") && !context.roles.includes("INFLUENCER"))) {
     return null;
   }
 
@@ -938,7 +938,7 @@ export async function listStudentsForPersonal(params: {
       "cm.status = 'ACTIVE'",
       "u.status = 'ACTIVE'",
       "u.deleted_at IS NULL",
-      "cmr.role = 'STUDENT'",
+      "cmr.role IN ('STUDENT', 'INFLUENCER')",
     ];
     const queryParams: (string | number)[] = [context.consultancyId];
 
@@ -1253,7 +1253,7 @@ export async function activateTrainingPlan(params: {
       `SELECT cm.id, cm.public_id, u.full_name, u.email
        FROM consultancy_members cm
        INNER JOIN users u ON u.id = cm.user_id
-       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role IN ('STUDENT', 'INFLUENCER')
        WHERE cm.id = ?
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
@@ -1604,7 +1604,7 @@ export async function createDraftTrainingPlan(params: {
       `SELECT cm.id
        FROM consultancy_members cm
        INNER JOIN users u ON u.id = cm.user_id
-       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role IN ('STUDENT', 'INFLUENCER')
        WHERE cm.public_id = ?
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'

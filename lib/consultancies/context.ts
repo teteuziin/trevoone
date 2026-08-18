@@ -5,13 +5,15 @@ export type ConsultancyRole =
   | "STUDENT"
   | "PERSONAL"
   | "NUTRITIONIST"
-  | "CONSULTANCY_ADMIN";
+  | "CONSULTANCY_ADMIN"
+  | "INFLUENCER";
 
 export const VALID_ROLES: readonly ConsultancyRole[] = [
   "STUDENT",
   "PERSONAL",
   "NUTRITIONIST",
   "CONSULTANCY_ADMIN",
+  "INFLUENCER",
 ];
 
 export const ROLE_LABELS: Record<ConsultancyRole, string> = {
@@ -19,6 +21,7 @@ export const ROLE_LABELS: Record<ConsultancyRole, string> = {
   PERSONAL: "Personal Trainer",
   NUTRITIONIST: "Nutricionista",
   CONSULTANCY_ADMIN: "Administrador da consultoria",
+  INFLUENCER: "Influenciador / VIP",
 };
 
 export type AccessibleConsultancy = {

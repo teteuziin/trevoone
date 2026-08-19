@@ -8,7 +8,7 @@ import { createConsultancyWithInitialAdmin } from "@/lib/platform-admin/consulta
 export type CreateConsultancyFormState = {
   success: boolean;
   error?: string;
-  field?: "name" | "slug" | "initialAdminEmail";
+  field?: "name" | "slug" | "initialAdminEmail" | "timezone";
 };
 
 export async function createConsultancyAction(
@@ -29,12 +29,14 @@ export async function createConsultancyAction(
 
   const name = String(formData.get("name") || "");
   const slug = String(formData.get("slug") || "");
+  const timezone = String(formData.get("timezone") || "");
   const initialAdminEmail = String(formData.get("initialAdminEmail") || "");
 
   const result = await createConsultancyWithInitialAdmin({
     actorUserId: session.userId,
     name,
     slug,
+    timezone,
     initialAdminEmail,
   });
 

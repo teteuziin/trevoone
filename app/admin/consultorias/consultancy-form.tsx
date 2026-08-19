@@ -24,6 +24,7 @@ export function ConsultancyForm() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugCustomized, setSlugCustomized] = useState(false);
+  const [timezone, setTimezone] = useState("America/Sao_Paulo");
   const [initialAdminEmail, setInitialAdminEmail] = useState("");
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,6 +90,30 @@ export function ConsultancyForm() {
         />
         <p className="mt-1 text-xs text-zinc-500">
           Acesso futuro: /consultoria/{slug || "slug-da-consultoria"}
+        </p>
+      </div>
+
+      <div>
+        <label
+          htmlFor="timezone"
+          className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
+        >
+          Fuso horário
+        </label>
+        <input
+          id="timezone"
+          name="timezone"
+          type="text"
+          required
+          maxLength={64}
+          value={timezone}
+          onChange={(e) => setTimezone(e.target.value)}
+          placeholder="America/Sao_Paulo"
+          disabled={isPending}
+          className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm font-mono transition-all disabled:opacity-60"
+        />
+        <p className="mt-1 text-xs text-zinc-500">
+          Fuso horário operacional canônico da consultoria (formato IANA, ex: America/Sao_Paulo).
         </p>
       </div>
 

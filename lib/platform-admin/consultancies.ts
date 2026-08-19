@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
+import { isValidIanaTimezone } from "../consultancies/timezone";
 
 export type PlatformConsultancy = {
   publicId: string;
   name: string;
   slug: string;
+  timezone: string;
   status: string;
   createdAt: Date;
 };
@@ -14,6 +16,7 @@ export type CreateConsultancyParams = {
   actorUserId: number;
   name: string;
   slug: string;
+  timezone: string;
   initialAdminEmail: string;
 };
 
@@ -22,7 +25,7 @@ export type CreateConsultancyResult =
   | {
       success: false;
       error: string;
-      field?: "name" | "slug" | "initialAdminEmail";
+      field?: "name" | "slug" | "initialAdminEmail" | "timezone";
     };
 
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -34,7 +37,7 @@ export async function listPlatformConsultancies(): Promise<
   try {
     connection = await getDbConnection();
     const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT public_id, name, slug, status, created_at
+      `SELECT public_id, name, slug, timezone, status, created_at
        FROM consultancies
        WHERE deleted_at IS NULL
        ORDER BY created_at DESC, id DESC;`
@@ -48,6 +51,7 @@ export async function listPlatformConsultancies(): Promise<
       publicId: String(r.public_id),
       name: String(r.name),
       slug: String(r.slug),
+      timezone: String(r.timezone),
       status: String(r.status),
       createdAt: new Date(r.created_at),
     }));
@@ -63,7 +67,7 @@ export async function listPlatformConsultancies(): Promise<
 export async function createConsultancyWithInitialAdmin(
   params: CreateConsultancyParams
 ): Promise<CreateConsultancyResult> {
-  const { actorUserId, name, slug, initialAdminEmail } = params;
+  const { actorUserId, name, slug, timezone, initialAdminEmail } = params;
 
   if (!actorUserId || typeof actorUserId !== "number" || actorUserId <= 0) {
     return {
@@ -99,6 +103,16 @@ export async function createConsultancyWithInitialAdmin(
       field: "slug",
     };
   }
+
+  const rawTimezone = (timezone || "").trim();
+  if (!isValidIanaTimezone(rawTimezone)) {
+    return {
+      success: false,
+      error: "Fuso horário inválido. Informe um timezone IANA válido (ex: America/Sao_Paulo).",
+      field: "timezone",
+    };
+  }
+  const normalizedTimezone = rawTimezone;
 
   const normalizedEmail = (initialAdminEmail || "")
     .trim()
@@ -185,11 +199,11 @@ export async function createConsultancyWithInitialAdmin(
     await connection.beginTransaction();
 
     try {
-      // 4. Inserir consultoria
+      // 4. Inserir consultoria com timezone canônico
       const [insertConsultancy] = await connection.execute<ResultSetHeader>(
-        `INSERT INTO consultancies (public_id, name, slug, status)
-         VALUES (?, ?, ?, 'ACTIVE');`,
-        [consultancyPublicId, normalizedName, normalizedSlug]
+        `INSERT INTO consultancies (public_id, name, slug, timezone, status)
+         VALUES (?, ?, ?, ?, 'ACTIVE');`,
+        [consultancyPublicId, normalizedName, normalizedSlug, normalizedTimezone]
       );
 
       if (insertConsultancy.affectedRows !== 1) {

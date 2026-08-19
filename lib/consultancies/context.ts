@@ -30,6 +30,7 @@ export type AccessibleConsultancy = {
   consultancyName: string;
   consultancySlug: string;
   consultancyLogoUrl: string | null;
+  consultancyTimezone: string;
   membershipId: number;
   membershipPublicId: string;
   roles: ConsultancyRole[];
@@ -41,6 +42,7 @@ export type ConfiguringConsultancy = {
   consultancyName: string;
   consultancySlug: string;
   consultancyLogoUrl: string | null;
+  consultancyTimezone: string;
   membershipId: number;
   membershipPublicId: string;
 };
@@ -75,6 +77,7 @@ export async function listUserConsultancies(
         c.name AS consultancy_name,
         c.slug AS consultancy_slug,
         c.logo_url AS consultancy_logo_url,
+        c.timezone AS consultancy_timezone,
         cm.id AS membership_id,
         cm.public_id AS membership_public_id,
         cmr.role
@@ -101,6 +104,7 @@ export async function listUserConsultancies(
         consultancyName: string;
         consultancySlug: string;
         consultancyLogoUrl: string | null;
+        consultancyTimezone: string;
         membershipId: number;
         membershipPublicId: string;
         rolesSet: Set<ConsultancyRole>;
@@ -118,6 +122,7 @@ export async function listUserConsultancies(
           consultancyLogoUrl: row.consultancy_logo_url
             ? String(row.consultancy_logo_url)
             : null,
+          consultancyTimezone: String(row.consultancy_timezone),
           membershipId,
           membershipPublicId: String(row.membership_public_id),
           rolesSet: new Set<ConsultancyRole>(),
@@ -141,6 +146,7 @@ export async function listUserConsultancies(
           consultancyName: item.consultancyName,
           consultancySlug: item.consultancySlug,
           consultancyLogoUrl: item.consultancyLogoUrl,
+          consultancyTimezone: item.consultancyTimezone,
           membershipId: item.membershipId,
           membershipPublicId: item.membershipPublicId,
           roles,
@@ -152,6 +158,7 @@ export async function listUserConsultancies(
           consultancyName: item.consultancyName,
           consultancySlug: item.consultancySlug,
           consultancyLogoUrl: item.consultancyLogoUrl,
+          consultancyTimezone: item.consultancyTimezone,
           membershipId: item.membershipId,
           membershipPublicId: item.membershipPublicId,
         });
@@ -196,6 +203,7 @@ export async function resolveConsultancyContext(
         c.name AS consultancy_name,
         c.slug AS consultancy_slug,
         c.logo_url AS consultancy_logo_url,
+        c.timezone AS consultancy_timezone,
         cm.id AS membership_id,
         cm.public_id AS membership_public_id,
         cmr.role
@@ -236,6 +244,7 @@ export async function resolveConsultancyContext(
       consultancyLogoUrl: firstRow.consultancy_logo_url
         ? String(firstRow.consultancy_logo_url)
         : null,
+      consultancyTimezone: String(firstRow.consultancy_timezone),
       membershipId: Number(firstRow.membership_id),
       membershipPublicId: String(firstRow.membership_public_id),
       roles,

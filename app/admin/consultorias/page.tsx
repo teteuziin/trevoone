@@ -154,6 +154,9 @@ export default async function AdminConsultoriasPage() {
 
                     <div className="pt-2 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
                       <span>Criada em {formatDate(c.createdAt)}</span>
+                      <span className="font-mono text-[11px] text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded">
+                        {c.timezone}
+                      </span>
                     </div>
                   </div>
                 ))}

@@ -35,6 +35,15 @@ export function ConsultancyAppShell({
     },
   ];
 
+  if (roles.includes("INFLUENCER")) {
+    items.push({
+      id: "influencer-missoes",
+      label: "Missões",
+      href: `/consultoria/${consultancySlug}/missoes`,
+      iconName: "overview",
+    });
+  }
+
   const isLearner = roles.includes("STUDENT") || roles.includes("INFLUENCER");
   if (isLearner) {
     items.push({
@@ -109,6 +118,12 @@ export function ConsultancyAppShell({
   }
 
   if (roles.includes("CONSULTANCY_ADMIN")) {
+    items.push({
+      id: "admin-missoes",
+      label: "Missões",
+      href: `/consultoria/${consultancySlug}/missoes/gestao`,
+      iconName: "overview",
+    });
     items.push({
       id: "admin-membros",
       label: "Membros",

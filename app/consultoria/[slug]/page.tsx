@@ -194,6 +194,34 @@ export default async function ConsultancyPage({ params }: PageProps) {
                   </Link>
                 </div>
               </div>
+
+              {/* Card Missões (Influenciador / VIP) */}
+              {isInfluencer && (
+                <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4 hover:border-[var(--border-strong)] transition-colors">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                        Missões
+                      </h3>
+                      <Badge variant="brand" size="sm">
+                        VIP
+                      </Badge>
+                    </div>
+                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                      Acompanhe suas missões atribuídas, prazos de entrega e orientações de conteúdo.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-[var(--border-subtle)]">
+                    <Link
+                      href={`/consultoria/${context.consultancySlug}/missoes`}
+                      className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)]"
+                    >
+                      Ver missões
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -294,7 +322,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 Gestão da consultoria
               </h2>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                Estrutura de membros e administração de acessos da consultoria.
+                Estrutura de membros, missões e administração de acessos da consultoria.
               </p>
             </div>
 
@@ -344,22 +372,41 @@ export default async function ConsultancyPage({ params }: PageProps) {
               </div>
             )}
 
-            {/* Ação de Gestão de Membros */}
-            <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
-                  Membros e Convites
-                </h3>
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                  Consulte, convide e gerencie todos os alunos, profissionais e gestores vinculados a esta consultoria.
-                </p>
+            {/* Ação de Gestão de Missões e Membros */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                    Missões (Influenciadores / VIP)
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                    Crie, acompanhe e revise as entregas de missões dos influenciadores parceiros.
+                  </p>
+                </div>
+                <Link
+                  href={`/consultoria/${context.consultancySlug}/missoes/gestao`}
+                  className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)]"
+                >
+                  Gerenciar missões
+                </Link>
               </div>
-              <Link
-                href={`/consultoria/${context.consultancySlug}/membros`}
-                className="inline-flex items-center justify-center px-4 py-2.5 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-xs transition-colors shrink-0 focus-visible:outline-[var(--brand)]"
-              >
-                Gerenciar membros
-              </Link>
+
+              <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                    Membros e Convites
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                    Consulte, convide e gerencie todos os alunos, profissionais e gestores vinculados a esta consultoria.
+                  </p>
+                </div>
+                <Link
+                  href={`/consultoria/${context.consultancySlug}/membros`}
+                  className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] text-xs sm:text-sm font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+                >
+                  Gerenciar membros
+                </Link>
+              </div>
             </div>
           </div>
         )}

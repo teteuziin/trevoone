@@ -1,5 +1,9 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
+import {
+  getPlatformEffectiveAccessState,
+  type PlatformEffectiveAccessState,
+} from "../platform-admin/billing";
 
 export type ConsultancyRole =
   | "STUDENT"
@@ -34,6 +38,7 @@ export type AccessibleConsultancy = {
   membershipId: number;
   membershipPublicId: string;
   roles: ConsultancyRole[];
+  platformAccess?: PlatformEffectiveAccessState;
 };
 
 export type ConfiguringConsultancy = {
@@ -236,18 +241,26 @@ export async function resolveConsultancyContext(
       return null;
     }
 
+    const consultancyId = Number(firstRow.consultancy_id);
+    const consultancyTimezone = String(firstRow.consultancy_timezone);
+    const platformAccess = await getPlatformEffectiveAccessState(
+      consultancyId,
+      consultancyTimezone
+    );
+
     return {
-      consultancyId: Number(firstRow.consultancy_id),
+      consultancyId,
       consultancyPublicId: String(firstRow.consultancy_public_id),
       consultancyName: String(firstRow.consultancy_name),
       consultancySlug: String(firstRow.consultancy_slug),
       consultancyLogoUrl: firstRow.consultancy_logo_url
         ? String(firstRow.consultancy_logo_url)
         : null,
-      consultancyTimezone: String(firstRow.consultancy_timezone),
+      consultancyTimezone,
       membershipId: Number(firstRow.membership_id),
       membershipPublicId: String(firstRow.membership_public_id),
       roles,
+      platformAccess,
     };
   } catch {
     return null;
@@ -256,5 +269,21 @@ export async function resolveConsultancyContext(
       connection.release();
     }
   }
+}
+
+/**
+ * Resolves consultancy context and verifies that operational access is allowed.
+ * Returns null if unauthenticated, invalid context, or if the consultancy is SUSPENDED or CANCELED.
+ */
+export async function requireOperationalConsultancyContext(
+  userId: number,
+  slug: string
+): Promise<AccessibleConsultancy | null> {
+  const context = await resolveConsultancyContext(userId, slug);
+  if (!context) return null;
+  if (context.platformAccess && !context.platformAccess.isOperationalAllowed) {
+    return null;
+  }
+  return context;
 }
 

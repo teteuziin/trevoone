@@ -212,6 +212,18 @@ export async function createConsultancyWithInitialAdmin(
 
       const consultancyId = insertConsultancy.insertId;
 
+      // 4.1 Inserir assinatura da plataforma (Platform Subscription)
+      const subscriptionPublicId = randomUUID();
+      const [insertSub] = await connection.execute<ResultSetHeader>(
+        `INSERT INTO consultancy_platform_subscriptions (public_id, consultancy_id, administrative_status)
+         VALUES (?, ?, 'ACTIVE');`,
+        [subscriptionPublicId, consultancyId]
+      );
+
+      if (insertSub.affectedRows !== 1) {
+        throw new Error("Falha ao inicializar assinatura da plataforma.");
+      }
+
       // 5. Inserir auditoria da criação da consultoria
       const [insertAudit1] = await connection.execute<ResultSetHeader>(
         `INSERT INTO audit_events (public_id, actor_user_id, consultancy_id, action, target_type, target_public_id, metadata_json)

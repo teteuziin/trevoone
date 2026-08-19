@@ -11,7 +11,8 @@ export type StudentModuleAccessReason =
   | "INVALID_CONTEXT"
   | "NOT_STUDENT"
   | "ONBOARDING_INCOMPLETE"
-  | "FINANCIALLY_RESTRICTED";
+  | "FINANCIALLY_RESTRICTED"
+  | "PLATFORM_SUSPENDED";
 
 export type StudentModuleAccessResult = {
   allowed: boolean;
@@ -52,6 +53,17 @@ export async function resolveStudentModuleAccess(
     return {
       allowed: false,
       reason: "INVALID_CONTEXT",
+      confirmedRequirements: 0,
+      totalRequirements: 0,
+      isComplete: false,
+    };
+  }
+
+  if (context.platformAccess && !context.platformAccess.isOperationalAllowed) {
+    return {
+      allowed: false,
+      reason: "PLATFORM_SUSPENDED",
+      context,
       confirmedRequirements: 0,
       totalRequirements: 0,
       isComplete: false,

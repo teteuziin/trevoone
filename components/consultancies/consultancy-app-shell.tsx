@@ -136,6 +136,12 @@ export function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/financeiro`,
       iconName: "prescriptions",
     });
+    items.push({
+      id: "admin-assinatura",
+      label: "Assinatura",
+      href: `/consultoria/${consultancySlug}/assinatura`,
+      iconName: "prescriptions",
+    });
   }
 
   // Deduplicate items by href just in case

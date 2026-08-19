@@ -62,6 +62,36 @@ export default async function ConsultancyPage({ params }: PageProps) {
     studentOnboarding.applicable &&
     !studentOnboarding.isComplete;
 
+  const platformAccess = context.platformAccess;
+  const isSuspendedOrCanceled = platformAccess && !platformAccess.isOperationalAllowed;
+  const isInGrace = platformAccess && platformAccess.effectiveStatus === "GRACE";
+
+  // If suspended/canceled and user is non-admin: show controlled blocked screen
+  if (isSuspendedOrCanceled && !isConsultancyAdmin) {
+    return (
+      <ConsultancyAppShell
+        consultancyName={context.consultancyName}
+        consultancySlug={context.consultancySlug}
+        consultancyLogoUrl={context.consultancyLogoUrl}
+        roles={context.roles}
+        userName={session.fullName}
+        userEmail={session.email}
+      >
+        <div className="p-8 sm:p-12 max-w-xl mx-auto my-8 bg-white rounded-2xl border border-zinc-200 text-center space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 mx-auto flex items-center justify-center text-xl font-bold">
+            !
+          </div>
+          <h2 className="text-xl font-semibold text-zinc-900">
+            Consultoria temporariamente indisponível
+          </h2>
+          <p className="text-sm text-zinc-600 leading-relaxed">
+            O acesso aos módulos desta consultoria está temporariamente suspenso. Entre em contato com a equipe da consultoria para mais informações.
+          </p>
+        </div>
+      </ConsultancyAppShell>
+    );
+  }
+
   return (
     <ConsultancyAppShell
       consultancyName={context.consultancyName}
@@ -72,6 +102,64 @@ export default async function ConsultancyPage({ params }: PageProps) {
       userEmail={session.email}
     >
       <div className="space-y-8">
+        {/* Banner de Suspensão da Plataforma (Admin) */}
+        {isSuspendedOrCanceled && isConsultancyAdmin && (
+          <div className="p-5 sm:p-6 rounded-2xl border border-red-200 bg-red-50/70 text-red-900 shadow-xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="danger" size="sm">
+                    {platformAccess.effectiveStatus === "CANCELED" ? "Assinatura Cancelada" : "Serviços Suspensos"}
+                  </Badge>
+                  <span className="text-xs font-semibold text-red-800">
+                    Acesso operacional bloqueado
+                  </span>
+                </div>
+                <p className="text-sm text-red-800">
+                  {platformAccess.effectiveStatus === "CANCELED"
+                    ? "A assinatura desta consultoria foi cancelada. Entre em contato com o suporte da plataforma."
+                    : platformAccess.effectiveReason === "NONPAYMENT"
+                    ? "O acesso aos módulos operacionais foi suspenso devido a faturas em atraso além do período de carência."
+                    : `A consultoria foi suspensa administrativamente: ${platformAccess.manualSuspensionReason || "Sem motivo informado."}`}
+                </p>
+              </div>
+              <Link
+                href={`/consultoria/${slug}/assinatura`}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors shrink-0"
+              >
+                Gerenciar Assinatura →
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Banner de Carência da Plataforma (Admin) */}
+        {isInGrace && isConsultancyAdmin && (
+          <div className="p-5 sm:p-6 rounded-2xl border border-amber-200 bg-amber-50/70 text-amber-900 shadow-xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="warning" size="sm">
+                    Carência de Pagamento
+                  </Badge>
+                  <span className="text-xs font-semibold text-amber-800">
+                    Fatura da consultoria vencida
+                  </span>
+                </div>
+                <p className="text-sm text-amber-800">
+                  Há uma fatura em aberto com período de carência ativo. Regularize o pagamento para evitar a suspensão dos serviços.
+                </p>
+              </div>
+              <Link
+                href={`/consultoria/${slug}/assinatura`}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 transition-colors shrink-0"
+              >
+                Ver Fatura e Pix →
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Header Principal */}
         <PageHeader
           title="Visão geral"

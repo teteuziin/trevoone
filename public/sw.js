@@ -1,0 +1,189 @@
+/// <reference lib="webworker" />
+
+/**
+ * Trevo One — PWA Service Worker (T103 Runtime Foundation)
+ *
+ * Core Policies:
+ * - Cache only public, hashed and allowlisted static assets (/_next/static/, brand icons).
+ * - ZERO private, authenticated or dynamic route caching.
+ * - ZERO navigation/document interception (browser network handles all HTML/SSR).
+ * - Strict same-origin GET allowlist.
+ * - Versioned Trevo cache namespace with automatic legacy cleanup on activation.
+ * - Controlled updates via SKIP_WAITING message (no unprompted reload/skipWaiting on install).
+ * - Deterministic bounded pruning for /_next/static/ entries (MAX_NEXT_STATIC_ENTRIES = 160).
+ */
+
+const CACHE_VERSION = "v1";
+const CACHE_NAME = `trevo-static-${CACHE_VERSION}`;
+const MAX_NEXT_STATIC_ENTRIES = 160;
+
+const STATIC_PWA_ASSETS = new Set([
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png",
+  "/icons/icon-maskable-512x512.png",
+  "/icons/apple-touch-icon.png",
+  "/trevo-one-logo.png",
+  "/favicon.ico",
+]);
+
+/**
+ * Determines if a request is strictly eligible for static caching.
+ */
+function isCacheableStaticAsset(request, url) {
+  // Method must be GET
+  if (request.method !== "GET") return false;
+
+  // Must be same-origin
+  if (url.origin !== self.location.origin) return false;
+
+  // Navigation / document requests must NEVER be intercepted or cached
+  if (request.mode === "navigate") return false;
+
+  // Never intercept requests with Authorization or Range headers
+  if (request.headers.has("authorization") || request.headers.has("range")) {
+    return false;
+  }
+
+  const pathname = url.pathname;
+
+  // Never cache the Service Worker itself or manifest
+  if (
+    pathname === "/sw.js" ||
+    pathname.startsWith("/manifest") ||
+    pathname === "/_not-found"
+  ) {
+    return false;
+  }
+
+  // Never cache Next.js image optimizer, data payloads, or API/dynamic routes
+  if (
+    pathname.startsWith("/_next/image") ||
+    pathname.startsWith("/_next/data") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/consultoria") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/cadastro") ||
+    pathname.startsWith("/recuperar-senha") ||
+    pathname.startsWith("/redefinir-senha") ||
+    pathname.startsWith("/selecionar-consultoria") ||
+    pathname.startsWith("/convite")
+  ) {
+    return false;
+  }
+
+  // Strict positive allowlist: content-addressed Next static chunks or explicit public PWA assets
+  if (pathname.startsWith("/_next/static/") || STATIC_PWA_ASSETS.has(pathname)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Prunes the oldest /_next/static/ entries in the cache if the limit is exceeded.
+ * Stable explicit PWA brand assets are excluded and preserved.
+ */
+async function pruneNextStaticCache(cache) {
+  try {
+    const keys = await cache.keys();
+    const staticKeys = keys.filter((req) => {
+      try {
+        const u = new URL(req.url);
+        return u.origin === self.location.origin && u.pathname.startsWith("/_next/static/");
+      } catch {
+        return false;
+      }
+    });
+
+    if (staticKeys.length > MAX_NEXT_STATIC_ENTRIES) {
+      const excess = staticKeys.length - MAX_NEXT_STATIC_ENTRIES;
+      const toDelete = staticKeys.slice(0, excess);
+      await Promise.all(toDelete.map((req) => cache.delete(req)));
+    }
+  } catch {
+    // Prune failure must never disrupt application runtime
+  }
+}
+
+// Install: do NOT skip waiting unconditionally. Wait for explicit user update confirmation.
+self.addEventListener("install", () => {
+  // Service Worker installed successfully
+});
+
+// Activate: clean up outdated Trevo caches and claim clients.
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((name) => {
+            // Delete only older Trevo caches, preserve unrelated caches
+            if (name.startsWith("trevo-") && name !== CACHE_NAME) {
+              return caches.delete(name);
+            }
+            return Promise.resolve();
+          })
+        );
+      })
+      .then(() => self.clients.claim())
+  );
+});
+
+// Fetch: intercept ONLY allowlisted static assets using cache-first strategy.
+self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+
+  if (!isCacheableStaticAsset(event.request, url)) {
+    // Return immediately to let the browser execute default network behavior
+    return;
+  }
+
+  event.respondWith(
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cachedResponse = await cache.match(event.request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+
+      try {
+        const networkResponse = await fetch(event.request);
+
+        // Validate response before placing into cache: 200 OK, basic type, no Set-Cookie
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          networkResponse.type === "basic" &&
+          !networkResponse.headers.has("set-cookie")
+        ) {
+          const responseClone = networkResponse.clone();
+          const isNextStatic = url.pathname.startsWith("/_next/static/");
+
+          // Put into cache and prune asynchronously without blocking response delivery
+          cache
+            .put(event.request, responseClone)
+            .then(() => {
+              if (isNextStatic) {
+                return pruneNextStaticCache(cache);
+              }
+            })
+            .catch(() => {
+              // Cache write/prune failure must never fail the network response
+            });
+        }
+
+        return networkResponse;
+      } catch (error) {
+        throw error;
+      }
+    })
+  );
+});
+
+// Controlled update message handler
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});

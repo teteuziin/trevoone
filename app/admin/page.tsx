@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
+import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
+import { getUnreadCount } from "@/services/notification-service";
 import { logoutFromPlatformAdminArea } from "./actions";
 
 export default async function AdminDashboardPage() {
@@ -17,6 +19,8 @@ export default async function AdminDashboardPage() {
   if (!isPlatformAdmin) {
     redirect("/selecionar-consultoria");
   }
+
+  const unreadNotificationsCount = await getUnreadCount(session.userId);
 
   const modules = [
     {
@@ -153,14 +157,13 @@ export default async function AdminDashboardPage() {
             <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-[#008f4c] border border-emerald-200/60">
               Administrador global
             </span>
-            <form action={logoutFromPlatformAdminArea}>
-              <button
-                type="submit"
-                className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-zinc-700 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400"
-              >
-                Sair
-              </button>
-            </form>
+            <NotificationBell unreadCount={unreadNotificationsCount} />
+            <LogoutButton
+              logoutAction={logoutFromPlatformAdminArea}
+              className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-zinc-700 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 cursor-pointer"
+            >
+              Sair
+            </LogoutButton>
           </div>
         </div>
       </header>

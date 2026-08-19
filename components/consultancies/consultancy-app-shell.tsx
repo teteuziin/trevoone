@@ -9,6 +9,7 @@ export interface ConsultancyAppShellProps {
   roles: ConsultancyRole[];
   userName?: string;
   userEmail?: string;
+  unreadNotificationsCount?: number;
   maxWidth?: "default" | "wide" | "full";
   className?: string;
   children: React.ReactNode;
@@ -21,6 +22,7 @@ export function ConsultancyAppShell({
   roles,
   userName,
   userEmail,
+  unreadNotificationsCount = 0,
   maxWidth = "default",
   className = "",
   children,
@@ -174,6 +176,7 @@ export function ConsultancyAppShell({
         userName={userName}
         userEmail={userEmail}
         roleLabels={roleLabels}
+        unreadNotificationsCount={unreadNotificationsCount}
       />
 
       {/* Main Content Area */}

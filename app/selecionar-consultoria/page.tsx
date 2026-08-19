@@ -10,7 +10,7 @@ import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
 import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
+import { LogoutButton } from "@/components/notifications/notification-bell";
 import { logoutFromConsultancyArea } from "./actions";
 
 export default async function SelecionarConsultoriaPage() {
@@ -145,16 +145,14 @@ export default async function SelecionarConsultoriaPage() {
           </div>
 
           <div className="w-full pt-2">
-            <form action={logoutFromConsultancyArea}>
-              <Button
-                type="submit"
-                variant="secondary"
-                fullWidth
-                size="md"
-              >
-                Sair
-              </Button>
-            </form>
+            <LogoutButton
+              logoutAction={logoutFromConsultancyArea}
+              variant="secondary"
+              fullWidth
+              size="md"
+            >
+              Sair
+            </LogoutButton>
           </div>
         </div>
       </main>
@@ -181,15 +179,14 @@ export default async function SelecionarConsultoriaPage() {
             title="Nenhuma consultoria vinculada"
             description="Sua conta está ativa, mas você ainda não está vinculado a uma consultoria parceira no Trevo One."
             action={
-              <form action={logoutFromConsultancyArea} className="w-full">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="md"
-                >
-                  Sair
-                </Button>
-              </form>
+              <LogoutButton
+                logoutAction={logoutFromConsultancyArea}
+                variant="primary"
+                fullWidth
+                size="md"
+              >
+                Sair
+              </LogoutButton>
             }
             className="w-full bg-[var(--surface)] border-[var(--border-default)]"
           />
@@ -211,15 +208,14 @@ export default async function SelecionarConsultoriaPage() {
             title="Acesso em configuração"
             description="Seu vínculo com a consultoria existe, mas suas permissões ainda não foram definidas. Entre em contato com o administrador da consultoria."
             action={
-              <form action={logoutFromConsultancyArea} className="w-full">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="md"
-                >
-                  Sair
-                </Button>
-              </form>
+              <LogoutButton
+                logoutAction={logoutFromConsultancyArea}
+                variant="primary"
+                fullWidth
+                size="md"
+              >
+                Sair
+              </LogoutButton>
             }
             className="w-full bg-[var(--surface)] border-[var(--border-default)]"
           />
@@ -299,16 +295,14 @@ export default async function SelecionarConsultoriaPage() {
         </div>
 
         <div className="w-full pt-2">
-          <form action={logoutFromConsultancyArea}>
-            <Button
-              type="submit"
-              variant="secondary"
-              fullWidth
-              size="md"
-            >
-              Sair
-            </Button>
-          </form>
+          <LogoutButton
+            logoutAction={logoutFromConsultancyArea}
+            variant="secondary"
+            fullWidth
+            size="md"
+          >
+            Sair
+          </LogoutButton>
         </div>
       </div>
     </main>

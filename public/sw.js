@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 /**
- * Trevo One — PWA Service Worker (T103 Runtime Foundation)
+ * Trevo One — PWA Service Worker (T103 Runtime Foundation + T103A0 Web Push)
  *
  * Core Policies:
  * - Cache only public, hashed and allowlisted static assets (/_next/static/, brand icons).
@@ -11,6 +11,7 @@
  * - Versioned Trevo cache namespace with automatic legacy cleanup on activation.
  * - Controlled updates via SKIP_WAITING message (no unprompted reload/skipWaiting on install).
  * - Deterministic bounded pruning for /_next/static/ entries (MAX_NEXT_STATIC_ENTRIES = 160).
+ * - Standards-compliant Web Push event handling & notificationclick navigation.
  */
 
 const CACHE_VERSION = "v1";
@@ -67,6 +68,7 @@ function isCacheableStaticAsset(request, url) {
     pathname.startsWith("/recuperar-senha") ||
     pathname.startsWith("/redefinir-senha") ||
     pathname.startsWith("/selecionar-consultoria") ||
+    pathname.startsWith("/notificacoes") ||
     pathname.startsWith("/convite")
   ) {
     return false;
@@ -186,4 +188,88 @@ self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+});
+
+// Web Push Event Handler
+self.addEventListener("push", (event) => {
+  let payload = {
+    title: "Trevo One",
+    body: "Você tem uma nova notificação.",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-192x192.png",
+    notificationPublicId: "",
+  };
+
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      if (data && typeof data === "object") {
+        if (data.title) payload.title = String(data.title);
+        if (data.body) payload.body = String(data.body);
+        if (data.icon) payload.icon = String(data.icon);
+        if (data.badge) payload.badge = String(data.badge);
+        if (data.notificationPublicId) {
+          payload.notificationPublicId = String(data.notificationPublicId);
+        }
+      }
+    } catch {
+      // If JSON parsing fails, treat as plain text if available
+      try {
+        const text = event.data.text();
+        if (text) payload.body = text;
+      } catch {
+        // Fall back to default generic copy
+      }
+    }
+  }
+
+  const notificationOptions = {
+    body: payload.body,
+    icon: payload.icon,
+    badge: payload.badge,
+    data: {
+      notificationPublicId: payload.notificationPublicId,
+    },
+    tag: payload.notificationPublicId ? `trevo-notif-${payload.notificationPublicId}` : undefined,
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, notificationOptions)
+  );
+});
+
+// Notification Click Event Handler
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const data = event.notification.data || {};
+  const notificationPublicId = data.notificationPublicId;
+
+  // Resolve target internal destination
+  const targetUrl = notificationPublicId
+    ? `/notificacoes?abrir=${encodeURIComponent(notificationPublicId)}`
+    : "/notificacoes";
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (client.url && "focus" in client) {
+            try {
+              const clientUrl = new URL(client.url);
+              if (clientUrl.origin === self.location.origin) {
+                client.navigate(targetUrl);
+                return client.focus();
+              }
+            } catch {
+              // continue
+            }
+          }
+        }
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl);
+        }
+      })
+  );
 });

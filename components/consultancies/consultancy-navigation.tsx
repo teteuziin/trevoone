@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
 import { logoutFromConsultancyArea } from "@/app/selecionar-consultoria/actions";
+import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
 
 export interface NavItemConfig {
   id: string;
@@ -21,6 +22,7 @@ export interface ConsultancyNavigationProps {
   userName?: string;
   userEmail?: string;
   roleLabels?: string[];
+  unreadNotificationsCount?: number;
 }
 
 function NavIcon({ name }: { name: NavItemConfig["iconName"] }) {
@@ -78,6 +80,7 @@ export function ConsultancyNavigation({
   userName,
   userEmail,
   roleLabels = [],
+  unreadNotificationsCount = 0,
 }: ConsultancyNavigationProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -170,6 +173,8 @@ export function ConsultancyNavigation({
 
             {/* Right: Quick Actions & Profile Dropdown / Trigger */}
             <div className="flex items-center gap-2">
+              <NotificationBell unreadCount={unreadNotificationsCount} />
+
               <Link
                 href="/selecionar-consultoria"
                 className="hidden sm:inline-flex items-center px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] border border-[var(--border-default)] rounded-lg transition-colors"
@@ -191,14 +196,14 @@ export function ConsultancyNavigation({
               </div>
 
               {/* Logout button */}
-              <form action={logoutFromConsultancyArea} className="hidden sm:block">
-                <button
-                  type="submit"
+              <div className="hidden sm:block">
+                <LogoutButton
+                  logoutAction={logoutFromConsultancyArea}
                   className="px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] rounded-lg transition-colors cursor-pointer"
                 >
                   Sair
-                </button>
-              </form>
+                </LogoutButton>
+              </div>
 
               {/* Mobile Menu Button */}
               <button
@@ -271,6 +276,24 @@ export function ConsultancyNavigation({
               <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-2 pb-1">
                 Navegação
               </p>
+              <Link
+                href="/notificacoes"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                  </svg>
+                  <span>Notificações</span>
+                </div>
+                {unreadNotificationsCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#00a859] text-white">
+                    {unreadNotificationsCount}
+                  </span>
+                )}
+              </Link>
+
               {items.map((item) => {
                 const active = isItemActive(item.href);
                 return (
@@ -319,14 +342,12 @@ export function ConsultancyNavigation({
               >
                 Trocar consultoria
               </Link>
-              <form action={logoutFromConsultancyArea}>
-                <button
-                  type="submit"
-                  className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-semibold text-[var(--danger-foreground)] bg-[var(--danger-soft)] hover:bg-[var(--danger-border)] border border-[var(--danger-border)] rounded-xl transition-colors cursor-pointer"
-                >
-                  Sair da conta
-                </button>
-              </form>
+              <LogoutButton
+                logoutAction={logoutFromConsultancyArea}
+                className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-semibold text-[var(--danger-foreground)] bg-[var(--danger-soft)] hover:bg-[var(--danger-border)] border border-[var(--danger-border)] rounded-xl transition-colors cursor-pointer"
+              >
+                Sair da conta
+              </LogoutButton>
             </div>
           </div>
         </div>

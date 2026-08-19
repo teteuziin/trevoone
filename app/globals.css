@@ -1,33 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  /* Surface & Backgrounds */
-  --background: #f8fafc;
+  /* Core Surface & App Backgrounds */
+  --background: #f6f8f7;
   --surface: #ffffff;
-  --surface-subtle: #f8fafc;
-  --surface-hover: #f1f5f9;
-  --surface-active: #e2e8f0;
+  --surface-subtle: #f1f4f2;
+  --surface-hover: #ebefec;
+  --surface-active: #e2e8e4;
   --surface-elevated: #ffffff;
 
-  /* Typography & Foregrounds */
-  --foreground: #0f172a;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary: #94a3b8;
+  /* Typography & Text Hierarchy */
+  --foreground: #151816;
+  --text-primary: #151816;
+  --text-secondary: #66706a;
+  --text-tertiary: #89918c;
   --text-inverse: #ffffff;
 
-  /* Borders */
-  --border-subtle: #f1f5f9;
-  --border-default: #e2e8f0;
-  --border-strong: #cbd5e1;
+  /* Restrained Neutral Borders */
+  --border-subtle: #eef2ef;
+  --border-default: #e3e8e4;
+  --border-strong: #d0d7d2;
+  --border: #e3e8e4;
+  --muted: #66706a;
 
-  /* Trevo One Brand Identity */
+  /* Trevo One Primary Brand Identity (#00A859) */
   --primary: #00a859;
-  --primary-hover: #008f4c;
+  --primary-hover: #07884b;
+  --primary-active: #006e3b;
   --brand: #00a859;
-  --brand-hover: #00944e;
-  --brand-active: #007a40;
-  --brand-strong: #008746;
+  --brand-hover: #07884b;
+  --brand-active: #006e3b;
+  --brand-strong: #008f4c;
   --brand-soft: #ecfdf5;
   --brand-soft-border: #a7f3d0;
   --brand-foreground: #065f46;
@@ -57,11 +60,9 @@
   --info-border: #bfdbfe;
   --info-foreground: #1e40af;
 
-  /* Focus & Elevation */
-  --focus-ring: rgba(0, 168, 89, 0.35);
-  --focus-ring-danger: rgba(239, 68, 68, 0.35);
-  --muted: #64748b;
-  --border: #e2e8f0;
+  /* Focus & Restrained Elevation */
+  --focus-ring: rgba(0, 168, 89, 0.25);
+  --focus-ring-danger: rgba(239, 68, 68, 0.25);
 }
 
 @theme inline {
@@ -82,6 +83,8 @@
   --color-border-subtle: var(--border-subtle);
   --color-border-default: var(--border-default);
   --color-border-strong: var(--border-strong);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
 
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
@@ -116,9 +119,6 @@
   --color-info-soft: var(--info-soft);
   --color-info-border: var(--info-border);
   --color-info-foreground: var(--info-foreground);
-
-  --color-muted: var(--muted);
-  --color-border: var(--border);
 
   /* Typography */
   --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -165,4 +165,3 @@ body {
     scroll-behavior: auto !important;
   }
 }
-

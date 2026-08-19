@@ -21,12 +21,12 @@ export function PageHeader({
   className = "",
 }: PageHeaderProps) {
   return (
-    <div className={`w-full pb-6 mb-6 border-b border-[var(--border-subtle)] ${className}`.trim()}>
+    <div className={`w-full pb-5 mb-6 border-b border-[var(--border-subtle)] ${className}`.trim()}>
       {backHref && (
-        <div className="mb-3">
+        <div className="mb-2.5">
           <Link
             href={backHref}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-md"
           >
             <svg
               className="w-3.5 h-3.5"
@@ -35,32 +35,32 @@ export function PageHeader({
               viewBox="0 0 24 24"
               aria-hidden="true"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15 19l-7-7 7-7" />
             </svg>
             <span>{backLabel}</span>
           </Link>
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1 min-w-0 flex-1">
           {eyebrow && (
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--brand-foreground)] mb-1">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--brand-foreground)]">
               {eyebrow}
             </div>
           )}
-          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight truncate">
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight">
             {title}
           </h1>
           {description && (
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed max-w-3xl">
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed max-w-2xl">
               {description}
             </p>
           )}
         </div>
 
         {actions && (
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0 pt-1 md:pt-0">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             {actions}
           </div>
         )}

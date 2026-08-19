@@ -17,10 +17,10 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center text-center p-8 sm:p-12 rounded-xl bg-[var(--surface-subtle)] border border-dashed border-[var(--border-default)] ${className}`.trim()}
+      className={`flex flex-col items-center justify-center text-center p-6 sm:p-8 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] ${className}`.trim()}
     >
       {icon && (
-        <div className="w-12 h-12 rounded-full bg-[var(--surface)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-tertiary)] mb-4 shadow-2xs">
+        <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-tertiary)] mb-3 shadow-2xs">
           {icon}
         </div>
       )}
@@ -28,11 +28,11 @@ export function EmptyState({
         {title}
       </h3>
       {description && (
-        <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1.5 max-w-sm leading-relaxed">
+        <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1 max-w-sm leading-relaxed">
           {description}
         </p>
       )}
-      {action && <div className="mt-5">{action}</div>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }

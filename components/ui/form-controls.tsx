@@ -75,24 +75,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       ? "border-[var(--danger)] text-[var(--text-primary)] focus:border-[var(--danger)] focus:ring-2 focus:ring-[var(--focus-ring-danger)]"
       : "border-[var(--border-default)] text-[var(--text-primary)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--focus-ring)]";
 
-    const paddingLeft = icon ? "pl-10" : "pl-3.5";
-    const paddingRight = iconRight ? "pr-10" : "pr-3.5";
+    const paddingLeft = icon ? "pl-9.5" : "pl-3.5";
+    const paddingRight = iconRight ? "pr-9.5" : "pr-3.5";
 
     return (
       <div className="relative w-full">
         {icon && (
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)]">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--text-tertiary)]">
             {icon}
           </div>
         )}
         <input
           ref={ref}
           disabled={disabled}
-          className={`w-full h-11 py-2 ${paddingLeft} ${paddingRight} bg-[var(--surface)] border rounded-lg text-sm transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
+          className={`w-full h-10 py-2 ${paddingLeft} ${paddingRight} bg-[var(--surface)] border rounded-xl text-sm transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
           {...props}
         />
         {iconRight && (
-          <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[var(--text-tertiary)]">
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--text-tertiary)]">
             {iconRight}
           </div>
         )}
@@ -120,7 +120,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         ref={ref}
         rows={rows}
         disabled={disabled}
-        className={`w-full py-2.5 px-3.5 bg-[var(--surface)] border rounded-lg text-sm transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed resize-y ${errorClasses} ${className}`.trim()}
+        className={`w-full py-2 px-3.5 bg-[var(--surface)] border rounded-xl text-sm transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed resize-y ${errorClasses} ${className}`.trim()}
         {...props}
       />
     );
@@ -146,12 +146,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           disabled={disabled}
-          className={`w-full h-11 py-2 pl-3.5 pr-10 bg-[var(--surface)] border rounded-lg text-sm transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none appearance-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
+          className={`w-full h-10 py-2 pl-3.5 pr-9 bg-[var(--surface)] border rounded-xl text-sm transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none appearance-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
           {...props}
         >
           {children}
         </select>
-        <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)]">
+        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[var(--text-tertiary)]">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
           </svg>

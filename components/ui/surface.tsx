@@ -10,20 +10,20 @@ export interface SurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const variantStyles: Record<SurfaceVariant, string> = {
   default:
-    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs rounded-xl",
+    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs rounded-2xl",
   subtle:
-    "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-xl",
+    "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-2xl",
   elevated:
-    "bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-sm rounded-xl",
+    "bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-sm rounded-2xl",
   interactive:
-    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--brand-soft-border)] hover:shadow-sm transition-all duration-150 ease-out cursor-pointer rounded-xl",
+    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--border-strong)] hover:shadow-sm transition-all duration-150 ease-out cursor-pointer rounded-2xl",
 };
 
 const paddingStyles: Record<SurfacePadding, string> = {
   none: "p-0",
   sm: "p-3 sm:p-4",
-  md: "p-4 sm:p-6",
-  lg: "p-6 sm:p-8",
+  md: "p-4 sm:p-5 lg:p-6",
+  lg: "p-6 sm:p-7 lg:p-8",
 };
 
 export const Surface = forwardRef<HTMLDivElement, SurfaceProps>(
@@ -57,7 +57,7 @@ export function CardHeader({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`flex flex-col space-y-1.5 mb-4 ${className}`.trim()} {...props}>
+    <div className={`flex flex-col space-y-1 mb-4 ${className}`.trim()} {...props}>
       {children}
     </div>
   );
@@ -70,7 +70,7 @@ export function CardTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={`text-base sm:text-lg font-semibold text-[var(--text-primary)] tracking-tight ${className}`.trim()}
+      className={`text-base font-bold text-[var(--text-primary)] tracking-tight ${className}`.trim()}
       {...props}
     >
       {children}

@@ -38,7 +38,7 @@ const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = 
 
 const sizeStyles: Record<BadgeSize, string> = {
   sm: "px-2 py-0.5 text-[11px] font-medium gap-1 rounded-md",
-  md: "px-2.5 py-1 text-xs font-medium gap-1.5 rounded-md",
+  md: "px-2.5 py-0.5 text-xs font-medium gap-1.5 rounded-md",
 };
 
 export function Badge({

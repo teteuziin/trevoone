@@ -123,11 +123,11 @@ export function ConsultancyNavigation({
       {/* Desktop & Mobile Topbar Header */}
       <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-15 sm:h-16 gap-3">
+          <div className="flex items-center justify-between h-15 gap-3">
             {/* Left: Branding */}
             <Link
               href={baseSlugHref}
-              className="flex items-center gap-3 min-w-0 group focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-lg"
+              className="flex items-center gap-3 min-w-0 group focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-1 px-1.5 -ml-1.5"
             >
               <ConsultancyLogo
                 logoUrl={consultancyLogoUrl}
@@ -135,7 +135,7 @@ export function ConsultancyNavigation({
                 size={36}
               />
               <div className="min-w-0 space-y-0.5">
-                <p className="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--brand)] transition-colors">
+                <p className="text-sm font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--brand)] transition-colors">
                   {consultancyName}
                 </p>
                 {primaryRoleLabel && (
@@ -158,7 +158,7 @@ export function ConsultancyNavigation({
                     key={item.id}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all duration-150 ease-out select-none ${
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 ease-out select-none ${
                       active
                         ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)] shadow-2xs"
                         : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
@@ -171,20 +171,20 @@ export function ConsultancyNavigation({
               })}
             </nav>
 
-            {/* Right: Quick Actions & Profile Dropdown / Trigger */}
+            {/* Right: Quick Actions & Profile */}
             <div className="flex items-center gap-2">
               <NotificationBell unreadCount={unreadNotificationsCount} />
 
               <Link
                 href="/selecionar-consultoria"
-                className="hidden sm:inline-flex items-center px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] border border-[var(--border-default)] rounded-lg transition-colors"
+                className="hidden sm:inline-flex items-center px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-colors"
               >
                 Trocar consultoria
               </Link>
 
               {/* User Avatar Pill */}
               <div
-                className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] select-none"
+                className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] select-none"
                 title={userEmail || userName}
               >
                 <div className="w-6 h-6 rounded-full bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-bold flex items-center justify-center text-[11px]">
@@ -199,7 +199,7 @@ export function ConsultancyNavigation({
               <div className="hidden sm:block">
                 <LogoutButton
                   logoutAction={logoutFromConsultancyArea}
-                  className="px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] rounded-lg transition-colors cursor-pointer"
+                  className="px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] rounded-xl transition-colors cursor-pointer"
                 >
                   Sair
                 </LogoutButton>
@@ -212,7 +212,7 @@ export function ConsultancyNavigation({
                 aria-expanded={mobileMenuOpen}
                 aria-controls="mobile-navigation-drawer"
                 aria-label={mobileMenuOpen ? "Fechar menu de navegação" : "Abrir menu de navegação"}
-                className="md:hidden inline-flex items-center justify-center p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
+                className="md:hidden inline-flex items-center justify-center p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
               >
                 {mobileMenuOpen ? (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -237,7 +237,7 @@ export function ConsultancyNavigation({
           onClick={() => setMobileMenuOpen(false)}
         >
           <div
-            className="w-full max-h-[85vh] bg-[var(--surface)] rounded-t-2xl border-t border-[var(--border-default)] shadow-xl p-5 space-y-5 overflow-y-auto pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
+            className="w-full max-h-[85vh] bg-[var(--surface)] rounded-t-3xl border-t border-[var(--border-default)] shadow-xl p-5 space-y-5 overflow-y-auto pb-[calc(2rem+env(safe-area-inset-bottom,0px))]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header in Drawer */}
@@ -288,7 +288,7 @@ export function ConsultancyNavigation({
                   <span>Notificações</span>
                 </div>
                 {unreadNotificationsCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#00a859] text-white">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[var(--brand)] text-white">
                     {unreadNotificationsCount}
                   </span>
                 )}
@@ -325,7 +325,7 @@ export function ConsultancyNavigation({
                   {roleLabels.map((rl) => (
                     <span
                       key={rl}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border-default)]"
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-default)]"
                     >
                       {rl}
                     </span>
@@ -338,7 +338,7 @@ export function ConsultancyNavigation({
             <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">
               <Link
                 href="/selecionar-consultoria"
-                className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] border border-[var(--border-default)] rounded-xl transition-colors"
+                className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-colors"
               >
                 Trocar consultoria
               </Link>

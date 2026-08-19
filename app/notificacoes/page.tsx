@@ -38,27 +38,26 @@ export default async function NotificacoesPage({ searchParams }: NotificacoesPag
   const vapidPublicKey = getVapidPublicKey();
 
   return (
-    <main className="min-h-svh w-full bg-zinc-50 text-zinc-900 pb-16 selection:bg-[#00a859]/10 selection:text-[#00a859]">
-      {/* Topbar */}
-      <header className="sticky top-0 z-30 w-full bg-white/95 backdrop-blur-xs border-b border-zinc-200">
+    <div className="min-h-svh w-full bg-[var(--background)] text-[var(--text-primary)] flex flex-col selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+      {/* Topbar Header */}
+      <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-15 flex items-center justify-between">
-          <Link href="/selecionar-consultoria" className="flex items-center gap-2.5">
-            <TrevoOneLogo priority size={110} />
+          <Link href="/selecionar-consultoria" className="flex items-center gap-2.5 focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-1 px-1.5 -ml-1.5">
+            <TrevoOneLogo priority size={34} showWordmark />
           </Link>
 
           <Link
             href="/selecionar-consultoria"
-            className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 px-3 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
+            className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 rounded-xl hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors"
           >
             Painel principal →
           </Link>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 space-y-6">
+      {/* Main Content Area */}
+      <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         <PageHeader
-          eyebrow="Central de Avisos"
           title="Notificações"
           description="Acompanhe avisos de treinos, dietas, pagamentos e comunicados da plataforma."
           backHref="/selecionar-consultoria"
@@ -73,7 +72,7 @@ export default async function NotificacoesPage({ searchParams }: NotificacoesPag
           totalPages={data.totalPages}
           vapidPublicKey={vapidPublicKey}
         />
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

@@ -14,7 +14,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    "bg-[var(--brand-strong)] hover:bg-[var(--brand)] active:bg-[var(--brand-active)] text-white shadow-xs focus-visible:outline-[var(--brand)]",
+    "bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] text-white shadow-xs focus-visible:outline-[var(--brand)]",
   secondary:
     "bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] text-[var(--text-primary)] border border-[var(--border-default)] shadow-xs focus-visible:outline-[var(--brand)]",
   ghost:
@@ -26,9 +26,9 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: "h-9 px-3 text-xs font-medium gap-1.5 rounded-lg",
-  md: "h-10.5 px-4 text-sm font-medium gap-2 rounded-lg",
-  lg: "h-12 px-5 text-base font-medium gap-2.5 rounded-xl",
+  sm: "h-8.5 px-3 text-xs font-semibold gap-1.5 rounded-lg",
+  md: "h-10 px-4 text-sm font-semibold gap-2 rounded-lg",
+  lg: "h-11.5 px-5 text-base font-semibold gap-2.5 rounded-xl",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -95,3 +95,78 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = "Button";
+
+// ==========================================
+// ICON BUTTON
+// ==========================================
+export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  "aria-label": string;
+  variant?: ButtonVariant;
+  size?: "sm" | "md" | "lg";
+  isLoading?: boolean;
+}
+
+const iconButtonSizeStyles: Record<"sm" | "md" | "lg", string> = {
+  sm: "w-8.5 h-8.5 rounded-lg",
+  md: "w-10 h-10 rounded-lg",
+  lg: "w-11.5 h-11.5 rounded-xl",
+};
+
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
+  (
+    {
+      variant = "ghost",
+      size = "md",
+      type = "button",
+      isLoading = false,
+      disabled,
+      className = "",
+      children,
+      ...props
+    },
+    ref
+  ) => {
+    const baseClasses =
+      "inline-flex items-center justify-center select-none transition-all duration-150 ease-out cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:pointer-events-none active:scale-[0.985]";
+    const variantClass = variantStyles[variant] || variantStyles.ghost;
+    const sizeClass = iconButtonSizeStyles[size] || iconButtonSizeStyles.md;
+
+    return (
+      <button
+        ref={ref}
+        type={type}
+        disabled={disabled || isLoading}
+        className={`${baseClasses} ${variantClass} ${sizeClass} ${className}`.trim()}
+        {...props}
+      >
+        {isLoading ? (
+          <svg
+            className="animate-spin h-4 w-4 text-current"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+        ) : (
+          children
+        )}
+      </button>
+    );
+  }
+);
+
+IconButton.displayName = "IconButton";

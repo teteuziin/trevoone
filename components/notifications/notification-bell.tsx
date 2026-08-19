@@ -24,10 +24,10 @@ export function NotificationBell({
           ? `Notificações (${unreadCount} não lidas)`
           : "Notificações"
       }
-      className={`relative inline-flex items-center justify-center p-2 rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors focus-visible:outline-2 focus-visible:outline-[#00a859] ${className}`.trim()}
+      className={`relative inline-flex items-center justify-center w-9.5 h-9.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand)] ${className}`.trim()}
     >
       <svg
-        className="w-5 h-5 shrink-0"
+        className="w-4.5 h-4.5 shrink-0"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -42,7 +42,7 @@ export function NotificationBell({
       </svg>
 
       {hasUnread && (
-        <span className="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 rounded-full bg-[#00a859] text-white text-[10px] font-bold flex items-center justify-center leading-none shadow-xs border border-white">
+        <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-[var(--brand)] text-white text-[10px] font-bold flex items-center justify-center leading-none shadow-xs border border-[var(--surface)]">
           {displayCount}
         </span>
       )}
@@ -104,7 +104,7 @@ export interface LogoutButtonProps {
 
 const variantStyles: Record<string, string> = {
   primary:
-    "bg-[var(--brand-strong)] hover:bg-[var(--brand)] active:bg-[var(--brand-active)] text-white shadow-xs focus-visible:outline-[var(--brand)]",
+    "bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] text-white shadow-xs focus-visible:outline-[var(--brand)]",
   secondary:
     "bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] text-[var(--text-primary)] border border-[var(--border-default)] shadow-xs focus-visible:outline-[var(--brand)]",
   ghost:
@@ -116,9 +116,9 @@ const variantStyles: Record<string, string> = {
 };
 
 const sizeStyles: Record<string, string> = {
-  sm: "h-9 px-3 text-xs font-medium gap-1.5 rounded-lg",
-  md: "h-10.5 px-4 text-sm font-medium gap-2 rounded-lg",
-  lg: "h-12 px-5 text-base font-medium gap-2.5 rounded-xl",
+  sm: "h-8.5 px-3 text-xs font-semibold gap-1.5 rounded-lg",
+  md: "h-10 px-4 text-sm font-semibold gap-2 rounded-lg",
+  lg: "h-11.5 px-5 text-base font-semibold gap-2.5 rounded-xl",
 };
 
 export function LogoutButton({

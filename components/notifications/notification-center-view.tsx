@@ -10,6 +10,11 @@ import {
   registerPushSubscriptionAction,
   revokePushSubscriptionAction,
 } from "@/app/notificacoes/actions";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/surface";
+import { Badge } from "@/components/ui/badge";
+import { Tabs } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface NotificationCenterViewProps {
   initialNotifications: UserNotificationDTO[];
@@ -58,7 +63,7 @@ export function NotificationCenterView({
 
   const [notifications, setNotifications] = useState<UserNotificationDTO[]>(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
-  const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
+  const [filterTab, setFilterTab] = useState<"all" | "unread">("all");
 
   const [prevInitial, setPrevInitial] = useState({
     notifications: initialNotifications,
@@ -229,32 +234,32 @@ export function NotificationCenterView({
     });
   }
 
-  const displayedNotifications = filterUnreadOnly
+  const displayedNotifications = filterTab === "unread"
     ? notifications.filter((n) => !n.readAt)
     : notifications;
 
   return (
     <div className="space-y-6">
-      {/* Push Device Configuration Banner */}
-      <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Push Device Configuration Card */}
+      <Card padding="md" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-900">
+            <span className="text-sm font-bold text-[var(--text-primary)]">
               Notificações do Dispositivo
             </span>
             {pushSupported && isPushSubscribed && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-[#008f4c] border border-emerald-200">
+              <Badge variant="brand" size="sm" dot>
                 Ativo
-              </span>
+              </Badge>
             )}
           </div>
-          <p className="text-xs text-zinc-500 leading-relaxed max-w-xl">
-            Receba avisos imediatos de treinos, dietas, pagamentos e atualizações importantes diretamente na tela do seu aparelho.
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-xl">
+            Receba avisos imediatos de treinos, dietas, pagamentos e comunicados diretamente neste aparelho.
           </p>
           {pushFeedback && (
             <p
-              className={`text-xs font-medium pt-1 ${
-                pushFeedback.type === "success" ? "text-[#008f4c]" : "text-rose-600"
+              className={`text-xs font-semibold pt-1 ${
+                pushFeedback.type === "success" ? "text-[var(--brand-foreground)]" : "text-[var(--danger)]"
               }`}
             >
               {pushFeedback.message}
@@ -264,63 +269,41 @@ export function NotificationCenterView({
 
         <div className="shrink-0">
           {pushSupported === false ? (
-            <span className="text-xs text-zinc-400 font-medium">Não suportado neste navegador</span>
+            <span className="text-xs text-[var(--text-tertiary)] font-medium">Não suportado neste navegador</span>
           ) : pushPermission === "denied" ? (
-            <span className="text-xs text-rose-600 font-medium">Bloqueado no navegador</span>
+            <span className="text-xs text-[var(--danger)] font-semibold">Bloqueado no navegador</span>
           ) : (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant={isPushSubscribed ? "secondary" : "primary"}
               disabled={pushLoading || !vapidPublicKey}
+              isLoading={pushLoading}
               onClick={handleTogglePush}
-              className={`px-3.5 py-2 text-xs font-semibold rounded-xl transition-all shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-offset-1 cursor-pointer disabled:opacity-60 ${
-                isPushSubscribed
-                  ? "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 focus:ring-zinc-400"
-                  : "bg-[#00a859] text-white hover:bg-[#008f4c] focus:ring-[#00a859]"
-              }`}
             >
-              {pushLoading
-                ? "Processando..."
-                : isPushSubscribed
-                ? "Desativar neste dispositivo"
-                : "Ativar neste dispositivo"}
-            </button>
+              {isPushSubscribed ? "Desativar neste aparelho" : "Ativar neste aparelho"}
+            </Button>
           )}
         </div>
-      </div>
+      </Card>
 
-      {/* Control Bar: Filters & Mark All Read */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <div className="flex items-center gap-1.5 p-1 bg-zinc-100 rounded-xl border border-zinc-200/80">
-          <button
-            type="button"
-            onClick={() => setFilterUnreadOnly(false)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              !filterUnreadOnly
-                ? "bg-white text-zinc-900 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
-            }`}
-          >
-            Todas ({initialTotal})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterUnreadOnly(true)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              filterUnreadOnly
-                ? "bg-white text-zinc-900 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
-            }`}
-          >
-            Não lidas ({unreadCount})
-          </button>
-        </div>
+      {/* Control Bar: Tabs & Mark All Read */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <Tabs
+          size="sm"
+          activeId={filterTab}
+          onChange={(id) => setFilterTab(id as "all" | "unread")}
+          items={[
+            { id: "all", label: "Todas", count: initialTotal },
+            { id: "unread", label: "Não lidas", count: unreadCount },
+          ]}
+        />
 
         {unreadCount > 0 && (
           <button
             type="button"
             disabled={isPending}
             onClick={handleMarkAllRead}
-            className="text-xs font-medium text-[#008f4c] hover:text-[#00733d] hover:underline cursor-pointer disabled:opacity-50"
+            className="text-xs font-semibold text-[var(--brand-strong)] hover:text-[var(--brand)] hover:underline cursor-pointer disabled:opacity-50 transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-md"
           >
             Marcar todas como lidas
           </button>
@@ -330,73 +313,72 @@ export function NotificationCenterView({
       {/* Notifications List */}
       <div className="space-y-3">
         {displayedNotifications.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-zinc-200 p-12 text-center shadow-xs">
-            <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center mx-auto mb-3 text-zinc-400">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <EmptyState
+            icon={
+              <svg className="w-5 h-5 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
                 />
               </svg>
-            </div>
-            <h3 className="text-sm font-semibold text-zinc-900 mb-1">
-              Nenhuma notificação {filterUnreadOnly ? "não lida" : ""}
-            </h3>
-            <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-              {filterUnreadOnly
-                ? "Você leu todas as notificações recentes."
-                : "Quando houver novidades sobre seus treinos, planos ou consultorias, elas aparecerão aqui."}
-            </p>
-          </div>
+            }
+            title={filterTab === "unread" ? "Nenhuma notificação não lida" : "Nenhuma notificação"}
+            description={
+              filterTab === "unread"
+                ? "Você leu todos os avisos recentes."
+                : "Quando houver novidades sobre seus treinos, planos ou consultorias, elas aparecerão aqui."
+            }
+          />
         ) : (
           displayedNotifications.map((notif) => {
             const isUnread = !notif.readAt;
 
             return (
-              <div
+              <Card
                 key={notif.publicId}
-                className={`bg-white rounded-2xl border transition-all p-4 sm:p-5 shadow-xs ${
+                padding="md"
+                className={`transition-all ${
                   isUnread
-                    ? "border-[#00a859]/30 bg-emerald-50/10"
-                    : "border-zinc-200"
+                    ? "border-[var(--brand-soft-border)] bg-[var(--brand-soft)]/20"
+                    : ""
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1.5 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       {isUnread && (
-                        <span className="w-2 h-2 rounded-full bg-[#00a859] shrink-0" aria-label="Não lida" />
+                        <span className="w-2 h-2 rounded-full bg-[var(--brand)] shrink-0" aria-label="Não lida" />
                       )}
 
                       {notif.priority === "CRITICAL" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+                        <Badge variant="danger" size="sm">
                           Urgente
-                        </span>
+                        </Badge>
                       )}
 
                       {notif.priority === "HIGH" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+                        <Badge variant="warning" size="sm">
                           Importante
-                        </span>
+                        </Badge>
                       )}
 
                       {notif.consultancyName && (
-                        <span className="text-xs font-semibold text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-md">
+                        <Badge variant="neutral" size="sm">
                           {notif.consultancyName}
-                        </span>
+                        </Badge>
                       )}
 
-                      <span className="text-[11px] text-zinc-400">
+                      <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
                         {formatDate(notif.createdAt)}
                       </span>
                     </div>
 
-                    <h4 className={`text-sm font-semibold leading-snug ${isUnread ? "text-zinc-900" : "text-zinc-700"}`}>
+                    <h4 className={`text-sm font-bold leading-snug ${isUnread ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>
                       {notif.title}
                     </h4>
 
-                    <p className="text-xs text-zinc-600 leading-relaxed">
+                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                       {notif.body}
                     </p>
                   </div>
@@ -407,7 +389,8 @@ export function NotificationCenterView({
                         type="button"
                         onClick={() => handleMarkRead(notif.publicId)}
                         title="Marcar como lida"
-                        className="p-1.5 text-zinc-400 hover:text-[#00a859] rounded-lg hover:bg-emerald-50 transition-colors cursor-pointer"
+                        aria-label="Marcar como lida"
+                        className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--brand)] rounded-lg hover:bg-[var(--surface-hover)] transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
@@ -418,13 +401,13 @@ export function NotificationCenterView({
                 </div>
 
                 {notif.deepLink && (
-                  <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-end">
+                  <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-end">
                     <Link
                       href={notif.deepLink}
                       onClick={() => {
                         if (isUnread) handleMarkRead(notif.publicId);
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#008f4c] bg-emerald-50 hover:bg-emerald-100/80 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[var(--brand-foreground)] bg-[var(--brand-soft)] hover:bg-[var(--brand-soft-border)]/50 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
                     >
                       <span>Acessar</span>
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -433,7 +416,7 @@ export function NotificationCenterView({
                     </Link>
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })
         )}
@@ -441,30 +424,30 @@ export function NotificationCenterView({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 border-t border-zinc-200 text-xs">
+        <div className="flex items-center justify-between pt-4 border-t border-[var(--border-default)] text-xs">
           <Link
             href={`/notificacoes?pagina=${Math.max(currentPage - 1, 1)}`}
             aria-disabled={currentPage <= 1}
-            className={`px-3 py-1.5 rounded-lg border font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-xl border font-semibold transition-colors ${
               currentPage <= 1
-                ? "pointer-events-none opacity-40 border-zinc-200 text-zinc-400"
-                : "border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+                ? "pointer-events-none opacity-40 border-[var(--border-default)] text-[var(--text-tertiary)]"
+                : "border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
             }`}
           >
             Anterior
           </Link>
 
-          <span className="text-zinc-500 font-medium">
+          <span className="text-[var(--text-secondary)] font-medium">
             Página {currentPage} de {totalPages}
           </span>
 
           <Link
             href={`/notificacoes?pagina=${Math.min(currentPage + 1, totalPages)}`}
             aria-disabled={currentPage >= totalPages}
-            className={`px-3 py-1.5 rounded-lg border font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-xl border font-semibold transition-colors ${
               currentPage >= totalPages
-                ? "pointer-events-none opacity-40 border-zinc-200 text-zinc-400"
-                : "border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+                ? "pointer-events-none opacity-40 border-[var(--border-default)] text-[var(--text-tertiary)]"
+                : "border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
             }`}
           >
             Próxima

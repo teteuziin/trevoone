@@ -181,7 +181,7 @@ export function ConsultancyAppShell({
 
       {/* Main Content Area */}
       <main
-        className={`flex-1 w-full mx-auto p-4 sm:p-6 lg:p-8 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-8 ${maxWidthClass} ${className}`.trim()}
+        className={`flex-1 w-full mx-auto p-4 sm:p-6 lg:p-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 ${maxWidthClass} ${className}`.trim()}
       >
         {children}
       </main>

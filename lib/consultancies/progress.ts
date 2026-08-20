@@ -215,7 +215,6 @@ export async function createStudentOwnProgressEntry(params: {
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
          AND cmr.role IN ('STUDENT', 'INFLUENCER')
-         AND cm.deleted_at IS NULL
        LIMIT 1;`,
       [userId, access.context.consultancyId]
     );
@@ -340,7 +339,6 @@ export async function createProfessionalProgressEntry(params: {
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
          AND cmr.role IN ('STUDENT', 'INFLUENCER')
-         AND cm.deleted_at IS NULL
        LIMIT 1;`,
       [studentPublicId.trim(), context.consultancyId]
     );
@@ -476,7 +474,6 @@ export async function getStudentOwnProgressHistory(params: {
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
          AND cmr.role IN ('STUDENT', 'INFLUENCER')
-         AND cm.deleted_at IS NULL
        LIMIT 1;`,
       [userId, access.context.consultancyId]
     );
@@ -612,7 +609,6 @@ export async function getProfessionalStudentProgressHistory(params: {
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
          AND cmr.role IN ('STUDENT', 'INFLUENCER')
-         AND cm.deleted_at IS NULL
        LIMIT 1;`,
       [studentPublicId.trim(), context.consultancyId]
     );
@@ -740,7 +736,6 @@ export async function listProfessionalStudentsForProgress(params: {
        WHERE cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
          AND cmr.role IN ('STUDENT', 'INFLUENCER')
-         AND cm.deleted_at IS NULL
        ORDER BY u.full_name ASC;`,
       [context.consultancyId]
     );

@@ -4,7 +4,6 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
 import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
-import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { getUnreadCount } from "@/services/notification-service";
 import { logoutFromPlatformAdminArea } from "./actions";
@@ -23,13 +22,14 @@ export default async function AdminDashboardPage() {
   }
 
   const unreadNotificationsCount = await getUnreadCount(session.userId);
+  const firstName = session.fullName ? session.fullName.split(" ")[0] : "";
 
-  const modules = [
+  const activeModules = [
     {
       title: "Consultorias",
       description:
         "Gestão centralizada de consultorias parceiras, criação e configurações de tenant.",
-      status: "Disponível",
+      status: "Acessar módulo",
       href: "/admin/consultorias",
       icon: (
         <svg
@@ -50,8 +50,8 @@ export default async function AdminDashboardPage() {
     {
       title: "Cobrança & Assinaturas",
       description:
-        "Faturamento das consultorias, controle Pix, carência de inadimplência e comprovantes.",
-      status: "Disponível",
+        "Faturamento das consultorias, controle Pix, carência de inadimplência e conciliação de comprovantes.",
+      status: "Acessar módulo",
       href: "/admin/cobranca-plataforma",
       icon: (
         <svg
@@ -69,73 +69,20 @@ export default async function AdminDashboardPage() {
         </svg>
       ),
     },
+  ];
+
+  const futureModules = [
     {
       title: "Usuários",
-      description:
-        "Visão global de contas e acessos administrativos na plataforma.",
-      status: "Em preparação",
-      icon: (
-        <svg
-          className="w-5 h-5 text-[var(--text-tertiary)]"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.75}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-          />
-        </svg>
-      ),
+      description: "Visão global de contas e acessos administrativos na plataforma.",
     },
     {
       title: "Auditoria",
-      description:
-        "Registro de eventos administrativos e trilha de auditoria do sistema.",
-      status: "Em preparação",
-      icon: (
-        <svg
-          className="w-5 h-5 text-[var(--text-tertiary)]"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.75}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-      ),
+      description: "Registro de eventos administrativos e trilha de auditoria do sistema.",
     },
     {
       title: "Configurações",
-      description:
-        "Parâmetros globais da infraestrutura e integrações da plataforma.",
-      status: "Em preparação",
-      icon: (
-        <svg
-          className="w-5 h-5 text-[var(--text-tertiary)]"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.75}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-          />
-        </svg>
-      ),
+      description: "Parâmetros globais da infraestrutura e integrações da plataforma.",
     },
   ];
 
@@ -175,89 +122,86 @@ export default async function AdminDashboardPage() {
 
       {/* Conteúdo Principal */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
-        <PageHeader
-          title="Administração da plataforma"
-          description={`Bem-vindo, ${session.fullName}. Este é o ambiente de governança global do Trevo One.`}
-          actions={
-            <Badge variant="brand" size="sm" className="md:hidden">
-              Global
-            </Badge>
-          }
-        />
-
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
-              Módulos do sistema
-            </h2>
+        {/* Context Header Compacto */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[var(--border-subtle)]">
+          <div className="space-y-0.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+              {firstName ? `Olá, ${firstName}` : "Administração da plataforma"}
+            </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-              Recursos de administração e gestão da plataforma.
+              Painel de Governança Global • Trevo One
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {modules.map((m) => {
-              if (m.href) {
-                return (
-                  <Link
-                    key={m.title}
-                    href={m.href}
-                    className="group bg-[var(--surface)] rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] p-5 shadow-xs flex flex-col justify-between space-y-4 transition-all hover:bg-[var(--surface-hover)] focus-visible:outline-[var(--brand)]"
-                  >
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-lg bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] flex items-center justify-center group-hover:scale-105 transition-transform">
-                        {m.icon}
-                      </div>
-                      <div className="space-y-1">
-                        <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors">
-                          {m.title}
-                        </h3>
-                        <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                          {m.description}
-                        </p>
-                      </div>
-                    </div>
+          <Badge variant="brand" size="sm" className="self-start sm:self-auto">
+            Super Administrador
+          </Badge>
+        </div>
 
-                    <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
-                      <Badge variant="success" size="sm">
-                        {m.status} →
-                      </Badge>
-                    </div>
-                  </Link>
-                );
-              }
+        {/* 1. Módulos Operacionais Ativos (P0) */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+            Operação da Plataforma
+          </h2>
 
-              return (
-                <div
-                  key={m.title}
-                  className="bg-[var(--surface)] rounded-xl border border-[var(--border-default)] p-5 shadow-xs flex flex-col justify-between space-y-4 opacity-75"
-                >
-                  <div className="space-y-3">
-                    <div className="w-10 h-10 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center">
-                      {m.icon}
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)]">
-                        {m.title}
-                      </h3>
-                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                        {m.description}
-                      </p>
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {activeModules.map((m) => (
+              <Link
+                key={m.title}
+                href={m.href}
+                className="group bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] hover:border-[var(--brand)] p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4 transition-all hover:bg-[var(--surface-hover)] focus-visible:outline-[var(--brand)]"
+              >
+                <div className="space-y-3">
+                  <div className="w-11 h-11 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] flex items-center justify-center group-hover:scale-105 transition-transform">
+                    {m.icon}
                   </div>
-
-                  <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
-                    <Badge variant="neutral" size="sm">
-                      {m.status}
-                    </Badge>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+                      {m.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                      {m.description}
+                    </p>
                   </div>
                 </div>
-              );
-            })}
+
+                <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs font-semibold text-[var(--brand)]">
+                  <span>{m.status}</span>
+                  <span>→</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* 2. Módulos em Preparação (Demotados em lista secundária sutil) */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+            Módulos Futuros
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {futureModules.map((m) => (
+              <div
+                key={m.title}
+                className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] opacity-75 space-y-1.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-secondary)]">
+                    {m.title}
+                  </h4>
+                  <Badge variant="neutral" size="sm">
+                    Em breve
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
+                  {m.description}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </main>
   );
 }
-

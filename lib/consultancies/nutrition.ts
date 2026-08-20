@@ -1371,7 +1371,6 @@ export async function listActiveStudentsForNutritionist({
        WHERE cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
          AND cmr.role IN ('STUDENT', 'INFLUENCER')
-         AND cm.deleted_at IS NULL
        ORDER BY u.full_name ASC;`,
       [context.consultancyId]
     );
@@ -1458,7 +1457,6 @@ export async function createDraftNutritionPlan({
          AND cm.public_id = ?
          AND cmr.role IN ('STUDENT', 'INFLUENCER')
          AND cm.status = 'ACTIVE'
-         AND cm.deleted_at IS NULL
        LIMIT 1;`,
       [context.consultancyId, studentMembershipPublicId]
     );

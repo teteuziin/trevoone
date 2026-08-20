@@ -14,10 +14,11 @@ export default async function CadastroPage({ searchParams }: PageProps) {
 
   return (
     <AuthShell
-      title="Crie sua conta"
-      subtitle="Comece sua jornada no Trevo One."
+      title="Criar sua conta"
+      subtitle="Comece seu acesso ao Trevo One."
     >
       <RegisterForm returnTo={safeReturnTo || undefined} />
     </AuthShell>
   );
 }
+

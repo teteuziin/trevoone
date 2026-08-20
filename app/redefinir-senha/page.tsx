@@ -3,6 +3,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { verifyPasswordResetToken } from "@/lib/auth/password-reset";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 type PageProps = {
   searchParams: Promise<{
@@ -24,9 +25,10 @@ export default async function ResetPasswordPage({ searchParams }: PageProps) {
         subtitle="Link inválido ou expirado."
       >
         <div className="w-full space-y-5 text-center">
-          <div className="p-4 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger-foreground)] text-xs sm:text-sm font-medium leading-relaxed">
+          <Alert variant="danger">
             Este link é inválido ou expirou. Por motivos de segurança, solicite um novo link de recuperação de senha.
-          </div>
+          </Alert>
+
 
           <div className="pt-2 space-y-3">
             <Link href="/recuperar-senha" className="w-full block">

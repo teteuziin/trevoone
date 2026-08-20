@@ -28,7 +28,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
   return (
     <AuthShell
       title="Bem-vindo de volta"
-      subtitle="Entre na sua conta para acessar o Trevo One."
+      subtitle="Acesse sua conta para continuar."
     >
       <LoginForm
         returnTo={safeReturnTo || undefined}
@@ -36,4 +36,5 @@ export default async function LoginPage({ searchParams }: PageProps) {
       />
     </AuthShell>
   );
+
 }

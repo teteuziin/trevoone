@@ -5,6 +5,7 @@ import Link from "next/link";
 import { resetPasswordAction, ResetPasswordFormState } from "@/app/redefinir-senha/actions";
 import { Button } from "@/components/ui/button";
 import { FormField, Input } from "@/components/ui/form-controls";
+import { Alert } from "@/components/ui/alert";
 
 const initialState: ResetPasswordFormState = {
   success: false,
@@ -19,32 +20,14 @@ export function ResetPasswordForm({ token }: { token: string }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   return (
-    <form action={formAction} className="w-full space-y-4.5" noValidate>
+    <form action={formAction} className="w-full space-y-4" noValidate>
       <input type="hidden" name="token" value={token} />
 
       {/* Alerta de erro geral */}
       {state.error && (
-        <div
-          role="alert"
-          aria-live="polite"
-          className="p-3.5 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger-foreground)] text-xs font-medium leading-relaxed text-left flex items-start gap-2.5"
-        >
-          <svg
-            className="w-4 h-4 text-[var(--danger)] shrink-0 mt-0.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-            />
-          </svg>
-          <span>{state.error}</span>
-        </div>
+        <Alert variant="danger">
+          {state.error}
+        </Alert>
       )}
 
       {/* Campo Nova Senha */}
@@ -52,6 +35,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         label="Nova senha"
         id="password"
       >
+
         <div className="relative flex items-center">
           <Input
             id="password"

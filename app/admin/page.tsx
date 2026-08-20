@@ -4,6 +4,8 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
 import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
+import { PageHeader } from "@/components/ui/page-header";
+import { Badge } from "@/components/ui/badge";
 import { getUnreadCount } from "@/services/notification-service";
 import { logoutFromPlatformAdminArea } from "./actions";
 
@@ -31,7 +33,7 @@ export default async function AdminDashboardPage() {
       href: "/admin/consultorias",
       icon: (
         <svg
-          className="w-5 h-5 text-[#00A859]"
+          className="w-5 h-5 text-[var(--brand)]"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -53,7 +55,7 @@ export default async function AdminDashboardPage() {
       href: "/admin/cobranca-plataforma",
       icon: (
         <svg
-          className="w-5 h-5 text-[#00A859]"
+          className="w-5 h-5 text-[var(--brand)]"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -74,7 +76,7 @@ export default async function AdminDashboardPage() {
       status: "Em preparação",
       icon: (
         <svg
-          className="w-5 h-5 text-[#00A859]"
+          className="w-5 h-5 text-[var(--text-tertiary)]"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -95,7 +97,7 @@ export default async function AdminDashboardPage() {
       status: "Em preparação",
       icon: (
         <svg
-          className="w-5 h-5 text-[#00A859]"
+          className="w-5 h-5 text-[var(--text-tertiary)]"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -116,7 +118,7 @@ export default async function AdminDashboardPage() {
       status: "Em preparação",
       icon: (
         <svg
-          className="w-5 h-5 text-[#00A859]"
+          className="w-5 h-5 text-[var(--text-tertiary)]"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -138,29 +140,32 @@ export default async function AdminDashboardPage() {
   ];
 
   return (
-    <main className="min-h-svh w-full bg-zinc-50 text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-      <header className="sticky top-0 z-30 w-full bg-white/90 backdrop-blur border-b border-zinc-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <main className="min-h-dvh w-full bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+      {/* Topbar Padronizada */}
+      <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-15 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-[110px] sm:w-[130px] shrink-0">
-              <TrevoOneLogo priority size={130} />
+            <div className="shrink-0">
+              <TrevoOneLogo priority showWordmark size={36} />
             </div>
-            <span className="hidden sm:inline-block text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <span className="hidden sm:inline-block text-xs font-semibold uppercase tracking-wider text-[var(--border-strong)]">
               |
             </span>
-            <span className="hidden sm:inline-block text-xs font-medium text-zinc-600">
+            <span className="hidden sm:inline-block text-xs font-medium text-[var(--text-secondary)]">
               Administração Global
             </span>
           </div>
 
-          <div className="flex items-center space-x-3 sm:space-x-4">
-            <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-[#008f4c] border border-emerald-200/60">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <Badge variant="brand" size="sm" className="hidden md:inline-flex">
               Administrador global
-            </span>
+            </Badge>
             <NotificationBell unreadCount={unreadNotificationsCount} />
             <LogoutButton
               logoutAction={logoutFromPlatformAdminArea}
-              className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-zinc-700 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 cursor-pointer"
+              variant="ghost"
+              size="sm"
+              className="text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               Sair
             </LogoutButton>
@@ -168,66 +173,55 @@ export default async function AdminDashboardPage() {
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
-        <div className="bg-white rounded-2xl border border-zinc-200 p-6 sm:p-8 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">
-                  Administração da plataforma
-                </h1>
-                <span className="md:hidden inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-[#008f4c] border border-emerald-200/60">
-                  Global
-                </span>
-              </div>
-              <p className="text-sm text-zinc-600 leading-relaxed">
-                Bem-vindo,{" "}
-                <span className="font-semibold text-zinc-900">
-                  {session.fullName}
-                </span>
-                . Este é o ambiente de governança global do Trevo One.
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Conteúdo Principal */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        <PageHeader
+          title="Administração da plataforma"
+          description={`Bem-vindo, ${session.fullName}. Este é o ambiente de governança global do Trevo One.`}
+          actions={
+            <Badge variant="brand" size="sm" className="md:hidden">
+              Global
+            </Badge>
+          }
+        />
 
         <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900">
+          <div className="space-y-1">
+            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
               Módulos do sistema
             </h2>
-            <p className="text-xs sm:text-sm text-zinc-500">
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
               Recursos de administração e gestão da plataforma.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {modules.map((m) => {
               if (m.href) {
                 return (
                   <Link
                     key={m.title}
                     href={m.href}
-                    className="group bg-white rounded-xl border border-zinc-200 hover:border-[#00A859] p-5 shadow-sm flex flex-col justify-between space-y-4 transition-all hover:bg-emerald-50/20 focus:outline-none focus:ring-2 focus:ring-[#00A859]"
+                    className="group bg-[var(--surface)] rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] p-5 shadow-xs flex flex-col justify-between space-y-4 transition-all hover:bg-[var(--surface-hover)] focus-visible:outline-[var(--brand)]"
                   >
                     <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center group-hover:bg-emerald-100/60 transition-colors">
+                      <div className="w-10 h-10 rounded-lg bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] flex items-center justify-center group-hover:scale-105 transition-transform">
                         {m.icon}
                       </div>
-                      <div>
-                        <h3 className="text-base font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors">
+                      <div className="space-y-1">
+                        <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors">
                           {m.title}
                         </h3>
-                        <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                        <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                           {m.description}
                         </p>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-[#008f4c]">
+                    <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
+                      <Badge variant="success" size="sm">
                         {m.status} →
-                      </span>
+                      </Badge>
                     </div>
                   </Link>
                 );
@@ -236,26 +230,26 @@ export default async function AdminDashboardPage() {
               return (
                 <div
                   key={m.title}
-                  className="bg-white rounded-xl border border-zinc-200 p-5 shadow-sm flex flex-col justify-between space-y-4"
+                  className="bg-[var(--surface)] rounded-xl border border-[var(--border-default)] p-5 shadow-xs flex flex-col justify-between space-y-4 opacity-75"
                 >
                   <div className="space-y-3">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center">
                       {m.icon}
                     </div>
-                    <div>
-                      <h3 className="text-base font-semibold text-zinc-900">
+                    <div className="space-y-1">
+                      <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)]">
                         {m.title}
                       </h3>
-                      <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                         {m.description}
                       </p>
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 text-zinc-600">
+                  <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
+                    <Badge variant="neutral" size="sm">
                       {m.status}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
               );
@@ -266,3 +260,4 @@ export default async function AdminDashboardPage() {
     </main>
   );
 }
+

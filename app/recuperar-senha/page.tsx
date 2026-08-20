@@ -4,10 +4,11 @@ import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 export default function ForgotPasswordPage() {
   return (
     <AuthShell
-      title="Recuperar senha"
-      subtitle="Informe o e-mail associado à sua conta."
+      title="Recuperar acesso"
+      subtitle="Informe seu e-mail para continuar."
     >
       <ForgotPasswordForm />
     </AuthShell>
   );
 }
+

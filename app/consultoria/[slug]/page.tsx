@@ -11,8 +11,10 @@ import { getStudentFinancialAccessState } from "@/lib/consultancies/finance";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 type PageProps = {
+
   params: Promise<{
     slug: string;
   }>;
@@ -77,14 +79,14 @@ export default async function ConsultancyPage({ params }: PageProps) {
         userName={session.fullName}
         userEmail={session.email}
       >
-        <div className="p-8 sm:p-12 max-w-xl mx-auto my-8 bg-white rounded-2xl border border-zinc-200 text-center space-y-4 shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 mx-auto flex items-center justify-center text-xl font-bold">
+        <div className="p-8 sm:p-12 max-w-xl mx-auto my-8 bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] text-center space-y-4 shadow-xs">
+          <div className="w-12 h-12 rounded-full bg-[var(--warning-soft)] border border-[var(--warning-border)] text-[var(--warning-foreground)] mx-auto flex items-center justify-center text-xl font-bold">
             !
           </div>
-          <h2 className="text-xl font-semibold text-zinc-900">
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">
             Consultoria temporariamente indisponível
           </h2>
-          <p className="text-sm text-zinc-600 leading-relaxed">
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
             O acesso aos módulos desta consultoria está temporariamente suspenso. Entre em contato com a equipe da consultoria para mais informações.
           </p>
         </div>
@@ -101,21 +103,21 @@ export default async function ConsultancyPage({ params }: PageProps) {
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {/* Banner de Suspensão da Plataforma (Admin) */}
         {isSuspendedOrCanceled && isConsultancyAdmin && (
-          <div className="p-5 sm:p-6 rounded-2xl border border-red-200 bg-red-50/70 text-red-900 shadow-xs space-y-3">
+          <div className="p-5 sm:p-6 rounded-2xl border border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger-foreground)] shadow-xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Badge variant="danger" size="sm">
                     {platformAccess.effectiveStatus === "CANCELED" ? "Assinatura Cancelada" : "Serviços Suspensos"}
                   </Badge>
-                  <span className="text-xs font-semibold text-red-800">
+                  <span className="text-xs font-semibold text-[var(--danger-foreground)]">
                     Acesso operacional bloqueado
                   </span>
                 </div>
-                <p className="text-sm text-red-800">
+                <p className="text-sm text-[var(--danger-foreground)] opacity-90">
                   {platformAccess.effectiveStatus === "CANCELED"
                     ? "A assinatura desta consultoria foi cancelada. Entre em contato com o suporte da plataforma."
                     : platformAccess.effectiveReason === "NONPAYMENT"
@@ -125,9 +127,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
               </div>
               <Link
                 href={`/consultoria/${slug}/assinatura`}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors shrink-0"
+                className="shrink-0"
               >
-                Gerenciar Assinatura →
+                <Button variant="danger" size="sm">
+                  Gerenciar Assinatura →
+                </Button>
               </Link>
             </div>
           </div>
@@ -135,26 +139,28 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
         {/* Banner de Carência da Plataforma (Admin) */}
         {isInGrace && isConsultancyAdmin && (
-          <div className="p-5 sm:p-6 rounded-2xl border border-amber-200 bg-amber-50/70 text-amber-900 shadow-xs space-y-3">
+          <div className="p-5 sm:p-6 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] text-[var(--warning-foreground)] shadow-xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Badge variant="warning" size="sm">
                     Carência de Pagamento
                   </Badge>
-                  <span className="text-xs font-semibold text-amber-800">
+                  <span className="text-xs font-semibold text-[var(--warning-foreground)]">
                     Fatura da consultoria vencida
                   </span>
                 </div>
-                <p className="text-sm text-amber-800">
+                <p className="text-sm text-[var(--warning-foreground)] opacity-90">
                   Há uma fatura em aberto com período de carência ativo. Regularize o pagamento para evitar a suspensão dos serviços.
                 </p>
               </div>
               <Link
                 href={`/consultoria/${slug}/assinatura`}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 transition-colors shrink-0"
+                className="shrink-0"
               >
-                Ver Fatura e Pix →
+                <Button variant="secondary" size="sm">
+                  Ver Fatura e Pix →
+                </Button>
               </Link>
             </div>
           </div>
@@ -177,7 +183,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
         {/* 1. Bloco Prioritário: Onboarding Pendente para Aluno */}
         {hasIncompleteOnboarding && (
-          <div className="p-5 sm:p-6 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] shadow-xs space-y-4">
+          <div className="p-5 sm:p-6 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] shadow-xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -197,11 +203,10 @@ export default async function ConsultancyPage({ params }: PageProps) {
               </div>
 
               <div className="shrink-0 pt-1 sm:pt-0">
-                <Link
-                  href={`/consultoria/${context.consultancySlug}/onboarding`}
-                  className="inline-flex items-center justify-center px-4 py-2.5 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)]"
-                >
-                  Continuar onboarding
+                <Link href={`/consultoria/${context.consultancySlug}/onboarding`}>
+                  <Button variant="primary" size="sm" className="font-semibold">
+                    Continuar onboarding
+                  </Button>
                 </Link>
               </div>
             </div>
@@ -245,9 +250,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 <div className="pt-2 border-t border-[var(--border-subtle)]">
                   <Link
                     href={`/consultoria/${context.consultancySlug}/treinos`}
-                    className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--surface-hover)] hover:bg-[var(--brand-soft)] hover:text-[var(--brand-foreground)] text-[var(--text-primary)] text-xs font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+                    className="block w-full"
                   >
-                    {!isStudent || studentOnboarding?.isComplete ? "Acessar treinos" : "Ver módulo"}
+                    <Button
+                      variant={!isStudent || studentOnboarding?.isComplete ? "secondary" : "ghost"}
+                      fullWidth
+                      size="sm"
+                      className="font-semibold"
+                    >
+                      {!isStudent || studentOnboarding?.isComplete ? "Acessar treinos" : "Ver módulo"}
+                    </Button>
                   </Link>
                 </div>
               </div>
@@ -276,9 +288,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 <div className="pt-2 border-t border-[var(--border-subtle)]">
                   <Link
                     href={`/consultoria/${context.consultancySlug}/nutricao`}
-                    className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--surface-hover)] hover:bg-[var(--brand-soft)] hover:text-[var(--brand-foreground)] text-[var(--text-primary)] text-xs font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+                    className="block w-full"
                   >
-                    {!isStudent || studentOnboarding?.isComplete ? "Acessar nutrição" : "Ver módulo"}
+                    <Button
+                      variant={!isStudent || studentOnboarding?.isComplete ? "secondary" : "ghost"}
+                      fullWidth
+                      size="sm"
+                      className="font-semibold"
+                    >
+                      {!isStudent || studentOnboarding?.isComplete ? "Acessar nutrição" : "Ver módulo"}
+                    </Button>
                   </Link>
                 </div>
               </div>
@@ -303,9 +322,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
                   <div className="pt-2 border-t border-[var(--border-subtle)]">
                     <Link
                       href={`/consultoria/${context.consultancySlug}/missoes`}
-                      className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)]"
+                      className="block w-full"
                     >
-                      Ver missões
+                      <Button
+                        variant="primary"
+                        fullWidth
+                        size="sm"
+                        className="font-semibold"
+                      >
+                        Ver missões
+                      </Button>
                     </Link>
                   </div>
                 </div>
@@ -348,9 +374,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
                     <div className="pt-2 border-t border-[var(--border-subtle)]">
                       <Link
                         href={`/consultoria/${context.consultancySlug}/personal/treinos`}
-                        className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)]"
+                        className="block w-full"
                       >
-                        Gerenciar planos
+                        <Button
+                          variant="primary"
+                          fullWidth
+                          size="sm"
+                          className="font-semibold"
+                        >
+                          Gerenciar planos
+                        </Button>
                       </Link>
                     </div>
                   </div>
@@ -374,9 +407,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
                     <div className="pt-2 border-t border-[var(--border-subtle)]">
                       <Link
                         href={`/consultoria/${context.consultancySlug}/personal/exercicios`}
-                        className="inline-flex items-center justify-center w-full py-2 px-3 bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] text-xs font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+                        className="block w-full"
                       >
-                        Acessar exercícios
+                        <Button
+                          variant="secondary"
+                          fullWidth
+                          size="sm"
+                          className="font-semibold"
+                        >
+                          Acessar exercícios
+                        </Button>
                       </Link>
                     </div>
                   </div>
@@ -473,9 +513,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 </div>
                 <Link
                   href={`/consultoria/${context.consultancySlug}/missoes/gestao`}
-                  className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)]"
+                  className="block w-full"
                 >
-                  Gerenciar missões
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    size="sm"
+                    className="font-semibold"
+                  >
+                    Gerenciar missões
+                  </Button>
                 </Link>
               </div>
 
@@ -490,9 +537,16 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 </div>
                 <Link
                   href={`/consultoria/${context.consultancySlug}/membros`}
-                  className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] text-xs sm:text-sm font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+                  className="block w-full"
                 >
-                  Gerenciar membros
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    size="sm"
+                    className="font-semibold"
+                  >
+                    Gerenciar membros
+                  </Button>
                 </Link>
               </div>
             </div>
@@ -502,3 +556,4 @@ export default async function ConsultancyPage({ params }: PageProps) {
     </ConsultancyAppShell>
   );
 }
+

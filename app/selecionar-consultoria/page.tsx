@@ -34,14 +34,17 @@ export default async function SelecionarConsultoriaPage() {
 
     // Caso possua 1 ou mais consultorias acessíveis: exibir seletor de ambientes
     return (
-      <main className="min-h-dvh w-full flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
-        <div className="w-full max-w-[540px] mx-auto flex flex-col items-center space-y-6 sm:space-y-7 my-auto">
-          <div className="w-[130px] sm:w-[150px] shrink-0 transition-transform duration-200 hover:scale-[1.02]">
-            <TrevoOneLogo priority size={150} />
+      <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+        <div className="w-full max-w-[480px] mx-auto flex flex-col items-center space-y-6 my-auto">
+          {/* Brand Header */}
+          <div className="flex flex-col items-center space-y-2">
+            <div className="shrink-0 transition-transform duration-200 hover:scale-[1.02]">
+              <TrevoOneLogo priority showWordmark size={40} />
+            </div>
           </div>
 
-          <div className="w-full text-center space-y-1.5 px-2">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+          <div className="w-full text-center space-y-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               Escolha seu ambiente
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal leading-relaxed">
@@ -53,15 +56,15 @@ export default async function SelecionarConsultoriaPage() {
             {/* Card Global: Administração Trevo One */}
             <Link
               href="/admin"
-              className="group block w-full p-4 sm:p-5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] shadow-xs transition-all duration-150 focus-visible:outline-[var(--brand)]"
+              className="group block w-full p-4 sm:p-4.5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] shadow-xs transition-all duration-150 focus-visible:outline-[var(--brand)]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-12 h-12 rounded-lg bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] flex items-center justify-center shrink-0 p-1">
-                    <TrevoOneLogo size={36} />
+                  <div className="w-11 h-11 rounded-lg bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] flex items-center justify-center shrink-0 p-1">
+                    <TrevoOneLogo size={32} />
                   </div>
-                  <div className="space-y-1.5 text-left min-w-0">
-                    <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors truncate">
+                  <div className="space-y-1 text-left min-w-0">
+                    <h2 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors truncate">
                       Administração Trevo One
                     </h2>
                     <div className="flex flex-wrap gap-1.5">
@@ -96,17 +99,17 @@ export default async function SelecionarConsultoriaPage() {
               <Link
                 key={item.membershipId}
                 href={`/consultoria/${item.consultancySlug}`}
-                className="group block w-full p-4 sm:p-5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] shadow-xs transition-all duration-150 focus-visible:outline-[var(--brand)]"
+                className="group block w-full p-4 sm:p-4.5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] shadow-xs transition-all duration-150 focus-visible:outline-[var(--brand)]"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <ConsultancyLogo
                       logoUrl={item.consultancyLogoUrl}
                       name={item.consultancyName}
-                      size={48}
+                      size={44}
                     />
-                    <div className="space-y-1.5 text-left min-w-0">
-                      <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors truncate">
+                    <div className="space-y-1 text-left min-w-0">
+                      <h2 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors truncate">
                         {item.consultancyName}
                       </h2>
                       <div className="flex flex-wrap gap-1.5">
@@ -144,7 +147,7 @@ export default async function SelecionarConsultoriaPage() {
             ))}
           </div>
 
-          <div className="w-full pt-2">
+          <div className="w-full pt-1">
             <LogoutButton
               logoutAction={logoutFromConsultancyArea}
               variant="secondary"
@@ -170,9 +173,9 @@ export default async function SelecionarConsultoriaPage() {
   if (accessible.length === 0 && configuring.length === 0) {
     return (
       <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
-        <div className="w-full max-w-[440px] mx-auto flex flex-col items-center space-y-6 sm:space-y-7">
-          <div className="w-[130px] sm:w-[150px] shrink-0">
-            <TrevoOneLogo priority size={150} />
+        <div className="w-full max-w-[420px] mx-auto flex flex-col items-center space-y-6">
+          <div className="shrink-0 transition-transform duration-200 hover:scale-[1.02]">
+            <TrevoOneLogo priority showWordmark size={40} />
           </div>
 
           <EmptyState
@@ -199,9 +202,9 @@ export default async function SelecionarConsultoriaPage() {
   if (accessible.length === 0 && configuring.length > 0) {
     return (
       <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
-        <div className="w-full max-w-[440px] mx-auto flex flex-col items-center space-y-6 sm:space-y-7">
-          <div className="w-[130px] sm:w-[150px] shrink-0">
-            <TrevoOneLogo priority size={150} />
+        <div className="w-full max-w-[420px] mx-auto flex flex-col items-center space-y-6">
+          <div className="shrink-0 transition-transform duration-200 hover:scale-[1.02]">
+            <TrevoOneLogo priority showWordmark size={40} />
           </div>
 
           <EmptyState
@@ -226,14 +229,16 @@ export default async function SelecionarConsultoriaPage() {
 
   // 4. Caso haja 2 ou mais consultorias acessíveis para usuário comum
   return (
-    <main className="min-h-dvh w-full flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
-      <div className="w-full max-w-[540px] mx-auto flex flex-col items-center space-y-6 sm:space-y-7 my-auto">
-        <div className="w-[130px] sm:w-[150px] shrink-0 transition-transform duration-200 hover:scale-[1.02]">
-          <TrevoOneLogo priority size={150} />
+    <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+      <div className="w-full max-w-[480px] mx-auto flex flex-col items-center space-y-6 my-auto">
+        <div className="flex flex-col items-center space-y-2">
+          <div className="shrink-0 transition-transform duration-200 hover:scale-[1.02]">
+            <TrevoOneLogo priority showWordmark size={40} />
+          </div>
         </div>
 
-        <div className="w-full text-center space-y-1.5 px-2">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+        <div className="w-full text-center space-y-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
             Escolha sua consultoria
           </h1>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal leading-relaxed">
@@ -246,17 +251,17 @@ export default async function SelecionarConsultoriaPage() {
             <Link
               key={item.membershipId}
               href={`/consultoria/${item.consultancySlug}`}
-              className="group block w-full p-4 sm:p-5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] shadow-xs transition-all duration-150 focus-visible:outline-[var(--brand)]"
+              className="group block w-full p-4 sm:p-4.5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] shadow-xs transition-all duration-150 focus-visible:outline-[var(--brand)]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3.5 min-w-0">
                   <ConsultancyLogo
                     logoUrl={item.consultancyLogoUrl}
                     name={item.consultancyName}
-                    size={48}
+                    size={44}
                   />
-                  <div className="space-y-1.5 text-left min-w-0">
-                    <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors truncate">
+                  <div className="space-y-1 text-left min-w-0">
+                    <h2 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors truncate">
                       {item.consultancyName}
                     </h2>
                     <div className="flex flex-wrap gap-1.5">
@@ -294,7 +299,7 @@ export default async function SelecionarConsultoriaPage() {
           ))}
         </div>
 
-        <div className="w-full pt-2">
+        <div className="w-full pt-1">
           <LogoutButton
             logoutAction={logoutFromConsultancyArea}
             variant="secondary"
@@ -308,3 +313,4 @@ export default async function SelecionarConsultoriaPage() {
     </main>
   );
 }
+

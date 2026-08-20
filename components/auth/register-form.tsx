@@ -5,6 +5,7 @@ import Link from "next/link";
 import { registerAccount, RegisterFormState } from "@/app/cadastro/actions";
 import { Button } from "@/components/ui/button";
 import { FormField, Input } from "@/components/ui/form-controls";
+import { Alert } from "@/components/ui/alert";
 
 const initialState: RegisterFormState = {
   success: false,
@@ -41,11 +42,15 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
           </p>
         </div>
         <div className="pt-2">
-          <Link
-            href={loginHref}
-            className="inline-flex items-center justify-center w-full h-11 bg-[var(--brand-strong)] hover:bg-[var(--brand)] active:bg-[var(--brand-active)] text-white font-semibold text-sm rounded-lg shadow-xs transition-all focus-visible:outline-[var(--brand)]"
-          >
-            Ir para o login
+          <Link href={loginHref} className="w-full block">
+            <Button
+              type="button"
+              fullWidth
+              size="md"
+              className="font-semibold"
+            >
+              Ir para o login
+            </Button>
           </Link>
         </div>
       </div>
@@ -58,30 +63,13 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
     <form action={formAction} className="w-full space-y-4" noValidate>
       {/* Alerta de erro geral */}
       {state.message && !state.success && (
-        <div
-          role="alert"
-          aria-live="polite"
-          className="p-3.5 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger-foreground)] text-xs font-medium leading-relaxed text-left flex items-start gap-2.5"
-        >
-          <svg
-            className="w-4 h-4 text-[var(--danger)] shrink-0 mt-0.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-            />
-          </svg>
-          <span>{state.message}</span>
-        </div>
+        <Alert variant="danger">
+          {state.message}
+        </Alert>
       )}
 
       {/* Campo Nome completo */}
+
       <FormField
         label="Nome completo"
         id="full_name"

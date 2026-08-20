@@ -5,6 +5,7 @@ import Link from "next/link";
 import { requestPasswordRecovery, ForgotPasswordFormState } from "@/app/recuperar-senha/actions";
 import { Button } from "@/components/ui/button";
 import { FormField, Input } from "@/components/ui/form-controls";
+import { Alert } from "@/components/ui/alert";
 
 const initialState: ForgotPasswordFormState = {
   success: false,
@@ -17,80 +18,26 @@ export function ForgotPasswordForm() {
   );
 
   return (
-    <form action={formAction} className="w-full space-y-4.5" noValidate>
+    <form action={formAction} className="w-full space-y-4" noValidate>
       {/* Alerta de envio / conclusão genérica com entrega configurada */}
       {state.success && state.status === "COMPLETED" && state.message && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs font-medium leading-relaxed text-left flex items-start gap-2.5"
-        >
-          <svg
-            className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span>{state.message}</span>
-        </div>
+        <Alert variant="success">
+          {state.message}
+        </Alert>
       )}
 
       {/* Alerta informativo quando SMTP não está configurado no ambiente */}
       {state.success && state.status === "UNAVAILABLE" && state.message && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="p-3.5 rounded-xl border border-sky-200 dark:border-sky-900/40 bg-sky-50 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300 text-xs font-medium leading-relaxed text-left flex items-start gap-2.5"
-        >
-          <svg
-            className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"
-            />
-          </svg>
-          <span>{state.message}</span>
-        </div>
+        <Alert variant="info">
+          {state.message}
+        </Alert>
       )}
 
       {/* Alerta de erro de validação */}
       {!state.success && state.error && (
-        <div
-          role="alert"
-          aria-live="polite"
-          className="p-3.5 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger-foreground)] text-xs font-medium leading-relaxed text-left flex items-start gap-2.5"
-        >
-          <svg
-            className="w-4 h-4 text-[var(--danger)] shrink-0 mt-0.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-            />
-          </svg>
-          <span>{state.error}</span>
-        </div>
+        <Alert variant="danger">
+          {state.error}
+        </Alert>
       )}
 
       {/* Campo E-mail */}
@@ -99,6 +46,7 @@ export function ForgotPasswordForm() {
         id="email"
         error={!state.success ? state.error : undefined}
       >
+
         <Input
           id="email"
           name="email"

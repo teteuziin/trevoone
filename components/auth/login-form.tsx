@@ -5,6 +5,7 @@ import Link from "next/link";
 import { loginAccount, LoginFormState } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
 import { FormField, Input } from "@/components/ui/form-controls";
+import { Alert } from "@/components/ui/alert";
 
 const initialState: LoginFormState = {
   success: false,
@@ -23,57 +24,21 @@ export function LoginForm({
   const errors = state.errors || {};
 
   return (
-    <form action={formAction} className="w-full space-y-4.5" noValidate>
+    <form action={formAction} className="w-full space-y-4" noValidate>
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
 
       {/* Alerta de sucesso após redefinição de senha */}
       {resetSuccess && !state.message && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs font-medium leading-relaxed text-left flex items-start gap-2.5"
-        >
-          <svg
-            className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span>Sua senha foi redefinida com sucesso. Faça login com a nova senha.</span>
-        </div>
+        <Alert variant="success">
+          Sua senha foi redefinida com sucesso. Faça login com a nova senha.
+        </Alert>
       )}
 
       {/* Alerta de erro geral */}
       {state.message && !state.success && (
-        <div
-          role="alert"
-          aria-live="polite"
-          className="p-3.5 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger-foreground)] text-xs font-medium leading-relaxed text-left flex items-start gap-2.5"
-        >
-          <svg
-            className="w-4 h-4 text-[var(--danger)] shrink-0 mt-0.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-            />
-          </svg>
-          <span>{state.message}</span>
-        </div>
+        <Alert variant="danger">
+          {state.message}
+        </Alert>
       )}
 
       {/* Campo E-mail */}
@@ -82,6 +47,7 @@ export function LoginForm({
         id="email"
         error={errors.email}
       >
+
         <Input
           id="email"
           name="email"

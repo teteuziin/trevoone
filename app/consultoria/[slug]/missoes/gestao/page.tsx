@@ -2,104 +2,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
-import {
-  listAdminMissions,
-  type MissionPriority,
-  type MissionStatus,
-} from "@/lib/consultancies/missions";
+import { listAdminMissions } from "@/lib/consultancies/missions";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Surface } from "@/components/ui/surface";
+import { Button } from "@/components/ui/button";
+import {
+  MissionPriorityBadge,
+  MissionStatusGroup,
+} from "@/components/missions/mission-ui-badges";
 
 export const dynamic = "force-dynamic";
-
-function getStatusBadge(status: MissionStatus, isLate: boolean) {
-  const baseClasses = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold";
-  let statusBadge = null;
-
-  switch (status) {
-    case "PENDING":
-      statusBadge = (
-        <span className={`${baseClasses} bg-amber-50 text-amber-700 border border-amber-200/60`}>
-          Pendente
-        </span>
-      );
-      break;
-    case "IN_PROGRESS":
-      statusBadge = (
-        <span className={`${baseClasses} bg-blue-50 text-blue-700 border border-blue-200/60`}>
-          Em andamento
-        </span>
-      );
-      break;
-    case "SUBMITTED":
-      statusBadge = (
-        <span className={`${baseClasses} bg-purple-50 text-purple-700 border border-purple-200/60`}>
-          Aguardando revisão
-        </span>
-      );
-      break;
-    case "REVISION_REQUESTED":
-      statusBadge = (
-        <span className={`${baseClasses} bg-orange-50 text-orange-700 border border-orange-200/60`}>
-          Revisão solicitada
-        </span>
-      );
-      break;
-    case "APPROVED":
-      statusBadge = (
-        <span className={`${baseClasses} bg-emerald-50 text-[#008f4c] border border-emerald-200/60`}>
-          Aprovada
-        </span>
-      );
-      break;
-    case "CANCELED":
-      statusBadge = (
-        <span className={`${baseClasses} bg-zinc-100 text-zinc-500 border border-zinc-200`}>
-          Cancelada
-        </span>
-      );
-      break;
-    default:
-      statusBadge = (
-        <span className={`${baseClasses} bg-zinc-100 text-zinc-600 border border-zinc-200`}>
-          {status}
-        </span>
-      );
-  }
-
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {statusBadge}
-      {isLate && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/60">
-          Atrasada
-        </span>
-      )}
-    </div>
-  );
-}
-
-function getPriorityBadge(priority: MissionPriority) {
-  switch (priority) {
-    case "HIGH":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/60">
-          Alta
-        </span>
-      );
-    case "NORMAL":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 text-zinc-700 border border-zinc-200">
-          Normal
-        </span>
-      );
-    case "LOW":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-50 text-zinc-500 border border-zinc-200">
-          Baixa
-        </span>
-      );
-  }
-}
 
 export default async function AdminMissionsPage({
   params,
@@ -139,102 +53,119 @@ export default async function AdminMissionsPage({
       consultancyLogoUrl={consultancyContext.consultancyLogoUrl}
       roles={consultancyContext.roles}
     >
-      <div className="space-y-6 max-w-5xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
-              Gestão de Missões
-            </h1>
-            <p className="text-sm text-zinc-600 mt-0.5">
-              Atribua missões a Influenciadores / VIPs, acompanhe prazos e avalie entregas.
-            </p>
-          </div>
-
-          <Link
-            href={`/consultoria/${slug}/missoes/gestao/nova`}
-            className="inline-flex items-center justify-center px-4 h-10 bg-[#00A859] hover:bg-[#008f4c] text-white font-semibold text-xs sm:text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2 shrink-0"
-          >
-            + Nova Missão
-          </Link>
-        </div>
+      <div className="space-y-6 max-w-5xl mx-auto pb-10">
+        <PageHeader
+          eyebrow="ADMINISTRAÇÃO DA CONSULTORIA"
+          title="Gestão de Missões"
+          description="Atribua missões a Influenciadores / VIPs, acompanhe prazos e avalie entregas."
+          actions={
+            <Link href={`/consultoria/${slug}/missoes/gestao/nova`}>
+              <Button variant="primary" size="md">
+                + Nova Missão
+              </Button>
+            </Link>
+          }
+        />
 
         {items.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-zinc-200 p-10 text-center space-y-3 shadow-sm">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 text-[#00A859] flex items-center justify-center mx-auto text-xl font-bold">
-              🎯
-            </div>
-            <h3 className="text-base font-semibold text-zinc-900">
-              Nenhuma missão cadastrada
-            </h3>
-            <p className="text-sm text-zinc-500 max-w-md mx-auto">
-              Crie a primeira missão para orientar a produção de conteúdo e entregas dos seus influenciadores e parceiros VIP.
-            </p>
-            <div className="pt-2">
-              <Link
-                href={`/consultoria/${slug}/missoes/gestao/nova`}
-                className="inline-flex items-center px-4 py-2 bg-[#00A859] hover:bg-[#008f4c] text-white text-xs font-semibold rounded-lg transition-all"
+          <EmptyState
+            icon={
+              <svg
+                className="w-5 h-5 text-[var(--text-tertiary)]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.75}
               >
-                Criar missão
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                />
+              </svg>
+            }
+            title="Nenhuma missão cadastrada"
+            description="Crie a primeira missão para orientar a produção de conteúdo e entregas dos seus influenciadores e parceiros VIP."
+            action={
+              <Link href={`/consultoria/${slug}/missoes/gestao/nova`}>
+                <Button variant="primary" size="sm">
+                  Criar missão
+                </Button>
               </Link>
-            </div>
-          </div>
+            }
+          />
         ) : (
           <div className="space-y-3">
             {items.map((m) => (
               <Link
                 key={m.publicId}
                 href={`/consultoria/${slug}/missoes/gestao/${m.publicId}`}
-                className="block bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 hover:border-[#00A859]/50 hover:shadow-sm transition-all group"
+                className="block group focus-visible:outline-none"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-1.5 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-base font-semibold text-zinc-900 group-hover:text-[#00A859] transition-colors truncate">
-                        {m.title}
-                      </h2>
-                      {getPriorityBadge(m.priority)}
+                <Surface
+                  variant="interactive"
+                  padding="md"
+                  className="transition-all"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+                    <div className="space-y-2 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-sm sm:text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                          {m.title}
+                        </h2>
+                        <MissionPriorityBadge priority={m.priority} size="sm" />
+                      </div>
+                      <div className="text-xs text-[var(--text-secondary)] flex items-center gap-2.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          <span>Destinatário: <strong className="font-semibold text-[var(--text-primary)]">{m.assigneeName}</strong></span>
+                        </span>
+                        <span className="text-[var(--border-strong)]">•</span>
+                        <span className="inline-flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>Prazo: <strong className="font-semibold text-[var(--text-primary)]">{m.formattedDueAt}</strong></span>
+                        </span>
+                        <span className="text-[var(--border-strong)]">•</span>
+                        <span className="font-mono text-[11px] text-[var(--text-tertiary)]">{m.timezoneSnapshot}</span>
+                      </div>
                     </div>
-                    <div className="text-xs text-zinc-500 flex items-center gap-3 flex-wrap">
-                      <span>Destinatário: <strong className="text-zinc-800 font-medium">{m.assigneeName}</strong></span>
-                      <span className="text-zinc-300">•</span>
-                      <span>Prazo: <strong className="text-zinc-700 font-medium">{m.formattedDueAt}</strong></span>
-                      <span className="text-zinc-300">•</span>
-                      <span>Fuso: <span className="font-mono text-zinc-600">{m.timezoneSnapshot}</span></span>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-100">
-                    {getStatusBadge(m.status, m.isLate)}
-                    <span className="text-zinc-400 group-hover:text-zinc-600 group-hover:translate-x-0.5 transition-all text-sm font-medium">
-                      →
-                    </span>
+                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-[var(--border-subtle)]">
+                      <MissionStatusGroup status={m.status} isLate={m.isLate} size="sm" />
+                      <div className="text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all text-xs font-semibold flex items-center gap-0.5 pl-1">
+                        <span className="hidden sm:inline">Gerenciar</span>
+                        <span>→</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </Surface>
               </Link>
             ))}
           </div>
         )}
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 border-t border-zinc-200 text-sm">
-            <span className="text-zinc-500">
-              Página {page} de {totalPages} ({total} missões)
+          <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)] text-xs">
+            <span className="text-[var(--text-secondary)]">
+              Página <strong className="text-[var(--text-primary)]">{page}</strong> de {totalPages} ({total} {total === 1 ? "missão" : "missões"})
             </span>
             <div className="flex gap-2">
               {page > 1 && (
-                <Link
-                  href={`/consultoria/${slug}/missoes/gestao?page=${page - 1}`}
-                  className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 font-medium text-xs"
-                >
-                  Anterior
+                <Link href={`/consultoria/${slug}/missoes/gestao?page=${page - 1}`}>
+                  <Button variant="secondary" size="sm">
+                    Anterior
+                  </Button>
                 </Link>
               )}
               {page < totalPages && (
-                <Link
-                  href={`/consultoria/${slug}/missoes/gestao?page=${page + 1}`}
-                  className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 font-medium text-xs"
-                >
-                  Próxima
+                <Link href={`/consultoria/${slug}/missoes/gestao?page=${page + 1}`}>
+                  <Button variant="secondary" size="sm">
+                    Próxima
+                  </Button>
                 </Link>
               )}
             </div>

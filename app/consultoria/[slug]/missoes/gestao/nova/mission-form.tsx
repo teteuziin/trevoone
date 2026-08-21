@@ -7,6 +7,15 @@ import {
   type CreateMissionFormState,
 } from "../actions";
 import type { EligibleInfluencerOption } from "@/lib/consultancies/missions";
+import {
+  FormField,
+  Label,
+  Input,
+  Textarea,
+  Select,
+} from "@/components/ui/form-controls";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 export function MissionCreateForm({
   slug,
@@ -37,32 +46,32 @@ export function MissionCreateForm({
   return (
     <form action={formAction} className="space-y-6">
       {state?.error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200/80 text-sm text-red-700">
+        <Alert variant="danger" title="Erro ao criar missão">
           {state.error}
-        </div>
+        </Alert>
       )}
 
       {/* Influencer selection */}
       <div>
-        <label
-          htmlFor="assigneeMembershipPublicId"
-          className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-        >
-          Destinatário (Influenciador / VIP) *
-        </label>
+        <Label htmlFor="assigneeMembershipPublicId" required>
+          Destinatário (Influenciador / VIP)
+        </Label>
         {influencers.length === 0 ? (
-          <div className="p-3.5 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-800">
+          <Alert
+            variant="warning"
+            title="Nenhum influenciador disponível"
+          >
             Nenhum membro com perfil de Influenciador / VIP ativo encontrado nesta consultoria. Convide ou atribua a função a um participante antes de criar missões.
-          </div>
+          </Alert>
         ) : (
-          <select
+          <Select
             id="assigneeMembershipPublicId"
             name="assigneeMembershipPublicId"
             required
             value={assigneeMembershipPublicId}
             onChange={(e) => setAssigneeMembershipPublicId(e.target.value)}
             disabled={isPending}
-            className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm transition-all disabled:opacity-60"
+            hasError={state?.field === "assigneeMembershipPublicId"}
           >
             <option value="">Selecione um influenciador / VIP...</option>
             {influencers.map((inf) => (
@@ -70,19 +79,19 @@ export function MissionCreateForm({
                 {inf.name} ({inf.email})
               </option>
             ))}
-          </select>
+          </Select>
         )}
       </div>
 
       {/* Title */}
-      <div>
-        <label
-          htmlFor="title"
-          className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-        >
-          Título da Missão *
-        </label>
-        <input
+      <FormField
+        id="title"
+        label="Título da Missão"
+        required
+        helperText={`${title.length}/160 caracteres`}
+        error={state?.field === "title" ? state.error : undefined}
+      >
+        <Input
           id="title"
           name="title"
           type="text"
@@ -92,20 +101,19 @@ export function MissionCreateForm({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Ex: Gravação de depoimento sobre o plano nutricional"
           disabled={isPending}
-          className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm transition-all disabled:opacity-60"
+          hasError={state?.field === "title"}
         />
-        <p className="mt-1 text-xs text-zinc-500 text-right">{title.length}/160</p>
-      </div>
+      </FormField>
 
       {/* Objective */}
-      <div>
-        <label
-          htmlFor="objective"
-          className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-        >
-          Objetivo da Missão *
-        </label>
-        <textarea
+      <FormField
+        id="objective"
+        label="Objetivo da Missão"
+        required
+        helperText={`${objective.length}/2000 caracteres`}
+        error={state?.field === "objective" ? state.error : undefined}
+      >
+        <Textarea
           id="objective"
           name="objective"
           rows={3}
@@ -115,20 +123,19 @@ export function MissionCreateForm({
           onChange={(e) => setObjective(e.target.value)}
           placeholder="Descreva de forma concisa o que se espera alcançar com esta entrega..."
           disabled={isPending}
-          className="w-full p-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm transition-all disabled:opacity-60"
+          hasError={state?.field === "objective"}
         />
-        <p className="mt-1 text-xs text-zinc-500 text-right">{objective.length}/2000</p>
-      </div>
+      </FormField>
 
       {/* Instructions */}
-      <div>
-        <label
-          htmlFor="instructions"
-          className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-        >
-          Instruções e Diretrizes Detalhadas *
-        </label>
-        <textarea
+      <FormField
+        id="instructions"
+        label="Instruções e Diretrizes Detalhadas"
+        required
+        helperText={`${instructions.length}/10000 caracteres`}
+        error={state?.field === "instructions" ? state.error : undefined}
+      >
+        <Textarea
           id="instructions"
           name="instructions"
           rows={6}
@@ -136,44 +143,36 @@ export function MissionCreateForm({
           maxLength={10000}
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
-          placeholder="1. Mencionar a consultoria no início do vídeo&#10;2. Enfatizar a personalização da periodização&#10;3. Inserir o link oficial na bio ou sticker do Instagram..."
+          placeholder={"1. Mencionar a consultoria no início do vídeo\n2. Enfatizar a personalização da periodização\n3. Inserir o link oficial na bio ou sticker do Instagram..."}
           disabled={isPending}
-          className="w-full p-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm transition-all disabled:opacity-60"
+          hasError={state?.field === "instructions"}
         />
-        <p className="mt-1 text-xs text-zinc-500 text-right">{instructions.length}/10000</p>
-      </div>
+      </FormField>
 
       {/* Priority & Deadline Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
         <div>
-          <label
-            htmlFor="priority"
-            className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-          >
+          <Label htmlFor="priority">
             Prioridade
-          </label>
-          <select
+          </Label>
+          <Select
             id="priority"
             name="priority"
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
             disabled={isPending}
-            className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm transition-all disabled:opacity-60"
           >
             <option value="LOW">Baixa</option>
             <option value="NORMAL">Normal</option>
             <option value="HIGH">Alta</option>
-          </select>
+          </Select>
         </div>
 
         <div>
-          <label
-            htmlFor="dueDate"
-            className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-          >
-            Data Limite *
-          </label>
-          <input
+          <Label htmlFor="dueDate" required>
+            Data Limite
+          </Label>
+          <Input
             id="dueDate"
             name="dueDate"
             type="date"
@@ -181,18 +180,15 @@ export function MissionCreateForm({
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
             disabled={isPending}
-            className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm transition-all disabled:opacity-60"
+            hasError={state?.field === "dueDate"}
           />
         </div>
 
         <div>
-          <label
-            htmlFor="dueTime"
-            className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-          >
-            Horário Limite *
-          </label>
-          <input
+          <Label htmlFor="dueTime" required>
+            Horário Limite
+          </Label>
+          <Input
             id="dueTime"
             name="dueTime"
             type="time"
@@ -200,30 +196,31 @@ export function MissionCreateForm({
             value={dueTime}
             onChange={(e) => setDueTime(e.target.value)}
             disabled={isPending}
-            className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm transition-all disabled:opacity-60"
+            hasError={state?.field === "dueTime"}
           />
         </div>
       </div>
 
-      <div className="p-3.5 rounded-lg bg-zinc-50 border border-zinc-200 text-xs text-zinc-600 flex items-center justify-between">
+      <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-secondary)] flex items-center justify-between">
         <span>Fuso horário canônico da consultoria:</span>
-        <strong className="font-mono text-zinc-800 font-semibold">{timezone}</strong>
+        <strong className="font-mono text-[var(--text-primary)] font-semibold">{timezone}</strong>
       </div>
 
-      <div className="flex items-center gap-3 pt-4 border-t border-zinc-100">
-        <button
+      <div className="flex items-center gap-3 pt-4 border-t border-[var(--border-subtle)]">
+        <Button
           type="submit"
+          variant="primary"
+          size="md"
+          isLoading={isPending}
           disabled={isPending || influencers.length === 0}
-          className="px-6 h-11 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isPending ? "Criando missão..." : "Criar missão"}
-        </button>
+        </Button>
 
-        <Link
-          href={`/consultoria/${slug}/missoes/gestao`}
-          className="px-4 h-11 flex items-center text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
-        >
-          Cancelar
+        <Link href={`/consultoria/${slug}/missoes/gestao`}>
+          <Button variant="ghost" size="md">
+            Cancelar
+          </Button>
         </Link>
       </div>
     </form>

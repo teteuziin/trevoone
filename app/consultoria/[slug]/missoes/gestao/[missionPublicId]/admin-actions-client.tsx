@@ -8,6 +8,10 @@ import {
   type AdminMissionActionState,
 } from "../actions";
 import type { MissionStatus } from "@/lib/consultancies/missions";
+import { Surface } from "@/components/ui/surface";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
+import { FormField, Textarea, Label, InputHelper } from "@/components/ui/form-controls";
 
 export function AdminMissionActions({
   slug,
@@ -92,72 +96,75 @@ export function AdminMissionActions({
   return (
     <div className="space-y-6">
       {actionError && (
-        <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+        <Alert variant="danger" title="Aviso">
           {actionError}
-        </div>
+        </Alert>
       )}
 
       {/* Review Actions for SUBMITTED */}
       {status === "SUBMITTED" && (
-        <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-5 sm:p-6 space-y-4">
+        <Surface variant="default" padding="lg" className="border-[var(--brand-soft-border)] bg-[var(--brand-soft)] space-y-4">
           <div>
-            <h3 className="text-base font-semibold text-purple-950">
-              Avaliação da Entrega
+            <h3 className="text-base font-bold text-[var(--brand-foreground)]">
+              Avaliação e Decisão da Entrega
             </h3>
-            <p className="text-xs sm:text-sm text-purple-800 mt-0.5">
-              Esta missão possui uma nova entrega aguardando sua revisão e decisão.
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
+              Esta missão possui uma nova entrega aguardando sua revisão. Avalie o material e aprove ou solicite ajustes.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
+          <div className="flex items-center gap-3 flex-wrap pt-1">
+            <Button
               type="button"
+              variant="primary"
+              size="md"
               onClick={handleApprove}
+              isLoading={isApproving}
               disabled={isApproving}
-              className="px-5 h-10 bg-[#00A859] hover:bg-[#008f4c] text-white font-semibold text-xs sm:text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] disabled:opacity-60"
             >
-              {isApproving ? "Aprovando..." : "✅ Aprovar entrega"}
-            </button>
+              Aprovar entrega
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               onClick={() => {
                 setShowReviewModal(true);
                 setActionError(null);
               }}
-              className="px-5 h-10 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs sm:text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
-              ⚠️ Solicitar revisão
-            </button>
+              Solicitar revisão
+            </Button>
           </div>
-        </div>
+        </Surface>
       )}
 
       {/* Modal / Inline form for Requesting Revision */}
       {showReviewModal && (
-        <div className="bg-white border-2 border-orange-300 rounded-2xl p-5 sm:p-6 space-y-4 shadow-md">
+        <Surface variant="elevated" padding="lg" className="border-amber-300 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-zinc-900">
+            <h3 className="text-base font-bold text-[var(--text-primary)]">
               Solicitar Revisão da Entrega
             </h3>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setShowReviewModal(false)}
-              className="text-xs text-zinc-500 hover:text-zinc-800"
             >
               Fechar ✕
-            </button>
+            </Button>
           </div>
 
           <form onSubmit={handleRequestRevision} className="space-y-4">
-            <div>
-              <label
-                htmlFor="reviewNote"
-                className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-              >
-                Orientações para o ajuste *
-              </label>
-              <textarea
+            <FormField
+              id="reviewNote"
+              label="Orientações e apontamentos para o ajuste"
+              required
+              helperText={`${reviewNote.length}/2000 caracteres`}
+            >
+              <Textarea
                 id="reviewNote"
                 rows={4}
                 required
@@ -166,104 +173,122 @@ export function AdminMissionActions({
                 onChange={(e) => setReviewNote(e.target.value)}
                 placeholder="Descreva o que precisa ser corrigido, complementado ou ajustado pelo influenciador..."
                 disabled={isSubmittingReview}
-                className="w-full p-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all disabled:opacity-60"
               />
-              <p className="mt-1 text-xs text-zinc-500 text-right">{reviewNote.length}/2000</p>
-            </div>
+            </FormField>
 
-            <div className="flex items-center gap-3">
-              <button
+            <div className="flex items-center gap-3 pt-1">
+              <Button
                 type="submit"
+                variant="primary"
+                size="md"
+                isLoading={isSubmittingReview}
                 disabled={isSubmittingReview || !reviewNote.trim()}
-                className="px-5 h-10 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs sm:text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
               >
                 {isSubmittingReview ? "Enviando solicitação..." : "Enviar pedido de revisão"}
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="md"
                 onClick={() => setShowReviewModal(false)}
-                className="px-4 h-10 text-xs sm:text-sm font-medium text-zinc-600 hover:text-zinc-900"
               >
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+        </Surface>
       )}
 
       {/* Reference file upload for PENDING missions */}
       {status === "PENDING" && (
-        <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm">
+        <Surface variant="default" padding="lg" className="space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900">
+            <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
               Adicionar Arquivo de Apoio / Referência
             </h3>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
               Anexe roteiros, briefings ou imagens de exemplo para o influenciador (JPG, PNG, WEBP ou PDF até 10 MB).
             </p>
           </div>
 
           {attState?.error && (
-            <div className="p-3 rounded-lg bg-red-50 text-xs text-red-700 border border-red-200">
+            <Alert variant="danger" title="Erro no anexo">
               {attState.error}
-            </div>
+            </Alert>
           )}
 
-          <form action={attFormAction} className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <input
-              type="file"
-              name="file"
-              required
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              disabled={isUploadingAtt}
-              className="text-xs text-zinc-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer disabled:opacity-60"
-            />
-            <button
-              type="submit"
-              disabled={isUploadingAtt}
-              className="px-4 h-9 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-lg transition-all disabled:opacity-60 shrink-0"
-            >
-              {isUploadingAtt ? "Anexando..." : "Anexar arquivo"}
-            </button>
+          <form action={attFormAction} className="space-y-3">
+            <div className="p-3.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] space-y-2">
+              <Label htmlFor="refFile">Selecionar arquivo</Label>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <input
+                  id="refFile"
+                  type="file"
+                  name="file"
+                  required
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  disabled={isUploadingAtt}
+                  className="block w-full text-xs text-[var(--text-secondary)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[var(--surface)] file:text-[var(--text-primary)] file:border file:border-[var(--border-default)] hover:file:bg-[var(--surface-hover)] cursor-pointer disabled:opacity-60"
+                />
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  size="sm"
+                  isLoading={isUploadingAtt}
+                  disabled={isUploadingAtt}
+                  className="shrink-0 w-full sm:w-auto"
+                >
+                  {isUploadingAtt ? "Anexando..." : "Anexar arquivo"}
+                </Button>
+              </div>
+              <InputHelper variant="default">
+                Formatos permitidos: JPG, PNG, WEBP ou PDF até 10 MB.
+              </InputHelper>
+            </div>
           </form>
-        </div>
+        </Surface>
       )}
 
       {/* Cancellation section */}
       {canCancel && (
-        <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+        <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
           {!showCancelConfirm ? (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setShowCancelConfirm(true)}
-              className="text-xs text-red-600 hover:text-red-800 font-medium transition-colors"
+              className="text-[var(--danger)] hover:text-[var(--danger-hover)] hover:bg-[var(--danger-soft)] text-xs font-semibold"
             >
               Cancelar esta missão
-            </button>
+            </Button>
           ) : (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2.5 w-full">
-              <p className="text-xs font-medium text-red-900">
+            <Surface variant="default" padding="sm" className="border-[var(--danger-border)] bg-[var(--danger-soft)] space-y-3 w-full">
+              <p className="text-xs font-semibold text-[var(--danger-foreground)]">
                 Tem certeza que deseja cancelar esta missão? Esta ação é definitiva e não poderá ser desfeita.
               </p>
-              <div className="flex items-center gap-2">
-                <button
+              <div className="flex items-center gap-2.5">
+                <Button
                   type="button"
+                  variant="danger"
+                  size="sm"
                   onClick={handleCancelMission}
+                  isLoading={isCanceling}
                   disabled={isCanceling}
-                  className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all disabled:opacity-60"
                 >
                   {isCanceling ? "Cancelando..." : "Confirmar cancelamento"}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setShowCancelConfirm(false)}
-                  className="px-3 py-1.5 text-xs text-zinc-600 hover:text-zinc-900"
                 >
                   Voltar
-                </button>
+                </Button>
               </div>
-            </div>
+            </Surface>
           )}
         </div>
       )}

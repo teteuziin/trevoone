@@ -1,10 +1,11 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { getConsultancyLocalDate } from "@/lib/consultancies/timezone";
 import { listEligibleInfluencers } from "@/lib/consultancies/missions";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { PageHeader } from "@/components/ui/page-header";
+import { Surface } from "@/components/ui/surface";
 import { MissionCreateForm } from "./mission-form";
 
 export const dynamic = "force-dynamic";
@@ -45,29 +46,22 @@ export default async function NewAdminMissionPage({
       roles={consultancyContext.roles}
     >
       <div className="space-y-6 max-w-3xl mx-auto pb-12">
-        <div>
-          <Link
-            href={`/consultoria/${slug}/missoes/gestao`}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors mb-3"
-          >
-            ← Voltar para Gestão de Missões
-          </Link>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">
-            Nova Missão
-          </h1>
-          <p className="text-sm text-zinc-600 mt-1">
-            Defina os objetivos, orientações e prazo de entrega para o influenciador ou parceiro VIP.
-          </p>
-        </div>
+        <PageHeader
+          backHref={`/consultoria/${slug}/missoes/gestao`}
+          backLabel="Voltar para Gestão de Missões"
+          eyebrow="GESTÃO DE MISSÕES"
+          title="Nova Missão"
+          description="Defina os objetivos, orientações e prazo de entrega para o influenciador ou parceiro VIP."
+        />
 
-        <div className="bg-white rounded-2xl border border-zinc-200 p-6 sm:p-8 shadow-sm">
+        <Surface variant="default" padding="lg">
           <MissionCreateForm
             slug={slug}
             timezone={consultancyContext.consultancyTimezone}
             influencers={influencers}
             defaultDate={defaultDueDate}
           />
-        </div>
+        </Surface>
       </div>
     </ConsultancyAppShell>
   );

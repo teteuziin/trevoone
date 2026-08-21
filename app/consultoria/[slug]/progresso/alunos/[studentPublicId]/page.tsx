@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { getProfessionalStudentProgressHistory } from "@/lib/consultancies/progress";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { PageHeader } from "@/components/ui/page-header";
 import { StudentProgressForm } from "@/components/consultancies/student-progress-form";
 import { StudentProgressHistory } from "@/components/consultancies/student-progress-history";
 
@@ -65,52 +65,31 @@ export default async function ProfessionalStudentProgressDetailPage({
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full space-y-6">
-        {/* Navigation Back Link */}
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/consultoria/${slug}/progresso/alunos`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Voltar para lista de alunos
-          </Link>
-        </div>
-
-        {/* Student Header & Action Banner */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-              Histórico do Aluno
-            </span>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-              {student.fullName}
-            </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-mono">
-              {student.email}
-            </p>
-          </div>
-
-          {/* Only PERSONAL is authorized to register progress entries for students */}
-          {isPersonal && (
-            <div className="shrink-0">
+      <div className="w-full max-w-5xl mx-auto space-y-6">
+        {/* Page Header */}
+        <PageHeader
+          eyebrow="Histórico do Aluno"
+          title={student.fullName}
+          description={student.email}
+          backHref={`/consultoria/${slug}/progresso/alunos`}
+          backLabel="Voltar para lista de alunos"
+          actions={
+            isPersonal ? (
               <StudentProgressForm
                 consultancySlug={slug}
-                studentPublicId={student.publicId}
+                studentPublicId={studentPublicId}
               />
-            </div>
-          )}
-        </div>
+            ) : undefined
+          }
+        />
 
-        {/* History / Timeline with pagination */}
+        {/* History / Timeline */}
         <StudentProgressHistory
           entries={entries}
           pagination={pagination}
           latestEntry={latestEntry}
-          basePath={`/consultoria/${slug}/progresso/alunos/${student.publicId}`}
-          emptyMessage={`Nenhuma medição registrada para ${student.fullName} até o momento.`}
+          basePath={`/consultoria/${slug}/progresso/alunos/${studentPublicId}`}
+          emptyMessage={`Nenhum registro de evolução encontrado para ${student.fullName}.`}
         />
       </div>
     </ConsultancyAppShell>

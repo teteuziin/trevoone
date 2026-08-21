@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { NutritionPlanListItemDto, NutritionPlanStatus } from "@/lib/consultancies/nutrition";
 
 interface NutritionPlanListProps {
@@ -20,10 +22,10 @@ const STATUS_LABELS: Record<NutritionPlanStatus, string> = {
   ARCHIVED: "Arquivado",
 };
 
-const STATUS_BADGE_CLASSES: Record<NutritionPlanStatus, string> = {
-  DRAFT: "bg-amber-50 text-amber-700 border-amber-200",
-  ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  ARCHIVED: "bg-slate-100 text-slate-600 border-slate-200",
+const STATUS_BADGE_VARIANTS: Record<NutritionPlanStatus, "warning" | "success" | "neutral"> = {
+  DRAFT: "warning",
+  ACTIVE: "success",
+  ARCHIVED: "neutral",
 };
 
 export function NutritionPlanList({
@@ -67,7 +69,7 @@ export function NutritionPlanList({
       {/* Top action bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Status Tabs */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 self-start">
+        <div className="flex items-center gap-1.5 p-1 bg-[var(--surface-sunken)] rounded-xl border border-[var(--border-subtle)] self-start">
           {tabs.map((tab) => {
             const isActive =
               (tab.key === "ALL" && (!currentStatus || currentStatus === "ALL")) ||
@@ -77,10 +79,10 @@ export function NutritionPlanList({
                 key={tab.key}
                 type="button"
                 onClick={() => handleStatusTab(tab.key)}
-                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   isActive
-                    ? "bg-white text-slate-900 shadow-sm border border-slate-200/60"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                    ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-2xs border border-[var(--border-default)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
                 }`}
               >
                 {tab.label}
@@ -92,9 +94,9 @@ export function NutritionPlanList({
         {/* CTA */}
         <Link
           href={`/consultoria/${slug}/nutricao/planos/novo`}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:opacity-90 rounded-xl shadow-xs transition-all focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Novo plano alimentar
@@ -103,66 +105,56 @@ export function NutritionPlanList({
 
       {/* Plan list content */}
       {items.length === 0 ? (
-        <div className="text-center py-16 px-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-          </div>
-          <h3 className="text-base font-semibold text-slate-900 mb-1">Nenhum plano alimentar encontrado</h3>
-          <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-            {currentStatus && currentStatus !== "ALL"
+        <EmptyState
+          title="Nenhum plano alimentar encontrado"
+          description={
+            currentStatus && currentStatus !== "ALL"
               ? `Não há planos alimentares com o status "${STATUS_LABELS[currentStatus as NutritionPlanStatus] || currentStatus}".`
-              : "Comece criando o primeiro plano alimentar para um aluno ativo da sua consultoria."}
-          </p>
-          <Link
-            href={`/consultoria/${slug}/nutricao/planos/novo`}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors border border-emerald-200/60"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Criar novo plano
-          </Link>
-        </div>
+              : "Comece criando o primeiro plano alimentar para um aluno ativo da sua consultoria."
+          }
+          action={
+            <Link
+              href={`/consultoria/${slug}/nutricao/planos/novo`}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[var(--brand-foreground)] bg-[var(--brand-surface)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors border border-[var(--border-subtle)]"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Criar novo plano
+            </Link>
+          }
+        />
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-hidden divide-y divide-[var(--border-subtle)]">
           {items.map((plan) => {
-            const badgeClass = STATUS_BADGE_CLASSES[plan.status] || "bg-slate-100 text-slate-600 border-slate-200";
+            const badgeVariant = STATUS_BADGE_VARIANTS[plan.status] || "neutral";
             const statusLabel = STATUS_LABELS[plan.status] || plan.status;
 
             return (
               <div
                 key={plan.publicId}
-                className="p-5 hover:bg-slate-50/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                className="p-5 hover:bg-[var(--surface-hover)] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
                 <div className="space-y-1.5 min-w-0">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <Link
                       href={`/consultoria/${slug}/nutricao/planos/${plan.publicId}`}
-                      className="text-base font-semibold text-slate-900 hover:text-emerald-600 transition-colors truncate"
+                      className="text-base font-semibold text-[var(--text-primary)] hover:text-[var(--brand-foreground)] transition-colors truncate"
                     >
                       {plan.title}
                     </Link>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeClass}`}
-                    >
+                    <Badge variant={badgeVariant} size="sm">
                       {statusLabel}
-                    </span>
+                    </Badge>
                   </div>
 
                   {plan.subtitle && (
-                    <p className="text-xs text-slate-500 line-clamp-1">{plan.subtitle}</p>
+                    <p className="text-xs text-[var(--text-secondary)] line-clamp-1">{plan.subtitle}</p>
                   )}
 
-                  <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-500 pt-1">
-                    <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                      <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-[var(--text-secondary)] pt-1">
+                    <span className="flex items-center gap-1.5 font-medium text-[var(--text-primary)]">
+                      <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -172,13 +164,13 @@ export function NutritionPlanList({
                       </svg>
                       {plan.studentName}
                     </span>
-                    <span className="text-slate-400">•</span>
+                    <span className="text-[var(--text-tertiary)]">•</span>
                     <span>
                       {plan.mealsCount} {plan.mealsCount === 1 ? "refeição" : "refeições"}
                     </span>
                     {plan.startsOn && (
                       <>
-                        <span className="text-slate-400">•</span>
+                        <span className="text-[var(--text-tertiary)]">•</span>
                         <span>Início: {plan.startsOn}</span>
                       </>
                     )}
@@ -188,10 +180,10 @@ export function NutritionPlanList({
                 <div className="flex items-center gap-2 shrink-0">
                   <Link
                     href={`/consultoria/${slug}/nutricao/planos/${plan.publicId}`}
-                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 active:bg-slate-100 rounded-lg border border-slate-200 shadow-sm transition-all"
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:opacity-90 rounded-lg border border-[var(--border-default)] shadow-2xs transition-all focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
                   >
                     {plan.status === "DRAFT" ? "Editar estrutura" : "Visualizar plano"}
-                    <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </Link>
@@ -205,10 +197,10 @@ export function NutritionPlanList({
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-2 pt-2">
-          <p className="text-xs text-slate-500">
-            Mostrando <span className="font-semibold text-slate-700">{(page - 1) * pageSize + 1}</span>–
-            <span className="font-semibold text-slate-700">{Math.min(page * pageSize, total)}</span> de{" "}
-            <span className="font-semibold text-slate-700">{total}</span> planos
+          <p className="text-xs text-[var(--text-secondary)]">
+            Mostrando <span className="font-semibold text-[var(--text-primary)]">{(page - 1) * pageSize + 1}</span>–
+            <span className="font-semibold text-[var(--text-primary)]">{Math.min(page * pageSize, total)}</span> de{" "}
+            <span className="font-semibold text-[var(--text-primary)]">{total}</span> planos
           </p>
 
           <div className="flex items-center gap-1.5">
@@ -216,18 +208,18 @@ export function NutritionPlanList({
               type="button"
               disabled={page <= 1}
               onClick={() => handlePageChange(page - 1)}
-              className="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="px-3 py-1 text-xs font-semibold rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
             >
               Anterior
             </button>
-            <span className="text-xs font-medium text-slate-500 px-2">
+            <span className="text-xs font-medium text-[var(--text-secondary)] px-2">
               Página {page} de {totalPages}
             </span>
             <button
               type="button"
               disabled={page >= totalPages}
               onClick={() => handlePageChange(page + 1)}
-              className="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="px-3 py-1 text-xs font-semibold rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
             >
               Próxima
             </button>

@@ -3,6 +3,7 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveStudentModuleAccess } from "@/lib/consultancies/student-module-access";
 import { getStudentOwnProgressHistory } from "@/lib/consultancies/progress";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { PageHeader } from "@/components/ui/page-header";
 import { StudentProgressForm } from "@/components/consultancies/student-progress-form";
 import { StudentProgressHistory } from "@/components/consultancies/student-progress-history";
 
@@ -59,22 +60,15 @@ export default async function StudentProgressPage({ params, searchParams }: Page
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs">
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-              Evolução e Medições
-            </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
-              Acompanhe o seu histórico de peso e medidas corporais ao longo do tempo.
-            </p>
-          </div>
-
-          <div className="shrink-0">
-            <StudentProgressForm consultancySlug={slug} />
-          </div>
-        </div>
+      <div className="w-full max-w-5xl mx-auto space-y-6">
+        {/* Page Header */}
+        <PageHeader
+          title="Evolução e Medições"
+          description="Acompanhe o seu histórico de peso e medidas corporais ao longo do tempo."
+          backHref={`/consultoria/${slug}`}
+          backLabel="Voltar à visão geral"
+          actions={<StudentProgressForm consultancySlug={slug} />}
+        />
 
         {/* History / Timeline with pagination */}
         <StudentProgressHistory

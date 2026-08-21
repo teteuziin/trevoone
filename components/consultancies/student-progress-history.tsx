@@ -1,5 +1,7 @@
 import React from "react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import type {
   StudentProgressEntryDto,
   ProgressPaginationDto,
@@ -37,19 +39,10 @@ export function StudentProgressHistory({
 
   if (totalCount === 0 || entries.length === 0) {
     return (
-      <div className="p-8 sm:p-12 text-center rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3">
-        <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-        </div>
-        <h3 className="text-base font-semibold text-[var(--text-primary)]">
-          Sem histórico de medições
-        </h3>
-        <p className="text-xs sm:text-sm text-[var(--text-secondary)] max-w-md mx-auto">
-          {emptyMessage}
-        </p>
-      </div>
+      <EmptyState
+        title="Sem histórico de medições"
+        description={emptyMessage}
+      />
     );
   }
 
@@ -60,9 +53,9 @@ export function StudentProgressHistory({
         <div className="p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 rounded">
+              <Badge variant="success" size="sm">
                 Última Medição
-              </span>
+              </Badge>
               <span className="text-xs text-[var(--text-secondary)] font-medium">
                 {formatDateDisplay(latestEntry.recordedOn)}
               </span>

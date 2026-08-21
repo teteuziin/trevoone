@@ -72,7 +72,7 @@ export function StudentTrainingPlan({
             <a
               href={`/consultoria/${consultancySlug}/treinos/pdf`}
               download
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--surface)] text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer focus-visible:outline-[var(--brand)]"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--surface)] text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
             >
               <svg className="w-4 h-4 text-[var(--border-subtle)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

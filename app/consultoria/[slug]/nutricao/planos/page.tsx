@@ -6,6 +6,7 @@ import {
   type NutritionPlanStatus,
 } from "@/lib/consultancies/nutrition";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { PageHeader } from "@/components/ui/page-header";
 import { NutritionPlanList } from "@/components/consultancies/nutrition-plan-list";
 
 interface PageProps {
@@ -64,17 +65,13 @@ export default async function NutritionPlansPage({ params, searchParams }: PageP
     >
       <div className="w-full max-w-5xl mx-auto space-y-6">
         {/* Page Header */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            <span>Módulo de Nutrição</span>
-            <span>•</span>
-            <span className="text-emerald-600">Prescrição Nutricional</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Planos Alimentares</h1>
-          <p className="text-sm text-slate-500">
-            Gerencie prescrições alimentares, elabore cardápios e monte a estrutura de refeições para seus alunos.
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Módulo de Nutrição"
+          title="Planos Alimentares"
+          description="Gerencie prescrições alimentares, elabore cardápios e monte a estrutura de refeições para seus alunos."
+          backHref={`/consultoria/${slug}`}
+          backLabel="Voltar à visão geral"
+        />
 
         {/* Plan List Component */}
         <NutritionPlanList

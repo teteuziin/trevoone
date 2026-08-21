@@ -4,6 +4,8 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { listProfessionalStudentsForProgress } from "@/lib/consultancies/progress";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface PageProps {
   params: Promise<{
@@ -45,37 +47,31 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full space-y-6">
-        {/* Header */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-1">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-            Evolução dos Alunos
-          </h1>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
-            Selecione um aluno para acompanhar o histórico de medições corporais.
-          </p>
-        </div>
+      <div className="w-full max-w-5xl mx-auto space-y-6">
+        {/* Page Header */}
+        <PageHeader
+          title="Evolução dos Alunos"
+          description="Selecione um aluno para acompanhar o histórico de medições corporais."
+          backHref={`/consultoria/${slug}`}
+          backLabel="Voltar à visão geral"
+        />
 
         {/* Students List */}
         {students.length === 0 ? (
-          <div className="p-8 sm:p-12 text-center rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3">
-            <h3 className="text-base font-semibold text-[var(--text-primary)]">
-              Nenhum aluno ativo encontrado
-            </h3>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] max-w-md mx-auto">
-              Quando houver alunos vinculados e ativos na consultoria, eles aparecerão aqui.
-            </p>
-          </div>
+          <EmptyState
+            title="Nenhum aluno ativo encontrado"
+            description="Quando houver alunos vinculados e ativos na consultoria, eles aparecerão aqui."
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {students.map((student) => (
               <Link
                 key={student.publicId}
                 href={`/consultoria/${slug}/progresso/alunos/${student.publicId}`}
-                className="group p-5 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] hover:border-emerald-500/50 shadow-xs transition-all flex items-center justify-between gap-3"
+                className="group p-5 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] hover:border-[var(--brand)] shadow-xs transition-all flex items-center justify-between gap-3 focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
               >
                 <div className="space-y-1 min-w-0">
-                  <span className="text-sm font-bold text-[var(--text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors block truncate">
+                  <span className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors block truncate">
                     {student.fullName}
                   </span>
                   <span className="text-xs text-[var(--text-tertiary)] block truncate font-mono">
@@ -83,8 +79,8 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
                   </span>
                 </div>
 
-                <div className="w-8 h-8 rounded-xl bg-[var(--background)] group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950 text-[var(--text-tertiary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 flex items-center justify-center shrink-0 transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-8 h-8 rounded-xl bg-[var(--surface-sunken)] group-hover:bg-[var(--brand-surface)] text-[var(--text-tertiary)] group-hover:text-[var(--brand-foreground)] flex items-center justify-center shrink-0 transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>

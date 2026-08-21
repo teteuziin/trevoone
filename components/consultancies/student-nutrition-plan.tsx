@@ -61,7 +61,7 @@ export function StudentNutritionPlan({
               href={`/consultoria/${consultancySlug}/nutricao/imprimir`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--surface)] text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer focus-visible:outline-[var(--brand)]"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--surface)] text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
             >
               <svg className="w-4 h-4 text-[var(--border-subtle)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -92,14 +92,14 @@ export function StudentNutritionPlan({
 
         {/* Orientações Gerais */}
         {plan.generalGuidance && (
-          <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/60 text-xs space-y-1.5">
-            <span className="font-semibold text-slate-900 block flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="p-4 bg-[var(--surface-sunken)] rounded-xl border border-[var(--border-subtle)] text-xs space-y-1.5">
+            <span className="font-semibold text-[var(--text-primary)] block flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-[var(--brand)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Orientações Gerais do Nutricionista:
             </span>
-            <p className="whitespace-pre-line text-slate-600 leading-relaxed pl-5.5">
+            <p className="whitespace-pre-line text-[var(--text-secondary)] leading-relaxed pl-5.5">
               {plan.generalGuidance}
             </p>
           </div>
@@ -108,46 +108,46 @@ export function StudentNutritionPlan({
 
       {/* Daily Nutritional Summary Card */}
       {plan.totals && (
-        <div className="bg-white rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50/40 via-white to-slate-50/50 p-5 shadow-xs space-y-3">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] p-5 shadow-xs space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-950">
+              <span className="w-2 h-2 rounded-full bg-[var(--brand)] shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
                 {plan.totals.isExact.all ? "Total Diário Estimado" : "Faixa Nutricional Diária"}
               </span>
             </div>
             {!plan.totals.isExact.all && (
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-[var(--text-tertiary)]">
                 Os limites são calculados separadamente para cada nutriente, considerando as alternativas do plano.
               </span>
             )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-0.5">
-            <div className="bg-white/90 p-3 rounded-xl border border-slate-200/70 shadow-2xs">
-              <span className="text-[11px] font-semibold text-slate-500 block uppercase">Calorias</span>
-              <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+            <div className="bg-[var(--surface-sunken)] p-3 rounded-xl border border-[var(--border-subtle)] shadow-2xs">
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)] block uppercase">Calorias</span>
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
                 {formatMacroRange(plan.totals.min.calories, plan.totals.max.calories, "kcal")}
               </span>
             </div>
 
-            <div className="bg-white/90 p-3 rounded-xl border border-slate-200/70 shadow-2xs">
-              <span className="text-[11px] font-semibold text-slate-500 block uppercase">Proteínas</span>
-              <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+            <div className="bg-[var(--surface-sunken)] p-3 rounded-xl border border-[var(--border-subtle)] shadow-2xs">
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)] block uppercase">Proteínas</span>
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
                 {formatMacroRange(plan.totals.min.protein, plan.totals.max.protein, "g")}
               </span>
             </div>
 
-            <div className="bg-white/90 p-3 rounded-xl border border-slate-200/70 shadow-2xs">
-              <span className="text-[11px] font-semibold text-slate-500 block uppercase">Carboidratos</span>
-              <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+            <div className="bg-[var(--surface-sunken)] p-3 rounded-xl border border-[var(--border-subtle)] shadow-2xs">
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)] block uppercase">Carboidratos</span>
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
                 {formatMacroRange(plan.totals.min.carbohydrate, plan.totals.max.carbohydrate, "g")}
               </span>
             </div>
 
-            <div className="bg-white/90 p-3 rounded-xl border border-slate-200/70 shadow-2xs">
-              <span className="text-[11px] font-semibold text-slate-500 block uppercase">Gorduras</span>
-              <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+            <div className="bg-[var(--surface-sunken)] p-3 rounded-xl border border-[var(--border-subtle)] shadow-2xs">
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)] block uppercase">Gorduras</span>
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
                 {formatMacroRange(plan.totals.min.fat, plan.totals.max.fat, "g")}
               </span>
             </div>
@@ -155,55 +155,45 @@ export function StudentNutritionPlan({
         </div>
       )}
 
-      {/* Meals Structure */}
+      {/* Meals Container */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Refeições do Dia</h2>
-            <p className="text-xs text-slate-500">
-              Siga os horários e escolha as opções alimentares conforme prescrito.
-            </p>
-          </div>
-        </div>
+        <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+          Estrutura de Refeições
+        </h2>
 
-        <div className="space-y-5">
-          {plan.meals.map((meal: NutritionMealDto, mealIdx: number) => (
+        <div className="space-y-4">
+          {plan.meals.map((meal: NutritionMealDto) => (
             <div
-              key={meal.publicId || `meal-${mealIdx}`}
-              className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden"
+              key={meal.publicId}
+              className="bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-hidden"
             >
               {/* Meal Header */}
-              <div className="px-5 py-3.5 bg-slate-50/80 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  {meal.scheduledTime ? (
-                    <span className="px-2.5 py-1 text-xs font-bold font-mono text-emerald-800 bg-emerald-100/70 rounded-lg border border-emerald-200/60 shrink-0">
+              <div className="p-4 sm:p-5 bg-[var(--surface-sunken)] border-b border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  {meal.scheduledTime && (
+                    <div className="px-2.5 py-1 bg-[var(--brand-surface)] text-[var(--brand-foreground)] font-bold text-xs rounded-lg border border-[var(--border-subtle)]">
                       {meal.scheduledTime.slice(0, 5)}
-                    </span>
-                  ) : (
-                    <span className="px-2.5 py-1 text-xs font-semibold text-slate-500 bg-slate-200/70 rounded-lg shrink-0">
-                      Sem horário
-                    </span>
+                    </div>
                   )}
-
-                  <div className="min-w-0 space-y-0.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-900 tracking-tight truncate">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
                         {meal.title}
                       </h3>
                       {meal.totals && (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-700 border border-slate-200/80 shadow-2xs">
+                        <span className="hidden sm:inline-flex items-center gap-2 text-xs text-[var(--text-secondary)] font-medium">
                           <span>{formatMacroRange(meal.totals.min.calories, meal.totals.max.calories, "kcal")}</span>
-                          <span className="text-slate-300">•</span>
+                          <span className="text-[var(--text-tertiary)]">•</span>
                           <span>P: {formatMacroRange(meal.totals.min.protein, meal.totals.max.protein, "g")}</span>
-                          <span className="text-slate-300">•</span>
+                          <span className="text-[var(--text-tertiary)]">•</span>
                           <span>C: {formatMacroRange(meal.totals.min.carbohydrate, meal.totals.max.carbohydrate, "g")}</span>
-                          <span className="text-slate-300">•</span>
+                          <span className="text-[var(--text-tertiary)]">•</span>
                           <span>G: {formatMacroRange(meal.totals.min.fat, meal.totals.max.fat, "g")}</span>
                         </span>
                       )}
                     </div>
                     {meal.notes && (
-                      <p className="text-xs text-slate-500 line-clamp-1">{meal.notes}</p>
+                      <p className="text-xs text-[var(--text-secondary)] line-clamp-1">{meal.notes}</p>
                     )}
                   </div>
                 </div>
@@ -212,7 +202,7 @@ export function StudentNutritionPlan({
               {/* Meal Options */}
               <div className="p-5 space-y-4">
                 {meal.options.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">Sem opções cadastradas para esta refeição.</p>
+                  <p className="text-xs text-[var(--text-tertiary)] italic">Sem opções cadastradas para esta refeição.</p>
                 ) : (
                   meal.options.map((option: NutritionMealOptionDto, optIdx: number) => {
                     const optionDisplayLabel = option.title || `Opção ${optIdx + 1}`;
@@ -221,19 +211,19 @@ export function StudentNutritionPlan({
                     return (
                       <div
                         key={option.publicId || `opt-${optIdx}`}
-                        className={`rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 space-y-3.5 ${
+                        className={`rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-4 space-y-3.5 ${
                           hasMultipleOptions ? "relative" : ""
                         }`}
                       >
                         {/* Option Header */}
                         {hasMultipleOptions && (
-                          <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 pb-2.5">
+                          <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-2.5">
                             <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold tracking-wide uppercase bg-emerald-100/80 text-emerald-900 border border-emerald-200/60">
+                              <Badge variant="brand" size="sm">
                                 {optionDisplayLabel}
-                              </span>
+                              </Badge>
                               {option.description && (
-                                <span className="text-xs text-slate-500 italic">
+                                <span className="text-xs text-[var(--text-secondary)] italic">
                                   — {option.description}
                                 </span>
                               )}
@@ -246,11 +236,11 @@ export function StudentNutritionPlan({
                           {option.sections.map((section: NutritionMealSectionDto, secIdx: number) => (
                             <div
                               key={section.publicId || `sec-${secIdx}`}
-                              className="bg-white rounded-xl border border-slate-200/80 p-3.5 space-y-3"
+                              className="bg-[var(--surface)] rounded-xl border border-[var(--border-subtle)] p-3.5 space-y-3"
                             >
                               {/* Section Title */}
-                              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                                   {section.title}
                                 </span>
                               </div>
@@ -265,29 +255,29 @@ export function StudentNutritionPlan({
                                         {itemIdx > 0 && (
                                           <div className="relative py-1 flex items-center justify-center">
                                             <div className="absolute inset-0 flex items-center">
-                                              <div className="w-full border-t border-dashed border-slate-200" />
+                                              <div className="w-full border-t border-dashed border-[var(--border-subtle)]" />
                                             </div>
-                                            <span className="relative bg-amber-50 text-amber-700 font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-amber-200/70">
+                                            <span className="relative bg-[var(--surface-sunken)] text-[var(--text-secondary)] font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-[var(--border-subtle)]">
                                               OU
                                             </span>
                                           </div>
                                         )}
 
                                         {/* Food Item Row */}
-                                        <div className="flex items-start justify-between gap-3 p-2.5 rounded-lg bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                                        <div className="flex items-start justify-between gap-3 p-2.5 rounded-lg bg-[var(--surface-sunken)] border border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] transition-colors">
                                           <div className="space-y-0.5 min-w-0">
-                                            <span className="text-xs font-semibold text-slate-900 block truncate">
+                                            <span className="text-xs font-semibold text-[var(--text-primary)] block truncate">
                                               {item.foodNameSnapshot}
                                             </span>
                                             {item.notes && (
-                                              <span className="text-[11px] text-slate-500 block italic">
+                                              <span className="text-[11px] text-[var(--text-secondary)] block italic">
                                                 {item.notes}
                                               </span>
                                             )}
                                           </div>
 
                                           <div className="shrink-0 text-right">
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold font-mono text-emerald-800 bg-emerald-50 border border-emerald-200/60">
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold font-mono text-[var(--brand-foreground)] bg-[var(--brand-surface)] border border-[var(--border-subtle)]">
                                               {item.prescribedQuantity} {item.prescribedUnitLabel}
                                             </span>
                                           </div>
@@ -303,19 +293,19 @@ export function StudentNutritionPlan({
 
                         {/* Option Totals Summary Footer */}
                         {option.totals && (
-                          <div className="mt-3 pt-2.5 border-t border-slate-200/70 flex flex-wrap items-center justify-between gap-2 text-xs">
-                            <span className="font-semibold text-slate-700">
+                          <div className="mt-3 pt-2.5 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <span className="font-semibold text-[var(--text-secondary)]">
                               {option.totals.isExact.all ? "Total da opção:" : "Faixa da opção:"}
                             </span>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-600">
-                              <span className="font-bold text-slate-900">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[var(--text-secondary)]">
+                              <span className="font-bold text-[var(--text-primary)]">
                                 {formatMacroRange(option.totals.min.calories, option.totals.max.calories, "kcal")}
                               </span>
-                              <span className="text-slate-300">•</span>
+                              <span className="text-[var(--text-tertiary)]">•</span>
                               <span>P: {formatMacroRange(option.totals.min.protein, option.totals.max.protein, "g")}</span>
-                              <span className="text-slate-300">•</span>
+                              <span className="text-[var(--text-tertiary)]">•</span>
                               <span>C: {formatMacroRange(option.totals.min.carbohydrate, option.totals.max.carbohydrate, "g")}</span>
-                              <span className="text-slate-300">•</span>
+                              <span className="text-[var(--text-tertiary)]">•</span>
                               <span>G: {formatMacroRange(option.totals.min.fat, option.totals.max.fat, "g")}</span>
                             </div>
                           </div>

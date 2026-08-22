@@ -4,6 +4,7 @@ import React, { useState, useTransition } from "react";
 import { cancelStudentChargeAction } from "@/app/consultoria/[slug]/financeiro/actions";
 import { FormField, Input } from "@/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 interface ChargeCancelDialogProps {
   slug: string;
@@ -74,9 +75,9 @@ export function ChargeCancelDialog({
             </div>
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-                {error}
-              </div>
+              <Alert variant="danger" title="Erro">
+                <p className="text-xs">{error}</p>
+              </Alert>
             )}
 
             <FormField label="Motivo do Cancelamento" optional id="cancelReason">
@@ -99,7 +100,7 @@ export function ChargeCancelDialog({
                 onClick={() => setIsOpen(false)}
                 disabled={isPending}
               >
-                Voltar
+                Manter cobrança
               </Button>
               <Button
                 type="button"
@@ -108,7 +109,7 @@ export function ChargeCancelDialog({
                 onClick={handleCancel}
                 disabled={isPending}
               >
-                {isPending ? "Cancelando..." : "Confirmar Cancelamento"}
+                {isPending ? "Cancelando..." : "Confirmar cancelamento"}
               </Button>
             </div>
           </div>

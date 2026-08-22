@@ -2,6 +2,8 @@
 
 import React, { useState, useTransition } from "react";
 import { submitPlatformReceiptAction } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 interface ComprovanteFormProps {
   slug: string;
@@ -28,7 +30,7 @@ export function ComprovanteForm({ slug, chargePublicId }: ComprovanteFormProps) 
     startTransition(async () => {
       const res = await submitPlatformReceiptAction(slug, chargePublicId, formData);
       if (!res.success) {
-        setError(res.error);
+        setError(res.error || "Erro ao enviar comprovante.");
       } else {
         setSuccess(true);
       }
@@ -37,43 +39,45 @@ export function ComprovanteForm({ slug, chargePublicId }: ComprovanteFormProps) 
 
   if (success) {
     return (
-      <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm">
-        <p className="font-semibold">Comprovante enviado com sucesso!</p>
-        <p className="mt-1 text-emerald-700">
-          O comprovante foi encaminhado para análise pela equipe do Trevo One. Assim que aprovado, a quitação será registrada automaticamente.
+      <Alert variant="success" title="Comprovante Enviado com Sucesso">
+        <p className="text-xs">
+          O comprovante foi encaminhado para análise pela equipe do Trevo One. Assim que aprovado, a quitação da fatura será registrada automaticamente.
         </p>
-      </div>
+      </Alert>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-3">
       {error && (
-        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
-          {error}
-        </div>
+        <Alert variant="danger" title="Erro no envio">
+          <p className="text-xs">{error}</p>
+        </Alert>
       )}
 
       <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-zinc-700">
-          Arquivo do comprovante Pix (JPG, PNG, WEBP ou PDF — máx 5 MB)
+        <label className="block text-xs font-semibold text-zinc-900">
+          Anexar Comprovante Pix (JPG, PNG, WEBP ou PDF — máx 5 MB)
         </label>
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp,application/pdf"
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           disabled={isPending}
-          className="block w-full text-xs text-zinc-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer"
+          className="block w-full text-xs text-zinc-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-800 hover:file:bg-zinc-200 cursor-pointer disabled:cursor-not-allowed"
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={isPending || !file}
-        className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#00A859] text-white hover:bg-[#008f4c] transition-colors disabled:opacity-50"
-      >
-        {isPending ? "Enviando comprovante..." : "Enviar comprovante"}
-      </button>
+      <div className="pt-1">
+        <Button
+          type="submit"
+          variant="primary"
+          size="sm"
+          disabled={isPending || !file}
+        >
+          {isPending ? "Enviando comprovante..." : "Enviar Comprovante Pix"}
+        </Button>
+      </div>
     </form>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export interface CopyPixButtonProps {
   pixKey: string;
@@ -26,20 +27,18 @@ export function CopyPixButton({ pixKey, className = "" }: CopyPixButtonProps) {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant={copied ? "primary" : "outline"}
+      size="sm"
       onClick={handleCopy}
       aria-label={copied ? "Chave Pix copiada para a área de transferência" : "Copiar chave Pix"}
-      className={`inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all duration-150 active:scale-[0.98] cursor-pointer ${
-        copied
-          ? "bg-emerald-50 text-[#008f4c] border-emerald-300"
-          : "bg-white text-zinc-800 border-zinc-300 hover:bg-zinc-50 hover:border-zinc-400"
-      } ${className}`.trim()}
+      className={className}
     >
       {copied ? (
         <>
           <svg
-            className="w-4 h-4 text-[#008f4c] shrink-0"
+            className="w-4 h-4 mr-1.5 shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -53,7 +52,7 @@ export function CopyPixButton({ pixKey, className = "" }: CopyPixButtonProps) {
       ) : (
         <>
           <svg
-            className="w-4 h-4 text-zinc-600 shrink-0"
+            className="w-4 h-4 mr-1.5 shrink-0 text-zinc-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -69,6 +68,6 @@ export function CopyPixButton({ pixKey, className = "" }: CopyPixButtonProps) {
           <span>Copiar chave Pix</span>
         </>
       )}
-    </button>
+    </Button>
   );
 }

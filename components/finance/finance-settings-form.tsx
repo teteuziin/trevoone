@@ -8,6 +8,7 @@ import {
 import type { ConsultancyFinanceSettings, PixKeyType } from "@/lib/consultancies/finance";
 import { FormField, Input, Select, Textarea } from "@/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 interface FinanceSettingsFormProps {
   slug: string;
@@ -60,37 +61,15 @@ export function FinanceSettingsForm({
   return (
     <form action={formAction} className="space-y-5">
       {state.error && (
-        <div
-          role="alert"
-          className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2.5"
-        >
-          <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span className="leading-relaxed">{state.error}</span>
-        </div>
+        <Alert variant="danger" title="Erro ao salvar">
+          <p className="text-xs">{state.error}</p>
+        </Alert>
       )}
 
       {state.success && (
-        <div
-          role="status"
-          className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-start gap-2.5"
-        >
-          <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span className="leading-relaxed">{state.message || "Configurações salvas com sucesso!"}</span>
-        </div>
+        <Alert variant="success" title="Configurações Salvas">
+          <p className="text-xs">{state.message || "As configurações financeiras foram atualizadas com sucesso!"}</p>
+        </Alert>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -110,79 +89,68 @@ export function FinanceSettingsForm({
         </FormField>
 
         {/* Chave Pix */}
-        <FormField label="Chave Pix" required id="pixKey">
+        <FormField label="Chave Pix Oficial" required id="pixKey">
           <Input
             name="pixKey"
             type="text"
-            autoComplete="off"
-            placeholder="Digite a chave Pix exata"
+            placeholder="Ex: 123.456.789-00 ou pix@consultoria.com"
             defaultValue={initialSettings?.pixKey || ""}
             disabled={isPending}
-            maxLength={255}
           />
         </FormField>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Nome do Titular / Recebedor */}
-        <FormField label="Nome do Titular / Recebedor" required id="pixReceiverName">
-          <Input
-            name="pixReceiverName"
-            type="text"
-            autoComplete="off"
-            placeholder="Nome completo ou Razão Social"
-            defaultValue={initialSettings?.pixReceiverName || ""}
-            disabled={isPending}
-            maxLength={150}
-          />
-        </FormField>
+      {/* Nome do Favorecido */}
+      <FormField label="Nome do Favorecido / Recebedor" required id="pixReceiverName">
+        <Input
+          name="pixReceiverName"
+          type="text"
+          placeholder="Ex: João da Silva Personal Trainer Ltda"
+          defaultValue={initialSettings?.pixReceiverName || ""}
+          disabled={isPending}
+        />
+      </FormField>
 
-        {/* Fuso Horário Financeiro */}
-        <FormField
-          label="Fuso Horário de Cobrança"
-          required
-          helperText="Utilizado para determinar as datas de vencimento e pagamentos."
-          id="billingTimezone"
+      {/* Fuso Horário de Cobrança */}
+      <FormField
+        label="Fuso Horário Operacional para Cobranças"
+        required
+        id="billingTimezone"
+        helperText="Utilizado para determinar exatamente o horário limite de vencimento das mensalidades."
+      >
+        <Select
+          name="billingTimezone"
+          defaultValue={initialSettings?.billingTimezone || "America/Sao_Paulo"}
+          disabled={isPending}
         >
-          <Select
-            name="billingTimezone"
-            defaultValue={initialSettings?.billingTimezone || "America/Sao_Paulo"}
-            disabled={isPending}
-          >
-            {COMMON_TIMEZONES.map((tz) => (
-              <option key={tz.value} value={tz.value}>
-                {tz.label}
-              </option>
-            ))}
-          </Select>
-        </FormField>
-      </div>
+          {COMMON_TIMEZONES.map((tz) => (
+            <option key={tz.value} value={tz.value}>
+              {tz.label}
+            </option>
+          ))}
+        </Select>
+      </FormField>
 
       {/* Instruções de Pagamento */}
       <FormField
-        label="Instruções de Pagamento"
+        label="Instruções Adicionais de Pagamento"
         optional
-        helperText="Orientações adicionais que serão exibidas ao aluno (ex: enviar comprovante até as 18h)."
         id="paymentInstructions"
+        helperText="Orientação exibida ao aluno no aplicativo ao visualizar a cobrança."
       >
         <Textarea
           name="paymentInstructions"
           rows={3}
-          placeholder="Ex: Pagamento exclusivo via Pix para o titular acima. Após transferir, anexe o comprovante."
+          placeholder="Ex: Após a transferência, envie o comprovante diretamente pelo aplicativo para liberação imediata."
           defaultValue={initialSettings?.paymentInstructions || ""}
           disabled={isPending}
           maxLength={1000}
         />
       </FormField>
 
-      <div className="flex items-center justify-end gap-3 pt-2">
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={isPending}
-          className="w-full sm:w-auto"
-        >
-          {isPending ? "Salvando configurações..." : "Salvar configurações Pix"}
+      <div className="pt-2 flex justify-end">
+        <Button type="submit" variant="primary" size="md" disabled={isPending}>
+          {isPending ? "Salvando configurações..." : "Salvar Configurações Pix"}
         </Button>
       </div>
     </form>

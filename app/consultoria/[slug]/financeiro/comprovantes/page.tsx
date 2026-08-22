@@ -9,6 +9,7 @@ import {
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -86,120 +87,88 @@ export default async function AdminPaymentReceiptsQueuePage({
       <div className="space-y-6">
         {/* Header Principal */}
         <PageHeader
+          backHref={`/consultoria/${slug}/financeiro`}
+          backLabel="Voltar ao Financeiro"
           title="Fila de Comprovantes"
+          eyebrow="ADMINISTRAÇÃO DA CONSULTORIA"
           description="Comprovantes de pagamento enviados pelos alunos aguardando análise e confirmação."
-          actions={
-            <Link href={`/consultoria/${slug}/financeiro`}>
-              <Button variant="outline" size="sm">
-                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Voltar ao Financeiro
-              </Button>
-            </Link>
-          }
         />
 
-        {/* Lista de Comprovantes */}
-        <div className="bg-white border border-zinc-200 rounded-2xl shadow-xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-zinc-100 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                Aguardando análise ({result.total})
-              </span>
-            </div>
-          </div>
-
-          {result.receipts.length === 0 ? (
-            <div className="p-8 sm:p-12 text-center space-y-2">
-              <div className="w-12 h-12 rounded-full bg-zinc-100 text-zinc-400 mx-auto flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <p className="text-sm font-semibold text-zinc-900">Tudo em dia!</p>
-              <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-                Não há comprovantes aguardando análise no momento. Novos envios aparecerão aqui automaticamente.
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-zinc-100">
-              {result.receipts.map((item) => (
-                <div
-                  key={item.receiptPublicId}
-                  className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-zinc-50/70 transition"
-                >
-                  <div className="space-y-1.5 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-bold text-zinc-900 truncate">
-                        {item.studentName}
-                      </p>
+        {result.receipts.length === 0 ? (
+          <EmptyState
+            title="Nenhum comprovante pendente"
+            description="Todos os comprovantes de pagamento enviados pelos alunos já foram analisados."
+          />
+        ) : (
+          <div className="space-y-3">
+            {result.receipts.map((receipt) => (
+              <div
+                key={receipt.receiptPublicId}
+                className="bg-white border border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[#00A859]/50 transition-all"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-sm text-zinc-900 truncate">
+                        {receipt.studentName}
+                      </span>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                        Em análise
+                        Aguardando análise
                       </span>
                     </div>
 
                     <p className="text-xs text-zinc-600 font-medium truncate">
-                      {item.chargeTitle} •{" "}
-                      <span className="text-zinc-900 font-bold">
-                        {formatCentsToBrl(item.amountCents)}
-                      </span>
+                      {receipt.chargeTitle} —{" "}
+                      <strong className="text-zinc-900">{formatCentsToBrl(receipt.amountCents)}</strong>
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
-                      <span>Vencimento: {formatDateBr(item.dueOn)}</span>
-                      <span>•</span>
-                      <span>Enviado em: {formatDateTime(item.submittedAt)}</span>
-                      <span>•</span>
-                      <span>{item.originalFileName} ({formatBytes(item.sizeBytes)})</span>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+                      <span>Arquivo: <strong className="text-zinc-700 font-medium">{receipt.originalFileName}</strong> ({formatBytes(receipt.sizeBytes)})</span>
+                      <span>Enviado em: <strong className="text-zinc-700 font-medium">{formatDateTime(receipt.submittedAt)}</strong></span>
+                      <span>Vencimento: <strong className="text-zinc-700 font-medium">{formatDateBr(receipt.dueOn)}</strong></span>
                     </div>
                   </div>
 
-                  <div className="shrink-0 flex items-center gap-2">
-                    <Link
-                      href={`/consultoria/${slug}/financeiro/comprovantes/${item.receiptPublicId}`}
-                    >
-                      <Button variant="primary" size="sm" className="w-full sm:w-auto">
-                        Analisar
+                  <div className="pt-2 sm:pt-0 border-t border-zinc-100 sm:border-t-0 shrink-0">
+                    <Link href={`/consultoria/${slug}/financeiro/comprovantes/${receipt.receiptPublicId}`}>
+                      <Button variant="primary" size="sm">
+                        Analisar Comprovante →
                       </Button>
                     </Link>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Paginação */}
-          {result.totalPages > 1 && (
-            <div className="p-4 border-t border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-              <p className="text-xs text-zinc-500">
-                Página <span className="font-semibold text-zinc-900">{result.page}</span> de{" "}
-                <span className="font-semibold text-zinc-900">{result.totalPages}</span> ({result.total} comprovantes)
-              </p>
-
-              <div className="flex items-center gap-2">
-                {result.page > 1 && (
-                  <Link
-                    href={`/consultoria/${slug}/financeiro/comprovantes?pagina=${result.page - 1}`}
-                  >
-                    <Button variant="outline" size="sm">
-                      Anterior
-                    </Button>
-                  </Link>
-                )}
-                {result.page < result.totalPages && (
-                  <Link
-                    href={`/consultoria/${slug}/financeiro/comprovantes?pagina=${result.page + 1}`}
-                  >
-                    <Button variant="outline" size="sm">
-                      Próxima
-                    </Button>
-                  </Link>
-                )}
               </div>
-            </div>
-          )}
-        </div>
+            ))}
+
+            {/* Pagination */}
+            {result.totalPages > 1 && (
+              <div className="flex items-center justify-between p-4 bg-white border border-zinc-200/90 rounded-2xl shadow-xs text-xs">
+                <p className="text-zinc-500">
+                  Página <span className="font-bold text-zinc-900">{result.page}</span> de{" "}
+                  <span className="font-bold text-zinc-900">{result.totalPages}</span> ({result.total} comprovantes)
+                </p>
+
+                <div className="flex items-center gap-2">
+                  {result.page > 1 && (
+                    <Link href={`/consultoria/${slug}/financeiro/comprovantes?pagina=${result.page - 1}`}>
+                      <Button variant="outline" size="sm">
+                        Anterior
+                      </Button>
+                    </Link>
+                  )}
+
+                  {result.page < result.totalPages && (
+                    <Link href={`/consultoria/${slug}/financeiro/comprovantes?pagina=${result.page + 1}`}>
+                      <Button variant="outline" size="sm">
+                        Próxima
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </ConsultancyAppShell>
   );

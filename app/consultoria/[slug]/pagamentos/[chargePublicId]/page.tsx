@@ -5,13 +5,12 @@ import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import {
   getStudentChargePaymentDetail,
   formatCentsToBrl,
-  STATUS_LABELS,
   PIX_KEY_TYPE_LABELS,
-  type StudentChargeDerivedStatus,
 } from "@/lib/consultancies/finance";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
-import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { FinanceStatusBadge } from "@/components/finance/finance-ui-badges";
 import { CopyPixButton } from "@/components/finance/copy-pix-button";
 import { ReceiptUploadForm } from "@/components/finance/receipt-upload-form";
 
@@ -21,23 +20,6 @@ type PageProps = {
     chargePublicId: string;
   }>;
 };
-
-function getStatusBadgeVariant(status: StudentChargeDerivedStatus): BadgeVariant {
-  switch (status) {
-    case "PAID":
-      return "success";
-    case "OVERDUE":
-      return "danger";
-    case "UNDER_REVIEW":
-      return "warning";
-    case "PENDING":
-      return "neutral";
-    case "CANCELED":
-      return "neutral";
-    default:
-      return "neutral";
-  }
-}
 
 function formatDateBr(isoDateStr: string): string {
   if (!isoDateStr || !isoDateStr.includes("-")) return isoDateStr;
@@ -97,6 +79,8 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
     ? `${formatDateBr(charge.referencePeriodStart!)} a ${formatDateBr(charge.referencePeriodEnd!)}`
     : null;
 
+  const canSubmitReceipt = charge.state === "OPEN" && !charge.isPaid && !charge.hasSubmittedReceipt;
+
   return (
     <ConsultancyAppShell
       consultancyName={context.consultancyName}
@@ -112,201 +96,135 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
           backHref={`/consultoria/${slug}/pagamentos`}
           backLabel="Voltar para pagamentos"
           title={charge.title}
-          eyebrow="Cobrança"
+          eyebrow="COBRANÇA"
         />
 
         {/* Charge Overview Card */}
-        <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-zinc-100 pb-4">
-            <div className="space-y-1 min-w-0">
-              <h2 className="text-lg sm:text-xl font-bold text-zinc-900 leading-tight">
-                {charge.title}
-              </h2>
-              {charge.description && (
-                <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed max-w-xl">
-                  {charge.description}
-                </p>
-              )}
-            </div>
-            <div className="shrink-0">
-              <Badge variant={getStatusBadgeVariant(charge.derivedStatus)} size="md">
-                {STATUS_LABELS[charge.derivedStatus] || charge.derivedStatus}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-1 text-xs">
-            <div>
-              <p className="text-zinc-500 font-medium">Valor</p>
-              <p className="text-base sm:text-lg font-bold text-zinc-900 mt-0.5">
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                Valor da Cobrança
+              </span>
+              <p className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
                 {formatCentsToBrl(charge.amountCents)}
               </p>
             </div>
+            <div className="flex items-center gap-2">
+              <FinanceStatusBadge status={charge.derivedStatus} size="md" />
+            </div>
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-zinc-600">
             <div>
-              <p className="text-zinc-500 font-medium">Vencimento</p>
-              <p className="text-sm sm:text-base font-semibold text-zinc-800 mt-0.5">
-                {formattedDueDate}
-              </p>
+              <span className="text-zinc-500">Data de Vencimento: </span>
+              <strong className="text-zinc-900 font-semibold">{formattedDueDate}</strong>
             </div>
 
             {formattedPeriod && (
-              <div className="col-span-2 sm:col-span-1">
-                <p className="text-zinc-500 font-medium">Período de Referência</p>
-                <p className="text-xs sm:text-sm font-semibold text-zinc-800 mt-0.5">
-                  {formattedPeriod}
-                </p>
+              <div>
+                <span className="text-zinc-500">Período de Referência: </span>
+                <strong className="text-zinc-900 font-semibold">{formattedPeriod}</strong>
               </div>
             )}
           </div>
+
+          {charge.description && (
+            <div className="pt-2 border-t border-zinc-100">
+              <span className="text-xs font-semibold text-zinc-700 block mb-1">
+                Observações da Consultoria:
+              </span>
+              <p className="text-xs text-zinc-600 leading-relaxed bg-zinc-50 p-3 rounded-xl border border-zinc-100">
+                {charge.description}
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Conditional Status Resolution Blocks */}
-        {charge.isPaid ? (
-          /* PAID STATE */
-          <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-3 text-emerald-950">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-emerald-900">Pagamento confirmado</h3>
-                <p className="text-xs text-emerald-800">
-                  Esta cobrança já foi confirmada como recebida pela consultoria.
-                </p>
-              </div>
-            </div>
+        {/* Status Messages */}
+        {charge.derivedStatus === "PAID" && (
+          <Alert variant="success" title="Pagamento Confirmado">
+            <p className="text-xs">
+              Esta cobrança foi quitada com sucesso. Seu acesso à consultoria está liberado.
+            </p>
+            {charge.paidConfirmedAt && (
+              <p className="text-xs mt-1 text-emerald-800 font-medium">
+                Confirmado em {formatDateTimeBr(charge.paidConfirmedAt)} via PIX.
+              </p>
+            )}
+          </Alert>
+        )}
 
-            <div className="pt-2 border-t border-emerald-200/70 grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span className="text-emerald-700">Valor confirmado:</span>
-                <p className="font-bold text-emerald-950 text-sm mt-0.5">
-                  {formatCentsToBrl(charge.paidAmountCents || charge.amountCents)}
-                </p>
-              </div>
-              {charge.paidConfirmedAt && (
-                <div>
-                  <span className="text-emerald-700">Data de confirmação:</span>
-                  <p className="font-semibold text-emerald-950 text-sm mt-0.5">
-                    {formatDateTimeBr(charge.paidConfirmedAt)}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : charge.state === "CANCELED" ? (
-          /* CANCELED STATE */
-          <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-2 text-zinc-700">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-zinc-200 text-zinc-600 flex items-center justify-center shrink-0">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <h3 className="text-sm font-bold text-zinc-900">Cobrança cancelada</h3>
-            </div>
-            <p className="text-xs text-zinc-500 leading-relaxed pl-10.5">
-              Esta cobrança foi cancelada pela consultoria e não requer mais pagamento.
+        {charge.derivedStatus === "UNDER_REVIEW" && (
+          <Alert variant="warning" title="Comprovante em Análise">
+            <p className="text-xs">
+              Seu comprovante foi enviado e está sendo analisado pela equipe da consultoria.
+              Assim que for aprovado, a cobrança será liquidada automaticamente.
             </p>
-          </div>
-        ) : charge.hasSubmittedReceipt ? (
-          /* UNDER REVIEW STATE */
-          <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-3 text-amber-950">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-amber-950">Comprovante recebido</h3>
-                <p className="text-xs font-semibold text-amber-900">
-                  Seu pagamento está em análise.
-                </p>
-                <p className="text-xs text-amber-800 leading-relaxed pt-1">
-                  A consultoria precisa confirmar o recebimento antes que a cobrança seja considerada paga.
-                  Assim que o comprovante for revisado, o status será atualizado automaticamente.
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : !charge.pixSettings ? (
-          /* SETTINGS MISSING STATE */
-          <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-2 text-amber-950">
-            <div className="flex items-center gap-2.5">
-              <svg className="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-              </svg>
-              <h3 className="text-sm font-bold text-amber-950">Pagamento indisponível no momento</h3>
-            </div>
-            <p className="text-xs text-amber-800 leading-relaxed">
-              Entre em contato com a consultoria para receber as instruções de pagamento.
+          </Alert>
+        )}
+
+        {charge.derivedStatus === "CANCELED" && (
+          <Alert variant="info" title="Cobrança Cancelada">
+            <p className="text-xs">
+              Esta cobrança foi cancelada pela administração da consultoria e não requer pagamento.
             </p>
-          </div>
-        ) : (
-          /* OPEN & READY FOR PAYMENT (PIX PANEL + UPLOAD FORM) */
+          </Alert>
+        )}
+
+        {/* Pix Instructions & Upload (Only for PENDING or OVERDUE or REJECTED) */}
+        {canSubmitReceipt && (
           <div className="space-y-6">
-            {/* Pix Panel */}
-            <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
-              <div className="border-b border-zinc-100 pb-3">
-                <h3 className="text-base font-bold text-zinc-900">Pagamento via Pix</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  Copie a chave Pix abaixo e realize a transferência pelo aplicativo do seu banco.
-                </p>
-              </div>
-
-              <div className="space-y-3.5">
-                {/* Receiver */}
-                <div>
-                  <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
-                    Titular da conta / Recebedor
-                  </span>
-                  <p className="text-sm font-bold text-zinc-900 mt-0.5">
-                    {charge.pixSettings.pixReceiverName}
-                  </p>
+            {/* Pix Details Card */}
+            {charge.pixSettings ? (
+              <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+                  <div>
+                    <h2 className="text-base font-bold text-zinc-900">Pagamento via Pix</h2>
+                    <p className="text-xs text-zinc-500">
+                      Realize a transferência no aplicativo do seu banco usando a chave abaixo:
+                    </p>
+                  </div>
                 </div>
 
-                {/* Pix Key Display & Copy */}
-                <div>
-                  <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
-                    Chave Pix ({PIX_KEY_TYPE_LABELS[charge.pixSettings.pixKeyType] || charge.pixSettings.pixKeyType})
-                  </span>
-
-                  <div className="mt-1.5 flex flex-col sm:flex-row sm:items-center gap-2.5">
-                    <div className="flex-1 p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-mono text-xs text-zinc-900 break-all select-all font-medium">
-                      {charge.pixSettings.pixKey}
+                <div className="space-y-3 bg-zinc-50 p-4 rounded-xl border border-zinc-200/60">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 block">
+                        Tipo de Chave ({PIX_KEY_TYPE_LABELS[charge.pixSettings.pixKeyType] || charge.pixSettings.pixKeyType})
+                      </span>
+                      <p className="text-sm sm:text-base font-mono font-bold text-zinc-900 break-all">
+                        {charge.pixSettings.pixKey}
+                      </p>
                     </div>
                     <CopyPixButton pixKey={charge.pixSettings.pixKey} className="shrink-0" />
                   </div>
+
+                  <div className="pt-2 border-t border-zinc-200/60 flex flex-wrap justify-between gap-2 text-xs">
+                    <div>
+                      <span className="text-zinc-500">Favorecido: </span>
+                      <strong className="text-zinc-800 font-semibold">{charge.pixSettings.pixReceiverName}</strong>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Payment Instructions if present */}
                 {charge.pixSettings.paymentInstructions && (
-                  <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1 text-xs">
-                    <p className="font-semibold text-zinc-800">Instruções adicionais da consultoria:</p>
-                    <p className="text-zinc-600 leading-relaxed whitespace-pre-line">
-                      {charge.pixSettings.paymentInstructions}
-                    </p>
+                  <div className="text-xs text-zinc-600 bg-amber-50/60 border border-amber-200/60 p-3.5 rounded-xl space-y-1">
+                    <strong className="font-semibold text-amber-900 block">Instruções de Pagamento:</strong>
+                    <p className="leading-relaxed">{charge.pixSettings.paymentInstructions}</p>
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Receipt Upload Card */}
-            <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-              <div className="border-b border-zinc-100 pb-3">
-                <h3 className="text-base font-bold text-zinc-900">Comprovante de pagamento</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  Após realizar o Pix, anexe o comprovante abaixo para envio e análise da consultoria.
+            ) : (
+              <Alert variant="warning" title="Chave Pix em configuração">
+                <p className="text-xs">
+                  A consultoria ainda não cadastrou a chave Pix oficial. Entre em contato com a equipe para receber as instruções de pagamento.
                 </p>
-              </div>
+              </Alert>
+            )}
 
+            {/* Receipt Upload Form Card */}
+            <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 sm:p-6 shadow-xs">
               <ReceiptUploadForm
                 slug={slug}
                 chargePublicId={charge.publicId}

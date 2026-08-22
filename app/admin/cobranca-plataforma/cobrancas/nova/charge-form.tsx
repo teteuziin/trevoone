@@ -3,6 +3,9 @@
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createPlatformChargeAction } from "../../actions";
+import { FormField, Input, Select, Textarea } from "@/components/ui/form-controls";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 interface ChargeFormProps {
   consultancies: {
@@ -66,128 +69,104 @@ export function ChargeForm({ consultancies, defaultConsultancyPublicId }: Charge
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm">
-          {error}
-        </div>
+        <Alert variant="danger" title="Erro na emissão">
+          <p className="text-xs">{error}</p>
+        </Alert>
       )}
 
-      <div className="space-y-1.5">
-        <label className="block text-xs font-semibold text-zinc-700">
-          Consultoria Destinatária
-        </label>
-        <select
+      <FormField label="Consultoria Destinatária" required id="consultancyPublicId">
+        <Select
+          id="consultancyPublicId"
           value={consultancyPublicId}
           onChange={(e) => setConsultancyPublicId(e.target.value)}
           disabled={isPending}
-          required
-          className="w-full h-10 px-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
         >
           {consultancies.map((c) => (
             <option key={c.publicId} value={c.publicId}>
               {c.name} ({c.slug})
             </option>
           ))}
-        </select>
-      </div>
+        </Select>
+      </FormField>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-zinc-700">
-            Título da Cobrança
-          </label>
-          <input
+        <FormField label="Título da Cobrança" required id="chargeTitle">
+          <Input
+            id="chargeTitle"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ex: Mensalidade Trevo One - Agosto/2026"
+            placeholder="Ex: Mensalidade Trevo One - Setembro/2026"
             disabled={isPending}
-            required
-            className="w-full h-10 px-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
           />
-        </div>
+        </FormField>
 
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-zinc-700">
-            Valor (R$)
-          </label>
-          <input
+        <FormField label="Valor (R$)" required id="chargeAmountStr">
+          <Input
+            id="chargeAmountStr"
             type="text"
             value={amountStr}
             onChange={(e) => setAmountStr(e.target.value)}
             placeholder="149,90"
             disabled={isPending}
-            required
-            className="w-full h-10 px-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
           />
-        </div>
+        </FormField>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-zinc-700">
-            Data de Vencimento
-          </label>
-          <input
+        <FormField label="Data de Vencimento" required id="chargeDueOn">
+          <Input
+            id="chargeDueOn"
             type="date"
             value={dueOn}
             onChange={(e) => setDueOn(e.target.value)}
             disabled={isPending}
-            required
-            className="w-full h-10 px-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
           />
-        </div>
+        </FormField>
 
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-zinc-700">
-            Início do Período (Opcional)
-          </label>
-          <input
+        <FormField label="Início do Período" optional id="chargePeriodStart">
+          <Input
+            id="chargePeriodStart"
             type="date"
             value={periodStart}
             onChange={(e) => setPeriodStart(e.target.value)}
             disabled={isPending}
-            className="w-full h-10 px-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
           />
-        </div>
+        </FormField>
 
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-zinc-700">
-            Fim do Período (Opcional)
-          </label>
-          <input
+        <FormField label="Fim do Período" optional id="chargePeriodEnd">
+          <Input
+            id="chargePeriodEnd"
             type="date"
             value={periodEnd}
             onChange={(e) => setPeriodEnd(e.target.value)}
             disabled={isPending}
-            className="w-full h-10 px-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
           />
-        </div>
+        </FormField>
       </div>
 
-      <div className="space-y-1.5">
-        <label className="block text-xs font-semibold text-zinc-700">
-          Descrição / Detalhes (Opcional)
-        </label>
-        <textarea
+      <FormField label="Descrição / Detalhes Adicionais" optional id="chargeDescription">
+        <Textarea
+          id="chargeDescription"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          placeholder="Ex: Fatura referente ao plano Pro de 50 alunos ativos."
+          placeholder="Ex: Fatura referente à licença operacional e suporte técnico."
           disabled={isPending}
-          className="w-full p-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
         />
-      </div>
+      </FormField>
 
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-100">
-        <button
+      <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-100">
+        <Button
           type="submit"
+          variant="primary"
+          size="md"
           disabled={isPending}
-          className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-[#00A859] hover:bg-[#008f4c] text-white transition-colors disabled:opacity-50"
         >
           {isPending ? "Criando cobrança..." : "Emitir Cobrança"}
-        </button>
+        </Button>
       </div>
     </form>
   );

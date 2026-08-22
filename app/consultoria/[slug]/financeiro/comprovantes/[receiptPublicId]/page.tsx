@@ -1,15 +1,14 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import {
   getPaymentReceiptReviewDetail,
   formatCentsToBrl,
-  STATUS_LABELS,
 } from "@/lib/consultancies/finance";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { ReceiptStatusBadge } from "@/components/finance/finance-ui-badges";
 import { ReceiptReviewActions } from "@/components/finance/receipt-review-actions";
 
 export const dynamic = "force-dynamic";
@@ -88,227 +87,125 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header Principal */}
         <PageHeader
-          title="Revisão de Comprovante"
-          description="Verifique as informações do pagamento e o arquivo do comprovante antes de aprovar ou rejeitar."
-          actions={
-            <Link href={`/consultoria/${slug}/financeiro/comprovantes`}>
-              <Button variant="outline" size="sm">
-                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Voltar à fila
-              </Button>
-            </Link>
-          }
+          backHref={`/consultoria/${slug}/financeiro/comprovantes`}
+          backLabel="Voltar à fila de comprovantes"
+          title="Análise de Comprovante"
+          eyebrow={`ALUNO: ${receipt.studentName}`}
+          description="Confira as informações do pagamento e o arquivo do comprovante antes de aprovar ou rejeitar."
         />
 
-        {/* Resumo da Cobrança e Aluno */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Card: Dados do Aluno e Cobrança */}
-          <div className="p-5 sm:p-6 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-4">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-              Dados da Cobrança
-            </h2>
-
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-zinc-500">Aluno</p>
-                <p className="text-sm font-bold text-zinc-900">{receipt.studentName}</p>
-                <p className="text-xs text-zinc-500">{receipt.studentEmail}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main Column: File Preview */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-xs space-y-3">
+              <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3 text-xs">
+                <span className="font-semibold text-zinc-800 truncate">
+                  {receipt.originalFileName}
+                </span>
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-[#00A859] hover:underline font-semibold shrink-0"
+                >
+                  <span>Abrir em nova aba</span>
+                  <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                  </svg>
+                </a>
               </div>
 
-              <div className="pt-2 border-t border-zinc-100">
-                <p className="text-xs text-zinc-500">Cobrança</p>
-                <p className="text-sm font-semibold text-zinc-900">{receipt.chargeTitle}</p>
-                {receipt.chargeDescription && (
-                  <p className="text-xs text-zinc-500 mt-0.5">{receipt.chargeDescription}</p>
+              <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl overflow-hidden min-h-[300px] flex items-center justify-center">
+                {isImage ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={fileUrl}
+                    alt={`Comprovante de ${receipt.studentName}`}
+                    className="max-h-[500px] w-auto object-contain mx-auto rounded"
+                  />
+                ) : isPdf ? (
+                  <iframe
+                    src={fileUrl}
+                    title={`Comprovante de ${receipt.studentName}`}
+                    className="w-full h-[500px] rounded border-0"
+                  />
+                ) : (
+                  <div className="p-8 text-center space-y-3">
+                    <p className="text-xs text-zinc-500">Visualização direta indisponível para este tipo de arquivo.</p>
+                    <a href={fileUrl} download={receipt.originalFileName}>
+                      <Button variant="outline" size="sm">
+                        Baixar Arquivo ({formatBytes(receipt.sizeBytes)})
+                      </Button>
+                    </a>
+                  </div>
                 )}
               </div>
+            </div>
+          </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100">
+          {/* Sidebar Column: Data & Decision Actions */}
+          <div className="lg:col-span-5 space-y-4">
+            {/* Metadata Card */}
+            <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                  Status do Envio
+                </span>
+                <ReceiptStatusBadge status={receipt.receiptStatus} size="sm" />
+              </div>
+
+              <div className="space-y-3 text-xs text-zinc-600">
                 <div>
-                  <p className="text-xs text-zinc-500">Valor</p>
-                  <p className="text-base font-bold text-zinc-900">
+                  <span className="text-zinc-500 block">Aluno:</span>
+                  <strong className="text-zinc-900 font-semibold text-sm">{receipt.studentName}</strong>
+                  <p className="text-[11px] text-zinc-500">{receipt.studentEmail}</p>
+                </div>
+
+                <div>
+                  <span className="text-zinc-500 block">Cobrança Vinculada:</span>
+                  <strong className="text-zinc-900 font-semibold">{receipt.chargeTitle}</strong>
+                </div>
+
+                <div>
+                  <span className="text-zinc-500 block">Valor a Liquidar:</span>
+                  <strong className="text-zinc-900 font-bold text-base text-[#00A859]">
                     {formatCentsToBrl(receipt.amountCents)}
-                  </p>
+                  </strong>
                 </div>
-                <div>
-                  <p className="text-xs text-zinc-500">Vencimento</p>
-                  <p className="text-sm font-medium text-zinc-900">
-                    {formatDateBr(receipt.dueOn)}
-                  </p>
-                </div>
-              </div>
 
-              <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-zinc-500">Status atual da cobrança</p>
-                  <p className="text-xs font-bold text-zinc-900">
-                    {STATUS_LABELS[receipt.chargeDerivedStatus]}
-                  </p>
+                  <span className="text-zinc-500 block">Vencimento da Cobrança:</span>
+                  <span className="text-zinc-800 font-medium">{formatDateBr(receipt.dueOn)}</span>
                 </div>
-                <Link
-                  href={`/consultoria/${slug}/financeiro/cobrancas/${receipt.chargePublicId}`}
-                  className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
-                >
-                  Ver cobrança →
-                </Link>
+
+                <div>
+                  <span className="text-zinc-500 block">Enviado em:</span>
+                  <span className="text-zinc-800 font-medium">{formatDateTime(receipt.submittedAt)}</span>
+                </div>
+
+                {receipt.reviewedAt && (
+                  <div>
+                    <span className="text-zinc-500 block">Analisado em:</span>
+                    <span className="text-zinc-800 font-medium">
+                      {formatDateTime(receipt.reviewedAt)} por {receipt.reviewerName || "Administrador"}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Card: Dados do Envio do Comprovante */}
-          <div className="p-5 sm:p-6 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-4">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-              Dados do Comprovante
-            </h2>
-
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-zinc-500">Status da revisão</p>
-                <div className="mt-1">
-                  {receipt.receiptStatus === "SUBMITTED" && (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                      Em análise
-                    </span>
-                  )}
-                  {receipt.receiptStatus === "APPROVED" && (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-[#008f4c] border border-emerald-200">
-                      Aprovado
-                    </span>
-                  )}
-                  {receipt.receiptStatus === "REJECTED" && (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-                      Rejeitado
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-zinc-100">
-                <p className="text-xs text-zinc-500">Data de envio</p>
-                <p className="text-xs font-semibold text-zinc-900">
-                  {formatDateTime(receipt.submittedAt)}
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-zinc-100">
-                <p className="text-xs text-zinc-500">Arquivo enviado</p>
-                <p className="text-xs font-semibold text-zinc-900 truncate">
-                  {receipt.originalFileName}
-                </p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
-                  Tipo: {receipt.mimeType} • Tamanho: {formatBytes(receipt.sizeBytes)}
-                </p>
-              </div>
-
-              {receipt.reviewedAt && (
-                <div className="pt-2 border-t border-zinc-100 space-y-1">
-                  <p className="text-xs text-zinc-500">Revisado em</p>
-                  <p className="text-xs font-semibold text-zinc-900">
-                    {formatDateTime(receipt.reviewedAt)}
-                    {receipt.reviewerName && ` por ${receipt.reviewerName}`}
-                  </p>
-                  {receipt.rejectionReason && (
-                    <div className="p-2.5 bg-red-50/70 border border-red-200 rounded-xl text-xs text-red-800 mt-2">
-                      <span className="font-semibold">Motivo informado:</span> {receipt.rejectionReason}
-                    </div>
-                  )}
-                </div>
-              )}
+            {/* Decision Actions Component */}
+            <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-xs">
+              <ReceiptReviewActions
+                slug={slug}
+                receiptPublicId={receipt.receiptPublicId}
+                studentName={receipt.studentName}
+                chargeTitle={receipt.chargeTitle}
+                formattedAmount={formatCentsToBrl(receipt.amountCents)}
+                receiptStatus={receipt.receiptStatus}
+              />
             </div>
           </div>
-        </div>
-
-        {/* Visualização do Arquivo */}
-        <div className="p-5 sm:p-6 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold text-zinc-900">Arquivo do Comprovante</h2>
-              <p className="text-xs text-zinc-500">
-                Visualização segura do documento enviado pelo aluno.
-              </p>
-            </div>
-
-            <a
-              href={fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition shadow-xs"
-            >
-              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              Abrir arquivo em nova aba
-            </a>
-          </div>
-
-          <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-center min-h-[220px]">
-            {isImage ? (
-              <div className="max-w-md w-full text-center space-y-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={fileUrl}
-                  alt="Comprovante de pagamento"
-                  className="max-h-80 w-auto mx-auto rounded-lg border border-zinc-200 object-contain shadow-xs bg-white"
-                />
-                <p className="text-[11px] text-zinc-400">
-                  Clique no botão acima para abrir em tela cheia se necessário.
-                </p>
-              </div>
-            ) : isPdf ? (
-              <div className="text-center space-y-3 py-6">
-                <div className="w-14 h-14 rounded-2xl bg-red-100 text-red-600 mx-auto flex items-center justify-center">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-zinc-900">Documento PDF</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    {receipt.originalFileName} ({formatBytes(receipt.sizeBytes)})
-                  </p>
-                </div>
-                <a
-                  href={fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700 transition"
-                >
-                  Abrir PDF
-                </a>
-              </div>
-            ) : (
-              <div className="text-center space-y-2 py-6">
-                <p className="text-xs text-zinc-600">Arquivo disponível para download seguro</p>
-                <a
-                  href={fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition"
-                >
-                  Baixar arquivo
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Card de Ações de Revisão */}
-        <div className="p-5 sm:p-6 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-4">
-          <h2 className="text-sm font-bold text-zinc-900">Decisão da Consultoria</h2>
-          <p className="text-xs text-zinc-500">
-            Ao aprovar, o pagamento é registrado no sistema com o valor exato da cobrança. Ao rejeitar, o aluno é notificado sobre o motivo e pode reenviar.
-          </p>
-
-          <ReceiptReviewActions
-            slug={slug}
-            receiptPublicId={receipt.receiptPublicId}
-            studentName={receipt.studentName}
-            chargeTitle={receipt.chargeTitle}
-            formattedAmount={formatCentsToBrl(receipt.amountCents)}
-            receiptStatus={receipt.receiptStatus}
-          />
         </div>
       </div>
     </ConsultancyAppShell>

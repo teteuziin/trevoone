@@ -3,6 +3,9 @@
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updatePlatformBillingSettingsAction } from "../actions";
+import { FormField, Input, Select, Textarea } from "@/components/ui/form-controls";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 const PIX_KEY_TYPES = ["CPF", "CNPJ", "EMAIL", "PHONE", "RANDOM"] as const;
 type PixKeyType = (typeof PIX_KEY_TYPES)[number];
@@ -50,91 +53,78 @@ export function PixSettingsForm({ initialData }: PixFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm">
-          {error}
-        </div>
+        <Alert variant="danger" title="Erro ao salvar">
+          <p className="text-xs">{error}</p>
+        </Alert>
       )}
 
       {success && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm">
-          Configurações Pix salvas com sucesso!
-        </div>
+        <Alert variant="success" title="Configurações Atualizadas">
+          <p className="text-xs">Chave Pix oficial da plataforma salva com sucesso!</p>
+        </Alert>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-zinc-700">
-            Tipo de Chave Pix
-          </label>
-          <select
+        <FormField label="Tipo de Chave Pix" required id="pixKeyType">
+          <Select
+            id="pixKeyType"
             value={pixKeyType}
             onChange={(e) => setPixKeyType(e.target.value as PixKeyType)}
             disabled={isPending}
-            className="w-full h-10 px-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
           >
             {PIX_KEY_TYPES.map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>
             ))}
-          </select>
-        </div>
+          </Select>
+        </FormField>
 
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-zinc-700">
-            Chave Pix Oficial
-          </label>
-          <input
+        <FormField label="Chave Pix Oficial" required id="pixKey">
+          <Input
+            id="pixKey"
             type="text"
             value={pixKey}
             onChange={(e) => setPixKey(e.target.value)}
             placeholder="Ex: 00.000.000/0001-00 ou pix@trevo.one"
             disabled={isPending}
-            required
-            className="w-full h-10 px-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
           />
-        </div>
+        </FormField>
       </div>
 
-      <div className="space-y-1.5">
-        <label className="block text-xs font-semibold text-zinc-700">
-          Nome do Favorecido / Razão Social
-        </label>
-        <input
+      <FormField label="Nome do Favorecido / Razão Social" required id="receiverName">
+        <Input
+          id="receiverName"
           type="text"
           value={receiverName}
           onChange={(e) => setReceiverName(e.target.value)}
           placeholder="Ex: Trevo One Tecnologia Ltda"
           disabled={isPending}
-          required
-          className="w-full h-10 px-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
         />
-      </div>
+      </FormField>
 
-      <div className="space-y-1.5">
-        <label className="block text-xs font-semibold text-zinc-700">
-          Instruções Adicionais de Pagamento (Opcional)
-        </label>
-        <textarea
+      <FormField label="Instruções Adicionais de Pagamento" optional id="instructions">
+        <Textarea
+          id="instructions"
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           rows={4}
-          placeholder="Ex: Envie o comprovante em PDF ou imagem legível constando o ID da transação."
+          placeholder="Ex: Envie o comprovante em PDF ou imagem legível constando a identificação da consultoria."
           disabled={isPending}
-          className="w-full p-3 rounded-xl border border-zinc-200 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#00A859]"
         />
-      </div>
+      </FormField>
 
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-100">
-        <button
+      <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-100">
+        <Button
           type="submit"
+          variant="primary"
+          size="md"
           disabled={isPending}
-          className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-[#00A859] hover:bg-[#008f4c] text-white transition-colors disabled:opacity-50"
         >
-          {isPending ? "Salvando..." : "Salvar Configurações"}
-        </button>
+          {isPending ? "Salvando..." : "Salvar Configurações Pix"}
+        </Button>
       </div>
     </form>
   );

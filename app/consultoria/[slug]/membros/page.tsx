@@ -1,3 +1,4 @@
+// Consultancy members and invitations directory
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";

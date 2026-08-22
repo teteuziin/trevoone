@@ -1,3 +1,4 @@
+// Student initial onboarding questionnaire page
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";

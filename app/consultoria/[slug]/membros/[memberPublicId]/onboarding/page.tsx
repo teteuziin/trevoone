@@ -1,3 +1,4 @@
+// Admin view of student onboarding profile
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";

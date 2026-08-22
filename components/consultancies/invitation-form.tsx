@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { FormField, Input } from "@/components/ui/form-controls";
 import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
 
 const initialState: InvitationFormState = {
   success: false,
@@ -41,13 +42,9 @@ export function InvitationForm({ slug }: { slug: string }) {
       </div>
 
       {state.error && (
-        <div
-          role="alert"
-          aria-live="polite"
-          className="p-3.5 rounded-lg border border-[var(--danger-soft-border)] bg-[var(--danger-soft)] text-[var(--danger-foreground)] text-xs font-semibold"
-        >
+        <Alert variant="danger" title="Erro ao criar convite">
           {state.error}
-        </div>
+        </Alert>
       )}
 
       {state.success && state.invitationPath && (

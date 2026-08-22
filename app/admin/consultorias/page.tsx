@@ -1,10 +1,11 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { listPlatformConsultancies } from "@/lib/platform-admin/consultancies";
-import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
 import { ConsultancyForm } from "./consultancy-form";
+import { PageHeader } from "@/components/ui/page-header";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function formatDate(date: Date): string {
   try {
@@ -22,29 +23,13 @@ function formatDate(date: Date): string {
 function getStatusBadge(status: string) {
   switch (status) {
     case "ACTIVE":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-[#008f4c] border border-emerald-200/60">
-          Ativa
-        </span>
-      );
+      return <Badge variant="success" size="sm">Ativa</Badge>;
     case "SUSPENDED":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/60">
-          Suspensa
-        </span>
-      );
+      return <Badge variant="warning" size="sm">Suspensa</Badge>;
     case "ARCHIVED":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600 border border-zinc-200">
-          Arquivada
-        </span>
-      );
+      return <Badge variant="neutral" size="sm">Arquivada</Badge>;
     default:
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500 border border-zinc-200">
-          Status indisponível
-        </span>
-      );
+      return <Badge variant="neutral" size="sm">Status indisponível</Badge>;
   }
 }
 
@@ -64,50 +49,23 @@ export default async function AdminConsultoriasPage() {
   const consultancies = await listPlatformConsultancies();
 
   return (
-    <main className="min-h-svh w-full bg-zinc-50 text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-      <header className="sticky top-0 z-30 w-full bg-white/90 backdrop-blur border-b border-zinc-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-[110px] sm:w-[130px] shrink-0">
-              <TrevoOneLogo priority size={130} />
-            </div>
-            <span className="hidden sm:inline-block text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              |
-            </span>
-            <span className="hidden sm:inline-block text-xs font-medium text-zinc-600">
-              Administração Global
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <Link
-              href="/admin"
-              className="inline-flex items-center text-xs sm:text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
-            >
-              ← Painel Admin
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">
-            Consultorias
-          </h1>
-          <p className="text-sm text-zinc-600 mt-1 leading-relaxed">
-            Gerencie as organizações e consultorias cadastradas na plataforma Trevo One.
-          </p>
-        </div>
+    <main className="min-h-svh w-full bg-[var(--surface-subtle)] text-[var(--text-primary)]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
+        <PageHeader
+          title="Gestão de Consultorias"
+          description="Gerencie as organizações e consultorias cadastradas na plataforma Trevo One."
+          backHref="/admin"
+          backLabel="Voltar ao Painel Admin"
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Formulário de Criação */}
-          <div className="lg:col-span-5 bg-white rounded-2xl border border-zinc-200 p-6 sm:p-7 shadow-sm space-y-5">
+          <div className="lg:col-span-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] p-6 sm:p-7 shadow-xs space-y-5">
             <div>
-              <h2 className="text-base sm:text-lg font-semibold text-zinc-900">
+              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
                 Nova consultoria
               </h2>
-              <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
+              <p className="text-xs text-[var(--text-tertiary)] mt-0.5 leading-relaxed">
                 Cadastre uma nova organização e defina seu administrador inicial.
               </p>
             </div>
@@ -118,43 +76,39 @@ export default async function AdminConsultoriasPage() {
           {/* Listagem de Consultorias */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base sm:text-lg font-semibold text-zinc-900">
+              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
                 Consultorias cadastradas ({consultancies.length})
               </h2>
             </div>
 
             {consultancies.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-zinc-200 p-8 text-center space-y-2">
-                <p className="text-sm font-medium text-zinc-800">
-                  Nenhuma consultoria encontrada
-                </p>
-                <p className="text-xs text-zinc-500">
-                  Cadastre uma consultoria utilizando o formulário ao lado.
-                </p>
-              </div>
+              <EmptyState
+                title="Nenhuma consultoria encontrada"
+                description="Cadastre uma consultoria utilizando o formulário ao lado."
+              />
             ) : (
               <div className="space-y-3">
                 {consultancies.map((c) => (
                   <div
                     key={c.publicId}
-                    className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 shadow-sm space-y-2"
+                    className="bg-[var(--surface)] rounded-xl border border-[var(--border-default)] p-4 sm:p-5 shadow-xs space-y-2 hover:border-[var(--border-strong)] transition-colors"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-base font-semibold text-zinc-900">
+                      <div className="min-w-0 space-y-0.5">
+                        <h3 className="text-base font-semibold text-[var(--text-primary)] truncate">
                           {c.name}
                         </h3>
-                        <p className="text-xs font-mono text-zinc-500 mt-0.5">
+                        <p className="text-xs font-mono text-[var(--text-tertiary)]">
                           /consultoria/{c.slug}
                         </p>
                       </div>
 
-                      <div>{getStatusBadge(c.status)}</div>
+                      <div className="shrink-0">{getStatusBadge(c.status)}</div>
                     </div>
 
-                    <div className="pt-2 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
+                    <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs text-[var(--text-secondary)]">
                       <span>Criada em {formatDate(c.createdAt)}</span>
-                      <span className="font-mono text-[11px] text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded">
+                      <span className="font-mono text-[11px] text-[var(--text-secondary)] bg-[var(--surface-subtle)] px-2 py-0.5 rounded border border-[var(--border-subtle)]">
                         {c.timezone}
                       </span>
                     </div>

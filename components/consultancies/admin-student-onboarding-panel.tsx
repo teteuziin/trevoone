@@ -7,6 +7,10 @@ import type {
   AdminStudentOnboardingResult,
   StudentOnboardingRequirementItem,
 } from "@/lib/consultancies/student-onboarding";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Props = {
   consultancySlug: string;
@@ -108,57 +112,54 @@ export function AdminStudentOnboardingPanel({
         <div className="flex items-center gap-2">
           <Link
             href={`/consultoria/${consultancySlug}/membros`}
-            className="inline-flex items-center text-xs font-semibold text-zinc-500 hover:text-zinc-800 transition-colors"
+            className="inline-flex items-center text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
           >
             ← Voltar ao diretório de membros
           </Link>
         </div>
 
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
           Onboarding do Aluno
         </h2>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-[var(--text-secondary)]">
           Revise e confirme o preenchimento dos formulários obrigatórios deste aluno.
         </p>
       </div>
 
       {/* Student Info & Progress Card */}
-      <div className="p-5 rounded-xl bg-white border border-zinc-200 shadow-2xs space-y-4">
+      <div className="p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
               Aluno Selecionado
             </span>
-            <h3 className="text-base font-bold text-zinc-900">
+            <h3 className="text-base font-bold text-[var(--text-primary)]">
               {student?.fullName || "Aluno"}
             </h3>
-            <p className="text-xs text-zinc-500">{student?.email}</p>
+            <p className="text-xs text-[var(--text-secondary)]">{student?.email}</p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                onboarding.isComplete
-                  ? "bg-emerald-50 text-[#00A859] border border-emerald-200"
-                  : "bg-amber-50 text-amber-800 border border-amber-200"
-              }`}
+            <Badge
+              variant={onboarding.isComplete ? "success" : "warning"}
+              size="md"
             >
               {onboarding.isComplete
                 ? "Onboarding Concluído"
                 : `${onboarding.confirmedRequirements} de ${onboarding.totalRequirements} confirmados`}
-            </span>
+            </Badge>
           </div>
         </div>
 
         {/* Progress Bar */}
         <div className="space-y-1.5 pt-1">
-          <div className="flex justify-between text-xs text-zinc-500">
+          <div className="flex justify-between text-xs text-[var(--text-secondary)]">
             <span>Progresso da liberação</span>
-            <span className="font-semibold text-zinc-700">{progressPercent}%</span>
+            <span className="font-semibold text-[var(--text-primary)]">{progressPercent}%</span>
           </div>
-          <div className="w-full h-2 rounded-full bg-zinc-100 overflow-hidden">
+          <div className="w-full h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden border border-[var(--border-subtle)]">
             <div
-              className="h-full bg-[#00A859] transition-all duration-300 rounded-full"
+              className="h-full bg-[var(--brand-strong)] transition-all duration-300 rounded-full"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -167,28 +168,21 @@ export function AdminStudentOnboardingPanel({
 
       {/* Global feedback message */}
       {feedback && !feedback.reqId && (
-        <div
-          className={`p-3 rounded-lg text-xs font-semibold ${
-            feedback.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-              : "bg-red-50 text-red-800 border border-red-200"
-          }`}
+        <Alert
+          variant={feedback.type === "success" ? "success" : "danger"}
+          title={feedback.type === "success" ? "Sucesso" : "Atenção"}
         >
           {feedback.message}
-        </div>
+        </Alert>
       )}
 
       {/* Requirements List */}
       <div className="space-y-4">
         {requirements.length === 0 ? (
-          <div className="p-8 text-center rounded-xl bg-zinc-50 border border-dashed border-zinc-300 space-y-2">
-            <p className="text-sm font-semibold text-zinc-700">
-              Nenhuma etapa configurada
-            </p>
-            <p className="text-xs text-zinc-500">
-              Não há requisitos ativos configurados para alunos nesta consultoria.
-            </p>
-          </div>
+          <EmptyState
+            title="Nenhuma etapa configurada"
+            description="Não há requisitos ativos configurados para alunos nesta consultoria."
+          />
         ) : (
           requirements.map((req, index) => {
             const hasValidUrl = isValidHttpsUrl(req.externalUrl);
@@ -197,15 +191,15 @@ export function AdminStudentOnboardingPanel({
             return (
               <div
                 key={req.publicId}
-                className="p-5 rounded-xl bg-white border border-zinc-200 shadow-2xs space-y-4 transition-all"
+                className="p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 hover:border-[var(--border-strong)] transition-colors"
               >
                 {/* Header of Card */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="space-y-1">
-                    <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+                    <span className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                       Etapa {index + 1}
                     </span>
-                    <h4 className="text-base font-semibold text-zinc-900 leading-snug">
+                    <h4 className="text-base font-semibold text-[var(--text-primary)] leading-snug">
                       {req.title}
                     </h4>
                   </div>
@@ -213,36 +207,33 @@ export function AdminStudentOnboardingPanel({
                   {/* Status Badge */}
                   <div>
                     {req.status === "CONFIRMED" && (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-[#00A859] border border-emerald-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#00A859]" />
+                      <Badge variant="success" size="sm">
                         Confirmado
-                      </span>
+                      </Badge>
                     )}
 
                     {req.status === "SUBMITTED" && (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      <Badge variant="warning" size="sm">
                         Aguardando confirmação
-                      </span>
+                      </Badge>
                     )}
 
                     {req.status === "PENDING" && (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                      <Badge variant="neutral" size="sm">
                         Pendente
-                      </span>
+                      </Badge>
                     )}
                   </div>
                 </div>
 
                 {/* Timestamps & Description */}
-                <div className="space-y-1 text-xs text-zinc-600">
+                <div className="space-y-1 text-xs text-[var(--text-secondary)]">
                   {req.status === "SUBMITTED" && (
                     <div className="space-y-1">
-                      <p className="text-amber-900 font-medium">
+                      <p className="text-[var(--warning-foreground)] font-medium">
                         Informado pelo aluno em: {formatDate(req.submittedAt)}
                       </p>
-                      <p className="text-zinc-500">
+                      <p className="text-[var(--text-tertiary)]">
                         O aluno declarou ter preenchido o formulário. Verifique o recebimento das
                         respostas e clique em &ldquo;Confirmar&rdquo; para validar esta etapa.
                       </p>
@@ -251,18 +242,18 @@ export function AdminStudentOnboardingPanel({
 
                   {req.status === "CONFIRMED" && (
                     <div className="space-y-1">
-                      <p className="text-emerald-800 font-medium">
+                      <p className="text-[var(--brand-foreground)] font-medium">
                         Confirmado em: {formatDate(req.confirmedAt)}
                         {req.submittedAt ? ` (informado em ${formatDate(req.submittedAt)})` : ""}
                       </p>
-                      <p className="text-zinc-500">
+                      <p className="text-[var(--text-tertiary)]">
                         Esta etapa está validada e conta para a liberação de treinos e dieta.
                       </p>
                     </div>
                   )}
 
                   {req.status === "PENDING" && (
-                    <p className="text-zinc-500">
+                    <p className="text-[var(--text-tertiary)]">
                       O aluno ainda não informou o preenchimento deste formulário.
                     </p>
                   )}
@@ -270,15 +261,12 @@ export function AdminStudentOnboardingPanel({
 
                 {/* Item feedback */}
                 {feedback && feedback.reqId === req.publicId && (
-                  <div
-                    className={`p-2.5 rounded-lg text-xs font-semibold ${
-                      feedback.type === "success"
-                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                        : "bg-red-50 text-red-800 border border-red-200"
-                    }`}
+                  <Alert
+                    variant={feedback.type === "success" ? "success" : "danger"}
+                    title={feedback.type === "success" ? "Sucesso" : "Atenção"}
                   >
                     {feedback.message}
-                  </div>
+                  </Alert>
                 )}
 
                 {/* Action Buttons */}
@@ -288,11 +276,11 @@ export function AdminStudentOnboardingPanel({
                       href={req.externalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 py-2 px-4 bg-white hover:bg-zinc-50 active:bg-zinc-100 text-zinc-800 font-semibold text-xs rounded-lg border border-zinc-300 shadow-2xs transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859]"
+                      className="inline-flex items-center justify-center gap-2 py-2 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] text-[var(--text-primary)] font-semibold text-xs rounded-lg border border-[var(--border-default)] shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
                     >
                       <span>Abrir formulário</span>
                       <svg
-                        className="w-3.5 h-3.5 text-zinc-500"
+                        className="w-3.5 h-3.5 text-[var(--text-tertiary)]"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -308,39 +296,16 @@ export function AdminStudentOnboardingPanel({
                   )}
 
                   {req.status === "SUBMITTED" && (
-                    <button
+                    <Button
                       type="button"
+                      variant="primary"
+                      size="sm"
+                      isLoading={isThisConfirming}
                       disabled={isPending}
                       onClick={() => handleConfirm(req)}
-                      className="inline-flex items-center justify-center py-2 px-4 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] disabled:opacity-60 text-white font-semibold text-xs rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
                     >
-                      {isThisConfirming ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <svg
-                            className="w-3.5 h-3.5 animate-spin"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8v8H4z"
-                            />
-                          </svg>
-                          <span>Confirmando...</span>
-                        </span>
-                      ) : (
-                        "Confirmar"
-                      )}
-                    </button>
+                      {isThisConfirming ? "Confirmando..." : "Confirmar"}
+                    </Button>
                   )}
                 </div>
               </div>
@@ -350,10 +315,10 @@ export function AdminStudentOnboardingPanel({
       </div>
 
       {/* Footer Navigation */}
-      <div className="pt-4 border-t border-zinc-200">
+      <div className="pt-4 border-t border-[var(--border-subtle)]">
         <Link
           href={`/consultoria/${consultancySlug}/membros`}
-          className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-white hover:bg-zinc-50 active:bg-zinc-100 border border-zinc-300 text-zinc-800 font-semibold text-sm rounded-lg shadow-2xs transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859]"
+          className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] border border-[var(--border-default)] text-[var(--text-primary)] font-semibold text-sm rounded-lg shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
         >
           Voltar ao diretório de membros
         </Link>

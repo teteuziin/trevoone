@@ -5,6 +5,9 @@ import {
   createConsultancyAction,
   type CreateConsultancyFormState,
 } from "./actions";
+import { FormField, Input } from "@/components/ui/form-controls";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 function slugify(text: string): string {
   return text
@@ -41,21 +44,19 @@ export function ConsultancyForm() {
   };
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-4" noValidate>
       {state?.error && (
-        <div className="p-3.5 rounded-lg bg-red-50 border border-red-200/80 text-sm text-red-700">
+        <Alert variant="danger" title="Erro ao criar consultoria">
           {state.error}
-        </div>
+        </Alert>
       )}
 
-      <div>
-        <label
-          htmlFor="name"
-          className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-        >
-          Nome da consultoria
-        </label>
-        <input
+      <FormField
+        label="Nome da consultoria"
+        id="name"
+        required
+      >
+        <Input
           id="name"
           name="name"
           type="text"
@@ -65,18 +66,15 @@ export function ConsultancyForm() {
           onChange={handleNameChange}
           placeholder="Ex: Saiya Shape"
           disabled={isPending}
-          className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm transition-all disabled:opacity-60"
         />
-      </div>
+      </FormField>
 
-      <div>
-        <label
-          htmlFor="slug"
-          className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-        >
-          Slug (identificador de URL)
-        </label>
-        <input
+      <FormField
+        label="Slug (identificador de URL)"
+        id="slug"
+        required
+      >
+        <Input
           id="slug"
           name="slug"
           type="text"
@@ -86,21 +84,19 @@ export function ConsultancyForm() {
           onChange={handleSlugChange}
           placeholder="Ex: saiya-shape"
           disabled={isPending}
-          className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm font-mono transition-all disabled:opacity-60"
+          className="font-mono"
         />
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-[var(--text-tertiary)]">
           Acesso futuro: /consultoria/{slug || "slug-da-consultoria"}
         </p>
-      </div>
+      </FormField>
 
-      <div>
-        <label
-          htmlFor="timezone"
-          className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-        >
-          Fuso horário
-        </label>
-        <input
+      <FormField
+        label="Fuso horário"
+        id="timezone"
+        required
+      >
+        <Input
           id="timezone"
           name="timezone"
           type="text"
@@ -110,21 +106,19 @@ export function ConsultancyForm() {
           onChange={(e) => setTimezone(e.target.value)}
           placeholder="America/Sao_Paulo"
           disabled={isPending}
-          className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm font-mono transition-all disabled:opacity-60"
+          className="font-mono"
         />
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-[var(--text-tertiary)]">
           Fuso horário operacional canônico da consultoria (formato IANA, ex: America/Sao_Paulo).
         </p>
-      </div>
+      </FormField>
 
-      <div>
-        <label
-          htmlFor="initialAdminEmail"
-          className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1.5"
-        >
-          Administrador inicial (e-mail)
-        </label>
-        <input
+      <FormField
+        label="Administrador inicial (e-mail)"
+        id="initialAdminEmail"
+        required
+      >
+        <Input
           id="initialAdminEmail"
           name="initialAdminEmail"
           type="email"
@@ -134,21 +128,22 @@ export function ConsultancyForm() {
           onChange={(e) => setInitialAdminEmail(e.target.value)}
           placeholder="admin@exemplo.com"
           disabled={isPending}
-          className="w-full h-11 px-3.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:border-transparent text-sm transition-all disabled:opacity-60"
         />
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-[var(--text-tertiary)]">
           A conta já deve estar cadastrada no Trevo One.
         </p>
-      </div>
+      </FormField>
 
       <div className="pt-2">
-        <button
+        <Button
           type="submit"
+          variant="primary"
+          isLoading={isPending}
           disabled={isPending}
-          className="w-full sm:w-auto px-6 h-11 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full sm:w-auto"
         >
           {isPending ? "Criando..." : "Criar consultoria"}
-        </button>
+        </Button>
       </div>
     </form>
   );

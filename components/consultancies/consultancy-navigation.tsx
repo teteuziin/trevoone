@@ -183,9 +183,10 @@ export function ConsultancyNavigation({
               </Link>
 
               {/* User Avatar Pill */}
-              <div
-                className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] select-none"
-                title={userEmail || userName}
+              <Link
+                href="/conta/seguranca"
+                className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] select-none transition-colors"
+                title={userEmail ? `${userName || "Usuário"} (${userEmail}) - Conta e segurança` : "Conta e segurança"}
               >
                 <div className="w-6 h-6 rounded-full bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-bold flex items-center justify-center text-[11px]">
                   {userInitial}
@@ -193,7 +194,7 @@ export function ConsultancyNavigation({
                 <span className="font-semibold max-w-[120px] truncate">
                   {userName || "Usuário"}
                 </span>
-              </div>
+              </Link>
 
               {/* Logout button */}
               <div className="hidden sm:block">
@@ -292,6 +293,17 @@ export function ConsultancyNavigation({
                     {unreadNotificationsCount}
                   </span>
                 )}
+              </Link>
+
+              <Link
+                href="/conta/seguranca"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+                <span>Conta e segurança</span>
               </Link>
 
               {items.map((item) => {

@@ -147,11 +147,17 @@ export default async function SelecionarConsultoriaPage() {
             ))}
           </div>
 
-          <div className="w-full pt-1">
+          <div className="w-full pt-1 flex flex-col sm:flex-row gap-2">
+            <Link
+              href="/conta/seguranca"
+              className="flex items-center justify-center flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+            >
+              Conta e segurança
+            </Link>
             <LogoutButton
               logoutAction={logoutFromConsultancyArea}
               variant="secondary"
-              fullWidth
+              className="flex-1"
               size="md"
             >
               Sair
@@ -299,11 +305,17 @@ export default async function SelecionarConsultoriaPage() {
           ))}
         </div>
 
-        <div className="w-full pt-1">
+        <div className="w-full pt-1 flex flex-col sm:flex-row gap-2">
+          <Link
+            href="/conta/seguranca"
+            className="flex items-center justify-center flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+          >
+            Conta e segurança
+          </Link>
           <LogoutButton
             logoutAction={logoutFromConsultancyArea}
             variant="secondary"
-            fullWidth
+            className="flex-1"
             size="md"
           >
             Sair

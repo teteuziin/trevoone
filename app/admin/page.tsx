@@ -107,6 +107,13 @@ export default async function AdminDashboardPage() {
             <Badge variant="brand" size="sm" className="hidden md:inline-flex">
               Administrador global
             </Badge>
+            <Link
+              href="/conta/seguranca"
+              className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+              title="Conta e segurança"
+            >
+              Conta e segurança
+            </Link>
             <NotificationBell unreadCount={unreadNotificationsCount} />
             <LogoutButton
               logoutAction={logoutFromPlatformAdminArea}

@@ -1,6 +1,10 @@
 import crypto from "node:crypto";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
+import {
+  createNotificationInTransaction,
+  deliverNotificationAfterCommit,
+} from "@/services/notification-service";
 
 export type PixKeyType = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "RANDOM";
 
@@ -631,8 +635,9 @@ export async function createStudentCharge(
     }
 
     const [memberRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT cm.id, cm.status, u.status AS user_status, u.deleted_at
+      `SELECT cm.id, cm.user_id, cm.status, u.status AS user_status, u.deleted_at, c.slug AS consultancy_slug
        FROM consultancy_members cm
+       INNER JOIN consultancies c ON c.id = cm.consultancy_id
        INNER JOIN users u ON u.id = cm.user_id
        INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
        WHERE cm.public_id = ?
@@ -651,6 +656,8 @@ export async function createStudentCharge(
     }
 
     const studentMembershipId = Number(memberRows[0].id);
+    const studentUserId = Number(memberRows[0].user_id);
+    const consultancySlug = String(memberRows[0].consultancy_slug);
     const chargePublicId = crypto.randomUUID();
 
     await connection.execute<ResultSetHeader>(
@@ -711,7 +718,28 @@ export async function createStudentCharge(
       ]
     );
 
+    // Persist canonical domain notification
+    const formattedAmount = formatCentsToBrl(amountCents);
+    const notification = await createNotificationInTransaction(connection, {
+      userId: studentUserId,
+      consultancyId,
+      priority: "HIGH",
+      eventType: "STUDENT_CHARGE_CREATED",
+      title: "Nova cobrança disponível",
+      body: `Uma nova cobrança no valor de ${formattedAmount} (${cleanTitle}) foi gerada para você.`,
+      deepLink: `/consultoria/${consultancySlug}/pagamentos/${chargePublicId}`,
+      dedupeKey: `student-charge:created:${chargePublicId}`,
+      sourceType: "STUDENT_CHARGE",
+      sourcePublicId: chargePublicId,
+    });
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    try {
+      await deliverNotificationAfterCommit(notification.id);
+    } catch {}
+
     return { success: true, chargePublicId };
   } catch {
     if (connection) {
@@ -1998,7 +2026,51 @@ export async function submitStudentPaymentReceipt(
       ]
     );
 
+    // 5. Query active consultancy admins to notify
+    const [adminRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.user_id, c.slug AS consultancy_slug
+       FROM consultancy_members cm
+       INNER JOIN consultancies c ON c.id = cm.consultancy_id
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       INNER JOIN users u ON u.id = cm.user_id
+       WHERE cm.consultancy_id = ?
+         AND cmr.role = 'CONSULTANCY_ADMIN'
+         AND cm.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND u.deleted_at IS NULL;`,
+      [consultancyId]
+    );
+
+    const adminNotifications: { id: number }[] = [];
+    if (Array.isArray(adminRows) && adminRows.length > 0) {
+      const consultancySlug = String(adminRows[0].consultancy_slug);
+      for (const adminRow of adminRows) {
+        const adminUserId = Number(adminRow.user_id);
+        const notif = await createNotificationInTransaction(connection, {
+          userId: adminUserId,
+          consultancyId,
+          priority: "HIGH",
+          eventType: "PAYMENT_RECEIPT_SUBMITTED",
+          title: "Novo comprovante para revisão",
+          body: "Um aluno enviou um comprovante de pagamento Pix para análise.",
+          deepLink: `/consultoria/${consultancySlug}/financeiro/comprovantes/${receiptPublicId}`,
+          dedupeKey: `student-receipt:submitted:${receiptPublicId}:${adminUserId}`,
+          sourceType: "PAYMENT_RECEIPT",
+          sourcePublicId: receiptPublicId,
+        });
+        adminNotifications.push(notif);
+      }
+    }
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    for (const notif of adminNotifications) {
+      try {
+        await deliverNotificationAfterCommit(notif.id);
+      } catch {}
+    }
+
     return { success: true, receiptPublicId };
   } catch {
     if (connection) {
@@ -2337,8 +2409,16 @@ export async function rejectStudentPaymentReceipt(params: {
 
     // 1. Lock charge row first (Lock order step 1: charge FOR UPDATE)
     const [chargeRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT sc.id, sc.public_id, sc.state
+      `SELECT
+         sc.id,
+         sc.public_id,
+         sc.state,
+         sc.student_membership_id,
+         cm.user_id AS student_user_id,
+         c.slug AS consultancy_slug
        FROM student_charges sc
+       INNER JOIN consultancy_members cm ON cm.id = sc.student_membership_id
+       INNER JOIN consultancies c ON c.id = sc.consultancy_id
        WHERE sc.id = (
          SELECT spr.charge_id
          FROM student_payment_receipts spr
@@ -2440,7 +2520,31 @@ export async function rejectStudentPaymentReceipt(params: {
       ]
     );
 
+    // 6. Persist canonical domain notification
+    const studentUserId = Number(lockedCharge.student_user_id);
+    const consultancySlug = String(lockedCharge.consultancy_slug);
+    const chargePublicId = String(lockedCharge.public_id);
+
+    const notification = await createNotificationInTransaction(connection, {
+      userId: studentUserId,
+      consultancyId,
+      priority: "HIGH",
+      eventType: "PAYMENT_RECEIPT_REJECTED",
+      title: "Comprovante de pagamento recusado",
+      body: `Seu comprovante de pagamento foi recusado. Motivo: ${trimmedReason}`,
+      deepLink: `/consultoria/${consultancySlug}/pagamentos/${chargePublicId}`,
+      dedupeKey: `student-receipt:rejected:${lockedReceipt.public_id}`,
+      sourceType: "PAYMENT_RECEIPT",
+      sourcePublicId: String(lockedReceipt.public_id),
+    });
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    try {
+      await deliverNotificationAfterCommit(notification.id);
+    } catch {}
+
     return { success: true, receiptPublicId: lockedReceipt.public_id };
   } catch {
     if (connection) {
@@ -2500,8 +2604,18 @@ export async function approveStudentPaymentReceipt(params: {
 
     // 1. Lock charge row first (Lock order step 1: charge FOR UPDATE)
     const [chargeRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT sc.id, sc.public_id, sc.state, sc.amount_cents, sc.currency_code
+      `SELECT
+         sc.id,
+         sc.public_id,
+         sc.state,
+         sc.amount_cents,
+         sc.currency_code,
+         sc.student_membership_id,
+         cm.user_id AS student_user_id,
+         c.slug AS consultancy_slug
        FROM student_charges sc
+       INNER JOIN consultancy_members cm ON cm.id = sc.student_membership_id
+       INNER JOIN consultancies c ON c.id = sc.consultancy_id
        WHERE sc.id = (
          SELECT spr.charge_id
          FROM student_payment_receipts spr
@@ -2656,7 +2770,31 @@ export async function approveStudentPaymentReceipt(params: {
       ]
     );
 
+    // 7. Persist canonical domain notification
+    const studentUserId = Number(lockedCharge.student_user_id);
+    const consultancySlug = String(lockedCharge.consultancy_slug);
+    const chargePublicId = String(lockedCharge.public_id);
+
+    const notification = await createNotificationInTransaction(connection, {
+      userId: studentUserId,
+      consultancyId,
+      priority: "HIGH",
+      eventType: "PAYMENT_RECEIPT_APPROVED",
+      title: "Pagamento confirmado",
+      body: "Seu comprovante de pagamento foi aprovado e seu acesso está liberado.",
+      deepLink: `/consultoria/${consultancySlug}/pagamentos/${chargePublicId}`,
+      dedupeKey: `student-receipt:approved:${lockedReceipt.public_id}`,
+      sourceType: "PAYMENT_RECEIPT",
+      sourcePublicId: String(lockedReceipt.public_id),
+    });
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    try {
+      await deliverNotificationAfterCommit(notification.id);
+    } catch {}
+
     return {
       success: true,
       receiptPublicId: lockedReceipt.public_id,

@@ -5,6 +5,7 @@ import { resolveStudentModuleAccess } from "@/lib/consultancies/student-module-a
 import { getActiveTrainingPlanForStudent } from "@/lib/consultancies/training";
 import { StudentModuleAccessPanel } from "@/components/consultancies/student-module-access-panel";
 import { StudentTrainingPlan } from "@/components/consultancies/student-training-plan";
+import { TrainingOfflineSync } from "@/components/offline/training-offline-sync";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -79,6 +80,17 @@ export default async function StudentTreinosPage({ params }: PageProps) {
       userEmail={session.email}
     >
       <div className="w-full max-w-3xl mx-auto space-y-6">
+        {/* Silent Training Offline Auto-Sync Bridge */}
+        <TrainingOfflineSync
+          userPublicId={session.userPublicId}
+          userName={session.fullName}
+          consultancyPublicId={access.context.consultancyPublicId}
+          consultancyName={access.context.consultancyName}
+          consultancySlug={access.context.consultancySlug}
+          consultancyLogoUrl={access.context.consultancyLogoUrl}
+          plan={activePlan}
+        />
+
         {/* Back Link */}
         <div className="flex items-center gap-2">
           <Link

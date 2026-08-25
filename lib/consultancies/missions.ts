@@ -12,6 +12,10 @@ import {
   sanitizeOriginalFileName,
   writePrivateFile,
 } from "../storage/private-files";
+import {
+  createNotificationInTransaction,
+  deliverNotificationAfterCommit,
+} from "@/services/notification-service";
 
 // ==========================================
 // CONSTANTS & TYPES
@@ -293,9 +297,13 @@ export async function createMission(
 
     // Verify assignee membership in same consultancy with INFLUENCER role
     const [assigneeRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT cm.id
+      `SELECT
+        cm.id,
+        cm.user_id,
+        c.slug AS consultancy_slug
        FROM consultancy_members cm
        INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       INNER JOIN consultancies c ON c.id = cm.consultancy_id
        WHERE cm.public_id = ?
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
@@ -313,6 +321,8 @@ export async function createMission(
     }
 
     const assigneeMembershipId = Number(assigneeRows[0].id);
+    const assigneeUserId = Number(assigneeRows[0].user_id);
+    const consultancySlug = String(assigneeRows[0].consultancy_slug);
     const missionPublicId = crypto.randomUUID();
     const auditPublicId = crypto.randomUUID();
 
@@ -366,7 +376,28 @@ export async function createMission(
         ]
       );
 
+      const notification = await createNotificationInTransaction(connection, {
+        userId: assigneeUserId,
+        consultancyId,
+        priority: "NORMAL",
+        eventType: "MISSION_ASSIGNED",
+        title: "Nova missão disponível",
+        body: "Você recebeu uma nova missão. Acesse o Trevo para ver os detalhes.",
+        deepLink: `/consultoria/${consultancySlug}/missoes/${missionPublicId}`,
+        dedupeKey: `mission:assigned:${missionPublicId}`,
+        sourceType: "MISSION",
+        sourcePublicId: missionPublicId,
+      });
+
       await connection.commit();
+
+      // Best-effort external delivery after commit
+      try {
+        await deliverNotificationAfterCommit(notification.id);
+      } catch {
+        // Push failure must never affect business transaction success
+      }
+
       return { success: true, missionPublicId };
     } catch (txError) {
       await connection.rollback();
@@ -1139,10 +1170,17 @@ export async function reviewMission(params: {
 
     // 1. Lock mission
     const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, status
-       FROM missions
-       WHERE public_id = ?
-         AND consultancy_id = ?
+      `SELECT
+        m.id,
+        m.status,
+        m.assignee_membership_id,
+        cm.user_id AS assignee_user_id,
+        c.slug AS consultancy_slug
+       FROM missions m
+       INNER JOIN consultancy_members cm ON cm.id = m.assignee_membership_id
+       INNER JOIN consultancies c ON c.id = m.consultancy_id
+       WHERE m.public_id = ?
+         AND m.consultancy_id = ?
        FOR UPDATE;`,
       [missionPublicId, consultancyId]
     );
@@ -1162,6 +1200,8 @@ export async function reviewMission(params: {
     }
 
     const missionId = Number(mission.id);
+    const assigneeUserId = Number(mission.assignee_user_id);
+    const consultancySlug = String(mission.consultancy_slug);
 
     // 2. Lock and fetch the latest unreviewed submission
     const [subRows] = await connection.execute<RowDataPacket[]>(
@@ -1236,7 +1276,35 @@ export async function reviewMission(params: {
       ]
     );
 
+    // 6. Persist canonical domain notification
+    const notification = await createNotificationInTransaction(connection, {
+      userId: assigneeUserId,
+      consultancyId,
+      priority: decision === "REVISION_REQUESTED" ? "HIGH" : "NORMAL",
+      eventType: decision === "REVISION_REQUESTED" ? "MISSION_REVISION_REQUESTED" : "MISSION_APPROVED",
+      title: decision === "REVISION_REQUESTED" ? "Sua missão precisa de ajustes" : "Missão aprovada",
+      body:
+        decision === "REVISION_REQUESTED"
+          ? "Foram solicitadas alterações na sua missão. Confira os detalhes no Trevo."
+          : "Sua missão foi aprovada.",
+      deepLink: `/consultoria/${consultancySlug}/missoes/${missionPublicId}`,
+      dedupeKey:
+        decision === "REVISION_REQUESTED"
+          ? `mission:revision_requested:${submissionPublicId}`
+          : `mission:approved:${submissionPublicId}`,
+      sourceType: "MISSION",
+      sourcePublicId: missionPublicId,
+    });
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    try {
+      await deliverNotificationAfterCommit(notification.id);
+    } catch {
+      // Push failure must never affect business transaction success
+    }
+
     return { success: true };
   } catch {
     if (connection) {

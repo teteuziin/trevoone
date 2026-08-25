@@ -2,6 +2,10 @@ import crypto from "node:crypto";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { resolveConsultancyContext } from "./context";
+import {
+  createNotificationInTransaction,
+  deliverNotificationAfterCommit,
+} from "@/services/notification-service";
 
 export type TrainingExerciseStatus = "ACTIVE" | "INACTIVE";
 export type TrainingPlanStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
@@ -1250,7 +1254,7 @@ export async function activateTrainingPlan(params: {
 
     // 4. Lock target student membership (serialização lógica por aluno)
     const [stRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT cm.id, cm.public_id, u.full_name, u.email
+      `SELECT cm.id, cm.public_id, cm.user_id, u.full_name, u.email
        FROM consultancy_members cm
        INNER JOIN users u ON u.id = cm.user_id
        INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role IN ('STUDENT', 'INFLUENCER')
@@ -1509,7 +1513,28 @@ export async function activateTrainingPlan(params: {
       };
     }
 
+    // 10. Persist canonical domain notification
+    const notification = await createNotificationInTransaction(connection, {
+      userId: Number(student.user_id),
+      consultancyId,
+      priority: "NORMAL",
+      eventType: "TRAINING_PLAN_ACTIVATED",
+      title: "Novo plano de treino",
+      body: "Seu novo plano de treino está disponível no Trevo.",
+      deepLink: `/consultoria/${consultancySlug}/treinos`,
+      dedupeKey: `training:activated:${planPublicId}`,
+      sourceType: "TRAINING_PLAN",
+      sourcePublicId: planPublicId,
+    });
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    try {
+      await deliverNotificationAfterCommit(notification.id);
+    } catch {
+      // Push failure must never affect business transaction success
+    }
 
     return {
       success: true,

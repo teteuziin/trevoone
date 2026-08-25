@@ -3,6 +3,10 @@ import type { PoolConnection, RowDataPacket, ResultSetHeader } from "mysql2/prom
 import { getDbConnection } from "../db/mysql";
 import { resolveConsultancyContext } from "./context";
 import {
+  createNotificationInTransaction,
+  deliverNotificationAfterCommit,
+} from "@/services/notification-service";
+import {
   calculateItemMacros,
   type MacroCalculationInput,
   type CalculatedMacros,
@@ -4527,7 +4531,7 @@ export async function activateNutritionPlan({
 
     // 2. Lock comum de serialização por Student no tenant (bloqueia a membership do aluno)
     const [memberRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id
+      `SELECT id, user_id
        FROM consultancy_members
        WHERE id = ?
          AND consultancy_id = ?
@@ -4611,7 +4615,31 @@ export async function activateNutritionPlan({
       [auditPublicId, actorUserId, context.consultancyId, planPublicId]
     );
 
+    const studentUserId = Number(memberRows[0].user_id);
+
+    // 6. Persist canonical domain notification
+    const notification = await createNotificationInTransaction(connection, {
+      userId: studentUserId,
+      consultancyId: context.consultancyId,
+      priority: "NORMAL",
+      eventType: "NUTRITION_PLAN_ACTIVATED",
+      title: "Novo plano alimentar",
+      body: "Seu novo plano alimentar está disponível no Trevo.",
+      deepLink: `/consultoria/${consultancySlug}/nutricao`,
+      dedupeKey: `nutrition:activated:${planPublicId}`,
+      sourceType: "NUTRITION_PLAN",
+      sourcePublicId: planPublicId,
+    });
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    try {
+      await deliverNotificationAfterCommit(notification.id);
+    } catch {
+      // Push failure must never affect business transaction success
+    }
+
     return { success: true };
   } catch (err) {
     if (connection) {

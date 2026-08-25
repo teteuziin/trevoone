@@ -152,25 +152,25 @@ export default async function PersonalTrainingPlansPage({
           <EmptyState
             title={
               validStatus === "DRAFT"
-                ? "Nenhum plano em rascunho"
+                ? "Você ainda não possui planos em rascunho"
                 : validStatus === "ACTIVE"
                 ? "Nenhum plano ativo no momento"
-                : "Nenhum plano arquivado"
+                : "Nenhum plano arquivado no histórico"
             }
             description={
               validStatus === "DRAFT"
-                ? "Você não possui fichas de treino em edição. Comece criando um novo plano para um aluno."
+                ? "Crie um novo plano de treino para começar a estruturar a rotina de exercícios dos seus alunos."
                 : validStatus === "ACTIVE"
-                ? "Quando você disponibilizar um plano para um aluno, ele aparecerá aqui como ativo."
-                : "Planos anteriores substituídos por novas fichas aparecerão aqui no histórico da consultoria."
+                ? "Quando você disponibilizar uma ficha em rascunho para um aluno, ela aparecerá aqui como ativa."
+                : "Fichas de treino substituídas ou finalizadas aparecerão aqui no histórico da consultoria."
             }
             action={
               validStatus === "DRAFT" ? (
                 <Link
                   href={`/consultoria/${slug}/personal/treinos?new=1&status=DRAFT`}
-                  className="inline-flex items-center justify-center px-4 py-2 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                  className="inline-flex items-center justify-center px-4 py-2.5 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors min-h-[44px] focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
                 >
-                  Criar Primeiro Plano
+                  + Criar Primeiro Plano
                 </Link>
               ) : undefined
             }
@@ -321,8 +321,8 @@ export default async function PersonalTrainingPlansPage({
                 </h2>
                 <Link
                   href={`/consultoria/${slug}/personal/treinos?status=${validStatus}`}
-                  aria-label="Fechar modal"
-                  className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm font-semibold p-1 transition-colors"
+                  aria-label="Fechar modal de novo plano"
+                  className="flex items-center justify-center min-h-[44px] min-w-[44px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand)] text-base font-semibold"
                 >
                   ✕
                 </Link>

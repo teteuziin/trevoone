@@ -106,21 +106,29 @@ export function NutritionPlanList({
       {/* Plan list content */}
       {items.length === 0 ? (
         <EmptyState
-          title="Nenhum plano alimentar encontrado"
-          description={
+          title={
             currentStatus && currentStatus !== "ALL"
-              ? `Não há planos alimentares com o status "${STATUS_LABELS[currentStatus as NutritionPlanStatus] || currentStatus}".`
-              : "Comece criando o primeiro plano alimentar para um aluno ativo da sua consultoria."
+              ? `Nenhum plano alimentar ${STATUS_LABELS[currentStatus as NutritionPlanStatus]?.toLowerCase() || currentStatus}`
+              : "Nenhum plano alimentar cadastrado"
+          }
+          description={
+            currentStatus === "DRAFT"
+              ? "Você não possui rascunhos de planos alimentares em edição. Crie um novo plano para começar a estruturar as refeições dos seus alunos."
+              : currentStatus === "ACTIVE"
+              ? "Quando você disponibilizar um plano alimentar para um aluno, ele aparecerá aqui como ativo."
+              : currentStatus === "ARCHIVED"
+              ? "Planos alimentares anteriores substituídos ou desativados aparecerão aqui no histórico."
+              : "Comece criando o primeiro plano alimentar para acompanhar as refeições e metas nutricionais dos seus alunos."
           }
           action={
             <Link
               href={`/consultoria/${slug}/nutricao/planos/novo`}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[var(--brand-foreground)] bg-[var(--brand-surface)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors border border-[var(--border-subtle)]"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[var(--brand-strong)] hover:bg-[var(--brand)] rounded-xl transition-colors min-h-[44px] shadow-xs focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Criar novo plano
+              + Criar Novo Plano
             </Link>
           }
         />

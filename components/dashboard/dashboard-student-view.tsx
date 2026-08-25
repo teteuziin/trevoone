@@ -225,9 +225,17 @@ export function DashboardStudentView({
         <>
           {/* Mobile & Tablet Slider: Native CSS Scroll Snap */}
           <div className="lg:hidden">
-            <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 overscroll-x-contain -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-none">
+            <div
+              role="region"
+              aria-label="Planos prescritos de treino e nutrição"
+              className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 overscroll-x-contain -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-none"
+            >
               {/* Slide 1: Training Hero (Protagonist) */}
-              <div className="snap-center shrink-0 w-[88%] sm:w-[82%]">
+              <div
+                role="group"
+                aria-label="Plano de Treino Prescrito"
+                className="snap-center shrink-0 w-[88%] sm:w-[82%]"
+              >
                 <div className="h-full p-5 sm:p-7 rounded-3xl border border-[var(--brand-soft-border)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
@@ -272,7 +280,11 @@ export function DashboardStudentView({
               </div>
 
               {/* Slide 2: Nutrition Hero (Supporting) */}
-              <div className="snap-center shrink-0 w-[88%] sm:w-[82%]">
+              <div
+                role="group"
+                aria-label="Plano Alimentar Prescrito"
+                className="snap-center shrink-0 w-[88%] sm:w-[82%]"
+              >
                 <div className="h-full p-5 sm:p-7 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">

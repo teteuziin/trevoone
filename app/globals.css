@@ -1,27 +1,32 @@
 @import "tailwindcss";
 
-:root {
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
   /* Core Surface & App Backgrounds */
-  --background: #f6f8f7;
+  --background: #f8faf9;
   --surface: #ffffff;
-  --surface-subtle: #f1f4f2;
-  --surface-hover: #ebefec;
-  --surface-active: #e2e8e4;
+  --surface-subtle: #f3f6f4;
+  --surface-sunken: #eef3f0;
+  --surface-hover: #ebf0ec;
+  --surface-active: #e1e8e3;
   --surface-elevated: #ffffff;
 
   /* Typography & Text Hierarchy */
-  --foreground: #151816;
-  --text-primary: #151816;
-  --text-secondary: #66706a;
-  --text-tertiary: #89918c;
+  --foreground: #111814;
+  --text-primary: #111814;
+  --text-secondary: #5c6861;
+  --text-tertiary: #87948c;
+  --text-muted: #5c6861;
   --text-inverse: #ffffff;
 
   /* Restrained Neutral Borders */
-  --border-subtle: #eef2ef;
-  --border-default: #e3e8e4;
-  --border-strong: #d0d7d2;
-  --border: #e3e8e4;
-  --muted: #66706a;
+  --border-subtle: #edf2ee;
+  --border-default: #e1e7e2;
+  --border-strong: #cdd5cf;
+  --border: #e1e7e2;
+  --muted: #5c6861;
 
   /* Trevo One Primary Brand Identity (#00A859) */
   --primary: #00a859;
@@ -31,6 +36,7 @@
   --brand-hover: #07884b;
   --brand-active: #006e3b;
   --brand-strong: #008f4c;
+  --brand-surface: #ecfdf5;
   --brand-soft: #ecfdf5;
   --brand-soft-border: #a7f3d0;
   --brand-foreground: #065f46;
@@ -61,8 +67,171 @@
   --info-foreground: #1e40af;
 
   /* Focus & Restrained Elevation */
-  --focus-ring: rgba(0, 168, 89, 0.25);
-  --focus-ring-danger: rgba(239, 68, 68, 0.25);
+  --focus-ring: rgba(0, 168, 89, 0.22);
+  --focus-ring-danger: rgba(239, 68, 68, 0.22);
+
+  /* Elevation Shadows */
+  --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Core Surface & App Backgrounds */
+  --background: #0e1310;
+  --surface: #151c17;
+  --surface-subtle: #1a231d;
+  --surface-sunken: #0a0e0b;
+  --surface-hover: #1f2b23;
+  --surface-active: #26352b;
+  --surface-elevated: #1c241f;
+
+  /* Typography & Text Hierarchy */
+  --foreground: #f0f4f1;
+  --text-primary: #f0f4f1;
+  --text-secondary: #9fb0a4;
+  --text-tertiary: #6c7f72;
+  --text-muted: #9fb0a4;
+  --text-inverse: #111814;
+
+  /* Restrained Neutral Borders */
+  --border-subtle: #1b241e;
+  --border-default: #263129;
+  --border-strong: #36453a;
+  --border: #263129;
+  --muted: #9fb0a4;
+
+  /* Trevo One Primary Brand Identity (#00A859) */
+  --primary: #00a859;
+  --primary-hover: #05b863;
+  --primary-active: #00944e;
+  --brand: #00a859;
+  --brand-hover: #05b863;
+  --brand-active: #00944e;
+  --brand-strong: #05b863;
+  --brand-surface: #0f281b;
+  --brand-soft: #112b1e;
+  --brand-soft-border: #1d4d35;
+  --brand-foreground: #34d399;
+
+  /* Semantic Status Tokens */
+  --success: #10b981;
+  --success-hover: #34d399;
+  --success-soft: #0f291e;
+  --success-border: #1a4d37;
+  --success-foreground: #34d399;
+
+  --warning: #f59e0b;
+  --warning-hover: #fbbf24;
+  --warning-soft: #291e0a;
+  --warning-border: #4d3814;
+  --warning-foreground: #fbbf24;
+
+  --danger: #ef4444;
+  --danger-hover: #f87171;
+  --danger-soft: #2b1111;
+  --danger-border: #4d1e1e;
+  --danger-foreground: #f87171;
+
+  --info: #3b82f6;
+  --info-hover: #60a5fa;
+  --info-soft: #0f1d33;
+  --info-border: #1d3a66;
+  --info-foreground: #60a5fa;
+
+  /* Focus & Restrained Elevation */
+  --focus-ring: rgba(0, 168, 89, 0.35);
+  --focus-ring-danger: rgba(239, 68, 68, 0.35);
+
+  /* Elevation Shadows */
+  --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.35), 0 1px 2px -1px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.45), 0 4px 6px -4px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    /* Core Surface & App Backgrounds */
+    --background: #0e1310;
+    --surface: #151c17;
+    --surface-subtle: #1a231d;
+    --surface-sunken: #0a0e0b;
+    --surface-hover: #1f2b23;
+    --surface-active: #26352b;
+    --surface-elevated: #1c241f;
+
+    /* Typography & Text Hierarchy */
+    --foreground: #f0f4f1;
+    --text-primary: #f0f4f1;
+    --text-secondary: #9fb0a4;
+    --text-tertiary: #6c7f72;
+    --text-muted: #9fb0a4;
+    --text-inverse: #111814;
+
+    /* Restrained Neutral Borders */
+    --border-subtle: #1b241e;
+    --border-default: #263129;
+    --border-strong: #36453a;
+    --border: #263129;
+    --muted: #9fb0a4;
+
+    /* Trevo One Primary Brand Identity (#00A859) */
+    --primary: #00a859;
+    --primary-hover: #05b863;
+    --primary-active: #00944e;
+    --brand: #00a859;
+    --brand-hover: #05b863;
+    --brand-active: #00944e;
+    --brand-strong: #05b863;
+    --brand-surface: #0f281b;
+    --brand-soft: #112b1e;
+    --brand-soft-border: #1d4d35;
+    --brand-foreground: #34d399;
+
+    /* Semantic Status Tokens */
+    --success: #10b981;
+    --success-hover: #34d399;
+    --success-soft: #0f291e;
+    --success-border: #1a4d37;
+    --success-foreground: #34d399;
+
+    --warning: #f59e0b;
+    --warning-hover: #fbbf24;
+    --warning-soft: #291e0a;
+    --warning-border: #4d3814;
+    --warning-foreground: #fbbf24;
+
+    --danger: #ef4444;
+    --danger-hover: #f87171;
+    --danger-soft: #2b1111;
+    --danger-border: #4d1e1e;
+    --danger-foreground: #f87171;
+
+    --info: #3b82f6;
+    --info-hover: #60a5fa;
+    --info-soft: #0f1d33;
+    --info-border: #1d3a66;
+    --info-foreground: #60a5fa;
+
+    /* Focus & Restrained Elevation */
+    --focus-ring: rgba(0, 168, 89, 0.35);
+    --focus-ring-danger: rgba(239, 68, 68, 0.35);
+
+    /* Elevation Shadows */
+    --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.35), 0 1px 2px -1px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.45), 0 4px 6px -4px rgba(0, 0, 0, 0.35);
+  }
 }
 
 @theme inline {
@@ -70,6 +239,7 @@
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-subtle: var(--surface-subtle);
+  --color-surface-sunken: var(--surface-sunken);
   --color-surface-hover: var(--surface-hover);
   --color-surface-active: var(--surface-active);
   --color-surface-elevated: var(--surface-elevated);
@@ -78,6 +248,7 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-tertiary: var(--text-tertiary);
+  --color-text-muted: var(--text-muted);
   --color-text-inverse: var(--text-inverse);
 
   --color-border-subtle: var(--border-subtle);
@@ -92,6 +263,7 @@
   --color-brand-hover: var(--brand-hover);
   --color-brand-active: var(--brand-active);
   --color-brand-strong: var(--brand-strong);
+  --color-brand-surface: var(--brand-surface);
   --color-brand-soft: var(--brand-soft);
   --color-brand-soft-border: var(--brand-soft-border);
   --color-brand-foreground: var(--brand-foreground);
@@ -153,6 +325,15 @@ body {
 :focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
+}
+
+/* Custom subtle scrollbar */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

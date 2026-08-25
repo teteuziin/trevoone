@@ -29,7 +29,7 @@ export function Tabs<T extends string = string>({
     <div
       role="tablist"
       aria-orientation="horizontal"
-      className={`inline-flex items-center bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl ${containerPadding} gap-1 ${className}`.trim()}
+      className={`inline-flex items-center bg-[var(--surface-sunken)] border border-[var(--border-default)] rounded-xl ${containerPadding} gap-1 ${className}`.trim()}
     >
       {items.map((item) => {
         const isActive = item.id === activeId;
@@ -40,9 +40,9 @@ export function Tabs<T extends string = string>({
             type="button"
             aria-selected={isActive}
             onClick={() => onChange(item.id)}
-            className={`inline-flex items-center gap-1.5 font-semibold rounded-lg transition-all duration-150 ease-out select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] ${itemPadding} ${
+            className={`inline-flex items-center gap-1.5 font-semibold rounded-lg transition-all duration-150 ease-out select-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:outline-none ${itemPadding} ${
               isActive
-                ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-2xs border border-[var(--border-default)]"
+                ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border border-[var(--border-default)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
             }`}
           >

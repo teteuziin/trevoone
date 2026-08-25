@@ -27,10 +27,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#00a859",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8faf9" },
+    { media: "(prefers-color-scheme: dark)", color: "#111814" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
+
+const themeBootstrapScript = `(function(){try{var t=localStorage.getItem("trevo_theme");if(t==="dark"){document.documentElement.setAttribute("data-theme","dark");}else if(t==="light"){document.documentElement.setAttribute("data-theme","light");}else{document.documentElement.removeAttribute("data-theme");}}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -38,7 +43,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} h-full antialiased`}>
+    <html
+      lang="pt-BR"
+      className={`${inter.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: themeBootstrapScript }}
+        />
+      </head>
       <body className="min-h-full flex flex-col font-sans bg-[var(--background)] text-[var(--foreground)]">
         {children}
         <PwaRegistry />

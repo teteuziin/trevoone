@@ -21,9 +21,10 @@ export default async function AccountSecurityPage() {
         <div className="flex items-center gap-2">
           <Link
             href="/selecionar-consultoria"
-            className="inline-flex items-center text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-[var(--brand)] rounded-md px-1 py-0.5 -ml-1"
+            className="group inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-[var(--brand)] rounded-md px-1 py-0.5 -ml-1"
           >
-            ← Voltar ao seletor de ambientes
+            <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
+            <span>Voltar ao seletor de ambientes</span>
           </Link>
         </div>
 
@@ -36,7 +37,7 @@ export default async function AccountSecurityPage() {
         {/* User Identity Card */}
         <section
           aria-labelledby="user-info-heading"
-          className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4"
+          className="p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4"
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5 min-w-0">
@@ -47,7 +48,7 @@ export default async function AccountSecurityPage() {
                 <h2 id="user-info-heading" className="text-base font-bold text-[var(--text-primary)] truncate">
                   {session.fullName}
                 </h2>
-                <p className="text-xs text-[var(--text-secondary)] truncate">
+                <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
                   {session.email}
                 </p>
               </div>
@@ -67,10 +68,10 @@ export default async function AccountSecurityPage() {
           className="p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-5"
         >
           <div className="space-y-1">
-            <h2 id="change-password-heading" className="text-lg font-bold tracking-tight text-[var(--text-primary)]">
+            <h2 id="change-password-heading" className="text-base sm:text-lg font-bold tracking-tight text-[var(--text-primary)]">
               Alterar senha
             </h2>
-            <p className="text-xs text-[var(--text-secondary)]">
+            <p className="text-xs text-[var(--text-secondary)] font-medium">
               Atualize sua senha de acesso. Ao confirmar, todas as outras sessões ativas nos seus dispositivos serão encerradas.
             </p>
           </div>

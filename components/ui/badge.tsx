@@ -11,7 +11,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = {
   neutral: {
-    container: "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-default)]",
+    container: "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-default)]",
     dot: "bg-[var(--text-tertiary)]",
   },
   brand: {
@@ -37,8 +37,8 @@ const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = 
 };
 
 const sizeStyles: Record<BadgeSize, string> = {
-  sm: "px-2 py-0.5 text-[11px] font-medium gap-1 rounded-md",
-  md: "px-2.5 py-0.5 text-xs font-medium gap-1.5 rounded-md",
+  sm: "px-2.5 py-0.5 text-[11px] font-semibold gap-1 rounded-full",
+  md: "px-3 py-0.5 text-xs font-semibold gap-1.5 rounded-full",
 };
 
 export function Badge({

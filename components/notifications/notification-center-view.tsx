@@ -335,13 +335,12 @@ export function NotificationCenterView({
             const isUnread = !notif.readAt;
 
             return (
-              <Card
+              <div
                 key={notif.publicId}
-                padding="md"
-                className={`transition-all ${
+                className={`p-4 sm:p-5 rounded-2xl border shadow-xs transition-all duration-200 ${
                   isUnread
-                    ? "border-[var(--brand-soft-border)] bg-[var(--brand-soft)]/20"
-                    : ""
+                    ? "border-[var(--brand-soft-border)] bg-[var(--brand-soft)]/25"
+                    : "border-[var(--border-default)] bg-[var(--surface)]"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -378,7 +377,7 @@ export function NotificationCenterView({
                       {notif.title}
                     </h4>
 
-                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                    <p className="text-xs text-[var(--text-secondary)] font-medium leading-relaxed">
                       {notif.body}
                     </p>
                   </div>
@@ -390,7 +389,7 @@ export function NotificationCenterView({
                         onClick={() => handleMarkRead(notif.publicId)}
                         title="Marcar como lida"
                         aria-label="Marcar como lida"
-                        className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--brand)] rounded-lg hover:bg-[var(--surface-hover)] transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
+                        className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--brand)] rounded-xl hover:bg-[var(--surface-hover)] transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
@@ -407,7 +406,7 @@ export function NotificationCenterView({
                       onClick={() => {
                         if (isUnread) handleMarkRead(notif.publicId);
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[var(--brand-foreground)] bg-[var(--brand-soft)] hover:bg-[var(--brand-soft-border)]/50 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[var(--brand-foreground)] bg-[var(--brand-soft)] hover:bg-[var(--brand-soft-border)]/50 rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
                     >
                       <span>Acessar</span>
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -416,7 +415,7 @@ export function NotificationCenterView({
                     </Link>
                   </div>
                 )}
-              </Card>
+              </div>
             );
           })
         )}

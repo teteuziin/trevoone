@@ -73,7 +73,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ hasError, icon, iconRight, disabled, className = "", ...props }, ref) => {
     const errorClasses = hasError
       ? "border-[var(--danger)] text-[var(--text-primary)] focus:border-[var(--danger)] focus:ring-2 focus:ring-[var(--focus-ring-danger)]"
-      : "border-[var(--border-default)] text-[var(--text-primary)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--focus-ring)]";
+      : "border-[var(--border-default)] hover:border-[var(--border-strong)] text-[var(--text-primary)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--focus-ring)]";
 
     const paddingLeft = icon ? "pl-9.5" : "pl-3.5";
     const paddingRight = iconRight ? "pr-9.5" : "pr-3.5";
@@ -88,7 +88,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           disabled={disabled}
-          className={`w-full h-10 py-2 ${paddingLeft} ${paddingRight} bg-[var(--surface)] border rounded-xl text-sm transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
+          className={`w-full h-10.5 py-2 ${paddingLeft} ${paddingRight} bg-[var(--surface)] border rounded-xl text-sm shadow-2xs transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
           {...props}
         />
         {iconRight && (
@@ -113,14 +113,14 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ hasError, disabled, className = "", rows = 3, ...props }, ref) => {
     const errorClasses = hasError
       ? "border-[var(--danger)] text-[var(--text-primary)] focus:border-[var(--danger)] focus:ring-2 focus:ring-[var(--focus-ring-danger)]"
-      : "border-[var(--border-default)] text-[var(--text-primary)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--focus-ring)]";
+      : "border-[var(--border-default)] hover:border-[var(--border-strong)] text-[var(--text-primary)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--focus-ring)]";
 
     return (
       <textarea
         ref={ref}
         rows={rows}
         disabled={disabled}
-        className={`w-full py-2 px-3.5 bg-[var(--surface)] border rounded-xl text-sm transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed resize-y ${errorClasses} ${className}`.trim()}
+        className={`w-full py-2.5 px-3.5 bg-[var(--surface)] border rounded-xl text-sm shadow-2xs transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed resize-y ${errorClasses} ${className}`.trim()}
         {...props}
       />
     );
@@ -139,14 +139,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ hasError, disabled, children, className = "", ...props }, ref) => {
     const errorClasses = hasError
       ? "border-[var(--danger)] text-[var(--text-primary)] focus:border-[var(--danger)] focus:ring-2 focus:ring-[var(--focus-ring-danger)]"
-      : "border-[var(--border-default)] text-[var(--text-primary)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--focus-ring)]";
+      : "border-[var(--border-default)] hover:border-[var(--border-strong)] text-[var(--text-primary)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--focus-ring)]";
 
     return (
       <div className="relative w-full">
         <select
           ref={ref}
           disabled={disabled}
-          className={`w-full h-10 py-2 pl-3.5 pr-9 bg-[var(--surface)] border rounded-xl text-sm transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none appearance-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
+          className={`w-full h-10.5 py-2 pl-3.5 pr-9 bg-[var(--surface)] border rounded-xl text-sm shadow-2xs transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none appearance-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
           {...props}
         >
           {children}

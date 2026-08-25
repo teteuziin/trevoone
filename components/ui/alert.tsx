@@ -76,15 +76,15 @@ export function Alert({
   return (
     <div
       role="alert"
-      className={`flex items-start gap-3 p-3.5 sm:p-4 rounded-2xl border text-xs sm:text-sm leading-relaxed ${styles.container} ${className}`.trim()}
+      className={`flex items-start gap-3 p-4 rounded-2xl border shadow-xs text-xs sm:text-sm leading-relaxed ${styles.container} ${className}`.trim()}
       {...props}
     >
       <div className={`shrink-0 mt-0.5 ${styles.icon}`}>
         {icon || <DefaultAlertIcon variant={variant} />}
       </div>
       <div className="space-y-0.5 flex-1 min-w-0">
-        {title && <h4 className={`font-bold tracking-tight ${styles.title}`}>{title}</h4>}
-        {children && <div className="leading-relaxed">{children}</div>}
+        {title && <h4 className={`font-bold tracking-tight text-sm ${styles.title}`}>{title}</h4>}
+        {children && <div className="leading-relaxed text-xs sm:text-sm">{children}</div>}
       </div>
     </div>
   );

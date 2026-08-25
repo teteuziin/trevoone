@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { revokePushSubscriptionAction } from "@/app/notificacoes/actions";
+import { clearAllAuthenticatedOfflineData } from "@/lib/offline/offline-storage";
 
 export interface NotificationBellProps {
   unreadCount?: number;
@@ -140,6 +141,12 @@ export function LogoutButton({
       await performPushCleanup();
     } catch {
       // Best-effort
+    }
+
+    try {
+      await clearAllAuthenticatedOfflineData();
+    } catch {
+      // Best-effort: offline purge failure must never block logout
     } finally {
       await logoutAction();
     }

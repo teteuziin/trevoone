@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Trevo One — Modo Offline</title>
+  <meta name="theme-color" content="#00a859" />
+  <link rel="icon" href="/favicon.ico" />
+  <style>
+    :root {
+      --brand: #00a859;
+      --brand-hover: #008f4c;
+      --brand-soft: rgba(0, 168, 89, 0.1);
+      --brand-border: rgba(0, 168, 89, 0.25);
+      --bg: #f8faf9;
+      --surface: #ffffff;
+      --surface-subtle: #f1f5f3;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --border-subtle: #edf2f0;
+      --warning-bg: #fffbeb;
+      --warning-text: #b45309;
+      --warning-border: #fde68a;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --brand: #00c86b;
+        --brand-hover: #00a859;
+        --brand-soft: rgba(0, 200, 107, 0.15);
+        --brand-border: rgba(0, 200, 107, 0.3);
+        --bg: #0c120e;
+        --surface: #141c17;
+        --surface-subtle: #1c2620;
+        --text-primary: #f8fafc;
+        --text-secondary: #cbd5e1;
+        --text-muted: #94a3b8;
+        --border: #24332a;
+        --border-subtle: #1a261f;
+        --warning-bg: #291e0a;
+        --warning-text: #fbbf24;
+        --warning-border: #4d360e;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    header {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .header-content {
+      max-width: 640px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-logo-text {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--brand);
+      letter-spacing: -0.02em;
+    }
+
+    .offline-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 9999px;
+      background-color: var(--warning-bg);
+      color: var(--warning-text);
+      border: 1px solid var(--warning-border);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .offline-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--warning-text);
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .container {
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .context-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .context-consultancy {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .context-user {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .sync-timestamp {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      background-color: var(--surface-subtle);
+      border: 1px solid var(--border-subtle);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      gap: 4px;
+    }
+
+    .nav-tab {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease-out;
+      text-align: center;
+    }
+
+    .nav-tab.active {
+      background-color: var(--surface);
+      color: var(--text-primary);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    .content-view {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .plan-title-card {
+      padding: 14px;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      border-left: 4px solid var(--brand);
+    }
+
+    .plan-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .plan-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .item-card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .item-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .item-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .item-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .badge-pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background-color: var(--brand-soft);
+      color: var(--brand);
+      border: 1px solid var(--brand-border);
+    }
+
+    .item-notes {
+      font-size: 12px;
+      color: var(--text-muted);
+      background-color: var(--surface-subtle);
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      font-style: italic;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .empty-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .empty-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      max-width: 380px;
+    }
+
+    .reconnect-bar {
+      margin-top: auto;
+      padding: 16px 0;
+    }
+
+    .btn-reconnect {
+      width: 100%;
+      background-color: var(--brand);
+      color: #ffffff;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background-color 0.15s ease-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-reconnect:hover {
+      background-color: var(--brand-hover);
+    }
+
+    .status-toast {
+      display: none;
+      background-color: var(--brand-soft);
+      border: 1px solid var(--brand-border);
+      color: var(--brand);
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="brand-group">
+        <span class="brand-logo-text">Trevo One</span>
+      </div>
+      <div class="offline-badge" id="network-badge">
+        <span class="offline-dot"></span>
+        <span id="network-status-text">Modo Offline</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="online-alert" class="status-toast">
+      Conexão de internet restabelecida! Toque em reconectar para abrir o app completo.
+    </div>
+
+    <!-- Active Profile & Consultancy Card -->
+    <div class="card" id="context-card" style="display: none;">
+      <div class="context-header">
+        <h1 class="context-consultancy" id="ctx-consultancy-name">Consultoria</h1>
+        <p class="context-user" id="ctx-user-name">Aluno</p>
+        <p class="sync-timestamp" id="ctx-sync-time">Sincronizado recentemente</p>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs" id="tab-bar" style="display: none;">
+      <button type="button" class="nav-tab active" id="tab-training">Treino</button>
+      <button type="button" class="nav-tab" id="tab-nutrition">Nutrição</button>
+    </div>
+
+    <!-- Content Sections -->
+    <div id="offline-view" class="content-view">
+      <div class="empty-state">
+        <p class="empty-title">Carregando conteúdo offline...</p>
+        <p class="empty-desc">Acessando prescrições salvas localmente no dispositivo.</p>
+      </div>
+    </div>
+
+    <!-- Reconnect CTA -->
+    <div class="reconnect-bar">
+      <button type="button" class="btn-reconnect" id="btn-reconnect">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span>Tentar reconectar</span>
+      </button>
+    </div>
+  </main>
+
+  <script src="/offline.js" defer></script>
+</body>
+</html>

@@ -1,20 +1,20 @@
 /// <reference lib="webworker" />
 
 /**
- * Trevo One — PWA Service Worker (T103 Runtime Foundation + T103A0 Web Push)
+ * Trevo One — PWA Service Worker (T103 Runtime Foundation + T103A0 Web Push + OFFLINE04 Navigation Fallback)
  *
  * Core Policies:
- * - Cache only public, hashed and allowlisted static assets (/_next/static/, brand icons).
+ * - Cache only public, hashed and allowlisted static assets (/_next/static/, brand icons, /offline.html, /offline.js).
  * - ZERO private, authenticated or dynamic route caching.
- * - ZERO navigation/document interception (browser network handles all HTML/SSR).
  * - Strict same-origin GET allowlist.
+ * - Navigation Fallback: Network-first for HTML documents, falling back to static /offline.html only when network fails.
  * - Versioned Trevo cache namespace with automatic legacy cleanup on activation.
  * - Controlled updates via SKIP_WAITING message (no unprompted reload/skipWaiting on install).
  * - Deterministic bounded pruning for /_next/static/ entries (MAX_NEXT_STATIC_ENTRIES = 160).
  * - Standards-compliant Web Push event handling & notificationclick navigation.
  */
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE_NAME = `trevo-static-${CACHE_VERSION}`;
 const MAX_NEXT_STATIC_ENTRIES = 160;
 
@@ -25,6 +25,8 @@ const STATIC_PWA_ASSETS = new Set([
   "/icons/apple-touch-icon.png",
   "/trevo-one-logo.png",
   "/favicon.ico",
+  "/offline.html",
+  "/offline.js",
 ]);
 
 /**
@@ -37,7 +39,7 @@ function isCacheableStaticAsset(request, url) {
   // Must be same-origin
   if (url.origin !== self.location.origin) return false;
 
-  // Navigation / document requests must NEVER be intercepted or cached
+  // Navigation / document requests are handled separately by navigation fallback
   if (request.mode === "navigate") return false;
 
   // Never intercept requests with Authorization or Range headers
@@ -108,9 +110,13 @@ async function pruneNextStaticCache(cache) {
   }
 }
 
-// Install: do NOT skip waiting unconditionally. Wait for explicit user update confirmation.
-self.addEventListener("install", () => {
-  // Service Worker installed successfully
+// Install: precache allowlisted static PWA assets including offline shell.
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(Array.from(STATIC_PWA_ASSETS));
+    })
+  );
 });
 
 // Activate: clean up outdated Trevo caches and claim clients.
@@ -133,10 +139,31 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: intercept ONLY allowlisted static assets using cache-first strategy.
+// Fetch: intercept navigation requests for offline fallback, and allowlisted static assets.
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
+  // 1. Navigation requests: Strict network-first with precached /offline.html fallback
+  if (event.request.mode === "navigate" && event.request.method === "GET") {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        // Network unavailable (offline) -> deliver precached offline shell
+        const cache = await caches.open(CACHE_NAME);
+        const fallback = await cache.match("/offline.html");
+        if (fallback) {
+          return fallback;
+        }
+        return new Response("Trevo One está offline.", {
+          status: 503,
+          statusText: "Service Unavailable",
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        });
+      })
+    );
+    return;
+  }
+
+  // 2. Allowlisted static assets: Cache-first
   if (!isCacheableStaticAsset(event.request, url)) {
     // Return immediately to let the browser execute default network behavior
     return;

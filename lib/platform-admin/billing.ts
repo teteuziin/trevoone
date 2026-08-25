@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import type { RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import {
+  createNotificationInTransaction,
+  deliverNotificationAfterCommit,
+} from "@/services/notification-service";
+import { formatCentsToBrl } from "@/lib/consultancies/finance";
+import {
   writePrivateFile,
   readVerifiedPrivateFile,
   deletePrivateFile,
@@ -868,7 +873,7 @@ export async function createPlatformCharge(params: {
 
     // 2. Fetch target consultancy & subscription
     const [consRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT c.id, c.status, cps.administrative_status
+      `SELECT c.id, c.slug, c.status, cps.administrative_status
        FROM consultancies c
        LEFT JOIN consultancy_platform_subscriptions cps ON cps.consultancy_id = c.id
        WHERE c.public_id = ? AND c.deleted_at IS NULL
@@ -886,6 +891,7 @@ export async function createPlatformCharge(params: {
     }
 
     const consultancyId = Number(cons.id);
+    const consultancySlug = String(cons.slug);
     const chargePublicId = randomUUID();
 
     await connection.beginTransaction();
@@ -921,7 +927,50 @@ export async function createPlatformCharge(params: {
       ]
     );
 
+    // 3. Query active consultancy admins to notify
+    const [adminRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.user_id
+       FROM consultancy_members cm
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       INNER JOIN users u ON u.id = cm.user_id
+       WHERE cm.consultancy_id = ?
+         AND cmr.role = 'CONSULTANCY_ADMIN'
+         AND cm.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND u.deleted_at IS NULL;`,
+      [consultancyId]
+    );
+
+    const adminNotifications: { id: number }[] = [];
+    if (Array.isArray(adminRows) && adminRows.length > 0) {
+      const formattedAmount = formatCentsToBrl(amountCents);
+      for (const adminRow of adminRows) {
+        const adminUserId = Number(adminRow.user_id);
+        const notif = await createNotificationInTransaction(connection, {
+          userId: adminUserId,
+          consultancyId,
+          priority: "HIGH",
+          eventType: "PLATFORM_CHARGE_CREATED",
+          title: "Nova cobrança da plataforma",
+          body: `A assinatura do Trevo One possui uma nova fatura no valor de ${formattedAmount} (${normalizedTitle}).`,
+          deepLink: `/consultoria/${consultancySlug}/assinatura`,
+          dedupeKey: `platform-charge:created:${chargePublicId}:${adminUserId}`,
+          sourceType: "PLATFORM_CHARGE",
+          sourcePublicId: chargePublicId,
+        });
+        adminNotifications.push(notif);
+      }
+    }
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    for (const notif of adminNotifications) {
+      try {
+        await deliverNotificationAfterCommit(notif.id);
+      } catch {}
+    }
+
     return { success: true, chargePublicId };
   } catch (err: unknown) {
     if (connection) {
@@ -1042,7 +1091,7 @@ export async function updateSubscriptionAdminStatus(params: {
     await connection.beginTransaction();
 
     const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT cps.id, cps.consultancy_id, cps.administrative_status
+      `SELECT cps.id, cps.consultancy_id, cps.administrative_status, c.slug AS consultancy_slug
        FROM consultancy_platform_subscriptions cps
        INNER JOIN consultancies c ON c.id = cps.consultancy_id
        WHERE c.public_id = ?
@@ -1122,7 +1171,60 @@ export async function updateSubscriptionAdminStatus(params: {
       ]
     );
 
+    // Create notifications for SUSPENDED (CRITICAL) or RESTORED (HIGH)
+    const adminNotifications: { id: number }[] = [];
+    if (targetStatus === "SUSPENDED" || (targetStatus === "ACTIVE" && currentStatus === "SUSPENDED")) {
+      const [adminRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT cm.user_id
+         FROM consultancy_members cm
+         INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+         INNER JOIN users u ON u.id = cm.user_id
+         WHERE cm.consultancy_id = ?
+           AND cmr.role = 'CONSULTANCY_ADMIN'
+           AND cm.status = 'ACTIVE'
+           AND u.status = 'ACTIVE'
+           AND u.deleted_at IS NULL;`,
+        [sub.consultancy_id]
+      );
+
+      if (Array.isArray(adminRows) && adminRows.length > 0) {
+        const consultancySlug = String(sub.consultancy_slug);
+        const eventType = targetStatus === "SUSPENDED" ? "CONSULTANCY_ACCESS_SUSPENDED" : "CONSULTANCY_ACCESS_RESTORED";
+        const priority = targetStatus === "SUSPENDED" ? "CRITICAL" : "HIGH";
+        const title = targetStatus === "SUSPENDED" ? "Acesso da consultoria suspenso" : "Acesso da consultoria restaurado";
+        const body = targetStatus === "SUSPENDED"
+          ? `O acesso da sua consultoria ao Trevo One foi suspenso. Motivo: ${normalizedReason}`
+          : "O acesso da sua consultoria ao Trevo One foi reativado com sucesso.";
+        const deepLink = targetStatus === "SUSPENDED" ? `/consultoria/${consultancySlug}/assinatura` : `/consultoria/${consultancySlug}`;
+
+        for (const adminRow of adminRows) {
+          const adminUserId = Number(adminRow.user_id);
+          const notif = await createNotificationInTransaction(connection, {
+            userId: adminUserId,
+            consultancyId: Number(sub.consultancy_id),
+            priority,
+            eventType,
+            title,
+            body,
+            deepLink,
+            dedupeKey: `consultancy-access:${targetStatus.toLowerCase()}:${consultancyPublicId}:${adminUserId}`,
+            sourceType: "PLATFORM_SUBSCRIPTION",
+            sourcePublicId: consultancyPublicId,
+          });
+          adminNotifications.push(notif);
+        }
+      }
+    }
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    for (const notif of adminNotifications) {
+      try {
+        await deliverNotificationAfterCommit(notif.id);
+      } catch {}
+    }
+
     return { success: true };
   } catch (err: unknown) {
     if (connection) {
@@ -1255,7 +1357,45 @@ export async function submitPlatformReceipt(params: {
       [randomUUID(), actorUserId, consultancyId, receiptPublicId, JSON.stringify({ chargePublicId })]
     );
 
+    // Query active platform admins
+    const [platformAdminRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT pa.user_id
+       FROM platform_admins pa
+       INNER JOIN users u ON u.id = pa.user_id
+       WHERE pa.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND u.deleted_at IS NULL;`
+    );
+
+    const platformAdminNotifications: { id: number }[] = [];
+    if (Array.isArray(platformAdminRows) && platformAdminRows.length > 0) {
+      for (const paRow of platformAdminRows) {
+        const paUserId = Number(paRow.user_id);
+        const notif = await createNotificationInTransaction(connection, {
+          userId: paUserId,
+          consultancyId: null,
+          priority: "NORMAL",
+          eventType: "PLATFORM_RECEIPT_SUBMITTED",
+          title: "Novo comprovante da plataforma",
+          body: "Uma consultoria enviou um comprovante de pagamento da assinatura para análise.",
+          deepLink: `/admin/cobranca-plataforma/comprovantes/${receiptPublicId}`,
+          dedupeKey: `platform-receipt:submitted:${receiptPublicId}:${paUserId}`,
+          sourceType: "PLATFORM_RECEIPT",
+          sourcePublicId: receiptPublicId,
+        });
+        platformAdminNotifications.push(notif);
+      }
+    }
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    for (const notif of platformAdminNotifications) {
+      try {
+        await deliverNotificationAfterCommit(notif.id);
+      } catch {}
+    }
+
     return { success: true, receiptPublicId };
   } catch (err: unknown) {
     if (connection) {
@@ -1301,8 +1441,10 @@ export async function reviewPlatformReceipt(params: {
         cpc.amount_cents,
         cpc.currency,
         cpc.status AS charge_status,
+        c.slug AS consultancy_slug,
         cpp.id AS payment_id
        FROM consultancy_platform_receipts cpr
+       INNER JOIN consultancies c ON c.id = cpr.consultancy_id
        INNER JOIN consultancy_platform_charges cpc ON cpc.id = cpr.charge_id
        LEFT JOIN consultancy_platform_payments cpp ON cpp.charge_id = cpc.id
        WHERE cpr.public_id = ?
@@ -1391,7 +1533,54 @@ export async function reviewPlatformReceipt(params: {
       );
     }
 
+    // Query active consultancy admins to notify
+    const [adminRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.user_id
+       FROM consultancy_members cm
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       INNER JOIN users u ON u.id = cm.user_id
+       WHERE cm.consultancy_id = ?
+         AND cmr.role = 'CONSULTANCY_ADMIN'
+         AND cm.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND u.deleted_at IS NULL;`,
+      [r.consultancy_id]
+    );
+
+    const adminNotifications: { id: number }[] = [];
+    if (Array.isArray(adminRows) && adminRows.length > 0) {
+      const consultancySlug = String(r.consultancy_slug);
+      for (const adminRow of adminRows) {
+        const adminUserId = Number(adminRow.user_id);
+        const notif = await createNotificationInTransaction(connection, {
+          userId: adminUserId,
+          consultancyId: Number(r.consultancy_id),
+          priority: "HIGH",
+          eventType: decision === "APPROVED" ? "PLATFORM_RECEIPT_APPROVED" : "PLATFORM_RECEIPT_REJECTED",
+          title: decision === "APPROVED" ? "Pagamento da assinatura confirmado" : "Comprovante de assinatura recusado",
+          body: decision === "APPROVED"
+            ? "O comprovante de pagamento da assinatura do Trevo One foi aprovado com sucesso."
+            : `O comprovante de pagamento da assinatura foi recusado. Motivo: ${normalizedReason}`,
+          deepLink: `/consultoria/${consultancySlug}/assinatura`,
+          dedupeKey: decision === "APPROVED"
+            ? `platform-receipt:approved:${receiptPublicId}:${adminUserId}`
+            : `platform-receipt:rejected:${receiptPublicId}:${adminUserId}`,
+          sourceType: "PLATFORM_RECEIPT",
+          sourcePublicId: receiptPublicId,
+        });
+        adminNotifications.push(notif);
+      }
+    }
+
     await connection.commit();
+
+    // Best-effort external delivery after commit
+    for (const notif of adminNotifications) {
+      try {
+        await deliverNotificationAfterCommit(notif.id);
+      } catch {}
+    }
+
     return { success: true };
   } catch (err: unknown) {
     if (connection) {

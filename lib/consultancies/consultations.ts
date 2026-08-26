@@ -2,6 +2,9 @@ import crypto from "node:crypto";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { formatConsultancyDateTime } from "./timezone";
+import { resolveConsultancyContext } from "./context";
+import { resolveStudentModuleAccess } from "./student-module-access";
+import type { StudentFinancialBlockingCharge } from "./finance";
 
 // ==========================================
 // CONSTANTS & TYPES
@@ -637,3 +640,856 @@ export async function insertConsultation(
 
   return { id: result.insertId, publicId };
 }
+
+// ==========================================
+// SCHEDULING MUTATION API
+// ==========================================
+
+export type ScheduleConsultationInput = {
+  actorUserId: number;
+  consultancySlug: string;
+  studentMembershipPublicId: string;
+  professionalMembershipPublicId?: string;
+  professionalType: ConsultationProfessionalType;
+  title?: string;
+  scheduledStartAt: Date;
+  scheduledEndAt: Date;
+};
+
+export type ScheduleConsultationResult =
+  | { success: true; consultation: ConsultationDto }
+  | { success: false; error: string; code?: string };
+
+/**
+ * Creates a new consultation with strict actor authorization, participant validation,
+ * deterministic row locks, and overlap prevention.
+ */
+export async function scheduleConsultation(
+  input: ScheduleConsultationInput
+): Promise<ScheduleConsultationResult> {
+  const {
+    actorUserId,
+    consultancySlug,
+    studentMembershipPublicId,
+    professionalMembershipPublicId,
+    professionalType,
+    title,
+    scheduledStartAt,
+    scheduledEndAt,
+  } = input;
+
+  if (!actorUserId || actorUserId <= 0) {
+    return {
+      success: false,
+      error: "Usuário não autenticado.",
+      code: "CONSULTATION_UNAUTHENTICATED",
+    };
+  }
+
+  if (!VALID_PROFESSIONAL_TYPES.includes(professionalType)) {
+    return {
+      success: false,
+      error: "Tipo de profissional inválido.",
+      code: "CONSULTATION_INVALID_ROLE",
+    };
+  }
+
+  const now = new Date();
+  if (!(scheduledStartAt instanceof Date) || isNaN(scheduledStartAt.getTime()) || scheduledStartAt.getTime() <= now.getTime()) {
+    return {
+      success: false,
+      error: "O horário de início deve ser em um momento futuro.",
+      code: "CONSULTATION_PAST_DATE",
+    };
+  }
+
+  if (!isValidConsultationTimeRange(scheduledStartAt, scheduledEndAt)) {
+    return {
+      success: false,
+      error: "O horário de término deve ser posterior ao horário de início.",
+      code: "CONSULTATION_INVALID_TIME_RANGE",
+    };
+  }
+
+  // Resolve consultancy tenancy context for actor
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context) {
+    return {
+      success: false,
+      error: "Contexto de consultoria inválido ou acesso não autorizado.",
+      code: "CONSULTATION_FORBIDDEN",
+    };
+  }
+
+  if (context.platformAccess && !context.platformAccess.isOperationalAllowed) {
+    return {
+      success: false,
+      error: "A consultoria está com acesso suspenso pela plataforma.",
+      code: "PLATFORM_SUSPENDED",
+    };
+  }
+
+  const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const isPersonal = context.roles.includes("PERSONAL");
+  const isNutritionist = context.roles.includes("NUTRITIONIST");
+
+  let effectiveProfMembershipPublicId: string;
+
+  if (isAdmin) {
+    if (!professionalMembershipPublicId) {
+      return {
+        success: false,
+        error: "Selecione o profissional para a consulta.",
+        code: "CONSULTATION_MISSING_PROFESSIONAL",
+      };
+    }
+    effectiveProfMembershipPublicId = professionalMembershipPublicId;
+  } else if (professionalType === "PERSONAL" && isPersonal) {
+    // Professional can only schedule for themselves
+    effectiveProfMembershipPublicId = context.membershipPublicId;
+  } else if (professionalType === "NUTRITIONIST" && isNutritionist) {
+    // Nutritionist can only schedule for themselves
+    effectiveProfMembershipPublicId = context.membershipPublicId;
+  } else {
+    return {
+      success: false,
+      error: "Você não tem permissão para agendar consultas nesta consultoria.",
+      code: "CONSULTATION_FORBIDDEN",
+    };
+  }
+
+  const normalizedTitle =
+    title && title.trim().length > 0
+      ? title.trim().slice(0, 200)
+      : professionalType === "PERSONAL"
+      ? "Consulta com Personal Trainer"
+      : "Consulta com Nutricionista";
+
+  let connection: PoolConnection | null = null;
+
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Resolve student membership in this consultancy
+    const [studentRows] = await connection.query<RowDataPacket[]>(
+      `SELECT id FROM consultancy_members WHERE consultancy_id = ? AND public_id = ?`,
+      [context.consultancyId, studentMembershipPublicId]
+    );
+
+    if (!studentRows || studentRows.length === 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Aluno não encontrado nesta consultoria.",
+        code: "CONSULTATION_STUDENT_NOT_FOUND",
+      };
+    }
+
+    const studentMembershipId = Number(studentRows[0].id);
+
+    // 2. Resolve professional membership in this consultancy
+    const [profRows] = await connection.query<RowDataPacket[]>(
+      `SELECT id FROM consultancy_members WHERE consultancy_id = ? AND public_id = ?`,
+      [context.consultancyId, effectiveProfMembershipPublicId]
+    );
+
+    if (!profRows || profRows.length === 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Profissional não encontrado nesta consultoria.",
+        code: "CONSULTATION_PROFESSIONAL_NOT_FOUND",
+      };
+    }
+
+    const professionalMembershipId = Number(profRows[0].id);
+
+    // 3. Validate participant roles and active status
+    const validation = await validateConsultationParticipants(
+      connection,
+      context.consultancyId,
+      studentMembershipId,
+      professionalMembershipId,
+      professionalType
+    );
+
+    if (!validation.valid) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: validation.error || "Participantes inválidos para o agendamento.",
+        code: "CONSULTATION_INVALID_PARTICIPANTS",
+      };
+    }
+
+    // 4. Deterministic participant row locks to serialize concurrent bookings
+    const lockIds = [studentMembershipId, professionalMembershipId].sort((a, b) => a - b);
+    await connection.query(
+      `SELECT id FROM consultancy_members WHERE id IN (?, ?) ORDER BY id ASC FOR UPDATE`,
+      lockIds
+    );
+
+    // 5. Check overlap on both student and professional
+    const overlap = await checkConsultationOverlap(
+      connection,
+      context.consultancyId,
+      studentMembershipId,
+      professionalMembershipId,
+      scheduledStartAt,
+      scheduledEndAt
+    );
+
+    if (overlap.hasConflict) {
+      await connection.rollback();
+      const conflictMsg =
+        overlap.conflictParty === "STUDENT"
+          ? "O aluno já possui outro agendamento neste mesmo horário."
+          : "O profissional já possui outro agendamento neste mesmo horário.";
+      return {
+        success: false,
+        error: conflictMsg,
+        code: "CONSULTATION_TIME_CONFLICT",
+      };
+    }
+
+    // 6. Insert new consultation
+    const { publicId } = await insertConsultation(connection, {
+      consultancyId: context.consultancyId,
+      studentMembershipId,
+      professionalMembershipId,
+      professionalType,
+      title: normalizedTitle,
+      scheduledStartAt,
+      scheduledEndAt,
+      createdByUserId: actorUserId,
+    });
+
+    await connection.commit();
+
+    // 7. Return complete DTO
+    const created = await findConsultationByPublicIdForConsultancy(
+      context.consultancyId,
+      publicId
+    );
+
+    if (!created) {
+      return {
+        success: false,
+        error: "Falha ao recuperar a consulta recém-criada.",
+        code: "CONSULTATION_ERROR",
+      };
+    }
+
+    return {
+      success: true,
+      consultation: created,
+    };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    console.error("[scheduleConsultation] Error:", err);
+    return {
+      success: false,
+      error: "Ocorreu um erro interno ao agendar a consulta.",
+      code: "CONSULTATION_INTERNAL_ERROR",
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+// ==========================================
+// RESCHEDULING MUTATION API
+// ==========================================
+
+export type RescheduleConsultationInput = {
+  actorUserId: number;
+  consultancySlug: string;
+  consultationPublicId: string;
+  scheduledStartAt: Date;
+  scheduledEndAt: Date;
+};
+
+export type RescheduleConsultationResult =
+  | { success: true; consultation: ConsultationDto }
+  | { success: false; error: string; code?: string };
+
+/**
+ * Reschedules an existing consultation.
+ * Only the designated professional or a consultancy admin can reschedule.
+ * Only consultations in SCHEDULED status can be rescheduled.
+ */
+export async function rescheduleConsultation(
+  input: RescheduleConsultationInput
+): Promise<RescheduleConsultationResult> {
+  const {
+    actorUserId,
+    consultancySlug,
+    consultationPublicId,
+    scheduledStartAt,
+    scheduledEndAt,
+  } = input;
+
+  if (!actorUserId || actorUserId <= 0) {
+    return {
+      success: false,
+      error: "Usuário não autenticado.",
+      code: "CONSULTATION_UNAUTHENTICATED",
+    };
+  }
+
+  const now = new Date();
+  if (!(scheduledStartAt instanceof Date) || isNaN(scheduledStartAt.getTime()) || scheduledStartAt.getTime() <= now.getTime()) {
+    return {
+      success: false,
+      error: "O novo horário de início deve ser em um momento futuro.",
+      code: "CONSULTATION_PAST_DATE",
+    };
+  }
+
+  if (!isValidConsultationTimeRange(scheduledStartAt, scheduledEndAt)) {
+    return {
+      success: false,
+      error: "O novo horário de término deve ser posterior ao horário de início.",
+      code: "CONSULTATION_INVALID_TIME_RANGE",
+    };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context) {
+    return {
+      success: false,
+      error: "Contexto de consultoria inválido ou acesso não autorizado.",
+      code: "CONSULTATION_FORBIDDEN",
+    };
+  }
+
+  if (context.platformAccess && !context.platformAccess.isOperationalAllowed) {
+    return {
+      success: false,
+      error: "A consultoria está com acesso suspenso pela plataforma.",
+      code: "PLATFORM_SUSPENDED",
+    };
+  }
+
+  const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+
+  let connection: PoolConnection | null = null;
+
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Fetch consultation for update (tenant-scoped)
+    const [rows] = await connection.query<RawConsultationRow[]>(
+      `SELECT c.*,
+              pm.user_id AS professional_user_id
+       FROM consultations c
+       JOIN consultancy_members pm ON pm.id = c.professional_membership_id
+       WHERE c.consultancy_id = ? AND c.public_id = ?
+       FOR UPDATE`,
+      [context.consultancyId, consultationPublicId]
+    );
+
+    if (!rows || rows.length === 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Consulta não encontrada.",
+        code: "CONSULTATION_NOT_FOUND",
+      };
+    }
+
+    const consultation = rows[0];
+
+    // 2. Validate status: only SCHEDULED can be rescheduled
+    if (consultation.status !== "SCHEDULED") {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Apenas consultas com status 'Agendada' podem ser remarcadas.",
+        code: "CONSULTATION_NOT_SCHEDULED",
+      };
+    }
+
+    // 3. Validate actor: designated professional or admin only (student is blocked)
+    const isDesignatedProfessional = Number(consultation.professional_user_id) === actorUserId;
+    if (!isDesignatedProfessional && !isAdmin) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Você não tem permissão para remarcar esta consulta.",
+        code: "CONSULTATION_FORBIDDEN",
+      };
+    }
+
+    // 4. Deterministic participant row locks
+    const lockIds = [
+      Number(consultation.student_membership_id),
+      Number(consultation.professional_membership_id),
+    ].sort((a, b) => a - b);
+
+    await connection.query(
+      `SELECT id FROM consultancy_members WHERE id IN (?, ?) ORDER BY id ASC FOR UPDATE`,
+      lockIds
+    );
+
+    // 5. Check overlap excluding this consultation
+    const overlap = await checkConsultationOverlap(
+      connection,
+      context.consultancyId,
+      Number(consultation.student_membership_id),
+      Number(consultation.professional_membership_id),
+      scheduledStartAt,
+      scheduledEndAt,
+      Number(consultation.id)
+    );
+
+    if (overlap.hasConflict) {
+      await connection.rollback();
+      const conflictMsg =
+        overlap.conflictParty === "STUDENT"
+          ? "O aluno já possui outro agendamento neste mesmo horário."
+          : "O profissional já possui outro agendamento neste mesmo horário.";
+      return {
+        success: false,
+        error: conflictMsg,
+        code: "CONSULTATION_TIME_CONFLICT",
+      };
+    }
+
+    // 6. Update scheduled times
+    await connection.query(
+      `UPDATE consultations
+       SET scheduled_start_at = ?,
+           scheduled_end_at = ?
+       WHERE id = ?`,
+      [scheduledStartAt, scheduledEndAt, consultation.id]
+    );
+
+    await connection.commit();
+
+    const updated = await findConsultationByPublicIdForConsultancy(
+      context.consultancyId,
+      consultationPublicId
+    );
+
+    if (!updated) {
+      return {
+        success: false,
+        error: "Falha ao recuperar a consulta atualizada.",
+        code: "CONSULTATION_ERROR",
+      };
+    }
+
+    return {
+      success: true,
+      consultation: updated,
+    };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    console.error("[rescheduleConsultation] Error:", err);
+    return {
+      success: false,
+      error: "Ocorreu um erro interno ao remarcar a consulta.",
+      code: "CONSULTATION_INTERNAL_ERROR",
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+// ==========================================
+// CANCELLATION MUTATION API
+// ==========================================
+
+export type CancelConsultationInput = {
+  actorUserId: number;
+  consultancySlug: string;
+  consultationPublicId: string;
+  cancelReason?: string | null;
+};
+
+export type CancelConsultationResult =
+  | { success: true; consultation: ConsultationDto }
+  | { success: false; error: string; code?: string };
+
+/**
+ * Cancels a consultation.
+ * - Student participant: can cancel own SCHEDULED consultation (does NOT require billing clearance).
+ * - Designated professional: can cancel own SCHEDULED or IN_PROGRESS consultation.
+ * - Consultancy Admin: can cancel SCHEDULED consultation.
+ */
+export async function cancelConsultation(
+  input: CancelConsultationInput
+): Promise<CancelConsultationResult> {
+  const {
+    actorUserId,
+    consultancySlug,
+    consultationPublicId,
+    cancelReason,
+  } = input;
+
+  if (!actorUserId || actorUserId <= 0) {
+    return {
+      success: false,
+      error: "Usuário não autenticado.",
+      code: "CONSULTATION_UNAUTHENTICATED",
+    };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context) {
+    return {
+      success: false,
+      error: "Contexto de consultoria inválido ou acesso não autorizado.",
+      code: "CONSULTATION_FORBIDDEN",
+    };
+  }
+
+  if (context.platformAccess && !context.platformAccess.isOperationalAllowed) {
+    return {
+      success: false,
+      error: "A consultoria está com acesso suspenso pela plataforma.",
+      code: "PLATFORM_SUSPENDED",
+    };
+  }
+
+  const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+
+  let connection: PoolConnection | null = null;
+
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Fetch consultation for update
+    const [rows] = await connection.query<RawConsultationRow[]>(
+      `SELECT c.*,
+              sm.user_id AS student_user_id,
+              pm.user_id AS professional_user_id
+       FROM consultations c
+       JOIN consultancy_members sm ON sm.id = c.student_membership_id
+       JOIN consultancy_members pm ON pm.id = c.professional_membership_id
+       WHERE c.consultancy_id = ? AND c.public_id = ?
+       FOR UPDATE`,
+      [context.consultancyId, consultationPublicId]
+    );
+
+    if (!rows || rows.length === 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Consulta não encontrada.",
+        code: "CONSULTATION_NOT_FOUND",
+      };
+    }
+
+    const consultation = rows[0];
+
+    // 2. Validate final states
+    if (consultation.status === "COMPLETED") {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Consultas concluídas não podem ser canceladas.",
+        code: "CONSULTATION_FINALIZED",
+      };
+    }
+
+    if (consultation.status === "CANCELED") {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Esta consulta já foi cancelada anteriormente.",
+        code: "CONSULTATION_ALREADY_CANCELED",
+      };
+    }
+
+    const isStudentParticipant = Number(consultation.student_user_id) === actorUserId;
+    const isProfParticipant = Number(consultation.professional_user_id) === actorUserId;
+
+    // 3. Authorize actor
+    if (isStudentParticipant) {
+      // Student can only cancel SCHEDULED consultations (cannot cancel IN_PROGRESS)
+      if (consultation.status !== "SCHEDULED") {
+        await connection.rollback();
+        return {
+          success: false,
+          error: "Alunos não podem cancelar consultas em andamento.",
+          code: "CONSULTATION_FORBIDDEN",
+        };
+      }
+    } else if (isProfParticipant) {
+      // Professional can cancel SCHEDULED or IN_PROGRESS
+      if (consultation.status !== "SCHEDULED" && consultation.status !== "IN_PROGRESS") {
+        await connection.rollback();
+        return {
+          success: false,
+          error: "Esta consulta não pode ser cancelada neste estado.",
+          code: "CONSULTATION_FORBIDDEN",
+        };
+      }
+    } else if (isAdmin) {
+      // Admin can cancel SCHEDULED consultations in V1
+      if (consultation.status !== "SCHEDULED") {
+        await connection.rollback();
+        return {
+          success: false,
+          error: "Administradores não podem cancelar consultas em andamento.",
+          code: "CONSULTATION_FORBIDDEN",
+        };
+      }
+    } else {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Você não tem permissão para cancelar esta consulta.",
+        code: "CONSULTATION_FORBIDDEN",
+      };
+    }
+
+    const normalizedReason =
+      cancelReason && typeof cancelReason === "string" && cancelReason.trim().length > 0
+        ? cancelReason.trim().slice(0, 500)
+        : null;
+
+    // 4. Update status to CANCELED
+    await connection.query(
+      `UPDATE consultations
+       SET status = 'CANCELED',
+           canceled_at = CURRENT_TIMESTAMP(3),
+           canceled_by_user_id = ?,
+           cancel_reason = ?
+       WHERE id = ?`,
+      [actorUserId, normalizedReason, consultation.id]
+    );
+
+    await connection.commit();
+
+    const updated = await findConsultationByPublicIdForConsultancy(
+      context.consultancyId,
+      consultationPublicId
+    );
+
+    if (!updated) {
+      return {
+        success: false,
+        error: "Falha ao recuperar a consulta cancelada.",
+        code: "CONSULTATION_ERROR",
+      };
+    }
+
+    return {
+      success: true,
+      consultation: updated,
+    };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    console.error("[cancelConsultation] Error:", err);
+    return {
+      success: false,
+      error: "Ocorreu um erro interno ao cancelar a consulta.",
+      code: "CONSULTATION_INTERNAL_ERROR",
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+// ==========================================
+// JOIN ACCESS FOUNDATION
+// ==========================================
+
+export type ConsultationJoinAccessResult =
+  | {
+      allowed: true;
+      participantKind: "STUDENT" | "PROFESSIONAL";
+      consultation: ConsultationDto;
+    }
+  | {
+      allowed: false;
+      reason:
+        | "UNAUTHENTICATED"
+        | "INVALID_CONTEXT"
+        | "PLATFORM_SUSPENDED"
+        | "CONSULTATION_NOT_FOUND"
+        | "CONSULTATION_FORBIDDEN"
+        | "STUDENT_BILLING_BLOCKED"
+        | "CONSULTATION_CANCELED"
+        | "CONSULTATION_COMPLETED"
+        | "TOO_EARLY"
+        | "JOIN_WINDOW_CLOSED";
+      consultation?: ConsultationDto;
+      blockingCharge?: StudentFinancialBlockingCharge;
+      earliestJoinAt?: Date;
+      latestJoinAt?: Date;
+    };
+
+/**
+ * Evaluates whether an authenticated user is currently eligible to join the consultation room.
+ * Enforces participant validation, student billing obligations, consultation state, and operational time window.
+ * Does NOT generate tokens, WebRTC/signaling data, or mutate call state.
+ */
+export async function resolveConsultationJoinAccess(
+  actorUserId: number,
+  consultancySlug: string,
+  consultationPublicId: string,
+  now: Date = new Date()
+): Promise<ConsultationJoinAccessResult> {
+  if (!actorUserId || actorUserId <= 0) {
+    return { allowed: false, reason: "UNAUTHENTICATED" };
+  }
+
+  if (!consultancySlug || !consultationPublicId) {
+    return { allowed: false, reason: "INVALID_CONTEXT" };
+  }
+
+  const context = await resolveConsultancyContext(actorUserId, consultancySlug);
+  if (!context) {
+    return { allowed: false, reason: "INVALID_CONTEXT" };
+  }
+
+  if (context.platformAccess && !context.platformAccess.isOperationalAllowed) {
+    return { allowed: false, reason: "PLATFORM_SUSPENDED" };
+  }
+
+  const connection = await getDbConnection();
+  let row: RawConsultationRow | null = null;
+
+  try {
+    const [rows] = await connection.query<RawConsultationRow[]>(
+      `SELECT c.*,
+              con.public_id AS consultancy_public_id,
+              con.slug AS consultancy_slug,
+              con.name AS consultancy_name,
+              COALESCE(con.timezone, 'America/Sao_Paulo') AS consultancy_timezone,
+              sm.public_id AS student_membership_public_id,
+              su.id AS student_user_id,
+              su.public_id AS student_user_public_id,
+              su.full_name AS student_name,
+              su.email AS student_email,
+              pm.public_id AS professional_membership_public_id,
+              pu.id AS professional_user_id,
+              pu.public_id AS professional_user_public_id,
+              pu.full_name AS professional_name,
+              pu.email AS professional_email
+       FROM consultations c
+       JOIN consultancies con ON con.id = c.consultancy_id
+       JOIN consultancy_members sm ON sm.id = c.student_membership_id
+       JOIN users su ON su.id = sm.user_id
+       JOIN consultancy_members pm ON pm.id = c.professional_membership_id
+       JOIN users pu ON pu.id = pm.user_id
+       WHERE c.consultancy_id = ? AND c.public_id = ?
+       LIMIT 1`,
+      [context.consultancyId, consultationPublicId]
+    );
+
+    if (rows && rows.length > 0) {
+      row = rows[0];
+    }
+  } finally {
+    connection.release();
+  }
+
+  if (!row) {
+    return { allowed: false, reason: "CONSULTATION_NOT_FOUND" };
+  }
+
+  const consultation = mapRowToConsultationDto(row, row.consultancy_timezone);
+
+  const isStudent = Number(row.student_user_id) === actorUserId;
+  const isProfessional = Number(row.professional_user_id) === actorUserId;
+
+  if (!isStudent && !isProfessional) {
+    // Only exact participants can join. Consultancy admins and other users are denied media join.
+    return { allowed: false, reason: "CONSULTATION_FORBIDDEN", consultation };
+  }
+
+  const participantKind: "STUDENT" | "PROFESSIONAL" = isStudent ? "STUDENT" : "PROFESSIONAL";
+
+  // For Student participant: check student billing authority
+  if (isStudent) {
+    const studentAccess = await resolveStudentModuleAccess(actorUserId, consultancySlug);
+    if (!studentAccess.allowed) {
+      return {
+        allowed: false,
+        reason: "STUDENT_BILLING_BLOCKED",
+        consultation,
+        blockingCharge: studentAccess.blockingCharge,
+      };
+    }
+  }
+
+  // Check state machine
+  if (consultation.status === "CANCELED") {
+    return { allowed: false, reason: "CONSULTATION_CANCELED", consultation };
+  }
+
+  if (consultation.status === "COMPLETED") {
+    return { allowed: false, reason: "CONSULTATION_COMPLETED", consultation };
+  }
+
+  // Check operational time window
+  // Earliest join: 10 minutes before scheduled start
+  // Latest join: 30 minutes after scheduled end
+  const earliestJoinAt = new Date(consultation.scheduledStartAt.getTime() - 10 * 60 * 1000);
+  const latestJoinAt = new Date(consultation.scheduledEndAt.getTime() + 30 * 60 * 1000);
+  const nowMs = now.getTime();
+
+  if (consultation.status === "SCHEDULED") {
+    if (nowMs < earliestJoinAt.getTime()) {
+      return {
+        allowed: false,
+        reason: "TOO_EARLY",
+        consultation,
+        earliestJoinAt,
+        latestJoinAt,
+      };
+    }
+    if (nowMs > latestJoinAt.getTime()) {
+      return {
+        allowed: false,
+        reason: "JOIN_WINDOW_CLOSED",
+        consultation,
+        earliestJoinAt,
+        latestJoinAt,
+      };
+    }
+  } else if (consultation.status === "IN_PROGRESS") {
+    if (nowMs > latestJoinAt.getTime()) {
+      return {
+        allowed: false,
+        reason: "JOIN_WINDOW_CLOSED",
+        consultation,
+        earliestJoinAt,
+        latestJoinAt,
+      };
+    }
+  }
+
+  return {
+    allowed: true,
+    participantKind,
+    consultation,
+  };
+}
+

@@ -595,6 +595,204 @@ export async function listUpcomingConsultationsForProfessional(
 }
 
 /**
+ * Lists past / finalized consultation history (COMPLETED, CANCELED, or ended SCHEDULED) for a student membership.
+ */
+export async function listConsultationHistoryForStudent(
+  consultancyId: number,
+  studentMembershipId: number,
+  limit: number = 20
+): Promise<ConsultationListItemDto[]> {
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.query<RawConsultationRow[]>(
+      `SELECT c.*,
+              con.public_id AS consultancy_public_id,
+              con.slug AS consultancy_slug,
+              con.name AS consultancy_name,
+              COALESCE(con.timezone, 'America/Sao_Paulo') AS consultancy_timezone,
+              sm.public_id AS student_membership_public_id,
+              su.id AS student_user_id,
+              su.public_id AS student_user_public_id,
+              su.full_name AS student_name,
+              su.email AS student_email,
+              pm.public_id AS professional_membership_public_id,
+              pu.id AS professional_user_id,
+              pu.public_id AS professional_user_public_id,
+              pu.full_name AS professional_name,
+              pu.email AS professional_email
+       FROM consultations c
+       JOIN consultancies con ON con.id = c.consultancy_id
+       JOIN consultancy_members sm ON sm.id = c.student_membership_id
+       JOIN users su ON su.id = sm.user_id
+       JOIN consultancy_members pm ON pm.id = c.professional_membership_id
+       JOIN users pu ON pu.id = pm.user_id
+       WHERE c.consultancy_id = ?
+         AND c.student_membership_id = ?
+         AND (
+           c.status IN ('COMPLETED', 'CANCELED')
+           OR (c.status = 'SCHEDULED' AND c.scheduled_end_at < NOW())
+         )
+       ORDER BY c.scheduled_start_at DESC
+       LIMIT ?`,
+      [consultancyId, studentMembershipId, limit]
+    );
+
+    const now = new Date();
+    return (rows || []).map((row: RawConsultationRow) => {
+      const startAt = new Date(row.scheduled_start_at);
+      const endAt = new Date(row.scheduled_end_at);
+      const status = row.status as ConsultationStatus;
+      const canJoinNow =
+        (status === "SCHEDULED" || status === "IN_PROGRESS") &&
+        isWithinJoinWindow(startAt, endAt, now);
+
+      return {
+        publicId: row.public_id,
+        professionalType: row.professional_type as ConsultationProfessionalType,
+        title: row.title,
+        scheduledStartAt: startAt,
+        scheduledEndAt: endAt,
+        scheduledStartFormatted: formatConsultancyDateTime(
+          row.consultancy_timezone,
+          startAt
+        ),
+        scheduledEndFormatted: formatConsultancyDateTime(
+          row.consultancy_timezone,
+          endAt
+        ),
+        status,
+        counterpartName: row.professional_name,
+        counterpartRole:
+          PROFESSIONAL_TYPE_LABELS[
+            row.professional_type as ConsultationProfessionalType
+          ] || row.professional_type,
+        canJoinNow,
+      };
+    });
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Lists past / finalized consultation history (COMPLETED, CANCELED, or ended SCHEDULED) for a professional membership.
+ */
+export async function listConsultationHistoryForProfessional(
+  consultancyId: number,
+  professionalMembershipId: number,
+  limit: number = 20
+): Promise<ConsultationListItemDto[]> {
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.query<RawConsultationRow[]>(
+      `SELECT c.*,
+              con.public_id AS consultancy_public_id,
+              con.slug AS consultancy_slug,
+              con.name AS consultancy_name,
+              COALESCE(con.timezone, 'America/Sao_Paulo') AS consultancy_timezone,
+              sm.public_id AS student_membership_public_id,
+              su.id AS student_user_id,
+              su.public_id AS student_user_public_id,
+              su.full_name AS student_name,
+              su.email AS student_email,
+              pm.public_id AS professional_membership_public_id,
+              pu.id AS professional_user_id,
+              pu.public_id AS professional_user_public_id,
+              pu.full_name AS professional_name,
+              pu.email AS professional_email
+       FROM consultations c
+       JOIN consultancies con ON con.id = c.consultancy_id
+       JOIN consultancy_members sm ON sm.id = c.student_membership_id
+       JOIN users su ON su.id = sm.user_id
+       JOIN consultancy_members pm ON pm.id = c.professional_membership_id
+       JOIN users pu ON pu.id = pm.user_id
+       WHERE c.consultancy_id = ?
+         AND c.professional_membership_id = ?
+         AND (
+           c.status IN ('COMPLETED', 'CANCELED')
+           OR (c.status = 'SCHEDULED' AND c.scheduled_end_at < NOW())
+         )
+       ORDER BY c.scheduled_start_at DESC
+       LIMIT ?`,
+      [consultancyId, professionalMembershipId, limit]
+    );
+
+    const now = new Date();
+    return (rows || []).map((row: RawConsultationRow) => {
+      const startAt = new Date(row.scheduled_start_at);
+      const endAt = new Date(row.scheduled_end_at);
+      const status = row.status as ConsultationStatus;
+      const canJoinNow =
+        (status === "SCHEDULED" || status === "IN_PROGRESS") &&
+        isWithinJoinWindow(startAt, endAt, now);
+
+      return {
+        publicId: row.public_id,
+        professionalType: row.professional_type as ConsultationProfessionalType,
+        title: row.title,
+        scheduledStartAt: startAt,
+        scheduledEndAt: endAt,
+        scheduledStartFormatted: formatConsultancyDateTime(
+          row.consultancy_timezone,
+          startAt
+        ),
+        scheduledEndFormatted: formatConsultancyDateTime(
+          row.consultancy_timezone,
+          endAt
+        ),
+        status,
+        counterpartName: row.student_name,
+        counterpartRole: "Aluno",
+        canJoinNow,
+      };
+    });
+  } finally {
+    connection.release();
+  }
+}
+
+export interface ActiveStudentOptionDto {
+  membershipPublicId: string;
+  userPublicId: string;
+  fullName: string;
+}
+
+/**
+ * Lists active students in the consultancy available for consultation scheduling.
+ * Privacy-focused: only exposes public identifiers and name.
+ */
+export async function listActiveStudentsForConsultationScheduling(
+  consultancyId: number
+): Promise<ActiveStudentOptionDto[]> {
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.query<RowDataPacket[]>(
+      `SELECT cm.public_id AS membership_public_id,
+              u.public_id AS user_public_id,
+              u.full_name
+       FROM consultancy_members cm
+       JOIN users u ON u.id = cm.user_id
+       JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+         AND u.status = 'ACTIVE'
+         AND cmr.role = 'STUDENT'
+       GROUP BY cm.id, cm.public_id, u.public_id, u.full_name
+       ORDER BY u.full_name ASC`,
+      [consultancyId]
+    );
+
+    return (rows || []).map((row: RowDataPacket) => ({
+      membershipPublicId: String(row.membership_public_id),
+      userPublicId: String(row.user_public_id),
+      fullName: String(row.full_name),
+    }));
+  } finally {
+    connection.release();
+  }
+}
+
+/**
  * Inserts a new consultation record inside a transaction.
  */
 export async function insertConsultation(

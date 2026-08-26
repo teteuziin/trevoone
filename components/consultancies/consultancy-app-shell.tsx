@@ -75,6 +75,13 @@ export function ConsultancyAppShell({
 
   if (roles.includes("STUDENT")) {
     items.push({
+      id: "student-consultas",
+      label: "Consultas",
+      mobileLabel: "Consultas",
+      href: `/consultoria/${consultancySlug}/consultas`,
+      iconName: "consultations",
+    });
+    items.push({
       id: "student-pagamentos",
       label: "Pagamentos",
       mobileLabel: "Pagamentos",
@@ -84,6 +91,13 @@ export function ConsultancyAppShell({
   }
 
   if (roles.includes("PERSONAL")) {
+    items.push({
+      id: "personal-consultas",
+      label: "Consultas",
+      mobileLabel: "Consultas",
+      href: `/consultoria/${consultancySlug}/consultas`,
+      iconName: "consultations",
+    });
     items.push({
       id: "personal-treinos",
       label: "Planos de Treino",
@@ -108,6 +122,13 @@ export function ConsultancyAppShell({
   }
 
   if (roles.includes("NUTRITIONIST")) {
+    items.push({
+      id: "nutritionist-consultas",
+      label: "Consultas",
+      mobileLabel: "Consultas",
+      href: `/consultoria/${consultancySlug}/consultas`,
+      iconName: "consultations",
+    });
     items.push({
       id: "nutritionist-planos",
       label: "Planos Alimentares",

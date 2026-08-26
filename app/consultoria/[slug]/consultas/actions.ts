@@ -1,6 +1,9 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/auth/session";
+import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { parseConsultancyLocalDateTime } from "@/lib/consultancies/timezone";
 import {
   scheduleConsultation,
   rescheduleConsultation,
@@ -33,6 +36,11 @@ export async function scheduleConsultationAction(
     String(formData.get("professionalMembershipPublicId") || "").trim() || undefined;
   const rawProfessionalType = String(formData.get("professionalType") || "").trim();
   const title = String(formData.get("title") || "").trim() || undefined;
+
+  // Supports both (date + startTime + endTime) local inputs and (scheduledStartAt + scheduledEndAt) ISO strings
+  const dateStr = String(formData.get("date") || "").trim();
+  const startTimeStr = String(formData.get("startTime") || "").trim();
+  const endTimeStr = String(formData.get("endTime") || "").trim();
   const rawStartAt = String(formData.get("scheduledStartAt") || "").trim();
   const rawEndAt = String(formData.get("scheduledEndAt") || "").trim();
 
@@ -50,15 +58,36 @@ export async function scheduleConsultationAction(
 
   const professionalType = rawProfessionalType as ConsultationProfessionalType;
 
-  if (!rawStartAt || !rawEndAt) {
-    return { success: false, error: "Informe os horários de início e término da consulta." };
+  let scheduledStartAt: Date;
+  let scheduledEndAt: Date;
+
+  if (dateStr && startTimeStr && endTimeStr) {
+    const context = await resolveConsultancyContext(session.userId, slug);
+    if (!context) {
+      return { success: false, error: "Consultoria não encontrada." };
+    }
+    const timezone = context.consultancyTimezone || "America/Sao_Paulo";
+    const parsedStart = parseConsultancyLocalDateTime(timezone, dateStr, startTimeStr);
+    const parsedEnd = parseConsultancyLocalDateTime(timezone, dateStr, endTimeStr);
+
+    if (!parsedStart.success) {
+      return { success: false, error: `Horário inicial inválido: ${parsedStart.error}` };
+    }
+    if (!parsedEnd.success) {
+      return { success: false, error: `Horário final inválido: ${parsedEnd.error}` };
+    }
+
+    scheduledStartAt = parsedStart.dateUtc;
+    scheduledEndAt = parsedEnd.dateUtc;
+  } else if (rawStartAt && rawEndAt) {
+    scheduledStartAt = new Date(rawStartAt);
+    scheduledEndAt = new Date(rawEndAt);
+  } else {
+    return { success: false, error: "Informe a data e os horários de início e término da consulta." };
   }
 
-  const scheduledStartAt = new Date(rawStartAt);
-  const scheduledEndAt = new Date(rawEndAt);
-
   if (isNaN(scheduledStartAt.getTime()) || isNaN(scheduledEndAt.getTime())) {
-    return { success: false, error: "Formato de data/hora inválido. Envie no padrão ISO 8601." };
+    return { success: false, error: "Formato de data/hora inválido." };
   }
 
   const result = await scheduleConsultation({
@@ -75,6 +104,8 @@ export async function scheduleConsultationAction(
   if (!result.success) {
     return { success: false, error: result.error };
   }
+
+  revalidatePath(`/consultoria/${slug}/consultas`);
 
   return {
     success: true,
@@ -96,6 +127,10 @@ export async function rescheduleConsultationAction(
   const consultationPublicId = String(
     formData.get("consultationPublicId") || ""
   ).trim();
+
+  const dateStr = String(formData.get("date") || "").trim();
+  const startTimeStr = String(formData.get("startTime") || "").trim();
+  const endTimeStr = String(formData.get("endTime") || "").trim();
   const rawStartAt = String(formData.get("scheduledStartAt") || "").trim();
   const rawEndAt = String(formData.get("scheduledEndAt") || "").trim();
 
@@ -103,15 +138,36 @@ export async function rescheduleConsultationAction(
     return { success: false, error: "Identificador da consulta não fornecido." };
   }
 
-  if (!rawStartAt || !rawEndAt) {
-    return { success: false, error: "Informe os novos horários de início e término." };
+  let scheduledStartAt: Date;
+  let scheduledEndAt: Date;
+
+  if (dateStr && startTimeStr && endTimeStr) {
+    const context = await resolveConsultancyContext(session.userId, slug);
+    if (!context) {
+      return { success: false, error: "Consultoria não encontrada." };
+    }
+    const timezone = context.consultancyTimezone || "America/Sao_Paulo";
+    const parsedStart = parseConsultancyLocalDateTime(timezone, dateStr, startTimeStr);
+    const parsedEnd = parseConsultancyLocalDateTime(timezone, dateStr, endTimeStr);
+
+    if (!parsedStart.success) {
+      return { success: false, error: `Novo horário inicial inválido: ${parsedStart.error}` };
+    }
+    if (!parsedEnd.success) {
+      return { success: false, error: `Novo horário final inválido: ${parsedEnd.error}` };
+    }
+
+    scheduledStartAt = parsedStart.dateUtc;
+    scheduledEndAt = parsedEnd.dateUtc;
+  } else if (rawStartAt && rawEndAt) {
+    scheduledStartAt = new Date(rawStartAt);
+    scheduledEndAt = new Date(rawEndAt);
+  } else {
+    return { success: false, error: "Informe a nova data e os horários de início e término." };
   }
 
-  const scheduledStartAt = new Date(rawStartAt);
-  const scheduledEndAt = new Date(rawEndAt);
-
   if (isNaN(scheduledStartAt.getTime()) || isNaN(scheduledEndAt.getTime())) {
-    return { success: false, error: "Formato de data/hora inválido. Envie no padrão ISO 8601." };
+    return { success: false, error: "Formato de data/hora inválido." };
   }
 
   const result = await rescheduleConsultation({
@@ -125,6 +181,8 @@ export async function rescheduleConsultationAction(
   if (!result.success) {
     return { success: false, error: result.error };
   }
+
+  revalidatePath(`/consultoria/${slug}/consultas`);
 
   return {
     success: true,
@@ -163,9 +221,12 @@ export async function cancelConsultationAction(
     return { success: false, error: result.error };
   }
 
+  revalidatePath(`/consultoria/${slug}/consultas`);
+
   return {
     success: true,
     consultationPublicId: result.consultation.publicId,
     message: "Consulta cancelada com sucesso.",
   };
 }
+

@@ -257,7 +257,7 @@ export async function validateConsultationParticipants(
     `SELECT cm.id, cm.user_id, cm.consultancy_id, cm.status,
             EXISTS(
               SELECT 1 FROM consultancy_member_roles cmr
-              WHERE cmr.member_id = cm.id AND cmr.role IN ('STUDENT', 'INFLUENCER')
+              WHERE cmr.member_id = cm.id AND cmr.role = 'STUDENT'
             ) AS is_student
      FROM consultancy_members cm
      WHERE cm.id = ? AND cm.consultancy_id = ?`,

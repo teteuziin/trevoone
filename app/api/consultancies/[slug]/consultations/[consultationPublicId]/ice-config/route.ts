@@ -56,6 +56,10 @@ export async function POST(request: Request, { params }: RouteProps) {
     const status =
       res.error === "TURN_NOT_CONFIGURED" || res.error === "TURN_PROVIDER_NOT_CONFIGURED"
         ? 503
+        : res.error === "TURN_PROVIDER_UNAVAILABLE" || res.error === "TURN_AUTHORIZATION_DENIED"
+        ? 502
+        : res.error === "TURN_PROVIDER_TIMEOUT"
+        ? 504
         : res.error === "TURN_CONFIG_INVALID"
         ? 500
         : res.error === "JOIN_WINDOW_CLOSED"

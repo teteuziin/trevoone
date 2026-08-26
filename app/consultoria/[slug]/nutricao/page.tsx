@@ -5,6 +5,7 @@ import { resolveStudentModuleAccess } from "@/lib/consultancies/student-module-a
 import { getActiveNutritionPlanForStudent } from "@/lib/consultancies/nutrition";
 import { StudentModuleAccessPanel } from "@/components/consultancies/student-module-access-panel";
 import { StudentNutritionPlan } from "@/components/consultancies/student-nutrition-plan";
+import { NutritionOfflineSync } from "@/components/offline/nutrition-offline-sync";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -79,6 +80,17 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
       userEmail={session.email}
     >
       <div className="w-full max-w-3xl mx-auto space-y-6">
+        {/* Silent Nutrition Offline Auto-Sync Bridge */}
+        <NutritionOfflineSync
+          userPublicId={session.userPublicId}
+          userName={session.fullName}
+          consultancyPublicId={access.context.consultancyPublicId}
+          consultancyName={access.context.consultancyName}
+          consultancySlug={access.context.consultancySlug}
+          consultancyLogoUrl={access.context.consultancyLogoUrl}
+          plan={activePlan}
+        />
+
         {/* Back Link */}
         <div className="flex items-center gap-2">
           <Link

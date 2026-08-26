@@ -54,10 +54,12 @@ export async function POST(request: Request, { params }: RouteProps) {
 
   if (!res.success) {
     const status =
-      res.error === "TURN_PROVIDER_NOT_CONFIGURED"
+      res.error === "TURN_NOT_CONFIGURED" || res.error === "TURN_PROVIDER_NOT_CONFIGURED"
         ? 503
-        : res.error === "TURN_PROVIDER_UNAVAILABLE"
-        ? 502
+        : res.error === "TURN_CONFIG_INVALID"
+        ? 500
+        : res.error === "JOIN_WINDOW_CLOSED"
+        ? 400
         : 400;
 
     return NextResponse.json(res, {

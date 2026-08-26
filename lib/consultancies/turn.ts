@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 export interface RtcIceServerDto {
   urls: string | string[];
   username?: string;
@@ -16,146 +18,107 @@ export type TurnConfigResult =
       message: string;
     };
 
-interface MeteredCreateCredentialResponse {
-  username?: string;
-  password?: string;
-  credential?: string;
-  apiKey?: string;
-  expiryInSeconds?: number;
-  [key: string]: unknown;
+export interface TemporaryTurnCredential {
+  username: string;
+  credential: string;
+  expiresAt: string;
 }
 
-interface MeteredRawIceServer {
-  urls?: string | string[];
-  url?: string;
-  username?: string;
-  credential?: string;
-  password?: string;
-  [key: string]: unknown;
+export interface TurnRuntimeConfig {
+  host: string;
+  sharedSecret: string;
+  realm: string;
 }
 
-const ALLOWED_SCHEMES = ["stun:", "stuns:", "turn:", "turns:"];
-const MAX_ICE_SERVERS = 32;
-const PROVIDER_TIMEOUT_MS = 6000;
+const DEFAULT_STUN_TURN_PORT = 3478;
+const DEFAULT_TURNS_TLS_PORT = 5349;
 
-function validateDomain(domain: string): boolean {
-  if (!domain || typeof domain !== "string") return false;
-  // Domain must be a valid hostname (e.g. abc.metered.live), no slashes, no protocols
-  const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
-  return domainRegex.test(domain);
-}
+/**
+ * Validates that a host is a valid hostname or IPv4 string without schemes, ports, paths, or query fragments.
+ */
+export function validateTurnHost(host: string): boolean {
+  if (!host || typeof host !== "string") return false;
+  const trimmed = host.trim();
+  if (!trimmed) return false;
 
-function validateRegion(region: string): boolean {
-  if (!region || typeof region !== "string") return false;
-  const regionRegex = /^[a-zA-Z0-9-_]{1,32}$/;
-  return regionRegex.test(region);
-}
+  // Disallow schemes, ports, paths, query params, fragments, auth symbols, or whitespace
+  if (
+    trimmed.includes("/") ||
+    trimmed.includes("?") ||
+    trimmed.includes("#") ||
+    trimmed.includes(":") ||
+    trimmed.includes("@") ||
+    trimmed.includes("\\") ||
+    /\s/.test(trimmed)
+  ) {
+    return false;
+  }
 
-function sanitizeIceUrl(rawUrl: string): string | null {
-  if (typeof rawUrl !== "string") return null;
-  const trimmed = rawUrl.trim();
   const lower = trimmed.toLowerCase();
-  const hasAllowedScheme = ALLOWED_SCHEMES.some((s) => lower.startsWith(s));
-  if (!hasAllowedScheme) {
-    return null;
-  }
-  return trimmed;
-}
-
-function normalizeIceServers(rawList: unknown): RtcIceServerDto[] | null {
-  if (!Array.isArray(rawList)) {
-    return null;
-  }
-
-  const normalized: RtcIceServerDto[] = [];
-
-  for (const item of rawList.slice(0, MAX_ICE_SERVERS)) {
-    if (!item || typeof item !== "object") continue;
-    const entry = item as MeteredRawIceServer;
-
-    const urls: string[] = [];
-    if (typeof entry.urls === "string") {
-      const sanitized = sanitizeIceUrl(entry.urls);
-      if (sanitized) urls.push(sanitized);
-    } else if (Array.isArray(entry.urls)) {
-      for (const u of entry.urls) {
-        if (typeof u === "string") {
-          const sanitized = sanitizeIceUrl(u);
-          if (sanitized) urls.push(sanitized);
-        }
-      }
-    } else if (typeof entry.url === "string") {
-      const sanitized = sanitizeIceUrl(entry.url);
-      if (sanitized) urls.push(sanitized);
-    }
-
-    if (urls.length === 0) continue;
-
-    const username = typeof entry.username === "string" && entry.username.trim() ? entry.username.trim() : undefined;
-    const credential =
-      typeof entry.credential === "string" && entry.credential.trim()
-        ? entry.credential.trim()
-        : typeof entry.password === "string" && entry.password.trim()
-        ? entry.password.trim()
-        : undefined;
-
-    normalized.push({
-      urls: urls.length === 1 ? urls[0] : urls,
-      ...(username ? { username } : {}),
-      ...(credential ? { credential } : {}),
-    });
+  if (
+    lower.startsWith("http:") ||
+    lower.startsWith("https:") ||
+    lower.startsWith("stun:") ||
+    lower.startsWith("stuns:") ||
+    lower.startsWith("turn:") ||
+    lower.startsWith("turns:") ||
+    lower.startsWith("javascript:")
+  ) {
+    return false;
   }
 
-  if (normalized.length === 0) {
-    return null;
+  // IPv4 format check (4 octets 0-255)
+  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  if (ipv4Regex.test(trimmed)) {
+    return true;
   }
 
-  return normalized;
+  // Domain/hostname check (RFC 1123)
+  const hostnameRegex = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+  if (hostnameRegex.test(trimmed) && trimmed.length <= 253) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
- * Server-side helper to create a temporary TURN credential and retrieve ICE servers from Metered.
- * Secrets and provider API keys are never leaked to the caller or logged.
+ * Validates the TURN realm string.
  */
-export async function fetchTemporaryIceServers(
+export function validateTurnRealm(realm: string): boolean {
+  if (!realm || typeof realm !== "string") return false;
+  const trimmed = realm.trim();
+  return trimmed.length > 0 && trimmed.length <= 255 && !/\s/.test(trimmed);
+}
+
+/**
+ * Validates the TURN shared secret.
+ */
+export function validateTurnSecret(secret: string): boolean {
+  if (!secret || typeof secret !== "string") return false;
+  const trimmed = secret.trim();
+  return trimmed.length > 0;
+}
+
+/**
+ * Generates temporary HMAC-SHA1 TURN REST API credentials for Coturn.
+ * Username format: `<expirationEpochSeconds>:trevo-<consultationPublicId>`
+ * Password/Credential format: `Base64(HMAC-SHA1(key = TURN_SHARED_SECRET, data = username))`
+ */
+export function generateTurnRestCredentials(
   consultationPublicId: string,
   scheduledEndAt: Date,
-  serverNow: Date = new Date(),
-  customFetch?: typeof fetch
-): Promise<TurnConfigResult> {
-  const domain = process.env.METERED_TURN_DOMAIN?.trim();
-  const secretKey = process.env.METERED_TURN_SECRET_KEY?.trim();
-  const region = (process.env.METERED_TURN_REGION || "global").trim();
-
-  if (!domain || !secretKey) {
-    return {
-      success: false,
-      error: "TURN_PROVIDER_NOT_CONFIGURED",
-      message: "Serviço de retransmissão de vídeo não configurado.",
-    };
-  }
-
-  if (!validateDomain(domain)) {
-    return {
-      success: false,
-      error: "TURN_CONFIG_INVALID",
-      message: "Configuração do domínio TURN inválida.",
-    };
-  }
-
-  if (!validateRegion(region)) {
-    return {
-      success: false,
-      error: "TURN_CONFIG_INVALID",
-      message: "Configuração de região TURN inválida.",
-    };
-  }
-
-  // Calculate remaining window: scheduledEndAt + 30 minutes
+  sharedSecret: string,
+  serverNow: Date = new Date()
+):
+  | { success: true; credentials: TemporaryTurnCredential }
+  | { success: false; error: string; message: string } {
+  // Server-authoritative expiration: scheduledEndAt + 30 minutes
   const credentialExpiration = new Date(scheduledEndAt.getTime() + 30 * 60 * 1000);
-  const remainingSeconds = Math.floor((credentialExpiration.getTime() - serverNow.getTime()) / 1000);
+  const expirationEpochSeconds = Math.floor(credentialExpiration.getTime() / 1000);
+  const currentEpochSeconds = Math.floor(serverNow.getTime() / 1000);
 
-  if (remainingSeconds <= 0) {
+  if (expirationEpochSeconds <= currentEpochSeconds) {
     return {
       success: false,
       error: "JOIN_WINDOW_CLOSED",
@@ -163,126 +126,113 @@ export async function fetchTemporaryIceServers(
     };
   }
 
-  // Cap TTL to a safe maximum (e.g. 86400s / 24h) and minimum 60s
-  const expiryInSeconds = Math.max(60, Math.min(remainingSeconds, 86400));
-  const safeLabel = `trevo-consultation-${consultationPublicId.slice(0, 8)}`;
+  // Opaque technical user ID without PII
+  const opaqueUserId = `trevo-${consultationPublicId}`;
+  const username = `${expirationEpochSeconds}:${opaqueUserId}`;
 
-  const activeFetch = customFetch || fetch;
-
-  // Step 1: Create temporary credential on Metered
-  let createRes: Response;
-  const createController = new AbortController();
-  const createTimer = setTimeout(() => createController.abort(), PROVIDER_TIMEOUT_MS);
-
-  try {
-    const createUrl = new URL(`https://${domain}/api/v1/turn/credential`);
-    createUrl.searchParams.set("secretKey", secretKey);
-
-    createRes = await activeFetch(createUrl.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        expiryInSeconds,
-        label: safeLabel,
-      }),
-      cache: "no-store",
-      signal: createController.signal,
-    });
-  } catch {
-    return {
-      success: false,
-      error: "TURN_PROVIDER_UNAVAILABLE",
-      message: "Falha de comunicação ao gerar credencial temporária.",
-    };
-  } finally {
-    clearTimeout(createTimer);
-  }
-
-  if (!createRes.ok) {
-    return {
-      success: false,
-      error: "TURN_PROVIDER_UNAVAILABLE",
-      message: "Provedor TURN indisponível no momento.",
-    };
-  }
-
-  let createData: MeteredCreateCredentialResponse;
-  try {
-    createData = (await createRes.json()) as MeteredCreateCredentialResponse;
-  } catch {
-    return {
-      success: false,
-      error: "TURN_CONFIG_INVALID",
-      message: "Resposta inválida do provedor TURN.",
-    };
-  }
-
-  if (!createData.apiKey || typeof createData.apiKey !== "string") {
-    return {
-      success: false,
-      error: "TURN_CONFIG_INVALID",
-      message: "Credencial temporária não retornou chave de acesso válida.",
-    };
-  }
-
-  // Step 2: Retrieve ICE servers array using credential-scoped apiKey
-  let iceRes: Response;
-  const iceController = new AbortController();
-  const iceTimer = setTimeout(() => iceController.abort(), PROVIDER_TIMEOUT_MS);
-
-  try {
-    const getIceUrl = new URL(`https://${domain}/api/v1/turn/credentials`);
-    getIceUrl.searchParams.set("apiKey", createData.apiKey);
-    if (region && region !== "global") {
-      getIceUrl.searchParams.set("region", region);
-    }
-
-    iceRes = await activeFetch(getIceUrl.toString(), {
-      method: "GET",
-      cache: "no-store",
-      signal: iceController.signal,
-    });
-  } catch {
-    return {
-      success: false,
-      error: "TURN_PROVIDER_UNAVAILABLE",
-      message: "Falha ao obter lista de servidores ICE temporários.",
-    };
-  } finally {
-    clearTimeout(iceTimer);
-  }
-
-  if (!iceRes.ok) {
-    return {
-      success: false,
-      error: "TURN_PROVIDER_UNAVAILABLE",
-      message: "Não foi possível carregar os servidores de mídia.",
-    };
-  }
-
-  let rawIceList: unknown;
-  try {
-    rawIceList = await iceRes.json();
-  } catch {
-    return {
-      success: false,
-      error: "TURN_CONFIG_INVALID",
-      message: "Formato de lista ICE inválido retornado pelo provedor.",
-    };
-  }
-
-  const normalizedIceServers = normalizeIceServers(rawIceList);
-  if (!normalizedIceServers) {
-    return {
-      success: false,
-      error: "TURN_CONFIG_INVALID",
-      message: "Nenhum servidor ICE válido foi retornado pelo provedor.",
-    };
-  }
+  // Standard Coturn TURN REST API HMAC-SHA1 signature
+  const credential = crypto
+    .createHmac("sha1", sharedSecret)
+    .update(username)
+    .digest("base64");
 
   return {
     success: true,
-    iceServers: normalizedIceServers,
-    expiresAt: credentialExpiration.toISOString(),
+    credentials: {
+      username,
+      credential,
+      expiresAt: credentialExpiration.toISOString(),
+    },
+  };
+}
+
+/**
+ * Builds standard WebRTC RTCIceServer array for self-hosted Coturn.
+ */
+export function buildIceServers(
+  host: string,
+  username: string,
+  credential: string
+): RtcIceServerDto[] {
+  return [
+    {
+      urls: [`stun:${host}:${DEFAULT_STUN_TURN_PORT}`],
+    },
+    {
+      urls: [
+        `turn:${host}:${DEFAULT_STUN_TURN_PORT}?transport=udp`,
+        `turn:${host}:${DEFAULT_STUN_TURN_PORT}?transport=tcp`,
+        `turns:${host}:${DEFAULT_TURNS_TLS_PORT}?transport=tcp`,
+      ],
+      username,
+      credential,
+    },
+  ];
+}
+
+/**
+ * Server-side helper to create temporary TURN credentials and construct ICE servers array locally.
+ * Zero external HTTP requests are made.
+ * Secrets are never exposed to the client.
+ */
+export async function fetchTemporaryIceServers(
+  consultationPublicId: string,
+  scheduledEndAt: Date,
+  serverNow: Date = new Date(),
+  overrideConfig?: Partial<TurnRuntimeConfig>
+): Promise<TurnConfigResult> {
+  const host = (overrideConfig?.host ?? process.env.TURN_SERVER_HOST)?.trim();
+  const sharedSecret = (overrideConfig?.sharedSecret ?? process.env.TURN_SHARED_SECRET)?.trim();
+  const realm = (overrideConfig?.realm ?? process.env.TURN_REALM)?.trim();
+
+  if (!host || !sharedSecret || !realm) {
+    return {
+      success: false,
+      error: "TURN_NOT_CONFIGURED",
+      message: "Serviço de retransmissão de vídeo não configurado.",
+    };
+  }
+
+  if (!validateTurnHost(host)) {
+    return {
+      success: false,
+      error: "TURN_CONFIG_INVALID",
+      message: "Configuração do servidor TURN inválida.",
+    };
+  }
+
+  if (!validateTurnRealm(realm) || !validateTurnSecret(sharedSecret)) {
+    return {
+      success: false,
+      error: "TURN_CONFIG_INVALID",
+      message: "Configuração TURN inválida.",
+    };
+  }
+
+  const credResult = generateTurnRestCredentials(
+    consultationPublicId,
+    scheduledEndAt,
+    sharedSecret,
+    serverNow
+  );
+
+  if (!credResult.success) {
+    return {
+      success: false,
+      error: credResult.error,
+      message: credResult.message,
+    };
+  }
+
+  const iceServers = buildIceServers(
+    host,
+    credResult.credentials.username,
+    credResult.credentials.credential
+  );
+
+  return {
+    success: true,
+    iceServers,
+    expiresAt: credResult.credentials.expiresAt,
   };
 }

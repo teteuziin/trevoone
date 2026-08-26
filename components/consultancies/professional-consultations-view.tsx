@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -269,17 +270,15 @@ export function ProfessionalConsultationsView({
                     <div>
                       {joinAllowed ? (
                         <div className="space-y-1">
-                          <button
-                            type="button"
-                            disabled
-                            aria-disabled="true"
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-[var(--brand)] text-white opacity-90 cursor-not-allowed shadow-xs"
+                          <Link
+                            href={`/consultoria/${consultancySlug}/consultas/${item.publicId}/preflight`}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-[var(--brand)] text-white hover:opacity-90 transition-opacity shadow-xs"
                           >
-                            <svg className="w-3.5 h-3.5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
                               <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-2.36a.75.75 0 0 1 1.03.682v6.356a.75.75 0 0 1-1.03.682l-4.72-2.36M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9A2.25 2.25 0 0 0 13.5 5.25h-9A2.25 2.25 0 0 0 2.25 7.5v9A2.25 2.25 0 0 0 4.5 18.75Z" />
                             </svg>
                             Entrar na consulta
-                          </button>
+                          </Link>
                           <p className="text-[11px] text-[var(--text-secondary)]">
                             Verificação de câmera e microfone será iniciada antes da chamada.
                           </p>

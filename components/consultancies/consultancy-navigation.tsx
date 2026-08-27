@@ -506,8 +506,18 @@ export function ConsultancyNavigation({
                       )}
                     </div>
 
-                    {/* Quick Access to Account Security */}
-                    <div className="px-1">
+                    {/* Quick Access to Account Profile & Security */}
+                    <div className="px-1 space-y-1">
+                      <Link
+                        href="/conta/perfil"
+                        onClick={() => setDesktopProfileOpen(false)}
+                        className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors min-h-[44px]"
+                      >
+                        <svg className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                        <span>Meu perfil</span>
+                      </Link>
                       <Link
                         href="/conta/seguranca"
                         onClick={() => setDesktopProfileOpen(false)}
@@ -660,6 +670,21 @@ export function ConsultancyNavigation({
                       {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
                     </span>
                   )}
+                </Link>
+
+                <Link
+                  href="/conta/perfil"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
+                    pathname === "/conta/perfil"
+                      ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                  }`}
+                >
+                  <svg className="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
+                  <span>Meu perfil</span>
                 </Link>
 
                 <Link

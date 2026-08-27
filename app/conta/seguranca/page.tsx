@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
+import { getMyProfile, computeEffectiveUsername } from "@/lib/account/user-profile";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/account/user-avatar";
 import { ChangePasswordForm } from "./change-password-form";
 
 export default async function AccountSecurityPage() {
@@ -12,7 +14,14 @@ export default async function AccountSecurityPage() {
     redirect("/login");
   }
 
-  const userInitial = (session.fullName?.trim().charAt(0) || "U").toUpperCase();
+  const profile = await getMyProfile(
+    session.userId,
+    session.userPublicId,
+    session.fullName,
+    session.email
+  );
+
+  const effectiveUsername = profile?.effectiveUsername || computeEffectiveUsername(session.userPublicId);
 
   return (
     <main className="min-h-dvh w-full bg-[var(--background)] text-[var(--text-primary)] p-4 sm:p-6 lg:p-8 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]">
@@ -41,13 +50,19 @@ export default async function AccountSecurityPage() {
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 shrink-0 rounded-2xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-bold text-lg flex items-center justify-center select-none shadow-2xs">
-                {userInitial}
-              </div>
+              <UserAvatar
+                fullName={session.fullName}
+                hasProfilePhoto={profile?.hasProfilePhoto}
+                profilePhotoUpdatedAt={profile?.profilePhotoUpdatedAt}
+                size="lg"
+              />
               <div className="min-w-0 space-y-0.5">
                 <h2 id="user-info-heading" className="text-base font-bold text-[var(--text-primary)] truncate">
                   {session.fullName}
                 </h2>
+                <p className="text-xs font-semibold text-[var(--brand)] truncate">
+                  {effectiveUsername}
+                </p>
                 <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
                   {session.email}
                 </p>
@@ -55,6 +70,12 @@ export default async function AccountSecurityPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              <Link
+                href="/conta/perfil"
+                className="inline-flex items-center justify-center px-3.5 py-1.5 text-xs font-semibold text-[var(--brand-foreground)] bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors min-h-[44px]"
+              >
+                Editar perfil →
+              </Link>
               <Badge variant="success" size="sm">
                 Conta ativa
               </Badge>

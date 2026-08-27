@@ -165,11 +165,18 @@ export function PlatformAdminNavigation({
             </Badge>
             <AppearanceSegmentedControl compact />
             <Link
+              href="/conta/perfil"
+              className="inline-flex items-center px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+              title="Meu perfil"
+            >
+              Perfil
+            </Link>
+            <Link
               href="/conta/seguranca"
               className="inline-flex items-center px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
               title="Conta e segurança"
             >
-              Conta
+              Segurança
             </Link>
             <NotificationBell unreadCount={unreadNotificationsCount} />
             <LogoutButton
@@ -349,6 +356,15 @@ export function PlatformAdminNavigation({
                       </span>
                     )}
                   </div>
+                  <span className="text-xs text-[var(--text-tertiary)]">→</span>
+                </Link>
+
+                <Link
+                  href="/conta/perfil"
+                  onClick={() => setDrawerOpen(false)}
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)] transition-colors min-h-[44px]"
+                >
+                  <span>Meu perfil</span>
                   <span className="text-xs text-[var(--text-tertiary)]">→</span>
                 </Link>
 

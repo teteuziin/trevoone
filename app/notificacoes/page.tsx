@@ -6,6 +6,7 @@ import { getVapidPublicKey } from "@/lib/notifications/web-push-sender";
 import { PageHeader } from "@/components/ui/page-header";
 import { NotificationCenterView } from "@/components/notifications/notification-center-view";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
+import { BetaBadge } from "@/components/brand/beta-badge";
 import Link from "next/link";
 
 interface NotificacoesPageProps {
@@ -42,9 +43,12 @@ export default async function NotificacoesPage({ searchParams }: NotificacoesPag
       {/* Topbar Header */}
       <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-15 flex items-center justify-between">
-          <Link href="/selecionar-consultoria" className="flex items-center gap-2.5 focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-1 px-1.5 -ml-1.5">
-            <TrevoOneLogo priority size={34} showWordmark />
-          </Link>
+          <div className="flex items-center gap-2.5">
+            <Link href="/selecionar-consultoria" className="flex items-center gap-2.5 focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-1 px-1.5 -ml-1.5">
+              <TrevoOneLogo priority size={34} showWordmark />
+            </Link>
+            <BetaBadge />
+          </div>
 
           <Link
             href="/selecionar-consultoria"

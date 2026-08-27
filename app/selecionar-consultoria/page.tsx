@@ -7,6 +7,7 @@ import {
 } from "@/lib/consultancies/context";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
+import { BetaBadge } from "@/components/brand/beta-badge";
 import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -38,8 +39,9 @@ export default async function SelecionarConsultoriaPage() {
         <div className="w-full max-w-[480px] mx-auto flex flex-col items-center space-y-6 my-auto">
           {/* Brand Header */}
           <div className="flex flex-col items-center space-y-2">
-            <div className="shrink-0 transition-transform duration-200 hover:scale-[1.02]">
+            <div className="flex items-center gap-2.5 shrink-0 transition-transform duration-200 hover:scale-[1.02]">
               <TrevoOneLogo priority showWordmark size={42} />
+              <BetaBadge />
             </div>
           </div>
 

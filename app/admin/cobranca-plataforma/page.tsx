@@ -10,6 +10,7 @@ import {
   formatIsoDateToBr,
 } from "@/lib/platform-admin/billing";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
+import { BetaBadge } from "@/components/brand/beta-badge";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -65,10 +66,11 @@ export default async function PlatformBillingOverviewPage() {
       {/* Platform Admin Header */}
       <header className="sticky top-0 z-30 w-full bg-white/90 backdrop-blur-xs border-b border-zinc-200/80">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <Link href="/admin" className="w-[110px] sm:w-[130px] shrink-0">
               <TrevoOneLogo priority size={130} />
             </Link>
+            <BetaBadge />
             <span className="hidden sm:inline-block text-zinc-300">|</span>
             <span className="hidden sm:inline-block text-xs font-semibold text-zinc-600 truncate uppercase tracking-wider">
               Cobrança da Plataforma

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
+import { BetaBadge } from "@/components/brand/beta-badge";
 import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
 import { AppearanceSegmentedControl } from "@/components/consultancies/consultancy-navigation";
 import { Badge } from "@/components/ui/badge";
@@ -188,10 +189,11 @@ export default async function AdminDashboardPage() {
       {/* Topbar de Governança Global */}
       <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-15 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2.5 sm:space-x-3">
             <div className="shrink-0">
               <TrevoOneLogo priority showWordmark size={36} />
             </div>
+            <BetaBadge />
             <span className="hidden sm:inline-block text-xs font-semibold uppercase tracking-wider text-[var(--border-strong)]">
               |
             </span>

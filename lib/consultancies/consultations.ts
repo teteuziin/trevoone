@@ -5,6 +5,10 @@ import { formatConsultancyDateTime } from "./timezone";
 import { resolveConsultancyContext } from "./context";
 import { resolveStudentModuleAccess } from "./student-module-access";
 import type { StudentFinancialBlockingCharge } from "./finance";
+import {
+  createNotificationInTransaction,
+  deliverNotificationAfterCommit,
+} from "@/services/notification-service";
 
 // ==========================================
 // CONSTANTS & TYPES
@@ -1187,9 +1191,17 @@ export async function rescheduleConsultation(
     // 1. Fetch consultation for update (tenant-scoped)
     const [rows] = await connection.query<RawConsultationRow[]>(
       `SELECT c.*,
-              pm.user_id AS professional_user_id
+              sm.user_id AS student_user_id,
+              su.full_name AS student_name,
+              pm.user_id AS professional_user_id,
+              pu.full_name AS professional_name,
+              COALESCE(con.timezone, 'America/Sao_Paulo') AS consultancy_timezone
        FROM consultations c
+       JOIN consultancies con ON con.id = c.consultancy_id
+       JOIN consultancy_members sm ON sm.id = c.student_membership_id
+       JOIN users su ON su.id = sm.user_id
        JOIN consultancy_members pm ON pm.id = c.professional_membership_id
+       JOIN users pu ON pu.id = pm.user_id
        WHERE c.consultancy_id = ? AND c.public_id = ?
        FOR UPDATE`,
       [context.consultancyId, consultationPublicId]
@@ -1262,16 +1274,60 @@ export async function rescheduleConsultation(
       };
     }
 
+    const mutationTime = new Date();
+    const updatedAtMs = mutationTime.getTime();
+
     // 6. Update scheduled times
     await connection.query(
       `UPDATE consultations
        SET scheduled_start_at = ?,
-           scheduled_end_at = ?
+           scheduled_end_at = ?,
+           updated_at = ?
        WHERE id = ?`,
-      [scheduledStartAt, scheduledEndAt, consultation.id]
+      [scheduledStartAt, scheduledEndAt, mutationTime, consultation.id]
     );
 
+    const formattedNewDateTime = formatConsultancyDateTime(
+      consultation.consultancy_timezone,
+      scheduledStartAt
+    );
+
+    // 7. Create domain notifications inside transaction
+    const studentNotif = await createNotificationInTransaction(connection, {
+      userId: Number(consultation.student_user_id),
+      consultancyId: context.consultancyId,
+      priority: "HIGH",
+      eventType: "CONSULTATION_RESCHEDULED",
+      title: "Consulta remarcada",
+      body: `Sua consulta com ${consultation.professional_name} foi remarcada para ${formattedNewDateTime}.`,
+      deepLink: `/consultoria/${encodeURIComponent(consultancySlug)}/consultas`,
+      dedupeKey: `consultation:${consultationPublicId}:rescheduled:${updatedAtMs}:${consultation.student_user_id}`,
+      sourceType: "CONSULTATION",
+      sourcePublicId: consultationPublicId,
+    });
+
+    const profNotif = await createNotificationInTransaction(connection, {
+      userId: Number(consultation.professional_user_id),
+      consultancyId: context.consultancyId,
+      priority: "HIGH",
+      eventType: "CONSULTATION_RESCHEDULED",
+      title: "Consulta remarcada",
+      body: `Sua consulta com ${consultation.student_name} foi remarcada para ${formattedNewDateTime}.`,
+      deepLink: `/consultoria/${encodeURIComponent(consultancySlug)}/consultas`,
+      dedupeKey: `consultation:${consultationPublicId}:rescheduled:${updatedAtMs}:${consultation.professional_user_id}`,
+      sourceType: "CONSULTATION",
+      sourcePublicId: consultationPublicId,
+    });
+
     await connection.commit();
+
+    // Deliver Web Push after commit
+    try {
+      await deliverNotificationAfterCommit(studentNotif.id);
+    } catch {}
+    try {
+      await deliverNotificationAfterCommit(profNotif.id);
+    } catch {}
 
     const updated = await findConsultationByPublicIdForConsultancy(
       context.consultancyId,
@@ -1377,10 +1433,16 @@ export async function cancelConsultation(
     const [rows] = await connection.query<RawConsultationRow[]>(
       `SELECT c.*,
               sm.user_id AS student_user_id,
-              pm.user_id AS professional_user_id
+              su.full_name AS student_name,
+              pm.user_id AS professional_user_id,
+              pu.full_name AS professional_name,
+              COALESCE(con.timezone, 'America/Sao_Paulo') AS consultancy_timezone
        FROM consultations c
+       JOIN consultancies con ON con.id = c.consultancy_id
        JOIN consultancy_members sm ON sm.id = c.student_membership_id
+       JOIN users su ON su.id = sm.user_id
        JOIN consultancy_members pm ON pm.id = c.professional_membership_id
+       JOIN users pu ON pu.id = pm.user_id
        WHERE c.consultancy_id = ? AND c.public_id = ?
        FOR UPDATE`,
       [context.consultancyId, consultationPublicId]
@@ -1475,7 +1537,47 @@ export async function cancelConsultation(
       [actorUserId, normalizedReason, consultation.id]
     );
 
+    const formattedScheduledDateTime = formatConsultancyDateTime(
+      consultation.consultancy_timezone,
+      new Date(consultation.scheduled_start_at)
+    );
+
+    // 5. Create domain notifications inside transaction
+    const studentNotif = await createNotificationInTransaction(connection, {
+      userId: Number(consultation.student_user_id),
+      consultancyId: context.consultancyId,
+      priority: "HIGH",
+      eventType: "CONSULTATION_CANCELED",
+      title: "Consulta cancelada",
+      body: `A consulta com ${consultation.professional_name} marcada para ${formattedScheduledDateTime} foi cancelada.`,
+      deepLink: `/consultoria/${encodeURIComponent(consultancySlug)}/consultas`,
+      dedupeKey: `consultation:${consultationPublicId}:canceled:${consultation.student_user_id}`,
+      sourceType: "CONSULTATION",
+      sourcePublicId: consultationPublicId,
+    });
+
+    const profNotif = await createNotificationInTransaction(connection, {
+      userId: Number(consultation.professional_user_id),
+      consultancyId: context.consultancyId,
+      priority: "HIGH",
+      eventType: "CONSULTATION_CANCELED",
+      title: "Consulta cancelada",
+      body: `A consulta com ${consultation.student_name} marcada para ${formattedScheduledDateTime} foi cancelada.`,
+      deepLink: `/consultoria/${encodeURIComponent(consultancySlug)}/consultas`,
+      dedupeKey: `consultation:${consultationPublicId}:canceled:${consultation.professional_user_id}`,
+      sourceType: "CONSULTATION",
+      sourcePublicId: consultationPublicId,
+    });
+
     await connection.commit();
+
+    // Deliver Web Push after commit
+    try {
+      await deliverNotificationAfterCommit(studentNotif.id);
+    } catch {}
+    try {
+      await deliverNotificationAfterCommit(profNotif.id);
+    } catch {}
 
     const updated = await findConsultationByPublicIdForConsultancy(
       context.consultancyId,

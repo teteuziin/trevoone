@@ -12,10 +12,23 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 
+export type StudentOnboardingItemPresentation = StudentOnboardingRequirementItem & {
+  nativeFormKey: string | null;
+  nativeSubmissionStatus: "DRAFT" | "SUBMITTED" | "NOT_STARTED" | null;
+  hasNativeContent: boolean;
+};
+
+export type StudentOnboardingPresentationStatus = Omit<
+  StudentOnboardingStatusResult,
+  "requirements"
+> & {
+  requirements: StudentOnboardingItemPresentation[];
+};
+
 type Props = {
   consultancySlug: string;
   consultancyName: string;
-  initialStatus: StudentOnboardingStatusResult;
+  initialStatus: StudentOnboardingPresentationStatus;
 };
 
 function isValidHttpsUrl(url: string): boolean {
@@ -47,7 +60,7 @@ export function StudentOnboardingPanel({
   const { totalRequirements, confirmedRequirements, isComplete, requirements } =
     initialStatus;
 
-  const handleSubmit = (req: StudentOnboardingRequirementItem) => {
+  const handleSubmit = (req: StudentOnboardingItemPresentation) => {
     setFeedback(null);
     setSubmittingId(req.publicId);
 
@@ -91,7 +104,7 @@ export function StudentOnboardingPanel({
         <div className="flex items-center gap-2">
           <Link
             href={`/consultoria/${consultancySlug}`}
-            className="inline-flex items-center text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+            className="inline-flex items-center text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors min-h-[44px]"
           >
             ← Voltar ao painel
           </Link>
@@ -109,7 +122,7 @@ export function StudentOnboardingPanel({
       </div>
 
       {/* Progress Card */}
-      <div className="p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+      <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
             Progresso Geral
@@ -120,15 +133,15 @@ export function StudentOnboardingPanel({
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden border border-[var(--border-subtle)]">
+        <div className="w-full h-2 rounded-full bg-[var(--surface-sunken)] overflow-hidden">
           <div
-            className="h-full bg-[var(--brand-strong)] transition-all duration-300 rounded-full"
+            className="h-full bg-[var(--brand)] transition-all duration-300 rounded-full"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
 
         {isComplete ? (
-          <div className="flex items-center gap-2 pt-1 text-xs font-semibold text-[var(--brand-foreground)]">
+          <div className="flex items-center gap-2 pt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
             <svg
               className="w-4 h-4 shrink-0"
               fill="none"
@@ -146,8 +159,7 @@ export function StudentOnboardingPanel({
           </div>
         ) : (
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-            Após informar que preencheu cada formulário, a consultoria fará a conferência para
-            confirmar seu acesso.
+            Preencha cada formulário para que a equipe técnica confirme e libere suas prescrições.
           </p>
         )}
       </div>
@@ -171,13 +183,17 @@ export function StudentOnboardingPanel({
           />
         ) : (
           requirements.map((req, index) => {
-            const hasValidUrl = isValidHttpsUrl(req.externalUrl);
+            const isNative = Boolean(req.nativeFormKey);
+            const nativeUrl = req.nativeFormKey
+              ? `/consultoria/${consultancySlug}/onboarding/${req.nativeFormKey}`
+              : null;
+            const isDraft = req.status === "PENDING" && req.nativeSubmissionStatus === "DRAFT";
             const isThisSubmitting = isPending && submittingId === req.publicId;
 
             return (
               <div
                 key={req.publicId}
-                className="p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 hover:border-[var(--border-strong)] transition-colors"
+                className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 hover:border-[var(--border-strong)] transition-colors"
               >
                 {/* Header of Item */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -205,33 +221,52 @@ export function StudentOnboardingPanel({
                     )}
 
                     {req.status === "PENDING" && (
-                      <Badge variant="neutral" size="sm">
-                        Pendente
-                      </Badge>
+                      isDraft ? (
+                        <Badge variant="brand" size="sm">
+                          Em preenchimento
+                        </Badge>
+                      ) : (
+                        <Badge variant="neutral" size="sm">
+                          Pendente
+                        </Badge>
+                      )
                     )}
                   </div>
                 </div>
 
-                {/* Body / Description based on Status */}
+                {/* Body / Description based on Status & Native Type */}
                 <div className="text-xs text-[var(--text-secondary)] leading-relaxed">
                   {req.status === "CONFIRMED" && (
-                    <p className="text-[var(--brand-foreground)] font-medium">
+                    <p className="text-emerald-600 dark:text-emerald-400 font-medium">
                       Esta etapa foi verificada e confirmada pela consultoria.
                     </p>
                   )}
 
                   {req.status === "SUBMITTED" && (
                     <p className="text-[var(--warning-foreground)] font-medium">
-                      Você declarou o preenchimento deste formulário. A equipe da consultoria
-                      está revisando as respostas para confirmar seu acesso.
+                      {isNative
+                        ? "Formulário enviado com sucesso. A equipe da consultoria está revisando as respostas para confirmar seu acesso."
+                        : "Você declarou o preenchimento deste formulário. A equipe da consultoria está revisando as respostas para confirmar seu acesso."}
                     </p>
                   )}
 
                   {req.status === "PENDING" && (
-                    <p>
-                      Abra o formulário externo no link abaixo, responda todas as perguntas e, ao
-                      finalizar, clique em &ldquo;Já preenchi&rdquo;.
-                    </p>
+                    isNative ? (
+                      isDraft ? (
+                        <p>
+                          Você possui um rascunho salvo deste formulário. Continue de onde parou para finalizar o envio.
+                        </p>
+                      ) : (
+                        <p>
+                          Preencha este formulário diretamente pela plataforma para avançar no seu onboarding.
+                        </p>
+                      )
+                    ) : (
+                      <p>
+                        Abra o formulário externo no link abaixo, responda todas as perguntas e, ao
+                        finalizar, clique em &ldquo;Já preenchi&rdquo;.
+                      </p>
+                    )
                   )}
                 </div>
 
@@ -247,41 +282,78 @@ export function StudentOnboardingPanel({
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 pt-1">
-                  {hasValidUrl && (
-                    <a
-                      href={req.externalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 py-2 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] text-[var(--text-primary)] font-semibold text-xs rounded-lg border border-[var(--border-default)] shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
-                    >
-                      <span>Abrir formulário</span>
-                      <svg
-                        className="w-3.5 h-3.5 text-[var(--text-tertiary)]"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                        />
-                      </svg>
-                    </a>
+                  {/* NATIVE FORM ACTIONS */}
+                  {isNative && nativeUrl && (
+                    <>
+                      {req.status === "PENDING" && (
+                        <Link href={nativeUrl} className="w-full sm:w-auto">
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            className="w-full sm:w-auto min-h-[44px] px-5 bg-[#00A859] hover:bg-[#008f4c] font-semibold"
+                          >
+                            {isDraft ? "Continuar preenchendo →" : "Começar formulário →"}
+                          </Button>
+                        </Link>
+                      )}
+
+                      {(req.status === "SUBMITTED" || req.status === "CONFIRMED") && (
+                        <Link href={nativeUrl} className="w-full sm:w-auto">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full sm:w-auto min-h-[44px]"
+                          >
+                            Ver respostas
+                          </Button>
+                        </Link>
+                      )}
+                    </>
                   )}
 
-                  {req.status === "PENDING" && (
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="sm"
-                      isLoading={isThisSubmitting}
-                      disabled={isPending}
-                      onClick={() => handleSubmit(req)}
-                    >
-                      {isThisSubmitting ? "Enviando..." : "Já preenchi"}
-                    </Button>
+                  {/* GENERIC EXTERNAL FORM ACTIONS (Non-native only) */}
+                  {!isNative && (
+                    <>
+                      {isValidHttpsUrl(req.externalUrl) && (
+                        <a
+                          href={req.externalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 py-2 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] text-[var(--text-primary)] font-semibold text-xs rounded-xl border border-[var(--border-default)] shadow-2xs transition-colors focus-visible:outline-[var(--brand)] min-h-[44px]"
+                        >
+                          <span>Abrir formulário</span>
+                          <svg
+                            className="w-3.5 h-3.5 text-[var(--text-tertiary)]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            />
+                          </svg>
+                        </a>
+                      )}
+
+                      {req.status === "PENDING" && (
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          isLoading={isThisSubmitting}
+                          disabled={isPending}
+                          onClick={() => handleSubmit(req)}
+                          className="min-h-[44px]"
+                        >
+                          {isThisSubmitting ? "Enviando..." : "Já preenchi"}
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -294,7 +366,7 @@ export function StudentOnboardingPanel({
       <div className="pt-4 border-t border-[var(--border-subtle)]">
         <Link
           href={`/consultoria/${consultancySlug}`}
-          className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] border border-[var(--border-default)] text-[var(--text-primary)] font-semibold text-sm rounded-lg shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
+          className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] border border-[var(--border-default)] text-[var(--text-primary)] font-semibold text-sm rounded-xl shadow-2xs transition-colors focus-visible:outline-[var(--brand)] min-h-[44px]"
         >
           Voltar ao painel da consultoria
         </Link>

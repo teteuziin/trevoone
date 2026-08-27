@@ -12,10 +12,21 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 
+export type AdminOnboardingItemPresentation = StudentOnboardingRequirementItem & {
+  nativeFormKey: string | null;
+};
+
+export type AdminStudentOnboardingPresentationData = Omit<
+  AdminStudentOnboardingResult,
+  "requirements"
+> & {
+  requirements?: AdminOnboardingItemPresentation[];
+};
+
 type Props = {
   consultancySlug: string;
   memberPublicId: string;
-  data: AdminStudentOnboardingResult;
+  data: AdminStudentOnboardingPresentationData;
 };
 
 function isValidHttpsUrl(url: string): boolean {
@@ -62,7 +73,7 @@ export function AdminStudentOnboardingPanel({
   };
   const requirements = data.requirements || [];
 
-  const handleConfirm = (req: StudentOnboardingRequirementItem) => {
+  const handleConfirm = (req: AdminOnboardingItemPresentation) => {
     setFeedback(null);
     setConfirmingId(req.publicId);
 
@@ -112,7 +123,7 @@ export function AdminStudentOnboardingPanel({
         <div className="flex items-center gap-2">
           <Link
             href={`/consultoria/${consultancySlug}/membros`}
-            className="inline-flex items-center text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+            className="inline-flex items-center text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors min-h-[44px]"
           >
             ← Voltar ao diretório de membros
           </Link>
@@ -127,7 +138,7 @@ export function AdminStudentOnboardingPanel({
       </div>
 
       {/* Student Info & Progress Card */}
-      <div className="p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4">
+      <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
@@ -157,9 +168,9 @@ export function AdminStudentOnboardingPanel({
             <span>Progresso da liberação</span>
             <span className="font-semibold text-[var(--text-primary)]">{progressPercent}%</span>
           </div>
-          <div className="w-full h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden border border-[var(--border-subtle)]">
+          <div className="w-full h-2 rounded-full bg-[var(--surface-sunken)] overflow-hidden">
             <div
-              className="h-full bg-[var(--brand-strong)] transition-all duration-300 rounded-full"
+              className="h-full bg-[var(--brand)] transition-all duration-300 rounded-full"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -185,13 +196,16 @@ export function AdminStudentOnboardingPanel({
           />
         ) : (
           requirements.map((req, index) => {
-            const hasValidUrl = isValidHttpsUrl(req.externalUrl);
+            const isNative = Boolean(req.nativeFormKey);
+            const nativeReviewUrl = req.nativeFormKey
+              ? `/consultoria/${consultancySlug}/membros/${memberPublicId}/onboarding/${req.nativeFormKey}`
+              : null;
             const isThisConfirming = isPending && confirmingId === req.publicId;
 
             return (
               <div
                 key={req.publicId}
-                className="p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 hover:border-[var(--border-strong)] transition-colors"
+                className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 hover:border-[var(--border-strong)] transition-colors"
               >
                 {/* Header of Card */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -231,20 +245,21 @@ export function AdminStudentOnboardingPanel({
                   {req.status === "SUBMITTED" && (
                     <div className="space-y-1">
                       <p className="text-[var(--warning-foreground)] font-medium">
-                        Informado pelo aluno em: {formatDate(req.submittedAt)}
+                        Enviado pelo aluno em: {formatDate(req.submittedAt)}
                       </p>
                       <p className="text-[var(--text-tertiary)]">
-                        O aluno declarou ter preenchido o formulário. Verifique o recebimento das
-                        respostas e clique em &ldquo;Confirmar&rdquo; para validar esta etapa.
+                        {isNative
+                          ? "O aluno enviou este formulário nativo. Clique em 'Revisar respostas' para analisar os dados e confirmar."
+                          : "O aluno declarou ter preenchido o formulário externo. Verifique o recebimento e confirme."}
                       </p>
                     </div>
                   )}
 
                   {req.status === "CONFIRMED" && (
                     <div className="space-y-1">
-                      <p className="text-[var(--brand-foreground)] font-medium">
+                      <p className="text-emerald-600 dark:text-emerald-400 font-medium">
                         Confirmado em: {formatDate(req.confirmedAt)}
-                        {req.submittedAt ? ` (informado em ${formatDate(req.submittedAt)})` : ""}
+                        {req.submittedAt ? ` (enviado em ${formatDate(req.submittedAt)})` : ""}
                       </p>
                       <p className="text-[var(--text-tertiary)]">
                         Esta etapa está validada e conta para a liberação de treinos e dieta.
@@ -254,7 +269,7 @@ export function AdminStudentOnboardingPanel({
 
                   {req.status === "PENDING" && (
                     <p className="text-[var(--text-tertiary)]">
-                      O aluno ainda não informou o preenchimento deste formulário.
+                      O aluno ainda não finalizou o preenchimento deste formulário.
                     </p>
                   )}
                 </div>
@@ -271,41 +286,81 @@ export function AdminStudentOnboardingPanel({
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 pt-1">
-                  {hasValidUrl && (
-                    <a
-                      href={req.externalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 py-2 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] text-[var(--text-primary)] font-semibold text-xs rounded-lg border border-[var(--border-default)] shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
-                    >
-                      <span>Abrir formulário</span>
-                      <svg
-                        className="w-3.5 h-3.5 text-[var(--text-tertiary)]"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                        />
-                      </svg>
-                    </a>
+                  {/* NATIVE FORM ACTIONS */}
+                  {isNative && nativeReviewUrl && (
+                    <>
+                      <Link href={nativeReviewUrl} className="w-full sm:w-auto">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:w-auto min-h-[44px]"
+                        >
+                          {req.status === "SUBMITTED"
+                            ? "Revisar respostas →"
+                            : req.status === "CONFIRMED"
+                            ? "Ver respostas"
+                            : "Ver formulário"}
+                        </Button>
+                      </Link>
+
+                      {req.status === "SUBMITTED" && (
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          isLoading={isThisConfirming}
+                          disabled={isPending}
+                          onClick={() => handleConfirm(req)}
+                          className="w-full sm:w-auto min-h-[44px] px-5 bg-[#00A859] hover:bg-[#008f4c] font-semibold"
+                        >
+                          {isThisConfirming ? "Confirmando..." : "Confirmar ✓"}
+                        </Button>
+                      )}
+                    </>
                   )}
 
-                  {req.status === "SUBMITTED" && (
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="sm"
-                      isLoading={isThisConfirming}
-                      disabled={isPending}
-                      onClick={() => handleConfirm(req)}
-                    >
-                      {isThisConfirming ? "Confirmando..." : "Confirmar"}
-                    </Button>
+                  {/* GENERIC EXTERNAL FORM ACTIONS (Non-native only) */}
+                  {!isNative && (
+                    <>
+                      {isValidHttpsUrl(req.externalUrl) && (
+                        <a
+                          href={req.externalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 py-2 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] text-[var(--text-primary)] font-semibold text-xs rounded-xl border border-[var(--border-default)] shadow-2xs transition-colors focus-visible:outline-[var(--brand)] min-h-[44px]"
+                        >
+                          <span>Abrir formulário</span>
+                          <svg
+                            className="w-3.5 h-3.5 text-[var(--text-tertiary)]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            />
+                          </svg>
+                        </a>
+                      )}
+
+                      {req.status === "SUBMITTED" && (
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          isLoading={isThisConfirming}
+                          disabled={isPending}
+                          onClick={() => handleConfirm(req)}
+                          className="min-h-[44px]"
+                        >
+                          {isThisConfirming ? "Confirmando..." : "Confirmar"}
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -318,7 +373,7 @@ export function AdminStudentOnboardingPanel({
       <div className="pt-4 border-t border-[var(--border-subtle)]">
         <Link
           href={`/consultoria/${consultancySlug}/membros`}
-          className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] border border-[var(--border-default)] text-[var(--text-primary)] font-semibold text-sm rounded-lg shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
+          className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] border border-[var(--border-default)] text-[var(--text-primary)] font-semibold text-sm rounded-xl shadow-2xs transition-colors focus-visible:outline-[var(--brand)] min-h-[44px]"
         >
           Voltar ao diretório de membros
         </Link>

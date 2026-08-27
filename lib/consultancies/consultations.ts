@@ -1691,3 +1691,217 @@ export async function resolveConsultationJoinAccess(
   };
 }
 
+export type ConsultationCallActionResult =
+  | {
+      success: true;
+      status: "IN_PROGRESS" | "COMPLETED";
+      startedAt?: string | null;
+      endedAt?: string | null;
+    }
+  | {
+      success: false;
+      error: string;
+      message: string;
+    };
+
+/**
+ * Server-authoritative transition: SCHEDULED -> IN_PROGRESS.
+ * Triggered exclusively when a WebRTC peer connection reaches 'connected' state.
+ * Idempotent for subsequent calls while IN_PROGRESS.
+ */
+export async function startConsultationCall(
+  actorUserId: number,
+  consultancySlug: string,
+  consultationPublicId: string,
+  now: Date = new Date()
+): Promise<ConsultationCallActionResult> {
+  const access = await resolveConsultationJoinAccess(
+    actorUserId,
+    consultancySlug,
+    consultationPublicId,
+    now
+  );
+
+  if (!access.allowed) {
+    return {
+      success: false,
+      error: access.reason,
+      message:
+        access.reason === "STUDENT_BILLING_BLOCKED"
+          ? "Acesso bloqueado por pendência financeira."
+          : access.reason === "CONSULTATION_FORBIDDEN"
+          ? "Apenas participantes autorizados podem iniciar a consulta."
+          : access.reason === "CONSULTATION_CANCELED"
+          ? "Esta consulta foi cancelada."
+          : access.reason === "CONSULTATION_COMPLETED"
+          ? "Esta consulta já foi encerrada."
+          : "Não foi possível ingressar na chamada.",
+    };
+  }
+
+  const { consultation } = access;
+
+  if (consultation.status === "IN_PROGRESS") {
+    // Idempotent success
+    return {
+      success: true,
+      status: "IN_PROGRESS",
+      startedAt: consultation.startedAt ? consultation.startedAt.toISOString() : null,
+    };
+  }
+
+  if (consultation.status !== "SCHEDULED") {
+    return {
+      success: false,
+      error: "INVALID_STATUS_FOR_START",
+      message: "A consulta não está agendada para início.",
+    };
+  }
+
+  const connection = await getDbConnection();
+  try {
+    const [result] = await connection.query<ResultSetHeader>(
+      `UPDATE consultations
+       SET status = 'IN_PROGRESS',
+           started_at = COALESCE(started_at, ?),
+           updated_at = ?
+       WHERE public_id = ? AND status = 'SCHEDULED'`,
+      [now, now, consultation.publicId]
+    );
+
+    if (result.affectedRows === 0) {
+      // Check if it was already updated concurrently
+      const [latest] = await connection.query<RawConsultationRow[]>(
+        "SELECT status, started_at FROM consultations WHERE public_id = ? LIMIT 1",
+        [consultation.publicId]
+      );
+      if (latest && latest[0] && latest[0].status === "IN_PROGRESS") {
+        return {
+          success: true,
+          status: "IN_PROGRESS",
+          startedAt: latest[0].started_at ? new Date(latest[0].started_at).toISOString() : now.toISOString(),
+        };
+      }
+      return {
+        success: false,
+        error: "CONCURRENT_MODIFICATION",
+        message: "Não foi possível iniciar a consulta.",
+      };
+    }
+
+    return {
+      success: true,
+      status: "IN_PROGRESS",
+      startedAt: now.toISOString(),
+    };
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Server-authoritative transition: IN_PROGRESS -> COMPLETED.
+ * Triggered by an explicit "Encerrar consulta" action from an authorized participant.
+ * Idempotent for subsequent calls once COMPLETED.
+ */
+export async function endConsultationCall(
+  actorUserId: number,
+  consultancySlug: string,
+  consultationPublicId: string,
+  now: Date = new Date()
+): Promise<ConsultationCallActionResult> {
+  const access = await resolveConsultationJoinAccess(
+    actorUserId,
+    consultancySlug,
+    consultationPublicId,
+    now
+  );
+
+  // If already COMPLETED and caller is an authorized participant, allow idempotent return
+  if (!access.allowed) {
+    if (access.reason === "CONSULTATION_COMPLETED" && access.consultation) {
+      return {
+        success: true,
+        status: "COMPLETED",
+        endedAt: access.consultation.endedAt ? access.consultation.endedAt.toISOString() : null,
+      };
+    }
+    return {
+      success: false,
+      error: access.reason,
+      message:
+        access.reason === "CONSULTATION_FORBIDDEN"
+          ? "Apenas participantes autorizados podem encerrar a consulta."
+          : access.reason === "CONSULTATION_CANCELED"
+          ? "Esta consulta já foi cancelada."
+          : "Não foi possível encerrar a chamada.",
+    };
+  }
+
+  const { consultation } = access;
+
+  if (consultation.status === "COMPLETED") {
+    // Idempotent success
+    return {
+      success: true,
+      status: "COMPLETED",
+      endedAt: consultation.endedAt ? consultation.endedAt.toISOString() : null,
+    };
+  }
+
+  if (consultation.status === "SCHEDULED") {
+    return {
+      success: false,
+      error: "CALL_NOT_STARTED",
+      message: "A consulta ainda não foi iniciada.",
+    };
+  }
+
+  if (consultation.status !== "IN_PROGRESS") {
+    return {
+      success: false,
+      error: "INVALID_STATUS_FOR_END",
+      message: "Status inválido para encerramento.",
+    };
+  }
+
+  const connection = await getDbConnection();
+  try {
+    const [result] = await connection.query<ResultSetHeader>(
+      `UPDATE consultations
+       SET status = 'COMPLETED',
+           ended_at = COALESCE(ended_at, ?),
+           updated_at = ?
+       WHERE public_id = ? AND status = 'IN_PROGRESS'`,
+      [now, now, consultation.publicId]
+    );
+
+    if (result.affectedRows === 0) {
+      const [latest] = await connection.query<RawConsultationRow[]>(
+        "SELECT status, ended_at FROM consultations WHERE public_id = ? LIMIT 1",
+        [consultation.publicId]
+      );
+      if (latest && latest[0] && latest[0].status === "COMPLETED") {
+        return {
+          success: true,
+          status: "COMPLETED",
+          endedAt: latest[0].ended_at ? new Date(latest[0].ended_at).toISOString() : now.toISOString(),
+        };
+      }
+      return {
+        success: false,
+        error: "CONCURRENT_MODIFICATION",
+        message: "Não foi possível encerrar a consulta.",
+      };
+    }
+
+    return {
+      success: true,
+      status: "COMPLETED",
+      endedAt: now.toISOString(),
+    };
+  } finally {
+    connection.release();
+  }
+}
+

@@ -3,8 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveConsultationJoinAccess } from "@/lib/consultancies/consultations";
-import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
-import { ConsultationDevicePreflight } from "@/components/consultations/consultation-device-preflight";
+import { ConsultationVideoRoom } from "@/components/consultations/consultation-video-room";
 
 type PageProps = {
   params: Promise<{
@@ -13,7 +12,7 @@ type PageProps = {
   }>;
 };
 
-export default async function ConsultationPreflightPage({ params }: PageProps) {
+export default async function ConsultationRoomPage({ params }: PageProps) {
   const { slug, consultationPublicId } = await params;
 
   const session = await getCurrentSession();
@@ -26,14 +25,14 @@ export default async function ConsultationPreflightPage({ params }: PageProps) {
     redirect("/selecionar-consultoria");
   }
 
-  // Authorize join eligibility on the server
+  // Authorize join eligibility strictly on the server before mounting WebRTC client
   const access = await resolveConsultationJoinAccess(
     session.userId,
     slug,
     consultationPublicId
   );
 
-  if (!access.allowed) {
+  if (!access.allowed || !access.participantKind) {
     // If not allowed to join, redirect to consultas agenda
     redirect(`/consultoria/${slug}/consultas`);
   }
@@ -52,24 +51,20 @@ export default async function ConsultationPreflightPage({ params }: PageProps) {
   const timezone = context.consultancyTimezone || "America/Sao_Paulo";
 
   return (
-    <ConsultancyAppShell
-      consultancyName={context.consultancyName}
-      consultancySlug={context.consultancySlug}
-      consultancyLogoUrl={context.consultancyLogoUrl}
-      roles={context.roles}
-      userName={session.fullName}
-      userEmail={session.email}
-    >
-      <ConsultationDevicePreflight
+    <main className="fixed inset-0 z-50 bg-zinc-950 text-white overflow-hidden select-none">
+      <ConsultationVideoRoom
         consultancySlug={slug}
         consultationPublicId={consultationPublicId}
         title={consultation.title}
         counterpartName={counterpartName}
         counterpartRole={counterpartRole}
+        participantRole={access.participantKind}
         scheduledStartFormatted={consultation.scheduledStartFormatted}
         scheduledEndFormatted={consultation.scheduledEndFormatted}
         timezone={timezone}
+        consultancyName={context.consultancyName}
+        consultancyLogoUrl={context.consultancyLogoUrl}
       />
-    </ConsultancyAppShell>
+    </main>
   );
 }

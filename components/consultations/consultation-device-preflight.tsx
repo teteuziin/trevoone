@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 
 export interface ConsultationDevicePreflightProps {
   consultancySlug: string;
+  consultationPublicId: string;
   title: string;
   counterpartName: string;
   counterpartRole: string;
@@ -18,6 +19,7 @@ type PreflightStatus = "IDLE" | "REQUESTING" | "READY" | "ERROR";
 
 export function ConsultationDevicePreflight({
   consultancySlug,
+  consultationPublicId,
   title,
   counterpartName,
   counterpartRole,
@@ -534,18 +536,27 @@ export function ConsultationDevicePreflight({
             Voltar
           </Link>
 
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white shadow-xs transition-all ${
-              status === "READY"
-                ? "bg-[var(--brand)] opacity-90 cursor-not-allowed"
-                : "bg-zinc-700 opacity-50 cursor-not-allowed"
-            }`}
-          >
-            Continuar para a consulta
-          </button>
+          {status === "READY" ? (
+            <Link
+              href={`/consultoria/${consultancySlug}/consultas/${consultationPublicId}/sala`}
+              onClick={() => stopAllTracks()}
+              className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-[var(--brand)] hover:opacity-90 transition-all shadow-xs inline-flex items-center gap-2"
+            >
+              <span>Entrar na chamada</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              </svg>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-zinc-700 opacity-50 cursor-not-allowed shadow-xs"
+            >
+              Continuar para a consulta
+            </button>
+          )}
         </div>
       </div>
     </div>

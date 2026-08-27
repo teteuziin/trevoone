@@ -2,13 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
-import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
-import { BetaBadge } from "@/components/brand/beta-badge";
-import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
-import { AppearanceSegmentedControl } from "@/components/consultancies/consultancy-navigation";
 import { Badge } from "@/components/ui/badge";
-import { getUnreadCount } from "@/services/notification-service";
-import { logoutFromPlatformAdminArea } from "./actions";
 
 /* =========================================================================
    VOLUMETRIC ICONS (Platform Governance - Local Inline SVG)
@@ -145,7 +139,6 @@ export default async function AdminDashboardPage() {
     redirect("/selecionar-consultoria");
   }
 
-  const unreadNotificationsCount = await getUnreadCount(session.userId);
   const firstName = session.fullName ? session.fullName.split(" ")[0] : "";
 
   const activeModules = [
@@ -185,51 +178,7 @@ export default async function AdminDashboardPage() {
   ];
 
   return (
-    <main className="min-h-dvh w-full bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
-      {/* Topbar de Governança Global */}
-      <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-15 flex items-center justify-between">
-          <div className="flex items-center space-x-2.5 sm:space-x-3">
-            <div className="shrink-0">
-              <TrevoOneLogo priority showWordmark size={36} />
-            </div>
-            <BetaBadge />
-            <span className="hidden sm:inline-block text-xs font-semibold uppercase tracking-wider text-[var(--border-strong)]">
-              |
-            </span>
-            <span className="hidden sm:inline-block text-xs font-semibold tracking-wide text-[var(--text-secondary)] uppercase">
-              Governança Global
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <Badge variant="brand" size="sm" className="hidden md:inline-flex">
-              Super Administrador
-            </Badge>
-            <AppearanceSegmentedControl compact />
-            <Link
-              href="/conta/seguranca"
-              className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
-              title="Conta e segurança"
-            >
-              <span className="hidden sm:inline">Conta e segurança</span>
-              <span className="sm:hidden">Conta</span>
-            </Link>
-            <NotificationBell unreadCount={unreadNotificationsCount} />
-            <LogoutButton
-              logoutAction={logoutFromPlatformAdminArea}
-              variant="ghost"
-              size="sm"
-              className="text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              Sair
-            </LogoutButton>
-          </div>
-        </div>
-      </header>
-
-      {/* Conteúdo Principal de Governança */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7 sm:space-y-9">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7 sm:space-y-9">
         {/* Governance Context Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border-subtle)]">
           <div className="space-y-1">
@@ -317,6 +266,5 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
       </div>
-    </main>
-  );
-}
+    );
+  }

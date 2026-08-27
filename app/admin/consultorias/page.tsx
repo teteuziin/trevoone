@@ -49,7 +49,7 @@ export default async function AdminConsultoriasPage() {
   const consultancies = await listPlatformConsultancies();
 
   return (
-    <main className="min-h-svh w-full bg-[var(--surface-subtle)] text-[var(--text-primary)]">
+    <div className="w-full">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
         <PageHeader
           title="Gestão de Consultorias"
@@ -119,6 +119,6 @@ export default async function AdminConsultoriasPage() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

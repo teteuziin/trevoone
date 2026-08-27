@@ -9,7 +9,6 @@ import {
 } from "@/lib/platform-admin/billing";
 import { getDbConnection } from "@/lib/db/mysql";
 import type { RowDataPacket } from "mysql2/promise";
-import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
@@ -109,40 +108,24 @@ export default async function PlatformConsultancyBillingDetailPage({ params }: P
   } = detail;
 
   return (
-    <main className="min-h-svh w-full bg-zinc-50 text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-      {/* Platform Admin Header */}
-      <header className="sticky top-0 z-30 w-full bg-white/90 backdrop-blur-xs border-b border-zinc-200/80">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <Link href="/admin" className="w-[110px] sm:w-[130px] shrink-0">
-              <TrevoOneLogo priority size={130} />
-            </Link>
-            <span className="hidden sm:inline-block text-zinc-300">|</span>
-            <Link
-              href="/admin/cobranca-plataforma"
-              className="hidden sm:inline-block text-xs font-semibold text-zinc-600 hover:text-zinc-900 truncate uppercase tracking-wider"
-            >
-              Cobrança da Plataforma
-            </Link>
-            <span className="hidden sm:inline-block text-zinc-300">/</span>
-            <span className="hidden sm:inline-block text-xs font-bold text-zinc-900 truncate max-w-[180px]">
-              {consultancyName}
-            </span>
-          </div>
+    <div className="w-full">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <Link href="/admin/cobranca-plataforma">
+            <Button variant="outline" size="sm">
+              ← Voltar para Cobrança
+            </Button>
+          </Link>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Link href={`/admin/cobranca-plataforma/cobrancas/nova?consultancy=${consultancyPublicId}`}>
-              <Button variant="primary" size="sm">
-                + Nova Cobrança
-              </Button>
-            </Link>
-          </div>
+          <Link href={`/admin/cobranca-plataforma/cobrancas/nova?consultancy=${consultancyPublicId}`}>
+            <Button variant="primary" size="sm">
+              + Nova Cobrança
+            </Button>
+          </Link>
         </div>
-      </header>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header & Status Card */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-4">
             <div className="space-y-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
@@ -392,6 +375,6 @@ export default async function PlatformConsultancyBillingDetailPage({ params }: P
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }

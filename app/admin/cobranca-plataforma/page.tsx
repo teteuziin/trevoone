@@ -9,8 +9,6 @@ import {
   formatBrlCents,
   formatIsoDateToBr,
 } from "@/lib/platform-admin/billing";
-import { TrevoOneLogo } from "@/components/brand/trevo-one-logo";
-import { BetaBadge } from "@/components/brand/beta-badge";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -62,22 +60,20 @@ export default async function PlatformBillingOverviewPage() {
   ]);
 
   return (
-    <main className="min-h-svh w-full bg-zinc-50 text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-      {/* Platform Admin Header */}
-      <header className="sticky top-0 z-30 w-full bg-white/90 backdrop-blur-xs border-b border-zinc-200/80">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <Link href="/admin" className="w-[110px] sm:w-[130px] shrink-0">
-              <TrevoOneLogo priority size={130} />
-            </Link>
-            <BetaBadge />
-            <span className="hidden sm:inline-block text-zinc-300">|</span>
-            <span className="hidden sm:inline-block text-xs font-semibold text-zinc-600 truncate uppercase tracking-wider">
+    <div className="w-full">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+        {/* Contextual Page Header with Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--text-primary)]">
               Cobrança da Plataforma
-            </span>
+            </h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
+              Faturamento das consultorias parceiras, gestão de assinaturas e conciliação Pix.
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
             <Link href="/admin/cobranca-plataforma/configuracoes">
               <Button variant="outline" size="sm">
                 Configurar Pix
@@ -90,9 +86,6 @@ export default async function PlatformBillingOverviewPage() {
             </Link>
           </div>
         </div>
-      </header>
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Banner Pix Não Configurado */}
         {!platformSettings && (
           <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
@@ -247,6 +240,6 @@ export default async function PlatformBillingOverviewPage() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

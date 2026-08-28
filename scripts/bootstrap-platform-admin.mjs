@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 function parseArgs(args) {
   let email = null;
   let isApply = false;
+  let isAllowProduction = false;
 
   for (const arg of args) {
     if (arg.startsWith("--email=")) {
@@ -18,16 +19,24 @@ function parseArgs(args) {
         process.exit(1);
       }
       isApply = true;
+    } else if (arg === "--allow-production") {
+      if (isAllowProduction) {
+        console.error("ERRO: Argumento --allow-production duplicado.");
+        process.exit(1);
+      }
+      isAllowProduction = true;
     } else {
       console.error(`ERRO: Argumento desconhecido ou inválido: '${arg}'.`);
-      console.error("Uso: node --env-file=.env.local scripts/bootstrap-platform-admin.mjs --email=<email> [--apply]");
+      console.error("Uso DEV:  node --env-file=.env.local scripts/bootstrap-platform-admin.mjs --email=<email> [--apply]");
+      console.error("Uso PROD: ALLOW_PRODUCTION_PLATFORM_ADMIN_BOOTSTRAP=true node --env-file=<prod.env> scripts/bootstrap-platform-admin.mjs --email=<email> --allow-production [--apply]");
       process.exit(1);
     }
   }
 
   if (!email || email.trim().length === 0) {
     console.error("ERRO: Parâmetro --email=<email> é obrigatório e não pode ser vazio.");
-    console.error("Uso: node --env-file=.env.local scripts/bootstrap-platform-admin.mjs --email=<email> [--apply]");
+    console.error("Uso DEV:  node --env-file=.env.local scripts/bootstrap-platform-admin.mjs --email=<email> [--apply]");
+    console.error("Uso PROD: ALLOW_PRODUCTION_PLATFORM_ADMIN_BOOTSTRAP=true node --env-file=<prod.env> scripts/bootstrap-platform-admin.mjs --email=<email> --allow-production [--apply]");
     process.exit(1);
   }
 
@@ -36,46 +45,74 @@ function parseArgs(args) {
   return {
     email: normalizedEmail,
     isApply,
+    isAllowProduction,
   };
 }
 
-function validateEnvironment() {
-  const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = process.env;
-
-  if (DB_NAME === "u406031981_trevoone" || DB_USER === "u406031981_trevoadmin") {
-    console.error("PRODUÇÃO DETECTADA — EXECUÇÃO ABORTADA.");
-    process.exit(1);
-  }
-
-  if (
-    DB_NAME !== "u406031981_trevoone_dev" ||
-    DB_USER !== "u406031981_trevodev" ||
-    DB_HOST !== "srv1595.hstgr.io"
-  ) {
-    console.error("ERRO: Este utilitário de bootstrap é restrito exclusivamente ao ambiente DEV (u406031981_trevoone_dev).");
-    process.exit(1);
-  }
+function validateEnvironment(isAllowProduction) {
+  const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, ALLOW_PRODUCTION_PLATFORM_ADMIN_BOOTSTRAP } = process.env;
 
   if (!DB_HOST || !DB_NAME || !DB_USER || DB_PASSWORD === undefined || DB_PASSWORD === "") {
     console.error("ERRO: Variáveis de ambiente de banco de dados não configuradas corretamente.");
     process.exit(1);
   }
 
-  const port = Number(DB_PORT);
-  const validatedPort = !isNaN(port) && port > 0 ? port : 3306;
+  const isExactDev =
+    DB_HOST === "srv1595.hstgr.io" &&
+    DB_NAME === "u406031981_trevoone_dev" &&
+    DB_USER === "u406031981_trevodev";
 
-  return {
-    host: DB_HOST,
-    port: validatedPort,
-    database: DB_NAME,
-    user: DB_USER,
-    password: DB_PASSWORD,
-  };
+  const isExactProd =
+    DB_HOST === "srv1595.hstgr.io" &&
+    DB_NAME === "u406031981_trevoone" &&
+    DB_USER === "u406031981_trevoadmin";
+
+  const isProdEnvOptIn = ALLOW_PRODUCTION_PLATFORM_ADMIN_BOOTSTRAP === "true";
+
+  if (isExactDev) {
+    if (isAllowProduction || ALLOW_PRODUCTION_PLATFORM_ADMIN_BOOTSTRAP !== undefined) {
+      console.error("ERRO: Autorizações de produção (--allow-production / ALLOW_PRODUCTION_PLATFORM_ADMIN_BOOTSTRAP) não devem ser fornecidas no ambiente DEV.");
+      process.exit(1);
+    }
+    const port = Number(DB_PORT);
+    const validatedPort = !isNaN(port) && port > 0 ? port : 3306;
+    return {
+      host: DB_HOST,
+      port: validatedPort,
+      database: DB_NAME,
+      user: DB_USER,
+      password: DB_PASSWORD,
+      environment: "DEVELOPMENT",
+    };
+  }
+
+  if (isExactProd) {
+    if (!isProdEnvOptIn || !isAllowProduction) {
+      console.error("PRODUÇÃO DETECTADA — EXECUÇÃO ABORTADA.");
+      console.error("Para executar o bootstrap em produção é obrigatório fornecer simultaneamente:");
+      console.error("1. Variável de ambiente ALLOW_PRODUCTION_PLATFORM_ADMIN_BOOTSTRAP=true");
+      console.error("2. Flag CLI --allow-production");
+      process.exit(1);
+    }
+    const port = Number(DB_PORT);
+    const validatedPort = !isNaN(port) && port > 0 ? port : 3306;
+    return {
+      host: DB_HOST,
+      port: validatedPort,
+      database: DB_NAME,
+      user: DB_USER,
+      password: DB_PASSWORD,
+      environment: "PRODUCTION",
+    };
+  }
+
+  console.error("ERRO: Configuração de banco de dados não autorizada para bootstrap de platform admin.");
+  process.exit(1);
 }
 
 async function main() {
-  const { email, isApply } = parseArgs(process.argv.slice(2));
-  const dbConfig = validateEnvironment();
+  const { email, isApply, isAllowProduction } = parseArgs(process.argv.slice(2));
+  const dbConfig = validateEnvironment(isAllowProduction);
 
   let connection = null;
   let lockAcquired = false;
@@ -95,7 +132,7 @@ async function main() {
     const [dbRes] = await connection.query("SELECT DATABASE() AS database_name;");
     const currentDb = dbRes[0]?.database_name;
 
-    if (currentDb !== "u406031981_trevoone_dev") {
+    if (currentDb !== dbConfig.database) {
       console.error(`ERRO: Conexão aberta com banco inesperado ('${currentDb}'). Abortando.`);
       process.exit(1);
     }
@@ -126,7 +163,7 @@ async function main() {
     );
 
     if (!Array.isArray(userRows) || userRows.length === 0) {
-      console.error("ERRO: Conta candidata não encontrada no DEV.");
+      console.error(`ERRO: Conta candidata '${email}' não encontrada em ${dbConfig.environment}.`);
       process.exit(1);
     }
 
@@ -152,7 +189,7 @@ async function main() {
 
     if (!isApply) {
       console.log("=== MODO DE INSPEÇÃO (DRY-RUN) ===");
-      console.log("Ambiente: DEVELOPMENT");
+      console.log(`Ambiente: ${dbConfig.environment}`);
       console.log(`Banco: ${currentDb}`);
       console.log("Migration 003: presente");
       console.log("Usuário encontrado: sim");
@@ -178,7 +215,7 @@ async function main() {
     lockAcquired = true;
 
     const [recheckDb] = await connection.query("SELECT DATABASE() AS database_name;");
-    if (recheckDb[0]?.database_name !== "u406031981_trevoone_dev") {
+    if (recheckDb[0]?.database_name !== dbConfig.database) {
       console.error("ERRO: Falha na revalidação do banco antes da escrita. Abortando.");
       process.exit(1);
     }
@@ -238,7 +275,7 @@ async function main() {
     }
 
     console.log("=== BOOTSTRAP CONCLUÍDO COM SUCESSO ===");
-    console.log("Ambiente: DEVELOPMENT");
+    console.log(`Ambiente: ${dbConfig.environment}`);
     console.log(`Banco: ${currentDb}`);
     console.log(`Conta promovida: ${targetUser.email}`);
     console.log("Platform Admin status: ACTIVE");

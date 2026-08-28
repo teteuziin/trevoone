@@ -18,6 +18,42 @@ export type RegisterFormState = {
   errors?: RegisterFormErrors;
 };
 
+function logSanitizedRegisterError(stage: string, err: unknown): void {
+  let name: string | undefined;
+  let code: string | undefined;
+  let errno: number | string | undefined;
+  let sqlState: string | undefined;
+  let syscall: string | undefined;
+
+  if (typeof err === "object" && err !== null) {
+    const candidate = err as Record<string, unknown>;
+    if (typeof candidate.name === "string") {
+      name = candidate.name;
+    }
+    if (typeof candidate.code === "string") {
+      code = candidate.code;
+    }
+    if (typeof candidate.errno === "number" || typeof candidate.errno === "string") {
+      errno = candidate.errno;
+    }
+    if (typeof candidate.sqlState === "string") {
+      sqlState = candidate.sqlState;
+    }
+    if (typeof candidate.syscall === "string") {
+      syscall = candidate.syscall;
+    }
+  }
+
+  console.error("[auth.register] technical failure", {
+    stage,
+    name,
+    code,
+    errno,
+    sqlState,
+    syscall,
+  });
+}
+
 export async function registerAccount(
   _prevState: RegisterFormState,
   formData: FormData
@@ -90,45 +126,52 @@ export async function registerAccount(
     };
   }
 
+  let stage = "init";
+  let connection;
+
   // Hash password and insert
   try {
     const publicId = crypto.randomUUID();
+
+    stage = "password_hash";
     const passwordHash = await hashPassword(password);
 
-    const connection = await getDbConnection();
+    stage = "db_connect";
+    connection = await getDbConnection();
 
-    try {
-      await connection.execute(
-        `INSERT INTO users (public_id, full_name, email, password_hash, status)
-         VALUES (?, ?, ?, ?, ?);`,
-        [publicId, fullName, email, passwordHash, "ACTIVE"]
-      );
+    stage = "user_insert";
+    await connection.execute(
+      `INSERT INTO users (public_id, full_name, email, password_hash, status)
+       VALUES (?, ?, ?, ?, ?);`,
+      [publicId, fullName, email, passwordHash, "ACTIVE"]
+    );
 
-      return {
-        success: true,
-        message: "Conta criada com sucesso.",
-      };
-    } catch (dbErr: unknown) {
-      const errCode = (dbErr as { code?: string; errno?: number })?.code || (dbErr as { errno?: number })?.errno;
-      if (errCode === "ER_DUP_ENTRY" || errCode === 1062) {
-        return {
-          success: false,
-          message:
-            "Não foi possível concluir o cadastro com esses dados. Se você já possui uma conta, entre ou recupere sua senha.",
-        };
-      }
+    return {
+      success: true,
+      message: "Conta criada com sucesso.",
+    };
+  } catch (err: unknown) {
+    const errCode =
+      (err as { code?: string; errno?: number })?.code ||
+      (err as { errno?: number })?.errno;
 
+    if (errCode === "ER_DUP_ENTRY" || errCode === 1062) {
       return {
         success: false,
-        message: "Não foi possível criar sua conta agora. Tente novamente.",
+        message:
+          "Não foi possível concluir o cadastro com esses dados. Se você já possui uma conta, entre ou recupere sua senha.",
       };
-    } finally {
-      connection.release();
     }
-  } catch {
+
+    logSanitizedRegisterError(stage, err);
+
     return {
       success: false,
       message: "Não foi possível criar sua conta agora. Tente novamente.",
     };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 }

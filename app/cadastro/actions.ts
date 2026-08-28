@@ -18,56 +18,6 @@ export type RegisterFormState = {
   errors?: RegisterFormErrors;
 };
 
-function logSanitizedRegisterError(stage: string, err: unknown): void {
-  let name: string | undefined;
-  let code: string | undefined;
-  let errno: number | string | undefined;
-  let sqlState: string | undefined;
-  let syscall: string | undefined;
-
-  if (typeof err === "object" && err !== null) {
-    const candidate = err as Record<string, unknown>;
-    if (typeof candidate.name === "string") {
-      name = candidate.name;
-    }
-    if (typeof candidate.code === "string") {
-      code = candidate.code;
-    }
-    if (typeof candidate.errno === "number" || typeof candidate.errno === "string") {
-      errno = candidate.errno;
-    }
-    if (typeof candidate.sqlState === "string") {
-      sqlState = candidate.sqlState;
-    }
-    if (typeof candidate.syscall === "string") {
-      syscall = candidate.syscall;
-    }
-  }
-
-  const dbHostMatches = process.env.DB_HOST === "localhost";
-  const dbPortMatches = process.env.DB_PORT === "3306";
-  const dbNameMatches = process.env.DB_NAME === "u406031981_trevoone";
-  const dbUserMatches = process.env.DB_USER === "u406031981_trevoadmin";
-  const dbPasswordLoaded =
-    typeof process.env.DB_PASSWORD === "string" && process.env.DB_PASSWORD.length > 0;
-  const dbRevisionMatches = process.env.DB_ENV_REVISION === "prod-db-20260828-01";
-
-  console.error("[auth.register] technical failure", {
-    stage,
-    name,
-    code,
-    errno,
-    sqlState,
-    syscall,
-    dbHostMatches,
-    dbPortMatches,
-    dbNameMatches,
-    dbUserMatches,
-    dbPasswordLoaded,
-    dbRevisionMatches,
-  });
-}
-
 export async function registerAccount(
   _prevState: RegisterFormState,
   formData: FormData
@@ -140,20 +90,15 @@ export async function registerAccount(
     };
   }
 
-  let stage = "init";
   let connection;
 
   // Hash password and insert
   try {
     const publicId = crypto.randomUUID();
-
-    stage = "password_hash";
     const passwordHash = await hashPassword(password);
 
-    stage = "db_connect";
     connection = await getDbConnection();
 
-    stage = "user_insert";
     await connection.execute(
       `INSERT INTO users (public_id, full_name, email, password_hash, status)
        VALUES (?, ?, ?, ?, ?);`,
@@ -176,8 +121,6 @@ export async function registerAccount(
           "Não foi possível concluir o cadastro com esses dados. Se você já possui uma conta, entre ou recupere sua senha.",
       };
     }
-
-    logSanitizedRegisterError(stage, err);
 
     return {
       success: false,

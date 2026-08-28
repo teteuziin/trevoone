@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import { getStudentOnboardingStatus } from "@/lib/consultancies/student-onboarding";
 import { getStudentFinancialAccessState } from "@/lib/consultancies/finance";
@@ -41,13 +42,27 @@ export default async function ConsultancyPage({ params }: PageProps) {
     redirect("/selecionar-consultoria");
   }
 
+  // Resolve presentation mode state server-side
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+  const { effectiveMode } = effectiveState;
+
   const isStudent = context.roles.includes("STUDENT");
   const isInfluencer = context.roles.includes("INFLUENCER");
   const isPersonal = context.roles.includes("PERSONAL");
   const isNutritionist = context.roles.includes("NUTRITIONIST");
   const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
 
-  // Busca dados reais existentes em paralelo conforme os papéis ativos
+  // Load real data ONLY when required by the active presentation mode AND authorized by real roles
+  const needStudentData = effectiveMode === "STUDENT" && isStudent;
+  const needInfluencerData = effectiveMode === "INFLUENCER" && isInfluencer;
+  const needPersonalData =
+    (effectiveMode === "PERSONAL" && isPersonal) ||
+    (effectiveMode === "ADMIN" && isConsultancyAdmin && isPersonal);
+  const needNutritionistData =
+    (effectiveMode === "NUTRITIONIST" && isNutritionist) ||
+    (effectiveMode === "ADMIN" && isConsultancyAdmin && isNutritionist);
+  const needAdminData = effectiveMode === "ADMIN" && isConsultancyAdmin;
+
   const [
     studentOnboarding,
     studentFinancialStatus,
@@ -59,43 +74,43 @@ export default async function ConsultancyPage({ params }: PageProps) {
     influencerMissionsResult,
     adminOverview,
   ] = await Promise.all([
-    isStudent ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
-    isStudent
+    needStudentData ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
+    needStudentData
       ? getStudentFinancialAccessState({
           consultancyId: context.consultancyId,
           studentMembershipId: context.membershipId,
         })
       : Promise.resolve(null),
-    isStudent || isInfluencer
+    needStudentData || needInfluencerData
       ? getActiveTrainingPlanForStudent(session.userId, slug)
       : Promise.resolve(null),
-    isStudent || isInfluencer
+    needStudentData || needInfluencerData
       ? getActiveNutritionPlanForStudent(session.userId, slug)
       : Promise.resolve(null),
-    isStudent
+    needStudentData
       ? getStudentOwnProgressHistory({ userId: session.userId, consultancySlug: slug, page: 1 })
       : Promise.resolve(null),
-    isPersonal
+    needPersonalData
       ? listPersonalTrainingPlans({ actorUserId: session.userId, consultancySlug: slug, pageSize: 4 })
       : Promise.resolve(null),
-    isNutritionist
+    needNutritionistData
       ? listNutritionPlansForNutritionist({
           actorUserId: session.userId,
           consultancySlug: slug,
           pageSize: 4,
         })
       : Promise.resolve(null),
-    isInfluencer
+    needInfluencerData
       ? listInfluencerMissions({
           consultancyId: context.consultancyId,
           membershipId: context.membershipId,
           limit: 4,
         })
       : Promise.resolve(null),
-    isConsultancyAdmin ? getConsultancyAdminOverview(context.consultancyId) : Promise.resolve(null),
+    needAdminData ? getConsultancyAdminOverview(context.consultancyId) : Promise.resolve(null),
   ]);
 
-  if (isStudent && !isPersonal && !isNutritionist && !isConsultancyAdmin) {
+  if (needStudentData && !isPersonal && !isNutritionist && !isConsultancyAdmin) {
     if (studentFinancialStatus?.isRestricted) {
       redirect(`/consultoria/${slug}/pagamentos/regularizar`);
     }
@@ -114,6 +129,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
         roles={context.roles}
         userName={session.fullName}
         userEmail={session.email}
+        viewModeState={effectiveState}
       >
         <div className="p-8 sm:p-12 max-w-xl mx-auto my-8 bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] text-center space-y-4 shadow-xs">
           <div className="w-12 h-12 rounded-full bg-[var(--warning-soft)] border border-[var(--warning-border)] text-[var(--warning-foreground)] mx-auto flex items-center justify-center text-xl font-bold">
@@ -140,6 +156,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      viewModeState={effectiveState}
     >
       <div className="space-y-6 sm:space-y-8">
         {/* Context Header Compacto */}
@@ -149,8 +166,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           roles={context.roles}
         />
 
-        {/* 1. Visão do Aluno */}
-        {isStudent && !isPersonal && !isNutritionist && !isConsultancyAdmin && !isInfluencer && (
+        {/* 1. Visão do Aluno (Real ou Preview) */}
+        {effectiveMode === "STUDENT" && (
           <DashboardStudentView
             consultancySlug={context.consultancySlug}
             onboarding={studentOnboarding}
@@ -161,7 +178,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
         )}
 
         {/* 2. Visão do Influenciador / VIP */}
-        {isInfluencer && !isPersonal && !isNutritionist && !isConsultancyAdmin && (
+        {effectiveMode === "INFLUENCER" && (
           <DashboardInfluencerView
             consultancySlug={context.consultancySlug}
             missions={influencerMissionsResult?.items || []}
@@ -171,8 +188,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           />
         )}
 
-        {/* 3. Visão do Personal Trainer */}
-        {isPersonal && !isConsultancyAdmin && (
+        {/* 3. Visão do Personal Trainer (Real ou Preview) */}
+        {effectiveMode === "PERSONAL" && (
           <DashboardPersonalView
             consultancySlug={context.consultancySlug}
             recentPlans={personalPlansResult?.items || []}
@@ -180,8 +197,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           />
         )}
 
-        {/* 4. Visão do Nutricionista */}
-        {isNutritionist && !isPersonal && !isConsultancyAdmin && (
+        {/* 4. Visão do Nutricionista (Real ou Preview) */}
+        {effectiveMode === "NUTRITIONIST" && (
           <DashboardNutritionistView
             consultancySlug={context.consultancySlug}
             recentPlans={nutritionPlansResult?.items || []}
@@ -190,7 +207,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
         )}
 
         {/* 5. Visão do Administrador da Consultoria */}
-        {isConsultancyAdmin && (
+        {effectiveMode === "ADMIN" && (
           <div className="space-y-8">
             <DashboardAdminView
               consultancySlug={context.consultancySlug}
@@ -223,24 +240,6 @@ export default async function ConsultancyPage({ params }: PageProps) {
                 />
               </div>
             )}
-          </div>
-        )}
-
-        {/* 6. Combinação Multi-Papel: Personal + Nutricionista */}
-        {isPersonal && isNutritionist && !isConsultancyAdmin && (
-          <div className="space-y-8">
-            <DashboardPersonalView
-              consultancySlug={context.consultancySlug}
-              recentPlans={personalPlansResult?.items || []}
-              totalPlans={personalPlansResult?.total}
-            />
-            <div className="pt-4 border-t border-[var(--border-subtle)]">
-              <DashboardNutritionistView
-                consultancySlug={context.consultancySlug}
-                recentPlans={nutritionPlansResult?.items || []}
-                totalPlans={nutritionPlansResult?.total}
-              />
-            </div>
           </div>
         )}
       </div>

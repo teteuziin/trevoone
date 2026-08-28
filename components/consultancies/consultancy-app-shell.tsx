@@ -1,6 +1,8 @@
 import React from "react";
 import { ConsultancyRole, ROLE_LABELS } from "@/lib/consultancies/context";
 import { ConsultancyNavigation, NavItemConfig } from "./consultancy-navigation";
+import { ViewModeBanner } from "./view-mode-banner";
+import type { EffectiveViewModeState } from "@/lib/consultancies/view-mode";
 
 export interface ConsultancyAppShellProps {
   consultancyName: string;
@@ -10,6 +12,7 @@ export interface ConsultancyAppShellProps {
   userName?: string;
   userEmail?: string;
   unreadNotificationsCount?: number;
+  viewModeState?: EffectiveViewModeState;
   maxWidth?: "default" | "wide" | "full";
   className?: string;
   children: React.ReactNode;
@@ -23,10 +26,29 @@ export function ConsultancyAppShell({
   userName,
   userEmail,
   unreadNotificationsCount = 0,
+  viewModeState,
   maxWidth = "default",
   className = "",
   children,
 }: ConsultancyAppShellProps) {
+  // Determine effective presentation roles for navigation items
+  const activeMode = viewModeState?.effectiveMode;
+  const presentationRoles: ConsultancyRole[] = activeMode
+    ? activeMode === "ADMIN"
+      ? [
+          "CONSULTANCY_ADMIN",
+          ...(roles.includes("PERSONAL") ? (["PERSONAL"] as ConsultancyRole[]) : []),
+          ...(roles.includes("NUTRITIONIST") ? (["NUTRITIONIST"] as ConsultancyRole[]) : []),
+        ]
+      : activeMode === "PERSONAL"
+      ? ["PERSONAL"]
+      : activeMode === "NUTRITIONIST"
+      ? ["NUTRITIONIST"]
+      : activeMode === "INFLUENCER"
+      ? ["INFLUENCER"]
+      : ["STUDENT"]
+    : roles;
+
   // Build role-derived navigation items
   const items: NavItemConfig[] = [
     {
@@ -38,7 +60,7 @@ export function ConsultancyAppShell({
     },
   ];
 
-  if (roles.includes("INFLUENCER")) {
+  if (presentationRoles.includes("INFLUENCER")) {
     items.push({
       id: "influencer-missoes",
       label: "Missões",
@@ -48,7 +70,7 @@ export function ConsultancyAppShell({
     });
   }
 
-  const isLearner = roles.includes("STUDENT") || roles.includes("INFLUENCER");
+  const isLearner = presentationRoles.includes("STUDENT") || presentationRoles.includes("INFLUENCER");
   if (isLearner) {
     items.push({
       id: "learner-treinos",
@@ -73,7 +95,7 @@ export function ConsultancyAppShell({
     });
   }
 
-  if (roles.includes("STUDENT")) {
+  if (presentationRoles.includes("STUDENT")) {
     items.push({
       id: "student-consultas",
       label: "Consultas",
@@ -90,7 +112,7 @@ export function ConsultancyAppShell({
     });
   }
 
-  if (roles.includes("PERSONAL")) {
+  if (presentationRoles.includes("PERSONAL")) {
     items.push({
       id: "personal-consultas",
       label: "Consultas",
@@ -121,7 +143,7 @@ export function ConsultancyAppShell({
     });
   }
 
-  if (roles.includes("NUTRITIONIST")) {
+  if (presentationRoles.includes("NUTRITIONIST")) {
     items.push({
       id: "nutritionist-consultas",
       label: "Consultas",
@@ -152,7 +174,7 @@ export function ConsultancyAppShell({
     });
   }
 
-  if (roles.includes("CONSULTANCY_ADMIN")) {
+  if (presentationRoles.includes("CONSULTANCY_ADMIN")) {
     items.push({
       id: "admin-membros",
       label: "Membros",
@@ -204,7 +226,7 @@ export function ConsultancyAppShell({
 
   const mobilePrimaryItems: NavItemConfig[] = [];
 
-  if (roles.includes("CONSULTANCY_ADMIN")) {
+  if (presentationRoles.includes("CONSULTANCY_ADMIN")) {
     mobilePrimaryItems.push(
       overviewItem,
       {
@@ -222,29 +244,29 @@ export function ConsultancyAppShell({
         iconName: "finance",
       },
       {
-        id: "admin-missoes",
-        label: "Missões",
-        mobileLabel: "Missões",
-        href: `/consultoria/${consultancySlug}/missoes/gestao`,
-        iconName: "missions",
+        id: "admin-assinatura",
+        label: "Assinatura",
+        mobileLabel: "Assinatura",
+        href: `/consultoria/${consultancySlug}/assinatura`,
+        iconName: "subscription",
       }
     );
-  } else if (roles.includes("PERSONAL") && roles.includes("NUTRITIONIST")) {
+  } else if (presentationRoles.includes("PERSONAL") && presentationRoles.includes("NUTRITIONIST")) {
     mobilePrimaryItems.push(
       overviewItem,
       {
         id: "personal-treinos",
         label: "Planos de Treino",
-        mobileLabel: "Planos",
+        mobileLabel: "Treinos",
         href: `/consultoria/${consultancySlug}/personal/treinos`,
         iconName: "prescriptions",
       },
       {
         id: "nutritionist-planos",
         label: "Planos Alimentares",
-        mobileLabel: "Nutrição",
+        mobileLabel: "Dietas",
         href: `/consultoria/${consultancySlug}/nutricao/planos`,
-        iconName: "nutrition",
+        iconName: "prescriptions",
       },
       {
         id: "personal-progresso",
@@ -254,13 +276,13 @@ export function ConsultancyAppShell({
         iconName: "prescriptions",
       }
     );
-  } else if (roles.includes("PERSONAL")) {
+  } else if (presentationRoles.includes("PERSONAL")) {
     mobilePrimaryItems.push(
       overviewItem,
       {
         id: "personal-treinos",
         label: "Planos de Treino",
-        mobileLabel: "Planos",
+        mobileLabel: "Treinos",
         href: `/consultoria/${consultancySlug}/personal/treinos`,
         iconName: "prescriptions",
       },
@@ -279,7 +301,7 @@ export function ConsultancyAppShell({
         iconName: "prescriptions",
       }
     );
-  } else if (roles.includes("NUTRITIONIST")) {
+  } else if (presentationRoles.includes("NUTRITIONIST")) {
     mobilePrimaryItems.push(
       overviewItem,
       {
@@ -304,7 +326,7 @@ export function ConsultancyAppShell({
         iconName: "prescriptions",
       }
     );
-  } else if (roles.includes("INFLUENCER")) {
+  } else if (presentationRoles.includes("INFLUENCER")) {
     mobilePrimaryItems.push(
       overviewItem,
       {
@@ -330,7 +352,7 @@ export function ConsultancyAppShell({
       }
     );
   } else {
-    // Default Student role
+    // Default: Aluno (STUDENT)
     mobilePrimaryItems.push(
       overviewItem,
       {
@@ -379,7 +401,17 @@ export function ConsultancyAppShell({
         userEmail={userEmail}
         roleLabels={roleLabels}
         unreadNotificationsCount={unreadNotificationsCount}
+        viewModeState={viewModeState}
       />
+
+      {/* Preview Notification Banner */}
+      {viewModeState?.isPreview && (
+        <ViewModeBanner
+          consultancySlug={consultancySlug}
+          effectiveMode={viewModeState.effectiveMode}
+          defaultMode={viewModeState.defaultMode}
+        />
+      )}
 
       {/* Main Content Area */}
       <main

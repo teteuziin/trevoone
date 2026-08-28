@@ -152,4 +152,5 @@ export async function revokeCurrentSession(): Promise<void> {
   }
 
   cookieStore.delete(SESSION_COOKIE_NAME);
+  cookieStore.delete({ name: "trevo_consultancy_view_mode", path: "/consultoria" });
 }

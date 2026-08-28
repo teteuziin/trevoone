@@ -7,6 +7,8 @@ import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
 import { BetaBadge } from "@/components/brand/beta-badge";
 import { logoutFromConsultancyArea } from "@/app/selecionar-consultoria/actions";
 import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
+import { ViewModeSelector } from "./view-mode-selector";
+import type { EffectiveViewModeState } from "@/lib/consultancies/view-mode";
 
 export interface NavItemConfig {
   id: string;
@@ -37,6 +39,7 @@ export interface ConsultancyNavigationProps {
   userEmail?: string;
   roleLabels?: string[];
   unreadNotificationsCount?: number;
+  viewModeState?: EffectiveViewModeState;
 }
 
 type ThemeMode = "light" | "dark" | "system";
@@ -291,6 +294,7 @@ export function ConsultancyNavigation({
   userEmail,
   roleLabels = [],
   unreadNotificationsCount = 0,
+  viewModeState,
 }: ConsultancyNavigationProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -506,6 +510,19 @@ export function ConsultancyNavigation({
                       )}
                     </div>
 
+                    {/* View Mode Selector (if multi-mode available) */}
+                    {viewModeState && viewModeState.allowedOptions.length > 1 && (
+                      <div className="px-1 py-1 border-b border-[var(--border-subtle)]">
+                        <ViewModeSelector
+                          consultancySlug={consultancySlug}
+                          effectiveMode={viewModeState.effectiveMode}
+                          defaultMode={viewModeState.defaultMode}
+                          allowedOptions={viewModeState.allowedOptions}
+                          onSelect={() => setDesktopProfileOpen(false)}
+                        />
+                      </div>
+                    )}
+
                     {/* Quick Access to Account Profile & Security */}
                     <div className="px-1 space-y-1">
                       <Link
@@ -632,11 +649,11 @@ export function ConsultancyNavigation({
               </div>
             )}
 
-            {/* Section 2: Appearance */}
-            <div className="space-y-2 pt-1">
-              <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+            {/* Section 2: Appearance & Theme */}
+            <div className="space-y-2">
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
                 Aparência
-              </p>
+              </span>
               <AppearanceSegmentedControl
                 currentTheme={currentTheme}
                 onThemeSelect={handleThemeSelect}
@@ -644,7 +661,20 @@ export function ConsultancyNavigation({
               />
             </div>
 
-            {/* Section 3: Direct User Preferences */}
+            {/* Section 3: View Mode Selector (if multi-mode available) */}
+            {viewModeState && viewModeState.allowedOptions.length > 1 && (
+              <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
+                <ViewModeSelector
+                  consultancySlug={consultancySlug}
+                  effectiveMode={viewModeState.effectiveMode}
+                  defaultMode={viewModeState.defaultMode}
+                  allowedOptions={viewModeState.allowedOptions}
+                  onSelect={() => setMobileMenuOpen(false)}
+                />
+              </div>
+            )}
+
+            {/* Section 4: Direct User Preferences */}
             <div className="space-y-2 pt-1">
               <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
                 Preferências

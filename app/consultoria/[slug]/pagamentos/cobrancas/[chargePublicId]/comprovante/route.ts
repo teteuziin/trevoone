@@ -1,5 +1,6 @@
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { validateSameOrigin } from "@/lib/security/request-origin";
 import {
   getStudentChargePaymentDetail,
   submitStudentPaymentReceipt,
@@ -28,22 +29,12 @@ export async function POST(request: Request, { params }: RouteProps) {
   const { slug, chargePublicId } = await params;
 
   // 1. Same-origin defense
-  const originHeader = request.headers.get("origin");
-  if (originHeader) {
-    try {
-      const requestUrl = new URL(request.url);
-      if (originHeader !== requestUrl.origin) {
-        return new Response(
-          JSON.stringify({ error: "Requisição não autorizada por política de mesma origem." }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
-        );
-      }
-    } catch {
-      return new Response(
-        JSON.stringify({ error: "Origem da requisição inválida." }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
+  const originCheck = validateSameOrigin(request);
+  if (!originCheck.allowed) {
+    return new Response(
+      JSON.stringify({ error: originCheck.error || "Requisição não autorizada por política de mesma origem." }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   // 2. Early Content-Length validation (rejects obviously oversized requests before auth/prechecks and formData parsing)

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/auth/session";
+import { validateSameOrigin } from "@/lib/security/request-origin";
 import { prepareSignalingSession } from "@/lib/consultancies/signaling";
 
 export const runtime = "nodejs";
@@ -13,6 +14,14 @@ type RouteProps = {
 };
 
 export async function POST(request: Request, { params }: RouteProps) {
+  const originCheck = validateSameOrigin(request);
+  if (!originCheck.allowed) {
+    return NextResponse.json(
+      { success: false, error: "FORBIDDEN_ORIGIN", message: originCheck.error || "Origem inválida." },
+      { status: 403, headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
+  }
+
   const session = await getCurrentSession();
   if (!session) {
     return NextResponse.json(

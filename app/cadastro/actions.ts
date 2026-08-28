@@ -44,6 +44,14 @@ function logSanitizedRegisterError(stage: string, err: unknown): void {
     }
   }
 
+  const dbHostMatches = process.env.DB_HOST === "localhost";
+  const dbPortMatches = process.env.DB_PORT === "3306";
+  const dbNameMatches = process.env.DB_NAME === "u406031981_trevoone";
+  const dbUserMatches = process.env.DB_USER === "u406031981_trevoadmin";
+  const dbPasswordLoaded =
+    typeof process.env.DB_PASSWORD === "string" && process.env.DB_PASSWORD.length > 0;
+  const dbRevisionMatches = process.env.DB_ENV_REVISION === "prod-db-20260828-01";
+
   console.error("[auth.register] technical failure", {
     stage,
     name,
@@ -51,6 +59,12 @@ function logSanitizedRegisterError(stage: string, err: unknown): void {
     errno,
     sqlState,
     syscall,
+    dbHostMatches,
+    dbPortMatches,
+    dbNameMatches,
+    dbUserMatches,
+    dbPasswordLoaded,
+    dbRevisionMatches,
   });
 }
 

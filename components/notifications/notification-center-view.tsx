@@ -145,16 +145,8 @@ export function NotificationCenterView({
         // Unsubscribe
         const currentSub = await reg.pushManager.getSubscription();
         if (currentSub) {
-          try {
-            await revokePushSubscriptionAction(currentSub.endpoint);
-          } catch {
-            // Best-effort server revocation
-          }
-          try {
-            await currentSub.unsubscribe();
-          } catch {
-            // Best-effort browser unsubscribe
-          }
+          await currentSub.unsubscribe();
+          await revokePushSubscriptionAction(currentSub.endpoint);
         }
         setIsPushSubscribed(false);
         setPushFeedback({
@@ -187,10 +179,19 @@ export function NotificationCenterView({
               applicationServerKey: appServerKey.buffer as ArrayBuffer,
             });
           } catch (subErr) {
-            // 3. Subscription collision recovery: attempt one recovery call to getSubscription()
-            const recoveredSub = await reg.pushManager.getSubscription();
-            if (recoveredSub) {
-              sub = recoveredSub;
+            // 3. Narrow subscription collision recovery: handle only specific DOMException state collisions
+            const isStateCollision =
+              typeof DOMException !== "undefined" &&
+              subErr instanceof DOMException &&
+              subErr.name === "InvalidStateError";
+
+            if (isStateCollision) {
+              const recoveredSub = await reg.pushManager.getSubscription();
+              if (recoveredSub) {
+                sub = recoveredSub;
+              } else {
+                throw subErr;
+              }
             } else {
               throw subErr;
             }

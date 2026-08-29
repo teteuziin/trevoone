@@ -20,6 +20,21 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "www.trevoone.com",
+          },
+        ],
+        destination: "https://trevoone.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

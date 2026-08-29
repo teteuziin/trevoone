@@ -125,6 +125,8 @@ export function NotificationCenterView({
   }, []);
 
   async function handleTogglePush() {
+    if (pushLoading) return;
+
     if (!pushSupported || !vapidPublicKey) {
       setPushFeedback({
         type: "error",
@@ -143,8 +145,16 @@ export function NotificationCenterView({
         // Unsubscribe
         const currentSub = await reg.pushManager.getSubscription();
         if (currentSub) {
-          await currentSub.unsubscribe();
-          await revokePushSubscriptionAction(currentSub.endpoint);
+          try {
+            await revokePushSubscriptionAction(currentSub.endpoint);
+          } catch {
+            // Best-effort server revocation
+          }
+          try {
+            await currentSub.unsubscribe();
+          } catch {
+            // Best-effort browser unsubscribe
+          }
         }
         setIsPushSubscribed(false);
         setPushFeedback({
@@ -152,7 +162,7 @@ export function NotificationCenterView({
           message: "Notificações desativadas para este dispositivo.",
         });
       } else {
-        // Request Permission & Subscribe
+        // Request Permission & Subscribe / Reactivate
         const perm = await Notification.requestPermission();
         setPushPermission(perm);
 
@@ -165,11 +175,31 @@ export function NotificationCenterView({
           return;
         }
 
-        const appServerKey = urlBase64ToUint8Array(vapidPublicKey);
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: appServerKey.buffer as ArrayBuffer,
-        });
+        // 1. Check if an existing PushSubscription already exists in the browser
+        let sub = await reg.pushManager.getSubscription();
+
+        // 2. Only if getSubscription() returns null, call subscribe()
+        if (!sub) {
+          try {
+            const appServerKey = urlBase64ToUint8Array(vapidPublicKey);
+            sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: appServerKey.buffer as ArrayBuffer,
+            });
+          } catch (subErr) {
+            // 3. Subscription collision recovery: attempt one recovery call to getSubscription()
+            const recoveredSub = await reg.pushManager.getSubscription();
+            if (recoveredSub) {
+              sub = recoveredSub;
+            } else {
+              throw subErr;
+            }
+          }
+        }
+
+        if (!sub) {
+          throw new Error("Falha ao obter assinatura de notificações.");
+        }
 
         const subJson = sub.toJSON();
         const p256dh = subJson.keys?.p256dh;
@@ -194,6 +224,7 @@ export function NotificationCenterView({
             message: "Notificações ativadas com sucesso neste dispositivo!",
           });
         } else {
+          setIsPushSubscribed(false);
           setPushFeedback({
             type: "error",
             message: "Falha ao registrar assinatura no servidor.",

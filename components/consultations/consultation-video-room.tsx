@@ -480,7 +480,10 @@ export function ConsultationVideoRoom({
         // 1. Fetch authorized Cloudflare ICE config from same-origin Trevo endpoint
         const iceRes = await fetch(
           `/api/consultancies/${encodeURIComponent(consultancySlug)}/consultations/${encodeURIComponent(consultationPublicId)}/ice-config`,
-          { cache: "no-store" }
+          {
+            method: "POST",
+            cache: "no-store",
+          }
         );
 
         if (!iceRes.ok) {

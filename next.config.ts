@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const cspReportOnlyHeader = [
+const cspHeader = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
@@ -40,8 +40,8 @@ const securityHeaders = [
     value: "max-age=31536000; includeSubDomains",
   },
   {
-    key: "Content-Security-Policy-Report-Only",
-    value: cspReportOnlyHeader,
+    key: "Content-Security-Policy",
+    value: cspHeader,
   },
 ];
 

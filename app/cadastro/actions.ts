@@ -3,6 +3,7 @@
 import crypto from "node:crypto";
 import { getDbConnection } from "../../lib/db/mysql";
 import { hashPassword } from "../../lib/auth/password";
+import { consumeAuthRateLimit } from "../../lib/security/auth-rate-limit";
 
 export type RegisterFormErrors = {
   full_name?: string;
@@ -87,6 +88,21 @@ export async function registerAccount(
     return {
       success: false,
       errors,
+    };
+  }
+
+  // 6. Rate Limiting: Consume attempt for signup_identifier (3 submissions / 10 min)
+  const rateLimit = await consumeAuthRateLimit({
+    scope: "signup_identifier",
+    identifier: email,
+    maxAttempts: 3,
+    windowSeconds: 10 * 60,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      success: false,
+      message: "Muitas tentativas de cadastro. Aguarde alguns minutos antes de tentar novamente.",
     };
   }
 

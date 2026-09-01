@@ -7,6 +7,10 @@ import { getDbConnection } from "../../lib/db/mysql";
 import { verifyPassword, DUMMY_SCRYPT_HASH } from "../../lib/auth/password";
 import { createSession, revokeCurrentSession } from "../../lib/auth/session";
 import { validateInvitationReturnTo } from "../../lib/auth/invitation-return-to";
+import {
+  consumeAuthRateLimit,
+  clearAuthRateLimit,
+} from "../../lib/security/auth-rate-limit";
 
 export type LoginFormErrors = {
   email?: string;
@@ -62,6 +66,21 @@ export async function loginAccount(
     };
   }
 
+  // 1. Rate Limiting: Consume attempt for login_identifier (5 attempts / 15 min)
+  const rateLimit = await consumeAuthRateLimit({
+    scope: "login_identifier",
+    identifier: email,
+    maxAttempts: 5,
+    windowSeconds: 15 * 60,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      success: false,
+      message: "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.",
+    };
+  }
+
   let user: {
     id: number;
     password_hash: string;
@@ -69,7 +88,7 @@ export async function loginAccount(
     deleted_at: Date | null;
   } | null = null;
 
-  // 1. Connection A: Fetch user and RELEASE immediately before scrypt
+  // 2. Connection A: Fetch user and RELEASE immediately before scrypt
   try {
     const connection = await getDbConnection();
     try {
@@ -99,7 +118,7 @@ export async function loginAccount(
     };
   }
 
-  // 2. Verify password with NO active DB connection
+  // 3. Verify password with NO active DB connection
   if (!user) {
     await verifyPassword(password, DUMMY_SCRYPT_HASH);
     return {
@@ -117,7 +136,10 @@ export async function loginAccount(
     };
   }
 
-  // 3. Connection B: Create session and set cookie
+  // 4. On successful authentication, reset login limiter for this identifier
+  await clearAuthRateLimit("login_identifier", email);
+
+  // 5. Connection B: Create session and set cookie
   const sessionCreated = await createSession(user.id, rememberMe);
 
   if (!sessionCreated) {

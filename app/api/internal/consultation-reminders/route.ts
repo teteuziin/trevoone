@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { processConsultationReminders } from "@/lib/consultancies/consultation-reminders";
+import {
+  CRON_JOB_CONSULTATION_REMINDERS,
+  markCronStarted,
+  markCronSucceeded,
+  markCronFailed,
+} from "@/lib/system/cron-heartbeat-repository";
 
 export const dynamic = "force-dynamic";
 
@@ -56,8 +62,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  let startedRecorded = false;
   try {
+    await markCronStarted(CRON_JOB_CONSULTATION_REMINDERS);
+    startedRecorded = true;
+
     const result = await processConsultationReminders();
+
+    await markCronSucceeded(CRON_JOB_CONSULTATION_REMINDERS, {
+      processed: result.processed,
+      created: result.created,
+      skipped: result.skipped,
+    });
 
     return NextResponse.json(
       {
@@ -73,6 +89,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   } catch (err: unknown) {
     console.error("[Internal Consultation Reminders Route] Error:", err);
+
+    if (startedRecorded) {
+      try {
+        await markCronFailed(CRON_JOB_CONSULTATION_REMINDERS, "PROCESSING_FAILED");
+      } catch (heartbeatErr: unknown) {
+        console.error(
+          "[Internal Consultation Reminders Route] Failed to record failure heartbeat:",
+          heartbeatErr
+        );
+      }
+    }
+
     return NextResponse.json(
       { error: "INTERNAL_SERVER_ERROR" },
       {

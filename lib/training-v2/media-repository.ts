@@ -356,7 +356,7 @@ export async function attachMediaToExercise(
 
     // 2. Fetch media
     const [maRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, scope, consultancy_id, visibility, created_by_membership_id FROM media_assets WHERE public_id = ? AND deleted_at IS NULL LIMIT 1;`,
+      `SELECT id, scope, consultancy_id, visibility, media_type, created_by_membership_id FROM media_assets WHERE public_id = ? AND deleted_at IS NULL LIMIT 1;`,
       [mediaPublicId]
     );
     if (!maRows || maRows.length === 0) {
@@ -364,7 +364,30 @@ export async function attachMediaToExercise(
     }
     const ma = maRows[0];
 
-    // 3. Authorization & Compatibility Validation
+    // 3. Media type vs Role compatibility check
+    if (
+      (role === "START_IMAGE" || role === "VIDEO_POSTER" || role === "ALTERNATE_IMAGE") &&
+      ma.media_type !== "IMAGE"
+    ) {
+      throw new TrainingAuthorizationError(
+        "Apenas ativos de imagem podem ser vinculados para esta função de mídia.",
+        "INCOMPATIBLE_MEDIA_ROLE_TYPE",
+        400
+      );
+    }
+
+    if (
+      (role === "EXECUTION_VIDEO" || role === "ALTERNATE_VIDEO") &&
+      ma.media_type !== "VIDEO"
+    ) {
+      throw new TrainingAuthorizationError(
+        "Apenas ativos de vídeo podem ser vinculados para esta função de mídia.",
+        "INCOMPATIBLE_MEDIA_ROLE_TYPE",
+        400
+      );
+    }
+
+    // 4. Authorization & Tenancy Compatibility Validation
     if (ex.scope === "GLOBAL") {
       assertCanManageGlobal(ctx);
       if (ma.scope !== "GLOBAL" || ma.visibility !== "GLOBAL") {
@@ -392,13 +415,34 @@ export async function attachMediaToExercise(
       }
     }
 
-    // 4. Upsert / Insert association
-    await connection.execute<ResultSetHeader>(
-      `INSERT INTO exercise_media (exercise_id, media_asset_id, role, sort_order)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE media_asset_id = VALUES(media_asset_id);`,
-      [ex.id, ma.id, role, sortOrder]
-    );
+    // 5. Transactional association / primary replacement
+    const isPrimaryRole = role === "START_IMAGE" || role === "EXECUTION_VIDEO" || role === "VIDEO_POSTER";
+
+    await connection.beginTransaction();
+    try {
+      // Row lock to prevent race conditions during concurrent replacements
+      await connection.execute(`SELECT id FROM exercises WHERE id = ? FOR UPDATE;`, [ex.id]);
+
+      if (isPrimaryRole) {
+        // Remove previous primary association for this role (without deleting historical media_assets)
+        await connection.execute(
+          `DELETE FROM exercise_media WHERE exercise_id = ? AND role = ?;`,
+          [ex.id, role]
+        );
+      }
+
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO exercise_media (exercise_id, media_asset_id, role, sort_order)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE media_asset_id = VALUES(media_asset_id);`,
+        [ex.id, ma.id, role, sortOrder]
+      );
+
+      await connection.commit();
+    } catch (txErr) {
+      await connection.rollback();
+      throw txErr;
+    }
   } finally {
     if (connection) {
       connection.release();

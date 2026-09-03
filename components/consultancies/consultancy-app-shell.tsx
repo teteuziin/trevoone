@@ -137,9 +137,16 @@ export function ConsultancyAppShell({
     items.push({
       id: "personal-exercicios-v2",
       label: "Biblioteca de Exercícios",
-      mobileLabel: "Exercícios V2",
+      mobileLabel: "Exercícios",
       href: `/consultoria/${consultancySlug}/exercicios`,
       iconName: "exercises",
+    });
+    items.push({
+      id: "personal-rotinas-v2",
+      label: "Criador de Treinos",
+      mobileLabel: "Criador",
+      href: `/consultoria/${consultancySlug}/rotinas`,
+      iconName: "training",
     });
     items.push({
       id: "personal-progresso",
@@ -185,9 +192,16 @@ export function ConsultancyAppShell({
     items.push({
       id: "admin-exercicios-v2",
       label: "Biblioteca de Exercícios",
-      mobileLabel: "Exercícios V2",
+      mobileLabel: "Exercícios",
       href: `/consultoria/${consultancySlug}/exercicios`,
       iconName: "exercises",
+    });
+    items.push({
+      id: "admin-rotinas-v2",
+      label: "Criador de Treinos",
+      mobileLabel: "Criador",
+      href: `/consultoria/${consultancySlug}/rotinas`,
+      iconName: "training",
     });
     items.push({
       id: "admin-membros",

@@ -39,6 +39,7 @@ export type MediaAccessAuthorizationResult = {
   authorized: boolean;
   reason?: string;
   mediaAsset?: MediaAssetDto;
+  storageKey?: string;
 };
 
 /**
@@ -209,6 +210,7 @@ export async function authorizeMediaAssetAccess(
         ma.created_by_membership_id,
         ma.media_type,
         ma.storage_provider,
+        ma.storage_key,
         ma.mime_type,
         ma.file_size_bytes,
         ma.duration_seconds,
@@ -227,6 +229,7 @@ export async function authorizeMediaAssetAccess(
     }
 
     const r = assetRows[0];
+    const storageKey = String(r.storage_key);
     const mediaAsset: MediaAssetDto = {
       publicId: String(r.public_id),
       scope: r.scope as MediaScope,
@@ -275,16 +278,32 @@ export async function authorizeMediaAssetAccess(
 
           if (Array.isArray(pinnedRows) && pinnedRows.length > 0) {
             // Access granted through immutable assignment pin!
-            return { authorized: true, mediaAsset };
+            return { authorized: true, mediaAsset, storageKey };
           }
         }
+      }
+    } else if (ctx.isStudent && ctx.membershipId) {
+      // Automatic student grant: check if asset is pinned to ANY active/assigned workout version for this student
+      const [anyPinnedRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT wbim.id
+         FROM workout_block_item_media wbim
+         INNER JOIN workout_block_items wbi ON wbi.id = wbim.block_item_id
+         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+         INNER JOIN workout_assignments wa ON wa.workout_version_id = wb.workout_version_id
+         WHERE wa.student_membership_id = ? AND wbim.media_asset_id = ? AND wa.deleted_at IS NULL
+         LIMIT 1;`,
+        [ctx.membershipId, r.id]
+      );
+
+      if (Array.isArray(anyPinnedRows) && anyPinnedRows.length > 0) {
+        return { authorized: true, mediaAsset, storageKey };
       }
     }
 
     // 3. Fallback: ordinary library visibility for professionals/admins
     if (r.scope === "GLOBAL") {
       if (ctx.isPlatformAdmin || ctx.canAuthorTraining) {
-        return { authorized: true, mediaAsset };
+        return { authorized: true, mediaAsset, storageKey };
       }
       return { authorized: false, reason: "Acesso a mídias globais é restrito a profissionais autorizados ou prescrições ativas." };
     }
@@ -296,11 +315,11 @@ export async function authorizeMediaAssetAccess(
       if (r.visibility === "CREATOR_ONLY") {
         const isCreator = ctx.membershipId && Number(r.created_by_membership_id) === ctx.membershipId;
         if (isCreator || ctx.canManageConsultancy) {
-          return { authorized: true, mediaAsset };
+          return { authorized: true, mediaAsset, storageKey };
         }
         return { authorized: false, reason: "Mídia de visibilidade privada pertencente a outro profissional." };
       }
-      return { authorized: true, mediaAsset };
+      return { authorized: true, mediaAsset, storageKey };
     }
 
     return { authorized: false, reason: "Acesso não autorizado." };

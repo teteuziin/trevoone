@@ -186,6 +186,75 @@ export async function getMediaAssetByPublicId(
 }
 
 /**
+ * Promotes a consultancy media asset's visibility from CREATOR_ONLY to CONSULTANCY.
+ * Never mutates binary, storage_key, consultancy_id, or creator ownership.
+ * Rejects GLOBAL assets and cross-tenant attempts.
+ */
+export async function promoteMediaAssetToConsultancy(
+  ctx: TrainingAccessContext,
+  mediaPublicId: string
+): Promise<MediaAssetDto> {
+  assertCanAuthorTraining(ctx);
+
+  if (!ctx.consultancyId) {
+    throw new TrainingAuthorizationError("Contexto de consultoria obrigatório.", "TENANT_REQUIRED", 400);
+  }
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, scope, visibility, consultancy_id, created_by_membership_id
+       FROM media_assets
+       WHERE public_id = ? AND deleted_at IS NULL
+       LIMIT 1;`,
+      [mediaPublicId]
+    );
+
+    if (!rows || rows.length === 0) {
+      throw new TrainingAuthorizationError("Ativo de mídia não encontrado.", "NOT_FOUND", 404);
+    }
+
+    const ma = rows[0];
+
+    if (ma.scope !== "CONSULTANCY") {
+      throw new TrainingAuthorizationError("Apenas ativos de consultoria podem ser promovidos.", "INVALID_SCOPE", 400);
+    }
+
+    if (Number(ma.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Ativo pertence a outra consultoria.", "TENANT_MISMATCH", 403);
+    }
+
+    const isCreator = ctx.membershipId && Number(ma.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError(
+        "Apenas o autor ou administrador da consultoria podem compartilhar esta mídia.",
+        "FORBIDDEN",
+        403
+      );
+    }
+
+    // Idempotent: if already CONSULTANCY, return current asset without error
+    if (ma.visibility === "CONSULTANCY") {
+      const asset = await getMediaAssetByPublicId(ctx, mediaPublicId);
+      return asset!;
+    }
+
+    await connection.execute<ResultSetHeader>(
+      `UPDATE media_assets SET visibility = 'CONSULTANCY', updated_at = NOW(3) WHERE id = ?;`,
+      [ma.id]
+    );
+
+    const updated = await getMediaAssetByPublicId(ctx, mediaPublicId);
+    return updated!;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+/**
  * Authorizes playback/access for a media asset, with support for student assignment grants.
  * If assignmentPublicId is provided, grants access if the media asset is pinned to that student's assigned workout version.
  */

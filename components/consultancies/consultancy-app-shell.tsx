@@ -135,6 +135,13 @@ export function ConsultancyAppShell({
       iconName: "exercises",
     });
     items.push({
+      id: "personal-exercicios-v2",
+      label: "Biblioteca de Exercícios",
+      mobileLabel: "Exercícios V2",
+      href: `/consultoria/${consultancySlug}/exercicios`,
+      iconName: "exercises",
+    });
+    items.push({
       id: "personal-progresso",
       label: "Evolução dos Alunos",
       mobileLabel: "Alunos",
@@ -175,6 +182,13 @@ export function ConsultancyAppShell({
   }
 
   if (presentationRoles.includes("CONSULTANCY_ADMIN")) {
+    items.push({
+      id: "admin-exercicios-v2",
+      label: "Biblioteca de Exercícios",
+      mobileLabel: "Exercícios V2",
+      href: `/consultoria/${consultancySlug}/exercicios`,
+      iconName: "exercises",
+    });
     items.push({
       id: "admin-membros",
       label: "Membros",

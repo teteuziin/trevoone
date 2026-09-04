@@ -23,16 +23,27 @@ import {
   reorderItemsInDraft,
   replaceNormalSetsForDraftItem,
   updateBlockTitleInDraft,
+  updateBlockConfigurationInDraft,
+  replaceDropSetStructureForDraftItem,
+  replaceRestPauseStructureForDraftItem,
+  updateCardioConfigurationForDraftItem,
+  updateWarmupConfigurationForDraftItem,
   archiveWorkout,
   type CreateWorkoutInput,
   type UpdateWorkoutDraftMetadataInput,
   type SimpleNormalSetInput,
+  type UpdateBlockConfigurationInput,
+  type ReplaceDropSetStructureInput,
+  type ReplaceRestPauseStructureInput,
+  type UpdateCardioConfigurationInput,
+  type UpdateWarmupConfigurationInput,
 } from "@/lib/training-v2/workout-repository";
 import type {
   WorkoutVersionDto,
   WorkoutBlockDto,
   WorkoutBlockItemDto,
   WorkoutItemSetDto,
+  WorkoutBlockType,
 } from "@/lib/training-v2/types";
 
 export type ActionResponse<T = unknown> = {
@@ -519,4 +530,159 @@ export async function searchExercisesForPickerAction(
     };
   }
 }
+
+/**
+ * Creates a method block in a DRAFT version.
+ */
+export async function createMethodBlockAction(
+  slug: string,
+  versionPublicId: string,
+  input: {
+    blockType: WorkoutBlockType;
+    title?: string | null;
+    rounds?: number | null;
+    restBetweenItemsSeconds?: number | null;
+    restBetweenRoundsSeconds?: number | null;
+    restAfterBlockSeconds?: number | null;
+    instructions?: string | null;
+  }
+): Promise<ActionResponse<WorkoutBlockDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+
+    const block = await addBlockToDraft(ctx, versionPublicId, {
+      blockType: input.blockType,
+      title: input.title?.trim() || null,
+      rounds: input.rounds ?? null,
+      restBetweenItemsSeconds: input.restBetweenItemsSeconds ?? null,
+      restBetweenRoundsSeconds: input.restBetweenRoundsSeconds ?? null,
+      restAfterBlockSeconds: input.restAfterBlockSeconds ?? null,
+      instructions: input.instructions?.trim() || null,
+    });
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: block };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao criar bloco metodológico.",
+    };
+  }
+}
+
+/**
+ * Updates full configuration parameters of a block in DRAFT.
+ */
+export async function updateBlockConfigurationAction(
+  slug: string,
+  blockPublicId: string,
+  input: UpdateBlockConfigurationInput
+): Promise<ActionResponse<WorkoutBlockDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+
+    const block = await updateBlockConfigurationInDraft(ctx, blockPublicId, input);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: block };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao atualizar configuração do bloco.",
+    };
+  }
+}
+
+/**
+ * Replaces sets for a DROP_SET item, linking each DROP_STAGE to the parent NORMAL set.
+ */
+export async function replaceDropSetStructureAction(
+  slug: string,
+  itemPublicId: string,
+  input: ReplaceDropSetStructureInput
+): Promise<ActionResponse<WorkoutItemSetDto[]>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+
+    const sets = await replaceDropSetStructureForDraftItem(ctx, itemPublicId, input);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: sets };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao salvar séries de Drop-Set.",
+    };
+  }
+}
+
+/**
+ * Replaces sets for a REST_PAUSE item, saving method config and linking mini sets.
+ */
+export async function replaceRestPauseStructureAction(
+  slug: string,
+  itemPublicId: string,
+  input: ReplaceRestPauseStructureInput
+): Promise<ActionResponse<WorkoutItemSetDto[]>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+
+    const sets = await replaceRestPauseStructureForDraftItem(ctx, itemPublicId, input);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: sets };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao salvar séries de Rest-Pause.",
+    };
+  }
+}
+
+/**
+ * Updates cardio configuration and sets for a CARDIO item.
+ */
+export async function updateCardioConfigurationAction(
+  slug: string,
+  itemPublicId: string,
+  input: UpdateCardioConfigurationInput
+): Promise<ActionResponse<{ config: import("@/lib/training-v2/types").CardioMethodConfig; sets: WorkoutItemSetDto[] }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+
+    const result = await updateCardioConfigurationForDraftItem(ctx, itemPublicId, input);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: result };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao salvar configuração aeróbia de Cardio.",
+    };
+  }
+}
+
+/**
+ * Updates warmup configuration for a WARMUP item.
+ */
+export async function updateWarmupConfigurationAction(
+  slug: string,
+  itemPublicId: string,
+  input: UpdateWarmupConfigurationInput
+): Promise<ActionResponse<import("@/lib/training-v2/types").WarmupMethodConfig>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+
+    const result = await updateWarmupConfigurationForDraftItem(ctx, itemPublicId, input);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: result };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao salvar configuração de Aquecimento.",
+    };
+  }
+}
+
 

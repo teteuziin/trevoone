@@ -4,11 +4,13 @@ import { useState, useTransition } from "react";
 import type {
   WorkoutRootDto,
   WorkoutVersionDto,
+  WorkoutBlockType,
+  PrescriptionMode,
+  CardioMethodConfig,
   DifficultyLevel,
 } from "@/lib/training-v2/types";
 import {
   updateWorkoutDraftMetadataAction,
-  addBlockToDraftAction,
   duplicateBlockAction,
   reorderBlocksAction,
   removeBlockAction,
@@ -17,10 +19,17 @@ import {
   removeItemAction,
   updateNormalSetsAction,
   updateBlockTitleAction,
+  createMethodBlockAction,
+  updateBlockConfigurationAction,
+  replaceDropSetStructureAction,
+  replaceRestPauseStructureAction,
+  updateCardioConfigurationAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import { WorkoutBlockCard } from "./workout-block-card";
+import { WorkoutMethodSelectorModal } from "./workout-method-selector-modal";
 import { UnifiedExercisePicker } from "./unified-exercise-picker";
 import { CustomExerciseInlineModal } from "./custom-exercise-inline-modal";
+
 function Clock({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -144,6 +153,9 @@ export function WorkoutBuilder({
   const [metaNotes, setMetaNotes] = useState(draft.notes || "");
   const [savingMetadata, setSavingMetadata] = useState(false);
 
+  // Method Selector Modal State
+  const [isMethodModalOpen, setIsMethodModalOpen] = useState(false);
+
   // Picker & Custom Modal States
   const [activePickerBlockId, setActivePickerBlockId] = useState<string | null>(null);
   const [activeCustomBlockId, setActiveCustomBlockId] = useState<string | null>(null);
@@ -191,14 +203,16 @@ export function WorkoutBuilder({
     }
   };
 
-  // 2. ADD BLOCK
-  const handleAddBlock = async () => {
+  // 2. CREATE METHOD BLOCK
+  const handleCreateMethodBlock = async (method: WorkoutBlockType) => {
     const nextOrder = (draft.blocks?.length || 0) + 1;
-    const defaultTitle = `Bloco ${String.fromCharCode(64 + nextOrder)}`; // Bloco A, B, C...
+    const defaultTitle = `Bloco ${String.fromCharCode(64 + nextOrder)}`;
+    setIsMethodModalOpen(false);
 
     startTransition(async () => {
       try {
-        const res = await addBlockToDraftAction(consultancySlug, draft.publicId, {
+        const res = await createMethodBlockAction(consultancySlug, draft.publicId, {
+          blockType: method,
           title: defaultTitle,
         });
 
@@ -211,7 +225,7 @@ export function WorkoutBuilder({
           ...prev,
           blocks: [...(prev.blocks || []), res.data!],
         }));
-        showNotification("success", `Novo bloco adicionado (${defaultTitle})`);
+        showNotification("success", `Novo bloco adicionado (${res.data.title || defaultTitle})`);
       } catch {
         showNotification("error", "Falha ao adicionar novo bloco.");
       }
@@ -226,7 +240,6 @@ export function WorkoutBuilder({
     newBlocks[index - 1] = newBlocks[index];
     newBlocks[index] = temp;
 
-    // optimistic update
     setDraft((prev) => ({ ...prev, blocks: newBlocks }));
 
     try {
@@ -248,7 +261,6 @@ export function WorkoutBuilder({
     newBlocks[index + 1] = newBlocks[index];
     newBlocks[index] = temp;
 
-    // optimistic update
     setDraft((prev) => ({ ...prev, blocks: newBlocks }));
 
     try {
@@ -400,7 +412,7 @@ export function WorkoutBuilder({
     }
   };
 
-  // 10. UPDATE SETS FOR ITEM
+  // 10. UPDATE SETS FOR ITEM (NORMAL)
   const handleUpdateSets = async (
     blockPublicId: string,
     itemPublicId: string,
@@ -463,6 +475,180 @@ export function WorkoutBuilder({
       showNotification("success", "Título do bloco atualizado!");
     } catch {
       showNotification("error", "Falha ao salvar título do bloco.");
+    }
+  };
+
+  // 12. UPDATE CIRCUIT CONFIGURATION
+  const handleUpdateCircuitConfig = async (
+    blockPublicId: string,
+    config: {
+      rounds: number;
+      restBetweenItemsSeconds: number;
+      restBetweenRoundsSeconds: number;
+      restAfterBlockSeconds: number;
+      instructions: string | null;
+    }
+  ) => {
+    try {
+      const res = await updateBlockConfigurationAction(consultancySlug, blockPublicId, config);
+      if (!res.ok || !res.data) {
+        showNotification("error", res.error || "Erro ao salvar parâmetros do circuito.");
+        return;
+      }
+
+      setDraft((prev) => ({
+        ...prev,
+        blocks: (prev.blocks || []).map((b) => (b.publicId === blockPublicId ? res.data! : b)),
+      }));
+      showNotification("success", "Configurações do circuito salvas!");
+    } catch {
+      showNotification("error", "Falha ao atualizar parâmetros do circuito.");
+    }
+  };
+
+  // 13. REPLACE DROP-SET STRUCTURE
+  const handleReplaceDropSet = async (
+    blockPublicId: string,
+    itemPublicId: string,
+    payload: {
+      initialSet: {
+        targetReps?: number | null;
+        targetRepsMax?: number | null;
+        targetLoadKg?: number | null;
+        targetRestSeconds?: number | null;
+        intensityIndicator?: string | null;
+      };
+      dropStages: Array<{
+        targetReps?: number | null;
+        targetRepsMax?: number | null;
+        targetLoadKg?: number | null;
+        intensityIndicator?: string | null;
+      }>;
+    }
+  ) => {
+    try {
+      const res = await replaceDropSetStructureAction(consultancySlug, itemPublicId, payload);
+      if (!res.ok || !res.data) {
+        showNotification("error", res.error || "Erro ao salvar séries de Drop-Set.");
+        return;
+      }
+
+      setDraft((prev) => ({
+        ...prev,
+        blocks: (prev.blocks || []).map((b) => {
+          if (b.publicId !== blockPublicId) return b;
+          return {
+            ...b,
+            items: (b.items || []).map((it) => {
+              if (it.publicId !== itemPublicId) return it;
+              return {
+                ...it,
+                sets: res.data!,
+              };
+            }),
+          };
+        }),
+      }));
+      showNotification("success", "Séries de Drop-Set salvas!");
+    } catch {
+      showNotification("error", "Falha ao salvar Drop-Set.");
+    }
+  };
+
+  // 14. REPLACE REST-PAUSE STRUCTURE
+  const handleReplaceRestPause = async (
+    blockPublicId: string,
+    itemPublicId: string,
+    payload: {
+      config: {
+        intraPauseSeconds: number;
+        targetTotalReps?: number | null;
+      };
+      initialSet: {
+        targetReps?: number | null;
+        targetLoadKg?: number | null;
+        targetRestSeconds?: number | null;
+        intensityIndicator?: string | null;
+      };
+      miniSets: Array<{
+        targetReps?: number | null;
+        targetLoadKg?: number | null;
+        intensityIndicator?: string | null;
+      }>;
+    }
+  ) => {
+    try {
+      const res = await replaceRestPauseStructureAction(consultancySlug, itemPublicId, payload);
+      if (!res.ok || !res.data) {
+        showNotification("error", res.error || "Erro ao salvar séries de Rest-Pause.");
+        return;
+      }
+
+      setDraft((prev) => ({
+        ...prev,
+        blocks: (prev.blocks || []).map((b) => {
+          if (b.publicId !== blockPublicId) return b;
+          return {
+            ...b,
+            items: (b.items || []).map((it) => {
+              if (it.publicId !== itemPublicId) return it;
+              return {
+                ...it,
+                methodConfig: payload.config,
+                sets: res.data!,
+              };
+            }),
+          };
+        }),
+      }));
+      showNotification("success", "Séries de Rest-Pause salvas!");
+    } catch {
+      showNotification("error", "Falha ao salvar Rest-Pause.");
+    }
+  };
+
+  // 15. UPDATE CARDIO CONFIGURATION
+  const handleUpdateCardio = async (
+    blockPublicId: string,
+    itemPublicId: string,
+    payload: {
+      prescriptionMode: PrescriptionMode;
+      config: CardioMethodConfig;
+      targetDurationSeconds?: number | null;
+      targetDistanceMeters?: number | null;
+      targetRestSeconds?: number | null;
+      notes?: string | null;
+    }
+  ) => {
+    try {
+      const res = await updateCardioConfigurationAction(consultancySlug, itemPublicId, payload);
+      if (!res.ok || !res.data) {
+        showNotification("error", res.error || "Erro ao salvar configuração de Cardio.");
+        return;
+      }
+
+      setDraft((prev) => ({
+        ...prev,
+        blocks: (prev.blocks || []).map((b) => {
+          if (b.publicId !== blockPublicId) return b;
+          return {
+            ...b,
+            items: (b.items || []).map((it) => {
+              if (it.publicId !== itemPublicId) return it;
+              return {
+                ...it,
+                prescriptionMode: payload.prescriptionMode,
+                methodConfig: res.data!.config,
+                notes: payload.notes || it.notes,
+                sets: res.data!.sets,
+              };
+            }),
+          };
+        }),
+      }));
+      showNotification("success", "Configuração de Cardio salva!");
+    } catch {
+      showNotification("error", "Falha ao salvar Cardio.");
     }
   };
 
@@ -571,11 +757,11 @@ export function WorkoutBuilder({
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
             <Layers className="w-4 h-4 text-emerald-500" />
-            Estrutura de Blocos
+            Estrutura de Blocos (11 Métodos)
           </h2>
 
           <button
-            onClick={handleAddBlock}
+            onClick={() => setIsMethodModalOpen(true)}
             disabled={isPending}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
           >
@@ -598,16 +784,16 @@ export function WorkoutBuilder({
                 Nenhum bloco de exercício adicionado
               </h3>
               <p className="text-xs text-[var(--foreground-muted)] max-w-sm mx-auto">
-                Organize seu treino em blocos simples (Single) e adicione exercícios da biblioteca ou personalizados.
+                Adicione blocos com qualquer uma das 11 metodologias disponíveis (Série Simples, Bi-Set, Tri-Set, Circuito, Drop-Set, Rest-Pause, Cardio...).
               </p>
             </div>
             <button
-              onClick={handleAddBlock}
+              onClick={() => setIsMethodModalOpen(true)}
               disabled={isPending}
               className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
             >
               <Plus className="w-4 h-4" />
-              Criar Primeiro Bloco
+              Escolher Metodologia do 1º Bloco
             </button>
           </div>
         ) : (
@@ -632,6 +818,18 @@ export function WorkoutBuilder({
                 onUpdateBlockTitle={(title) =>
                   handleUpdateBlockTitle(block.publicId, title)
                 }
+                onUpdateCircuitConfig={(config) =>
+                  handleUpdateCircuitConfig(block.publicId, config)
+                }
+                onReplaceDropSet={(itemPublicId, payload) =>
+                  handleReplaceDropSet(block.publicId, itemPublicId, payload)
+                }
+                onReplaceRestPause={(itemPublicId, payload) =>
+                  handleReplaceRestPause(block.publicId, itemPublicId, payload)
+                }
+                onUpdateCardio={(itemPublicId, payload) =>
+                  handleUpdateCardio(block.publicId, itemPublicId, payload)
+                }
               />
             ))}
           </div>
@@ -642,7 +840,7 @@ export function WorkoutBuilder({
       {blocks.length > 0 && (
         <div className="pt-2 flex justify-center">
           <button
-            onClick={handleAddBlock}
+            onClick={() => setIsMethodModalOpen(true)}
             disabled={isPending}
             className="inline-flex items-center gap-2 px-5 py-3 text-xs font-semibold rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors shadow-xs disabled:opacity-50"
           >
@@ -655,6 +853,14 @@ export function WorkoutBuilder({
           </button>
         </div>
       )}
+
+      {/* 11-Method Selector Modal */}
+      <WorkoutMethodSelectorModal
+        isOpen={isMethodModalOpen}
+        onClose={() => setIsMethodModalOpen(false)}
+        onSelectMethod={handleCreateMethodBlock}
+        isSubmitting={isPending}
+      />
 
       {/* Unified Exercise Picker Modal */}
       <UnifiedExercisePicker

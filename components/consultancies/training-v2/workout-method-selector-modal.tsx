@@ -44,19 +44,19 @@ const METHODS: MethodOption[] = [
   {
     type: "SUPER_SET",
     label: "Super-Set",
-    badge: "Agonista / Antagonista",
+    badge: "2 Exercícios em Sequência",
     badgeColor: "bg-cyan-50 text-cyan-700 border-cyan-200",
     category: "CLASSIC",
-    description: "2 exercícios pareados para grupamentos opostos ou complementares.",
+    description: "2 exercícios executados em sequência pareada sem intervalo intermediário.",
     cardinalityText: "Exatamente 2 exercícios",
   },
   {
     type: "COMBINED_SET",
     label: "Série Combinada",
-    badge: "Pré / Pós-Exaustão",
+    badge: "2+ Exercícios Combinados",
     badgeColor: "bg-teal-50 text-teal-700 border-teal-200",
     category: "CLASSIC",
-    description: "Combinação pré ou pós-exaustão de 2 ou mais exercícios sequenciais.",
+    description: "2 ou mais exercícios combinados e executados em sequência contínua.",
     cardinalityText: "2 ou mais exercícios",
   },
   {

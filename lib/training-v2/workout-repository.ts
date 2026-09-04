@@ -1815,6 +1815,37 @@ export async function removeBlockFromDraft(
 /**
  * Removes an item and its associated sets and pinned media from a draft block.
  */
+const METHOD_MIN_ITEMS: Record<WorkoutBlockType, number> = {
+  SINGLE: 1,
+  BI_SET: 2,
+  TRI_SET: 3,
+  SUPER_SET: 2,
+  CIRCUIT: 2,
+  DROP_SET: 1,
+  REST_PAUSE: 1,
+  COMBINED_SET: 2,
+  WARMUP: 1,
+  CARDIO: 1,
+  CUSTOM: 1,
+};
+
+const METHOD_FRIENDLY_NAMES: Record<WorkoutBlockType, string> = {
+  SINGLE: "Único",
+  BI_SET: "Bi-Set",
+  TRI_SET: "Tri-Set",
+  SUPER_SET: "Super-Set",
+  CIRCUIT: "Circuito",
+  DROP_SET: "Drop-Set",
+  REST_PAUSE: "Rest-Pause",
+  COMBINED_SET: "Série Combinada",
+  WARMUP: "Aquecimento",
+  CARDIO: "Cardio",
+  CUSTOM: "Personalizado",
+};
+
+/**
+ * Removes an item from a draft block, enforcing lower-bound cardinality guards per method type.
+ */
 export async function removeItemFromDraft(
   ctx: TrainingAccessContext,
   itemPublicId: string
@@ -1828,13 +1859,14 @@ export async function removeItemFromDraft(
     await connection.beginTransaction();
 
     const [iRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wbi.id, wbi.block_id, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wbi.id, wbi.block_id, wb.block_type, wv.status, w.consultancy_id, w.created_by_membership_id
        FROM workout_block_items wbi
        INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
        INNER JOIN workouts w ON w.id = wv.workout_id
        WHERE wbi.public_id = ? AND w.deleted_at IS NULL
-       LIMIT 1;`,
+       LIMIT 1
+       FOR UPDATE;`,
       [itemPublicId]
     );
 
@@ -1852,6 +1884,33 @@ export async function removeItemFromDraft(
     }
     if (item.status !== "DRAFT") {
       throw new TrainingAuthorizationError("Não é permitido remover itens de uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    // Enforce lower-bound item cardinality per method type
+    const [countRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COUNT(id) AS cnt FROM workout_block_items WHERE block_id = ? FOR UPDATE;`,
+      [item.block_id]
+    );
+    const currentCount = Number(countRows[0]?.cnt || 0);
+    const remainingCount = currentCount - 1;
+    const blockType = item.block_type as WorkoutBlockType;
+    const minRequired = METHOD_MIN_ITEMS[blockType] ?? 1;
+
+    if (remainingCount < minRequired) {
+      const friendlyName = METHOD_FRIENDLY_NAMES[blockType] || blockType;
+      if (minRequired > 1) {
+        throw new TrainingAuthorizationError(
+          `O método ${friendlyName} exige pelo menos ${minRequired} exercício(s). Para remover este exercício, exclua o bloco inteiro ou altere a estrutura.`,
+          "VALIDATION_FAILED",
+          400
+        );
+      } else {
+        throw new TrainingAuthorizationError(
+          `Este método exige pelo menos 1 exercício. Para removê-lo, exclua o bloco inteiro.`,
+          "VALIDATION_FAILED",
+          400
+        );
+      }
     }
 
     // Delete sets and media associations for this item

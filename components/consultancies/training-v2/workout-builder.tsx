@@ -7,6 +7,7 @@ import type {
   WorkoutBlockType,
   PrescriptionMode,
   CardioMethodConfig,
+  WarmupMethodConfig,
   DifficultyLevel,
 } from "@/lib/training-v2/types";
 import {
@@ -24,6 +25,7 @@ import {
   replaceDropSetStructureAction,
   replaceRestPauseStructureAction,
   updateCardioConfigurationAction,
+  updateWarmupConfigurationAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import { WorkoutBlockCard } from "./workout-block-card";
 import { WorkoutMethodSelectorModal } from "./workout-method-selector-modal";
@@ -652,6 +654,42 @@ export function WorkoutBuilder({
     }
   };
 
+  const handleUpdateWarmup = async (
+    blockPublicId: string,
+    itemPublicId: string,
+    payload: {
+      config: WarmupMethodConfig;
+    }
+  ) => {
+    try {
+      const res = await updateWarmupConfigurationAction(consultancySlug, itemPublicId, payload);
+      if (!res.ok || !res.data) {
+        showNotification("error", res.error || "Erro ao salvar configuração de Aquecimento.");
+        return;
+      }
+
+      setDraft((prev) => ({
+        ...prev,
+        blocks: (prev.blocks || []).map((b) => {
+          if (b.publicId !== blockPublicId) return b;
+          return {
+            ...b,
+            items: (b.items || []).map((it) => {
+              if (it.publicId !== itemPublicId) return it;
+              return {
+                ...it,
+                methodConfig: res.data!,
+              };
+            }),
+          };
+        }),
+      }));
+      showNotification("success", "Configuração de Aquecimento salva!");
+    } catch {
+      showNotification("error", "Falha ao salvar Aquecimento.");
+    }
+  };
+
   const blocks = draft.blocks || [];
 
   return (
@@ -829,6 +867,9 @@ export function WorkoutBuilder({
                 }
                 onUpdateCardio={(itemPublicId, payload) =>
                   handleUpdateCardio(block.publicId, itemPublicId, payload)
+                }
+                onUpdateWarmup={(itemPublicId, payload) =>
+                  handleUpdateWarmup(block.publicId, itemPublicId, payload)
                 }
               />
             ))}

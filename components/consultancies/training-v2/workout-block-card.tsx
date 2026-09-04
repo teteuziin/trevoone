@@ -8,11 +8,13 @@ import type {
   PrescriptionMode,
   CardioMethodConfig,
   RestPauseMethodConfig,
+  WarmupMethodConfig,
 } from "@/lib/training-v2/types";
 import { CircuitConfigEditor } from "./circuit-config-editor";
 import { DropSetEditor } from "./drop-set-editor";
 import { RestPauseEditor } from "./rest-pause-editor";
 import { CardioEditor } from "./cardio-editor";
+import { WarmupEditor } from "./warmup-editor";
 
 function ChevronUp({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -125,7 +127,7 @@ const METHOD_META: Record<
   },
   SUPER_SET: {
     label: "Super-Set",
-    badge: "Agonista / Antagonista",
+    badge: "2 Exercícios em Sequência",
     color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
     maxItems: 2,
   },
@@ -149,7 +151,7 @@ const METHOD_META: Record<
   },
   COMBINED_SET: {
     label: "Série Combinada",
-    badge: "Pré / Pós-Exaustão",
+    badge: "2+ Exercícios Combinados",
     color: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20",
     maxItems: 10,
   },
@@ -250,6 +252,12 @@ type WorkoutBlockCardProps = {
       notes?: string | null;
     }
   ) => Promise<void>;
+  onUpdateWarmup?: (
+    itemPublicId: string,
+    payload: {
+      config: WarmupMethodConfig;
+    }
+  ) => Promise<void>;
 };
 
 export function WorkoutBlockCard({
@@ -268,6 +276,7 @@ export function WorkoutBlockCard({
   onReplaceDropSet,
   onReplaceRestPause,
   onUpdateCardio,
+  onUpdateWarmup,
 }: WorkoutBlockCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(block.title || "");
@@ -632,7 +641,16 @@ export function WorkoutBlockCard({
                   />
                 ) : (
                   /* Standard / Multi-Exercise Set Series Editor */
-                  <div className="space-y-3 pt-1">
+                  <div className="space-y-4 pt-1">
+                    {/* Method-Specific Warmup Configuration */}
+                    {block.blockType === "WARMUP" && onUpdateWarmup && (
+                      <WarmupEditor
+                        itemPublicId={item.publicId}
+                        methodConfig={(item.methodConfig as WarmupMethodConfig) || null}
+                        onSave={(payload) => onUpdateWarmup(item.publicId, payload)}
+                      />
+                    )}
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <h5 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">

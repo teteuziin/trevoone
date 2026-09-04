@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type {
   WorkoutRootDto,
   WorkoutVersionDto,
@@ -26,11 +27,18 @@ import {
   replaceRestPauseStructureAction,
   updateCardioConfigurationAction,
   updateWarmupConfigurationAction,
+  createNewWorkoutVersionAction,
+  duplicateWorkoutAction,
+  saveWorkoutAsTemplateAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import { WorkoutBlockCard } from "./workout-block-card";
 import { WorkoutMethodSelectorModal } from "./workout-method-selector-modal";
 import { UnifiedExercisePicker } from "./unified-exercise-picker";
 import { CustomExerciseInlineModal } from "./custom-exercise-inline-modal";
+import { WorkoutPublishDialog } from "./workout-publish-dialog";
+import { WorkoutVersionHistory } from "./workout-version-history";
+import { WorkoutActionsMenu } from "./workout-actions-menu";
+import type { WorkoutVersionSummaryDto } from "@/lib/training-v2/workout-repository";
 
 function Clock({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -121,7 +129,10 @@ function Edit3({ className = "w-4 h-4" }: { className?: string }) {
 type WorkoutBuilderProps = {
   consultancySlug: string;
   workout: WorkoutRootDto;
-  initialDraftVersion: WorkoutVersionDto;
+  initialVersion?: WorkoutVersionDto;
+  initialDraftVersion?: WorkoutVersionDto;
+  isDraft?: boolean;
+  allVersions?: WorkoutVersionSummaryDto[];
   isConsultancyAdmin?: boolean;
 };
 
@@ -133,13 +144,32 @@ const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
 
 export function WorkoutBuilder({
   consultancySlug,
+  workout,
+  initialVersion,
   initialDraftVersion,
+  isDraft: propIsDraft,
+  allVersions = [],
 }: WorkoutBuilderProps) {
-  const [draft, setDraft] = useState<WorkoutVersionDto>(initialDraftVersion);
+  const router = useRouter();
+  const baseVersion = (initialVersion || initialDraftVersion)!;
+  const [draft, setDraft] = useState<WorkoutVersionDto>(baseVersion);
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error" | "info";
     text: string;
   } | null>(null);
+
+  // E3 Lifecycle Modals
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
+  const [duplicateTitle, setDuplicateTitle] = useState(`Cópia de ${baseVersion.title}`);
+  const [templateTitle, setTemplateTitle] = useState(`${baseVersion.title} (Modelo)`);
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
+
+  // Read-only state calculation
+  const isDraft = propIsDraft !== undefined ? propIsDraft : draft.status === "DRAFT";
+  const isReadOnly = !isDraft || draft.status !== "DRAFT";
 
   // Metadata Edit Modal State
   const [isEditingMetadata, setIsEditingMetadata] = useState(false);
@@ -172,9 +202,67 @@ export function WorkoutBuilder({
     }, 4000);
   };
 
+  const handleCreateNewVersion = () => {
+    setIsCreatingVersion(true);
+    startTransition(async () => {
+      const res = await createNewWorkoutVersionAction(consultancySlug, workout.publicId);
+      if (!res.ok || !res.data) {
+        showNotification("error", res.error || "Erro ao criar nova versão.");
+        setIsCreatingVersion(false);
+      } else {
+        showNotification("success", "Nova versão em rascunho aberta!");
+        router.push(`/consultoria/${consultancySlug}/rotinas/${workout.publicId}?version=${res.data.publicId}`);
+      }
+    });
+  };
+
+  const handleConfirmDuplicate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!duplicateTitle.trim()) return;
+    startTransition(async () => {
+      const res = await duplicateWorkoutAction(
+        consultancySlug,
+        workout.publicId,
+        draft.publicId,
+        { title: duplicateTitle.trim() }
+      );
+      if (!res.ok || !res.data) {
+        showNotification("error", res.error || "Erro ao duplicar treino.");
+      } else {
+        setIsDuplicateModalOpen(false);
+        showNotification("success", "Treino duplicado com sucesso!");
+        router.push(`/consultoria/${consultancySlug}/rotinas/${res.data.workoutPublicId}`);
+      }
+    });
+  };
+
+  const handleConfirmSaveAsTemplate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!templateTitle.trim()) return;
+    startTransition(async () => {
+      const res = await saveWorkoutAsTemplateAction(
+        consultancySlug,
+        workout.publicId,
+        draft.publicId,
+        { title: templateTitle.trim() }
+      );
+      if (!res.ok || !res.data) {
+        showNotification("error", res.error || "Erro ao salvar como modelo.");
+      } else {
+        setIsSaveTemplateModalOpen(false);
+        showNotification("success", "Modelo salvo com sucesso!");
+        router.push(`/consultoria/${consultancySlug}/rotinas?tab=templates`);
+      }
+    });
+  };
+
   // 1. SAVE METADATA
   const handleSaveMetadata = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) {
+      showNotification("info", "Esta versão é imutável. Crie uma nova versão para editar.");
+      return;
+    }
     if (!metaTitle.trim()) {
       showNotification("error", "O título do treino é obrigatório.");
       return;
@@ -719,10 +807,31 @@ export function WorkoutBuilder({
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                Rascunho
-              </span>
+              {/* Version status badge */}
+              {isReadOnly ? (
+                draft.status === "PUBLISHED" ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <Check className="w-3 h-3" />
+                    Publicado
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20">
+                    Versão Anterior
+                  </span>
+                )
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Rascunho
+                </span>
+              )}
+
+              {workout.isTemplate && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                  Modelo
+                </span>
+              )}
+
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[var(--surface-subtle)] text-[var(--foreground-muted)] border border-[var(--border-subtle)]">
                 Versão {draft.versionNumber}
               </span>
@@ -750,16 +859,85 @@ export function WorkoutBuilder({
             )}
           </div>
 
+          {/* Action buttons */}
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setIsEditingMetadata(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors"
-            >
-              <Edit3 className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
-              Editar Informações
-            </button>
+            {!isReadOnly ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingMetadata(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
+                  Editar Informações
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsPublishDialogOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Publicar Treino
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleCreateNewVersion}
+                disabled={isCreatingVersion}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
+              >
+                {isCreatingVersion ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Plus className="w-3.5 h-3.5" />
+                )}
+                Criar Nova Versão
+              </button>
+            )}
+
+            <WorkoutActionsMenu
+              isPublishedOrArchived={isReadOnly}
+              onOpenHistory={() => setIsHistoryDrawerOpen(true)}
+              onDuplicate={() => {
+                setDuplicateTitle(`Cópia de ${draft.title}`);
+                setIsDuplicateModalOpen(true);
+              }}
+              onSaveAsTemplate={() => {
+                setTemplateTitle(`${draft.title} (Modelo)`);
+                setIsSaveTemplateModalOpen(true);
+              }}
+              onCreateNewVersion={handleCreateNewVersion}
+            />
           </div>
         </div>
+
+        {/* Read-Only Notice Banner */}
+        {isReadOnly && (
+          <div className="mt-4 p-4 rounded-2xl border border-blue-500/20 bg-blue-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-[var(--foreground)]">
+                  Modo de Leitura ({draft.status === "PUBLISHED" ? "Versão Publicada" : "Versão Histórica"})
+                </p>
+                <p className="text-[var(--foreground-muted)] text-[11px] mt-0.5">
+                  Esta versão é imutável. Para fazer alterações ou adicionar blocos, crie uma nova versão em rascunho.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleCreateNewVersion}
+              disabled={isCreatingVersion}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shrink-0 shadow-xs disabled:opacity-50"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {isCreatingVersion ? "Criando..." : "Criar Nova Versão"}
+            </button>
+          </div>
+        )}
 
         {draft.notes && (
           <div className="mt-4 pt-4 border-t border-[var(--border-subtle)] text-xs text-[var(--foreground-muted)]">
@@ -798,18 +976,20 @@ export function WorkoutBuilder({
             Estrutura de Blocos (11 Métodos)
           </h2>
 
-          <button
-            onClick={() => setIsMethodModalOpen(true)}
-            disabled={isPending}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
-          >
-            {isPending ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Plus className="w-3.5 h-3.5" />
-            )}
-            Adicionar Bloco
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={() => setIsMethodModalOpen(true)}
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
+            >
+              {isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Plus className="w-3.5 h-3.5" />
+              )}
+              Adicionar Bloco
+            </button>
+          )}
         </div>
 
         {blocks.length === 0 ? (
@@ -825,14 +1005,16 @@ export function WorkoutBuilder({
                 Adicione blocos com qualquer uma das 11 metodologias disponíveis (Série Simples, Bi-Set, Tri-Set, Circuito, Drop-Set, Rest-Pause, Cardio...).
               </p>
             </div>
-            <button
-              onClick={() => setIsMethodModalOpen(true)}
-              disabled={isPending}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
-            >
-              <Plus className="w-4 h-4" />
-              Escolher Metodologia do 1º Bloco
-            </button>
+            {!isReadOnly && (
+              <button
+                onClick={() => setIsMethodModalOpen(true)}
+                disabled={isPending}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                Escolher Metodologia do 1º Bloco
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -877,23 +1059,39 @@ export function WorkoutBuilder({
         )}
       </section>
 
-      {/* Bottom Floating/Fixed Action to Add Block */}
-      {blocks.length > 0 && (
-        <div className="pt-2 flex justify-center">
+      {/* Bottom Floating/Fixed Action */}
+      <div className="pt-2 flex justify-center">
+        {!isReadOnly ? (
+          blocks.length > 0 && (
+            <button
+              onClick={() => setIsMethodModalOpen(true)}
+              disabled={isPending}
+              className="inline-flex items-center gap-2 px-5 py-3 text-xs font-semibold rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors shadow-xs disabled:opacity-50"
+            >
+              {isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+              ) : (
+                <Plus className="w-4 h-4 text-emerald-500" />
+              )}
+              Adicionar Novo Bloco de Exercícios
+            </button>
+          )
+        ) : (
           <button
-            onClick={() => setIsMethodModalOpen(true)}
-            disabled={isPending}
-            className="inline-flex items-center gap-2 px-5 py-3 text-xs font-semibold rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors shadow-xs disabled:opacity-50"
+            type="button"
+            onClick={handleCreateNewVersion}
+            disabled={isCreatingVersion}
+            className="inline-flex items-center gap-2 px-6 py-3 text-xs font-semibold rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
           >
-            {isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+            {isCreatingVersion ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Plus className="w-4 h-4 text-emerald-500" />
+              <Plus className="w-4 h-4" />
             )}
-            Adicionar Novo Bloco de Exercícios
+            Criar Nova Versão em Rascunho
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 11-Method Selector Modal */}
       <WorkoutMethodSelectorModal
@@ -922,6 +1120,151 @@ export function WorkoutBuilder({
         onClose={() => setActiveCustomBlockId(null)}
         onSave={handleSaveCustomExercise}
       />
+
+      {/* Workout Publish Dialog */}
+      <WorkoutPublishDialog
+        consultancySlug={consultancySlug}
+        version={draft}
+        isOpen={isPublishDialogOpen}
+        onClose={() => setIsPublishDialogOpen(false)}
+        onPublished={(pub) => {
+          setDraft(pub);
+          showNotification("success", "Treino publicado com sucesso!");
+          router.refresh();
+        }}
+      />
+
+      {/* Workout Version History Drawer */}
+      <WorkoutVersionHistory
+        consultancySlug={consultancySlug}
+        workoutPublicId={workout.publicId}
+        currentVersionPublicId={draft.publicId}
+        versions={allVersions}
+        isOpen={isHistoryDrawerOpen}
+        onClose={() => setIsHistoryDrawerOpen(false)}
+        onCreateNewVersion={handleCreateNewVersion}
+        isCreatingNewVersion={isCreatingVersion}
+      />
+
+      {/* Duplicate Workout Modal */}
+      {isDuplicateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+              <h2 className="text-base font-bold text-[var(--foreground)]">
+                Duplicar Treino Completo
+              </h2>
+              <button
+                onClick={() => setIsDuplicateModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--foreground-muted)] transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+              Será criada uma nova rotina de treino independente com Versão 1 em rascunho, clonando exatamente a estrutura da versão exibida (Versão {draft.versionNumber}).
+            </p>
+
+            <form onSubmit={handleConfirmDuplicate} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[var(--foreground)]">
+                  Título do Novo Treino *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={duplicateTitle}
+                  onChange={(e) => setDuplicateTitle(e.target.value)}
+                  placeholder="Nome do treino duplicado..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                <button
+                  type="button"
+                  onClick={() => setIsDuplicateModalOpen(false)}
+                  disabled={isPending}
+                  className="px-4 py-2 text-xs font-medium rounded-xl border border-[var(--border-default)] text-[var(--foreground-muted)] hover:bg-[var(--surface-subtle)] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending || !duplicateTitle.trim()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
+                >
+                  {isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : null}
+                  Confirmar Duplicação
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Save As Template Modal */}
+      {isSaveTemplateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+              <h2 className="text-base font-bold text-[var(--foreground)]">
+                Salvar como Modelo
+              </h2>
+              <button
+                onClick={() => setIsSaveTemplateModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--foreground-muted)] transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+              Esta rotina será salva como um modelo reutilizável. O treino original não será modificado.
+            </p>
+
+            <form onSubmit={handleConfirmSaveAsTemplate} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[var(--foreground)]">
+                  Nome do Modelo *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={templateTitle}
+                  onChange={(e) => setTemplateTitle(e.target.value)}
+                  placeholder="Nome do modelo..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                <button
+                  type="button"
+                  onClick={() => setIsSaveTemplateModalOpen(false)}
+                  disabled={isPending}
+                  className="px-4 py-2 text-xs font-medium rounded-xl border border-[var(--border-default)] text-[var(--foreground-muted)] hover:bg-[var(--surface-subtle)] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending || !templateTitle.trim()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-xs disabled:opacity-50"
+                >
+                  {isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : null}
+                  Salvar Modelo
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Metadata Edit Modal */}
       {isEditingMetadata && (

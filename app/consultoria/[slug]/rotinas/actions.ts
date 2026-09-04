@@ -29,6 +29,13 @@ import {
   updateCardioConfigurationForDraftItem,
   updateWarmupConfigurationForDraftItem,
   archiveWorkout,
+  publishWorkoutVersion,
+  createNewDraftVersionFromPublished,
+  duplicateWorkout,
+  saveWorkoutAsTemplate,
+  createWorkoutFromTemplate,
+  listWorkoutVersions,
+  listPublishedTemplatesForPicker,
   type CreateWorkoutInput,
   type UpdateWorkoutDraftMetadataInput,
   type SimpleNormalSetInput,
@@ -37,6 +44,8 @@ import {
   type ReplaceRestPauseStructureInput,
   type UpdateCardioConfigurationInput,
   type UpdateWarmupConfigurationInput,
+  type WorkoutVersionSummaryDto,
+  type TemplatePickerItemDto,
 } from "@/lib/training-v2/workout-repository";
 import type {
   WorkoutVersionDto,
@@ -690,6 +699,175 @@ export async function updateWarmupConfigurationAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao salvar configuração de Aquecimento.",
+    };
+  }
+}
+
+/**
+ * Publishes a DRAFT workout version with complete 11-method server-side validation.
+ */
+export async function publishWorkoutAction(
+  slug: string,
+  versionPublicId: string
+): Promise<ActionResponse<WorkoutVersionDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const published = await publishWorkoutVersion(ctx, versionPublicId);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidatePath(`/consultoria/${slug}/rotinas/${published.workoutPublicId}`);
+    return { ok: true, data: published };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao publicar versão do treino.",
+    };
+  }
+}
+
+/**
+ * Creates a new DRAFT version (Version N+1) from an immutable published version.
+ * If an active draft already exists, idempotently returns the existing draft.
+ */
+export async function createNewWorkoutVersionAction(
+  slug: string,
+  workoutPublicId: string
+): Promise<ActionResponse<WorkoutVersionDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const newDraft = await createNewDraftVersionFromPublished(ctx, workoutPublicId);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidatePath(`/consultoria/${slug}/rotinas/${workoutPublicId}`);
+    return { ok: true, data: newDraft };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao criar nova versão em rascunho.",
+    };
+  }
+}
+
+/**
+ * Duplicates a complete workout routine from an explicit source version into a new workout root.
+ */
+export async function duplicateWorkoutAction(
+  slug: string,
+  workoutPublicId: string,
+  versionPublicId: string,
+  options?: { title?: string }
+): Promise<ActionResponse<{ workoutPublicId: string; versionPublicId: string }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const result = await duplicateWorkout(ctx, workoutPublicId, versionPublicId, options);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return {
+      ok: true,
+      data: {
+        workoutPublicId: result.workout.publicId,
+        versionPublicId: result.version.publicId,
+      },
+    };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao duplicar rotina de treino.",
+    };
+  }
+}
+
+/**
+ * Saves a workout routine as a template (is_template = true) from an explicit source version.
+ */
+export async function saveWorkoutAsTemplateAction(
+  slug: string,
+  workoutPublicId: string,
+  versionPublicId: string,
+  options?: { title?: string }
+): Promise<ActionResponse<{ templatePublicId: string; versionPublicId: string }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const result = await saveWorkoutAsTemplate(ctx, workoutPublicId, versionPublicId, options);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return {
+      ok: true,
+      data: {
+        templatePublicId: result.workout.publicId,
+        versionPublicId: result.version.publicId,
+      },
+    };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao salvar rotina como modelo.",
+    };
+  }
+}
+
+/**
+ * Creates a new normal workout routine (is_template = false, Version 1 DRAFT) from a published template.
+ */
+export async function createWorkoutFromTemplateAction(
+  slug: string,
+  templatePublicId: string,
+  options?: { title?: string }
+): Promise<ActionResponse<{ workoutPublicId: string; versionPublicId: string }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const result = await createWorkoutFromTemplate(ctx, templatePublicId, options);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return {
+      ok: true,
+      data: {
+        workoutPublicId: result.workout.publicId,
+        versionPublicId: result.version.publicId,
+      },
+    };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao criar treino a partir do modelo.",
+    };
+  }
+}
+
+/**
+ * Lists version history for a workout routine.
+ */
+export async function listWorkoutVersionsAction(
+  slug: string,
+  workoutPublicId: string
+): Promise<ActionResponse<WorkoutVersionSummaryDto[]>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const versions = await listWorkoutVersions(ctx, workoutPublicId);
+    return { ok: true, data: versions };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao carregar histórico de versões.",
+    };
+  }
+}
+
+/**
+ * Lists published templates in the current consultancy for the Template Picker.
+ */
+export async function listPublishedTemplatesAction(
+  slug: string,
+  query?: string
+): Promise<ActionResponse<TemplatePickerItemDto[]>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const templates = await listPublishedTemplatesForPicker(ctx, query);
+    return { ok: true, data: templates };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao carregar modelos de treino.",
     };
   }
 }

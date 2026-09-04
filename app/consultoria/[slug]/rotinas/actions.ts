@@ -45,6 +45,7 @@ import type {
   WorkoutItemSetDto,
   WorkoutBlockType,
 } from "@/lib/training-v2/types";
+import { workoutBlockTypeSchema } from "@/lib/training-v2/validation";
 
 export type ActionResponse<T = unknown> = {
   ok: boolean;
@@ -550,8 +551,16 @@ export async function createMethodBlockAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
 
+    const parsedBlockType = workoutBlockTypeSchema.safeParse(input.blockType);
+    if (!parsedBlockType.success) {
+      return {
+        ok: false,
+        error: "Método de bloco inválido.",
+      };
+    }
+
     const block = await addBlockToDraft(ctx, versionPublicId, {
-      blockType: input.blockType,
+      blockType: parsedBlockType.data,
       title: input.title?.trim() || null,
       rounds: input.rounds ?? null,
       restBetweenItemsSeconds: input.restBetweenItemsSeconds ?? null,

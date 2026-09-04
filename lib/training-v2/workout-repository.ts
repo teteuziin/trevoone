@@ -11,7 +11,7 @@ import {
   type TrainingAccessContext,
   assertCanAuthorTraining,
 } from "./access";
-import { workoutVersionSchema } from "./validation";
+import { workoutVersionSchema, workoutBlockTypeSchema } from "./validation";
 import type {
   WorkoutRootDto,
   WorkoutVersionDto,
@@ -445,6 +445,15 @@ export async function addBlockToDraft(
       throw new TrainingAuthorizationError("Não é permitido adicionar blocos a uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
     }
 
+    const parsedBlockType = workoutBlockTypeSchema.safeParse(input.blockType);
+    if (!parsedBlockType.success) {
+      throw new TrainingAuthorizationError(
+        "Método de bloco inválido.",
+        "VALIDATION_FAILED",
+        400
+      );
+    }
+
     const blockPublicId = crypto.randomUUID();
     let sortOrder = input.sortOrder;
     if (sortOrder === undefined || sortOrder === null) {
@@ -463,7 +472,7 @@ export async function addBlockToDraft(
       [
         blockPublicId,
         v.id,
-        input.blockType,
+        parsedBlockType.data,
         input.title?.trim() || null,
         sortOrder,
         input.rounds ?? null,
@@ -476,7 +485,7 @@ export async function addBlockToDraft(
 
     return {
       publicId: blockPublicId,
-      blockType: input.blockType,
+      blockType: parsedBlockType.data,
       title: input.title?.trim() || null,
       sortOrder,
       rounds: input.rounds ?? null,

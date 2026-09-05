@@ -180,6 +180,13 @@ export function ConsultancyAppShell({
       iconName: "nutrition",
     });
     items.push({
+      id: "nutritionist-alimentos-v2",
+      label: "Alimentos V2",
+      mobileLabel: "Alimentos V2",
+      href: `/consultoria/${consultancySlug}/alimentos-v2`,
+      iconName: "nutrition",
+    });
+    items.push({
       id: "nutritionist-progresso",
       label: "Evolução dos Alunos",
       mobileLabel: "Alunos",

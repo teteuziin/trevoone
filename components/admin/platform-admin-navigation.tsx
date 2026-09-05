@@ -52,6 +52,14 @@ function NavExercisesIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
+function NavFoodsIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18m-6-9h12" />
+    </svg>
+  );
+}
+
 function NavMenuIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
@@ -126,6 +134,13 @@ export function PlatformAdminNavigation({
       href: "/admin/exercicios",
       icon: <NavExercisesIcon />,
       isActive: pathname.startsWith("/admin/exercicios"),
+    },
+    {
+      id: "admin-foods",
+      label: "Alimentos",
+      href: "/admin/alimentos",
+      icon: <NavFoodsIcon />,
+      isActive: pathname.startsWith("/admin/alimentos"),
     },
   ];
 

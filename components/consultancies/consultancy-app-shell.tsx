@@ -187,6 +187,13 @@ export function ConsultancyAppShell({
       iconName: "nutrition",
     });
     items.push({
+      id: "nutritionist-planos-v2",
+      label: "Planos V2 (Dev)",
+      mobileLabel: "Planos V2",
+      href: `/consultoria/${consultancySlug}/planos-v2`,
+      iconName: "prescriptions",
+    });
+    items.push({
       id: "nutritionist-progresso",
       label: "Evolução dos Alunos",
       mobileLabel: "Alunos",

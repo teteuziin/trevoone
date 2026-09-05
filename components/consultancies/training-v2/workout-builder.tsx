@@ -38,7 +38,18 @@ import { CustomExerciseInlineModal } from "./custom-exercise-inline-modal";
 import { WorkoutPublishDialog } from "./workout-publish-dialog";
 import { WorkoutVersionHistory } from "./workout-version-history";
 import { WorkoutActionsMenu } from "./workout-actions-menu";
+import { WorkoutAssignModal } from "./workout-assign-modal";
 import type { WorkoutVersionSummaryDto } from "@/lib/training-v2/workout-repository";
+
+function UserCheck({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <polyline points="16 11 18 13 22 9" />
+    </svg>
+  );
+}
 
 function Clock({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -163,6 +174,7 @@ export function WorkoutBuilder({
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [duplicateTitle, setDuplicateTitle] = useState(`Cópia de ${baseVersion.title}`);
   const [templateTitle, setTemplateTitle] = useState(`${baseVersion.title} (Modelo)`);
   const [isCreatingVersion, setIsCreatingVersion] = useState(false);
@@ -882,19 +894,32 @@ export function WorkoutBuilder({
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                onClick={handleCreateNewVersion}
-                disabled={isCreatingVersion}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
-              >
-                {isCreatingVersion ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Plus className="w-3.5 h-3.5" />
+              <>
+                {draft.status === "PUBLISHED" && !workout.isTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAssignModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-xs"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    Prescrever para Aluno
+                  </button>
                 )}
-                Criar Nova Versão
-              </button>
+
+                <button
+                  type="button"
+                  onClick={handleCreateNewVersion}
+                  disabled={isCreatingVersion}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
+                >
+                  {isCreatingVersion ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="w-3.5 h-3.5" />
+                  )}
+                  Criar Nova Versão
+                </button>
+              </>
             )}
 
             <WorkoutActionsMenu
@@ -1130,6 +1155,21 @@ export function WorkoutBuilder({
         onPublished={(pub) => {
           setDraft(pub);
           showNotification("success", "Treino publicado com sucesso!");
+          router.refresh();
+        }}
+      />
+
+      {/* Workout Assign Modal */}
+      <WorkoutAssignModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        slug={consultancySlug}
+        workoutPublicId={workout.publicId}
+        workoutTitle={workout.title}
+        versionPublicId={draft.publicId}
+        versionNumber={draft.versionNumber}
+        onAssigned={() => {
+          showNotification("success", "Treino prescrito para o aluno com sucesso!");
           router.refresh();
         }}
       />

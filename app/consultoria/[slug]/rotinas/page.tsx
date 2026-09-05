@@ -4,8 +4,10 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { listWorkoutsForProfessional } from "@/lib/training-v2/workout-repository";
+import { listAssignmentsForProfessional } from "@/lib/training-v2/assignment-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { WorkoutTemplatePickerTrigger } from "@/components/consultancies/training-v2/workout-template-picker";
+import { WorkoutAssignmentsList } from "@/components/consultancies/training-v2/workout-assignments-list";
 
 function Plus({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -111,19 +113,42 @@ export default async function ConsultancyWorkoutsPage({
   }
 
   const isTemplatesTab = tab === "templates";
+  const isAssignmentsTab = tab === "assignments";
   const currentPage = Math.max(1, parseInt(page, 10) || 1);
   const validStatus =
     status === "DRAFT" || status === "PUBLISHED" || status === "ARCHIVED" ? status : "ALL";
 
-  const { items, total, limit } = await listWorkoutsForProfessional(ctx, {
-    query: q,
-    status: validStatus,
-    isTemplate: isTemplatesTab,
-    page: currentPage,
-    limit: 18,
-  });
+  const assignmentsData = isAssignmentsTab
+    ? await listAssignmentsForProfessional(ctx, {
+        status: "ALL",
+        limit: 50,
+      })
+    : { items: [], total: 0 };
 
+  const workoutsData = !isAssignmentsTab
+    ? await listWorkoutsForProfessional(ctx, {
+        query: q,
+        status: validStatus,
+        isTemplate: isTemplatesTab,
+        page: currentPage,
+        limit: 18,
+      })
+    : { items: [], total: 0, limit: 18 };
+
+  const { items, total, limit } = workoutsData;
   const totalPages = Math.ceil(total / limit) || 1;
+
+  const pageTitle = isAssignmentsTab
+    ? "Prescrições de Treino"
+    : isTemplatesTab
+    ? "Modelos de Treino"
+    : "Rotinas de Treino";
+
+  const pageSubtitle = isAssignmentsTab
+    ? "Acompanhe e gerencie os treinos prescritos para cada aluno, atualizações de versão e encerramentos."
+    : isTemplatesTab
+    ? "Modelos reutilizáveis para padronizar e acelerar a prescrição de novos treinos."
+    : "Estruture treinos modulares por blocos, exercícios da biblioteca ou personalizados.";
 
   return (
     <ConsultancyAppShell
@@ -145,35 +170,35 @@ export default async function ConsultancyWorkoutsPage({
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)]">
-              {isTemplatesTab ? "Modelos de Treino" : "Rotinas de Treino"}
+              {pageTitle}
             </h1>
             <p className="text-sm text-[var(--foreground-muted)] mt-1">
-              {isTemplatesTab
-                ? "Modelos reutilizáveis para padronizar e acelerar a prescrição de novos treinos."
-                : "Estruture treinos modulares por blocos, exercícios da biblioteca ou personalizados."}
+              {pageSubtitle}
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-            {!isTemplatesTab && (
+            {!isTemplatesTab && !isAssignmentsTab && (
               <WorkoutTemplatePickerTrigger consultancySlug={slug} />
             )}
-            <Link
-              href={`/consultoria/${slug}/rotinas/novo`}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] shadow-xs transition-colors shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              Novo treino
-            </Link>
+            {!isAssignmentsTab && (
+              <Link
+                href={`/consultoria/${slug}/rotinas/novo`}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] shadow-xs transition-colors shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                Novo treino
+              </Link>
+            )}
           </div>
         </div>
 
-        {/* View Mode Navigation Tabs: Treinos vs Modelos */}
+        {/* View Mode Navigation Tabs: Treinos vs Modelos vs Prescrições */}
         <div className="flex items-center border-b border-[var(--border-default)] gap-6">
           <Link
             href={`/consultoria/${slug}/rotinas`}
             className={`pb-3 text-sm font-semibold transition-colors relative ${
-              !isTemplatesTab
+              !isTemplatesTab && !isAssignmentsTab
                 ? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
                 : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
             }`}
@@ -190,7 +215,26 @@ export default async function ConsultancyWorkoutsPage({
           >
             Modelos
           </Link>
+          <Link
+            href={`/consultoria/${slug}/rotinas?tab=assignments`}
+            className={`pb-3 text-sm font-semibold transition-colors relative ${
+              isAssignmentsTab
+                ? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
+                : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            Prescrições
+          </Link>
         </div>
+
+        {isAssignmentsTab ? (
+          <WorkoutAssignmentsList
+            slug={slug}
+            initialItems={assignmentsData.items}
+            total={assignmentsData.total}
+          />
+        ) : (
+          <>
 
         {/* Filter bar */}
         <div className="p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3">
@@ -415,6 +459,8 @@ export default async function ConsultancyWorkoutsPage({
               );
             })}
           </div>
+        )}
+        </>
         )}
       </div>
     </ConsultancyAppShell>

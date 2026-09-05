@@ -55,6 +55,15 @@ import type {
   WorkoutBlockType,
 } from "@/lib/training-v2/types";
 import { workoutBlockTypeSchema } from "@/lib/training-v2/validation";
+import {
+  createAssignment,
+  repointAssignmentToNewVersion,
+  terminateAssignment,
+  searchActiveStudents,
+  listAssignmentsForProfessional,
+  type StudentSearchResult,
+  type ProfessionalAssignmentListItem,
+} from "@/lib/training-v2/assignment-repository";
 
 export type ActionResponse<T = unknown> = {
   ok: boolean;
@@ -872,4 +881,174 @@ export async function listPublishedTemplatesAction(
   }
 }
 
+/**
+ * Assigns a PUBLISHED workout version to an active student membership.
+ */
+export async function assignWorkoutVersionAction(
+  slug: string,
+  workoutPublicId: string,
+  versionPublicId: string,
+  studentMembershipPublicId: string,
+  options?: {
+    startsOn?: string;
+    endsOn?: string | null;
+    notesForStudent?: string | null;
+  }
+): Promise<ActionResponse<{ assignmentPublicId: string }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
 
+    if (!workoutPublicId || !workoutPublicId.trim()) {
+      return { ok: false, error: "Identificador do treino é obrigatório." };
+    }
+    if (!versionPublicId || !versionPublicId.trim()) {
+      return { ok: false, error: "Identificador da versão é obrigatório." };
+    }
+    if (!studentMembershipPublicId || !studentMembershipPublicId.trim()) {
+      return { ok: false, error: "Selecione um aluno para prescrever o treino." };
+    }
+
+    const startsOn = options?.startsOn?.trim() || new Date().toISOString().slice(0, 10);
+
+    const assignment = await createAssignment(ctx, {
+      workoutPublicId: workoutPublicId.trim(),
+      workoutVersionPublicId: versionPublicId.trim(),
+      studentMembershipPublicId: studentMembershipPublicId.trim(),
+      startsOn,
+      endsOn: options?.endsOn?.trim() || null,
+      notesForStudent: options?.notesForStudent?.trim() || null,
+    });
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidatePath(`/consultoria/${slug}/treinos`);
+
+    return {
+      ok: true,
+      data: { assignmentPublicId: assignment.publicId },
+    };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao prescrever treino para o aluno.",
+    };
+  }
+}
+
+/**
+ * Explicitly updates an active assignment to a newer PUBLISHED version of the same workout routine.
+ */
+export async function updateWorkoutAssignmentVersionAction(
+  slug: string,
+  assignmentPublicId: string,
+  targetVersionPublicId: string
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+
+    if (!assignmentPublicId || !assignmentPublicId.trim()) {
+      return { ok: false, error: "Identificador da prescrição é obrigatório." };
+    }
+    if (!targetVersionPublicId || !targetVersionPublicId.trim()) {
+      return { ok: false, error: "Identificador da versão de destino é obrigatório." };
+    }
+
+    await repointAssignmentToNewVersion(
+      ctx,
+      assignmentPublicId.trim(),
+      targetVersionPublicId.trim()
+    );
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidatePath(`/consultoria/${slug}/treinos`);
+
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao atualizar versão da prescrição.",
+    };
+  }
+}
+
+/**
+ * Terminates an active assignment (Encerrar prescrição).
+ */
+export async function terminateWorkoutAssignmentAction(
+  slug: string,
+  assignmentPublicId: string,
+  endDate?: string | null
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+
+    if (!assignmentPublicId || !assignmentPublicId.trim()) {
+      return { ok: false, error: "Identificador da prescrição é obrigatório." };
+    }
+
+    const success = await terminateAssignment(ctx, assignmentPublicId.trim(), endDate);
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidatePath(`/consultoria/${slug}/treinos`);
+
+    return { ok: true, data: { success } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao encerrar prescrição.",
+    };
+  }
+}
+
+/**
+ * Searches active student members in current consultancy for student picker.
+ */
+export async function searchActiveStudentsAction(
+  slug: string,
+  query?: string
+): Promise<ActionResponse<StudentSearchResult[]>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const students = await searchActiveStudents(ctx, query);
+    return { ok: true, data: students };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao buscar alunos.",
+    };
+  }
+}
+
+/**
+ * Lists assignments for professional management.
+ */
+export async function listProfessionalAssignmentsAction(
+  slug: string,
+  options?: {
+    workoutPublicId?: string;
+    studentMembershipPublicId?: string;
+    status?: "ACTIVE" | "ENDED" | "ALL";
+    page?: number;
+  }
+): Promise<ActionResponse<{ items: ProfessionalAssignmentListItem[]; total: number }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const page = Math.max(1, options?.page || 1);
+    const limit = 50;
+    const offset = (page - 1) * limit;
+
+    const res = await listAssignmentsForProfessional(ctx, {
+      workoutPublicId: options?.workoutPublicId,
+      studentMembershipPublicId: options?.studentMembershipPublicId,
+      status: options?.status,
+      limit,
+      offset,
+    });
+
+    return { ok: true, data: res };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao carregar prescrições.",
+    };
+  }
+}

@@ -611,22 +611,39 @@ export async function updateExercise(
   }
 }
 
+export type ChangeExerciseVisibilityOptions = {
+  promoteAttachedMedia?: boolean;
+};
+
 /**
- * Changes visibility between CREATOR_ONLY and CONSULTANCY.
- * Validates media compatibility before sharing.
+ * Changes visibility between CREATOR_ONLY and CONSULTANCY atomically.
+ * When promoting to CONSULTANCY:
+ * - Locks exercise and attached media assets deterministically.
+ * - Validates actor permissions, tenancy, and media compatibility.
+ * - Promotes private attached media to CONSULTANCY if requested.
+ * - Changes exercise visibility to CONSULTANCY.
+ * - Rolls back entirely on any error, ensuring no partial state.
  */
 export async function changeExerciseVisibility(
   ctx: TrainingAccessContext,
   publicId: string,
-  newVisibility: "CREATOR_ONLY" | "CONSULTANCY"
+  newVisibility: "CREATOR_ONLY" | "CONSULTANCY",
+  options?: ChangeExerciseVisibilityOptions
 ): Promise<ExerciseItemDto> {
   assertCanAuthorTraining(ctx);
 
   let connection;
   try {
     connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Fetch and row-lock exercise
     const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, scope, consultancy_id, created_by_membership_id, visibility FROM exercises WHERE public_id = ? AND deleted_at IS NULL LIMIT 1;`,
+      `SELECT id, scope, consultancy_id, created_by_membership_id, visibility, status
+       FROM exercises
+       WHERE public_id = ? AND deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
       [publicId]
     );
     if (!rows || rows.length === 0) {
@@ -644,35 +661,129 @@ export async function changeExerciseVisibility(
     }
 
     if (newVisibility === "CONSULTANCY") {
-      // Check attached media: if any attached media is CREATOR_ONLY, reject to prevent broken shared exercises
+      // 2. Fetch and lock attached media assets in deterministic order (by id ASC)
       const [mediaRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT ma.id, ma.visibility
+        `SELECT
+           em.id AS em_id,
+           em.role,
+           em.sort_order,
+           ma.id AS ma_id,
+           ma.public_id AS ma_public_id,
+           ma.scope AS ma_scope,
+           ma.visibility AS ma_visibility,
+           ma.consultancy_id AS ma_consultancy_id,
+           ma.created_by_membership_id AS ma_created_by_membership_id,
+           ma.media_type AS ma_media_type
          FROM exercise_media em
          INNER JOIN media_assets ma ON ma.id = em.media_asset_id
-         WHERE em.exercise_id = ? AND ma.visibility = 'CREATOR_ONLY';`,
+         WHERE em.exercise_id = ? AND ma.deleted_at IS NULL
+         ORDER BY ma.id ASC
+         FOR UPDATE;`,
         [ex.id]
       );
-      if (Array.isArray(mediaRows) && mediaRows.length > 0) {
-        throw new TrainingAuthorizationError(
-          "Não é possível compartilhar este exercício com a consultoria enquanto houver mídias de visibilidade privada (CREATOR_ONLY) vinculadas.",
-          "INCOMPATIBLE_MEDIA_VISIBILITY",
-          400
+
+      const attachedMedia = Array.isArray(mediaRows) ? mediaRows : [];
+
+      // Validate tenancy and role <-> media_type compatibility
+      for (const item of attachedMedia) {
+        if (item.ma_scope !== "CONSULTANCY" || Number(item.ma_consultancy_id) !== ctx.consultancyId) {
+          throw new TrainingAuthorizationError(
+            "Mídia vinculada inválida ou de outra consultoria.",
+            "TENANT_MISMATCH",
+            403
+          );
+        }
+
+        if (
+          (item.role === "START_IMAGE" || item.role === "VIDEO_POSTER" || item.role === "ALTERNATE_IMAGE") &&
+          item.ma_media_type !== "IMAGE"
+        ) {
+          throw new TrainingAuthorizationError(
+            "Apenas ativos de imagem podem ser vinculados para esta função de mídia.",
+            "INCOMPATIBLE_MEDIA_ROLE_TYPE",
+            400
+          );
+        }
+
+        if (
+          (item.role === "EXECUTION_VIDEO" || item.role === "ALTERNATE_VIDEO") &&
+          item.ma_media_type !== "VIDEO"
+        ) {
+          throw new TrainingAuthorizationError(
+            "Apenas ativos de vídeo podem ser vinculados para esta função de mídia.",
+            "INCOMPATIBLE_MEDIA_ROLE_TYPE",
+            400
+          );
+        }
+      }
+
+      // 3. Find attached media requiring promotion (CREATOR_ONLY)
+      const mediaNeedingPromotion = attachedMedia.filter((m) => m.ma_visibility === "CREATOR_ONLY");
+
+      if (mediaNeedingPromotion.length > 0) {
+        // Validate promotion authorization for each asset: must be creator or consultancy admin
+        for (const item of mediaNeedingPromotion) {
+          const isMediaCreator =
+            ctx.membershipId && Number(item.ma_created_by_membership_id) === ctx.membershipId;
+          if (!isMediaCreator && !ctx.canManageConsultancy) {
+            throw new TrainingAuthorizationError(
+              "Apenas o autor ou administrador da consultoria podem compartilhar esta mídia vinculada.",
+              "FORBIDDEN",
+              403
+            );
+          }
+        }
+
+        if (!options?.promoteAttachedMedia) {
+          throw new TrainingAuthorizationError(
+            "Para compartilhar este exercício, as mídias privadas vinculadas também precisam ser compartilhadas com a consultoria.",
+            "REQUIRES_MEDIA_PROMOTION",
+            400
+          );
+        }
+
+        // Atomically promote all required media assets in this transaction
+        const mediaIdsToPromote = mediaNeedingPromotion.map((m) => m.ma_id);
+        await connection.query(
+          `UPDATE media_assets SET visibility = 'CONSULTANCY', updated_at = NOW(3) WHERE id IN (?);`,
+          [mediaIdsToPromote]
         );
+      }
+
+      // 4. Primary media safety check (Section 15):
+      // If exercise is PUBLISHED, verify execution video is attached
+      if (ex.status === "PUBLISHED") {
+        const hasExecutionVideo = attachedMedia.some((m) => m.role === "EXECUTION_VIDEO");
+        if (!hasExecutionVideo) {
+          throw new TrainingAuthorizationError(
+            "Exercício publicado requer vídeo de execução técnica.",
+            "MISSING_REQUIRED_MEDIA",
+            400
+          );
+        }
       }
     }
 
+    // 5. Update exercise visibility
     await connection.execute<ResultSetHeader>(
       `UPDATE exercises SET visibility = ?, updated_at = NOW(3) WHERE id = ?;`,
       [newVisibility, ex.id]
     );
 
-    const updated = await getExerciseByIdOrPublicId(ctx, { publicId });
-    return updated!;
+    await connection.commit();
+  } catch (err) {
+    if (connection) {
+      await connection.rollback();
+    }
+    throw err;
   } finally {
     if (connection) {
       connection.release();
     }
   }
+
+  const updated = await getExerciseByIdOrPublicId(ctx, { publicId });
+  return updated!;
 }
 
 /**

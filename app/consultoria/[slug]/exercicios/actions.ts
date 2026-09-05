@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
-import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
+import { resolveTrainingAccessContext, TrainingAuthorizationError } from "@/lib/training-v2/access";
 import {
   createConsultancyExercise,
   updateExercise,
@@ -15,7 +15,6 @@ import {
 import {
   attachMediaToExercise,
   detachMediaFromExercise,
-  promoteMediaAssetToConsultancy,
 } from "@/lib/training-v2/media-repository";
 import type {
   ExerciseItemDto,
@@ -290,38 +289,19 @@ export async function changeConsultancyExerciseVisibilityAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
 
-    const current = await getExerciseByIdOrPublicId(ctx, { publicId });
-    if (!current || current.scope !== "CONSULTANCY") {
-      return { ok: false, error: "Exercício não encontrado nesta consultoria." };
-    }
-
-    if (newVisibility === "CONSULTANCY") {
-      // Find any attached media with CREATOR_ONLY visibility
-      const privateMedia = current.media.filter((m) => m.mediaAsset.visibility === "CREATOR_ONLY");
-
-      if (privateMedia.length > 0) {
-        if (!options?.promoteAttachedMedia) {
-          return {
-            ok: false,
-            error:
-              "Para compartilhar este exercício, as mídias privadas vinculadas também precisam ser compartilhadas com a consultoria.",
-            requiresMediaPromotion: true,
-          };
-        }
-
-        // Promote all attached private media assets to CONSULTANCY
-        for (const item of privateMedia) {
-          await promoteMediaAssetToConsultancy(ctx, item.mediaAsset.publicId);
-        }
-      }
-    }
-
-    const updated = await changeExerciseVisibility(ctx, publicId, newVisibility);
+    const updated = await changeExerciseVisibility(ctx, publicId, newVisibility, options);
 
     revalidatePath(`/consultoria/${slug}/exercicios`);
     revalidatePath(`/consultoria/${slug}/exercicios/${publicId}`);
     return { ok: true, data: updated };
   } catch (err: unknown) {
+    if (err instanceof TrainingAuthorizationError && err.code === "REQUIRES_MEDIA_PROMOTION") {
+      return {
+        ok: false,
+        error: err.message,
+        requiresMediaPromotion: true,
+      };
+    }
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao alterar visibilidade do exercício.",

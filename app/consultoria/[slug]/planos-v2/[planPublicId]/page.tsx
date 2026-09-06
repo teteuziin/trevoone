@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { getPlanVersionTreeByPlanPublicId } from "@/lib/nutrition-v2/plan-repository";
+import { listPlanAssignments } from "@/lib/nutrition-v2/assignment-repository";
 import { NutritionPlanBuilder } from "@/components/consultancies/nutrition-v2/nutrition-plan-builder";
 
 interface PlanBuilderPageProps {
@@ -26,5 +27,7 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
     notFound();
   }
 
-  return <NutritionPlanBuilder slug={slug} initialTree={tree} />;
+  const assignments = await listPlanAssignments(ctx, planPublicId);
+
+  return <NutritionPlanBuilder slug={slug} initialTree={tree} initialAssignments={assignments} />;
 }

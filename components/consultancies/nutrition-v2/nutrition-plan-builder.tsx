@@ -21,18 +21,23 @@ import {
   publishPlanVersionAction,
   createNextVersionAction,
   getPlanVersionHistoryAction,
+  listPlanAssignmentsAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import { NutritionMealEditor } from "./nutrition-meal-editor";
 import { NutritionPublishDialog } from "./nutrition-publish-dialog";
 import { NutritionVersionHistory } from "./nutrition-version-history";
+import { NutritionAssignModal } from "./nutrition-assign-modal";
+import { NutritionAssignmentsList } from "./nutrition-assignments-list";
+import type { AssignmentListItemDto } from "@/lib/nutrition-v2/assignment-repository";
 import type { FoodSelectionResult } from "./nutrition-food-picker";
 
 interface NutritionPlanBuilderProps {
   slug: string;
   initialTree: PlanVersionTreeDto;
+  initialAssignments?: AssignmentListItemDto[];
 }
 
-export function NutritionPlanBuilder({ slug, initialTree }: NutritionPlanBuilderProps) {
+export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [] }: NutritionPlanBuilderProps) {
   const router = useRouter();
   const [tree, setTree] = useState<PlanVersionTreeDto>(initialTree);
   const [isPending, startTransition] = useTransition();
@@ -64,6 +69,17 @@ export function NutritionPlanBuilder({ slug, initialTree }: NutritionPlanBuilder
 
   // New version state
   const [isCreatingVersion, setIsCreatingVersion] = useState(false);
+
+  // Assignments state
+  const [assignments, setAssignments] = useState<AssignmentListItemDto[]>(initialAssignments);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+
+  const refreshAssignments = async () => {
+    const res = await listPlanAssignmentsAction(slug, tree.plan.publicId);
+    if (res.success && res.data) {
+      setAssignments(res.data);
+    }
+  };
 
   const refreshTree = async () => {
     window.location.reload();
@@ -257,6 +273,20 @@ export function NutritionPlanBuilder({ slug, initialTree }: NutritionPlanBuilder
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
               <span>Publicar Versão</span>
+            </button>
+          )}
+
+          {/* Prescribe Button for Published Version */}
+          {tree.version.status === "PUBLISHED" && (
+            <button
+              type="button"
+              onClick={() => setIsAssignModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>Prescrever</span>
             </button>
           )}
 
@@ -628,6 +658,39 @@ export function NutritionPlanBuilder({ slug, initialTree }: NutritionPlanBuilder
         )}
       </div>
 
+      {/* Alunos Prescritos Section */}
+      <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="space-y-0.5">
+            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+              Alunos Prescritos
+            </h2>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Prescrições ativas e histórico de versões atribuídas aos alunos.
+            </p>
+          </div>
+          {tree.version.status === "PUBLISHED" && (
+            <button
+              type="button"
+              onClick={() => setIsAssignModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Prescrever ao Aluno</span>
+            </button>
+          )}
+        </div>
+
+        <NutritionAssignmentsList
+          slug={slug}
+          planPublicId={tree.plan.publicId}
+          assignments={assignments}
+          onRefresh={refreshAssignments}
+        />
+      </div>
+
       {/* Publish Dialog */}
       <NutritionPublishDialog
         isOpen={isPublishDialogOpen}
@@ -647,6 +710,18 @@ export function NutritionPlanBuilder({ slug, initialTree }: NutritionPlanBuilder
         isOpen={isHistoryOpen}
         isLoading={isLoadingHistory}
         onClose={() => setIsHistoryOpen(false)}
+      />
+
+      {/* Prescribe / Assign Modal */}
+      <NutritionAssignModal
+        slug={slug}
+        planPublicId={tree.plan.publicId}
+        planTitle={tree.version.title}
+        versionPublicId={tree.version.publicId}
+        versionNumber={tree.version.versionNumber}
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        onSuccess={refreshAssignments}
       />
     </div>
   );

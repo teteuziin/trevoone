@@ -30,6 +30,15 @@ import {
   listUnifiedFoodsForNutritionist,
   getFoodWithPortions,
 } from "@/lib/nutrition-v2/food-repository";
+import {
+  listEligibleStudentsForNutrition,
+  assignPlanVersion,
+  updateAssignmentVersion,
+  endAssignment,
+  listPlanAssignments,
+  type EligibleStudentDto,
+  type AssignmentListItemDto,
+} from "@/lib/nutrition-v2/assignment-repository";
 
 export type ActionResult<T = unknown> = {
   success: boolean;
@@ -459,6 +468,114 @@ export async function getPlanVersionHistoryAction(
     return { success: true, data: res };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao carregar histórico de versões.";
+    return { success: false, error: message };
+  }
+}
+
+// ============================================================================
+// ASSIGNMENTS & PRESCRIPTIONS
+// ============================================================================
+
+export async function listEligibleStudentsAction(
+  slug: string,
+  search?: string
+): Promise<ActionResult<EligibleStudentDto[]>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const data = await listEligibleStudentsForNutrition(ctx, search);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao listar alunos.";
+    return { success: false, error: message };
+  }
+}
+
+export async function assignPlanVersionAction(
+  slug: string,
+  params: {
+    planPublicId: string;
+    versionPublicId: string;
+    studentMembershipPublicId: string;
+    notesForStudent?: string | null;
+    forceReplace?: boolean;
+  }
+): Promise<ActionResult<{ assignmentPublicId: string; isExistingAssignment?: boolean; replacedPrevious?: boolean }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const res = await assignPlanVersion(ctx, params);
+
+    revalidatePath(`/consultoria/${slug}/planos-v2/${params.planPublicId}`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao prescrever plano.";
+    const code = err instanceof Error && "code" in err ? (err as { code: string }).code : undefined;
+    return { success: false, error: message, code };
+  }
+}
+
+export async function updateAssignmentVersionAction(
+  slug: string,
+  planPublicId: string,
+  assignmentPublicId: string,
+  targetVersionPublicId: string
+): Promise<ActionResult<{ newAssignmentPublicId: string }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const res = await updateAssignmentVersion(ctx, {
+      assignmentPublicId,
+      targetVersionPublicId,
+    });
+
+    revalidatePath(`/consultoria/${slug}/planos-v2/${planPublicId}`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao atualizar versão da prescrição.";
+    return { success: false, error: message };
+  }
+}
+
+export async function endAssignmentAction(
+  slug: string,
+  planPublicId: string,
+  assignmentPublicId: string
+): Promise<ActionResult<{ status: "ENDED" }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const res = await endAssignment(ctx, assignmentPublicId);
+
+    revalidatePath(`/consultoria/${slug}/planos-v2/${planPublicId}`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao encerrar prescrição.";
+    return { success: false, error: message };
+  }
+}
+
+export async function listPlanAssignmentsAction(
+  slug: string,
+  planPublicId: string
+): Promise<ActionResult<AssignmentListItemDto[]>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const data = await listPlanAssignments(ctx, planPublicId);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao carregar prescrições.";
     return { success: false, error: message };
   }
 }

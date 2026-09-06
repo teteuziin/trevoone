@@ -8,6 +8,7 @@ import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-
 interface NutritionMealEditorProps {
   slug: string;
   meal: MealWithItemsDto;
+  readOnly?: boolean;
   isFirst: boolean;
   isLast: boolean;
   onUpdateMeal: (data: { title?: string; scheduledTime?: string | null; notes?: string | null }) => Promise<void>;
@@ -27,6 +28,7 @@ interface NutritionMealEditorProps {
 export function NutritionMealEditor({
   slug,
   meal,
+  readOnly = false,
   isFirst,
   isLast,
   onUpdateMeal,
@@ -115,56 +117,58 @@ export function NutritionMealEditor({
         </div>
 
         {/* Meal Actions */}
-        <div className="flex items-center gap-1 shrink-0">
-          {onMoveUp && !isFirst && (
+        {!readOnly && (
+          <div className="flex items-center gap-1 shrink-0">
+            {onMoveUp && !isFirst && (
+              <button
+                type="button"
+                title="Mover refeição para cima"
+                onClick={() => onMoveUp()}
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)]"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                </svg>
+              </button>
+            )}
+            {onMoveDown && !isLast && (
+              <button
+                type="button"
+                title="Mover refeição para baixo"
+                onClick={() => onMoveDown()}
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)]"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
             <button
               type="button"
-              title="Mover refeição para cima"
-              onClick={() => onMoveUp()}
+              title="Editar refeição"
+              onClick={() => setIsEditingMeal(true)}
               className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)]"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
               </svg>
             </button>
-          )}
-          {onMoveDown && !isLast && (
             <button
               type="button"
-              title="Mover refeição para baixo"
-              onClick={() => onMoveDown()}
-              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)]"
+              title="Remover refeição"
+              onClick={() => {
+                if (confirm(`Remover a refeição "${meal.title}" e todos os seus itens?`)) {
+                  onRemoveMeal();
+                }
+              }}
+              className="p-1.5 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
-          )}
-          <button
-            type="button"
-            title="Editar refeição"
-            onClick={() => setIsEditingMeal(true)}
-            className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)]"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            title="Remover refeição"
-            onClick={() => {
-              if (confirm(`Remover a refeição "${meal.title}" e todos os seus itens?`)) {
-                onRemoveMeal();
-              }
-            }}
-            className="p-1.5 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Inline meal edit form */}
@@ -232,6 +236,7 @@ export function NutritionMealEditor({
               key={item.publicId}
               slug={slug}
               item={item}
+              readOnly={readOnly}
               isFirst={idx === 0}
               isLast={idx === meal.items.length - 1}
               onUpdateItem={(data) => onUpdateItem(item.publicId, data)}
@@ -248,18 +253,20 @@ export function NutritionMealEditor({
       </div>
 
       {/* Add Item Action */}
-      <div className="pt-2">
-        <button
-          type="button"
-          onClick={() => setIsPickerOpen(true)}
-          className="w-full py-2 px-4 rounded-xl border border-dashed border-[var(--border)] hover:border-[var(--brand-primary)] bg-[var(--surface-secondary)]/40 hover:bg-[var(--brand-primary)]/5 text-xs font-semibold text-[var(--brand-primary)] transition-colors flex items-center justify-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          <span>Adicionar Alimento a esta Refeição</span>
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => setIsPickerOpen(true)}
+            className="w-full py-2 px-4 rounded-xl border border-dashed border-[var(--border)] hover:border-[var(--brand-primary)] bg-[var(--surface-secondary)]/40 hover:bg-[var(--brand-primary)]/5 text-xs font-semibold text-[var(--brand-primary)] transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span>Adicionar Alimento a esta Refeição</span>
+          </button>
+        </div>
+      )}
 
       {/* Food Picker Modal */}
       <NutritionFoodPicker

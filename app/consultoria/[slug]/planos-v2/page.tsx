@@ -92,9 +92,19 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
                   <h3 className="font-bold text-base text-[var(--text-primary)] leading-snug">
                     {plan.currentVersion?.title || "Plano sem título"}
                   </h3>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0">
-                    V{plan.currentVersion?.versionNumber || 1} · {plan.currentVersion?.status || "DRAFT"}
-                  </span>
+                  {plan.currentVersion?.status === "DRAFT" ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0">
+                      V{plan.currentVersion.versionNumber} · Rascunho
+                    </span>
+                  ) : plan.currentVersion?.status === "PUBLISHED" ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                      V{plan.currentVersion.versionNumber} · Publicada
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20 shrink-0">
+                      V{plan.currentVersion?.versionNumber || 1} · Arquivada
+                    </span>
+                  )}
                 </div>
                 {plan.currentVersion?.subtitle && (
                   <p className="text-xs text-[var(--text-secondary)] line-clamp-1">

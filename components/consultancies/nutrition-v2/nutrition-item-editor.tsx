@@ -8,6 +8,7 @@ import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-
 interface NutritionItemEditorProps {
   slug: string;
   item: MealItemWithSubstitutionsDto;
+  readOnly?: boolean;
   onUpdateItem: (data: { prescribedQuantity?: number | null; prescribedUnitCode?: string | null; notes?: string | null }) => Promise<void>;
   onRemoveItem: () => Promise<void>;
   onMoveUp?: () => Promise<void>;
@@ -23,6 +24,7 @@ interface NutritionItemEditorProps {
 export function NutritionItemEditor({
   slug,
   item,
+  readOnly = false,
   onUpdateItem,
   onRemoveItem,
   onMoveUp,
@@ -103,56 +105,58 @@ export function NutritionItemEditor({
         </div>
 
         {/* Action icons */}
-        <div className="flex items-center gap-1 shrink-0">
-          {!isEditing && (
-            <>
-              {onMoveUp && !isFirst && (
+        {!readOnly && (
+          <div className="flex items-center gap-1 shrink-0">
+            {!isEditing && (
+              <>
+                {onMoveUp && !isFirst && (
+                  <button
+                    type="button"
+                    title="Mover para cima"
+                    onClick={() => onMoveUp()}
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--surface-secondary)]"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                  </button>
+                )}
+                {onMoveDown && !isLast && (
+                  <button
+                    type="button"
+                    title="Mover para baixo"
+                    onClick={() => onMoveDown()}
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--surface-secondary)]"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                )}
                 <button
                   type="button"
-                  title="Mover para cima"
-                  onClick={() => onMoveUp()}
+                  title="Editar quantidade"
+                  onClick={() => setIsEditing(true)}
                   className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--surface-secondary)]"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 </button>
-              )}
-              {onMoveDown && !isLast && (
                 <button
                   type="button"
-                  title="Mover para baixo"
-                  onClick={() => onMoveDown()}
-                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--surface-secondary)]"
+                  title="Remover item"
+                  onClick={onRemoveItem}
+                  className="p-1 text-red-500/80 hover:text-red-600 rounded hover:bg-red-500/10"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
-              )}
-              <button
-                type="button"
-                title="Editar quantidade"
-                onClick={() => setIsEditing(true)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--surface-secondary)]"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                title="Remover item"
-                onClick={onRemoveItem}
-                className="p-1 text-red-500/80 hover:text-red-600 rounded hover:bg-red-500/10"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Inline edit mode */}
@@ -217,6 +221,7 @@ export function NutritionItemEditor({
                 <NutritionSubstitutionEditor
                   key={sub.publicId}
                   substitution={sub}
+                  readOnly={readOnly}
                   isFirst={idx === 0}
                   isLast={idx === item.substitutions.length - 1}
                   onUpdate={(data) => onUpdateSubstitution(sub.publicId, data)}
@@ -230,18 +235,20 @@ export function NutritionItemEditor({
         )}
 
         {/* Add substitution button */}
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={() => setIsPickerOpen(true)}
-            className="text-xs text-[var(--brand-primary)] hover:underline font-medium inline-flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-[var(--brand-primary)]/5"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Adicionar Substituição</span>
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setIsPickerOpen(true)}
+              className="text-xs text-[var(--brand-primary)] hover:underline font-medium inline-flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-[var(--brand-primary)]/5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Adicionar Substituição</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Food Picker for Substitutions */}

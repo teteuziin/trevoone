@@ -5,10 +5,12 @@ import { NutritionPlanBuilder } from "@/components/consultancies/nutrition-v2/nu
 
 interface PlanBuilderPageProps {
   params: Promise<{ slug: string; planPublicId: string }>;
+  searchParams: Promise<{ v?: string }>;
 }
 
-export default async function PlanBuilderPage({ params }: PlanBuilderPageProps) {
+export default async function PlanBuilderPage({ params, searchParams }: PlanBuilderPageProps) {
   const { slug, planPublicId } = await params;
+  const { v: versionPublicId } = await searchParams;
 
   const ctx = await resolveNutritionAccessContext(slug);
   if (!ctx) {
@@ -19,7 +21,7 @@ export default async function PlanBuilderPage({ params }: PlanBuilderPageProps) 
     notFound();
   }
 
-  const tree = await getPlanVersionTreeByPlanPublicId(ctx, planPublicId);
+  const tree = await getPlanVersionTreeByPlanPublicId(ctx, planPublicId, versionPublicId);
   if (!tree) {
     notFound();
   }

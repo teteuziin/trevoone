@@ -17,10 +17,14 @@ import {
   updateSubstitution,
   removeSubstitution,
   reorderSubstitutions,
+  publishPlanVersion,
+  createNextDraftVersion,
+  getPlanVersionHistory,
   type AddMealItemInput,
   type UpdateMealItemInput,
   type AddSubstitutionInput,
   type UpdateSubstitutionInput,
+  type PlanVersionHistoryItemDto,
 } from "@/lib/nutrition-v2/plan-repository";
 import {
   listUnifiedFoodsForNutritionist,
@@ -393,6 +397,68 @@ export async function getFoodPortionsForPickerAction(
     return { success: true, data: food };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao carregar porções do alimento.";
+    return { success: false, error: message };
+  }
+}
+
+// ============================================================================
+// LIFECYCLE: PUBLISH, NEW VERSION, HISTORY
+// ============================================================================
+
+export async function publishPlanVersionAction(
+  slug: string,
+  planPublicId: string,
+  versionPublicId: string
+): Promise<ActionResult<{ versionPublicId: string; status: string; publishedAt: string }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const res = await publishPlanVersion(ctx, planPublicId, versionPublicId);
+
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    revalidatePath(`/consultoria/${slug}/planos-v2/${planPublicId}`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao publicar plano.";
+    return { success: false, error: message };
+  }
+}
+
+export async function createNextVersionAction(
+  slug: string,
+  planPublicId: string
+): Promise<ActionResult<{ planPublicId: string; versionPublicId: string; versionNumber: number; isExistingDraft: boolean }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const res = await createNextDraftVersion(ctx, planPublicId);
+
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    revalidatePath(`/consultoria/${slug}/planos-v2/${planPublicId}`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao criar nova versão.";
+    return { success: false, error: message };
+  }
+}
+
+export async function getPlanVersionHistoryAction(
+  slug: string,
+  planPublicId: string
+): Promise<ActionResult<PlanVersionHistoryItemDto[]>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const res = await getPlanVersionHistory(ctx, planPublicId);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao carregar histórico de versões.";
     return { success: false, error: message };
   }
 }

@@ -51,11 +51,29 @@ export interface PlanVersionTreeDto {
     objective: string | null;
     generalGuidance: string | null;
     notes: string | null;
+    publishedAt: string | null;
     createdAt: string;
     updatedAt: string;
   };
   meals: MealWithItemsDto[];
   dailyTotals: MacroTotals;
+}
+
+export interface PlanVersionHistoryItemDto {
+  id: number;
+  publicId: string;
+  versionNumber: number;
+  status: string;
+  title: string;
+  subtitle: string | null;
+  createdAt: string;
+  publishedAt: string | null;
+  updatedAt: string;
+}
+
+export interface PublishValidationResult {
+  valid: boolean;
+  errors: string[];
 }
 
 export interface MealWithItemsDto {
@@ -490,7 +508,8 @@ export async function listPlansForConsultancy(
 
 export async function getPlanVersionTreeByPlanPublicId(
   ctx: NutritionAccessContext,
-  planPublicId: string
+  planPublicId: string,
+  versionPublicId?: string
 ): Promise<PlanVersionTreeDto | null> {
   assertCanAuthorNutrition(ctx);
 
@@ -513,14 +532,26 @@ export async function getPlanVersionTreeByPlanPublicId(
       throw new NutritionAuthorizationError("Acesso negado a este plano.", "FORBIDDEN_TENANT_PLAN", 403);
     }
 
-    // 2. Get latest version (DRAFT in P0 D)
-    const [versions] = await connection.query<RowDataPacket[]>(
-      `SELECT id, public_id, version_number, status, title, subtitle, objective, general_guidance, notes, created_at, updated_at
-       FROM nutrition_v2_plan_versions
-       WHERE nutrition_plan_id = ? AND deleted_at IS NULL
-       ORDER BY version_number DESC LIMIT 1`,
-      [p.id]
-    );
+    // 2. Get target version or latest version
+    let versions: RowDataPacket[];
+    if (versionPublicId) {
+      const [vRows] = await connection.query<RowDataPacket[]>(
+        `SELECT id, public_id, version_number, status, title, subtitle, objective, general_guidance, notes, published_at, created_at, updated_at
+         FROM nutrition_v2_plan_versions
+         WHERE public_id = ? AND nutrition_plan_id = ? AND deleted_at IS NULL`,
+        [versionPublicId, p.id]
+      );
+      versions = vRows;
+    } else {
+      const [vRows] = await connection.query<RowDataPacket[]>(
+        `SELECT id, public_id, version_number, status, title, subtitle, objective, general_guidance, notes, published_at, created_at, updated_at
+         FROM nutrition_v2_plan_versions
+         WHERE nutrition_plan_id = ? AND deleted_at IS NULL
+         ORDER BY version_number DESC LIMIT 1`,
+        [p.id]
+      );
+      versions = vRows;
+    }
 
     if (versions.length === 0) return null;
     const v = versions[0];
@@ -726,6 +757,7 @@ export async function getPlanVersionTreeByPlanPublicId(
         objective: v.objective ? String(v.objective) : null,
         generalGuidance: v.general_guidance ? String(v.general_guidance) : null,
         notes: v.notes ? String(v.notes) : null,
+        publishedAt: v.published_at ? new Date(v.published_at).toISOString() : null,
         createdAt: new Date(v.created_at).toISOString(),
         updatedAt: new Date(v.updated_at).toISOString(),
       },
@@ -1961,6 +1993,603 @@ export async function reorderSubstitutions(
       } catch {}
     }
     throw err;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+// ============================================================================
+// PUBLICATION VALIDATION (PERSISTED TREE)
+// ============================================================================
+
+const VALID_UNIT_CODES_SET = new Set([
+  "G",
+  "KG",
+  "ML",
+  "L",
+  "UNIDADE",
+  "FATIA",
+  "COLHER_SOPA",
+  "COLHER_CHA",
+  "XICARA",
+  "SCOOP",
+  "PORCAO",
+]);
+
+/**
+ * Validates a persisted plan version tree for publication according to Product02-E rules.
+ * Does NOT require macros. Does NOT require source food to be active (snapshots are authoritative).
+ */
+export function validatePlanTreeForPublication(tree: PlanVersionTreeDto): PublishValidationResult {
+  const errors: string[] = [];
+
+  // 1. Version title non-empty
+  if (!tree.version.title || !tree.version.title.trim()) {
+    errors.push("O título do plano é obrigatório.");
+  }
+
+  // 2. Meal count >= 1
+  if (!tree.meals || tree.meals.length === 0) {
+    errors.push("Adicione pelo menos uma refeição antes de publicar o plano.");
+    return { valid: false, errors };
+  }
+
+  // 3. Inspect each meal
+  for (let mIdx = 0; mIdx < tree.meals.length; mIdx++) {
+    const meal = tree.meals[mIdx];
+    const mealLabel = meal.title?.trim() ? `"${meal.title.trim()}"` : `Refeição ${mIdx + 1}`;
+
+    if (!meal.title || !meal.title.trim()) {
+      errors.push(`A ${mealLabel} precisa ter um nome preenchido.`);
+    }
+
+    // Each active meal must have >= 1 main item
+    if (!meal.items || meal.items.length === 0) {
+      errors.push(`A refeição ${mealLabel} precisa ter pelo menos um item.`);
+      continue;
+    }
+
+    // Inspect main items
+    for (let iIdx = 0; iIdx < meal.items.length; iIdx++) {
+      const item = meal.items[iIdx];
+      const itemLabel = item.foodNameSnapshot?.trim()
+        ? `"${item.foodNameSnapshot.trim()}"`
+        : `Item ${iIdx + 1} de ${mealLabel}`;
+
+      if (!item.foodNameSnapshot || !item.foodNameSnapshot.trim()) {
+        errors.push(`O item ${iIdx + 1} da refeição ${mealLabel} está sem o nome do alimento.`);
+      }
+
+      if (item.prescribedQuantity != null && item.prescribedQuantity <= 0) {
+        errors.push(`A quantidade do item ${itemLabel} deve ser maior que zero.`);
+      }
+
+      if (item.prescribedUnitCode && !VALID_UNIT_CODES_SET.has(item.prescribedUnitCode.trim().toUpperCase())) {
+        errors.push(`A unidade "${item.prescribedUnitCode}" do item ${itemLabel} é inválida.`);
+      }
+
+      // Inspect substitutions
+      if (item.substitutions && item.substitutions.length > 0) {
+        for (let sIdx = 0; sIdx < item.substitutions.length; sIdx++) {
+          const sub = item.substitutions[sIdx];
+          const subLabel = sub.foodNameSnapshot?.trim()
+            ? `"${sub.foodNameSnapshot.trim()}"`
+            : `Substituição ${sIdx + 1} de ${itemLabel}`;
+
+          if (!sub.foodNameSnapshot || !sub.foodNameSnapshot.trim()) {
+            errors.push(`A substituição ${sIdx + 1} do item ${itemLabel} está sem o nome do alimento.`);
+          }
+
+          if (sub.prescribedQuantity != null && sub.prescribedQuantity <= 0) {
+            errors.push(`A quantidade da substituição ${subLabel} deve ser maior que zero.`);
+          }
+
+          if (sub.prescribedUnitCode && !VALID_UNIT_CODES_SET.has(sub.prescribedUnitCode.trim().toUpperCase())) {
+            errors.push(`A unidade "${sub.prescribedUnitCode}" da substituição ${subLabel} é inválida.`);
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+// ============================================================================
+// PUBLISH PLAN VERSION (TRANSACTIONAL)
+// ============================================================================
+
+export async function publishPlanVersion(
+  ctx: NutritionAccessContext,
+  planPublicId: string,
+  versionPublicId: string,
+  testHook?: "FAIL_BEFORE_ARCHIVE" | "FAIL_AFTER_ARCHIVE" | "FAIL_BEFORE_COMMIT"
+): Promise<{ success: boolean; versionPublicId: string; status: string; publishedAt: string }> {
+  assertCanAuthorNutrition(ctx);
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Lock plan root
+    const [plans] = await connection.query<RowDataPacket[]>(
+      `SELECT id, public_id, consultancy_id, status
+       FROM nutrition_v2_plans
+       WHERE public_id = ? AND deleted_at IS NULL FOR UPDATE`,
+      [planPublicId]
+    );
+
+    if (plans.length === 0) {
+      throw new NutritionAuthorizationError("Plano não encontrado.", "PLAN_NOT_FOUND", 404);
+    }
+    const plan = plans[0];
+
+    if (Number(plan.consultancy_id) !== ctx.consultancyId) {
+      throw new NutritionAuthorizationError("Acesso negado a este plano da consultoria.", "FORBIDDEN_TENANT_PLAN", 403);
+    }
+
+    // 2. Lock target version and verify relationship
+    const [targetVersions] = await connection.query<RowDataPacket[]>(
+      `SELECT id, public_id, nutrition_plan_id, version_number, status, published_at
+       FROM nutrition_v2_plan_versions
+       WHERE public_id = ? AND nutrition_plan_id = ? AND deleted_at IS NULL FOR UPDATE`,
+      [versionPublicId, plan.id]
+    );
+
+    if (targetVersions.length === 0) {
+      throw new NutritionAuthorizationError("Versão não encontrada ou não pertence a este plano.", "VERSION_NOT_FOUND", 404);
+    }
+    const target = targetVersions[0];
+
+    // Idempotency: if already PUBLISHED, return controlled success
+    if (target.status === "PUBLISHED") {
+      await connection.commit();
+      return {
+        success: true,
+        versionPublicId: String(target.public_id),
+        status: "PUBLISHED",
+        publishedAt: target.published_at ? new Date(target.published_at).toISOString() : new Date().toISOString(),
+      };
+    }
+
+    if (target.status !== "DRAFT") {
+      throw new NutritionAuthorizationError(
+        "Apenas versões em rascunho (DRAFT) podem ser publicadas.",
+        "CANNOT_PUBLISH_NON_DRAFT",
+        400
+      );
+    }
+
+    // 3. Load authoritative persisted tree using helper (within same ctx)
+    const tree = await getPlanVersionTreeByPlanPublicId(ctx, planPublicId, versionPublicId);
+    if (!tree) {
+      throw new NutritionAuthorizationError("Erro ao carregar estrutura do plano.", "TREE_LOAD_FAILED", 500);
+    }
+
+    // 4. Validate persisted tree for publication
+    const validation = validatePlanTreeForPublication(tree);
+    if (!validation.valid) {
+      throw new NutritionAuthorizationError(
+        validation.errors[0] || "Plano incompleto para publicação.",
+        "PUBLICATION_VALIDATION_FAILED",
+        400
+      );
+    }
+
+    if (testHook === "FAIL_BEFORE_ARCHIVE") {
+      throw new Error("TEST_HOOK_FAIL_BEFORE_ARCHIVE");
+    }
+
+    // 5. Identify and archive any current PUBLISHED version under this root
+    const [publishedRows] = await connection.query<RowDataPacket[]>(
+      `SELECT id, public_id, version_number FROM nutrition_v2_plan_versions
+       WHERE nutrition_plan_id = ? AND status = 'PUBLISHED' AND deleted_at IS NULL FOR UPDATE`,
+      [plan.id]
+    );
+
+    for (const pubRow of publishedRows) {
+      await connection.query(
+        `UPDATE nutrition_v2_plan_versions
+         SET status = 'ARCHIVED', updated_at = UTC_TIMESTAMP(3)
+         WHERE id = ?`,
+        [pubRow.id]
+      );
+    }
+
+    if (testHook === "FAIL_AFTER_ARCHIVE") {
+      throw new Error("TEST_HOOK_FAIL_AFTER_ARCHIVE");
+    }
+
+    // 6. Transition target version DRAFT -> PUBLISHED
+    const nowIso = new Date().toISOString();
+    await connection.query(
+      `UPDATE nutrition_v2_plan_versions
+       SET status = 'PUBLISHED', published_at = UTC_TIMESTAMP(3), updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ?`,
+      [target.id]
+    );
+
+    // Also update plan root updated_at
+    await connection.query(
+      `UPDATE nutrition_v2_plans SET updated_at = UTC_TIMESTAMP(3) WHERE id = ?`,
+      [plan.id]
+    );
+
+    if (testHook === "FAIL_BEFORE_COMMIT") {
+      throw new Error("TEST_HOOK_FAIL_BEFORE_COMMIT");
+    }
+
+    await connection.commit();
+
+    return {
+      success: true,
+      versionPublicId: String(target.public_id),
+      status: "PUBLISHED",
+      publishedAt: nowIso,
+    };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    throw err;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+// ============================================================================
+// CREATE NEXT DRAFT VERSION (FULL TREE DEEP CLONE)
+// ============================================================================
+
+export async function createNextDraftVersion(
+  ctx: NutritionAccessContext,
+  planPublicId: string,
+  testHook?: "FAIL_AFTER_VERSION" | "FAIL_MID_ITEM" | "FAIL_MID_SUB"
+): Promise<{ planPublicId: string; versionPublicId: string; versionNumber: number; isExistingDraft: boolean }> {
+  assertCanAuthorNutrition(ctx);
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Lock plan root
+    const [plans] = await connection.query<RowDataPacket[]>(
+      `SELECT id, public_id, consultancy_id, status
+       FROM nutrition_v2_plans
+       WHERE public_id = ? AND deleted_at IS NULL FOR UPDATE`,
+      [planPublicId]
+    );
+
+    if (plans.length === 0) {
+      throw new NutritionAuthorizationError("Plano não encontrado.", "PLAN_NOT_FOUND", 404);
+    }
+    const plan = plans[0];
+
+    if (Number(plan.consultancy_id) !== ctx.consultancyId) {
+      throw new NutritionAuthorizationError("Acesso negado a este plano da consultoria.", "FORBIDDEN_TENANT_PLAN", 403);
+    }
+
+    // 2. Check if a DRAFT version already exists on this root (at most one active draft)
+    const [existingDrafts] = await connection.query<RowDataPacket[]>(
+      `SELECT id, public_id, version_number FROM nutrition_v2_plan_versions
+       WHERE nutrition_plan_id = ? AND status = 'DRAFT' AND deleted_at IS NULL FOR UPDATE`,
+      [plan.id]
+    );
+
+    if (existingDrafts.length > 0) {
+      // Re-use existing draft concurrency-safely
+      await connection.commit();
+      return {
+        planPublicId: String(plan.public_id),
+        versionPublicId: String(existingDrafts[0].public_id),
+        versionNumber: Number(existingDrafts[0].version_number),
+        isExistingDraft: true,
+      };
+    }
+
+    // 3. Find source version to clone from (current PUBLISHED version preferred, or latest)
+    const [publishedVersions] = await connection.query<RowDataPacket[]>(
+      `SELECT * FROM nutrition_v2_plan_versions
+       WHERE nutrition_plan_id = ? AND status = 'PUBLISHED' AND deleted_at IS NULL
+       ORDER BY version_number DESC LIMIT 1 FOR UPDATE`,
+      [plan.id]
+    );
+
+    let sourceVersion = publishedVersions.length > 0 ? publishedVersions[0] : null;
+    if (!sourceVersion) {
+      const [latestVersions] = await connection.query<RowDataPacket[]>(
+        `SELECT * FROM nutrition_v2_plan_versions
+         WHERE nutrition_plan_id = ? AND deleted_at IS NULL
+         ORDER BY version_number DESC LIMIT 1 FOR UPDATE`,
+        [plan.id]
+      );
+      if (latestVersions.length === 0) {
+        throw new NutritionAuthorizationError("Nenhuma versão base encontrada para clonar.", "NO_SOURCE_VERSION", 400);
+      }
+      sourceVersion = latestVersions[0];
+    }
+
+    // 4. Calculate next version_number: MAX(version_number) + 1
+    const [maxRows] = await connection.query<RowDataPacket[]>(
+      `SELECT COALESCE(MAX(version_number), 0) AS max_v
+       FROM nutrition_v2_plan_versions
+       WHERE nutrition_plan_id = ?`,
+      [plan.id]
+    );
+    const nextVersionNumber = Number(maxRows[0].max_v) + 1;
+    const newVersionPublicId = crypto.randomUUID();
+
+    // 5. Insert new DRAFT version row (published_at NULL, status DRAFT)
+    const [vInsertRes] = await connection.query<ResultSetHeader>(
+      `INSERT INTO nutrition_v2_plan_versions (
+        public_id,
+        nutrition_plan_id,
+        version_number,
+        status,
+        title,
+        subtitle,
+        objective,
+        general_guidance,
+        notes,
+        created_by_membership_id
+      ) VALUES (?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?)`,
+      [
+        newVersionPublicId,
+        plan.id,
+        nextVersionNumber,
+        sourceVersion.title,
+        sourceVersion.subtitle,
+        sourceVersion.objective,
+        sourceVersion.general_guidance,
+        sourceVersion.notes,
+        ctx.membershipId!,
+      ]
+    );
+    const newVersionId = vInsertRes.insertId;
+
+    if (testHook === "FAIL_AFTER_VERSION") {
+      throw new Error("TEST_HOOK_FAIL_AFTER_VERSION");
+    }
+
+    // 6. Deep clone meals
+    const [sourceMeals] = await connection.query<RowDataPacket[]>(
+      `SELECT id, public_id, title, scheduled_time, notes, sort_order
+       FROM nutrition_v2_meals
+       WHERE nutrition_plan_version_id = ? AND deleted_at IS NULL
+       ORDER BY sort_order ASC, id ASC`,
+      [sourceVersion.id]
+    );
+
+    for (const sm of sourceMeals) {
+      const newMealPublicId = crypto.randomUUID();
+      const [mInsertRes] = await connection.query<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_meals (
+          public_id,
+          nutrition_plan_version_id,
+          title,
+          scheduled_time,
+          notes,
+          sort_order
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          newMealPublicId,
+          newVersionId,
+          sm.title,
+          sm.scheduled_time,
+          sm.notes,
+          sm.sort_order,
+        ]
+      );
+      const newMealId = mInsertRes.insertId;
+
+      // 7. Deep clone meal items for this meal
+      const [sourceItems] = await connection.query<RowDataPacket[]>(
+        `SELECT
+          id, public_id, food_id, sort_order,
+          food_name_snapshot, category_snapshot,
+          prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+          calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
+          notes
+         FROM nutrition_v2_meal_items
+         WHERE meal_id = ? AND deleted_at IS NULL
+         ORDER BY sort_order ASC, id ASC`,
+        [sm.id]
+      );
+
+      for (let iIdx = 0; iIdx < sourceItems.length; iIdx++) {
+        const si = sourceItems[iIdx];
+
+        if (testHook === "FAIL_MID_ITEM" && iIdx === 1) {
+          throw new Error("TEST_HOOK_FAIL_MID_ITEM");
+        }
+
+        const newItemPublicId = crypto.randomUUID();
+        const [iInsertRes] = await connection.query<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_meal_items (
+            public_id,
+            meal_id,
+            food_id,
+            sort_order,
+            food_name_snapshot,
+            category_snapshot,
+            prescribed_quantity,
+            prescribed_unit_code,
+            prescribed_unit_label,
+            calories_kcal_snapshot,
+            protein_g_snapshot,
+            carbohydrate_g_snapshot,
+            fat_g_snapshot,
+            notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            newItemPublicId,
+            newMealId,
+            si.food_id,
+            si.sort_order,
+            si.food_name_snapshot,
+            si.category_snapshot,
+            si.prescribed_quantity,
+            si.prescribed_unit_code,
+            si.prescribed_unit_label,
+            si.calories_kcal_snapshot,
+            si.protein_g_snapshot,
+            si.carbohydrate_g_snapshot,
+            si.fat_g_snapshot,
+            si.notes,
+          ]
+        );
+        const newItemId = iInsertRes.insertId;
+
+        // 8. Deep clone item substitutions
+        const [sourceSubs] = await connection.query<RowDataPacket[]>(
+          `SELECT
+            id, public_id, food_id, sort_order,
+            food_name_snapshot, prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+            calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
+            notes
+           FROM nutrition_v2_item_substitutions
+           WHERE meal_item_id = ? AND deleted_at IS NULL
+           ORDER BY sort_order ASC, id ASC`,
+          [si.id]
+        );
+
+        for (let sIdx = 0; sIdx < sourceSubs.length; sIdx++) {
+          const ss = sourceSubs[sIdx];
+
+          if (testHook === "FAIL_MID_SUB" && sIdx === 1) {
+            throw new Error("TEST_HOOK_FAIL_MID_SUB");
+          }
+
+          const newSubPublicId = crypto.randomUUID();
+          await connection.query(
+            `INSERT INTO nutrition_v2_item_substitutions (
+              public_id,
+              meal_item_id,
+              food_id,
+              sort_order,
+              food_name_snapshot,
+              prescribed_quantity,
+              prescribed_unit_code,
+              prescribed_unit_label,
+              calories_kcal_snapshot,
+              protein_g_snapshot,
+              carbohydrate_g_snapshot,
+              fat_g_snapshot,
+              notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              newSubPublicId,
+              newItemId,
+              ss.food_id,
+              ss.sort_order,
+              ss.food_name_snapshot,
+              ss.prescribed_quantity,
+              ss.prescribed_unit_code,
+              ss.prescribed_unit_label,
+              ss.calories_kcal_snapshot,
+              ss.protein_g_snapshot,
+              ss.carbohydrate_g_snapshot,
+              ss.fat_g_snapshot,
+              ss.notes,
+            ]
+          );
+        }
+      }
+    }
+
+    // Update plan root timestamp
+    await connection.query(
+      `UPDATE nutrition_v2_plans SET updated_at = UTC_TIMESTAMP(3) WHERE id = ?`,
+      [plan.id]
+    );
+
+    await connection.commit();
+
+    return {
+      planPublicId: String(plan.public_id),
+      versionPublicId: newVersionPublicId,
+      versionNumber: nextVersionNumber,
+      isExistingDraft: false,
+    };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    throw err;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+// ============================================================================
+// VERSION HISTORY QUERY
+// ============================================================================
+
+export async function getPlanVersionHistory(
+  ctx: NutritionAccessContext,
+  planPublicId: string
+): Promise<PlanVersionHistoryItemDto[]> {
+  assertCanAuthorNutrition(ctx);
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+
+    // 1. Get plan root
+    const [plans] = await connection.query<RowDataPacket[]>(
+      `SELECT id, public_id, consultancy_id FROM nutrition_v2_plans
+       WHERE public_id = ? AND deleted_at IS NULL`,
+      [planPublicId]
+    );
+
+    if (plans.length === 0) {
+      throw new NutritionAuthorizationError("Plano não encontrado.", "PLAN_NOT_FOUND", 404);
+    }
+    const plan = plans[0];
+
+    if (Number(plan.consultancy_id) !== ctx.consultancyId) {
+      throw new NutritionAuthorizationError("Acesso negado a este plano da consultoria.", "FORBIDDEN_TENANT_PLAN", 403);
+    }
+
+    // 2. Query versions bounded (no full tree, no N+1, newest first)
+    const [rows] = await connection.query<RowDataPacket[]>(
+      `SELECT
+        id,
+        public_id,
+        version_number,
+        status,
+        title,
+        subtitle,
+        published_at,
+        created_at,
+        updated_at
+       FROM nutrition_v2_plan_versions
+       WHERE nutrition_plan_id = ? AND deleted_at IS NULL
+       ORDER BY version_number DESC, id DESC
+       LIMIT 100`,
+      [plan.id]
+    );
+
+    return rows.map((r) => ({
+      id: Number(r.id),
+      publicId: String(r.public_id),
+      versionNumber: Number(r.version_number),
+      status: String(r.status),
+      title: String(r.title),
+      subtitle: r.subtitle ? String(r.subtitle) : null,
+      publishedAt: r.published_at ? new Date(r.published_at).toISOString() : null,
+      createdAt: new Date(r.created_at).toISOString(),
+      updatedAt: new Date(r.updated_at).toISOString(),
+    }));
   } finally {
     if (connection) connection.release();
   }

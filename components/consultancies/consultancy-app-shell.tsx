@@ -169,29 +169,15 @@ export function ConsultancyAppShell({
       id: "nutritionist-planos",
       label: "Planos Alimentares",
       mobileLabel: "Planos",
-      href: `/consultoria/${consultancySlug}/nutricao/planos`,
+      href: `/consultoria/${consultancySlug}/planos-v2`,
       iconName: "prescriptions",
     });
     items.push({
       id: "nutritionist-alimentos",
       label: "Alimentos",
       mobileLabel: "Alimentos",
-      href: `/consultoria/${consultancySlug}/nutricao/alimentos`,
-      iconName: "nutrition",
-    });
-    items.push({
-      id: "nutritionist-alimentos-v2",
-      label: "Alimentos V2",
-      mobileLabel: "Alimentos V2",
       href: `/consultoria/${consultancySlug}/alimentos-v2`,
       iconName: "nutrition",
-    });
-    items.push({
-      id: "nutritionist-planos-v2",
-      label: "Planos V2 (Dev)",
-      mobileLabel: "Planos V2",
-      href: `/consultoria/${consultancySlug}/planos-v2`,
-      iconName: "prescriptions",
     });
     items.push({
       id: "nutritionist-progresso",
@@ -307,7 +293,7 @@ export function ConsultancyAppShell({
         id: "nutritionist-planos",
         label: "Planos Alimentares",
         mobileLabel: "Dietas",
-        href: `/consultoria/${consultancySlug}/nutricao/planos`,
+        href: `/consultoria/${consultancySlug}/planos-v2`,
         iconName: "prescriptions",
       },
       {
@@ -350,14 +336,14 @@ export function ConsultancyAppShell({
         id: "nutritionist-planos",
         label: "Planos Alimentares",
         mobileLabel: "Planos",
-        href: `/consultoria/${consultancySlug}/nutricao/planos`,
+        href: `/consultoria/${consultancySlug}/planos-v2`,
         iconName: "prescriptions",
       },
       {
         id: "nutritionist-alimentos",
         label: "Alimentos",
         mobileLabel: "Alimentos",
-        href: `/consultoria/${consultancySlug}/nutricao/alimentos`,
+        href: `/consultoria/${consultancySlug}/alimentos-v2`,
         iconName: "nutrition",
       },
       {

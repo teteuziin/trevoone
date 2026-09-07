@@ -216,10 +216,7 @@ export function NutritionistFoodLibrary({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Biblioteca de Alimentos V2</h1>
-            <span className="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-              V2 Beta
-            </span>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Biblioteca de Alimentos</h1>
           </div>
           <p className="text-sm text-[var(--text-muted)] mt-1">
             Consulte a Tabela TACO (Trevo One) e gerencie os alimentos exclusivos da sua consultoria.

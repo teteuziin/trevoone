@@ -34,11 +34,8 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-              Planos Alimentares V2
+              Planos Alimentares
             </h1>
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
-              Dev
-            </span>
           </div>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
             Editor profissional de prescrições nutricionais com snapshots históricos e porções.

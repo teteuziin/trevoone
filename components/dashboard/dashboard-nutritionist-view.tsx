@@ -235,12 +235,12 @@ export function DashboardNutritionistView({
           </div>
 
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0 pt-2 md:pt-0">
-            <Link href={`/consultoria/${consultancySlug}/nutricao/planos/novo`} className="w-full sm:w-auto">
+            <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`} className="w-full sm:w-auto">
               <Button variant="primary" size="md" className="w-full sm:w-auto font-bold min-h-[44px] shadow-sm">
                 + Novo plano alimentar
               </Button>
             </Link>
-            <Link href={`/consultoria/${consultancySlug}/nutricao/planos`} className="w-full sm:w-auto">
+            <Link href={`/consultoria/${consultancySlug}/planos-v2`} className="w-full sm:w-auto">
               <Button variant="secondary" size="md" className="w-full sm:w-auto font-semibold min-h-[44px]">
                 Ver todos
               </Button>
@@ -263,7 +263,7 @@ export function DashboardNutritionistView({
             )}
           </div>
           <Link
-            href={`/consultoria/${consultancySlug}/nutricao/planos`}
+            href={`/consultoria/${consultancySlug}/planos-v2`}
             className="text-xs font-bold text-[var(--brand)] hover:underline"
           >
             Gerenciar todos os planos →
@@ -315,7 +315,7 @@ export function DashboardNutritionistView({
                 Inicie a prescrição nutricional elaborando um cardápio para um aluno.
               </p>
             </div>
-            <Link href={`/consultoria/${consultancySlug}/nutricao/planos/novo`}>
+            <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`}>
               <Button variant="secondary" size="sm" className="font-semibold min-h-[44px]">
                 Criar primeiro plano alimentar
               </Button>
@@ -333,7 +333,7 @@ export function DashboardNutritionistView({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
           {/* Tabela TACO & Alimentos */}
           <Link
-            href={`/consultoria/${consultancySlug}/nutricao/alimentos`}
+            href={`/consultoria/${consultancySlug}/alimentos-v2`}
             className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex items-center gap-3.5"
           >
             <div className="shrink-0">

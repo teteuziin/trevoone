@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
-import { BetaBadge } from "@/components/brand/beta-badge";
 import { logoutFromConsultancyArea } from "@/app/selecionar-consultoria/actions";
 import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
 import { ViewModeSelector } from "./view-mode-selector";
@@ -414,7 +413,6 @@ export function ConsultancyNavigation({
                   <p className="text-sm font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--brand)] transition-colors">
                     {consultancyName}
                   </p>
-                  <BetaBadge />
                 </div>
                 {primaryRoleLabel && (
                   <p className="text-[11px] font-semibold text-[var(--text-secondary)] truncate leading-tight">

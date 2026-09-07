@@ -166,7 +166,7 @@ export default async function ConsultancyWorkoutsPage({
             <div className="flex items-center gap-2 mb-1">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--primary-subtle)] text-[var(--primary)]">
                 <Sparkles className="w-3.5 h-3.5" />
-                Criador de Treinos V2
+                Criador de Treinos
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)]">

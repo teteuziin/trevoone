@@ -1,7 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { getCurrentSession } from "@/lib/auth/session";
+import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { listPlansForConsultancy } from "@/lib/nutrition-v2/plan-repository";
+import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 
 interface PlanosV2PageProps {
   params: Promise<{ slug: string }>;
@@ -13,12 +16,14 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
   const { page: pageStr, q: query } = await searchParams;
   const page = Math.max(1, Number(pageStr) || 1);
 
-  const ctx = await resolveNutritionAccessContext(slug);
-  if (!ctx) {
+  const session = await getCurrentSession();
+  if (!session) {
     redirect(`/login?returnUrl=/consultoria/${slug}/planos-v2`);
   }
 
-  if (!ctx.canAuthorNutrition) {
+  const context = await resolveConsultancyContext(session.userId, slug);
+  const ctx = await resolveNutritionAccessContext(slug);
+  if (!ctx || !ctx.canAuthorNutrition) {
     notFound();
   }
 
@@ -28,7 +33,15 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
   });
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-20">
+    <ConsultancyAppShell
+      consultancyName={context?.consultancyName || ctx.consultancySlug || slug}
+      consultancySlug={context?.consultancySlug || ctx.consultancySlug || slug}
+      consultancyLogoUrl={context?.consultancyLogoUrl}
+      roles={context?.roles || ctx.roles}
+      userName={session.fullName}
+      userEmail={session.email}
+    >
+      <div className="space-y-6 max-w-5xl mx-auto pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -153,6 +166,7 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
           </Link>
         </div>
       )}
-    </div>
+      </div>
+    </ConsultancyAppShell>
   );
 }

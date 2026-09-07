@@ -1,11 +1,16 @@
 import mysql from "mysql2/promise";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SOURCE_KEY = "TACO";
 const SOURCE_VERSION = "4ª edição revisada e ampliada (2011)";
-const EXPECTED_SOURCE_SHA256 = "a66b8ec528daeabc63bc2b015fc9bd8c6d76b941c2fc0ed93a4311d449302d14";
-const SOURCE_REFERENCE = `NEPA/UNICAMP - TACO 4ª edição (2011) [SHA-256: ${EXPECTED_SOURCE_SHA256}]`;
+const EXPECTED_HISTORICAL_SHA256 = "a66b8ec528daeabc63bc2b015fc9bd8c6d76b941c2fc0ed93a4311d449302d14";
+const SOURCE_REFERENCE = `NEPA/UNICAMP - TACO 4ª edição (2011) [SHA-256: ${EXPECTED_HISTORICAL_SHA256}]`;
 
 function normalizeSearchText(text) {
   if (!text || typeof text !== "string") return "";
@@ -19,12 +24,18 @@ function normalizeSearchText(text) {
 
 function parseArgs(argv) {
   let isApply = false;
+  let isAllowProduction = false;
   for (const arg of argv) {
     if (arg === "--apply") {
       isApply = true;
+    } else if (arg === "--allow-production") {
+      isAllowProduction = true;
+    } else {
+      console.error(`ERRO: Argumento desconhecido ou inválido: '${arg}'`);
+      process.exit(1);
     }
   }
-  return { isApply };
+  return { isApply, isAllowProduction };
 }
 
 function loadEnv() {
@@ -41,19 +52,64 @@ function loadEnv() {
 }
 
 async function run() {
-  const { isApply } = parseArgs(process.argv.slice(2));
+  const { isApply, isAllowProduction } = parseArgs(process.argv.slice(2));
   const env = loadEnv();
 
-  // Safety check: Dev target only
-  if (env.DB_NAME !== "u406031981_trevoone_dev" || env.DB_HOST !== "srv1595.hstgr.io") {
-    console.error("ERRO DE SEGURANÇA: Este script só pode ser executado no banco DEV (u406031981_trevoone_dev).");
+  const PROD_DB_NAME = "u406031981_trevoone";
+  const DEV_DB_NAME = "u406031981_trevoone_dev";
+  const EXPECTED_HOST = "srv1595.hstgr.io";
+
+  if (env.DB_HOST !== EXPECTED_HOST) {
+    console.error(`ERRO DE SEGURANÇA: Host inesperado: '${env.DB_HOST}'. Esperado: '${EXPECTED_HOST}'.`);
+    process.exit(1);
+  }
+
+  // Target database authorization guard
+  if (env.DB_NAME === PROD_DB_NAME) {
+    if (!isAllowProduction) {
+      console.error("PRODUÇÃO DETECTADA — EXECUÇÃO ABORTADA.");
+      console.error("O banco de dados configurado é PRODUÇÃO (u406031981_trevoone).");
+      console.error("Para executar contra produção, é obrigatório fornecer a flag explícita '--allow-production'.");
+      process.exit(1);
+    }
+  } else if (env.DB_NAME === DEV_DB_NAME) {
+    if (isAllowProduction) {
+      console.error("ERRO: Flag inconsistente: '--allow-production' não pode ser utilizada contra o banco DEV (u406031981_trevoone_dev).");
+      process.exit(1);
+    }
+  } else {
+    console.error(`ERRO DE SEGURANÇA: Banco de dados não autorizado: '${env.DB_NAME}'.`);
+    process.exit(1);
+  }
+
+  // Load canonical bundled dataset (independent of target DB)
+  const datasetPath = path.resolve(__dirname, "../data/nutrition/taco-2011.json");
+  if (!fs.existsSync(datasetPath)) {
+    console.error(`ERRO: Arquivo do dataset canônico não encontrado: ${datasetPath}`);
+    process.exit(1);
+  }
+
+  const rawBytes = fs.readFileSync(datasetPath);
+  let dataset;
+  try {
+    dataset = JSON.parse(rawBytes.toString("utf8"));
+  } catch (err) {
+    console.error(`ERRO: Falha ao interpretar JSON do dataset: ${err.message}`);
+    process.exit(1);
+  }
+
+  const { metadata, foods } = dataset;
+  if (!metadata || !Array.isArray(foods) || foods.length !== 548) {
+    console.error(`ERRO: Dataset inválido. Esperados 548 alimentos, encontrados: ${foods?.length}`);
     process.exit(1);
   }
 
   console.log("=== TREVO ONE — SEED TACO GLOBAL NUTRITION V2 ===");
-  console.log("Banco de dados:", env.DB_NAME);
+  console.log("Fonte de dados:", `Dataset canônico embutido (${foods.length} alimentos)`);
+  console.log("Banco de dados alvo:", env.DB_NAME);
+  console.log("Ambiente:", env.DB_NAME === PROD_DB_NAME ? "PRODUÇÃO" : "DEV");
   console.log("Modo de execução:", isApply ? "APPLY (Escrita no banco)" : "DRY RUN (Simulação / Sem escrita)");
-  console.log("Versão TACO:", SOURCE_VERSION);
+  console.log("Versão TACO:", metadata.source_version || SOURCE_VERSION);
 
   const pool = mysql.createPool({
     host: env.DB_HOST,
@@ -64,47 +120,18 @@ async function run() {
   });
 
   try {
-    // 1. Read existing TACO foods from V1 as transitional source
-    const [v1Rows] = await pool.query(
-      `SELECT
-        id,
-        name,
-        normalized_name,
-        category,
-        reference_amount,
-        reference_unit,
-        calories_kcal,
-        protein_g,
-        carbohydrate_g,
-        fat_g,
-        source_external_code,
-        source_version,
-        source_reference,
-        source_imported_at
-      FROM nutrition_foods
-      WHERE source_key = ?
-      ORDER BY CAST(source_external_code AS UNSIGNED) ASC`,
-      [SOURCE_KEY]
-    );
-
-    console.log(`\nAlimentos TACO encontrados na base V1: ${v1Rows.length}`);
-    if (v1Rows.length === 0) {
-      console.error("ERRO: Nenhum alimento TACO encontrado em nutrition_foods para importação.");
-      process.exit(1);
-    }
-
-    // 2. Check existing matching V2 records by source_uid
+    // 1. Check existing matching V2 records by source_uid in target DB
     const [existingV2] = await pool.query(
       "SELECT source_uid FROM nutrition_v2_foods WHERE source_key = ?",
-      [SOURCE_KEY]
+      [metadata.source_key || SOURCE_KEY]
     );
     const existingUidSet = new Set(existingV2.map((r) => r.source_uid));
     console.log(`Alimentos TACO já existentes em Nutrition V2: ${existingUidSet.size}`);
 
-    // 3. Prepare planned inserts
+    // 2. Prepare planned inserts from canonical dataset
     const plannedInserts = [];
-    for (const row of v1Rows) {
-      const sourceUid = `${SOURCE_KEY}:${row.source_version || SOURCE_VERSION}:${row.source_external_code}`;
+    for (const food of foods) {
+      const sourceUid = food.source_uid;
       if (existingUidSet.has(sourceUid)) {
         continue;
       }
@@ -113,22 +140,22 @@ async function run() {
         publicId: crypto.randomUUID(),
         scope: "GLOBAL",
         consultancyId: null,
-        name: row.name.trim(),
-        normalizedName: row.normalized_name ? row.normalized_name.trim() : normalizeSearchText(row.name),
-        category: row.category ? row.category.trim() : null,
-        referenceAmount: Number(row.reference_amount) || 100.0,
-        referenceUnitCode: row.reference_unit ? row.reference_unit.trim() : "G",
-        caloriesKcal: row.calories_kcal != null ? Number(row.calories_kcal) : null,
-        proteinG: row.protein_g != null ? Number(row.protein_g) : null,
-        carbohydrateG: row.carbohydrate_g != null ? Number(row.carbohydrate_g) : null,
-        fatG: row.fat_g != null ? Number(row.fat_g) : null,
+        name: food.name.trim(),
+        normalizedName: normalizeSearchText(food.name),
+        category: food.category ? food.category.trim() : null,
+        referenceAmount: Number(food.reference_amount) || 100.0,
+        referenceUnitCode: food.reference_unit_code ? food.reference_unit_code.trim() : "G",
+        caloriesKcal: food.calories_kcal != null ? Number(food.calories_kcal) : null,
+        proteinG: food.protein_g != null ? Number(food.protein_g) : null,
+        carbohydrateG: food.carbohydrate_g != null ? Number(food.carbohydrate_g) : null,
+        fatG: food.fat_g != null ? Number(food.fat_g) : null,
         status: "ACTIVE",
         sourceType: "EXTERNAL",
-        sourceKey: SOURCE_KEY,
-        sourceExternalCode: String(row.source_external_code),
-        sourceVersion: row.source_version || SOURCE_VERSION,
-        sourceReference: row.source_reference || SOURCE_REFERENCE,
-        sourceImportedAt: row.source_imported_at || new Date(),
+        sourceKey: metadata.source_key || SOURCE_KEY,
+        sourceExternalCode: String(food.source_external_code),
+        sourceVersion: metadata.source_version || SOURCE_VERSION,
+        sourceReference: metadata.source_reference || SOURCE_REFERENCE,
+        sourceImportedAt: metadata.source_imported_at || "2026-08-16T17:26:37.707Z",
         sourceUid,
       });
     }
@@ -147,7 +174,7 @@ async function run() {
       return;
     }
 
-    // 4. Perform batch insert
+    // 3. Perform batch insert into nutrition_v2_foods
     const insertSql = `
       INSERT INTO nutrition_v2_foods (
         public_id,
@@ -203,10 +230,10 @@ async function run() {
     await pool.query(insertSql, [values]);
     console.log(`\nSUCESSO: ${plannedInserts.length} alimentos TACO importados com sucesso para nutrition_v2_foods.`);
 
-    // 5. Verify post-insert state
+    // 4. Verify post-insert state
     const [finalCount] = await pool.query(
       "SELECT COUNT(*) as total, COUNT(DISTINCT source_uid) as distinct_uids FROM nutrition_v2_foods WHERE source_key = ?",
-      [SOURCE_KEY]
+      [metadata.source_key || SOURCE_KEY]
     );
     console.log(`Total TACO em Nutrition V2 após importação: ${finalCount[0].total}`);
     console.log(`Total de source_uid únicos: ${finalCount[0].distinct_uids}`);

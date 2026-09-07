@@ -1,5 +1,3 @@
-import type { TrainingPlanDto } from "../consultancies/training";
-import type { NutritionPlanDto } from "../consultancies/nutrition";
 import {
   type OfflineActiveContext,
   type CreateOfflineActiveContextInput,
@@ -22,7 +20,7 @@ export interface TrainingOfflineSnapshot {
   planPublicId: string;
   activatedAt: string | null;
   syncedAt: string; // ISO 8601 string
-  data: TrainingPlanDto;
+  data: unknown;
 }
 
 export interface NutritionOfflineSnapshot {
@@ -31,7 +29,7 @@ export interface NutritionOfflineSnapshot {
   planPublicId: string;
   activatedAt: string | null;
   syncedAt: string; // ISO 8601 string
-  data: NutritionPlanDto;
+  data: unknown;
 }
 
 /**

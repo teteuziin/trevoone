@@ -7,12 +7,16 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SOURCE_KEY = "TACO";
-const SOURCE_VERSION = "4ª edição revisada e ampliada (2011)";
-const EXPECTED_HISTORICAL_SHA256 = "a66b8ec528daeabc63bc2b015fc9bd8c6d76b941c2fc0ed93a4311d449302d14";
-const SOURCE_REFERENCE = `NEPA/UNICAMP - TACO 4ª edição (2011) [SHA-256: ${EXPECTED_HISTORICAL_SHA256}]`;
+export const SOURCE_KEY = "TACO";
+export const SOURCE_VERSION = "4ª edição revisada e ampliada (2011)";
+export const EXPECTED_HISTORICAL_SHA256 = "a66b8ec528daeabc63bc2b015fc9bd8c6d76b941c2fc0ed93a4311d449302d14";
+export const SOURCE_REFERENCE = `NEPA/UNICAMP - TACO 4ª edição (2011) [SHA-256: ${EXPECTED_HISTORICAL_SHA256}]`;
 
-function normalizeSearchText(text) {
+export const PROD_DB_NAME = "u406031981_trevoone";
+export const DEV_DB_NAME = "u406031981_trevoone_dev";
+export const EXPECTED_HOST = "srv1595.hstgr.io";
+
+export function normalizeSearchText(text) {
   if (!text || typeof text !== "string") return "";
   return text
     .normalize("NFD")
@@ -22,7 +26,7 @@ function normalizeSearchText(text) {
     .trim();
 }
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   let isApply = false;
   let isAllowProduction = false;
   for (const arg of argv) {
@@ -38,8 +42,11 @@ function parseArgs(argv) {
   return { isApply, isAllowProduction };
 }
 
-function loadEnv() {
-  const content = fs.readFileSync(".env.local", "utf8");
+export function loadFileEnv(filePath = ".env.local") {
+  if (!fs.existsSync(filePath)) {
+    return {};
+  }
+  const content = fs.readFileSync(filePath, "utf8");
   const env = {};
   for (const line of content.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -51,34 +58,93 @@ function loadEnv() {
   return env;
 }
 
-async function run() {
-  const { isApply, isAllowProduction } = parseArgs(process.argv.slice(2));
-  const env = loadEnv();
+export function getNonEmpty(val) {
+  if (typeof val === "string" && val.trim() !== "") {
+    return val.trim();
+  }
+  return undefined;
+}
 
-  const PROD_DB_NAME = "u406031981_trevoone";
-  const DEV_DB_NAME = "u406031981_trevoone_dev";
-  const EXPECTED_HOST = "srv1595.hstgr.io";
+export function resolveDatabaseConfig(procEnv = process.env, fileEnv = {}) {
+  const host = getNonEmpty(procEnv.DB_HOST) ?? getNonEmpty(fileEnv.DB_HOST);
+  const portStr = getNonEmpty(procEnv.DB_PORT) ?? getNonEmpty(fileEnv.DB_PORT);
+  const database = getNonEmpty(procEnv.DB_NAME) ?? getNonEmpty(fileEnv.DB_NAME);
+  const user = getNonEmpty(procEnv.DB_USER) ?? getNonEmpty(fileEnv.DB_USER);
+  const password = getNonEmpty(procEnv.DB_PASSWORD) ?? getNonEmpty(fileEnv.DB_PASSWORD);
 
-  if (env.DB_HOST !== EXPECTED_HOST) {
-    console.error(`ERRO DE SEGURANÇA: Host inesperado: '${env.DB_HOST}'. Esperado: '${EXPECTED_HOST}'.`);
-    process.exit(1);
+  const missing = [];
+  if (!host) missing.push("DB_HOST");
+  if (!database) missing.push("DB_NAME");
+  if (!user) missing.push("DB_USER");
+  if (password === undefined) missing.push("DB_PASSWORD");
+
+  if (missing.length > 0) {
+    throw new Error(`Configuração de banco de dados incompleta. Variáveis ausentes: ${missing.join(", ")}`);
   }
 
-  // Target database authorization guard
-  if (env.DB_NAME === PROD_DB_NAME) {
+  const port = Number(portStr) || 3306;
+
+  return {
+    host,
+    port,
+    database,
+    user,
+    password,
+  };
+}
+
+export function classifyDatabase(dbName) {
+  if (dbName === PROD_DB_NAME) {
+    return { isProd: true, isDev: false, isValid: true };
+  }
+  if (dbName === DEV_DB_NAME) {
+    return { isProd: false, isDev: true, isValid: true };
+  }
+  return { isProd: false, isDev: false, isValid: false };
+}
+
+export function validateTargetGuards({ dbName, dbHost, isAllowProduction }) {
+  if (dbHost !== EXPECTED_HOST) {
+    throw new Error(`ERRO DE SEGURANÇA: Host inesperado: '${dbHost}'. Esperado: '${EXPECTED_HOST}'.`);
+  }
+
+  const { isProd, isDev, isValid } = classifyDatabase(dbName);
+  if (!isValid) {
+    throw new Error(`ERRO DE SEGURANÇA: Banco de dados não autorizado: '${dbName}'.`);
+  }
+
+  if (isProd) {
     if (!isAllowProduction) {
-      console.error("PRODUÇÃO DETECTADA — EXECUÇÃO ABORTADA.");
-      console.error("O banco de dados configurado é PRODUÇÃO (u406031981_trevoone).");
-      console.error("Para executar contra produção, é obrigatório fornecer a flag explícita '--allow-production'.");
-      process.exit(1);
+      throw new Error(
+        "PRODUÇÃO DETECTADA — EXECUÇÃO ABORTADA.\n" +
+        `O banco de dados configurado é PRODUÇÃO (${PROD_DB_NAME}).\n` +
+        "Para executar contra produção, é obrigatório fornecer a flag explícita '--allow-production'."
+      );
     }
-  } else if (env.DB_NAME === DEV_DB_NAME) {
+  } else if (isDev) {
     if (isAllowProduction) {
-      console.error("ERRO: Flag inconsistente: '--allow-production' não pode ser utilizada contra o banco DEV (u406031981_trevoone_dev).");
-      process.exit(1);
+      throw new Error(
+        `ERRO: Flag inconsistente: '--allow-production' não pode ser utilizada contra o banco DEV (${DEV_DB_NAME}).`
+      );
     }
-  } else {
-    console.error(`ERRO DE SEGURANÇA: Banco de dados não autorizado: '${env.DB_NAME}'.`);
+  }
+
+  return { isProd, isDev };
+}
+
+async function run() {
+  const { isApply, isAllowProduction } = parseArgs(process.argv.slice(2));
+  const fileEnv = loadFileEnv(".env.local");
+  const dbConfig = resolveDatabaseConfig(process.env, fileEnv);
+
+  try {
+    validateTargetGuards({
+      dbName: dbConfig.database,
+      dbHost: dbConfig.host,
+      isAllowProduction,
+    });
+  } catch (err) {
+    console.error(err.message);
     process.exit(1);
   }
 
@@ -106,17 +172,17 @@ async function run() {
 
   console.log("=== TREVO ONE — SEED TACO GLOBAL NUTRITION V2 ===");
   console.log("Fonte de dados:", `Dataset canônico embutido (${foods.length} alimentos)`);
-  console.log("Banco de dados alvo:", env.DB_NAME);
-  console.log("Ambiente:", env.DB_NAME === PROD_DB_NAME ? "PRODUÇÃO" : "DEV");
+  console.log("Banco de dados alvo:", dbConfig.database);
+  console.log("Ambiente:", dbConfig.database === PROD_DB_NAME ? "PRODUÇÃO" : "DEV");
   console.log("Modo de execução:", isApply ? "APPLY (Escrita no banco)" : "DRY RUN (Simulação / Sem escrita)");
   console.log("Versão TACO:", metadata.source_version || SOURCE_VERSION);
 
   const pool = mysql.createPool({
-    host: env.DB_HOST,
-    port: Number(env.DB_PORT) || 3306,
-    database: env.DB_NAME,
-    user: env.DB_USER,
-    password: env.DB_PASSWORD,
+    host: dbConfig.host,
+    port: dbConfig.port,
+    database: dbConfig.database,
+    user: dbConfig.user,
+    password: dbConfig.password,
   });
 
   try {
@@ -242,7 +308,9 @@ async function run() {
   }
 }
 
-run().catch((err) => {
-  console.error("ERRO CRÍTICO AO EXECUTAR IMPORTADOR:", err);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  run().catch((err) => {
+    console.error("ERRO CRÍTICO AO EXECUTAR IMPORTADOR:", err);
+    process.exit(1);
+  });
+}

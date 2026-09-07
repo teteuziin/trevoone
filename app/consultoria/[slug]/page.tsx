@@ -5,14 +5,12 @@ import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import { getStudentOnboardingStatus } from "@/lib/consultancies/student-onboarding";
 import { getStudentFinancialAccessState } from "@/lib/consultancies/finance";
-import {
-  getActiveTrainingPlanForStudent,
-  listPersonalTrainingPlans,
-} from "@/lib/consultancies/training";
-import {
-  getActiveNutritionPlanForStudent,
-  listNutritionPlansForNutritionist,
-} from "@/lib/consultancies/nutrition";
+import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
+import { listStudentWorkoutCards } from "@/lib/training-v2/assignment-repository";
+import { listWorkoutsForProfessional } from "@/lib/training-v2/workout-repository";
+import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
+import { getStudentAuthoritativeNutrition } from "@/lib/nutrition-v2/assignment-repository";
+import { listPlansForConsultancy } from "@/lib/nutrition-v2/plan-repository";
 import { getStudentOwnProgressHistory } from "@/lib/consultancies/progress";
 import { listInfluencerMissions } from "@/lib/consultancies/missions";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
@@ -63,6 +61,97 @@ export default async function ConsultancyPage({ params }: PageProps) {
     (effectiveMode === "ADMIN" && isConsultancyAdmin && isNutritionist);
   const needAdminData = effectiveMode === "ADMIN" && isConsultancyAdmin;
 
+  // Student Training V2 summary query
+  const studentTrainingPromise = needStudentData
+    ? (async () => {
+        try {
+          const tCtx = await resolveTrainingAccessContext(slug);
+          if (!tCtx?.isStudent) return null;
+          const cards = await listStudentWorkoutCards(tCtx);
+          if (cards.length === 0) return null;
+          return {
+            title: cards[0].workoutTitle,
+            subtitle: cards[0].subtitle,
+            workoutCount: cards.length,
+          };
+        } catch {
+          return null;
+        }
+      })()
+    : Promise.resolve(null);
+
+  // Student Nutrition V2 summary query
+  const studentNutritionPromise = needStudentData
+    ? (async () => {
+        try {
+          const v2Auth = await getStudentAuthoritativeNutrition(session.userId, slug);
+          if (!v2Auth.activeAssignment) return null;
+          return {
+            title: v2Auth.activeAssignment.version.title || v2Auth.activeAssignment.plan.title,
+            subtitle: v2Auth.activeAssignment.version.subtitle,
+            mealsCount: v2Auth.activeAssignment.meals.length,
+            firstMealTime: v2Auth.activeAssignment.meals[0]?.scheduledTime || null,
+            meals: v2Auth.activeAssignment.meals.map((m) => ({
+              publicId: m.publicId,
+              title: m.title,
+              scheduledTime: m.scheduledTime,
+              itemsCount: m.items.length,
+            })),
+          };
+        } catch {
+          return null;
+        }
+      })()
+    : Promise.resolve(null);
+
+  // Personal Workouts V2 query
+  const personalWorkoutsPromise = needPersonalData
+    ? (async () => {
+        try {
+          const tCtx = await resolveTrainingAccessContext(slug);
+          if (!tCtx || !tCtx.canAuthorTraining) return null;
+          const res = await listWorkoutsForProfessional(tCtx, { limit: 4 });
+          return {
+            total: res.total,
+            items: res.items.map((w) => ({
+              publicId: w.publicId,
+              title: w.title,
+              subtitle: w.subtitle,
+              status: w.status,
+              difficultyLevel: w.difficultyLevel,
+              blocksCount: w.blocksCount,
+              currentVersionStatus: w.currentVersionStatus,
+            })),
+          };
+        } catch {
+          return null;
+        }
+      })()
+    : Promise.resolve(null);
+
+  // Nutrition Plans V2 query
+  const nutritionPlansPromise = needNutritionistData
+    ? (async () => {
+        try {
+          const nCtx = await resolveNutritionAccessContext(slug);
+          if (!nCtx || !nCtx.canAuthorNutrition) return null;
+          const res = await listPlansForConsultancy(nCtx, { pageSize: 4 });
+          return {
+            total: res.total,
+            items: res.items.map((p) => ({
+              publicId: p.publicId,
+              title: p.currentVersion?.title || "Plano Alimentar",
+              studentName: null,
+              status: p.status,
+              versionNumber: p.currentVersion?.versionNumber,
+            })),
+          };
+        } catch {
+          return null;
+        }
+      })()
+    : Promise.resolve(null);
+
   const [
     studentOnboarding,
     studentFinancialStatus,
@@ -81,25 +170,13 @@ export default async function ConsultancyPage({ params }: PageProps) {
           studentMembershipId: context.membershipId,
         })
       : Promise.resolve(null),
-    needStudentData || needInfluencerData
-      ? getActiveTrainingPlanForStudent(session.userId, slug)
-      : Promise.resolve(null),
-    needStudentData || needInfluencerData
-      ? getActiveNutritionPlanForStudent(session.userId, slug)
-      : Promise.resolve(null),
+    studentTrainingPromise,
+    studentNutritionPromise,
     needStudentData
       ? getStudentOwnProgressHistory({ userId: session.userId, consultancySlug: slug, page: 1 })
       : Promise.resolve(null),
-    needPersonalData
-      ? listPersonalTrainingPlans({ actorUserId: session.userId, consultancySlug: slug, pageSize: 4 })
-      : Promise.resolve(null),
-    needNutritionistData
-      ? listNutritionPlansForNutritionist({
-          actorUserId: session.userId,
-          consultancySlug: slug,
-          pageSize: 4,
-        })
-      : Promise.resolve(null),
+    personalWorkoutsPromise,
+    nutritionPlansPromise,
     needInfluencerData
       ? listInfluencerMissions({
           consultancyId: context.consultancyId,

@@ -2,15 +2,17 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { MissionListItemView } from "@/lib/consultancies/missions";
-import type { TrainingPlanDto } from "@/lib/consultancies/training";
-import type { NutritionPlanDto } from "@/lib/consultancies/nutrition";
+
+export interface InfluencerPlanSummary {
+  title: string;
+}
 
 interface DashboardInfluencerViewProps {
   consultancySlug: string;
   missions: MissionListItemView[];
   totalMissions?: number;
-  activeTrainingPlan?: TrainingPlanDto | null;
-  activeNutritionPlan?: NutritionPlanDto | null;
+  activeTrainingPlan?: InfluencerPlanSummary | null;
+  activeNutritionPlan?: InfluencerPlanSummary | null;
 }
 
 const MISSION_STATUS_LABELS: Record<string, string> = {

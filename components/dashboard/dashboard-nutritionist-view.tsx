@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { NutritionPlanListItemDto } from "@/lib/consultancies/nutrition";
+export interface NutritionistPlanSummaryItem {
+  publicId: string;
+  title: string;
+  studentName?: string | null;
+  status: string;
+  versionNumber?: number | null;
+  mealsCount?: number;
+}
 
 interface DashboardNutritionistViewProps {
   consultancySlug: string;
-  recentPlans: NutritionPlanListItemDto[];
+  recentPlans: NutritionistPlanSummaryItem[];
   totalPlans?: number;
 }
 
@@ -275,7 +282,7 @@ export function DashboardNutritionistView({
             {recentPlans.map((plan) => (
               <Link
                 key={plan.publicId}
-                href={`/consultoria/${consultancySlug}/nutricao/planos`}
+                href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
                 className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-[var(--surface-hover)] transition-all duration-150 group"
               >
                 <div className="space-y-1 min-w-0">

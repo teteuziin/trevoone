@@ -1,8 +1,27 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { TrainingPlanDto } from "@/lib/consultancies/training";
-import type { NutritionPlanDto } from "@/lib/consultancies/nutrition";
+export interface StudentActiveTrainingSummary {
+  title: string;
+  subtitle?: string | null;
+  workoutCount?: number;
+  totalExercises?: number;
+}
+
+export interface StudentActiveNutritionMealSummary {
+  publicId?: string;
+  title: string;
+  scheduledTime?: string | null;
+  itemsCount?: number;
+}
+
+export interface StudentActiveNutritionSummary {
+  title: string;
+  subtitle?: string | null;
+  mealsCount?: number;
+  firstMealTime?: string | null;
+  meals?: StudentActiveNutritionMealSummary[];
+}
 
 interface StudentOnboardingInfo {
   applicable: boolean;
@@ -24,8 +43,8 @@ interface LatestProgressInfo {
 interface DashboardStudentViewProps {
   consultancySlug: string;
   onboarding: StudentOnboardingInfo | null;
-  activeTrainingPlan: TrainingPlanDto | null;
-  activeNutritionPlan: NutritionPlanDto | null;
+  activeTrainingPlan: StudentActiveTrainingSummary | null;
+  activeNutritionPlan: StudentActiveNutritionSummary | null;
   latestProgress: LatestProgressInfo | null;
 }
 
@@ -161,26 +180,11 @@ export function DashboardStudentView({
     onboarding && onboarding.applicable && !onboarding.isComplete;
 
   // Real derived metrics
-  const totalExercises =
-    activeTrainingPlan?.workouts?.reduce(
-      (acc, w) =>
-        acc +
-        (w.sections?.reduce(
-          (sAcc, s) =>
-            sAcc +
-            (s.blocks?.reduce(
-              (bAcc, b) => bAcc + (b.exercises?.length || 0),
-              0
-            ) || 0),
-          0
-        ) || 0),
-      0
-    ) || 0;
-
-  const workoutCount = activeTrainingPlan?.workouts?.length || 0;
-  const mealCount = activeNutritionPlan?.meals?.length || 0;
+  const totalExercises = activeTrainingPlan?.totalExercises || 0;
+  const workoutCount = activeTrainingPlan?.workoutCount || 0;
+  const mealCount = activeNutritionPlan?.mealsCount || (activeNutritionPlan?.meals?.length || 0);
   const firstMeal = activeNutritionPlan?.meals?.[0];
-  const firstMealTime = firstMeal?.scheduledTime || null;
+  const firstMealTime = activeNutritionPlan?.firstMealTime || firstMeal?.scheduledTime || null;
 
   const hasTraining = !!activeTrainingPlan;
   const hasNutrition = !!activeNutritionPlan;
@@ -723,9 +727,9 @@ export function DashboardStudentView({
                     </span>
                   )}
                 </div>
-                {meal.options && meal.options.length > 0 && (
+                {meal.itemsCount != null && meal.itemsCount > 0 && (
                   <p className="text-[11px] text-[var(--text-secondary)] line-clamp-1">
-                    {meal.options.length} {meal.options.length === 1 ? "opção de cardápio" : "opções de cardápio"}
+                    {meal.itemsCount} {meal.itemsCount === 1 ? "item prescrito" : "itens prescritos"}
                   </p>
                 )}
               </div>

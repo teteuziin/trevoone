@@ -1,11 +1,20 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { PersonalTrainingPlanItemDto } from "@/lib/consultancies/training";
+
+export interface PersonalWorkoutSummaryItem {
+  publicId: string;
+  title: string;
+  subtitle?: string | null;
+  status: string;
+  difficultyLevel?: string | null;
+  blocksCount?: number;
+  currentVersionStatus?: string | null;
+}
 
 interface DashboardPersonalViewProps {
   consultancySlug: string;
-  recentPlans: PersonalTrainingPlanItemDto[];
+  recentPlans: PersonalWorkoutSummaryItem[];
   totalPlans?: number;
 }
 
@@ -144,36 +153,22 @@ function StudentProgressVolumetricIcon({ className = "w-10 h-10" }: { className?
 
 function StudentsGroupVolumetricIcon({ className = "w-10 h-10" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="st-grad-bg" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--brand)" stopOpacity="0.2" />
-          <stop stopColor="#8b5cf6" stopOpacity="0.05" />
-        </linearGradient>
-        <linearGradient id="st-grad-brand" x1="14" y1="12" x2="34" y2="36" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--brand)" />
-          <stop stopColor="#059669" />
-        </linearGradient>
-        <linearGradient id="st-grad-sec" x1="8" y1="14" x2="28" y2="38" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#8b5cf6" />
-          <stop stopColor="#6d28d9" />
-        </linearGradient>
-      </defs>
-
-      <circle cx="24" cy="24" r="20" fill="url(#st-grad-bg)" />
-      {/* Secondary person silhouette */}
-      <circle cx="17" cy="19" r="4.5" fill="url(#st-grad-sec)" fillOpacity="0.8" />
-      <path d="M10 33 C10 28 14 26 17 26 C20 26 24 28 24 33" fill="url(#st-grad-sec)" fillOpacity="0.6" />
-
-      {/* Main person silhouette */}
-      <circle cx="29" cy="17" r="5.5" fill="url(#st-grad-brand)" />
-      <path d="M20 34 C20 28.5 24.5 25.5 29 25.5 C33.5 25.5 38 28.5 38 34" fill="url(#st-grad-brand)" />
+    <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="24" cy="24" r="20" fill="#8b5cf6" fillOpacity="0.08" />
+      <circle cx="20" cy="18" r="5" stroke="#8b5cf6" strokeWidth="2.5" />
+      <path
+        d="M11 32C11 27.5817 15.0294 24 20 24C24.9706 24 29 27.5817 29 32"
+        stroke="#8b5cf6"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <circle cx="31" cy="19" r="3.5" stroke="#a78bfa" strokeWidth="2" />
+      <path
+        d="M31 26C33.7614 26 36 28.2386 36 31"
+        stroke="#a78bfa"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -181,52 +176,52 @@ function StudentsGroupVolumetricIcon({ className = "w-10 h-10" }: { className?: 
 export function DashboardPersonalView({
   consultancySlug,
   recentPlans,
-  totalPlans,
+  totalPlans = 0,
 }: DashboardPersonalViewProps) {
-  const activePlansCount = recentPlans?.filter((p) => p.status === "ACTIVE").length || 0;
-  const draftPlansCount = recentPlans?.filter((p) => p.status === "DRAFT").length || 0;
+  const activePlansCount = recentPlans.filter((p) => p.status === "ACTIVE" || p.currentVersionStatus === "PUBLISHED").length;
+  const draftPlansCount = recentPlans.filter((p) => p.status === "DRAFT" || p.currentVersionStatus === "DRAFT").length;
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* 1. HERO PROTAGONISTA: WORKSPACE DE PRESCRIÇÃO */}
-      <div className="relative overflow-hidden p-6 sm:p-7 rounded-3xl border border-[var(--brand-soft-border)] bg-[var(--surface)] shadow-xs">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0 p-1 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-              <PersonalWorkspaceVolumetricIcon className="w-12 h-12 sm:w-14 sm:h-14" />
+      {/* 1. HERO OPERACIONAL DO PERSONAL */}
+      <div className="p-6 sm:p-7 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="shrink-0 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <PersonalWorkspaceVolumetricIcon className="w-12 h-12" />
             </div>
 
-            <div className="space-y-1.5 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-[var(--brand)] uppercase tracking-wider">
-                  Workspace Profissional
+                  Módulo de Treinamento
                 </span>
-                {typeof totalPlans === "number" && totalPlans > 0 && (
-                  <Badge variant="brand" size="sm">
-                    {totalPlans} {totalPlans === 1 ? "plano total" : "planos totais"}
-                  </Badge>
-                )}
+                <Badge variant="brand" size="sm">
+                  Personal Trainer
+                </Badge>
               </div>
 
               <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-                Central de Prescrição
+                Gestão de Treinos
               </h2>
 
               <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium max-w-xl">
-                Gerencie fichas, elabore rotinas e acompanhe a execução dos treinos dos seus alunos vinculados.
+                Crie prescrições sob medida, organize rotinas e acompanhe a execução dos seus alunos vinculados.
               </p>
 
-              {/* Status Chips */}
-              {recentPlans && recentPlans.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 pt-1.5">
+              {totalPlans > 0 && (
+                <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-semibold text-[var(--text-secondary)]">
+                  <span>
+                    Total: <strong className="text-[var(--text-primary)] font-bold">{totalPlans}</strong> {totalPlans === 1 ? "treino" : "treinos"}
+                  </span>
                   {activePlansCount > 0 && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] px-2.5 py-1 rounded-full border border-[var(--border-subtle)]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)]" />
-                      {activePlansCount} {activePlansCount === 1 ? "ativo" : "ativos"}
+                    <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      {activePlansCount} {activePlansCount === 1 ? "publicado" : "publicados"}
                     </span>
                   )}
                   {draftPlansCount > 0 && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] bg-[var(--surface-subtle)] px-2.5 py-1 rounded-full border border-[var(--border-subtle)]">
+                    <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                       {draftPlansCount} {draftPlansCount === 1 ? "rascunho" : "rascunhos"}
                     </span>
@@ -236,22 +231,27 @@ export function DashboardPersonalView({
             </div>
           </div>
 
-          <div className="shrink-0 pt-2 md:pt-0">
-            <Link href={`/consultoria/${consultancySlug}/personal/treinos`}>
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0 pt-2 md:pt-0">
+            <Link href={`/consultoria/${consultancySlug}/rotinas/novo`} className="w-full sm:w-auto">
               <Button variant="primary" size="md" className="w-full sm:w-auto font-bold min-h-[44px] shadow-sm">
-                Gerenciar planos de treino →
+                + Novo Treino
+              </Button>
+            </Link>
+            <Link href={`/consultoria/${consultancySlug}/rotinas`} className="w-full sm:w-auto">
+              <Button variant="secondary" size="md" className="w-full sm:w-auto font-semibold min-h-[44px]">
+                Ver todos
               </Button>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* 2. FILA DE PRESCRIÇÕES / PLANOS RECENTES */}
+      {/* 2. FILA DE PRESCRIÇÕES / TREINOS RECENTES */}
       <div className="space-y-3.5">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-              Planos Recentes & Alunos
+              Treinos Recentes
             </h3>
             {recentPlans && recentPlans.length > 0 && (
               <span className="text-xs font-semibold text-[var(--text-secondary)]">
@@ -260,10 +260,10 @@ export function DashboardPersonalView({
             )}
           </div>
           <Link
-            href={`/consultoria/${consultancySlug}/personal/treinos`}
+            href={`/consultoria/${consultancySlug}/rotinas`}
             className="text-xs font-bold text-[var(--brand)] hover:underline"
           >
-            Ver todos os planos →
+            Gerenciar todos os treinos →
           </Link>
         </div>
 
@@ -272,23 +272,24 @@ export function DashboardPersonalView({
             {recentPlans.map((plan) => (
               <Link
                 key={plan.publicId}
-                href={`/consultoria/${consultancySlug}/personal/treinos`}
+                href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
                 className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-[var(--surface-hover)] transition-all duration-150 group"
               >
                 <div className="space-y-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--brand)] transition-colors">
-                      {plan.studentName || "Aluno"}
+                      {plan.title}
                     </span>
                     <Badge
-                      variant={plan.status === "ACTIVE" ? "success" : plan.status === "DRAFT" ? "warning" : "neutral"}
+                      variant={plan.status === "ACTIVE" || plan.currentVersionStatus === "PUBLISHED" ? "success" : "warning"}
                       size="sm"
                     >
-                      {plan.status === "ACTIVE" ? "Ativo" : plan.status === "DRAFT" ? "Rascunho" : "Arquivado"}
+                      {plan.status === "ACTIVE" || plan.currentVersionStatus === "PUBLISHED" ? "Publicado" : "Rascunho"}
                     </Badge>
                   </div>
                   <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
-                    {plan.title} {plan.subtitle ? `• ${plan.subtitle}` : ""}
+                    {plan.subtitle || (plan.difficultyLevel ? `Nível ${plan.difficultyLevel}` : "Rotina de treino")}
+                    {plan.blocksCount != null ? ` • ${plan.blocksCount} ${plan.blocksCount === 1 ? "bloco" : "blocos"}` : ""}
                   </p>
                 </div>
 
@@ -306,15 +307,15 @@ export function DashboardPersonalView({
             </div>
             <div className="space-y-1 max-w-sm mx-auto">
               <p className="text-sm font-bold text-[var(--text-primary)]">
-                Nenhum plano de treino cadastrado
+                Nenhum treino cadastrado
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Comece criando uma rotina personalizada para um dos seus alunos vinculados.
+                Comece criando uma rotina personalizada para os alunos vinculados.
               </p>
             </div>
-            <Link href={`/consultoria/${consultancySlug}/personal/treinos`}>
+            <Link href={`/consultoria/${consultancySlug}/rotinas/novo`}>
               <Button variant="secondary" size="sm" className="font-semibold min-h-[44px]">
-                Criar primeiro plano
+                Criar primeiro treino
               </Button>
             </Link>
           </div>
@@ -330,7 +331,7 @@ export function DashboardPersonalView({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
           {/* Biblioteca de Exercícios */}
           <Link
-            href={`/consultoria/${consultancySlug}/personal/exercicios`}
+            href={`/consultoria/${consultancySlug}/exercicios`}
             className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex items-center gap-3.5"
           >
             <div className="shrink-0">
@@ -338,7 +339,7 @@ export function DashboardPersonalView({
             </div>
             <div className="space-y-0.5 min-w-0">
               <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                Exercícios
+                Biblioteca de Exercícios
               </h4>
               <p className="text-[11px] text-[var(--text-secondary)] font-medium truncate">
                 Catálogo de movimentos

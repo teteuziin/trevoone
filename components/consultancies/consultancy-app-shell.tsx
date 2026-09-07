@@ -121,32 +121,18 @@ export function ConsultancyAppShell({
       iconName: "consultations",
     });
     items.push({
-      id: "personal-treinos",
-      label: "Planos de Treino",
-      mobileLabel: "Planos",
-      href: `/consultoria/${consultancySlug}/personal/treinos`,
-      iconName: "prescriptions",
+      id: "personal-rotinas",
+      label: "Treinos",
+      mobileLabel: "Treinos",
+      href: `/consultoria/${consultancySlug}/rotinas`,
+      iconName: "training",
     });
     items.push({
       id: "personal-exercicios",
-      label: "Exercícios",
-      mobileLabel: "Exercícios",
-      href: `/consultoria/${consultancySlug}/personal/exercicios`,
-      iconName: "exercises",
-    });
-    items.push({
-      id: "personal-exercicios-v2",
       label: "Biblioteca de Exercícios",
       mobileLabel: "Exercícios",
       href: `/consultoria/${consultancySlug}/exercicios`,
       iconName: "exercises",
-    });
-    items.push({
-      id: "personal-rotinas-v2",
-      label: "Criador de Treinos",
-      mobileLabel: "Criador",
-      href: `/consultoria/${consultancySlug}/rotinas`,
-      iconName: "training",
     });
     items.push({
       id: "personal-progresso",
@@ -190,18 +176,18 @@ export function ConsultancyAppShell({
 
   if (presentationRoles.includes("CONSULTANCY_ADMIN")) {
     items.push({
-      id: "admin-exercicios-v2",
+      id: "admin-rotinas",
+      label: "Treinos",
+      mobileLabel: "Treinos",
+      href: `/consultoria/${consultancySlug}/rotinas`,
+      iconName: "training",
+    });
+    items.push({
+      id: "admin-exercicios",
       label: "Biblioteca de Exercícios",
       mobileLabel: "Exercícios",
       href: `/consultoria/${consultancySlug}/exercicios`,
       iconName: "exercises",
-    });
-    items.push({
-      id: "admin-rotinas-v2",
-      label: "Criador de Treinos",
-      mobileLabel: "Criador",
-      href: `/consultoria/${consultancySlug}/rotinas`,
-      iconName: "training",
     });
     items.push({
       id: "admin-membros",
@@ -283,11 +269,11 @@ export function ConsultancyAppShell({
     mobilePrimaryItems.push(
       overviewItem,
       {
-        id: "personal-treinos",
-        label: "Planos de Treino",
+        id: "personal-rotinas",
+        label: "Treinos",
         mobileLabel: "Treinos",
-        href: `/consultoria/${consultancySlug}/personal/treinos`,
-        iconName: "prescriptions",
+        href: `/consultoria/${consultancySlug}/rotinas`,
+        iconName: "training",
       },
       {
         id: "nutritionist-planos",
@@ -308,17 +294,17 @@ export function ConsultancyAppShell({
     mobilePrimaryItems.push(
       overviewItem,
       {
-        id: "personal-treinos",
-        label: "Planos de Treino",
+        id: "personal-rotinas",
+        label: "Treinos",
         mobileLabel: "Treinos",
-        href: `/consultoria/${consultancySlug}/personal/treinos`,
-        iconName: "prescriptions",
+        href: `/consultoria/${consultancySlug}/rotinas`,
+        iconName: "training",
       },
       {
         id: "personal-exercicios",
-        label: "Exercícios",
+        label: "Biblioteca de Exercícios",
         mobileLabel: "Exercícios",
-        href: `/consultoria/${consultancySlug}/personal/exercicios`,
+        href: `/consultoria/${consultancySlug}/exercicios`,
         iconName: "exercises",
       },
       {

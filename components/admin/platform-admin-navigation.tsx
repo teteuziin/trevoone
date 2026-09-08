@@ -158,7 +158,7 @@ export function PlatformAdminNavigation({
         <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 h-14 sm:h-15 flex items-center justify-between gap-2 sm:gap-4">
           {/* Left: Brand + Beta + Context */}
           <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 min-w-0">
-            <Link href="/admin" className="flex items-center gap-2 focus-visible:outline-[var(--brand)]">
+            <Link href="/admin" prefetch={false} className="flex items-center gap-2 focus-visible:outline-[var(--brand)]">
               <TrevoOneLogo priority showWordmark size={32} />
             </Link>
             <BetaBadge />
@@ -176,6 +176,7 @@ export function PlatformAdminNavigation({
               <Link
                 key={item.id}
                 href={item.href}
+                prefetch={false}
                 aria-current={item.isActive ? "page" : undefined}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                   item.isActive
@@ -196,6 +197,7 @@ export function PlatformAdminNavigation({
             <AppearanceSegmentedControl compact />
             <Link
               href="/conta/perfil"
+              prefetch={false}
               className="inline-flex items-center px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
               title="Meu perfil"
             >
@@ -203,6 +205,7 @@ export function PlatformAdminNavigation({
             </Link>
             <Link
               href="/conta/seguranca"
+              prefetch={false}
               className="inline-flex items-center px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
               title="Conta e segurança"
             >
@@ -246,6 +249,7 @@ export function PlatformAdminNavigation({
             <Link
               key={item.id}
               href={item.href}
+              prefetch={false}
               aria-current={item.isActive ? "page" : undefined}
               className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                 item.isActive
@@ -375,6 +379,7 @@ export function PlatformAdminNavigation({
               <div className="space-y-1">
                 <Link
                   href="/notificacoes"
+                  prefetch={false}
                   onClick={() => setDrawerOpen(false)}
                   className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)] transition-colors min-h-[44px]"
                 >
@@ -391,6 +396,7 @@ export function PlatformAdminNavigation({
 
                 <Link
                   href="/conta/perfil"
+                  prefetch={false}
                   onClick={() => setDrawerOpen(false)}
                   className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)] transition-colors min-h-[44px]"
                 >
@@ -400,6 +406,7 @@ export function PlatformAdminNavigation({
 
                 <Link
                   href="/conta/seguranca"
+                  prefetch={false}
                   onClick={() => setDrawerOpen(false)}
                   className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)] transition-colors min-h-[44px]"
                 >
@@ -409,6 +416,7 @@ export function PlatformAdminNavigation({
 
                 <Link
                   href="/selecionar-consultoria"
+                  prefetch={false}
                   onClick={() => setDrawerOpen(false)}
                   className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)] transition-colors min-h-[44px]"
                 >

@@ -19,6 +19,7 @@ export function NotificationBell({
   return (
     <Link
       href="/notificacoes"
+      prefetch={false}
       aria-label={
         hasUnread
           ? `Notificações (${unreadCount} não lidas)`

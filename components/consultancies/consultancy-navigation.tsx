@@ -401,6 +401,7 @@ export function ConsultancyNavigation({
             {/* Left: Branding */}
             <Link
               href={baseSlugHref}
+              prefetch={false}
               className="flex items-center gap-3 min-w-0 group focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-1 px-1.5 -ml-1.5"
             >
               <ConsultancyLogo
@@ -433,6 +434,7 @@ export function ConsultancyNavigation({
                   <Link
                     key={item.id}
                     href={item.href}
+                    prefetch={false}
                     aria-current={active ? "page" : undefined}
                     className={`inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all duration-150 ease-out select-none ${
                       active
@@ -525,6 +527,7 @@ export function ConsultancyNavigation({
                     <div className="px-1 space-y-1">
                       <Link
                         href="/conta/perfil"
+                        prefetch={false}
                         onClick={() => setDesktopProfileOpen(false)}
                         className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors min-h-[44px]"
                       >
@@ -535,6 +538,7 @@ export function ConsultancyNavigation({
                       </Link>
                       <Link
                         href="/conta/seguranca"
+                        prefetch={false}
                         onClick={() => setDesktopProfileOpen(false)}
                         className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors min-h-[44px]"
                       >
@@ -557,6 +561,7 @@ export function ConsultancyNavigation({
                     <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1.5">
                       <Link
                         href="/selecionar-consultoria"
+                        prefetch={false}
                         className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-colors min-h-[44px] shadow-2xs"
                       >
                         Trocar consultoria
@@ -630,6 +635,7 @@ export function ConsultancyNavigation({
                       <Link
                         key={item.id}
                         href={item.href}
+                        prefetch={false}
                         onClick={() => setMobileMenuOpen(false)}
                         aria-current={active ? "page" : undefined}
                         className={`flex items-center gap-2.5 p-3 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
@@ -680,6 +686,7 @@ export function ConsultancyNavigation({
               <nav aria-label="Preferências do usuário" className="space-y-1">
                 <Link
                   href="/notificacoes"
+                  prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center justify-between px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
                     pathname === "/notificacoes"
@@ -702,6 +709,7 @@ export function ConsultancyNavigation({
 
                 <Link
                   href="/conta/perfil"
+                  prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
                     pathname === "/conta/perfil"
@@ -717,6 +725,7 @@ export function ConsultancyNavigation({
 
                 <Link
                   href="/conta/seguranca"
+                  prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
                     pathname === "/conta/seguranca"
@@ -736,6 +745,7 @@ export function ConsultancyNavigation({
             <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
               <Link
                 href="/selecionar-consultoria"
+                prefetch={false}
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-colors min-h-[44px] shadow-2xs"
               >
@@ -764,6 +774,7 @@ export function ConsultancyNavigation({
               <Link
                 key={item.id}
                 href={item.href}
+                prefetch={false}
                 aria-current={active ? "page" : undefined}
                 className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                   active

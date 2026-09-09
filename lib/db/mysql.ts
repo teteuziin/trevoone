@@ -40,9 +40,7 @@ export function getDbPool(): Pool {
     keepAliveInitialDelay: 0,
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    globalThis._mysqlPool = pool;
-  }
+  globalThis._mysqlPool = pool;
 
   return pool;
 }

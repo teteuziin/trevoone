@@ -67,6 +67,22 @@ export async function createSession(
   }
 }
 
+export class SessionDatabaseError extends Error {
+  public readonly code?: string;
+  public readonly errno?: number;
+  public readonly syscall?: string;
+
+  constructor(message: string, cause?: unknown) {
+    super(message);
+    this.name = "SessionDatabaseError";
+    if (cause && typeof cause === "object") {
+      if ("code" in cause && typeof cause.code === "string") this.code = cause.code;
+      if ("errno" in cause && typeof cause.errno === "number") this.errno = cause.errno;
+      if ("syscall" in cause && typeof cause.syscall === "string") this.syscall = cause.syscall;
+    }
+  }
+}
+
 export async function getCurrentSession(): Promise<UserSession | null> {
   let cookieStore;
   try {
@@ -113,8 +129,16 @@ export async function getCurrentSession(): Promise<UserSession | null> {
       rememberMe: Boolean(row.remember_me),
       expiresAt: new Date(row.expires_at),
     };
-  } catch {
-    return null;
+  } catch (err: unknown) {
+    const errorDetails = {
+      name: err instanceof Error ? err.name : "UnknownError",
+      message: err instanceof Error ? err.message : String(err),
+      code: err && typeof err === "object" && "code" in err ? String(err.code) : undefined,
+      errno: err && typeof err === "object" && "errno" in err ? Number(err.errno) : undefined,
+      syscall: err && typeof err === "object" && "syscall" in err ? String(err.syscall) : undefined,
+    };
+    console.error("[AUTH] getCurrentSession database lookup failed:", JSON.stringify(errorDetails));
+    throw new SessionDatabaseError("Falha na conexão com o banco de dados durante validação de sessão.", err);
   } finally {
     if (connection) {
       connection.release();

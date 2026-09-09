@@ -95,6 +95,15 @@ const SET_TYPE_LABELS: Record<string, string> = {
   FAILURE: "Até a Falha",
 };
 
+function Video({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <polygon points="23 7 16 12 23 17 23 7" />
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    </svg>
+  );
+}
+
 function formatReps(set: WorkoutItemSetDto): string {
   if (set.targetReps != null && set.targetRepsMax != null && set.targetReps !== set.targetRepsMax) {
     return `${set.targetReps}–${set.targetRepsMax} reps`;
@@ -112,12 +121,117 @@ function formatLoad(set: WorkoutItemSetDto): string | null {
   return null;
 }
 
-function formatRest(seconds?: number | null): string | null {
+function formatRest(seconds?: number | null, options?: { includeWord?: boolean }): string | null {
   if (!seconds || seconds <= 0) return null;
-  if (seconds < 60) return `${seconds}s descanso`;
+  const word = options?.includeWord ? " descanso" : "";
+  if (seconds <= 60) {
+    return `${seconds}s${word}`;
+  }
   const mins = Math.floor(seconds / 60);
   const rem = seconds % 60;
-  return rem > 0 ? `${mins}m ${rem}s descanso` : `${mins} min descanso`;
+  if (rem === 0) {
+    return `${mins} min${word}`;
+  }
+  return `${mins}m ${rem}s${word}`;
+}
+
+function formatRepsSummary(sets: WorkoutItemSetDto[]): string {
+  if (!sets || sets.length === 0) return "";
+  const s0 = sets[0];
+  const isUniform = sets.every(
+    (s) => s.targetReps === s0.targetReps && s.targetRepsMax === s0.targetRepsMax
+  );
+
+  const seriesLabel = `${sets.length} ${sets.length === 1 ? "série" : "séries"}`;
+  if (!isUniform) {
+    return seriesLabel;
+  }
+
+  let repsText = "";
+  if (s0.targetReps != null && s0.targetRepsMax != null && s0.targetReps !== s0.targetRepsMax) {
+    repsText = `${s0.targetReps}–${s0.targetRepsMax} repetições`;
+  } else if (s0.targetReps != null) {
+    repsText = `${s0.targetReps} repetições`;
+  } else {
+    return seriesLabel;
+  }
+
+  return `${seriesLabel} × ${repsText}`;
+}
+
+function getUniformLoad(sets: WorkoutItemSetDto[]): string | null {
+  if (!sets || sets.length === 0) return null;
+  const firstLoad = sets[0].targetLoadKg;
+  if (firstLoad == null) return null;
+  const allSame = sets.every((s) => s.targetLoadKg === firstLoad);
+  return allSame ? `${firstLoad} kg` : null;
+}
+
+function getUniformRest(sets: WorkoutItemSetDto[]): string | null {
+  if (!sets || sets.length === 0) return null;
+  const firstRest = sets[0].targetRestSeconds;
+  if (firstRest == null) return null;
+  const allSame = sets.every((s) => s.targetRestSeconds === firstRest);
+  return allSame ? formatRest(firstRest) : null;
+}
+
+type ParsedInstructions =
+  | { type: "steps"; preamble: string | null; steps: string[] }
+  | { type: "paragraphs"; preamble: null; paragraphs: string[] };
+
+function parseInstructions(rawText?: string | null): ParsedInstructions | null {
+  if (!rawText || !rawText.trim()) return null;
+  const trimmed = rawText.trim();
+
+  const markerRegex = /(?:^|\n|\s+)(\d+)[\.\)]\s+/g;
+  const matches = [...trimmed.matchAll(markerRegex)];
+
+  if (matches.length > 0 && matches[0][1] === "1") {
+    const isMultiStep = matches.length >= 2;
+    const isExplicitLineStep = matches.length === 1 && /(?:^|\n)\s*1[\.\)]\s+/.test(trimmed);
+
+    if (isMultiStep || isExplicitLineStep) {
+      const fullMatch = matches[0][0];
+      const matchIndex = matches[0].index;
+      const digitOffset = fullMatch.search(/\d/);
+      const step1Start = matchIndex + digitOffset;
+
+      const preamble = step1Start > 0 ? trimmed.slice(0, step1Start).trim() : null;
+
+      const steps: string[] = [];
+      for (let i = 0; i < matches.length; i++) {
+        const currentMatch = matches[i];
+        const nextMatch = i + 1 < matches.length ? matches[i + 1] : null;
+
+        const contentStart = currentMatch.index + currentMatch[0].length;
+        let contentEnd = trimmed.length;
+        if (nextMatch) {
+          const nextDigitOffset = nextMatch[0].search(/\d/);
+          contentEnd = nextMatch.index + nextDigitOffset;
+        }
+
+        const stepText = trimmed.slice(contentStart, contentEnd).trim();
+        if (stepText) {
+          steps.push(stepText);
+        }
+      }
+
+      if (steps.length > 0) {
+        return { type: "steps", preamble, steps };
+      }
+    }
+  }
+
+  const paragraphs = trimmed
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return {
+    type: "paragraphs",
+    preamble: null,
+    paragraphs: paragraphs.length > 0 ? paragraphs : [trimmed],
+  };
 }
 
 type StudentWorkoutRendererProps = {
@@ -255,17 +369,17 @@ function BlockCard({ block, blockIndex }: { block: WorkoutBlockDto; blockIndex: 
         <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--foreground-muted)]">
           {block.restBetweenItemsSeconds ? (
             <span className="px-2 py-0.5 rounded-lg bg-[var(--surface)] border border-[var(--border-default)]">
-              Intervalo entre itens: {formatRest(block.restBetweenItemsSeconds)}
+              Intervalo entre itens: {formatRest(block.restBetweenItemsSeconds, { includeWord: true })}
             </span>
           ) : null}
           {block.restBetweenRoundsSeconds ? (
             <span className="px-2 py-0.5 rounded-lg bg-[var(--surface)] border border-[var(--border-default)]">
-              Intervalo entre voltas: {formatRest(block.restBetweenRoundsSeconds)}
+              Intervalo entre voltas: {formatRest(block.restBetweenRoundsSeconds, { includeWord: true })}
             </span>
           ) : null}
           {block.restAfterBlockSeconds ? (
             <span className="px-2 py-0.5 rounded-lg bg-[var(--surface)] border border-[var(--border-default)] font-semibold text-[var(--foreground)]">
-              Descanso pós-bloco: {formatRest(block.restAfterBlockSeconds)}
+              Descanso pós-bloco: {formatRest(block.restAfterBlockSeconds, { includeWord: true })}
             </span>
           ) : null}
         </div>
@@ -313,82 +427,139 @@ function ItemCard({
   const isCustom = item.exercisePublicId === null;
 
   return (
-    <div className="p-4 rounded-2xl bg-[var(--surface-subtle)]/60 border border-[var(--border-subtle)] space-y-3">
-      {/* Item Title & Ordering */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-        <div className="flex items-center gap-2">
-          {totalItems > 1 && (
-            <span className="text-[11px] font-bold text-[var(--foreground-muted)] bg-[var(--surface)] border border-[var(--border-default)] px-2 py-0.5 rounded-md shrink-0">
-              Item {itemIndex + 1}
-            </span>
-          )}
-          <h3 className="text-sm font-bold text-[var(--foreground)]">
-            {item.exerciseNameSnapshot}
-          </h3>
-          {isCustom && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400">
-              Personalizado
+    <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-subtle)]/60 border border-[var(--border-subtle)] space-y-5">
+      {/* SECTION 1: EXERCISE IDENTITY */}
+      <div className="space-y-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {totalItems > 1 && (
+              <span className="text-[11px] font-bold text-[var(--foreground-muted)] bg-[var(--surface)] border border-[var(--border-default)] px-2 py-0.5 rounded-md shrink-0">
+                Item {itemIndex + 1}
+              </span>
+            )}
+            <h3 className="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">
+              {item.exerciseNameSnapshot}
+            </h3>
+            {isCustom && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400">
+                Personalizado
+              </span>
+            )}
+          </div>
+
+          {item.muscleGroupSnapshot && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--foreground-muted)]">
+              {item.muscleGroupSnapshot}
             </span>
           )}
         </div>
 
-        {item.muscleGroupSnapshot && (
-          <span className="text-xs font-medium text-[var(--foreground-muted)]">
-            {item.muscleGroupSnapshot}
-          </span>
+        {item.notes && (
+          <div className="pt-1">
+            <p className="text-xs text-[var(--foreground-muted)] italic">
+              Obs: {item.notes}
+            </p>
+          </div>
         )}
       </div>
 
-      {item.instructionsSnapshot && (
-        <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
-          {item.instructionsSnapshot}
-        </p>
-      )}
-
-      {item.notes && (
-        <p className="text-xs text-[var(--foreground-muted)] italic">
-          Obs: {item.notes}
-        </p>
-      )}
-
-      {/* Pinned Media Player / Viewer */}
+      {/* SECTION 2: EXECUÇÃO DO EXERCÍCIO (Only if media is present) */}
       {pinnedMedia.length > 0 && (
-        <div className="space-y-2 pt-1">
-          {pinnedMedia.map((m) => (
-            <div key={m.mediaAsset.publicId} className="rounded-2xl overflow-hidden border border-[var(--border-default)] bg-black/40">
-              {m.mediaAsset.mediaType === "VIDEO" ? (
-                <video
-                  controls
-                  playsInline
-                  preload="metadata"
-                  src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
-                  className="w-full max-h-80 bg-black"
-                />
-              ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
-                  alt={item.exerciseNameSnapshot}
-                  className="w-full max-h-80 object-cover"
-                />
-              )}
-            </div>
-          ))}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+            <Video className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Execução do exercício</span>
+          </div>
+
+          <div className="space-y-2">
+            {pinnedMedia.map((m) => (
+              <div
+                key={m.mediaAsset.publicId}
+                className="rounded-2xl overflow-hidden border border-[var(--border-default)] bg-black shadow-xs"
+              >
+                {m.mediaAsset.mediaType === "VIDEO" ? (
+                  <video
+                    controls
+                    playsInline
+                    preload="metadata"
+                    src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
+                    className="w-full max-h-80 bg-black aspect-video object-contain"
+                  />
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
+                    alt={item.exerciseNameSnapshot}
+                    className="w-full max-h-80 object-cover"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Prescription / Sets Section */}
-      {isCardio ? (
-        <CardioPrescription item={item} />
-      ) : isWarmup ? (
-        <WarmupPrescription item={item} />
-      ) : isDropSet ? (
-        <DropSetPrescription item={item} />
-      ) : isRestPause ? (
-        <RestPausePrescription item={item} />
-      ) : (
-        <StandardSetsPrescription sets={item.sets || []} item={item} />
-      )}
+      {/* SECTION 3: SUA PRESCRIÇÃO */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+          <Dumbbell className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span>Sua prescrição</span>
+        </div>
+
+        {isCardio ? (
+          <CardioPrescription item={item} />
+        ) : isWarmup ? (
+          <WarmupPrescription item={item} />
+        ) : isDropSet ? (
+          <DropSetPrescription item={item} />
+        ) : isRestPause ? (
+          <RestPausePrescription item={item} />
+        ) : (
+          <StandardSetsPrescription sets={item.sets || []} item={item} />
+        )}
+      </div>
+
+      {/* SECTION 4: COMO EXECUTAR (Only if instructions are present) */}
+      {item.instructionsSnapshot && item.instructionsSnapshot.trim().length > 0 && (() => {
+        const parsed = parseInstructions(item.instructionsSnapshot);
+        if (!parsed) return null;
+
+        return (
+          <div className="space-y-2.5 pt-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+              <span>Como executar</span>
+            </div>
+
+            {parsed.type === "steps" ? (
+              <div className="space-y-2.5">
+                {parsed.preamble && (
+                  <p className="text-xs font-semibold text-[var(--foreground)]">
+                    {parsed.preamble}
+                  </p>
+                )}
+                <ol className="space-y-2">
+                  {parsed.steps.map((step, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5 text-xs text-[var(--foreground)] leading-relaxed">
+                      <span className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                        {idx + 1}
+                      </span>
+                      <span className="flex-1 pt-0.5">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {parsed.paragraphs.map((para, idx) => (
+                  <p key={idx} className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                    {para}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -400,18 +571,61 @@ function StandardSetsPrescription({
   sets: WorkoutItemSetDto[];
   item?: WorkoutBlockItemDto;
 }) {
-  if (!sets || sets.length === 0) return null;
+  if (!sets || sets.length === 0) {
+    return (
+      <div className="text-center py-3 text-xs text-[var(--foreground-muted)] border border-dashed border-[var(--border-default)] rounded-xl">
+        Nenhuma série prescrita.
+      </div>
+    );
+  }
+
+  const summaryText = formatRepsSummary(sets);
+  const uniformLoad = getUniformLoad(sets);
+  const uniformRest = getUniformRest(sets);
 
   return (
-    <div className="space-y-1.5 pt-1">
-      <div className="grid grid-cols-12 text-[11px] font-semibold text-[var(--foreground-muted)] px-3 pb-1">
-        <span className="col-span-2">Série</span>
-        <span className="col-span-3">Tipo</span>
-        <span className="col-span-4">Prescrição</span>
-        <span className="col-span-3 text-right">Descanso</span>
+    <div className="space-y-2">
+      {/* Prescription Summary Header Card */}
+      <div className="p-3 sm:p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs sm:text-sm font-bold text-[var(--foreground)]">
+            {summaryText}
+          </span>
+        </div>
+
+        {/* Compact Metadata Row (Carga, Descanso, RIR, RPE) */}
+        {(uniformLoad != null || uniformRest != null || item?.targetRir != null || item?.targetRpe != null) && (
+          <div className="flex flex-wrap items-center gap-3 pt-1.5 text-xs text-[var(--foreground-muted)] border-t border-[var(--border-subtle)]">
+            {uniformLoad != null && (
+              <span className="inline-flex items-center gap-1 font-medium">
+                <span className="text-[var(--foreground-muted)]">Carga:</span>
+                <span className="font-semibold text-[var(--foreground)]">{uniformLoad}</span>
+              </span>
+            )}
+            {uniformRest != null && (
+              <span className="inline-flex items-center gap-1 font-medium">
+                <span className="text-[var(--foreground-muted)]">Descanso:</span>
+                <span className="font-semibold text-[var(--foreground)]">{uniformRest}</span>
+              </span>
+            )}
+            {item?.targetRir != null && (
+              <span className="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                <span>RIR:</span>
+                <span className="font-bold">{item.targetRir}</span>
+              </span>
+            )}
+            {item?.targetRpe != null && (
+              <span className="inline-flex items-center gap-1 font-medium text-purple-600 dark:text-purple-400">
+                <span>RPE:</span>
+                <span className="font-bold">{item.targetRpe}</span>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl bg-[var(--surface)] overflow-hidden">
+      {/* Individual Series Rows */}
+      <div className="space-y-1.5">
         {sets.map((s, idx) => {
           const typeLabel = SET_TYPE_LABELS[s.setType] || s.setType;
           const reps = formatReps(s);
@@ -421,21 +635,33 @@ function StandardSetsPrescription({
           return (
             <div
               key={s.setNumber || idx}
-              className="grid grid-cols-12 items-center px-3 py-2 text-xs text-[var(--foreground)]"
+              className="px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 text-xs"
             >
-              <span className="col-span-2 font-bold">{idx + 1}ª</span>
-              <span className="col-span-3 text-[11px] font-medium text-[var(--foreground-muted)]">
-                {typeLabel}
-              </span>
-              <div className="col-span-4 flex items-center gap-1.5 font-semibold">
-                <span>{reps}</span>
-                {load && <span className="text-[var(--foreground-muted)]">· {load}</span>}
-                {item?.targetRir != null && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">RIR {item.targetRir}</span>}
-                {item?.targetRpe != null && <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">RPE {item.targetRpe}</span>}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="font-bold text-[var(--foreground)] min-w-[50px]">
+                  {idx + 1}ª série
+                </span>
+                {s.setType && s.setType !== "NORMAL" && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    {typeLabel}
+                  </span>
+                )}
               </div>
-              <span className="col-span-3 text-right text-[11px] text-[var(--foreground-muted)] font-medium">
-                {rest || "—"}
-              </span>
+
+              <div className="flex items-center gap-2.5 sm:gap-4 font-semibold text-[var(--foreground)] text-right">
+                <span>{reps}</span>
+                {load != null && (
+                  <span className="text-[var(--foreground-muted)] font-medium text-[11px] sm:text-xs">
+                    {load}
+                  </span>
+                )}
+                {rest != null && (
+                  <span className="text-[var(--foreground-muted)] font-normal text-[11px] sm:text-xs flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-[var(--foreground-muted)]" />
+                    {rest}
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}

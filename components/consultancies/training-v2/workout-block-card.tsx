@@ -103,6 +103,62 @@ function Check({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function SlidersHorizontal({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <line x1="4" y1="21" x2="4" y2="14" />
+      <line x1="4" y1="10" x2="4" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12" y2="3" />
+      <line x1="20" y1="21" x2="20" y2="16" />
+      <line x1="20" y1="12" x2="20" y2="3" />
+      <line x1="1" y1="14" x2="7" y2="14" />
+      <line x1="9" y1="8" x2="15" y2="8" />
+      <line x1="17" y1="16" x2="23" y2="16" />
+    </svg>
+  );
+}
+
+function parseRepsInput(input: string): { targetReps: number | null; targetRepsMax: number | null } {
+  const trimmed = input.trim();
+  if (!trimmed) return { targetReps: null, targetRepsMax: null };
+  if (trimmed.includes("-") || trimmed.includes("–")) {
+    const parts = trimmed.split(/[-–]/);
+    const min = parts[0]?.trim() ? Number(parts[0].trim()) : null;
+    const max = parts[1]?.trim() ? Number(parts[1].trim()) : null;
+    return {
+      targetReps: min !== null && !isNaN(min) ? min : null,
+      targetRepsMax: max !== null && !isNaN(max) ? max : null,
+    };
+  }
+  const val = Number(trimmed);
+  if (isNaN(val)) return { targetReps: null, targetRepsMax: null };
+  return { targetReps: val, targetRepsMax: val };
+}
+
+function formatRepsInput(targetReps?: number | null, targetRepsMax?: number | null): string {
+  if (targetReps == null && targetRepsMax == null) return "";
+  if (targetReps != null && targetRepsMax != null && targetReps !== targetRepsMax) {
+    return `${targetReps}-${targetRepsMax}`;
+  }
+  if (targetReps != null) return String(targetReps);
+  if (targetRepsMax != null) return String(targetRepsMax);
+  return "";
+}
+
+function isSetsUniform(sets?: WorkoutBlockItemDto["sets"]): boolean {
+  if (!sets || sets.length <= 1) return true;
+  const first = sets[0];
+  return sets.every(
+    (s) =>
+      s.targetReps === first.targetReps &&
+      s.targetRepsMax === first.targetRepsMax &&
+      s.targetLoadKg === first.targetLoadKg &&
+      s.targetRestSeconds === first.targetRestSeconds &&
+      s.setType === first.setType
+  );
+}
+
 const METHOD_META: Record<
   WorkoutBlockType,
   { label: string; badge: string; color: string; maxItems: number }
@@ -285,6 +341,8 @@ export function WorkoutBlockCard({
   const [savingItemSetId, setSavingItemSetId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [customizingItemMap, setCustomizingItemMap] = useState<Record<string, boolean>>({});
+  const [confirmingSimplifyId, setConfirmingSimplifyId] = useState<string | null>(null);
 
   const methodMeta = METHOD_META[block.blockType] || METHOD_META.SINGLE;
   const items = block.items || [];
@@ -381,6 +439,159 @@ export function WorkoutBlockCard({
     try {
       setSavingItemSetId(targetItem.publicId);
       await onUpdateSets(targetItem.publicId, updated);
+    } finally {
+      setSavingItemSetId(null);
+    }
+  }
+
+  // Simple Mode Handlers
+  async function handleSimpleSeriesCountChange(targetItem: WorkoutBlockItemDto, value: string) {
+    const parsed = parseInt(value.trim(), 10);
+    const count = isNaN(parsed) ? 1 : Math.max(1, Math.min(50, parsed));
+    const currentSets = targetItem.sets || [];
+
+    if (count === currentSets.length && count > 0) return;
+
+    const template = currentSets[0] || {
+      targetReps: 10,
+      targetRepsMax: 12,
+      targetLoadKg: null,
+      targetRestSeconds: 60,
+    };
+
+    let newSets: Array<{
+      setNumber: number;
+      targetReps?: number | null;
+      targetRepsMax?: number | null;
+      targetLoadKg?: number | null;
+      targetRestSeconds?: number | null;
+    }> = [];
+
+    if (count > currentSets.length) {
+      newSets = [
+        ...currentSets.map((s, idx) => ({
+          setNumber: idx + 1,
+          targetReps: s.targetReps,
+          targetRepsMax: s.targetRepsMax,
+          targetLoadKg: s.targetLoadKg,
+          targetRestSeconds: s.targetRestSeconds,
+        })),
+      ];
+      for (let i = currentSets.length; i < count; i++) {
+        newSets.push({
+          setNumber: i + 1,
+          targetReps: template.targetReps,
+          targetRepsMax: template.targetRepsMax,
+          targetLoadKg: template.targetLoadKg,
+          targetRestSeconds: template.targetRestSeconds,
+        });
+      }
+    } else {
+      newSets = currentSets.slice(0, count).map((s, idx) => ({
+        setNumber: idx + 1,
+        targetReps: s.targetReps,
+        targetRepsMax: s.targetRepsMax,
+        targetLoadKg: s.targetLoadKg,
+        targetRestSeconds: s.targetRestSeconds,
+      }));
+    }
+
+    try {
+      setSavingItemSetId(targetItem.publicId);
+      await onUpdateSets(targetItem.publicId, newSets);
+    } finally {
+      setSavingItemSetId(null);
+    }
+  }
+
+  async function handleSimpleRepsChange(targetItem: WorkoutBlockItemDto, rawValue: string) {
+    const { targetReps, targetRepsMax } = parseRepsInput(rawValue);
+    const currentSets =
+      targetItem.sets && targetItem.sets.length > 0
+        ? targetItem.sets
+        : [
+            {
+              setNumber: 1,
+              targetReps: 10,
+              targetRepsMax: 12,
+              targetLoadKg: null,
+              targetRestSeconds: 60,
+            },
+          ];
+
+    const updated = currentSets.map((s, idx) => ({
+      setNumber: idx + 1,
+      targetReps,
+      targetRepsMax,
+      targetLoadKg: s.targetLoadKg,
+      targetRestSeconds: s.targetRestSeconds,
+    }));
+
+    try {
+      setSavingItemSetId(targetItem.publicId);
+      await onUpdateSets(targetItem.publicId, updated);
+    } finally {
+      setSavingItemSetId(null);
+    }
+  }
+
+  async function handleSimpleFieldChange(
+    targetItem: WorkoutBlockItemDto,
+    field: "targetLoadKg" | "targetRestSeconds",
+    value: string
+  ) {
+    const parsedVal = value.trim() ? Number(value) : null;
+    const currentSets =
+      targetItem.sets && targetItem.sets.length > 0
+        ? targetItem.sets
+        : [
+            {
+              setNumber: 1,
+              targetReps: 10,
+              targetRepsMax: 12,
+              targetLoadKg: null,
+              targetRestSeconds: 60,
+            },
+          ];
+
+    const updated = currentSets.map((s, idx) => ({
+      setNumber: idx + 1,
+      targetReps: s.targetReps,
+      targetRepsMax: s.targetRepsMax,
+      targetLoadKg: field === "targetLoadKg" ? parsedVal : s.targetLoadKg,
+      targetRestSeconds: field === "targetRestSeconds" ? parsedVal : s.targetRestSeconds,
+    }));
+
+    try {
+      setSavingItemSetId(targetItem.publicId);
+      await onUpdateSets(targetItem.publicId, updated);
+    } finally {
+      setSavingItemSetId(null);
+    }
+  }
+
+  async function handleConfirmNormalizeAndSimplify(targetItem: WorkoutBlockItemDto) {
+    const currentSets = targetItem.sets || [];
+    const template = currentSets[0] || {
+      targetReps: 10,
+      targetRepsMax: 12,
+      targetLoadKg: null,
+      targetRestSeconds: 60,
+    };
+
+    const normalized = currentSets.map((_, idx) => ({
+      setNumber: idx + 1,
+      targetReps: template.targetReps,
+      targetRepsMax: template.targetRepsMax,
+      targetLoadKg: template.targetLoadKg,
+      targetRestSeconds: template.targetRestSeconds,
+    }));
+
+    try {
+      setSavingItemSetId(targetItem.publicId);
+      await onUpdateSets(targetItem.publicId, normalized);
+      setCustomizingItemMap((prev) => ({ ...prev, [targetItem.publicId]: false }));
+      setConfirmingSimplifyId(null);
     } finally {
       setSavingItemSetId(null);
     }
@@ -641,7 +852,7 @@ export function WorkoutBlockCard({
                   />
                 ) : (
                   /* Standard / Multi-Exercise Set Series Editor */
-                  <div className="space-y-4 pt-1">
+                  <div className="space-y-3 pt-1">
                     {/* Method-Specific Warmup Configuration */}
                     {block.blockType === "WARMUP" && onUpdateWarmup && (
                       <WarmupEditor
@@ -651,139 +862,340 @@ export function WorkoutBlockCard({
                       />
                     )}
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <h5 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
-                          Séries Prescritas {methodMeta.maxItems > 1 ? `(Ex ${itemIdx + 1})` : ""}
-                        </h5>
-                        {savingItemSetId === item.publicId && (
-                          <span className="text-[11px] text-[var(--primary)] flex items-center gap-1 font-medium">
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            Salvando...
-                          </span>
-                        )}
-                      </div>
+                    {(() => {
+                      const sets = item.sets || [];
+                      const uniform = isSetsUniform(sets);
+                      const isCustomizing = customizingItemMap[item.publicId] ?? !uniform;
+                      const firstSet = sets[0];
+                      const seriesCount = sets.length || 1;
+                      const repsDisplay = formatRepsInput(firstSet?.targetReps, firstSet?.targetRepsMax);
 
-                      <button
-                        type="button"
-                        onClick={() => handleAddNormalSet(item)}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:underline"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Adicionar Série
-                      </button>
-                    </div>
+                      if (!isCustomizing) {
+                        /* =========================================================================
+                           SIMPLE MODE: Default compact prescription (Séries count + Reps once)
+                           ========================================================================= */
+                        return (
+                          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-sunken)] p-3.5 sm:p-4 space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <h5 className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                                  Prescrição {methodMeta.maxItems > 1 ? `(Ex ${itemIdx + 1})` : ""}
+                                </h5>
+                                {savingItemSetId === item.publicId && (
+                                  <span className="text-[11px] text-[var(--primary)] flex items-center gap-1 font-medium">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Salvando...
+                                  </span>
+                                )}
+                              </div>
 
-                    {/* Set rows */}
-                    <div className="space-y-2">
-                      {!item.sets || item.sets.length === 0 ? (
-                        <div className="text-center py-3 text-xs text-[var(--foreground-muted)] border border-dashed border-[var(--border-default)] rounded-xl">
-                          Nenhuma série cadastrada. Clique em &quot;+ Adicionar Série&quot;.
-                        </div>
-                      ) : (
-                        item.sets.map((s, sIdx) => (
-                          <div
-                            key={sIdx}
-                            className="p-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 text-xs"
-                          >
-                            <div className="flex items-center gap-2 min-w-[70px]">
-                              <span className="font-bold text-[var(--foreground)]">
-                                Série {sIdx + 1}
-                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setCustomizingItemMap((prev) => ({
+                                    ...prev,
+                                    [item.publicId]: true,
+                                  }))
+                                }
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-colors"
+                              >
+                                <SlidersHorizontal className="w-3.5 h-3.5" />
+                                Personalizar por série
+                              </button>
                             </div>
 
-                            <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap flex-1 justify-end sm:justify-start">
-                              {/* Reps min - max */}
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[var(--foreground-muted)]">Reps:</span>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                              {/* Séries */}
+                              <div className="space-y-1">
+                                <label
+                                  htmlFor={`series-count-${item.publicId}`}
+                                  className="block text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]"
+                                >
+                                  Séries
+                                </label>
                                 <input
+                                  id={`series-count-${item.publicId}`}
                                   type="number"
                                   min="1"
-                                  max="500"
-                                  defaultValue={s.targetReps ?? ""}
-                                  onBlur={(e) =>
-                                    handleNormalSetFieldChange(item, sIdx, "targetReps", e.target.value)
-                                  }
-                                  className="w-14 px-2 py-1 text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)]"
-                                  placeholder="Min"
-                                />
-                                <span className="text-[var(--foreground-muted)]">-</span>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="500"
-                                  defaultValue={s.targetRepsMax ?? ""}
-                                  onBlur={(e) =>
-                                    handleNormalSetFieldChange(
-                                      item,
-                                      sIdx,
-                                      "targetRepsMax",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-14 px-2 py-1 text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)]"
-                                  placeholder="Max"
+                                  max="50"
+                                  defaultValue={seriesCount}
+                                  key={`series-${item.publicId}-${seriesCount}`}
+                                  onBlur={(e) => handleSimpleSeriesCountChange(item, e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
+                                  className="w-full h-10 px-3 text-sm font-semibold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
+                                  placeholder="3"
                                 />
                               </div>
 
-                              {/* Load kg */}
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[var(--foreground-muted)]">Carga:</span>
+                              {/* Repetições */}
+                              <div className="space-y-1">
+                                <label
+                                  htmlFor={`reps-${item.publicId}`}
+                                  className="block text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]"
+                                >
+                                  Repetições
+                                </label>
                                 <input
+                                  id={`reps-${item.publicId}`}
+                                  type="text"
+                                  defaultValue={repsDisplay}
+                                  key={`reps-${item.publicId}-${repsDisplay}`}
+                                  onBlur={(e) => handleSimpleRepsChange(item, e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
+                                  className="w-full h-10 px-3 text-sm font-semibold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
+                                  placeholder="12 ou 10-12"
+                                />
+                              </div>
+
+                              {/* Carga (kg) */}
+                              <div className="space-y-1">
+                                <label
+                                  htmlFor={`load-${item.publicId}`}
+                                  className="block text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]"
+                                >
+                                  Carga (kg)
+                                </label>
+                                <input
+                                  id={`load-${item.publicId}`}
                                   type="number"
                                   step="0.5"
                                   min="0"
-                                  defaultValue={s.targetLoadKg ?? ""}
-                                  onBlur={(e) =>
-                                    handleNormalSetFieldChange(
-                                      item,
-                                      sIdx,
-                                      "targetLoadKg",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-16 px-2 py-1 text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)]"
-                                  placeholder="kg"
+                                  defaultValue={firstSet?.targetLoadKg ?? ""}
+                                  key={`load-${item.publicId}-${firstSet?.targetLoadKg ?? ""}`}
+                                  onBlur={(e) => handleSimpleFieldChange(item, "targetLoadKg", e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
+                                  className="w-full h-10 px-3 text-sm font-semibold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
+                                  placeholder="—"
                                 />
                               </div>
 
-                              {/* Rest seconds */}
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[var(--foreground-muted)]">Descanso:</span>
+                              {/* Descanso (s) */}
+                              <div className="space-y-1">
+                                <label
+                                  htmlFor={`rest-${item.publicId}`}
+                                  className="block text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]"
+                                >
+                                  Descanso (s)
+                                </label>
                                 <input
+                                  id={`rest-${item.publicId}`}
                                   type="number"
                                   step="5"
                                   min="0"
                                   max="600"
-                                  defaultValue={s.targetRestSeconds ?? "60"}
-                                  onBlur={(e) =>
-                                    handleNormalSetFieldChange(
-                                      item,
-                                      sIdx,
-                                      "targetRestSeconds",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-14 px-2 py-1 text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)]"
-                                  placeholder="s"
+                                  defaultValue={firstSet?.targetRestSeconds ?? "60"}
+                                  key={`rest-${item.publicId}-${firstSet?.targetRestSeconds ?? "60"}`}
+                                  onBlur={(e) => handleSimpleFieldChange(item, "targetRestSeconds", e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
+                                  className="w-full h-10 px-3 text-sm font-semibold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
+                                  placeholder="60"
                                 />
-                                <span className="text-[var(--foreground-muted)]">s</span>
                               </div>
                             </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveNormalSet(item, sIdx)}
-                              disabled={item.sets.length === 1}
-                              title="Remover série"
-                              className="p-1 rounded-lg text-[var(--foreground-muted)] hover:text-red-500 hover:bg-red-500/10 disabled:opacity-30 transition-colors shrink-0"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
                           </div>
-                        ))
-                      )}
-                    </div>
+                        );
+                      }
+
+                      /* =========================================================================
+                         ADVANCED MODE: Individual set customization
+                         ========================================================================= */
+                      return (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <h5 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+                                Séries Prescritas {methodMeta.maxItems > 1 ? `(Ex ${itemIdx + 1})` : ""}
+                              </h5>
+                              {savingItemSetId === item.publicId && (
+                                <span className="text-[11px] text-[var(--primary)] flex items-center gap-1 font-medium">
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  Salvando...
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (uniform) {
+                                    setCustomizingItemMap((prev) => ({
+                                      ...prev,
+                                      [item.publicId]: false,
+                                    }));
+                                  } else {
+                                    setConfirmingSimplifyId(item.publicId);
+                                  }
+                                }}
+                                className="text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-colors"
+                              >
+                                Simplificar séries
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleAddNormalSet(item)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:underline"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                Adicionar Série
+                              </button>
+                            </div>
+                          </div>
+
+                          {confirmingSimplifyId === item.publicId && (
+                            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs space-y-2">
+                              <p className="font-semibold text-amber-700 dark:text-amber-300">
+                                As séries possuem valores diferentes. Deseja padronizar todas com os valores da Série 1?
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleConfirmNormalizeAndSimplify(item)}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                                >
+                                  Sim, padronizar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmingSimplifyId(null)}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Set rows */}
+                          <div className="space-y-2">
+                            {sets.length === 0 ? (
+                              <div className="text-center py-3 text-xs text-[var(--foreground-muted)] border border-dashed border-[var(--border-default)] rounded-xl">
+                                Nenhuma série cadastrada. Clique em &quot;+ Adicionar Série&quot;.
+                              </div>
+                            ) : (
+                              sets.map((s, sIdx) => (
+                                <div
+                                  key={sIdx}
+                                  className="p-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 text-xs"
+                                >
+                                  <div className="flex items-center gap-2 min-w-[70px]">
+                                    <span className="font-bold text-[var(--foreground)]">
+                                      Série {sIdx + 1}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap flex-1 justify-end sm:justify-start">
+                                    {/* Reps min - max */}
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[var(--foreground-muted)]">Reps:</span>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="500"
+                                        defaultValue={s.targetReps ?? ""}
+                                        onBlur={(e) =>
+                                          handleNormalSetFieldChange(item, sIdx, "targetReps", e.target.value)
+                                        }
+                                        className="w-14 px-2 py-1 text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)]"
+                                        placeholder="Min"
+                                      />
+                                      <span className="text-[var(--foreground-muted)]">-</span>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="500"
+                                        defaultValue={s.targetRepsMax ?? ""}
+                                        onBlur={(e) =>
+                                          handleNormalSetFieldChange(
+                                            item,
+                                            sIdx,
+                                            "targetRepsMax",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="w-14 px-2 py-1 text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)]"
+                                        placeholder="Max"
+                                      />
+                                    </div>
+
+                                    {/* Load kg */}
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[var(--foreground-muted)]">Carga:</span>
+                                      <input
+                                        type="number"
+                                        step="0.5"
+                                        min="0"
+                                        defaultValue={s.targetLoadKg ?? ""}
+                                        onBlur={(e) =>
+                                          handleNormalSetFieldChange(
+                                            item,
+                                            sIdx,
+                                            "targetLoadKg",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="w-16 px-2 py-1 text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)]"
+                                        placeholder="kg"
+                                      />
+                                    </div>
+
+                                    {/* Rest seconds */}
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[var(--foreground-muted)]">Descanso:</span>
+                                      <input
+                                        type="number"
+                                        step="5"
+                                        min="0"
+                                        max="600"
+                                        defaultValue={s.targetRestSeconds ?? "60"}
+                                        onBlur={(e) =>
+                                          handleNormalSetFieldChange(
+                                            item,
+                                            sIdx,
+                                            "targetRestSeconds",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="w-14 px-2 py-1 text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)]"
+                                        placeholder="s"
+                                      />
+                                      <span className="text-[var(--foreground-muted)]">s</span>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveNormalSet(item, sIdx)}
+                                    disabled={sets.length === 1}
+                                    title="Remover série"
+                                    className="p-1 rounded-lg text-[var(--foreground-muted)] hover:text-red-500 hover:bg-red-500/10 disabled:opacity-30 transition-colors shrink-0"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

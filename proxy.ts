@@ -32,6 +32,6 @@ export default proxy;
 
 export const config = {
   matcher: [
-    "/((?!_next/static|favicon.ico|trevo-one-logo\\.png|icons/|consultancies/[^/]+/logo\\.png).*)",
+    "/((?!_next/static|favicon.ico|trevo-one-logo\\.png|icons/|consultancies/[^/]+/logo\\.png|api/training-v2/media/?$).*)",
   ],
 };

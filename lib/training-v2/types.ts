@@ -286,3 +286,46 @@ export type StudentWorkoutViewContract = {
   notesForStudent: string | null;
   blocks: WorkoutBlockDto[];
 };
+
+// ============================================================================
+// WORKOUT EXECUTION RUNTIME CONTRACTS
+// ============================================================================
+
+export type WorkoutExecutionSessionStatus = "IN_PROGRESS" | "COMPLETED" | "ABANDONED";
+
+export type WorkoutExecutionSetDto = {
+  publicId: string;
+  executionSessionPublicId?: string;
+  workoutItemSetId?: number;
+  blockItemId: number;
+  setNumber: number;
+  setType: WorkoutSetType;
+  prescribedReps: number | null;
+  prescribedRepsMax: number | null;
+  prescribedLoadKg: number | null;
+  prescribedRestSeconds: number | null;
+  actualReps: number | null;
+  actualLoadKg: number | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type WorkoutExecutionSessionDto = {
+  publicId: string;
+  consultancyId: number;
+  studentMembershipId: number;
+  workoutAssignmentPublicId: string;
+  workoutVersionPublicId: string;
+  status: WorkoutExecutionSessionStatus;
+  startedAt: Date;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  sets: WorkoutExecutionSetDto[];
+};
+
+export type CompleteExecutionSetInput = {
+  actualReps?: number | null;
+  actualLoadKg?: number | null;
+};

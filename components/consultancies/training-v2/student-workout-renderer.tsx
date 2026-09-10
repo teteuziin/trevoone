@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useSyncExternalStore } from "react";
 import type {
   StudentWorkoutViewContract,
   WorkoutExecutionSessionDto,
@@ -13,6 +13,11 @@ import {
   startOrResumeWorkoutExecutionAction,
   completeWorkoutExecutionSetAction,
 } from "@/app/consultoria/[slug]/treinos/actions";
+import {
+  RestTimer,
+  getInitialActiveRest,
+  type ActiveRestState,
+} from "./rest-timer";
 
 function Check({ className = "w-3 h-3" }: { className?: string }) {
   return (
@@ -275,6 +280,24 @@ export function StudentWorkoutRenderer({
   const [startError, setStartError] = useState<string | null>(null);
   const [loadingSetPublicId, setLoadingSetPublicId] = useState<string | null>(null);
   const [setErrors, setSetErrors] = useState<Record<string, string>>({});
+  const [manualRest, setManualRest] = useState<ActiveRestState | null | undefined>(undefined);
+
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  const initialRest = useMemo(
+    () => (isMounted ? getInitialActiveRest(initialExecution) : null),
+    [isMounted, initialExecution]
+  );
+
+  const activeRest = manualRest !== undefined ? manualRest : initialRest;
+
+  function handleSkipRest() {
+    setManualRest(null);
+  }
 
   const blocks = workout.blocks || [];
 
@@ -330,6 +353,18 @@ export function StudentWorkoutRenderer({
             sets: prev.sets.map((s) => (s.publicId === updatedSet.publicId ? updatedSet : s)),
           };
         });
+
+        if (updatedSet.prescribedRestSeconds != null && updatedSet.prescribedRestSeconds > 0) {
+          setManualRest({
+            setPublicId: updatedSet.publicId,
+            setNumber: updatedSet.setNumber,
+            blockItemPublicId: updatedSet.blockItemPublicId,
+            totalSeconds: updatedSet.prescribedRestSeconds,
+            targetEndAt: Date.now() + updatedSet.prescribedRestSeconds * 1000,
+          });
+        } else {
+          setManualRest(null);
+        }
       } else {
         setSetErrors((prev) => ({
           ...prev,
@@ -479,6 +514,8 @@ export function StudentWorkoutRenderer({
             loadingSetPublicId={loadingSetPublicId}
             setErrors={setErrors}
             onCompleteSet={handleCompleteSet}
+            activeRest={activeRest}
+            onSkipRest={handleSkipRest}
           />
         ))}
       </div>
@@ -493,6 +530,8 @@ function BlockCard({
   loadingSetPublicId,
   setErrors,
   onCompleteSet,
+  activeRest,
+  onSkipRest,
 }: {
   block: WorkoutBlockDto;
   blockIndex: number;
@@ -500,6 +539,8 @@ function BlockCard({
   loadingSetPublicId?: string | null;
   setErrors?: Record<string, string>;
   onCompleteSet?: (setPublicId: string) => Promise<void>;
+  activeRest?: ActiveRestState | null;
+  onSkipRest?: () => void;
 }) {
   const methodLabel = METHOD_LABELS[block.blockType] || block.blockType;
   const items = block.items || [];
@@ -575,6 +616,8 @@ function BlockCard({
             loadingSetPublicId={loadingSetPublicId}
             setErrors={setErrors}
             onCompleteSet={onCompleteSet}
+            activeRest={activeRest}
+            onSkipRest={onSkipRest}
           />
         ))}
       </div>
@@ -591,6 +634,8 @@ function ItemCard({
   loadingSetPublicId,
   setErrors,
   onCompleteSet,
+  activeRest,
+  onSkipRest,
 }: {
   item: WorkoutBlockItemDto;
   blockType: string;
@@ -600,6 +645,8 @@ function ItemCard({
   loadingSetPublicId?: string | null;
   setErrors?: Record<string, string>;
   onCompleteSet?: (setPublicId: string) => Promise<void>;
+  activeRest?: ActiveRestState | null;
+  onSkipRest?: () => void;
 }) {
   const isDropSet = blockType === "DROP_SET";
   const isRestPause = blockType === "REST_PAUSE";
@@ -700,6 +747,8 @@ function ItemCard({
             loadingSetPublicId={loadingSetPublicId}
             setErrors={setErrors}
             onCompleteSet={onCompleteSet}
+            activeRest={activeRest}
+            onSkipRest={onSkipRest}
           />
         ) : isRestPause ? (
           <RestPausePrescription
@@ -708,6 +757,8 @@ function ItemCard({
             loadingSetPublicId={loadingSetPublicId}
             setErrors={setErrors}
             onCompleteSet={onCompleteSet}
+            activeRest={activeRest}
+            onSkipRest={onSkipRest}
           />
         ) : (
           <StandardSetsPrescription
@@ -717,6 +768,8 @@ function ItemCard({
             loadingSetPublicId={loadingSetPublicId}
             setErrors={setErrors}
             onCompleteSet={onCompleteSet}
+            activeRest={activeRest}
+            onSkipRest={onSkipRest}
           />
         )}
       </div>
@@ -812,6 +865,8 @@ function StandardSetsPrescription({
   loadingSetPublicId,
   setErrors = {},
   onCompleteSet,
+  activeRest,
+  onSkipRest,
 }: {
   sets: WorkoutItemSetDto[];
   item?: WorkoutBlockItemDto;
@@ -819,6 +874,8 @@ function StandardSetsPrescription({
   loadingSetPublicId?: string | null;
   setErrors?: Record<string, string>;
   onCompleteSet?: (setPublicId: string) => Promise<void>;
+  activeRest?: ActiveRestState | null;
+  onSkipRest?: () => void;
 }) {
   if (!sets || sets.length === 0) {
     return (
@@ -939,6 +996,13 @@ function StandardSetsPrescription({
           );
         })}
       </div>
+
+      {/* Rest Timer Panel */}
+      {activeRest && (activeRest.blockItemPublicId ?? "") === (item?.publicId ?? "") && (
+        <div className="pt-1.5">
+          <RestTimer activeRest={activeRest} onSkip={onSkipRest || (() => {})} />
+        </div>
+      )}
     </div>
   );
 }
@@ -949,12 +1013,16 @@ function DropSetPrescription({
   loadingSetPublicId,
   setErrors = {},
   onCompleteSet,
+  activeRest,
+  onSkipRest,
 }: {
   item: WorkoutBlockItemDto;
   activeSession?: WorkoutExecutionSessionDto | null;
   loadingSetPublicId?: string | null;
   setErrors?: Record<string, string>;
   onCompleteSet?: (setPublicId: string) => Promise<void>;
+  activeRest?: ActiveRestState | null;
+  onSkipRest?: () => void;
 }) {
   const sets = item.sets || [];
   if (sets.length === 0) return null;
@@ -1043,6 +1111,13 @@ function DropSetPrescription({
           </div>
         )}
       </div>
+
+      {/* Rest Timer Panel */}
+      {activeRest && (activeRest.blockItemPublicId ?? "") === (item.publicId ?? "") && (
+        <div className="pt-1">
+          <RestTimer activeRest={activeRest} onSkip={onSkipRest || (() => {})} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1053,12 +1128,16 @@ function RestPausePrescription({
   loadingSetPublicId,
   setErrors = {},
   onCompleteSet,
+  activeRest,
+  onSkipRest,
 }: {
   item: WorkoutBlockItemDto;
   activeSession?: WorkoutExecutionSessionDto | null;
   loadingSetPublicId?: string | null;
   setErrors?: Record<string, string>;
   onCompleteSet?: (setPublicId: string) => Promise<void>;
+  activeRest?: ActiveRestState | null;
+  onSkipRest?: () => void;
 }) {
   const sets = item.sets || [];
   if (sets.length === 0) return null;
@@ -1154,6 +1233,13 @@ function RestPausePrescription({
           </div>
         )}
       </div>
+
+      {/* Rest Timer Panel */}
+      {activeRest && (activeRest.blockItemPublicId ?? "") === (item.publicId ?? "") && (
+        <div className="pt-1">
+          <RestTimer activeRest={activeRest} onSkip={onSkipRest || (() => {})} />
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import {
   startOrResumeWorkoutExecution,
   completeWorkoutExecutionSet,
+  completeWorkoutExecution,
 } from "@/lib/training-v2/execution-repository";
 import type {
   WorkoutExecutionSessionDto,
@@ -25,6 +26,12 @@ export type StartOrResumeExecutionResult = {
 export type CompleteExecutionSetResult = {
   success: boolean;
   set?: WorkoutExecutionSetDto;
+  error?: string;
+};
+
+export type CompleteWorkoutExecutionResult = {
+  success: boolean;
+  session?: WorkoutExecutionSessionDto;
   error?: string;
 };
 
@@ -96,6 +103,43 @@ export async function completeWorkoutExecutionSetAction(
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao concluir série.";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Concludes a workout execution session when all sets are completed.
+ * Fully validated server-side against student role, tenancy, and session ownership.
+ */
+export async function completeWorkoutExecutionAction(
+  slug: string,
+  sessionPublicId: string
+): Promise<CompleteWorkoutExecutionResult> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Não autenticado." };
+  }
+
+  const ctx = await resolveTrainingAccessContext(slug);
+  if (!ctx) {
+    return { success: false, error: "Acesso não autorizado à consultoria." };
+  }
+
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+    return { success: false, error: "Apenas alunos podem finalizar treinos." };
+  }
+
+  try {
+    const completedSession = await completeWorkoutExecution(ctx, sessionPublicId);
+    return {
+      success: true,
+      session: completedSession,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao finalizar treino.";
     return {
       success: false,
       error: message,

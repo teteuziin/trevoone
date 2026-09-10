@@ -392,6 +392,111 @@ export async function getActiveStudentWorkoutExecution(
 }
 
 /**
+ * Resolves the active (IN_PROGRESS) or most recent COMPLETED execution session for an assignment.
+ * Prioritizes IN_PROGRESS session if one exists, otherwise returns the most recently completed session.
+ * Used by the student workout view on initial server-render to preserve completion state across refresh/re-entry.
+ * Validates consultancy tenancy and student ownership.
+ */
+export async function getActiveOrLatestStudentWorkoutExecution(
+  ctx: TrainingAccessContext,
+  assignmentPublicId: string
+): Promise<WorkoutExecutionSessionDto | null> {
+  let connection;
+  try {
+    connection = await getDbConnection();
+
+    const [sessionRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        wes.id,
+        wes.public_id,
+        wes.consultancy_id,
+        wes.student_membership_id,
+        wes.status,
+        wes.started_at,
+        wes.completed_at,
+        wes.created_at,
+        wes.updated_at,
+        wa.public_id AS assignment_public_id,
+        wv.public_id AS version_public_id
+       FROM workout_execution_sessions wes
+       INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
+       INNER JOIN workout_versions wv ON wv.id = wes.workout_version_id
+       WHERE wa.public_id = ?
+         AND wa.deleted_at IS NULL
+         AND wes.status IN ('IN_PROGRESS', 'COMPLETED')
+       ORDER BY
+         CASE WHEN wes.status = 'IN_PROGRESS' THEN 0 ELSE 1 END ASC,
+         wes.completed_at DESC,
+         wes.created_at DESC
+       LIMIT 1;`,
+      [assignmentPublicId]
+    );
+
+    if (!sessionRows || sessionRows.length === 0) return null;
+    const s = sessionRows[0];
+
+    // Tenancy isolation
+    if (ctx.consultancyId && Number(s.consultancy_id) !== ctx.consultancyId) {
+      return null;
+    }
+
+    // Ownership check: student owner or coach/admin in same consultancy
+    const isStudentOwner = ctx.membershipId && Number(s.student_membership_id) === ctx.membershipId;
+    const isCoachOrAdmin =
+      ctx.consultancyId &&
+      Number(s.consultancy_id) === ctx.consultancyId &&
+      (ctx.canAuthorTraining || ctx.canManageConsultancy);
+
+    if (!isStudentOwner && !isCoachOrAdmin) {
+      return null;
+    }
+
+    const [setRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        wex.id,
+        wex.public_id,
+        wex.execution_session_id,
+        wex.workout_item_set_id,
+        wex.block_item_id,
+        wbi.public_id AS block_item_public_id,
+        wex.set_number,
+        wex.set_type,
+        wex.prescribed_reps,
+        wex.prescribed_reps_max,
+        wex.prescribed_load_kg,
+        wex.prescribed_rest_seconds,
+        wex.actual_reps,
+        wex.actual_load_kg,
+        wex.completed_at,
+        wex.created_at,
+        wex.updated_at
+       FROM workout_execution_sets wex
+       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+       WHERE wex.execution_session_id = ?
+       ORDER BY wex.set_number ASC;`,
+      [s.id]
+    );
+
+    return {
+      publicId: String(s.public_id),
+      consultancyId: Number(s.consultancy_id),
+      studentMembershipId: Number(s.student_membership_id),
+      workoutAssignmentPublicId: String(s.assignment_public_id),
+      workoutVersionPublicId: String(s.version_public_id),
+      status: s.status as WorkoutExecutionSessionStatus,
+      startedAt: new Date(s.started_at),
+      completedAt: s.completed_at ? new Date(s.completed_at) : null,
+      createdAt: new Date(s.created_at),
+      updatedAt: new Date(s.updated_at),
+      sets: setRows.map(mapExecutionSetRow),
+    };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+
+/**
  * Fetches an execution session by its public_id.
  * Validates consultancy tenancy and student ownership (or authorized coach viewing).
  */

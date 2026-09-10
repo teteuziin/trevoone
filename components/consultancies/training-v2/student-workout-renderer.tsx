@@ -12,6 +12,7 @@ import type {
 import {
   startOrResumeWorkoutExecutionAction,
   completeWorkoutExecutionSetAction,
+  completeWorkoutExecutionAction,
 } from "@/app/consultoria/[slug]/treinos/actions";
 import {
   RestTimer,
@@ -24,6 +25,14 @@ function Check({ className = "w-3 h-3" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
       <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CheckCircle({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
 }
@@ -279,6 +288,8 @@ export function StudentWorkoutRenderer({
   );
   const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
   const [loadingSetPublicId, setLoadingSetPublicId] = useState<string | null>(null);
   const [setErrors, setSetErrors] = useState<Record<string, string>>({});
   const [manualRest, setManualRest] = useState<ActiveRestState | null | undefined>(undefined);
@@ -309,8 +320,12 @@ export function StudentWorkoutRenderer({
 
   const blocks = workout.blocks || [];
 
+  const totalSets = activeSession?.sets?.length || 0;
+  const completedSets = activeSession?.sets?.filter((s) => s.completedAt != null).length || 0;
+  const allSetsCompleted = totalSets > 0 && completedSets === totalSets;
+
   async function handleStartWorkout() {
-    if (!consultancySlug || isStarting || activeSession?.status === "IN_PROGRESS") return;
+    if (!consultancySlug || isStarting || activeSession?.status === "IN_PROGRESS" || activeSession?.status === "COMPLETED") return;
 
     setIsStarting(true);
     setStartError(null);
@@ -330,6 +345,33 @@ export function StudentWorkoutRenderer({
       setStartError("Erro de conexão ao iniciar o treino.");
     } finally {
       setIsStarting(false);
+    }
+  }
+
+  async function handleCompleteWorkout() {
+    if (!consultancySlug || !activeSession || activeSession.status !== "IN_PROGRESS" || isCompleting) {
+      return;
+    }
+
+    setIsCompleting(true);
+    setCompleteError(null);
+
+    try {
+      const res = await completeWorkoutExecutionAction(
+        consultancySlug,
+        activeSession.publicId
+      );
+
+      if (res.success && res.session) {
+        setActiveSession(res.session);
+        setManualRest(null);
+      } else {
+        setCompleteError(res.error || "Erro ao finalizar o treino.");
+      }
+    } catch {
+      setCompleteError("Erro de conexão ao finalizar o treino.");
+    } finally {
+      setIsCompleting(false);
     }
   }
 
@@ -469,17 +511,59 @@ export function StudentWorkoutRenderer({
         {/* Execution Control Area */}
         {consultancySlug && (
           <div className="pt-3 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-3">
-            {activeSession && activeSession.status === "IN_PROGRESS" ? (
+            {activeSession && activeSession.status === "COMPLETED" ? (
               <div className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span>Treino em andamento</span>
-                <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
-                  • Iniciado às {new Date(activeSession.startedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                </span>
+                <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Treino concluído</span>
+                {activeSession.completedAt && (
+                  <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
+                    • Concluído às {new Date(activeSession.completedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                )}
               </div>
+            ) : activeSession && activeSession.status === "IN_PROGRESS" ? (
+              allSetsCompleted ? (
+                <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
+                  <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200 text-xs font-semibold">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Todas as séries concluídas!</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    {completeError && (
+                      <span className="text-xs text-red-500 font-medium">{completeError}</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleCompleteWorkout}
+                      disabled={isCompleting}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isCompleting ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Finalizando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Finalizar treino</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span>Treino em andamento</span>
+                  <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
+                    • Iniciado às {new Date(activeSession.startedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+              )
             ) : (
               <div className="w-full sm:w-auto space-y-1.5">
                 <button
@@ -526,6 +610,62 @@ export function StudentWorkoutRenderer({
             onSkipRest={handleSkipRest}
           />
         ))}
+
+        {/* Bottom Completion Banner */}
+        {activeSession && activeSession.status === "IN_PROGRESS" && allSetsCompleted && (
+          <div className="p-6 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-3">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm sm:text-base font-bold text-[var(--foreground)]">
+                Todas as séries concluídas!
+              </h3>
+              <p className="text-xs text-[var(--foreground-muted)]">
+                Você completou todas as séries prescritas. Finalize para registrar seu treino.
+              </p>
+            </div>
+            {completeError && (
+              <p className="text-xs text-red-500 font-medium">{completeError}</p>
+            )}
+            <div className="pt-1 flex justify-center">
+              <button
+                type="button"
+                onClick={handleCompleteWorkout}
+                disabled={isCompleting}
+                className="w-full sm:w-auto px-8 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isCompleting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Finalizando...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Finalizar treino</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeSession && activeSession.status === "COMPLETED" && (
+          <div className="p-6 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-2">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+            <div className="space-y-0.5">
+              <h3 className="text-sm sm:text-base font-bold text-emerald-700 dark:text-emerald-300">
+                Treino concluído!
+              </h3>
+              <p className="text-xs text-[var(--foreground-muted)]">
+                Parabéns! Todas as séries deste treino foram finalizadas com sucesso.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -946,7 +1086,7 @@ function StandardSetsPrescription({
           const load = formatLoad(s);
           const rest = formatRest(s.targetRestSeconds);
 
-          const executionSet = activeSession && activeSession.status === "IN_PROGRESS"
+          const executionSet = activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
             ? activeSession.sets?.find(
                 (es) => (es.blockItemPublicId ?? "") === (item?.publicId ?? "") && es.setNumber === s.setNumber
               )
@@ -1038,7 +1178,7 @@ function DropSetPrescription({
   const mainSet = sets.find((s) => s.setType === "NORMAL") || sets[0];
   const dropStages = sets.filter((s) => s !== mainSet && s.setType === "DROP_STAGE");
 
-  const mainExecutionSet = activeSession && activeSession.status === "IN_PROGRESS"
+  const mainExecutionSet = activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
     ? activeSession.sets?.find(
         (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === mainSet.setNumber
       )
@@ -1075,7 +1215,7 @@ function DropSetPrescription({
               Reduções imediatas (sem descanso):
             </p>
             {dropStages.map((stage, idx) => {
-              const stageExecutionSet = activeSession && activeSession.status === "IN_PROGRESS"
+              const stageExecutionSet = activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
                 ? activeSession.sets?.find(
                     (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === stage.setNumber
                   )
@@ -1155,7 +1295,7 @@ function RestPausePrescription({
   const cfg = item.methodConfig as { intraPauseSeconds?: number; targetTotalReps?: number } | undefined;
   const intraPause = cfg?.intraPauseSeconds || 15;
 
-  const mainExecutionSet = activeSession && activeSession.status === "IN_PROGRESS"
+  const mainExecutionSet = activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
     ? activeSession.sets?.find(
         (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === mainSet.setNumber
       )
@@ -1197,7 +1337,7 @@ function RestPausePrescription({
               Mini-séries após pausa de {intraPause}s:
             </p>
             {miniSets.map((mini, idx) => {
-              const miniExecutionSet = activeSession && activeSession.status === "IN_PROGRESS"
+              const miniExecutionSet = activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
                 ? activeSession.sets?.find(
                     (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === mini.setNumber
                   )

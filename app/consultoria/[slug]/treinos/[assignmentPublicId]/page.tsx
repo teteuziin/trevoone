@@ -4,6 +4,7 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { getStudentWorkoutView } from "@/lib/training-v2/assignment-repository";
+import { getActiveStudentWorkoutExecution } from "@/lib/training-v2/execution-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { StudentWorkoutRenderer } from "@/components/consultancies/training-v2/student-workout-renderer";
 
@@ -33,7 +34,11 @@ export default async function StudentWorkoutDetailPage({ params }: PageProps) {
   }
 
   // Load through assignment authority (verifies student ownership & active status)
-  const workoutView = await getStudentWorkoutView(ctx, assignmentPublicId);
+  const [workoutView, initialExecution] = await Promise.all([
+    getStudentWorkoutView(ctx, assignmentPublicId),
+    getActiveStudentWorkoutExecution(ctx, assignmentPublicId),
+  ]);
+
   if (!workoutView) {
     notFound();
   }
@@ -58,8 +63,12 @@ export default async function StudentWorkoutDetailPage({ params }: PageProps) {
           </Link>
         </div>
 
-        {/* Frozen Workout Renderer (Read-Only) */}
-        <StudentWorkoutRenderer workout={workoutView} />
+        {/* Workout Renderer with Execution State */}
+        <StudentWorkoutRenderer
+          workout={workoutView}
+          initialExecution={initialExecution}
+          consultancySlug={slug}
+        />
       </div>
     </ConsultancyAppShell>
   );

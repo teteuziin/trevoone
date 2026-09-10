@@ -1,11 +1,22 @@
 "use client";
 
-import type { StudentWorkoutViewContract } from "@/lib/training-v2/types";
+import { useState } from "react";
 import type {
+  StudentWorkoutViewContract,
+  WorkoutExecutionSessionDto,
   WorkoutBlockDto,
   WorkoutBlockItemDto,
   WorkoutItemSetDto,
 } from "@/lib/training-v2/types";
+import { startOrResumeWorkoutExecutionAction } from "@/app/consultoria/[slug]/treinos/actions";
+
+function Play({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  );
+}
 
 function Dumbbell({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -236,10 +247,46 @@ function parseInstructions(rawText?: string | null): ParsedInstructions | null {
 
 type StudentWorkoutRendererProps = {
   workout: StudentWorkoutViewContract;
+  initialExecution?: WorkoutExecutionSessionDto | null;
+  consultancySlug?: string;
 };
 
-export function StudentWorkoutRenderer({ workout }: StudentWorkoutRendererProps) {
+export function StudentWorkoutRenderer({
+  workout,
+  initialExecution = null,
+  consultancySlug,
+}: StudentWorkoutRendererProps) {
+  const [activeSession, setActiveSession] = useState<WorkoutExecutionSessionDto | null>(
+    initialExecution || null
+  );
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
   const blocks = workout.blocks || [];
+
+  async function handleStartWorkout() {
+    if (!consultancySlug || isStarting || activeSession?.status === "IN_PROGRESS") return;
+
+    setIsStarting(true);
+    setStartError(null);
+
+    try {
+      const res = await startOrResumeWorkoutExecutionAction(
+        consultancySlug,
+        workout.assignmentPublicId
+      );
+
+      if (res.success && res.session) {
+        setActiveSession(res.session);
+      } else {
+        setStartError(res.error || "Erro ao iniciar o treino.");
+      }
+    } catch {
+      setStartError("Erro de conexão ao iniciar o treino.");
+    } finally {
+      setIsStarting(false);
+    }
+  }
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto pb-16">
@@ -317,6 +364,50 @@ export function StudentWorkoutRenderer({ workout }: StudentWorkoutRendererProps)
             </div>
           )}
         </div>
+
+        {/* Execution Control Area */}
+        {consultancySlug && (
+          <div className="pt-3 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-3">
+            {activeSession && activeSession.status === "IN_PROGRESS" ? (
+              <div className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>Treino em andamento</span>
+                <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
+                  • Iniciado às {new Date(activeSession.startedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+            ) : (
+              <div className="w-full sm:w-auto space-y-1.5">
+                <button
+                  type="button"
+                  onClick={handleStartWorkout}
+                  disabled={isStarting}
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isStarting ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Iniciando treino...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Iniciar treino</span>
+                    </>
+                  )}
+                </button>
+                {startError && (
+                  <p className="text-xs text-red-500 font-medium">
+                    {startError}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Blocks List */}

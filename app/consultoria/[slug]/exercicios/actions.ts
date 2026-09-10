@@ -7,6 +7,7 @@ import { resolveTrainingAccessContext, TrainingAuthorizationError } from "@/lib/
 import {
   createConsultancyExercise,
   updateExercise,
+  archiveExercise,
   getExerciseByIdOrPublicId,
   changeExerciseVisibility,
   listExerciseMuscleGroups,
@@ -283,12 +284,7 @@ export async function archiveConsultancyExerciseAction(
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
 
-    const current = await getExerciseByIdOrPublicId(ctx, { publicId });
-    if (!current || current.scope !== "CONSULTANCY") {
-      return { ok: false, error: "Exercício não encontrado nesta consultoria." };
-    }
-
-    await updateExercise(ctx, publicId, { status: "ARCHIVED" });
+    await archiveExercise(ctx, publicId, "CONSULTANCY");
 
     revalidatePath(`/consultoria/${slug}/exercicios`);
     revalidatePath(`/consultoria/${slug}/exercicios/${publicId}`);
@@ -296,7 +292,7 @@ export async function archiveConsultancyExerciseAction(
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erro ao arquivar exercício.",
+      error: err instanceof Error ? err.message : "Erro ao excluir exercício.",
     };
   }
 }

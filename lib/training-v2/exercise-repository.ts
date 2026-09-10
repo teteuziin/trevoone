@@ -838,24 +838,35 @@ export async function changeExerciseVisibility(
 }
 
 /**
- * Archives an exercise (soft archive: sets status = 'ARCHIVED', deleted_at = NOW()).
- * Never hard-deletes.
+ * Archives an exercise (soft archive: sets status = 'ARCHIVED', deleted_at = NOW(3)).
+ * Never hard-deletes. Preserves tenant isolation, ownership and idempotency.
  */
 export async function archiveExercise(
   ctx: TrainingAccessContext,
-  publicId: string
+  publicId: string,
+  expectedScope?: "GLOBAL" | "CONSULTANCY"
 ): Promise<boolean> {
   let connection;
   try {
     connection = await getDbConnection();
     const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, scope, consultancy_id, created_by_membership_id FROM exercises WHERE public_id = ? AND deleted_at IS NULL LIMIT 1;`,
+      `SELECT id, scope, consultancy_id, created_by_membership_id, status, deleted_at FROM exercises WHERE public_id = ? LIMIT 1;`,
       [publicId]
     );
     if (!rows || rows.length === 0) {
       throw new TrainingAuthorizationError("Exercício não encontrado.", "NOT_FOUND", 404);
     }
     const ex = rows[0];
+
+    if (expectedScope && ex.scope !== expectedScope) {
+      throw new TrainingAuthorizationError(
+        expectedScope === "CONSULTANCY"
+          ? "Exercício não encontrado nesta consultoria."
+          : "Exercício não encontrado no catálogo global.",
+        "NOT_FOUND",
+        404
+      );
+    }
 
     if (ex.scope === "GLOBAL") {
       assertCanManageGlobal(ctx);
@@ -866,8 +877,15 @@ export async function archiveExercise(
       }
       const isCreator = ctx.membershipId && Number(ex.created_by_membership_id) === ctx.membershipId;
       if (!isCreator && !ctx.canManageConsultancy) {
-        throw new TrainingAuthorizationError("Apenas o autor ou administrador podem arquivar este exercício.", "FORBIDDEN", 403);
+        throw new TrainingAuthorizationError("Apenas o autor ou administrador podem excluir este exercício.", "FORBIDDEN", 403);
       }
+    } else {
+      throw new TrainingAuthorizationError("Escopo de exercício inválido.", "BAD_REQUEST", 400);
+    }
+
+    // Idempotency: if already archived, return true safely without error
+    if (ex.status === "ARCHIVED" || ex.deleted_at !== null) {
+      return true;
     }
 
     const [res] = await connection.execute<ResultSetHeader>(

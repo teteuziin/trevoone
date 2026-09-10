@@ -73,6 +73,11 @@ export function ExerciseForm({ mode, initialData }: ExerciseFormProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Delete modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Dynamic taxonomy suggestions (initialized with defaults, updated from DB)
   const [muscleSuggestions, setMuscleSuggestions] = useState<readonly string[] | string[]>(
     DEFAULT_SUGGESTED_MUSCLE_GROUPS
@@ -200,26 +205,30 @@ export function ExerciseForm({ mode, initialData }: ExerciseFormProps) {
     });
   };
 
-  const handleArchive = () => {
-    if (!initialData || isPending) return;
-    setErrorMessage(null);
-    setSuccessMessage(null);
+  const handleDeleteClick = () => {
+    if (isPending || isDeleting) return;
+    setDeleteError(null);
+    setIsDeleteModalOpen(true);
+  };
 
-    if (
-      !confirm(
-        "Deseja realmente arquivar este exercício? Ele não aparecerá nas novas prescrições dos profissionais, mas os treinos históricos que o utilizam permanecerão intactos."
-      )
-    ) {
-      return;
-    }
+  const handleConfirmDelete = () => {
+    if (!initialData || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
 
     startTransition(async () => {
-      const res = await archiveGlobalExerciseAction(initialData.publicId);
-      if (!res.ok) {
-        setErrorMessage(res.error || "Falha ao arquivar exercício.");
-      } else {
-        setSuccessMessage("Exercício arquivado com sucesso.");
-        router.refresh();
+      try {
+        const res = await archiveGlobalExerciseAction(initialData.publicId);
+        if (!res.ok) {
+          setIsDeleting(false);
+          setDeleteError(res.error || "Falha ao excluir exercício.");
+        } else {
+          setIsDeleteModalOpen(false);
+          router.push("/admin/exercicios");
+        }
+      } catch (err: unknown) {
+        setIsDeleting(false);
+        setDeleteError(err instanceof Error ? err.message : "Erro inesperado ao excluir exercício.");
       }
     });
   };
@@ -490,15 +499,15 @@ export function ExerciseForm({ mode, initialData }: ExerciseFormProps) {
               </Button>
             )}
 
-            {mode === "edit" && (
+            {mode === "edit" && !isArchived && (
               <Button
                 type="button"
                 variant="ghost"
-                disabled={isPending}
-                onClick={handleArchive}
-                className="text-xs text-[var(--danger)] hover:bg-[var(--danger-soft)] ml-auto"
+                disabled={isPending || isDeleting}
+                onClick={handleDeleteClick}
+                className="text-xs text-[var(--danger)] hover:bg-[var(--danger-soft)] ml-auto font-medium"
               >
-                Arquivar Exercício
+                Excluir exercício
               </Button>
             )}
           </div>
@@ -516,6 +525,63 @@ export function ExerciseForm({ mode, initialData }: ExerciseFormProps) {
             onMediaChange={() => router.refresh()}
             disabled={isPending || isArchived}
           />
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-dialog-title"
+            className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-6 shadow-xl space-y-4"
+          >
+            <div className="space-y-2">
+              <h3
+                id="delete-dialog-title"
+                className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight"
+              >
+                Excluir exercício?
+              </h3>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                Ele deixará de aparecer na biblioteca e em novos treinos. Treinos já criados não serão alterados.
+              </p>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 text-xs rounded-xl bg-[var(--danger-soft)] border border-[var(--border-danger)] text-[var(--danger)]">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={isDeleting}
+                onClick={() => {
+                  if (!isDeleting) {
+                    setIsDeleteModalOpen(false);
+                    setDeleteError(null);
+                  }
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                isLoading={isDeleting}
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+              >
+                {isDeleting ? "Excluindo..." : "Excluir exercício"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

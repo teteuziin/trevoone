@@ -7,6 +7,7 @@ import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import {
   createGlobalExercise,
   updateExercise,
+  archiveExercise,
   getExerciseByIdOrPublicId,
   type CreateExerciseInput,
   type UpdateExerciseInput,
@@ -250,7 +251,7 @@ export async function archiveGlobalExerciseAction(
   try {
     const { ctx } = await requirePlatformAdminContext();
 
-    await updateExercise(ctx, publicId, { status: "ARCHIVED" });
+    await archiveExercise(ctx, publicId, "GLOBAL");
 
     revalidatePath("/admin/exercicios");
     revalidatePath(`/admin/exercicios/${publicId}`);
@@ -258,7 +259,7 @@ export async function archiveGlobalExerciseAction(
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erro ao arquivar exercício.",
+      error: err instanceof Error ? err.message : "Erro ao excluir exercício.",
     };
   }
 }

@@ -20,8 +20,96 @@ export type ActiveRestState = {
   targetEndAt: number; // Unix epoch ms
 };
 
+const SKIP_STORAGE_PREFIX = "workout_rest_skip:";
+
 /**
- * Checks if there is a recently completed set whose rest period has not yet expired.
+ * Checks if a rest timer for a given session and set was skipped and is still within its expiry window.
+ */
+export function isRestTimerSkipped(sessionPublicId: string, setPublicId: string): boolean {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return false;
+  }
+
+  try {
+    const key = `${SKIP_STORAGE_PREFIX}${sessionPublicId}:${setPublicId}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return false;
+
+    const data = JSON.parse(raw);
+    if (typeof data.targetEndAt === "number") {
+      if (Date.now() < data.targetEndAt) {
+        return true;
+      }
+      // Expired: clean up
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage access or parse error
+  }
+
+  return false;
+}
+
+/**
+ * Marks a rest timer as skipped in localStorage until its targetEndAt expires.
+ */
+export function markRestTimerSkipped(
+  sessionPublicId: string,
+  setPublicId: string,
+  targetEndAt: number
+): void {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    const key = `${SKIP_STORAGE_PREFIX}${sessionPublicId}:${setPublicId}`;
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        sessionPublicId,
+        setPublicId,
+        targetEndAt,
+      })
+    );
+  } catch {
+    // Storage quota or privacy mode error - silent fallback
+  }
+}
+
+/**
+ * Cleans up expired rest skip markers.
+ */
+export function cleanupExpiredRestSkips(): void {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    const now = Date.now();
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(SKIP_STORAGE_PREFIX)) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            const data = JSON.parse(raw);
+            if (typeof data.targetEndAt === "number" && now >= data.targetEndAt) {
+              localStorage.removeItem(key);
+            }
+          } catch {
+            localStorage.removeItem(key);
+          }
+        }
+      }
+    }
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Checks if there is a recently completed set whose rest period has not yet expired and was not skipped.
  * Pure function: zero database writes.
  */
 export function getInitialActiveRest(
@@ -34,6 +122,8 @@ export function getInitialActiveRest(
   if (!initialExecution || initialExecution.status !== "IN_PROGRESS" || !initialExecution.sets) {
     return null;
   }
+
+  cleanupExpiredRestSkips();
 
   // Filter completed sets with prescribed rest > 0
   const completedWithRest = initialExecution.sets.filter(
@@ -57,6 +147,11 @@ export function getInitialActiveRest(
   const now = Date.now();
 
   if (targetEndAt > now) {
+    // Check if this rest was already explicitly skipped by the student
+    if (isRestTimerSkipped(initialExecution.publicId, mostRecent.publicId)) {
+      return null;
+    }
+
     return {
       setPublicId: mostRecent.publicId,
       setNumber: mostRecent.setNumber,

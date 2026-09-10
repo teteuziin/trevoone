@@ -16,6 +16,7 @@ import {
 import {
   RestTimer,
   getInitialActiveRest,
+  markRestTimerSkipped,
   type ActiveRestState,
 } from "./rest-timer";
 
@@ -296,6 +297,13 @@ export function StudentWorkoutRenderer({
   const activeRest = manualRest !== undefined ? manualRest : initialRest;
 
   function handleSkipRest() {
+    if (activeSession && activeRest) {
+      markRestTimerSkipped(
+        activeSession.publicId,
+        activeRest.setPublicId,
+        activeRest.targetEndAt
+      );
+    }
     setManualRest(null);
   }
 

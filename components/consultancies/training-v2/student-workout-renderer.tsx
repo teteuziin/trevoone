@@ -325,7 +325,7 @@ export function StudentWorkoutRenderer({
   const allSetsCompleted = totalSets > 0 && completedSets === totalSets;
 
   async function handleStartWorkout() {
-    if (!consultancySlug || isStarting || activeSession?.status === "IN_PROGRESS" || activeSession?.status === "COMPLETED") return;
+    if (!consultancySlug || isStarting || activeSession?.status === "IN_PROGRESS") return;
 
     setIsStarting(true);
     setStartError(null);
@@ -338,6 +338,7 @@ export function StudentWorkoutRenderer({
 
       if (res.success && res.session) {
         setActiveSession(res.session);
+        setManualRest(null);
       } else {
         setStartError(res.error || "Erro ao iniciar o treino.");
       }
@@ -512,14 +513,42 @@ export function StudentWorkoutRenderer({
         {consultancySlug && (
           <div className="pt-3 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-3">
             {activeSession && activeSession.status === "COMPLETED" ? (
-              <div className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-                <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>Treino concluído</span>
-                {activeSession.completedAt && (
-                  <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
-                    • Concluído às {new Date(activeSession.completedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                )}
+              <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>Treino concluído</span>
+                  {activeSession.completedAt && (
+                    <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
+                      • Concluído às {new Date(activeSession.completedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full sm:w-auto space-y-1.5">
+                  <button
+                    type="button"
+                    onClick={handleStartWorkout}
+                    disabled={isStarting}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isStarting ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Iniciando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Repeat className="w-3.5 h-3.5" />
+                        <span>Treinar novamente</span>
+                      </>
+                    )}
+                  </button>
+                  {startError && (
+                    <p className="text-xs text-red-500 font-medium">
+                      {startError}
+                    </p>
+                  )}
+                </div>
               </div>
             ) : activeSession && activeSession.status === "IN_PROGRESS" ? (
               allSetsCompleted ? (
@@ -652,7 +681,7 @@ export function StudentWorkoutRenderer({
         )}
 
         {activeSession && activeSession.status === "COMPLETED" && (
-          <div className="p-6 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-2">
+          <div className="p-6 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-3">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
               <CheckCircle className="w-6 h-6" />
             </div>
@@ -663,6 +692,31 @@ export function StudentWorkoutRenderer({
               <p className="text-xs text-[var(--foreground-muted)]">
                 Parabéns! Todas as séries deste treino foram finalizadas com sucesso.
               </p>
+            </div>
+            <div className="pt-1 flex flex-col items-center justify-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleStartWorkout}
+                disabled={isStarting}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isStarting ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Iniciando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Repeat className="w-3.5 h-3.5" />
+                    <span>Treinar novamente</span>
+                  </>
+                )}
+              </button>
+              {startError && (
+                <p className="text-xs text-red-500 font-medium">
+                  {startError}
+                </p>
+              )}
             </div>
           </div>
         )}

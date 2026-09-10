@@ -26,6 +26,7 @@ function mapExecutionSetRow(r: RowDataPacket): WorkoutExecutionSetDto {
     executionSessionPublicId: r.session_public_id ? String(r.session_public_id) : undefined,
     workoutItemSetId: r.workout_item_set_id != null ? Number(r.workout_item_set_id) : undefined,
     blockItemId: Number(r.block_item_id),
+    blockItemPublicId: r.block_item_public_id != null ? String(r.block_item_public_id) : undefined,
     setNumber: Number(r.set_number),
     setType: r.set_type as WorkoutSetType,
     prescribedReps: r.prescribed_reps != null ? Number(r.prescribed_reps) : null,
@@ -135,6 +136,7 @@ export async function startOrResumeWorkoutExecution(
           wex.execution_session_id,
           wex.workout_item_set_id,
           wex.block_item_id,
+          wbi.public_id AS block_item_public_id,
           wex.set_number,
           wex.set_type,
           wex.prescribed_reps,
@@ -147,6 +149,7 @@ export async function startOrResumeWorkoutExecution(
           wex.created_at,
           wex.updated_at
          FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
          WHERE wex.execution_session_id = ?
          ORDER BY wex.set_number ASC;`,
         [activeSession.id]
@@ -174,6 +177,7 @@ export async function startOrResumeWorkoutExecution(
       `SELECT
         wis.id AS workout_item_set_id,
         wis.block_item_id,
+        wbi.public_id AS block_item_public_id,
         wis.set_number,
         wis.set_type,
         wis.target_reps,
@@ -249,6 +253,7 @@ export async function startOrResumeWorkoutExecution(
         publicId: setPublicId,
         workoutItemSetId: Number(ps.workout_item_set_id),
         blockItemId: Number(ps.block_item_id),
+        blockItemPublicId: String(ps.block_item_public_id),
         setNumber: Number(ps.set_number),
         setType: ps.set_type as WorkoutSetType,
         prescribedReps: ps.target_reps != null ? Number(ps.target_reps) : null,
@@ -349,6 +354,7 @@ export async function getActiveStudentWorkoutExecution(
         wex.execution_session_id,
         wex.workout_item_set_id,
         wex.block_item_id,
+        wbi.public_id AS block_item_public_id,
         wex.set_number,
         wex.set_type,
         wex.prescribed_reps,
@@ -361,6 +367,7 @@ export async function getActiveStudentWorkoutExecution(
         wex.created_at,
         wex.updated_at
        FROM workout_execution_sets wex
+       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
        WHERE wex.execution_session_id = ?
        ORDER BY wex.set_number ASC;`,
       [s.id]
@@ -440,6 +447,7 @@ export async function getStudentWorkoutExecution(
         wex.execution_session_id,
         wex.workout_item_set_id,
         wex.block_item_id,
+        wbi.public_id AS block_item_public_id,
         wex.set_number,
         wex.set_type,
         wex.prescribed_reps,
@@ -452,6 +460,7 @@ export async function getStudentWorkoutExecution(
         wex.created_at,
         wex.updated_at
        FROM workout_execution_sets wex
+       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
        WHERE wex.execution_session_id = ?
        ORDER BY wex.set_number ASC;`,
       [s.id]
@@ -555,6 +564,7 @@ export async function completeWorkoutExecutionSet(
         wex.execution_session_id,
         wex.workout_item_set_id,
         wex.block_item_id,
+        wbi.public_id AS block_item_public_id,
         wex.set_number,
         wex.set_type,
         wex.prescribed_reps,
@@ -567,6 +577,7 @@ export async function completeWorkoutExecutionSet(
         wex.created_at,
         wex.updated_at
        FROM workout_execution_sets wex
+       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
        WHERE wex.public_id = ? AND wex.execution_session_id = ?
        LIMIT 1
        FOR UPDATE;`,
@@ -610,6 +621,7 @@ export async function completeWorkoutExecutionSet(
       executionSessionPublicId: sessionPublicId,
       workoutItemSetId: targetSet.workout_item_set_id != null ? Number(targetSet.workout_item_set_id) : undefined,
       blockItemId: Number(targetSet.block_item_id),
+      blockItemPublicId: targetSet.block_item_public_id != null ? String(targetSet.block_item_public_id) : undefined,
       setNumber: Number(targetSet.set_number),
       setType: targetSet.set_type as WorkoutSetType,
       prescribedReps: targetSet.prescribed_reps != null ? Number(targetSet.prescribed_reps) : null,
@@ -690,7 +702,11 @@ export async function completeWorkoutExecution(
     // Idempotent: already completed
     if (s.status === "COMPLETED") {
       const [setRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT * FROM workout_execution_sets WHERE execution_session_id = ? ORDER BY set_number ASC;`,
+        `SELECT wex.*, wbi.public_id AS block_item_public_id
+         FROM workout_execution_sets wex
+         INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+         WHERE wex.execution_session_id = ?
+         ORDER BY wex.set_number ASC;`,
         [s.id]
       );
       await connection.commit();
@@ -736,7 +752,11 @@ export async function completeWorkoutExecution(
     );
 
     const [setRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT * FROM workout_execution_sets WHERE execution_session_id = ? ORDER BY set_number ASC;`,
+      `SELECT wex.*, wbi.public_id AS block_item_public_id
+       FROM workout_execution_sets wex
+       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+       WHERE wex.execution_session_id = ?
+       ORDER BY wex.set_number ASC;`,
       [s.id]
     );
 

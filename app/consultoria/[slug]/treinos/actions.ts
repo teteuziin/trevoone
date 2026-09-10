@@ -7,12 +7,24 @@
 
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
-import { startOrResumeWorkoutExecution } from "@/lib/training-v2/execution-repository";
-import type { WorkoutExecutionSessionDto } from "@/lib/training-v2/types";
+import {
+  startOrResumeWorkoutExecution,
+  completeWorkoutExecutionSet,
+} from "@/lib/training-v2/execution-repository";
+import type {
+  WorkoutExecutionSessionDto,
+  WorkoutExecutionSetDto,
+} from "@/lib/training-v2/types";
 
 export type StartOrResumeExecutionResult = {
   success: boolean;
   session?: WorkoutExecutionSessionDto;
+  error?: string;
+};
+
+export type CompleteExecutionSetResult = {
+  success: boolean;
+  set?: WorkoutExecutionSetDto;
   error?: string;
 };
 
@@ -46,6 +58,44 @@ export async function startOrResumeWorkoutExecutionAction(
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao iniciar treino.";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Concludes an individual execution set in an active workout session.
+ * Fully validated server-side against student role, tenancy, and session ownership.
+ */
+export async function completeWorkoutExecutionSetAction(
+  slug: string,
+  sessionPublicId: string,
+  setPublicId: string
+): Promise<CompleteExecutionSetResult> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Não autenticado." };
+  }
+
+  const ctx = await resolveTrainingAccessContext(slug);
+  if (!ctx) {
+    return { success: false, error: "Acesso não autorizado à consultoria." };
+  }
+
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+    return { success: false, error: "Apenas alunos podem concluir séries de treino." };
+  }
+
+  try {
+    const completedSet = await completeWorkoutExecutionSet(ctx, sessionPublicId, setPublicId);
+    return {
+      success: true,
+      set: completedSet,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao concluir série.";
     return {
       success: false,
       error: message,

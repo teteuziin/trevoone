@@ -298,6 +298,7 @@ export type WorkoutExecutionSetDto = {
   executionSessionPublicId?: string;
   workoutItemSetId?: number;
   blockItemId: number;
+  blockItemPublicId?: string;
   setNumber: number;
   setType: WorkoutSetType;
   prescribedReps: number | null;

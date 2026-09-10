@@ -294,6 +294,12 @@ export async function addCustomItemToBlockAction(
     if (!customSnapshot.exerciseName || !customSnapshot.exerciseName.trim()) {
       return { ok: false, error: "O nome do exercício personalizado é obrigatório." };
     }
+    if (customSnapshot.muscleGroup && customSnapshot.muscleGroup.trim().length > 100) {
+      return { ok: false, error: "O grupo muscular não pode exceder 100 caracteres." };
+    }
+    if (customSnapshot.equipment && customSnapshot.equipment.trim().length > 100) {
+      return { ok: false, error: "O equipamento não pode exceder 100 caracteres." };
+    }
 
     const item = await addItemToDraftBlock(ctx, blockPublicId, {
       customSnapshot: {

@@ -3,7 +3,11 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
-import { listExercisesForProfessional } from "@/lib/training-v2/exercise-repository";
+import {
+  listExercisesForProfessional,
+  listExerciseMuscleGroups,
+  listExerciseEquipment,
+} from "@/lib/training-v2/exercise-repository";
 import type { ExerciseStatus } from "@/lib/training-v2/types";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
@@ -24,41 +28,6 @@ type PageProps = {
     page?: string;
   }>;
 };
-
-const COMMON_MUSCLES = [
-  "Todos os Músculos",
-  "Peitoral",
-  "Dorsal",
-  "Trapézio",
-  "Deltoide Anterior",
-  "Deltoide Lateral",
-  "Deltoide Posterior",
-  "Quadríceps",
-  "Isquiotibiais",
-  "Glúteos",
-  "Panturrilhas",
-  "Bíceps",
-  "Tríceps",
-  "Antebraço",
-  "Abdômen",
-  "Lombar",
-  "Cardiorrespiratório",
-];
-
-const COMMON_EQUIPMENT = [
-  "Todos os Equipamentos",
-  "Halteres",
-  "Barra",
-  "Barra W",
-  "Polia / Cabo",
-  "Máquina Articulada",
-  "Máquina com Placas",
-  "Peso Corporal",
-  "Elástico / Faixa",
-  "Kettlebell",
-  "Smith Machine",
-  "Banco Regulável",
-];
 
 function getDifficultyBadge(diff: string) {
   switch (diff) {
@@ -117,15 +86,19 @@ export default async function ConsultancyExercisesPage({
     repoScope = "CONSULTANCY";
   }
 
-  const result = await listExercisesForProfessional(ctx, {
-    scope: repoScope,
-    status: validStatus,
-    query: q || undefined,
-    muscleGroup: muscle && muscle !== "Todos os Músculos" ? muscle : undefined,
-    equipment: equipment && equipment !== "Todos os Equipamentos" ? equipment : undefined,
-    page: currentPage,
-    pageSize: 25,
-  });
+  const [result, availableMuscles, availableEquipments] = await Promise.all([
+    listExercisesForProfessional(ctx, {
+      scope: repoScope,
+      status: validStatus,
+      query: q || undefined,
+      muscleGroup: muscle && muscle !== "Todos os Músculos" ? muscle : undefined,
+      equipment: equipment && equipment !== "Todos os Equipamentos" ? equipment : undefined,
+      page: currentPage,
+      pageSize: 25,
+    }),
+    listExerciseMuscleGroups(ctx),
+    listExerciseEquipment(ctx),
+  ]);
 
   // Filter items specifically for the tab semantics if needed
   let displayItems = result.items;
@@ -169,22 +142,27 @@ export default async function ConsultancyExercisesPage({
             { id: "CONSULTORIA", label: "Minha Consultoria" },
             {
               id: "MEUS",
-              label: context.roles.includes("CONSULTANCY_ADMIN") && !context.roles.includes("PERSONAL")
-                ? "Privados (Supervisão)"
-                : "Só para mim",
+              label: (
+                <span className="flex items-center gap-1">
+                  <span>🔒</span>
+                  <span>Só para mim</span>
+                </span>
+              ),
             },
           ].map((t) => {
-            const isSelected = tab === t.id;
+            const isActive = tab === t.id;
             return (
               <Link
                 key={t.id}
                 href={`/consultoria/${slug}/exercicios?tab=${t.id}${q ? `&q=${encodeURIComponent(q)}` : ""}${
-                  muscle ? `&muscle=${encodeURIComponent(muscle)}` : ""
-                }${equipment ? `&equipment=${encodeURIComponent(equipment)}` : ""}`}
-                className={`px-3.5 py-2 text-xs font-semibold rounded-xl transition-all select-none ${
-                  isSelected
-                    ? "bg-[var(--surface)] text-[var(--brand-foreground)] shadow-xs font-bold border border-[var(--border-default)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                  status ? `&status=${status}` : ""
+                }${muscle ? `&muscle=${encodeURIComponent(muscle)}` : ""}${
+                  equipment ? `&equipment=${encodeURIComponent(equipment)}` : ""
+                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  isActive
+                    ? "bg-[var(--surface)] text-[var(--foreground)] shadow-xs"
+                    : "text-[var(--text-secondary)] hover:text-[var(--foreground)]"
                 }`}
               >
                 {t.label}
@@ -221,7 +199,8 @@ export default async function ConsultancyExercisesPage({
                 defaultValue={muscle || "Todos os Músculos"}
                 className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
               >
-                {COMMON_MUSCLES.map((m) => (
+                <option value="Todos os Músculos">Todos os Músculos</option>
+                {availableMuscles.map((m) => (
                   <option key={m} value={m}>
                     {m}
                   </option>
@@ -239,7 +218,8 @@ export default async function ConsultancyExercisesPage({
                 defaultValue={equipment || "Todos os Equipamentos"}
                 className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
               >
-                {COMMON_EQUIPMENT.map((eq) => (
+                <option value="Todos os Equipamentos">Todos os Equipamentos</option>
+                {availableEquipments.map((eq) => (
                   <option key={eq} value={eq}>
                     {eq}
                   </option>

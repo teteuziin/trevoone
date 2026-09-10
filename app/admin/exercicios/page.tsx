@@ -3,7 +3,11 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
-import { listExercisesForProfessional } from "@/lib/training-v2/exercise-repository";
+import {
+  listExercisesForProfessional,
+  listExerciseMuscleGroups,
+  listExerciseEquipment,
+} from "@/lib/training-v2/exercise-repository";
 import type { ExerciseStatus } from "@/lib/training-v2/types";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -19,41 +23,6 @@ type PageProps = {
     page?: string;
   }>;
 };
-
-const COMMON_MUSCLES = [
-  "Todos os Músculos",
-  "Peitoral",
-  "Dorsal",
-  "Trapézio",
-  "Deltoide Anterior",
-  "Deltoide Lateral",
-  "Deltoide Posterior",
-  "Quadríceps",
-  "Isquiotibiais",
-  "Glúteos",
-  "Panturrilhas",
-  "Bíceps",
-  "Tríceps",
-  "Antebraço",
-  "Abdômen",
-  "Lombar",
-  "Cardiorrespiratório",
-];
-
-const COMMON_EQUIPMENT = [
-  "Todos os Equipamentos",
-  "Halteres",
-  "Barra",
-  "Barra W",
-  "Polia / Cabo",
-  "Máquina Articulada",
-  "Máquina com Placas",
-  "Peso Corporal",
-  "Elástico / Faixa",
-  "Kettlebell",
-  "Smith Machine",
-  "Banco Regulável",
-];
 
 function getDifficultyBadge(diff: string) {
   switch (diff) {
@@ -107,15 +76,19 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
   const parsedPage = Number(page);
   const currentPage = Number.isInteger(parsedPage) && parsedPage >= 1 ? parsedPage : 1;
 
-  const result = await listExercisesForProfessional(ctx, {
-    scope: "GLOBAL",
-    status: validStatus,
-    query: q || undefined,
-    muscleGroup: muscle && muscle !== "Todos os Músculos" ? muscle : undefined,
-    equipment: equipment && equipment !== "Todos os Equipamentos" ? equipment : undefined,
-    page: currentPage,
-    pageSize: 25,
-  });
+  const [result, availableMuscles, availableEquipments] = await Promise.all([
+    listExercisesForProfessional(ctx, {
+      scope: "GLOBAL",
+      status: validStatus,
+      query: q || undefined,
+      muscleGroup: muscle && muscle !== "Todos os Músculos" ? muscle : undefined,
+      equipment: equipment && equipment !== "Todos os Equipamentos" ? equipment : undefined,
+      page: currentPage,
+      pageSize: 25,
+    }),
+    listExerciseMuscleGroups(ctx),
+    listExerciseEquipment(ctx),
+  ]);
 
   const { items, total, totalPages } = result;
 
@@ -140,15 +113,16 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
         <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
           <form method="GET" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
-              <label htmlFor="search-input" className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+              <label htmlFor="q-input" className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
                 Buscar por nome
               </label>
               <input
-                id="search-input"
+                id="q-input"
                 name="q"
+                type="text"
                 defaultValue={q || ""}
                 placeholder="Ex: Supino, Agachamento..."
-                className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand)]"
+                className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
               />
             </div>
 
@@ -163,9 +137,9 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
                 className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
               >
                 <option value="ALL">Todos os status</option>
-                <option value="DRAFT">Apenas Rascunhos</option>
-                <option value="PUBLISHED">Apenas Publicados</option>
-                <option value="ARCHIVED">Apenas Arquivados</option>
+                <option value="PUBLISHED">Publicados</option>
+                <option value="DRAFT">Rascunhos</option>
+                <option value="ARCHIVED">Arquivados</option>
               </select>
             </div>
 
@@ -179,7 +153,8 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
                 defaultValue={muscle || "Todos os Músculos"}
                 className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
               >
-                {COMMON_MUSCLES.map((m) => (
+                <option value="Todos os Músculos">Todos os Músculos</option>
+                {availableMuscles.map((m) => (
                   <option key={m} value={m}>
                     {m}
                   </option>
@@ -197,7 +172,8 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
                 defaultValue={equipment || "Todos os Equipamentos"}
                 className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
               >
-                {COMMON_EQUIPMENT.map((eq) => (
+                <option value="Todos os Equipamentos">Todos os Equipamentos</option>
+                {availableEquipments.map((eq) => (
                   <option key={eq} value={eq}>
                     {eq}
                   </option>

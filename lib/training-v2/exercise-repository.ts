@@ -385,6 +385,51 @@ export async function getExerciseByIdOrPublicId(
 }
 
 /**
+ * Canonical validator for exercise taxonomy fields (muscle_group_primary and equipment).
+ * Enforces non-empty, logical trim, and MySQL VARCHAR(100) length boundary.
+ */
+export function validateTaxonomyLength(
+  muscleGroupPrimary?: string | null,
+  equipment?: string | null
+): void {
+  if (muscleGroupPrimary !== undefined && muscleGroupPrimary !== null) {
+    const trimmed = muscleGroupPrimary.trim();
+    if (!trimmed) {
+      throw new TrainingAuthorizationError(
+        "O grupo muscular principal é obrigatório.",
+        "VALIDATION_FAILED",
+        400
+      );
+    }
+    if (trimmed.length > 100) {
+      throw new TrainingAuthorizationError(
+        "O grupo muscular principal não pode exceder 100 caracteres.",
+        "VALIDATION_FAILED",
+        400
+      );
+    }
+  }
+
+  if (equipment !== undefined && equipment !== null) {
+    const trimmed = equipment.trim();
+    if (!trimmed) {
+      throw new TrainingAuthorizationError(
+        "O equipamento é obrigatório.",
+        "VALIDATION_FAILED",
+        400
+      );
+    }
+    if (trimmed.length > 100) {
+      throw new TrainingAuthorizationError(
+        "O equipamento não pode exceder 100 caracteres.",
+        "VALIDATION_FAILED",
+        400
+      );
+    }
+  }
+}
+
+/**
  * Creates a Global exercise (Platform Admin only).
  */
 export async function createGlobalExercise(
@@ -392,6 +437,7 @@ export async function createGlobalExercise(
   input: CreateExerciseInput
 ): Promise<ExerciseItemDto> {
   assertCanManageGlobal(ctx);
+  validateTaxonomyLength(input.muscleGroupPrimary, input.equipment);
 
   const publicId = crypto.randomUUID();
   const normalizedName = normalizeExerciseName(input.name);
@@ -447,6 +493,7 @@ export async function createConsultancyExercise(
   input: CreateExerciseInput
 ): Promise<ExerciseItemDto> {
   assertCanAuthorTraining(ctx);
+  validateTaxonomyLength(input.muscleGroupPrimary, input.equipment);
 
   const publicId = crypto.randomUUID();
   const normalizedName = normalizeExerciseName(input.name);
@@ -529,6 +576,10 @@ export async function updateExercise(
       if (!isCreator && !ctx.canManageConsultancy) {
         throw new TrainingAuthorizationError("Apenas o autor ou administrador podem editar este exercício.", "FORBIDDEN", 403);
       }
+    }
+
+    if (input.muscleGroupPrimary !== undefined || input.equipment !== undefined) {
+      validateTaxonomyLength(input.muscleGroupPrimary, input.equipment);
     }
 
     const updates: string[] = [];
@@ -824,6 +875,178 @@ export async function archiveExercise(
       [ex.id]
     );
     return res.affectedRows === 1;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+// ============================================================================
+// DYNAMIC EXERCISE TAXONOMY SUGGESTIONS
+// ============================================================================
+
+export const DEFAULT_SUGGESTED_MUSCLE_GROUPS: readonly string[] = [
+  "Peitoral",
+  "Dorsal",
+  "Trapézio",
+  "Deltoide Anterior",
+  "Deltoide Lateral",
+  "Deltoide Posterior",
+  "Quadríceps",
+  "Isquiotibiais",
+  "Glúteos",
+  "Panturrilhas",
+  "Bíceps",
+  "Tríceps",
+  "Antebraço",
+  "Abdômen",
+  "Lombar",
+  "Cardiorrespiratório",
+] as const;
+
+export const DEFAULT_SUGGESTED_EQUIPMENT: readonly string[] = [
+  "Halteres",
+  "Barra",
+  "Barra W",
+  "Polia / Cabo",
+  "Máquina Articulada",
+  "Máquina com Placas",
+  "Peso Corporal",
+  "Elástico / Faixa",
+  "Kettlebell",
+  "Smith Machine",
+  "Banco Regulável",
+] as const;
+
+/**
+ * Retrieves distinct primary muscle groups (categories) from authorized exercises,
+ * merged with default baseline suggestions and sorted alphabetically.
+ */
+export async function listExerciseMuscleGroups(
+  ctx: TrainingAccessContext
+): Promise<string[]> {
+  const conditions: string[] = [
+    "e.deleted_at IS NULL",
+    "e.muscle_group_primary IS NOT NULL",
+    "TRIM(e.muscle_group_primary) != ''",
+  ];
+  const params: (string | number)[] = [];
+
+  if (ctx.isPlatformAdmin && !ctx.consultancyId) {
+    conditions.push("e.scope = 'GLOBAL'");
+  } else if (ctx.canAuthorTraining && ctx.consultancyId) {
+    if (ctx.canManageConsultancy) {
+      conditions.push(
+        "((e.scope = 'GLOBAL' AND e.status = 'PUBLISHED') OR (e.scope = 'CONSULTANCY' AND e.consultancy_id = ? AND e.status != 'ARCHIVED'))"
+      );
+      params.push(ctx.consultancyId);
+    } else {
+      conditions.push(
+        "((e.scope = 'GLOBAL' AND e.status = 'PUBLISHED') OR (e.scope = 'CONSULTANCY' AND e.consultancy_id = ? AND e.status != 'ARCHIVED' AND (e.visibility = 'CONSULTANCY' OR (e.visibility = 'CREATOR_ONLY' AND e.created_by_membership_id = ?))))"
+      );
+      params.push(ctx.consultancyId, ctx.membershipId!);
+    }
+  } else {
+    // Unprivileged or student context: only global published
+    conditions.push("e.scope = 'GLOBAL' AND e.status = 'PUBLISHED'");
+  }
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT DISTINCT TRIM(e.muscle_group_primary) AS val
+       FROM exercises e
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY val ASC;`,
+      params
+    );
+
+    const fromDb = rows.map((r) => String(r.val).trim()).filter(Boolean);
+
+    const set = new Set<string>();
+    const result: string[] = [];
+
+    const addVal = (val: string) => {
+      const lower = val.toLowerCase();
+      if (!set.has(lower)) {
+        set.add(lower);
+        result.push(val);
+      }
+    };
+
+    fromDb.forEach(addVal);
+    DEFAULT_SUGGESTED_MUSCLE_GROUPS.forEach(addVal);
+
+    return result.sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+/**
+ * Retrieves distinct equipment from authorized exercises,
+ * merged with default baseline suggestions and sorted alphabetically.
+ */
+export async function listExerciseEquipment(
+  ctx: TrainingAccessContext
+): Promise<string[]> {
+  const conditions: string[] = [
+    "e.deleted_at IS NULL",
+    "e.equipment IS NOT NULL",
+    "TRIM(e.equipment) != ''",
+  ];
+  const params: (string | number)[] = [];
+
+  if (ctx.isPlatformAdmin && !ctx.consultancyId) {
+    conditions.push("e.scope = 'GLOBAL'");
+  } else if (ctx.canAuthorTraining && ctx.consultancyId) {
+    if (ctx.canManageConsultancy) {
+      conditions.push(
+        "((e.scope = 'GLOBAL' AND e.status = 'PUBLISHED') OR (e.scope = 'CONSULTANCY' AND e.consultancy_id = ? AND e.status != 'ARCHIVED'))"
+      );
+      params.push(ctx.consultancyId);
+    } else {
+      conditions.push(
+        "((e.scope = 'GLOBAL' AND e.status = 'PUBLISHED') OR (e.scope = 'CONSULTANCY' AND e.consultancy_id = ? AND e.status != 'ARCHIVED' AND (e.visibility = 'CONSULTANCY' OR (e.visibility = 'CREATOR_ONLY' AND e.created_by_membership_id = ?))))"
+      );
+      params.push(ctx.consultancyId, ctx.membershipId!);
+    }
+  } else {
+    conditions.push("e.scope = 'GLOBAL' AND e.status = 'PUBLISHED'");
+  }
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT DISTINCT TRIM(e.equipment) AS val
+       FROM exercises e
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY val ASC;`,
+      params
+    );
+
+    const fromDb = rows.map((r) => String(r.val).trim()).filter(Boolean);
+
+    const set = new Set<string>();
+    const result: string[] = [];
+
+    const addVal = (val: string) => {
+      const lower = val.toLowerCase();
+      if (!set.has(lower)) {
+        set.add(lower);
+        result.push(val);
+      }
+    };
+
+    fromDb.forEach(addVal);
+    DEFAULT_SUGGESTED_EQUIPMENT.forEach(addVal);
+
+    return result.sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
   } finally {
     if (connection) {
       connection.release();

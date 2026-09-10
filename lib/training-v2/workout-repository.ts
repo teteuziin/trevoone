@@ -610,9 +610,17 @@ export async function addItemToDraftBlock(
       if (!input.customSnapshot || !input.customSnapshot.exerciseName.trim()) {
         throw new TrainingAuthorizationError("Nome do exercício personalizado é obrigatório.", "VALIDATION_FAILED", 400);
       }
+      const trimmedMuscle = input.customSnapshot.muscleGroup?.trim() || null;
+      if (trimmedMuscle && trimmedMuscle.length > 100) {
+        throw new TrainingAuthorizationError("O grupo muscular não pode exceder 100 caracteres.", "VALIDATION_FAILED", 400);
+      }
+      const trimmedEquip = input.customSnapshot.equipment?.trim() || null;
+      if (trimmedEquip && trimmedEquip.length > 100) {
+        throw new TrainingAuthorizationError("O equipamento não pode exceder 100 caracteres.", "VALIDATION_FAILED", 400);
+      }
       nameSnapshot = input.customSnapshot.exerciseName.trim();
-      muscleSnapshot = input.customSnapshot.muscleGroup?.trim() || null;
-      equipSnapshot = input.customSnapshot.equipment?.trim() || null;
+      muscleSnapshot = trimmedMuscle;
+      equipSnapshot = trimmedEquip;
       instSnapshot = input.customSnapshot.instructions?.trim() || null;
     }
 

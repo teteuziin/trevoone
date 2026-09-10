@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type {
   ExerciseItemDto,
@@ -13,8 +13,17 @@ import {
   publishConsultancyExerciseAction,
   archiveConsultancyExerciseAction,
   changeConsultancyExerciseVisibilityAction,
+  getExerciseTaxonomyAction,
 } from "@/app/consultoria/[slug]/exercicios/actions";
-import { FormField, Input, Textarea, Select } from "@/components/ui/form-controls";
+import {
+  FormField,
+  Input,
+  Textarea,
+  Select,
+  SuggestiveInput,
+  DEFAULT_SUGGESTED_MUSCLE_GROUPS,
+  DEFAULT_SUGGESTED_EQUIPMENT,
+} from "@/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
@@ -27,40 +36,6 @@ interface ConsultancyExerciseFormProps {
   initialData?: ExerciseItemDto;
   canEdit?: boolean;
 }
-
-const COMMON_MUSCLES = [
-  "Peitoral",
-  "Dorsal",
-  "Trapézio",
-  "Deltoide Anterior",
-  "Deltoide Lateral",
-  "Deltoide Posterior",
-  "Quadríceps",
-  "Isquiotibiais",
-  "Glúteos",
-  "Panturrilhas",
-  "Bíceps",
-  "Tríceps",
-  "Antebraço",
-  "Abdômen",
-  "Lombar",
-  "Cardiorrespiratório",
-];
-
-const COMMON_EQUIPMENT = [
-  "Halteres",
-  "Barra",
-  "Barra W",
-  "Polia / Cabo",
-  "Máquina Articulada",
-  "Máquina com Placas",
-  "Peso Corporal",
-  "Elástico / Faixa",
-  "Kettlebell",
-  "Smith Machine",
-  "Banco Regulável",
-  "Outro",
-];
 
 const MOVEMENT_PATTERNS: { value: MovementPattern; label: string }[] = [
   { value: "PUSH", label: "Empurrar (Push)" },
@@ -115,6 +90,31 @@ export function ConsultancyExerciseForm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Dynamic taxonomy suggestions (initialized with defaults, updated from DB)
+  const [muscleSuggestions, setMuscleSuggestions] = useState<readonly string[] | string[]>(
+    DEFAULT_SUGGESTED_MUSCLE_GROUPS
+  );
+  const [equipmentSuggestions, setEquipmentSuggestions] = useState<readonly string[] | string[]>(
+    DEFAULT_SUGGESTED_EQUIPMENT
+  );
+
+  useEffect(() => {
+    let active = true;
+    getExerciseTaxonomyAction(slug).then((res) => {
+      if (active && res.ok && res.data) {
+        if (res.data.muscleGroups?.length) {
+          setMuscleSuggestions(res.data.muscleGroups);
+        }
+        if (res.data.equipment?.length) {
+          setEquipmentSuggestions(res.data.equipment);
+        }
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
   const status = initialData?.status || "DRAFT";
   const isArchived = status === "ARCHIVED";
 
@@ -124,6 +124,23 @@ export function ConsultancyExerciseForm({
     setErrorMessage(null);
     setSuccessMessage(null);
 
+    const trimmedName = name.trim();
+    const trimmedMuscle = muscleGroupPrimary.trim();
+    const trimmedEquipment = equipment.trim();
+
+    if (!trimmedName) {
+      setErrorMessage("O nome do exercício é obrigatório.");
+      return;
+    }
+    if (!trimmedMuscle) {
+      setErrorMessage("O grupo muscular principal é obrigatório.");
+      return;
+    }
+    if (!trimmedEquipment) {
+      setErrorMessage("O equipamento é obrigatório.");
+      return;
+    }
+
     const secondaryArray = muscleGroupsSecondary
       .split(",")
       .map((s) => s.trim())
@@ -132,10 +149,10 @@ export function ConsultancyExerciseForm({
     startTransition(async () => {
       if (mode === "create") {
         const res = await createConsultancyExerciseDraftAction(slug, {
-          name,
-          muscleGroupPrimary,
+          name: trimmedName,
+          muscleGroupPrimary: trimmedMuscle,
           muscleGroupsSecondary: secondaryArray.length > 0 ? secondaryArray : null,
-          equipment,
+          equipment: trimmedEquipment,
           movementPattern: movementPattern || null,
           difficultyLevel,
           description: description.trim() || null,
@@ -155,10 +172,10 @@ export function ConsultancyExerciseForm({
         router.push(`/consultoria/${slug}/exercicios/${res.data.publicId}`);
       } else if (mode === "edit" && initialData) {
         const res = await updateConsultancyExerciseAction(slug, initialData.publicId, {
-          name,
-          muscleGroupPrimary,
+          name: trimmedName,
+          muscleGroupPrimary: trimmedMuscle,
           muscleGroupsSecondary: secondaryArray.length > 0 ? secondaryArray : null,
-          equipment,
+          equipment: trimmedEquipment,
           movementPattern: movementPattern || null,
           difficultyLevel,
           description: description.trim() || null,
@@ -365,34 +382,36 @@ export function ConsultancyExerciseForm({
               </FormField>
             </div>
 
-            <FormField label="Grupo Muscular Principal" required>
-              <Select
+            <FormField
+              label="Grupo Muscular Principal"
+              required
+              helperText="Escolha uma sugestão ou digite uma nova categoria"
+            >
+              <SuggestiveInput
                 value={muscleGroupPrimary}
-                onChange={(e) => setMuscleGroupPrimary(e.target.value)}
+                onChange={setMuscleGroupPrimary}
+                suggestions={muscleSuggestions}
+                placeholder="Ex: Peitoral, Adutores / Quadril..."
                 disabled={isPending || isViewOnly || isArchived}
                 required
-              >
-                {COMMON_MUSCLES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </Select>
+                maxLength={100}
+              />
             </FormField>
 
-            <FormField label="Equipamento" required>
-              <Select
+            <FormField
+              label="Equipamento"
+              required
+              helperText="Escolha um equipamento ou digite um novo"
+            >
+              <SuggestiveInput
                 value={equipment}
-                onChange={(e) => setEquipment(e.target.value)}
+                onChange={setEquipment}
+                suggestions={equipmentSuggestions}
+                placeholder="Ex: Halteres, Barra, Máquina..."
                 disabled={isPending || isViewOnly || isArchived}
                 required
-              >
-                {COMMON_EQUIPMENT.map((eq) => (
-                  <option key={eq} value={eq}>
-                    {eq}
-                  </option>
-                ))}
-              </Select>
+                maxLength={100}
+              />
             </FormField>
 
             <FormField label="Padrão de Movimento" optional>

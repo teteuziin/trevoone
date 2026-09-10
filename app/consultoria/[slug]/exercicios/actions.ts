@@ -9,6 +9,8 @@ import {
   updateExercise,
   getExerciseByIdOrPublicId,
   changeExerciseVisibility,
+  listExerciseMuscleGroups,
+  listExerciseEquipment,
   type CreateExerciseInput,
   type UpdateExerciseInput,
 } from "@/lib/training-v2/exercise-repository";
@@ -94,8 +96,14 @@ export async function createConsultancyExerciseDraftAction(
     if (!input.muscleGroupPrimary || !input.muscleGroupPrimary.trim()) {
       return { ok: false, error: "O grupo muscular principal é obrigatório." };
     }
+    if (input.muscleGroupPrimary.trim().length > 100) {
+      return { ok: false, error: "O grupo muscular principal não pode exceder 100 caracteres." };
+    }
     if (!input.equipment || !input.equipment.trim()) {
       return { ok: false, error: "O equipamento é obrigatório." };
+    }
+    if (input.equipment.trim().length > 100) {
+      return { ok: false, error: "O equipamento não pode exceder 100 caracteres." };
     }
 
     let difficulty: DifficultyLevel = "INTERMEDIATE";
@@ -168,6 +176,23 @@ export async function updateConsultancyExerciseAction(
     }
     if (input.movementPattern && !VALID_MOVEMENT_PATTERNS.includes(input.movementPattern as MovementPattern)) {
       return { ok: false, error: "Padrão de movimento inválido." };
+    }
+
+    if (input.muscleGroupPrimary !== undefined) {
+      if (!input.muscleGroupPrimary.trim()) {
+        return { ok: false, error: "O grupo muscular principal não pode ser vazio." };
+      }
+      if (input.muscleGroupPrimary.trim().length > 100) {
+        return { ok: false, error: "O grupo muscular principal não pode exceder 100 caracteres." };
+      }
+    }
+    if (input.equipment !== undefined) {
+      if (!input.equipment.trim()) {
+        return { ok: false, error: "O equipamento não pode ser vazio." };
+      }
+      if (input.equipment.trim().length > 100) {
+        return { ok: false, error: "O equipamento não pode exceder 100 caracteres." };
+      }
     }
 
     const updated = await updateExercise(ctx, publicId, {
@@ -363,6 +388,43 @@ export async function detachConsultancyExerciseMediaAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao desvincular mídia do exercício.",
+    };
+  }
+}
+
+/**
+ * Retrieves dynamic taxonomy suggestions (muscle groups and equipment)
+ * merged with default baseline suggestions, respecting tenancy and scope.
+ */
+export async function getExerciseTaxonomyAction(
+  slug?: string
+): Promise<ActionResponse<{ muscleGroups: string[]; equipment: string[] }>> {
+  try {
+    let ctx;
+    if (slug) {
+      const { ctx: consultancyCtx } = await requireConsultancyProfessionalContext(slug);
+      ctx = consultancyCtx;
+    } else {
+      const session = await getCurrentSession();
+      if (!session) {
+        throw new Error("Não autenticado.");
+      }
+      ctx = await resolveTrainingAccessContext(null);
+      if (!ctx || (!ctx.canManageGlobal && !ctx.isPlatformAdmin)) {
+        throw new Error("Acesso não autorizado.");
+      }
+    }
+
+    const [muscleGroups, equipment] = await Promise.all([
+      listExerciseMuscleGroups(ctx),
+      listExerciseEquipment(ctx),
+    ]);
+
+    return { ok: true, data: { muscleGroups, equipment } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao carregar taxonomia.",
     };
   }
 }

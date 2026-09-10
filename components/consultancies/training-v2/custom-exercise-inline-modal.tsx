@@ -1,6 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import {
+  SuggestiveInput,
+  DEFAULT_SUGGESTED_MUSCLE_GROUPS,
+  DEFAULT_SUGGESTED_EQUIPMENT,
+} from "@/components/ui/form-controls";
+import { getExerciseTaxonomyAction } from "@/app/consultoria/[slug]/exercicios/actions";
 
 function X({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -28,6 +34,7 @@ function Loader2({ className = "w-4 h-4" }: { className?: string }) {
 
 type CustomExerciseInlineModalProps = {
   isOpen: boolean;
+  consultancySlug?: string;
   onClose: () => void;
   onSave: (customSnapshot: {
     exerciseName: string;
@@ -37,34 +44,9 @@ type CustomExerciseInlineModalProps = {
   }) => Promise<void>;
 };
 
-const COMMON_MUSCLES = [
-  "Peito",
-  "Costas",
-  "Ombros",
-  "Bíceps",
-  "Tríceps",
-  "Quadríceps",
-  "Posterior de Coxa",
-  "Glúteos",
-  "Panturrilha",
-  "Abdômen",
-  "Cardio",
-  "Corpo Inteiro",
-];
-
-const COMMON_EQUIPMENTS = [
-  "Halteres",
-  "Barra",
-  "Máquina",
-  "Polia / Cabo",
-  "Peso do corpo",
-  "Kettlebell",
-  "Elástico",
-  "Outro",
-];
-
 export function CustomExerciseInlineModal({
   isOpen,
+  consultancySlug,
   onClose,
   onSave,
 }: CustomExerciseInlineModalProps) {
@@ -74,6 +56,30 @@ export function CustomExerciseInlineModal({
   const [instructions, setInstructions] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [muscleSuggestions, setMuscleSuggestions] = useState<readonly string[] | string[]>(
+    DEFAULT_SUGGESTED_MUSCLE_GROUPS
+  );
+  const [equipmentSuggestions, setEquipmentSuggestions] = useState<readonly string[] | string[]>(
+    DEFAULT_SUGGESTED_EQUIPMENT
+  );
+
+  useEffect(() => {
+    let active = true;
+    getExerciseTaxonomyAction(consultancySlug).then((res) => {
+      if (active && res.ok && res.data) {
+        if (res.data.muscleGroups?.length) {
+          setMuscleSuggestions(res.data.muscleGroups);
+        }
+        if (res.data.equipment?.length) {
+          setEquipmentSuggestions(res.data.equipment);
+        }
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [consultancySlug]);
 
   if (!isOpen) return null;
 
@@ -159,38 +165,28 @@ export function CustomExerciseInlineModal({
               <label htmlFor="custom-muscle" className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
                 Grupo muscular
               </label>
-              <select
+              <SuggestiveInput
                 id="custom-muscle"
                 value={muscleGroup}
-                onChange={(e) => setMuscleGroup(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent text-[var(--foreground)]"
-              >
-                <option value="">Selecione (opcional)</option>
-                {COMMON_MUSCLES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+                onChange={setMuscleGroup}
+                suggestions={muscleSuggestions}
+                placeholder="Selecione ou digite..."
+                maxLength={100}
+              />
             </div>
 
             <div>
               <label htmlFor="custom-equip" className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
                 Equipamento
               </label>
-              <select
+              <SuggestiveInput
                 id="custom-equip"
                 value={equipment}
-                onChange={(e) => setEquipment(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent text-[var(--foreground)]"
-              >
-                <option value="">Selecione (opcional)</option>
-                {COMMON_EQUIPMENTS.map((eq) => (
-                  <option key={eq} value={eq}>
-                    {eq}
-                  </option>
-                ))}
-              </select>
+                onChange={setEquipment}
+                suggestions={equipmentSuggestions}
+                placeholder="Selecione ou digite..."
+                maxLength={100}
+              />
             </div>
           </div>
 

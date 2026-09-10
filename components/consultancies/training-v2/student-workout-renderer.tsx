@@ -376,7 +376,10 @@ export function StudentWorkoutRenderer({
     }
   }
 
-  async function handleCompleteSet(setPublicId: string) {
+  async function handleCompleteSet(
+    setPublicId: string,
+    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+  ) {
     if (!consultancySlug || !activeSession || activeSession.status !== "IN_PROGRESS" || loadingSetPublicId) {
       return;
     }
@@ -392,7 +395,8 @@ export function StudentWorkoutRenderer({
       const res = await completeWorkoutExecutionSetAction(
         consultancySlug,
         activeSession.publicId,
-        setPublicId
+        setPublicId,
+        input
       );
 
       if (res.success && res.set) {
@@ -740,7 +744,10 @@ function BlockCard({
   activeSession?: WorkoutExecutionSessionDto | null;
   loadingSetPublicId?: string | null;
   setErrors?: Record<string, string>;
-  onCompleteSet?: (setPublicId: string) => Promise<void>;
+  onCompleteSet?: (
+    setPublicId: string,
+    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+  ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
 }) {
@@ -846,7 +853,10 @@ function ItemCard({
   activeSession?: WorkoutExecutionSessionDto | null;
   loadingSetPublicId?: string | null;
   setErrors?: Record<string, string>;
-  onCompleteSet?: (setPublicId: string) => Promise<void>;
+  onCompleteSet?: (
+    setPublicId: string,
+    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+  ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
 }) {
@@ -1021,42 +1031,256 @@ function ItemCard({
   );
 }
 
+function formatActualLoad(loadKg: number | null | undefined): string | null {
+  if (loadKg === null || loadKg === undefined) return null;
+  const num = Number(loadKg);
+  if (!Number.isFinite(num)) return null;
+  if (num === 0) return "0 kg";
+  const formatted = num.toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+  return `${formatted} kg`;
+}
+
+function getInitialReps(
+  targetReps: number | null | undefined,
+  prescribedReps: number | null | undefined
+): string {
+  const r = targetReps ?? prescribedReps;
+  if (r != null && Number.isInteger(r) && r >= 0) {
+    return String(r);
+  }
+  return "";
+}
+
+function getInitialLoad(
+  targetLoadKg: number | null | undefined,
+  prescribedLoadKg: number | null | undefined
+): string {
+  const l = targetLoadKg !== undefined ? targetLoadKg : prescribedLoadKg;
+  if (l === null || l === undefined) return "";
+  if (typeof l === "number" && Number.isFinite(l) && l >= 0) {
+    if (l === 0) return "0";
+    return String(l).replace(".", ",");
+  }
+  return "";
+}
+
 function SetCheckoffControl({
   executionSet,
+  setDto,
   isLoading,
   onCompleteSet,
+  isSessionActive,
 }: {
   executionSet?: WorkoutExecutionSetDto | null;
+  setDto?: WorkoutItemSetDto | null;
   isLoading: boolean;
-  onCompleteSet?: (setPublicId: string) => Promise<void>;
+  onCompleteSet?: (
+    setPublicId: string,
+    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+  ) => Promise<void>;
+  isSessionActive?: boolean;
 }) {
   if (!executionSet) return null;
 
   if (executionSet.completedAt != null) {
+    const repsPart =
+      executionSet.actualReps != null ? `${executionSet.actualReps} reps` : null;
+    const loadPart = formatActualLoad(executionSet.actualLoadKg);
+    const realizedText = [repsPart, loadPart].filter(Boolean).join(" · ");
+
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 shrink-0">
-        <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-        <span>Concluída</span>
-      </span>
+      <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider">
+            Realizado:
+          </span>
+          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+            {realizedText || "Concluída"}
+          </span>
+        </div>
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20 shrink-0">
+          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span>Concluída</span>
+        </span>
+      </div>
     );
   }
 
+  if (!isSessionActive) {
+    return null;
+  }
+
   return (
-    <button
-      type="button"
-      onClick={() => onCompleteSet?.(executionSet.publicId)}
-      disabled={isLoading}
-      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-[11px] transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-    >
-      {isLoading ? (
-        <>
-          <span className="w-2.5 h-2.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          <span>Concluindo...</span>
-        </>
-      ) : (
-        <span>Concluir série</span>
+    <PendingSetControl
+      executionSet={executionSet}
+      setDto={setDto}
+      isLoading={isLoading}
+      onCompleteSet={onCompleteSet}
+    />
+  );
+}
+
+function PendingSetControl({
+  executionSet,
+  setDto,
+  isLoading,
+  onCompleteSet,
+}: {
+  executionSet: WorkoutExecutionSetDto;
+  setDto?: WorkoutItemSetDto | null;
+  isLoading: boolean;
+  onCompleteSet?: (
+    setPublicId: string,
+    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+  ) => Promise<void>;
+}) {
+  const [repsInput, setRepsInput] = useState<string>(() =>
+    getInitialReps(setDto?.targetReps, executionSet.prescribedReps)
+  );
+  const [loadInput, setLoadInput] = useState<string>(() =>
+    getInitialLoad(setDto?.targetLoadKg, executionSet.prescribedLoadKg)
+  );
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (isLoading || isSubmitting) return;
+
+    setValidationError(null);
+
+    const trimmedReps = repsInput.trim();
+    if (trimmedReps === "") {
+      setValidationError("Informe o número de repetições realizadas.");
+      return;
+    }
+    const r = Number(trimmedReps);
+    if (!Number.isInteger(r) || isNaN(r) || r < 0 || r > 65535) {
+      setValidationError("Repetições deve ser um número inteiro entre 0 e 65535.");
+      return;
+    }
+    const actualReps = r;
+
+    const trimmedLoad = loadInput.trim();
+    let actualLoadKg: number | null = null;
+    if (trimmedLoad !== "") {
+      const normalizedLoad = trimmedLoad.replace(",", ".");
+      if (!/^\d+(\.\d+)?$/.test(normalizedLoad)) {
+        setValidationError("Carga deve ser um número válido entre 0 e 9999,99 kg.");
+        return;
+      }
+      const parts = normalizedLoad.split(".");
+      if (parts.length === 2 && parts[1].length > 2) {
+        setValidationError("Carga deve ter no máximo 2 casas decimais.");
+        return;
+      }
+      const l = Number(normalizedLoad);
+      if (!Number.isFinite(l) || isNaN(l) || l < 0 || l > 9999.99) {
+        setValidationError("Carga deve ser um número entre 0 e 9999,99 kg.");
+        return;
+      }
+      actualLoadKg = l;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onCompleteSet?.(executionSet.publicId, {
+        actualReps,
+        actualLoadKg,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const isBusy = isLoading || isSubmitting;
+
+  return (
+    <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 text-xs flex-wrap">
+          <span className="text-[11px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider">
+            Realizado:
+          </span>
+          <div className="flex items-center gap-1.5">
+            <label
+              htmlFor={`reps-${executionSet.publicId}`}
+              className="text-[11px] text-[var(--foreground-muted)] font-medium"
+            >
+              Reps:
+            </label>
+            <input
+              id={`reps-${executionSet.publicId}`}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={repsInput}
+              onChange={(e) => {
+                setRepsInput(e.target.value);
+                setValidationError(null);
+              }}
+              disabled={isBusy}
+              placeholder="0"
+              className="w-14 h-8 px-2 text-center text-xs font-semibold text-[var(--foreground)] bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+              aria-label="Repetições realizadas"
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <label
+              htmlFor={`load-${executionSet.publicId}`}
+              className="text-[11px] text-[var(--foreground-muted)] font-medium"
+            >
+              Carga:
+            </label>
+            <div className="relative inline-flex items-center">
+              <input
+                id={`load-${executionSet.publicId}`}
+                type="text"
+                inputMode="decimal"
+                value={loadInput}
+                onChange={(e) => {
+                  setLoadInput(e.target.value);
+                  setValidationError(null);
+                }}
+                disabled={isBusy}
+                placeholder="0"
+                className="w-16 h-8 pl-2 pr-6 text-center text-xs font-semibold text-[var(--foreground)] bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                aria-label="Carga realizada em kg"
+              />
+              <span className="absolute right-1.5 text-[10px] font-medium text-[var(--foreground-muted)] pointer-events-none">
+                kg
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={isBusy}
+          className="px-3 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs ml-auto"
+        >
+          {isBusy ? (
+            <>
+              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span>Concluindo...</span>
+            </>
+          ) : (
+            <>
+              <Check className="w-3.5 h-3.5" />
+              <span>Concluir série</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {validationError && (
+        <p className="text-[11px] text-red-500 font-medium text-right">{validationError}</p>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -1075,7 +1299,10 @@ function StandardSetsPrescription({
   activeSession?: WorkoutExecutionSessionDto | null;
   loadingSetPublicId?: string | null;
   setErrors?: Record<string, string>;
-  onCompleteSet?: (setPublicId: string) => Promise<void>;
+  onCompleteSet?: (
+    setPublicId: string,
+    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+  ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
 }) {
@@ -1133,7 +1360,7 @@ function StandardSetsPrescription({
       </div>
 
       {/* Individual Series Rows */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {sets.map((s, idx) => {
           const typeLabel = SET_TYPE_LABELS[s.setType] || s.setType;
           const reps = formatReps(s);
@@ -1151,7 +1378,7 @@ function StandardSetsPrescription({
           return (
             <div
               key={s.setNumber || idx}
-              className="px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] space-y-1.5"
+              className="px-3 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] space-y-2"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2 shrink-0">
@@ -1165,27 +1392,30 @@ function StandardSetsPrescription({
                   )}
                 </div>
 
-                <div className="flex items-center gap-2.5 sm:gap-4 font-semibold text-[var(--foreground)] text-right">
-                  <span>{reps}</span>
+                <div className="flex items-center gap-2 sm:gap-3 text-xs text-[var(--foreground-muted)] text-right">
+                  <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
+                  <span className="font-semibold text-[var(--foreground)]">{reps}</span>
                   {load != null && (
-                    <span className="text-[var(--foreground-muted)] font-medium text-[11px] sm:text-xs">
-                      {load}
+                    <span className="font-medium text-[var(--foreground-muted)]">
+                      · {load}
                     </span>
                   )}
                   {rest != null && (
-                    <span className="text-[var(--foreground-muted)] font-normal text-[11px] sm:text-xs flex items-center gap-1">
+                    <span className="text-[var(--foreground-muted)] font-normal flex items-center gap-1">
                       <Clock className="w-3 h-3 text-[var(--foreground-muted)]" />
                       {rest}
                     </span>
                   )}
-
-                  <SetCheckoffControl
-                    executionSet={executionSet}
-                    isLoading={isLoading || false}
-                    onCompleteSet={onCompleteSet}
-                  />
                 </div>
               </div>
+
+              <SetCheckoffControl
+                executionSet={executionSet}
+                setDto={s}
+                isLoading={isLoading || false}
+                onCompleteSet={onCompleteSet}
+                isSessionActive={activeSession?.status === "IN_PROGRESS"}
+              />
 
               {setErr && (
                 <div className="text-right">
@@ -1222,7 +1452,10 @@ function DropSetPrescription({
   activeSession?: WorkoutExecutionSessionDto | null;
   loadingSetPublicId?: string | null;
   setErrors?: Record<string, string>;
-  onCompleteSet?: (setPublicId: string) => Promise<void>;
+  onCompleteSet?: (
+    setPublicId: string,
+    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+  ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
 }) {
@@ -1242,19 +1475,24 @@ function DropSetPrescription({
   return (
     <div className="space-y-2 pt-1">
       <div className="p-3 rounded-xl bg-[var(--surface)] border border-amber-500/20 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="font-bold text-[var(--foreground)]">Série Principal</span>
-          <div className="flex items-center gap-2.5 font-semibold text-emerald-600 dark:text-emerald-400">
-            <span>
-              {formatReps(mainSet)}
-              {formatLoad(mainSet) && ` · ${formatLoad(mainSet)}`}
-            </span>
-            <SetCheckoffControl
-              executionSet={mainExecutionSet}
-              isLoading={loadingSetPublicId === mainExecutionSet?.publicId}
-              onCompleteSet={onCompleteSet}
-            />
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="font-bold text-[var(--foreground)]">Série Principal</span>
+            <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+              <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
+              <span className="font-semibold text-[var(--foreground)]">
+                {formatReps(mainSet)}
+                {formatLoad(mainSet) && ` · ${formatLoad(mainSet)}`}
+              </span>
+            </div>
           </div>
+          <SetCheckoffControl
+            executionSet={mainExecutionSet}
+            setDto={mainSet}
+            isLoading={loadingSetPublicId === mainExecutionSet?.publicId}
+            onCompleteSet={onCompleteSet}
+            isSessionActive={activeSession?.status === "IN_PROGRESS"}
+          />
         </div>
 
         {mainErr && (
@@ -1264,7 +1502,7 @@ function DropSetPrescription({
         )}
 
         {dropStages.length > 0 && (
-          <div className="space-y-1.5 pt-1.5 border-t border-[var(--border-subtle)]">
+          <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
             <p className="text-[11px] font-semibold text-[var(--foreground-muted)]">
               Reduções imediatas (sem descanso):
             </p>
@@ -1277,25 +1515,26 @@ function DropSetPrescription({
               const stageErr = stageExecutionSet ? setErrors[stageExecutionSet.publicId] : null;
 
               return (
-                <div key={stage.setNumber || idx} className="space-y-1">
-                  <div
-                    className="flex flex-wrap items-center justify-between gap-2 text-xs pl-3 border-l-2 border-amber-500/50 py-0.5"
-                  >
+                <div key={stage.setNumber || idx} className="space-y-1.5 pl-3 border-l-2 border-amber-500/50 py-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="font-medium text-[var(--foreground-muted)]">
                       Redução {idx + 1}
                     </span>
-                    <div className="flex items-center gap-2.5 font-semibold text-[var(--foreground)]">
-                      <span>
+                    <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+                      <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
+                      <span className="font-semibold text-[var(--foreground)]">
                         {formatReps(stage)}
                         {formatLoad(stage) && ` · ${formatLoad(stage)}`}
                       </span>
-                      <SetCheckoffControl
-                        executionSet={stageExecutionSet}
-                        isLoading={loadingSetPublicId === stageExecutionSet?.publicId}
-                        onCompleteSet={onCompleteSet}
-                      />
                     </div>
                   </div>
+                  <SetCheckoffControl
+                    executionSet={stageExecutionSet}
+                    setDto={stage}
+                    isLoading={loadingSetPublicId === stageExecutionSet?.publicId}
+                    onCompleteSet={onCompleteSet}
+                    isSessionActive={activeSession?.status === "IN_PROGRESS"}
+                  />
                   {stageErr && (
                     <div className="text-right">
                       <p className="text-[11px] text-red-500 font-medium">{stageErr}</p>
@@ -1337,7 +1576,10 @@ function RestPausePrescription({
   activeSession?: WorkoutExecutionSessionDto | null;
   loadingSetPublicId?: string | null;
   setErrors?: Record<string, string>;
-  onCompleteSet?: (setPublicId: string) => Promise<void>;
+  onCompleteSet?: (
+    setPublicId: string,
+    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+  ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
 }) {
@@ -1359,24 +1601,29 @@ function RestPausePrescription({
   return (
     <div className="space-y-2 pt-1">
       <div className="p-3 rounded-xl bg-[var(--surface)] border border-blue-500/20 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div>
-            <span className="font-bold text-[var(--foreground)]">Série Inicial</span>
-            <p className="text-[11px] text-[var(--foreground-muted)]">
-              Pausa intra-série: {intraPause}s
-            </p>
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div>
+              <span className="font-bold text-[var(--foreground)]">Série Inicial</span>
+              <p className="text-[11px] text-[var(--foreground-muted)]">
+                Pausa intra-série: {intraPause}s
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+              <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
+              <span className="font-semibold text-[var(--foreground)]">
+                {formatReps(mainSet)}
+                {formatLoad(mainSet) && ` · ${formatLoad(mainSet)}`}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2.5 font-semibold text-emerald-600 dark:text-emerald-400">
-            <span>
-              {formatReps(mainSet)}
-              {formatLoad(mainSet) && ` · ${formatLoad(mainSet)}`}
-            </span>
-            <SetCheckoffControl
-              executionSet={mainExecutionSet}
-              isLoading={loadingSetPublicId === mainExecutionSet?.publicId}
-              onCompleteSet={onCompleteSet}
-            />
-          </div>
+          <SetCheckoffControl
+            executionSet={mainExecutionSet}
+            setDto={mainSet}
+            isLoading={loadingSetPublicId === mainExecutionSet?.publicId}
+            onCompleteSet={onCompleteSet}
+            isSessionActive={activeSession?.status === "IN_PROGRESS"}
+          />
         </div>
 
         {mainErr && (
@@ -1386,7 +1633,7 @@ function RestPausePrescription({
         )}
 
         {miniSets.length > 0 && (
-          <div className="space-y-1.5 pt-1.5 border-t border-[var(--border-subtle)]">
+          <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
             <p className="text-[11px] font-semibold text-[var(--foreground-muted)]">
               Mini-séries após pausa de {intraPause}s:
             </p>
@@ -1399,25 +1646,26 @@ function RestPausePrescription({
               const miniErr = miniExecutionSet ? setErrors[miniExecutionSet.publicId] : null;
 
               return (
-                <div key={mini.setNumber || idx} className="space-y-1">
-                  <div
-                    className="flex flex-wrap items-center justify-between gap-2 text-xs pl-3 border-l-2 border-blue-500/50 py-0.5"
-                  >
+                <div key={mini.setNumber || idx} className="space-y-1.5 pl-3 border-l-2 border-blue-500/50 py-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="font-medium text-[var(--foreground-muted)]">
                       Mini-série {idx + 1}
                     </span>
-                    <div className="flex items-center gap-2.5 font-semibold text-[var(--foreground)]">
-                      <span>
+                    <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+                      <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
+                      <span className="font-semibold text-[var(--foreground)]">
                         {formatReps(mini)}
                         {formatLoad(mini) && ` · ${formatLoad(mini)}`}
                       </span>
-                      <SetCheckoffControl
-                        executionSet={miniExecutionSet}
-                        isLoading={loadingSetPublicId === miniExecutionSet?.publicId}
-                        onCompleteSet={onCompleteSet}
-                      />
                     </div>
                   </div>
+                  <SetCheckoffControl
+                    executionSet={miniExecutionSet}
+                    setDto={mini}
+                    isLoading={loadingSetPublicId === miniExecutionSet?.publicId}
+                    onCompleteSet={onCompleteSet}
+                    isSessionActive={activeSession?.status === "IN_PROGRESS"}
+                  />
                   {miniErr && (
                     <div className="text-right">
                       <p className="text-[11px] text-red-500 font-medium">{miniErr}</p>

@@ -79,7 +79,11 @@ export async function startOrResumeWorkoutExecutionAction(
 export async function completeWorkoutExecutionSetAction(
   slug: string,
   sessionPublicId: string,
-  setPublicId: string
+  setPublicId: string,
+  input?: {
+    actualReps?: number | null;
+    actualLoadKg?: number | null;
+  }
 ): Promise<CompleteExecutionSetResult> {
   const session = await getCurrentSession();
   if (!session) {
@@ -95,8 +99,53 @@ export async function completeWorkoutExecutionSetAction(
     return { success: false, error: "Apenas alunos podem concluir séries de treino." };
   }
 
+  // Server-side validation of actualReps (mandatory for completion)
+  if (input?.actualReps === undefined || input?.actualReps === null) {
+    return { success: false, error: "Informe o número de repetições realizadas." };
+  }
+  if (
+    typeof input.actualReps !== "number" ||
+    !Number.isFinite(input.actualReps) ||
+    !Number.isInteger(input.actualReps)
+  ) {
+    return { success: false, error: "Repetições devem ser um número inteiro." };
+  }
+  if (input.actualReps < 0) {
+    return { success: false, error: "Repetições não podem ser negativas." };
+  }
+  if (input.actualReps > 65535) {
+    return { success: false, error: "Repetições não podem exceder 65535." };
+  }
+  const validatedActualReps = input.actualReps;
+
+  // Server-side validation of actualLoadKg (optional, null allowed for bodyweight/empty)
+  let validatedActualLoadKg: number | null = null;
+  if (input?.actualLoadKg !== undefined && input?.actualLoadKg !== null) {
+    if (typeof input.actualLoadKg !== "number" || !Number.isFinite(input.actualLoadKg)) {
+      return { success: false, error: "Carga realizada deve ser um valor numérico." };
+    }
+    if (input.actualLoadKg < 0) {
+      return { success: false, error: "Carga não pode ser negativa." };
+    }
+    if (input.actualLoadKg > 9999.99) {
+      return { success: false, error: "Carga não pode exceder 9999,99 kg." };
+    }
+    const rounded = Math.round(input.actualLoadKg * 100) / 100;
+    if (Math.abs(input.actualLoadKg - rounded) > 1e-7) {
+      return { success: false, error: "Carga deve ter no máximo 2 casas decimais." };
+    }
+    validatedActualLoadKg = rounded;
+  }
+
   try {
-    const completedSet = await completeWorkoutExecutionSet(ctx, sessionPublicId, setPublicId);
+    const completedSet = await completeWorkoutExecutionSet(
+      ctx,
+      sessionPublicId,
+      setPublicId,
+      input !== undefined
+        ? { actualReps: validatedActualReps, actualLoadKg: validatedActualLoadKg }
+        : undefined
+    );
     return {
       success: true,
       set: completedSet,

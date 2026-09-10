@@ -602,24 +602,49 @@ export async function completeWorkoutExecutionSet(
 ): Promise<WorkoutExecutionSetDto> {
   assertStudentContext(ctx);
 
-  // Validate optional numeric bounds
-  if (input?.actualReps != null) {
-    if (typeof input.actualReps !== "number" || input.actualReps < 0 || input.actualReps > 500) {
+  // Validate numeric bounds
+  if (input !== undefined) {
+    if (input.actualReps === undefined || input.actualReps === null) {
       throw new TrainingAuthorizationError(
-        "Valor inválido de repetições realizadas (esperado entre 0 e 500).",
+        "Informe o número de repetições realizadas.",
         "INVALID_ACTUAL_REPS",
         400
       );
     }
-  }
-
-  if (input?.actualLoadKg != null) {
-    if (typeof input.actualLoadKg !== "number" || input.actualLoadKg < 0 || input.actualLoadKg > 1000) {
+    if (
+      typeof input.actualReps !== "number" ||
+      !Number.isFinite(input.actualReps) ||
+      !Number.isInteger(input.actualReps) ||
+      input.actualReps < 0 ||
+      input.actualReps > 65535
+    ) {
       throw new TrainingAuthorizationError(
-        "Valor inválido de carga realizada (esperado entre 0 e 1000 kg).",
-        "INVALID_ACTUAL_LOAD",
+        "Valor inválido de repetições realizadas (esperado número inteiro entre 0 e 65535).",
+        "INVALID_ACTUAL_REPS",
         400
       );
+    }
+    if (input.actualLoadKg !== undefined && input.actualLoadKg !== null) {
+      if (
+        typeof input.actualLoadKg !== "number" ||
+        !Number.isFinite(input.actualLoadKg) ||
+        input.actualLoadKg < 0 ||
+        input.actualLoadKg > 9999.99
+      ) {
+        throw new TrainingAuthorizationError(
+          "Valor inválido de carga realizada (esperado entre 0 e 9999.99 kg).",
+          "INVALID_ACTUAL_LOAD",
+          400
+        );
+      }
+      const rounded = Math.round(input.actualLoadKg * 100) / 100;
+      if (Math.abs(input.actualLoadKg - rounded) > 1e-7) {
+        throw new TrainingAuthorizationError(
+          "Carga deve ter no máximo 2 casas decimais.",
+          "INVALID_ACTUAL_LOAD",
+          400
+        );
+      }
     }
   }
 
@@ -695,29 +720,30 @@ export async function completeWorkoutExecutionSet(
 
     const targetSet = setRows[0];
 
-    // 3. Apply completion idempotently
+    // 3. Apply completion idempotently: atomic update of completed_at, actual_reps and actual_load_kg
     const now = new Date();
     const actualReps = input?.actualReps !== undefined ? input.actualReps : targetSet.actual_reps;
-    const actualLoadKg = input?.actualLoadKg !== undefined ? input.actualLoadKg : targetSet.actual_load_kg;
-    const completedAt = targetSet.completed_at ? new Date(targetSet.completed_at) : now;
+    const actualLoadKg =
+      input?.actualLoadKg !== undefined
+        ? input.actualLoadKg != null
+          ? Math.round(input.actualLoadKg * 100) / 100
+          : null
+        : targetSet.actual_load_kg;
 
     if (targetSet.completed_at == null) {
-      // First completion
+      // First completion: atomically persist completed_at, actual_reps, and actual_load_kg
       await connection.execute<ResultSetHeader>(
         `UPDATE workout_execution_sets
          SET completed_at = ?, actual_reps = ?, actual_load_kg = ?, updated_at = NOW(3)
          WHERE id = ?;`,
         [now, actualReps ?? null, actualLoadKg ?? null, targetSet.id]
       );
-    } else if (input?.actualReps !== undefined || input?.actualLoadKg !== undefined) {
-      // Idempotent repeat with updated actuals: preserve original completed_at
-      await connection.execute<ResultSetHeader>(
-        `UPDATE workout_execution_sets
-         SET actual_reps = ?, actual_load_kg = ?, updated_at = NOW(3)
-         WHERE id = ?;`,
-        [actualReps ?? null, actualLoadKg ?? null, targetSet.id]
-      );
+      targetSet.completed_at = now;
+      targetSet.actual_reps = actualReps ?? null;
+      targetSet.actual_load_kg = actualLoadKg ?? null;
+      targetSet.updated_at = now;
     }
+    // If targetSet.completed_at != null, already completed: idempotent no-op, preserving existing completion
 
     await connection.commit();
 
@@ -733,11 +759,11 @@ export async function completeWorkoutExecutionSet(
       prescribedRepsMax: targetSet.prescribed_reps_max != null ? Number(targetSet.prescribed_reps_max) : null,
       prescribedLoadKg: targetSet.prescribed_load_kg != null ? Number(targetSet.prescribed_load_kg) : null,
       prescribedRestSeconds: targetSet.prescribed_rest_seconds != null ? Number(targetSet.prescribed_rest_seconds) : null,
-      actualReps: actualReps != null ? Number(actualReps) : null,
-      actualLoadKg: actualLoadKg != null ? Number(actualLoadKg) : null,
-      completedAt,
+      actualReps: targetSet.actual_reps != null ? Number(targetSet.actual_reps) : null,
+      actualLoadKg: targetSet.actual_load_kg != null ? Number(targetSet.actual_load_kg) : null,
+      completedAt: targetSet.completed_at ? new Date(targetSet.completed_at) : null,
       createdAt: new Date(targetSet.created_at),
-      updatedAt: now,
+      updatedAt: new Date(targetSet.updated_at),
     };
   } catch (err) {
     await connection.rollback();

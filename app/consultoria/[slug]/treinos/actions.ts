@@ -80,9 +80,9 @@ export async function completeWorkoutExecutionSetAction(
   slug: string,
   sessionPublicId: string,
   setPublicId: string,
-  input?: {
-    actualReps?: number | null;
-    actualLoadKg?: number | null;
+  input: {
+    actualReps: number;
+    actualLoadKg: number | null;
   }
 ): Promise<CompleteExecutionSetResult> {
   const session = await getCurrentSession();
@@ -99,8 +99,12 @@ export async function completeWorkoutExecutionSetAction(
     return { success: false, error: "Apenas alunos podem concluir séries de treino." };
   }
 
+  if (input == null || typeof input !== "object") {
+    return { success: false, error: "Dados de realização da série são obrigatórios." };
+  }
+
   // Server-side validation of actualReps (mandatory for completion)
-  if (input?.actualReps === undefined || input?.actualReps === null) {
+  if (input.actualReps === undefined || input.actualReps === null) {
     return { success: false, error: "Informe o número de repetições realizadas." };
   }
   if (
@@ -120,7 +124,7 @@ export async function completeWorkoutExecutionSetAction(
 
   // Server-side validation of actualLoadKg (optional, null allowed for bodyweight/empty)
   let validatedActualLoadKg: number | null = null;
-  if (input?.actualLoadKg !== undefined && input?.actualLoadKg !== null) {
+  if (input.actualLoadKg !== null && input.actualLoadKg !== undefined) {
     if (typeof input.actualLoadKg !== "number" || !Number.isFinite(input.actualLoadKg)) {
       return { success: false, error: "Carga realizada deve ser um valor numérico." };
     }
@@ -142,9 +146,7 @@ export async function completeWorkoutExecutionSetAction(
       ctx,
       sessionPublicId,
       setPublicId,
-      input !== undefined
-        ? { actualReps: validatedActualReps, actualLoadKg: validatedActualLoadKg }
-        : undefined
+      { actualReps: validatedActualReps, actualLoadKg: validatedActualLoadKg }
     );
     return {
       success: true,

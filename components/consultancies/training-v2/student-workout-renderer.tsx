@@ -378,7 +378,7 @@ export function StudentWorkoutRenderer({
 
   async function handleCompleteSet(
     setPublicId: string,
-    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+    input: { actualReps: number; actualLoadKg: number | null }
   ) {
     if (!consultancySlug || !activeSession || activeSession.status !== "IN_PROGRESS" || loadingSetPublicId) {
       return;
@@ -746,7 +746,7 @@ function BlockCard({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+    input: { actualReps: number; actualLoadKg: number | null }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
@@ -855,7 +855,7 @@ function ItemCard({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+    input: { actualReps: number; actualLoadKg: number | null }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
@@ -1079,7 +1079,7 @@ function SetCheckoffControl({
   isLoading: boolean;
   onCompleteSet?: (
     setPublicId: string,
-    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+    input: { actualReps: number; actualLoadKg: number | null }
   ) => Promise<void>;
   isSessionActive?: boolean;
 }) {
@@ -1134,7 +1134,7 @@ function PendingSetControl({
   isLoading: boolean;
   onCompleteSet?: (
     setPublicId: string,
-    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+    input: { actualReps: number; actualLoadKg: number | null }
   ) => Promise<void>;
 }) {
   const [repsInput, setRepsInput] = useState<string>(() =>
@@ -1222,6 +1222,12 @@ function PendingSetControl({
                 setRepsInput(e.target.value);
                 setValidationError(null);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
               disabled={isBusy}
               placeholder="0"
               className="w-14 h-8 px-2 text-center text-xs font-semibold text-[var(--foreground)] bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
@@ -1244,6 +1250,12 @@ function PendingSetControl({
                 onChange={(e) => {
                   setLoadInput(e.target.value);
                   setValidationError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSubmit();
+                  }
                 }}
                 disabled={isBusy}
                 placeholder="0"
@@ -1301,7 +1313,7 @@ function StandardSetsPrescription({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+    input: { actualReps: number; actualLoadKg: number | null }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
@@ -1454,7 +1466,7 @@ function DropSetPrescription({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+    input: { actualReps: number; actualLoadKg: number | null }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
@@ -1578,7 +1590,7 @@ function RestPausePrescription({
   setErrors?: Record<string, string>;
   onCompleteSet?: (
     setPublicId: string,
-    input?: { actualReps?: number | null; actualLoadKg?: number | null }
+    input: { actualReps: number; actualLoadKg: number | null }
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;

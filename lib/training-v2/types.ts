@@ -327,6 +327,6 @@ export type WorkoutExecutionSessionDto = {
 };
 
 export type CompleteExecutionSetInput = {
-  actualReps?: number | null;
-  actualLoadKg?: number | null;
+  actualReps: number;
+  actualLoadKg: number | null;
 };

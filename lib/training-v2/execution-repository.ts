@@ -598,53 +598,61 @@ export async function completeWorkoutExecutionSet(
   ctx: TrainingAccessContext,
   sessionPublicId: string,
   setPublicId: string,
-  input?: CompleteExecutionSetInput
+  input: CompleteExecutionSetInput
 ): Promise<WorkoutExecutionSetDto> {
   assertStudentContext(ctx);
 
-  // Validate numeric bounds
-  if (input !== undefined) {
-    if (input.actualReps === undefined || input.actualReps === null) {
-      throw new TrainingAuthorizationError(
-        "Informe o número de repetições realizadas.",
-        "INVALID_ACTUAL_REPS",
-        400
-      );
-    }
+  if (input == null || typeof input !== "object") {
+    throw new TrainingAuthorizationError(
+      "Dados de realização da série são obrigatórios.",
+      "INVALID_INPUT",
+      400
+    );
+  }
+
+  // Validate actualReps (strictly mandatory)
+  if (input.actualReps === undefined || input.actualReps === null) {
+    throw new TrainingAuthorizationError(
+      "Informe o número de repetições realizadas.",
+      "INVALID_ACTUAL_REPS",
+      400
+    );
+  }
+  if (
+    typeof input.actualReps !== "number" ||
+    !Number.isFinite(input.actualReps) ||
+    !Number.isInteger(input.actualReps) ||
+    input.actualReps < 0 ||
+    input.actualReps > 65535
+  ) {
+    throw new TrainingAuthorizationError(
+      "Valor inválido de repetições realizadas (esperado número inteiro entre 0 e 65535).",
+      "INVALID_ACTUAL_REPS",
+      400
+    );
+  }
+
+  // Validate actualLoadKg (null or number between 0 and 9999.99 with at most 2 decimals)
+  if (input.actualLoadKg !== null) {
     if (
-      typeof input.actualReps !== "number" ||
-      !Number.isFinite(input.actualReps) ||
-      !Number.isInteger(input.actualReps) ||
-      input.actualReps < 0 ||
-      input.actualReps > 65535
+      typeof input.actualLoadKg !== "number" ||
+      !Number.isFinite(input.actualLoadKg) ||
+      input.actualLoadKg < 0 ||
+      input.actualLoadKg > 9999.99
     ) {
       throw new TrainingAuthorizationError(
-        "Valor inválido de repetições realizadas (esperado número inteiro entre 0 e 65535).",
-        "INVALID_ACTUAL_REPS",
+        "Valor inválido de carga realizada (esperado entre 0 e 9999.99 kg).",
+        "INVALID_ACTUAL_LOAD",
         400
       );
     }
-    if (input.actualLoadKg !== undefined && input.actualLoadKg !== null) {
-      if (
-        typeof input.actualLoadKg !== "number" ||
-        !Number.isFinite(input.actualLoadKg) ||
-        input.actualLoadKg < 0 ||
-        input.actualLoadKg > 9999.99
-      ) {
-        throw new TrainingAuthorizationError(
-          "Valor inválido de carga realizada (esperado entre 0 e 9999.99 kg).",
-          "INVALID_ACTUAL_LOAD",
-          400
-        );
-      }
-      const rounded = Math.round(input.actualLoadKg * 100) / 100;
-      if (Math.abs(input.actualLoadKg - rounded) > 1e-7) {
-        throw new TrainingAuthorizationError(
-          "Carga deve ter no máximo 2 casas decimais.",
-          "INVALID_ACTUAL_LOAD",
-          400
-        );
-      }
+    const rounded = Math.round(input.actualLoadKg * 100) / 100;
+    if (Math.abs(input.actualLoadKg - rounded) > 1e-7) {
+      throw new TrainingAuthorizationError(
+        "Carga deve ter no máximo 2 casas decimais.",
+        "INVALID_ACTUAL_LOAD",
+        400
+      );
     }
   }
 
@@ -722,13 +730,11 @@ export async function completeWorkoutExecutionSet(
 
     // 3. Apply completion idempotently: atomic update of completed_at, actual_reps and actual_load_kg
     const now = new Date();
-    const actualReps = input?.actualReps !== undefined ? input.actualReps : targetSet.actual_reps;
+    const actualReps = input.actualReps;
     const actualLoadKg =
-      input?.actualLoadKg !== undefined
-        ? input.actualLoadKg != null
-          ? Math.round(input.actualLoadKg * 100) / 100
-          : null
-        : targetSet.actual_load_kg;
+      input.actualLoadKg !== null
+        ? Math.round(input.actualLoadKg * 100) / 100
+        : null;
 
     if (targetSet.completed_at == null) {
       // First completion: atomically persist completed_at, actual_reps, and actual_load_kg
@@ -736,11 +742,11 @@ export async function completeWorkoutExecutionSet(
         `UPDATE workout_execution_sets
          SET completed_at = ?, actual_reps = ?, actual_load_kg = ?, updated_at = NOW(3)
          WHERE id = ?;`,
-        [now, actualReps ?? null, actualLoadKg ?? null, targetSet.id]
+        [now, actualReps, actualLoadKg, targetSet.id]
       );
       targetSet.completed_at = now;
-      targetSet.actual_reps = actualReps ?? null;
-      targetSet.actual_load_kg = actualLoadKg ?? null;
+      targetSet.actual_reps = actualReps;
+      targetSet.actual_load_kg = actualLoadKg;
       targetSet.updated_at = now;
     }
     // If targetSet.completed_at != null, already completed: idempotent no-op, preserving existing completion

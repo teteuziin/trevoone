@@ -330,3 +330,25 @@ export type CompleteExecutionSetInput = {
   actualReps: number;
   actualLoadKg: number | null;
 };
+
+export type WorkoutExecutionHistorySetDto = {
+  publicId: string;
+  setNumber: number;
+  exerciseName: string;
+  blockItemPublicId?: string;
+  setType: WorkoutSetType;
+  prescribedReps: number | null;
+  prescribedRepsMax: number | null;
+  prescribedLoadKg: number | null;
+  prescribedRestSeconds: number | null;
+  actualReps: number | null;
+  actualLoadKg: number | null;
+  completedAt: Date | null;
+};
+
+export type WorkoutExecutionHistorySessionDto = {
+  publicId: string;
+  startedAt: Date;
+  completedAt: Date | null;
+  sets: WorkoutExecutionHistorySetDto[];
+};

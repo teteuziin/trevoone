@@ -4,7 +4,10 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { getStudentWorkoutView } from "@/lib/training-v2/assignment-repository";
-import { getActiveOrLatestStudentWorkoutExecution } from "@/lib/training-v2/execution-repository";
+import {
+  getActiveOrLatestStudentWorkoutExecution,
+  listStudentWorkoutExecutionHistory,
+} from "@/lib/training-v2/execution-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { StudentWorkoutRenderer } from "@/components/consultancies/training-v2/student-workout-renderer";
 
@@ -34,9 +37,10 @@ export default async function StudentWorkoutDetailPage({ params }: PageProps) {
   }
 
   // Load through assignment authority (verifies student ownership & active status)
-  const [workoutView, initialExecution] = await Promise.all([
+  const [workoutView, initialExecution, executionHistory] = await Promise.all([
     getStudentWorkoutView(ctx, assignmentPublicId),
     getActiveOrLatestStudentWorkoutExecution(ctx, assignmentPublicId),
+    listStudentWorkoutExecutionHistory(ctx, assignmentPublicId),
   ]);
 
   if (!workoutView) {
@@ -63,10 +67,11 @@ export default async function StudentWorkoutDetailPage({ params }: PageProps) {
           </Link>
         </div>
 
-        {/* Workout Renderer with Execution State */}
+        {/* Workout Renderer with Execution State and History */}
         <StudentWorkoutRenderer
           workout={workoutView}
           initialExecution={initialExecution}
+          initialHistory={executionHistory}
           consultancySlug={slug}
         />
       </div>

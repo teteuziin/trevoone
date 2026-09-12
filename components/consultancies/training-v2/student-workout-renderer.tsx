@@ -5,6 +5,8 @@ import type {
   StudentWorkoutViewContract,
   WorkoutExecutionSessionDto,
   WorkoutExecutionSetDto,
+  WorkoutExecutionHistorySessionDto,
+  WorkoutExecutionHistorySetDto,
   WorkoutBlockDto,
   WorkoutBlockItemDto,
   WorkoutItemSetDto,
@@ -275,17 +277,37 @@ function parseInstructions(rawText?: string | null): ParsedInstructions | null {
 type StudentWorkoutRendererProps = {
   workout: StudentWorkoutViewContract;
   initialExecution?: WorkoutExecutionSessionDto | null;
+  initialHistory?: WorkoutExecutionHistorySessionDto[];
   consultancySlug?: string;
 };
 
 export function StudentWorkoutRenderer({
   workout,
   initialExecution = null,
+  initialHistory = [],
   consultancySlug,
 }: StudentWorkoutRendererProps) {
   const [activeSession, setActiveSession] = useState<WorkoutExecutionSessionDto | null>(
     initialExecution || null
   );
+  const [completedSessions, setCompletedSessions] = useState<WorkoutExecutionHistorySessionDto[]>([]);
+
+  const history = useMemo(() => {
+    const map = new Map<string, WorkoutExecutionHistorySessionDto>();
+    for (const s of completedSessions) {
+      map.set(s.publicId, s);
+    }
+    for (const s of initialHistory) {
+      if (!map.has(s.publicId)) {
+        map.set(s.publicId, s);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      const da = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+      const db = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+      return db - da;
+    });
+  }, [completedSessions, initialHistory]);
   const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -364,8 +386,45 @@ export function StudentWorkoutRenderer({
       );
 
       if (res.success && res.session) {
-        setActiveSession(res.session);
+        const completedSession = res.session;
+        setActiveSession(completedSession);
         setManualRest(null);
+
+        // Prepend the freshly completed session to local history view
+        const completedHistorySession: WorkoutExecutionHistorySessionDto = {
+          publicId: completedSession.publicId,
+          startedAt: completedSession.startedAt,
+          completedAt: completedSession.completedAt,
+          sets: completedSession.sets.map((s) => {
+            let exName = "Exercício";
+            for (const b of workout.blocks) {
+              for (const item of b.items) {
+                if (s.blockItemPublicId && item.publicId === s.blockItemPublicId) {
+                  exName = item.exerciseNameSnapshot;
+                  break;
+                }
+              }
+            }
+            return {
+              publicId: s.publicId,
+              setNumber: s.setNumber,
+              exerciseName: exName,
+              blockItemPublicId: s.blockItemPublicId,
+              setType: s.setType,
+              prescribedReps: s.prescribedReps,
+              prescribedRepsMax: s.prescribedRepsMax,
+              prescribedLoadKg: s.prescribedLoadKg,
+              prescribedRestSeconds: s.prescribedRestSeconds,
+              actualReps: s.actualReps,
+              actualLoadKg: s.actualLoadKg,
+              completedAt: s.completedAt,
+            };
+          }),
+        };
+        setCompletedSessions((prev) => [
+          completedHistorySession,
+          ...prev.filter((item) => item.publicId !== completedSession.publicId),
+        ]);
       } else {
         setCompleteError(res.error || "Erro ao finalizar o treino.");
       }
@@ -725,6 +784,9 @@ export function StudentWorkoutRenderer({
           </div>
         )}
       </div>
+
+      {/* Execution History */}
+      <WorkoutExecutionHistorySection history={history} />
     </div>
   );
 }
@@ -1785,6 +1847,217 @@ function WarmupPrescription({ item }: { item: WorkoutBlockItemDto }) {
       </div>
 
       {sets.length > 0 && <StandardSetsPrescription sets={sets} item={item} />}
+    </div>
+  );
+}
+
+function HistoryIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function formatLoadNumber(val: number): string {
+  const rounded = Math.round(val * 100) / 100;
+  return rounded.toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatHistoryDate(dateVal: string | Date | null): string {
+  if (!dateVal) return "Data não registrada";
+  const date = typeof dateVal === "string" ? new Date(dateVal) : dateVal;
+  if (isNaN(date.getTime())) return String(dateVal);
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${day}/${month}/${year} às ${hours}:${minutes}`;
+}
+
+function formatPrescribedSet(set: WorkoutExecutionHistorySetDto): string {
+  const parts: string[] = [];
+
+  if (
+    set.prescribedReps != null &&
+    set.prescribedRepsMax != null &&
+    set.prescribedReps !== set.prescribedRepsMax
+  ) {
+    parts.push(`${set.prescribedReps}-${set.prescribedRepsMax} reps`);
+  } else if (set.prescribedReps != null) {
+    parts.push(`${set.prescribedReps} reps`);
+  }
+
+  if (set.prescribedLoadKg != null) {
+    parts.push(`${formatLoadNumber(set.prescribedLoadKg)} kg`);
+  }
+
+  if (set.prescribedRestSeconds != null && set.prescribedRestSeconds > 0) {
+    parts.push(`${set.prescribedRestSeconds}s`);
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : "Sem prescrição";
+}
+
+function formatActualSet(set: WorkoutExecutionHistorySetDto) {
+  // If actualReps is null: legacy session or unregistered
+  if (set.actualReps == null) {
+    return (
+      <span className="italic text-[var(--foreground-muted)]">
+        Dados realizados não registrados
+      </span>
+    );
+  }
+
+  const parts: string[] = [];
+  parts.push(`${set.actualReps} reps`);
+
+  // STRICT RULE: actual_load_kg = NULL → não mostrar "0 kg". actual_load_kg = 0.00 → mostrar "0 kg"
+  if (set.actualLoadKg != null) {
+    parts.push(`${formatLoadNumber(set.actualLoadKg)} kg`);
+  }
+
+  return <span className="font-semibold text-[var(--foreground)]">{parts.join(" · ")}</span>;
+}
+
+function WorkoutExecutionHistorySection({
+  history,
+}: {
+  history: WorkoutExecutionHistorySessionDto[];
+}) {
+  return (
+    <section aria-label="Histórico de execuções" className="pt-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <HistoryIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <h2 className="text-sm sm:text-base font-bold text-[var(--foreground)]">
+            Histórico de execuções
+          </h2>
+          {history.length > 0 && (
+            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+              {history.length}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {history.length === 0 ? (
+        <div className="p-6 rounded-2xl border border-dashed border-[var(--border)] text-center">
+          <p className="text-xs sm:text-sm text-[var(--foreground-muted)]">
+            Nenhum treino concluído ainda.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {history.map((session) => (
+            <HistorySessionCard key={session.publicId} session={session} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function HistorySessionCard({
+  session,
+}: {
+  session: WorkoutExecutionHistorySessionDto;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Group sets by exercise name, preserving sequential order
+  const exerciseGroups: { exerciseName: string; sets: WorkoutExecutionHistorySetDto[] }[] = [];
+  for (const set of session.sets) {
+    const name = set.exerciseName || "Exercício";
+    const lastGroup = exerciseGroups[exerciseGroups.length - 1];
+    if (lastGroup && lastGroup.exerciseName === name) {
+      lastGroup.sets.push(set);
+    } else {
+      exerciseGroups.push({ exerciseName: name, sets: [set] });
+    }
+  }
+
+  const completedSetsCount = session.sets.filter((s) => s.completedAt != null).length;
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 transition-all">
+      <div className="flex items-center justify-between gap-3">
+        <div className="space-y-0.5 min-w-0">
+          <p
+            suppressHydrationWarning
+            className="text-xs sm:text-sm font-semibold text-[var(--foreground)] truncate"
+          >
+            {formatHistoryDate(session.completedAt || session.startedAt)}
+          </p>
+          <p className="text-xs text-[var(--foreground-muted)]">
+            {completedSetsCount} {completedSetsCount === 1 ? "série concluída" : "séries concluídas"}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsExpanded((prev) => !prev)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border)] bg-transparent hover:bg-neutral-500/5 text-xs font-medium text-[var(--foreground)] transition-colors cursor-pointer shrink-0"
+          aria-expanded={isExpanded}
+        >
+          <span>{isExpanded ? "Ocultar detalhes" : "Ver detalhes"}</span>
+          <ChevronDownIcon
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${
+              isExpanded ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-4">
+          {exerciseGroups.map((group, gIdx) => (
+            <div key={gIdx} className="space-y-2">
+              <h4 className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
+                {group.exerciseName}
+              </h4>
+              <div className="space-y-2">
+                {group.sets.map((set) => {
+                  const prescribedText = formatPrescribedSet(set);
+                  const actualContent = formatActualSet(set);
+
+                  return (
+                    <div
+                      key={set.publicId}
+                      className="p-3 rounded-xl bg-neutral-500/5 border border-neutral-500/10 text-xs space-y-1"
+                    >
+                      <div className="font-semibold text-[var(--foreground)]">
+                        Série {set.setNumber}
+                      </div>
+                      <div className="text-[var(--foreground-muted)]">
+                        <span className="font-medium">Prescrito:</span> {prescribedText}
+                      </div>
+                      <div>
+                        <span className="font-medium text-[var(--foreground-muted)]">Realizado: </span>
+                        {actualContent}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

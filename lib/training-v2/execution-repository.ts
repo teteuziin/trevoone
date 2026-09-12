@@ -18,6 +18,8 @@ import type {
   WorkoutExecutionSessionStatus,
   CompleteExecutionSetInput,
   WorkoutSetType,
+  WorkoutExecutionHistorySessionDto,
+  WorkoutExecutionHistorySetDto,
 } from "./types";
 
 function mapExecutionSetRow(r: RowDataPacket): WorkoutExecutionSetDto {
@@ -915,6 +917,129 @@ export async function completeWorkoutExecution(
   } catch (err) {
     await connection.rollback();
     throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Lists previous COMPLETED workout execution sessions for a specific assignment.
+ * Read-only, ordered newest first (completed_at DESC, created_at DESC).
+ * Zero N+1: executed in maximum 2 batch queries (sessions + execution sets in lote).
+ */
+export async function listStudentWorkoutExecutionHistory(
+  ctx: TrainingAccessContext,
+  assignmentPublicId: string,
+  limit: number = 20
+): Promise<WorkoutExecutionHistorySessionDto[]> {
+  assertStudentContext(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    // 1. Validate assignment ownership and tenancy
+    const [assignRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, consultancy_id, student_membership_id
+       FROM workout_assignments
+       WHERE public_id = ? AND deleted_at IS NULL
+       LIMIT 1;`,
+      [assignmentPublicId]
+    );
+
+    if (!assignRows || assignRows.length === 0) {
+      throw new TrainingAuthorizationError(
+        "Prescrição de treino não encontrada.",
+        "NOT_FOUND",
+        404
+      );
+    }
+
+    const assign = assignRows[0];
+    if (Number(assign.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError(
+        "Acesso negado: prescrição de outra consultoria.",
+        "FORBIDDEN",
+        403
+      );
+    }
+
+    if (Number(assign.student_membership_id) !== ctx.membershipId) {
+      throw new TrainingAuthorizationError(
+        "Acesso negado: prescrição pertence a outro aluno.",
+        "FORBIDDEN",
+        403
+      );
+    }
+
+    // 2. Fetch COMPLETED sessions for this assignment (newest first, limit bounded)
+    const safeLimit = Math.max(1, Math.min(limit, 100));
+    const [sessionRows] = await connection.query<RowDataPacket[]>(
+      `SELECT id, public_id, started_at, completed_at
+       FROM workout_execution_sessions
+       WHERE workout_assignment_id = ? AND status = 'COMPLETED'
+       ORDER BY completed_at DESC, created_at DESC
+       LIMIT ?;`,
+      [assign.id, safeLimit]
+    );
+
+    if (!sessionRows || sessionRows.length === 0) {
+      return [];
+    }
+
+    // 3. Batch fetch all execution sets for these sessions in ONE single query (zero N+1)
+    const sessionIds = sessionRows.map((s) => Number(s.id));
+    const [setRows] = await connection.query<RowDataPacket[]>(
+      `SELECT
+        wex.public_id,
+        wex.execution_session_id,
+        wex.set_number,
+        wex.set_type,
+        wex.prescribed_reps,
+        wex.prescribed_reps_max,
+        wex.prescribed_load_kg,
+        wex.prescribed_rest_seconds,
+        wex.actual_reps,
+        wex.actual_load_kg,
+        wex.completed_at,
+        wbi.public_id AS block_item_public_id,
+        wbi.exercise_name_snapshot
+       FROM workout_execution_sets wex
+       INNER JOIN workout_block_items wbi ON wbi.id = wex.block_item_id
+       WHERE wex.execution_session_id IN (?)
+       ORDER BY wex.execution_session_id ASC, wex.set_number ASC;`,
+      [sessionIds]
+    );
+
+    // Group sets by execution_session_id
+    const setsBySessionId = new Map<number, WorkoutExecutionHistorySetDto[]>();
+    for (const r of setRows) {
+      const sId = Number(r.execution_session_id);
+      if (!setsBySessionId.has(sId)) {
+        setsBySessionId.set(sId, []);
+      }
+      setsBySessionId.get(sId)!.push({
+        publicId: String(r.public_id),
+        setNumber: Number(r.set_number),
+        exerciseName: String(r.exercise_name_snapshot || "Exercício"),
+        blockItemPublicId: r.block_item_public_id ? String(r.block_item_public_id) : undefined,
+        setType: r.set_type as WorkoutSetType,
+        prescribedReps: r.prescribed_reps != null ? Number(r.prescribed_reps) : null,
+        prescribedRepsMax: r.prescribed_reps_max != null ? Number(r.prescribed_reps_max) : null,
+        prescribedLoadKg: r.prescribed_load_kg != null ? Number(r.prescribed_load_kg) : null,
+        prescribedRestSeconds: r.prescribed_rest_seconds != null ? Number(r.prescribed_rest_seconds) : null,
+        actualReps: r.actual_reps != null ? Number(r.actual_reps) : null,
+        actualLoadKg: r.actual_load_kg != null ? Number(r.actual_load_kg) : null,
+        completedAt: r.completed_at ? new Date(r.completed_at) : null,
+      });
+    }
+
+    return sessionRows.map((s) => ({
+      publicId: String(s.public_id),
+      startedAt: new Date(s.started_at),
+      completedAt: s.completed_at ? new Date(s.completed_at) : null,
+      sets: setsBySessionId.get(Number(s.id)) || [],
+    }));
   } finally {
     connection.release();
   }

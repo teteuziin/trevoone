@@ -47,30 +47,11 @@ function Play({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function Dumbbell({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
-    </svg>
-  );
-}
-
 function Clock({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function Calendar({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
     </svg>
   );
 }
@@ -112,6 +93,14 @@ function Info({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function ChevronDownIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
 const METHOD_LABELS: Record<string, string> = {
   SINGLE: "Série Simples",
   BI_SET: "Bi-Set",
@@ -134,15 +123,6 @@ const SET_TYPE_LABELS: Record<string, string> = {
   REST_PAUSE_MINI: "Mini-série",
   FAILURE: "Até a Falha",
 };
-
-function Video({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <polygon points="23 7 16 12 23 17 23 7" />
-      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-    </svg>
-  );
-}
 
 function formatReps(set: WorkoutItemSetDto): string {
   if (set.targetReps != null && set.targetRepsMax != null && set.targetReps !== set.targetRepsMax) {
@@ -173,46 +153,6 @@ function formatRest(seconds?: number | null, options?: { includeWord?: boolean }
     return `${mins} min${word}`;
   }
   return `${mins}m ${rem}s${word}`;
-}
-
-function formatRepsSummary(sets: WorkoutItemSetDto[]): string {
-  if (!sets || sets.length === 0) return "";
-  const s0 = sets[0];
-  const isUniform = sets.every(
-    (s) => s.targetReps === s0.targetReps && s.targetRepsMax === s0.targetRepsMax
-  );
-
-  const seriesLabel = `${sets.length} ${sets.length === 1 ? "série" : "séries"}`;
-  if (!isUniform) {
-    return seriesLabel;
-  }
-
-  let repsText = "";
-  if (s0.targetReps != null && s0.targetRepsMax != null && s0.targetReps !== s0.targetRepsMax) {
-    repsText = `${s0.targetReps}–${s0.targetRepsMax} repetições`;
-  } else if (s0.targetReps != null) {
-    repsText = `${s0.targetReps} repetições`;
-  } else {
-    return seriesLabel;
-  }
-
-  return `${seriesLabel} × ${repsText}`;
-}
-
-function getUniformLoad(sets: WorkoutItemSetDto[]): string | null {
-  if (!sets || sets.length === 0) return null;
-  const firstLoad = sets[0].targetLoadKg;
-  if (firstLoad == null) return null;
-  const allSame = sets.every((s) => s.targetLoadKg === firstLoad);
-  return allSame ? `${firstLoad} kg` : null;
-}
-
-function getUniformRest(sets: WorkoutItemSetDto[]): string | null {
-  if (!sets || sets.length === 0) return null;
-  const firstRest = sets[0].targetRestSeconds;
-  if (firstRest == null) return null;
-  const allSame = sets.every((s) => s.targetRestSeconds === firstRest);
-  return allSame ? formatRest(firstRest) : null;
 }
 
 type ParsedInstructions =
@@ -274,6 +214,105 @@ function parseInstructions(rawText?: string | null): ParsedInstructions | null {
   };
 }
 
+function formatCompactPrescriptionSummary(sets: WorkoutItemSetDto[]): string {
+  if (!sets || sets.length === 0) return "";
+  const count = sets.length;
+  const s0 = sets[0];
+  const allSameReps = sets.every(
+    (s) => s.targetReps === s0.targetReps && s.targetRepsMax === s0.targetRepsMax
+  );
+  const allSameLoad = sets.every((s) => s.targetLoadKg === s0.targetLoadKg);
+  const allSameRest = sets.every((s) => s.targetRestSeconds === s0.targetRestSeconds);
+
+  const parts: string[] = [];
+
+  if (allSameReps) {
+    if (s0.targetReps != null && s0.targetRepsMax != null && s0.targetReps !== s0.targetRepsMax) {
+      parts.push(`${count} × ${s0.targetReps}–${s0.targetRepsMax} reps`);
+    } else if (s0.targetReps != null) {
+      parts.push(`${count} × ${s0.targetReps} reps`);
+    } else {
+      parts.push(`${count} ${count === 1 ? "série" : "séries"}`);
+    }
+  } else {
+    parts.push(`${count} ${count === 1 ? "série" : "séries"}`);
+  }
+
+  if (allSameLoad && s0.targetLoadKg != null) {
+    parts.push(`${s0.targetLoadKg} kg`);
+  }
+
+  if (allSameRest && s0.targetRestSeconds != null && s0.targetRestSeconds > 0) {
+    const formatted = formatRest(s0.targetRestSeconds);
+    if (formatted) parts.push(formatted);
+  }
+
+  return parts.join(" · ");
+}
+
+function InstructionsAccordion({ instructions }: { instructions: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const parsed = useMemo(() => parseInstructions(instructions), [instructions]);
+
+  if (!parsed) return null;
+
+  return (
+    <div className="pt-1">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="w-full flex items-center justify-between p-3 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)] transition-colors cursor-pointer select-none"
+        aria-expanded={isOpen}
+      >
+        <div className="flex items-center gap-2">
+          <Info className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span>Como executar</span>
+        </div>
+        <div className="flex items-center gap-1 text-[11px] text-[var(--foreground-muted)] font-normal">
+          <span>{isOpen ? "Ocultar" : "Ver instruções"}</span>
+          <ChevronDownIcon
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="mt-2 p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] space-y-2.5 text-xs text-[var(--foreground)]">
+          {parsed.type === "steps" ? (
+            <div className="space-y-2.5">
+              {parsed.preamble && (
+                <p className="text-xs font-semibold text-[var(--foreground)]">
+                  {parsed.preamble}
+                </p>
+              )}
+              <ol className="space-y-2">
+                {parsed.steps.map((step, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-xs text-[var(--foreground)] leading-relaxed">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <span className="flex-1 pt-0.5">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {parsed.paragraphs.map((para, idx) => (
+                <p key={idx} className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                  {para}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type StudentWorkoutRendererProps = {
   workout: StudentWorkoutViewContract;
   initialExecution?: WorkoutExecutionSessionDto | null;
@@ -315,6 +354,41 @@ export function StudentWorkoutRenderer({
   const [loadingSetPublicId, setLoadingSetPublicId] = useState<string | null>(null);
   const [setErrors, setSetErrors] = useState<Record<string, string>>({});
   const [manualRest, setManualRest] = useState<ActiveRestState | null | undefined>(undefined);
+
+  // Session-scoped UI expansion and draft state
+  // Keyed by activeSession.publicId to ensure:
+  // 1) Values and expansions are preserved during re-renders and set collapse within the same execution
+  // 2) When "Treinar novamente" starts a new session, its state automatically resets (no inherited drafts, future sets collapsed)
+  const [expandedSetsBySession, setExpandedSetsBySession] = useState<
+    Record<string, Record<string, boolean>>
+  >({});
+  const [draftsBySession, setDraftsBySession] = useState<
+    Record<string, Record<string, { reps: string; load: string }>>
+  >({});
+
+  const currentSessionKey = activeSession?.publicId || "preview";
+  const expandedFutureSets = expandedSetsBySession[currentSessionKey] || {};
+  const sessionDrafts = draftsBySession[currentSessionKey] || {};
+
+  const handleToggleExpandSet = (setKey: string, expanded: boolean) => {
+    setExpandedSetsBySession((prev) => ({
+      ...prev,
+      [currentSessionKey]: {
+        ...(prev[currentSessionKey] || {}),
+        [setKey]: expanded,
+      },
+    }));
+  };
+
+  const handleDraftChange = (setKey: string, draft: { reps: string; load: string }) => {
+    setDraftsBySession((prev) => ({
+      ...prev,
+      [currentSessionKey]: {
+        ...(prev[currentSessionKey] || {}),
+        [setKey]: draft,
+      },
+    }));
+  };
 
   const isMounted = useSyncExternalStore(
     () => () => {},
@@ -498,47 +572,53 @@ export function StudentWorkoutRenderer({
   return (
     <div className="space-y-6 max-w-3xl mx-auto pb-16">
       {/* Workout Header Card */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-              Versão {workout.versionNumber}
-            </span>
-            <span className="text-xs text-[var(--foreground-muted)]">
-              {workout.consultancyName}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Prescrito: {workout.startsOn}</span>
-            {workout.endsOn && <span>até {workout.endsOn}</span>}
-          </div>
-        </div>
-
+      <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--foreground)]">
             {workout.title}
           </h1>
           {workout.subtitle && (
-            <p className="text-sm text-[var(--foreground-muted)] mt-1">
+            <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mt-0.5">
               {workout.subtitle}
             </p>
           )}
         </div>
 
-        {workout.objective && (
-          <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--foreground-muted)] flex items-start gap-2">
-            <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-semibold text-[var(--foreground)]">Objetivo: </span>
-              {workout.objective}
-            </div>
-          </div>
-        )}
+        {/* Compact Metadata Row */}
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-[var(--foreground-muted)]">
+          <span className="font-medium text-[var(--foreground)]">{workout.consultancyName}</span>
+          <span>•</span>
+          <span>{blocks.length} {blocks.length === 1 ? "bloco" : "blocos"}</span>
+          {workout.estimatedDurationMinutes != null && (
+            <>
+              <span>•</span>
+              <span>{workout.estimatedDurationMinutes} min</span>
+            </>
+          )}
+          {workout.difficultyLevel && (
+            <>
+              <span>•</span>
+              <span>
+                {workout.difficultyLevel === "BEGINNER"
+                  ? "Iniciante"
+                  : workout.difficultyLevel === "ADVANCED"
+                  ? "Avançado"
+                  : "Intermediário"}
+              </span>
+            </>
+          )}
+          <span>•</span>
+          <span>v{workout.versionNumber}</span>
+          {workout.startsOn && (
+            <>
+              <span>•</span>
+              <span>Prescrito em {workout.startsOn}</span>
+            </>
+          )}
+        </div>
 
         {workout.notesForStudent && (
-          <div className="p-3.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 text-xs text-[var(--foreground)] space-y-1">
+          <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-xs text-[var(--foreground)] space-y-0.5">
             <p className="font-semibold text-emerald-700 dark:text-emerald-400">
               Orientações do seu treinador:
             </p>
@@ -548,104 +628,34 @@ export function StudentWorkoutRenderer({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--foreground-muted)] pt-3 border-t border-[var(--border-subtle)]">
-          <div className="flex items-center gap-1.5 font-medium">
-            <Dumbbell className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>{blocks.length} {blocks.length === 1 ? "bloco de exercícios" : "blocos de exercícios"}</span>
-          </div>
+        {workout.objective && (
+          <p className="text-xs text-[var(--foreground-muted)]">
+            <span className="font-medium text-[var(--foreground)]">Objetivo: </span>
+            {workout.objective}
+          </p>
+        )}
 
-          {workout.estimatedDurationMinutes != null && (
-            <div className="flex items-center gap-1.5 font-medium">
-              <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>{workout.estimatedDurationMinutes} min estimado</span>
-            </div>
-          )}
-
-          {workout.difficultyLevel && (
-            <div className="px-2.5 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[11px] font-semibold text-[var(--foreground)]">
-              {workout.difficultyLevel === "BEGINNER"
-                ? "Iniciante"
-                : workout.difficultyLevel === "ADVANCED"
-                ? "Avançado"
-                : "Intermediário"}
-            </div>
-          )}
-        </div>
-
-        {/* Execution Control Area */}
+        {/* Execution Control Area - Informational status & Single Start Action */}
         {consultancySlug && (
-          <div className="pt-3 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-3">
+          <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
             {activeSession && activeSession.status === "COMPLETED" ? (
-              <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-                  <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>Treino concluído</span>
-                  {activeSession.completedAt && (
-                    <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
-                      • Concluído às {new Date(activeSession.completedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                  )}
-                </div>
-
-                <div className="w-full sm:w-auto space-y-1.5">
-                  <button
-                    type="button"
-                    onClick={handleStartWorkout}
-                    disabled={isStarting}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {isStarting ? (
-                      <>
-                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Iniciando...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Repeat className="w-3.5 h-3.5" />
-                        <span>Treinar novamente</span>
-                      </>
-                    )}
-                  </button>
-                  {startError && (
-                    <p className="text-xs text-red-500 font-medium">
-                      {startError}
-                    </p>
-                  )}
-                </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Treino concluído</span>
+                {activeSession.completedAt && (
+                  <span suppressHydrationWarning className="text-[11px] font-normal text-emerald-600/80 dark:text-emerald-400/80">
+                    • Concluído às {new Date(activeSession.completedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                )}
               </div>
             ) : activeSession && activeSession.status === "IN_PROGRESS" ? (
               allSetsCompleted ? (
-                <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
-                  <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200 text-xs font-semibold">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>Todas as séries concluídas!</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    {completeError && (
-                      <span className="text-xs text-red-500 font-medium">{completeError}</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleCompleteWorkout}
-                      disabled={isCompleting}
-                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      {isCompleting ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Finalizando...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          <span>Finalizar treino</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>Todas as séries concluídas</span>
                 </div>
               ) : (
-                <div className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -662,7 +672,7 @@ export function StudentWorkoutRenderer({
                   type="button"
                   onClick={handleStartWorkout}
                   disabled={isStarting}
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isStarting ? (
                     <>
@@ -700,6 +710,10 @@ export function StudentWorkoutRenderer({
             onCompleteSet={handleCompleteSet}
             activeRest={activeRest}
             onSkipRest={handleSkipRest}
+            expandedFutureSets={expandedFutureSets}
+            onToggleExpandSet={handleToggleExpandSet}
+            sessionDrafts={sessionDrafts}
+            onDraftChange={handleDraftChange}
           />
         ))}
 
@@ -800,6 +814,10 @@ function BlockCard({
   onCompleteSet,
   activeRest,
   onSkipRest,
+  expandedFutureSets,
+  onToggleExpandSet,
+  sessionDrafts,
+  onDraftChange,
 }: {
   block: WorkoutBlockDto;
   blockIndex: number;
@@ -812,6 +830,10 @@ function BlockCard({
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
+  expandedFutureSets?: Record<string, boolean>;
+  onToggleExpandSet?: (setKey: string, expanded: boolean) => void;
+  sessionDrafts?: Record<string, { reps: string; load: string }>;
+  onDraftChange?: (setKey: string, draft: { reps: string; load: string }) => void;
 }) {
   const methodLabel = METHOD_LABELS[block.blockType] || block.blockType;
   const items = block.items || [];
@@ -889,6 +911,10 @@ function BlockCard({
             onCompleteSet={onCompleteSet}
             activeRest={activeRest}
             onSkipRest={onSkipRest}
+            expandedFutureSets={expandedFutureSets}
+            onToggleExpandSet={onToggleExpandSet}
+            sessionDrafts={sessionDrafts}
+            onDraftChange={onDraftChange}
           />
         ))}
       </div>
@@ -907,6 +933,10 @@ function ItemCard({
   onCompleteSet,
   activeRest,
   onSkipRest,
+  expandedFutureSets,
+  onToggleExpandSet,
+  sessionDrafts,
+  onDraftChange,
 }: {
   item: WorkoutBlockItemDto;
   blockType: string;
@@ -921,6 +951,10 @@ function ItemCard({
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
+  expandedFutureSets?: Record<string, boolean>;
+  onToggleExpandSet?: (setKey: string, expanded: boolean) => void;
+  sessionDrafts?: Record<string, { reps: string; load: string }>;
+  onDraftChange?: (setKey: string, draft: { reps: string; load: string }) => void;
 }) {
   const isDropSet = blockType === "DROP_SET";
   const isRestPause = blockType === "REST_PAUSE";
@@ -931,13 +965,13 @@ function ItemCard({
   const isCustom = item.exercisePublicId === null;
 
   return (
-    <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-subtle)]/60 border border-[var(--border-subtle)] space-y-5">
+    <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-subtle)]/50 border border-[var(--border-subtle)] space-y-4">
       {/* SECTION 1: EXERCISE IDENTITY */}
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             {totalItems > 1 && (
-              <span className="text-[11px] font-bold text-[var(--foreground-muted)] bg-[var(--surface)] border border-[var(--border-default)] px-2 py-0.5 rounded-md shrink-0">
+              <span className="text-[10px] font-bold text-[var(--foreground-muted)] bg-[var(--surface)] border border-[var(--border-default)] px-1.5 py-0.5 rounded shrink-0">
                 Item {itemIndex + 1}
               </span>
             )}
@@ -959,57 +993,43 @@ function ItemCard({
         </div>
 
         {item.notes && (
-          <div className="pt-1">
-            <p className="text-xs text-[var(--foreground-muted)] italic">
-              Obs: {item.notes}
-            </p>
-          </div>
+          <p className="text-xs text-[var(--foreground-muted)] italic">
+            Obs: {item.notes}
+          </p>
         )}
       </div>
 
-      {/* SECTION 2: EXECUÇÃO DO EXERCÍCIO (Only if media is present) */}
+      {/* SECTION 2: VÍDEO / MÍDIA */}
       {pinnedMedia.length > 0 && (
         <div className="space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
-            <Video className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Execução do exercício</span>
-          </div>
-
-          <div className="space-y-2">
-            {pinnedMedia.map((m) => (
-              <div
-                key={m.mediaAsset.publicId}
-                className="rounded-2xl overflow-hidden border border-[var(--border-default)] bg-black shadow-xs"
-              >
-                {m.mediaAsset.mediaType === "VIDEO" ? (
-                  <video
-                    controls
-                    playsInline
-                    preload="metadata"
-                    src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
-                    className="w-full max-h-80 bg-black aspect-video object-contain"
-                  />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
-                    alt={item.exerciseNameSnapshot}
-                    className="w-full max-h-80 object-cover"
-                  />
-                )}
-              </div>
-            ))}
-          </div>
+          {pinnedMedia.map((m) => (
+            <div
+              key={m.mediaAsset.publicId}
+              className="rounded-xl overflow-hidden border border-[var(--border-default)] bg-black shadow-xs"
+            >
+              {m.mediaAsset.mediaType === "VIDEO" ? (
+                <video
+                  controls
+                  playsInline
+                  preload="metadata"
+                  src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
+                  className="w-full max-h-72 bg-black aspect-video object-contain"
+                />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
+                  alt={item.exerciseNameSnapshot}
+                  className="w-full max-h-72 object-cover"
+                />
+              )}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* SECTION 3: SUA PRESCRIÇÃO */}
+      {/* SECTION 3: PRESCRIÇÃO E SÉRIES */}
       <div className="space-y-2.5">
-        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
-          <Dumbbell className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>Sua prescrição</span>
-        </div>
-
         {isCardio ? (
           <CardioPrescription item={item} />
         ) : isWarmup ? (
@@ -1044,51 +1064,18 @@ function ItemCard({
             onCompleteSet={onCompleteSet}
             activeRest={activeRest}
             onSkipRest={onSkipRest}
+            expandedFutureSets={expandedFutureSets}
+            onToggleExpandSet={onToggleExpandSet}
+            sessionDrafts={sessionDrafts}
+            onDraftChange={onDraftChange}
           />
         )}
       </div>
 
-      {/* SECTION 4: COMO EXECUTAR (Only if instructions are present) */}
-      {item.instructionsSnapshot && item.instructionsSnapshot.trim().length > 0 && (() => {
-        const parsed = parseInstructions(item.instructionsSnapshot);
-        if (!parsed) return null;
-
-        return (
-          <div className="space-y-2.5 pt-1">
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
-              <span>Como executar</span>
-            </div>
-
-            {parsed.type === "steps" ? (
-              <div className="space-y-2.5">
-                {parsed.preamble && (
-                  <p className="text-xs font-semibold text-[var(--foreground)]">
-                    {parsed.preamble}
-                  </p>
-                )}
-                <ol className="space-y-2">
-                  {parsed.steps.map((step, idx) => (
-                    <li key={idx} className="flex items-start gap-2.5 text-xs text-[var(--foreground)] leading-relaxed">
-                      <span className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                        {idx + 1}
-                      </span>
-                      <span className="flex-1 pt-0.5">{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {parsed.paragraphs.map((para, idx) => (
-                  <p key={idx} className="text-xs text-[var(--foreground-muted)] leading-relaxed">
-                    {para}
-                  </p>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {/* SECTION 4: COMO EXECUTAR (Recolhível / Expansível) */}
+      {item.instructionsSnapshot && item.instructionsSnapshot.trim().length > 0 && (
+        <InstructionsAccordion instructions={item.instructionsSnapshot} />
+      )}
     </div>
   );
 }
@@ -1135,6 +1122,8 @@ function SetCheckoffControl({
   isLoading,
   onCompleteSet,
   isSessionActive,
+  draft,
+  onDraftChange,
 }: {
   executionSet?: WorkoutExecutionSetDto | null;
   setDto?: WorkoutItemSetDto | null;
@@ -1144,6 +1133,8 @@ function SetCheckoffControl({
     input: { actualReps: number; actualLoadKg: number | null }
   ) => Promise<void>;
   isSessionActive?: boolean;
+  draft?: { reps: string; load: string };
+  onDraftChange?: (draft: { reps: string; load: string }) => void;
 }) {
   if (!executionSet) return null;
 
@@ -1181,6 +1172,8 @@ function SetCheckoffControl({
       setDto={setDto}
       isLoading={isLoading}
       onCompleteSet={onCompleteSet}
+      draft={draft}
+      onDraftChange={onDraftChange}
     />
   );
 }
@@ -1190,6 +1183,8 @@ function PendingSetControl({
   setDto,
   isLoading,
   onCompleteSet,
+  draft,
+  onDraftChange,
 }: {
   executionSet: WorkoutExecutionSetDto;
   setDto?: WorkoutItemSetDto | null;
@@ -1198,12 +1193,18 @@ function PendingSetControl({
     setPublicId: string,
     input: { actualReps: number; actualLoadKg: number | null }
   ) => Promise<void>;
+  draft?: { reps: string; load: string };
+  onDraftChange?: (draft: { reps: string; load: string }) => void;
 }) {
   const [repsInput, setRepsInput] = useState<string>(() =>
-    getInitialReps(setDto?.targetReps, executionSet.prescribedReps)
+    draft?.reps !== undefined
+      ? draft.reps
+      : getInitialReps(setDto?.targetReps, executionSet.prescribedReps)
   );
   const [loadInput, setLoadInput] = useState<string>(() =>
-    getInitialLoad(setDto?.targetLoadKg, executionSet.prescribedLoadKg)
+    draft?.load !== undefined
+      ? draft.load
+      : getInitialLoad(setDto?.targetLoadKg, executionSet.prescribedLoadKg)
   );
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1281,8 +1282,10 @@ function PendingSetControl({
               pattern="[0-9]*"
               value={repsInput}
               onChange={(e) => {
-                setRepsInput(e.target.value);
+                const val = e.target.value;
+                setRepsInput(val);
                 setValidationError(null);
+                onDraftChange?.({ reps: val, load: loadInput });
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -1310,8 +1313,10 @@ function PendingSetControl({
                 inputMode="decimal"
                 value={loadInput}
                 onChange={(e) => {
-                  setLoadInput(e.target.value);
+                  const val = e.target.value;
+                  setLoadInput(val);
                   setValidationError(null);
+                  onDraftChange?.({ reps: repsInput, load: val });
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -1367,6 +1372,10 @@ function StandardSetsPrescription({
   onCompleteSet,
   activeRest,
   onSkipRest,
+  expandedFutureSets = {},
+  onToggleExpandSet,
+  sessionDrafts = {},
+  onDraftChange,
 }: {
   sets: WorkoutItemSetDto[];
   item?: WorkoutBlockItemDto;
@@ -1379,7 +1388,12 @@ function StandardSetsPrescription({
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
+  expandedFutureSets?: Record<string, boolean>;
+  onToggleExpandSet?: (setKey: string, expanded: boolean) => void;
+  sessionDrafts?: Record<string, { reps: string; load: string }>;
+  onDraftChange?: (setKey: string, draft: { reps: string; load: string }) => void;
 }) {
+
   if (!sets || sets.length === 0) {
     return (
       <div className="text-center py-3 text-xs text-[var(--foreground-muted)] border border-dashed border-[var(--border-default)] rounded-xl">
@@ -1388,45 +1402,36 @@ function StandardSetsPrescription({
     );
   }
 
-  const summaryText = formatRepsSummary(sets);
-  const uniformLoad = getUniformLoad(sets);
-  const uniformRest = getUniformRest(sets);
+  const compactSummary = formatCompactPrescriptionSummary(sets);
+
+  // Identify the first uncompleted set for visual prominence when in progress
+  const firstPendingSetNumber =
+    activeSession && activeSession.status === "IN_PROGRESS"
+      ? sets.find((s) => {
+          const es = activeSession.sets?.find(
+            (e) => (e.blockItemPublicId ?? "") === (item?.publicId ?? "") && e.setNumber === s.setNumber
+          );
+          return es && es.completedAt == null;
+        })?.setNumber
+      : null;
 
   return (
     <div className="space-y-2">
-      {/* Prescription Summary Header Card */}
-      <div className="p-3 sm:p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs sm:text-sm font-bold text-[var(--foreground)]">
-            {summaryText}
-          </span>
-        </div>
-
-        {/* Compact Metadata Row (Carga, Descanso, RIR, RPE) */}
-        {(uniformLoad != null || uniformRest != null || item?.targetRir != null || item?.targetRpe != null) && (
-          <div className="flex flex-wrap items-center gap-3 pt-1.5 text-xs text-[var(--foreground-muted)] border-t border-[var(--border-subtle)]">
-            {uniformLoad != null && (
-              <span className="inline-flex items-center gap-1 font-medium">
-                <span className="text-[var(--foreground-muted)]">Carga:</span>
-                <span className="font-semibold text-[var(--foreground)]">{uniformLoad}</span>
-              </span>
-            )}
-            {uniformRest != null && (
-              <span className="inline-flex items-center gap-1 font-medium">
-                <span className="text-[var(--foreground-muted)]">Descanso:</span>
-                <span className="font-semibold text-[var(--foreground)]">{uniformRest}</span>
-              </span>
-            )}
+      {/* Compact Prescription Summary */}
+      <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2 text-xs">
+        <span className="font-bold text-[var(--foreground)]">
+          {compactSummary}
+        </span>
+        {(item?.targetRir != null || item?.targetRpe != null) && (
+          <div className="flex items-center gap-2">
             {item?.targetRir != null && (
-              <span className="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
-                <span>RIR:</span>
-                <span className="font-bold">{item.targetRir}</span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                RIR {item.targetRir}
               </span>
             )}
             {item?.targetRpe != null && (
-              <span className="inline-flex items-center gap-1 font-medium text-purple-600 dark:text-purple-400">
-                <span>RPE:</span>
-                <span className="font-bold">{item.targetRpe}</span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20">
+                RPE {item.targetRpe}
               </span>
             )}
           </div>
@@ -1441,63 +1446,243 @@ function StandardSetsPrescription({
           const load = formatLoad(s);
           const rest = formatRest(s.targetRestSeconds);
 
-          const executionSet = activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
-            ? activeSession.sets?.find(
-                (es) => (es.blockItemPublicId ?? "") === (item?.publicId ?? "") && es.setNumber === s.setNumber
-              )
-            : null;
+          const executionSet =
+            activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
+              ? activeSession.sets?.find(
+                  (es) => (es.blockItemPublicId ?? "") === (item?.publicId ?? "") && es.setNumber === s.setNumber
+                )
+              : null;
           const isLoading = executionSet && loadingSetPublicId === executionSet.publicId;
           const setErr = executionSet ? setErrors[executionSet.publicId] : null;
+          const isCompleted = executionSet && executionSet.completedAt != null;
+          const isCurrent = activeSession?.status === "IN_PROGRESS" && s.setNumber === firstPendingSetNumber;
 
+          // CASE 1: Concluída (Compacta, 1 linha)
+          if (isCompleted && executionSet) {
+            const repsPart = executionSet.actualReps != null ? `${executionSet.actualReps} reps` : null;
+            const loadPart = formatActualLoad(executionSet.actualLoadKg);
+            const realizedText = [repsPart, loadPart].filter(Boolean).join(" · ");
+
+            return (
+              <div
+                key={s.setNumber || idx}
+                className="px-3.5 py-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex flex-wrap items-center justify-between gap-2 text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <Check className="w-3 h-3" />
+                  </span>
+                  <span className="font-bold text-[var(--foreground)]">
+                    {idx + 1}ª série
+                  </span>
+                  <span className="text-[var(--foreground-muted)]">
+                    — {realizedText || "Concluída"}
+                  </span>
+                </div>
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  Concluída
+                </span>
+              </div>
+            );
+          }
+
+          // CASE 2: Em andamento - Série Atual (Destaque visual)
+          if (isCurrent) {
+            const setKey = `${item?.publicId ?? "item"}-${s.setNumber}`;
+            const draft = sessionDrafts[setKey];
+
+            return (
+              <div
+                key={s.setNumber || idx}
+                className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border-2 border-emerald-500/40 shadow-xs space-y-2.5"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="font-bold text-sm text-[var(--foreground)]">
+                      {idx + 1}ª série
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                      Série atual
+                    </span>
+                    {s.setType && s.setType !== "NORMAL" && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        {typeLabel}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] text-right">
+                    <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
+                    <span className="font-semibold text-[var(--foreground)]">{reps}</span>
+                    {load != null && <span>· {load}</span>}
+                    {rest != null && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {rest}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <SetCheckoffControl
+                  executionSet={executionSet}
+                  setDto={s}
+                  isLoading={isLoading || false}
+                  onCompleteSet={onCompleteSet}
+                  isSessionActive={true}
+                  draft={draft}
+                  onDraftChange={(newDraft) => onDraftChange?.(setKey, newDraft)}
+                />
+
+                {setErr && (
+                  <div className="text-right">
+                    <p className="text-[11px] text-red-500 font-medium">
+                      {setErr}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // CASE 3: Em andamento - Séries Futuras (Pendente sem bloqueio, compacta por padrão)
+          if (activeSession && activeSession.status === "IN_PROGRESS") {
+            const setKey = `${item?.publicId ?? "item"}-${s.setNumber}`;
+            const isExpanded = !!expandedFutureSets[setKey] || !!setErr;
+            const draft = sessionDrafts[setKey];
+
+            if (!isExpanded) {
+              return (
+                <div
+                  key={s.setNumber || idx}
+                  className="px-3.5 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs"
+                >
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-semibold text-[var(--foreground-muted)]">
+                      {idx + 1}ª série
+                    </span>
+                    {s.setType && s.setType !== "NORMAL" && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        {typeLabel}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+                    <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+                      <span className="font-medium text-[var(--foreground)]">{reps}</span>
+                      {load != null && <span>· {load}</span>}
+                      {rest != null && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {rest}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onToggleExpandSet?.(setKey, true)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--border-subtle)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border-subtle)] transition-colors shrink-0 cursor-pointer"
+                      title="Abrir controles para registrar esta série"
+                    >
+                      <span>Registrar</span>
+                      <ChevronDownIcon className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={s.setNumber || idx}
+                className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] space-y-2.5"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-[var(--foreground-muted)]">
+                      {idx + 1}ª série
+                    </span>
+                    {s.setType && s.setType !== "NORMAL" && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        {typeLabel}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] text-right">
+                      <span className="font-medium text-[var(--foreground)]">{reps}</span>
+                      {load != null && <span>· {load}</span>}
+                      {rest != null && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {rest}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onToggleExpandSet?.(setKey, false)}
+                      className="text-[11px] font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:underline cursor-pointer"
+                    >
+                      Recolher
+                    </button>
+                  </div>
+                </div>
+
+                <SetCheckoffControl
+                  executionSet={executionSet}
+                  setDto={s}
+                  isLoading={isLoading || false}
+                  onCompleteSet={onCompleteSet}
+                  isSessionActive={true}
+                  draft={draft}
+                  onDraftChange={(newDraft) => onDraftChange?.(setKey, newDraft)}
+                />
+
+                {setErr && (
+                  <div className="text-right">
+                    <p className="text-[11px] text-red-500 font-medium">
+                      {setErr}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // CASE 4: Pré-treino (Não iniciado / Preview)
           return (
             <div
               key={s.setNumber || idx}
-              className="px-3 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] space-y-2"
+              className="px-3.5 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2 text-xs"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-bold text-[var(--foreground)] min-w-[50px]">
-                    {idx + 1}ª série
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-[var(--foreground)]">
+                  {idx + 1}ª série
+                </span>
+                {s.setType && s.setType !== "NORMAL" && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    {typeLabel}
                   </span>
-                  {s.setType && s.setType !== "NORMAL" && (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                      {typeLabel}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 sm:gap-3 text-xs text-[var(--foreground-muted)] text-right">
-                  <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
-                  <span className="font-semibold text-[var(--foreground)]">{reps}</span>
-                  {load != null && (
-                    <span className="font-medium text-[var(--foreground-muted)]">
-                      · {load}
-                    </span>
-                  )}
-                  {rest != null && (
-                    <span className="text-[var(--foreground-muted)] font-normal flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-[var(--foreground-muted)]" />
-                      {rest}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
 
-              <SetCheckoffControl
-                executionSet={executionSet}
-                setDto={s}
-                isLoading={isLoading || false}
-                onCompleteSet={onCompleteSet}
-                isSessionActive={activeSession?.status === "IN_PROGRESS"}
-              />
-
-              {setErr && (
-                <div className="text-right">
-                  <p className="text-[11px] text-red-500 font-medium">
-                    {setErr}
-                  </p>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] text-right">
+                <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
+                <span className="font-semibold text-[var(--foreground)]">{reps}</span>
+                {load != null && <span>· {load}</span>}
+                {rest != null && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {rest}
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}
@@ -1855,14 +2040,6 @@ function HistoryIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
-
-function ChevronDownIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
     </svg>
   );
 }

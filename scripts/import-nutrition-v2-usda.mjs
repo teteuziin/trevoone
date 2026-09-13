@@ -371,7 +371,11 @@ async function run() {
     // Check obsolete records in DB that belong to the active dataset being imported but are not present in the new release
     const plannedUidSet = new Set(plannedItems.map((p) => p.sourceUid));
     const obsoleteRows = existingRows.filter(
-      (r) => targetSourceKeys.includes(r.source_key) && !plannedUidSet.has(r.source_uid) && r.status === "ACTIVE"
+      (r) => targetSourceKeys.includes(r.source_key) && !plannedUidSet.has(r.source_uid)
+    );
+    const obsoleteToInactivate = obsoleteRows.filter((r) => r.status === "ACTIVE");
+    const obsoleteToFixProvenance = obsoleteRows.filter(
+      (r) => r.source_key === SOURCE_KEY_FOUNDATION && r.source_version === SOURCE_VERSION_FOUNDATION
     );
 
     console.log("\n--- ESTATÍSTICAS DE PROCESSAMENTO ---");
@@ -394,7 +398,10 @@ async function run() {
     console.log(`  Novos a inserir (INSERT):          ${toInsert.length}`);
     console.log(`  Existentes a atualizar (UPDATE):   ${toUpdate.length}`);
     console.log(`  Existentes idênticos (UNCHANGED):  ${unchangedCount}`);
-    console.log(`  Obsoletos da release a inativar:   ${obsoleteRows.length}`);
+    console.log(`  Novas inativações de obsoletos:    ${obsoleteToInactivate.length}`);
+    if (obsoleteToFixProvenance.length > 0) {
+      console.log(`  Correções de proveniência obsoleta: ${obsoleteToFixProvenance.length}`);
+    }
 
     if (!isApply) {
       console.log("\n================================================================================");
@@ -517,19 +524,30 @@ async function run() {
       console.log(`\nInserts concluídos: ${insertedTotal} alimentos inseridos.`);
     }
 
-    if (obsoleteRows.length > 0) {
-      console.log(`\nInativando ${obsoleteRows.length} alimentos obsoletos da release anterior...`);
+    if (obsoleteToInactivate.length > 0 || obsoleteToFixProvenance.length > 0) {
+      console.log(`\nProcessando ${obsoleteRows.length} alimentos obsoletos da release anterior...`);
       for (const obs of obsoleteRows) {
+        // Obsolete foods preserve their true last-known release (Foundation 2024-10-31), NOT the new release
+        const validVersion =
+          obs.source_version === SOURCE_VERSION_FOUNDATION
+            ? "Foundation 2024-10-31"
+            : obs.source_version;
         await pool.query(
           `UPDATE nutrition_v2_foods SET
             status = 'INACTIVE',
             source_version = ?,
+            source_reference = ?,
             source_imported_at = ?
           WHERE id = ?`,
-          [SOURCE_VERSION_FOUNDATION, new Date().toISOString(), obs.id]
+          [
+            validVersion,
+            `USDA FoodData Central [FDC ID: ${obs.source_external_code || ""}]`,
+            new Date().toISOString(),
+            obs.id,
+          ]
         );
       }
-      console.log(`Inativação de obsoletos concluída.`);
+      console.log(`Inativação e preservação de proveniência de obsoletos concluídas.`);
     }
 
     console.log(`\nSUCESSO: Sincronização USDA concluída.`);
@@ -555,13 +573,23 @@ async function run() {
     );
     console.log(`Total geral de alimentos ATIVOS em nutrition_v2_foods: ${totalActive[0].total}`);
 
-    // Verify 0 remaining active records of old Foundation release
-    const [oldFoundationActive] = await pool.query(`
-      SELECT COUNT(*) as total
-      FROM nutrition_v2_foods
-      WHERE source_key = ? AND source_version = 'Foundation 2024-10-31' AND status = 'ACTIVE'
-    `, [SOURCE_KEY_FOUNDATION]);
-    console.log(`Registros Foundation 2024-10-31 ATIVOS remanescentes: ${oldFoundationActive[0].total}`);
+    // Verify audit specific requirements
+    const [foundation2026Active] = await pool.query(
+      `SELECT COUNT(*) as total FROM nutrition_v2_foods WHERE source_key = ? AND source_version = ? AND status = 'ACTIVE'`,
+      [SOURCE_KEY_FOUNDATION, SOURCE_VERSION_FOUNDATION]
+    );
+    const [foundation2026Inactive] = await pool.query(
+      `SELECT COUNT(*) as total FROM nutrition_v2_foods WHERE source_key = ? AND source_version = ? AND status = 'INACTIVE'`,
+      [SOURCE_KEY_FOUNDATION, SOURCE_VERSION_FOUNDATION]
+    );
+    const [foundationOldInactive] = await pool.query(
+      `SELECT COUNT(*) as total FROM nutrition_v2_foods WHERE source_key = ? AND source_version = 'Foundation 2024-10-31' AND status = 'INACTIVE'`,
+      [SOURCE_KEY_FOUNDATION]
+    );
+    console.log(`\n--- PROVA DE PROVENIÊNCIA E STATUS ---`);
+    console.log(`ACTIVE Foundation 04/2026:                           ${foundation2026Active[0].total}`);
+    console.log(`INACTIVE Foundation 04/2026 ausentes do dataset:      ${foundation2026Inactive[0].total}`);
+    console.log(`INACTIVE Foundation release anterior (2024-10-31):    ${foundationOldInactive[0].total}`);
 
   } finally {
     await pool.end();

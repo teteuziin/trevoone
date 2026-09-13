@@ -124,6 +124,126 @@ export function getFirstRelevantToken(tokens: string[]): string {
   return firstSignificant || tokens[0] || "";
 }
 
+function getWordStem(word: string): string {
+  if (word.length > 4 && word.endsWith("es")) return word.slice(0, -2);
+  if (word.length > 3 && word.endsWith("s")) return word.slice(0, -1);
+  return word;
+}
+
+export function buildFoodSearchOrderClause(
+  query: string,
+  queryTokens: string[],
+  isUnified = true
+): { orderClause: string; orderParams: (string | number)[] } {
+  if (!queryTokens || queryTokens.length === 0) {
+    const defaultOrder = isUnified
+      ? `ORDER BY CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC, f.name ASC`
+      : `ORDER BY f.name ASC`;
+    return { orderClause: defaultOrder, orderParams: [] };
+  }
+
+  const normalizedQuery = normalizeSearchText(query);
+  const cleanQuery = queryTokens.join(" ");
+  const firstToken = queryTokens[0] || "";
+  const firstStem = getWordStem(firstToken);
+  const orderParams: (string | number)[] = [];
+
+  // Tier 1: Exact match normalized (ignoring punctuation)
+  orderParams.push(normalizedQuery);
+  orderParams.push(cleanQuery);
+
+  // Tier 2: Sequence starts with first token as distinct word or phrase
+  if (queryTokens.length >= 2) {
+    const t0 = queryTokens[0];
+    const t1 = queryTokens[1];
+    const s0 = getWordStem(t0);
+    orderParams.push(`${t0}, %${t1}%`);
+    orderParams.push(`${t0} %${t1}%`);
+    orderParams.push(`${s0}, %${t1}%`);
+    orderParams.push(`${s0}s, %${t1}%`);
+    orderParams.push(`${t1}, %${t0}%`);
+    orderParams.push(`${t1} %${t0}%`);
+  } else {
+    orderParams.push(`${firstToken},%`);
+    orderParams.push(`${firstStem},%`);
+    orderParams.push(`${firstStem}s,%`);
+    orderParams.push(`fish, ${firstToken},%`);
+    orderParams.push(`fish, ${firstStem},%`);
+    orderParams.push(`${firstToken} %`);
+  }
+
+  // Tier 3: Primary noun followed by comma
+  orderParams.push(`${firstToken},%`);
+  orderParams.push(`${firstStem},%`);
+  orderParams.push(`${firstStem}s,%`);
+  orderParams.push(`fish, ${firstToken},%`);
+  orderParams.push(`fish, ${firstStem},%`);
+
+  // Tier 4: Starts with first token as full word (space)
+  orderParams.push(`${firstToken} %`);
+  orderParams.push(`${firstStem} %`);
+
+  // Tier 5: Starts with first token prefix
+  orderParams.push(`${firstToken}%`);
+
+  // Whole egg boost when query starts with egg
+  orderParams.push(firstToken);
+  orderParams.push(firstToken);
+
+  const tenancyOrder = isUnified ? `CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC,` : "";
+
+  const orderClause = `ORDER BY
+    ${tenancyOrder}
+    CASE
+      -- Tier 1: Exact match normalized
+      WHEN f.normalized_name = ? OR f.normalized_name = ? THEN 1
+      -- Tier 2: Query phrase or structured sequence at start with word boundaries
+      ${queryTokens.length >= 2 ? `
+      WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ?
+        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 2
+      ` : `
+      WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ?
+        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 2
+      `}
+      -- Tier 3: Primary noun followed by comma (base food indicator)
+      WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ?
+        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 3
+      -- Tier 4: Starts with first token as full word
+      WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 4
+      -- Tier 5: Starts with first token prefix
+      WHEN f.normalized_name LIKE ? THEN 5
+      ELSE 6
+    END ASC,
+    -- Penalize non-intended subword collisions (e.g. "eggplant" when searching "egg")
+    CASE
+      WHEN ${firstToken === 'egg' ? '1=1' : '1=0'} AND f.normalized_name LIKE '%eggplant%' THEN 2
+      ELSE 1
+    END ASC,
+    -- Whole egg over white/yolk parts when searching egg
+    CASE
+      WHEN ? = 'egg' AND f.normalized_name LIKE '%whole%' THEN 1
+      WHEN ? = 'egg' AND f.normalized_name LIKE '%white%' THEN 2
+      ELSE 3
+    END ASC,
+    -- Simple base food tie-breaker: TACO (1) -> FOUNDATION (2) -> FNDDS (3) -> OTHER (4)
+    CASE
+      WHEN f.source_key = 'TACO' THEN 1
+      WHEN f.source_key = 'USDA_FOUNDATION' THEN 2
+      WHEN f.source_key = 'USDA_FNDDS' THEN 3
+      ELSE 4
+    END ASC,
+    -- Avoid composite dishes over simple dishes when query is simple (penalize "sandwich", "salad", "stuffing", "chips", "noodles")
+    CASE
+      WHEN (f.normalized_name LIKE '%sandwich%' OR f.normalized_name LIKE '%chips%' OR f.normalized_name LIKE '%stuffing%' OR f.normalized_name LIKE '%pudding%' OR f.normalized_name LIKE '%salad%' OR f.normalized_name LIKE '%noodles%') THEN 2
+      ELSE 1
+    END ASC,
+    -- Conciseness tie-breaker: shorter names mean higher term density
+    CHAR_LENGTH(f.name) ASC,
+    f.name ASC`;
+
+  return { orderClause, orderParams };
+}
+
 // ============================================================================
 // PROFESSIONAL UNIFIED SEARCH (NUTRITIONIST CONTEXT)
 // ============================================================================
@@ -206,33 +326,12 @@ export async function listUnifiedFoodsForNutritionist(
     const totalPages = Math.ceil(total / pageSize) || 1;
 
     // 2. Fetch page with portions count and deterministic ranking
-    let orderClause = "";
-    const selectParams: (string | number)[] = [...params];
-
-    if (queryTokens.length > 0) {
-      const normalizedQuery = normalizeSearchText(filter.query!);
-      const firstRelevantToken = getFirstRelevantToken(queryTokens);
-      orderClause = `ORDER BY
-        CASE
-          WHEN f.normalized_name = ? THEN 1
-          WHEN f.normalized_name LIKE ? THEN 2
-          WHEN f.normalized_name LIKE ? THEN 3
-          ELSE 4
-        END ASC,
-        CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC,
-        f.name ASC`;
-      selectParams.push(
-        normalizedQuery,
-        `${normalizedQuery}%`,
-        `${firstRelevantToken}%`
-      );
-    } else {
-      orderClause = `ORDER BY
-        CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC,
-        f.name ASC`;
-    }
-
-    selectParams.push(pageSize, offset);
+    const { orderClause, orderParams } = buildFoodSearchOrderClause(
+      filter.query || "",
+      queryTokens,
+      true
+    );
+    const selectParams: (string | number)[] = [...params, ...orderParams, pageSize, offset];
 
     const [rows] = await connection.query<RowDataPacket[]>(
       `SELECT
@@ -369,30 +468,12 @@ export async function listGlobalFoodsForAdmin(
     const totalPages = Math.ceil(total / pageSize) || 1;
 
     // Fetch page with deterministic ranking
-    let orderClause = "";
-    const selectParams: (string | number)[] = [...params];
-
-    if (queryTokens.length > 0) {
-      const normalizedQuery = normalizeSearchText(filter.query!);
-      const firstRelevantToken = getFirstRelevantToken(queryTokens);
-      orderClause = `ORDER BY
-        CASE
-          WHEN f.normalized_name = ? THEN 1
-          WHEN f.normalized_name LIKE ? THEN 2
-          WHEN f.normalized_name LIKE ? THEN 3
-          ELSE 4
-        END ASC,
-        f.name ASC`;
-      selectParams.push(
-        normalizedQuery,
-        `${normalizedQuery}%`,
-        `${firstRelevantToken}%`
-      );
-    } else {
-      orderClause = `ORDER BY f.name ASC`;
-    }
-
-    selectParams.push(pageSize, offset);
+    const { orderClause, orderParams } = buildFoodSearchOrderClause(
+      filter.query || "",
+      queryTokens,
+      false
+    );
+    const selectParams: (string | number)[] = [...params, ...orderParams, pageSize, offset];
 
     const [rows] = await connection.query<RowDataPacket[]>(
       `SELECT

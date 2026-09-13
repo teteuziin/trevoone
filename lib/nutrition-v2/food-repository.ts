@@ -80,6 +80,50 @@ export function normalizeSearchText(text: string): string {
     .trim();
 }
 
+const SEARCH_STOP_WORDS = new Set([
+  "de",
+  "da",
+  "do",
+  "dos",
+  "das",
+  "com",
+  "sem",
+  "em",
+  "no",
+  "na",
+  "nos",
+  "nas",
+  "para",
+  "por",
+  "um",
+  "uma",
+  "uns",
+  "umas",
+  "ao",
+  "aos",
+  "as",
+  "os",
+  "e",
+  "ou",
+]);
+
+export function tokenizeSearchQuery(query: string): string[] {
+  if (!query || typeof query !== "string") return [];
+  const normalized = normalizeSearchText(query);
+  if (!normalized) return [];
+  return normalized
+    .split(/[\s,./;:_()\-+]+/)
+    .filter((token) => token.length > 0);
+}
+
+export function getFirstRelevantToken(tokens: string[]): string {
+  if (!tokens || tokens.length === 0) return "";
+  const firstSignificant = tokens.find(
+    (t) => t.length > 2 && !SEARCH_STOP_WORDS.has(t)
+  );
+  return firstSignificant || tokens[0] || "";
+}
+
 // ============================================================================
 // PROFESSIONAL UNIFIED SEARCH (NUTRITIONIST CONTEXT)
 // ============================================================================
@@ -132,11 +176,13 @@ export async function listUnifiedFoodsForNutritionist(
     }
   }
 
-  // Text search
-  if (filter.query && filter.query.trim()) {
-    const normalized = normalizeSearchText(filter.query);
-    conditions.push("f.normalized_name LIKE ?");
-    params.push(`%${normalized}%`);
+  // Text search & tokenization
+  const queryTokens = filter.query ? tokenizeSearchQuery(filter.query) : [];
+  if (queryTokens.length > 0) {
+    for (const token of queryTokens) {
+      conditions.push("f.normalized_name LIKE ?");
+      params.push(`%${token}%`);
+    }
   }
 
   // Category filter
@@ -159,12 +205,34 @@ export async function listUnifiedFoodsForNutritionist(
     const total = Number(countRows[0]?.total || 0);
     const totalPages = Math.ceil(total / pageSize) || 1;
 
-    // 2. Fetch page with portions count (No N+1)
-    const selectParams = [
-      ...params,
-      pageSize,
-      offset,
-    ];
+    // 2. Fetch page with portions count and deterministic ranking
+    let orderClause = "";
+    const selectParams: (string | number)[] = [...params];
+
+    if (queryTokens.length > 0) {
+      const normalizedQuery = normalizeSearchText(filter.query!);
+      const firstRelevantToken = getFirstRelevantToken(queryTokens);
+      orderClause = `ORDER BY
+        CASE
+          WHEN f.normalized_name = ? THEN 1
+          WHEN f.normalized_name LIKE ? THEN 2
+          WHEN f.normalized_name LIKE ? THEN 3
+          ELSE 4
+        END ASC,
+        CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC,
+        f.name ASC`;
+      selectParams.push(
+        normalizedQuery,
+        `${normalizedQuery}%`,
+        `${firstRelevantToken}%`
+      );
+    } else {
+      orderClause = `ORDER BY
+        CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC,
+        f.name ASC`;
+    }
+
+    selectParams.push(pageSize, offset);
 
     const [rows] = await connection.query<RowDataPacket[]>(
       `SELECT
@@ -202,9 +270,7 @@ export async function listUnifiedFoodsForNutritionist(
         ) AS portions_count
       FROM nutrition_v2_foods f
       WHERE ${whereClause}
-      ORDER BY
-        CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC,
-        f.name ASC
+      ${orderClause}
       LIMIT ? OFFSET ?`,
       selectParams
     );
@@ -275,10 +341,13 @@ export async function listGlobalFoodsForAdmin(
     conditions.push("f.status = 'ARCHIVED'");
   }
 
-  if (filter.query && filter.query.trim()) {
-    const normalized = normalizeSearchText(filter.query);
-    conditions.push("f.normalized_name LIKE ?");
-    params.push(`%${normalized}%`);
+  // Text search & tokenization
+  const queryTokens = filter.query ? tokenizeSearchQuery(filter.query) : [];
+  if (queryTokens.length > 0) {
+    for (const token of queryTokens) {
+      conditions.push("f.normalized_name LIKE ?");
+      params.push(`%${token}%`);
+    }
   }
 
   if (filter.category && filter.category.trim()) {
@@ -299,11 +368,31 @@ export async function listGlobalFoodsForAdmin(
     const total = Number(countRows[0]?.total || 0);
     const totalPages = Math.ceil(total / pageSize) || 1;
 
-    const selectParams = [
-      ...params,
-      pageSize,
-      offset,
-    ];
+    // Fetch page with deterministic ranking
+    let orderClause = "";
+    const selectParams: (string | number)[] = [...params];
+
+    if (queryTokens.length > 0) {
+      const normalizedQuery = normalizeSearchText(filter.query!);
+      const firstRelevantToken = getFirstRelevantToken(queryTokens);
+      orderClause = `ORDER BY
+        CASE
+          WHEN f.normalized_name = ? THEN 1
+          WHEN f.normalized_name LIKE ? THEN 2
+          WHEN f.normalized_name LIKE ? THEN 3
+          ELSE 4
+        END ASC,
+        f.name ASC`;
+      selectParams.push(
+        normalizedQuery,
+        `${normalizedQuery}%`,
+        `${firstRelevantToken}%`
+      );
+    } else {
+      orderClause = `ORDER BY f.name ASC`;
+    }
+
+    selectParams.push(pageSize, offset);
 
     const [rows] = await connection.query<RowDataPacket[]>(
       `SELECT
@@ -341,7 +430,7 @@ export async function listGlobalFoodsForAdmin(
         ) AS portions_count
       FROM nutrition_v2_foods f
       WHERE ${whereClause}
-      ORDER BY f.name ASC
+      ${orderClause}
       LIMIT ? OFFSET ?`,
       selectParams
     );

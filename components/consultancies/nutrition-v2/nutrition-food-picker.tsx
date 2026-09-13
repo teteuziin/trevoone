@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import {
   searchFoodsForPickerAction,
   getFoodPortionsForPickerAction,
@@ -70,22 +70,26 @@ export function NutritionFoodPicker({
   const [customUnitCode, setCustomUnitCode] = useState<string>("UNIDADE");
   const [customNotes, setCustomNotes] = useState<string>("");
 
-  // Search execution
-  const doSearch = useCallback((q: string, sc: "ALL" | "GLOBAL" | "CONSULTANCY", p: number) => {
-    startSearchTransition(async () => {
-      const res = await searchFoodsForPickerAction(slug, q, sc, p);
-      if (res.success && res.data) {
-        setItems(res.data.items);
-        setTotalPages(res.data.totalPages);
-      }
-    });
-  }, [slug]);
-
+  // Debounced search execution with cancellation guard to prevent race conditions
   useEffect(() => {
-    if (isOpen && activeTab === "CATALOG" && !selectedFood) {
-      doSearch(query, scopeFilter, page);
-    }
-  }, [isOpen, activeTab, scopeFilter, page, query, selectedFood, doSearch]);
+    if (!isOpen || activeTab !== "CATALOG" || selectedFood) return;
+
+    let isCurrent = true;
+    const timer = setTimeout(() => {
+      startSearchTransition(async () => {
+        const res = await searchFoodsForPickerAction(slug, query, scopeFilter, page);
+        if (isCurrent && res.success && res.data) {
+          setItems(res.data.items);
+          setTotalPages(res.data.totalPages);
+        }
+      });
+    }, 200);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [isOpen, activeTab, selectedFood, query, scopeFilter, page, slug]);
 
   // Handle food selection
   const handlePickFood = async (foodItem: FoodListItemDto) => {
@@ -236,7 +240,6 @@ export function NutritionFoodPicker({
                     onChange={(e) => {
                       setQuery(e.target.value);
                       setPage(1);
-                      doSearch(e.target.value, scopeFilter, 1);
                     }}
                     placeholder="Buscar no catálogo (ex: Arroz, Frango, Maçã)..."
                     className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"

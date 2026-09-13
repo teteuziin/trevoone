@@ -2,8 +2,12 @@
  * TREVO ONE — USDA FOODDATA CENTRAL IMPORT SCRIPT (NUTRITION V2)
  * Imports Foundation Foods and Survey Foods (FNDDS) into nutrition_v2_foods.
  *
- * Idempotent: keyed by source_uid ("USDA:FOUNDATION:${fdcId}" and "USDA:FNDDS:${fdcId}").
- * Preserves TACO and any existing foods without mutation or deletion.
+ * Upgrade-Safe & Idempotent:
+ * - Keyed by source_uid ("USDA:FOUNDATION:${fdcId}" and "USDA:FNDDS:${fdcId}").
+ * - Same source_uid + same version + same data -> UNCHANGED
+ * - Same source_uid + new version or changed data -> UPDATE controlled fields
+ * - New source_uid -> INSERT
+ * - Preserves TACO and any existing foods without mutation or deletion.
  */
 
 import mysql from "mysql2/promise";
@@ -17,7 +21,7 @@ const __dirname = path.dirname(__filename);
 
 export const SOURCE_KEY_FOUNDATION = "USDA_FOUNDATION";
 export const SOURCE_KEY_FNDDS = "USDA_FNDDS";
-export const SOURCE_VERSION_FOUNDATION = "Foundation 2024-10-31";
+export const SOURCE_VERSION_FOUNDATION = "Foundation 04/2026";
 export const SOURCE_VERSION_FNDDS = "FNDDS 2021-2023 (2024-10-31)";
 
 export const PROD_DB_NAME = "u406031981_trevoone";
@@ -132,8 +136,9 @@ export function extractMacros(foodNutrients, isFoundation = false) {
 
   for (const fn of foodNutrients) {
     const num = String(fn.nutrient?.number);
-    const amount = fn.amount != null && !isNaN(fn.amount) ? Number(fn.amount) : null;
+    let amount = fn.amount != null && !isNaN(fn.amount) ? Number(fn.amount) : null;
     if (amount == null) continue;
+    if (amount < 0) amount = 0;
 
     if (num === "208") {
       calories = amount;
@@ -154,6 +159,11 @@ export function extractMacros(foodNutrients, isFoundation = false) {
     calories = atwaterSpecific != null ? atwaterSpecific : atwaterGeneral;
   }
 
+  if (calories != null && calories < 0) calories = 0;
+  if (protein != null && protein < 0) protein = 0;
+  if (carb != null && carb < 0) carb = 0;
+  if (fat != null && fat < 0) fat = 0;
+
   return {
     calories: calories != null ? Number(calories.toFixed(2)) : null,
     protein: protein != null ? Number(protein.toFixed(2)) : null,
@@ -170,11 +180,15 @@ export function prepareFoodRecords(items, type) {
 
   const records = [];
   let withoutEssentialMacros = 0;
+  let invalidItems = 0;
 
   for (const item of items) {
-    const fdcId = item.fdcId;
-    if (!fdcId || !item.description) continue;
+    if (!item || !item.fdcId || !item.description) {
+      invalidItems++;
+      continue;
+    }
 
+    const fdcId = item.fdcId;
     const name = item.description.trim();
     const normalizedName = normalizeSearchText(name);
     const category =
@@ -211,7 +225,7 @@ export function prepareFoodRecords(items, type) {
     });
   }
 
-  return { records, withoutEssentialMacros };
+  return { records, withoutEssentialMacros, invalidItems };
 }
 
 async function run() {
@@ -234,19 +248,24 @@ async function run() {
   console.log("Dataset:       ", dataset.toUpperCase());
 
   const scratchDir = path.resolve(__dirname, "../scratch");
-  const foundationPath = path.join(scratchDir, "foundation_extracted/foundationDownload.json");
+
+  // Determine Foundation JSON path (prefer 04/2026 release)
+  const foundation2026Path = path.join(scratchDir, "foundation_2026_extracted/FoodData_Central_foundation_food_json_2026-04-30.json");
+  const foundationFallbackPath = path.join(scratchDir, "foundation_extracted/foundationDownload.json");
+  const foundationPath = fs.existsSync(foundation2026Path) ? foundation2026Path : foundationFallbackPath;
+
   const fnddsPath = path.join(scratchDir, "fndds_extracted/surveyDownload.json");
 
-  let foundationItems = [];
-  let fnddsItems = [];
+  let foundationRawItems = [];
+  let fnddsRawItems = [];
 
   if (dataset === "all" || dataset === "foundation") {
     if (!fs.existsSync(foundationPath)) {
       throw new Error(`Arquivo não encontrado: ${foundationPath}. Execute o download antes.`);
     }
     const raw = fs.readFileSync(foundationPath, "utf8");
-    foundationItems = JSON.parse(raw).FoundationFoods || [];
-    console.log(`- Foundation Foods carregados do JSON: ${foundationItems.length}`);
+    foundationRawItems = JSON.parse(raw).FoundationFoods || [];
+    console.log(`- Foundation Foods carregados do JSON (${path.basename(foundationPath)}): ${foundationRawItems.length}`);
   }
 
   if (dataset === "all" || dataset === "fndds") {
@@ -254,21 +273,20 @@ async function run() {
       throw new Error(`Arquivo não encontrado: ${fnddsPath}. Execute o download antes.`);
     }
     const raw = fs.readFileSync(fnddsPath, "utf8");
-    fnddsItems = JSON.parse(raw).SurveyFoods || [];
-    console.log(`- Survey Foods (FNDDS) carregados do JSON: ${fnddsItems.length}`);
+    fnddsRawItems = JSON.parse(raw).SurveyFoods || [];
+    console.log(`- Survey Foods (FNDDS) carregados do JSON (${path.basename(fnddsPath)}): ${fnddsRawItems.length}`);
   }
 
-  const prepFoundation = prepareFoodRecords(foundationItems, "FOUNDATION");
-  const prepFndds = prepareFoodRecords(fnddsItems, "FNDDS");
+  const prepFoundation = prepareFoodRecords(foundationRawItems, "FOUNDATION");
+  const prepFndds = prepareFoodRecords(fnddsRawItems, "FNDDS");
 
-  console.log("\n--- ESTATÍSTICAS DE PREPARAÇÃO ---");
-  console.log(`Foundation processados:        ${prepFoundation.records.length}`);
-  console.log(`Foundation sem macros:         ${prepFoundation.withoutEssentialMacros}`);
-  console.log(`FNDDS processados:             ${prepFndds.records.length}`);
-  console.log(`FNDDS sem macros:              ${prepFndds.withoutEssentialMacros}`);
-
-  const allPlanned = [...prepFoundation.records, ...prepFndds.records];
-  console.log(`Total geral planejado:         ${allPlanned.length}`);
+  const plannedItems = [];
+  if (dataset === "all" || dataset === "foundation") {
+    plannedItems.push(...prepFoundation.records);
+  }
+  if (dataset === "all" || dataset === "fndds") {
+    plannedItems.push(...prepFndds.records);
+  }
 
   const pool = mysql.createPool({
     host: dbConfig.host,
@@ -281,42 +299,18 @@ async function run() {
   });
 
   try {
-    // Check existing records in target DB by source_uid
+    // Audit current state from target database
+    const targetSourceKeys = [];
+    if (dataset === "all" || dataset === "foundation") targetSourceKeys.push(SOURCE_KEY_FOUNDATION);
+    if (dataset === "all" || dataset === "fndds") targetSourceKeys.push(SOURCE_KEY_FNDDS);
+
     const [existingRows] = await pool.query(
-      "SELECT source_uid FROM nutrition_v2_foods WHERE source_key IN (?, ?)",
-      [SOURCE_KEY_FOUNDATION, SOURCE_KEY_FNDDS]
-    );
-    const existingUidSet = new Set(existingRows.map((r) => r.source_uid));
-    console.log(`\nRegistros USDA já existentes no banco: ${existingUidSet.size}`);
-
-    const newInserts = allPlanned.filter((r) => !existingUidSet.has(r.sourceUid));
-    const ignoredExisting = allPlanned.length - newInserts.length;
-
-    console.log(`Registros a inserir (inéditos):        ${newInserts.length}`);
-    console.log(`Registros ignorados (já existentes):   ${ignoredExisting}`);
-
-    if (!isApply) {
-      console.log("\n================================================================================");
-      console.log("DRY RUN CONCLUÍDO COM SUCESSO. NENHUMA ALTERAÇÃO REALIZADA NO BANCO.");
-      console.log("Para gravar no banco de dados, execute com a flag '--apply'.");
-      console.log("================================================================================");
-      return;
-    }
-
-    if (newInserts.length === 0) {
-      console.log("\nBase já se encontra 100% atualizada com estes datasets USDA.");
-      return;
-    }
-
-    console.log(`\nIniciando inserção em lotes de 500 registros (${newInserts.length} total)...`);
-    const BATCH_SIZE = 500;
-    let insertedTotal = 0;
-
-    const insertSql = `
-      INSERT INTO nutrition_v2_foods (
+      `SELECT
+        id,
         public_id,
-        scope,
-        consultancy_id,
+        source_uid,
+        source_key,
+        source_version,
         name,
         normalized_name,
         category,
@@ -326,70 +320,249 @@ async function run() {
         protein_g,
         carbohydrate_g,
         fat_g,
-        status,
-        source_type,
-        source_key,
-        source_external_code,
-        source_version,
-        source_reference,
-        source_imported_at,
-        source_uid,
-        created_by_user_id,
-        created_by_membership_id
-      ) VALUES ?
-    `;
+        status
+      FROM nutrition_v2_foods
+      WHERE source_key IN (${targetSourceKeys.map(() => "?").join(", ")})`,
+      targetSourceKeys
+    );
 
-    for (let i = 0; i < newInserts.length; i += BATCH_SIZE) {
-      const chunk = newInserts.slice(i, i + BATCH_SIZE);
-      const values = chunk.map((item) => [
-        item.publicId,
-        item.scope,
-        item.consultancyId,
-        item.name,
-        item.normalizedName,
-        item.category,
-        item.referenceAmount,
-        item.referenceUnitCode,
-        item.caloriesKcal,
-        item.proteinG,
-        item.carbohydrateG,
-        item.fatG,
-        item.status,
-        item.sourceType,
-        item.sourceKey,
-        item.sourceExternalCode,
-        item.sourceVersion,
-        item.sourceReference,
-        item.sourceImportedAt,
-        item.sourceUid,
-        null,
-        null,
-      ]);
+    const existingMap = new Map(existingRows.map((r) => [r.source_uid, r]));
+    console.log(`\nRegistros USDA já existentes no banco para [${targetSourceKeys.join(", ")}]: ${existingMap.size}`);
 
-      await pool.query(insertSql, [values]);
-      insertedTotal += chunk.length;
-      process.stdout.write(`Progresso: ${insertedTotal}/${newInserts.length} (${Math.round((insertedTotal / newInserts.length) * 100)}%)\r`);
+    const toInsert = [];
+    const toUpdate = [];
+    let unchangedCount = 0;
+
+    for (const planned of plannedItems) {
+      const existing = existingMap.get(planned.sourceUid);
+      if (!existing) {
+        toInsert.push(planned);
+      } else {
+        const isVersionSame = existing.source_version === planned.sourceVersion;
+        const isNameSame = existing.name === planned.name;
+        const isCategorySame = (existing.category || null) === (planned.category || null);
+        const isCalSame =
+          (existing.calories_kcal == null && planned.caloriesKcal == null) ||
+          (existing.calories_kcal != null && planned.caloriesKcal != null && Math.abs(Number(existing.calories_kcal) - planned.caloriesKcal) < 0.001);
+        const isProtSame =
+          (existing.protein_g == null && planned.proteinG == null) ||
+          (existing.protein_g != null && planned.proteinG != null && Math.abs(Number(existing.protein_g) - planned.proteinG) < 0.001);
+        const isCarbSame =
+          (existing.carbohydrate_g == null && planned.carbohydrateG == null) ||
+          (existing.carbohydrate_g != null && planned.carbohydrateG != null && Math.abs(Number(existing.carbohydrate_g) - planned.carbohydrateG) < 0.001);
+        const isFatSame =
+          (existing.fat_g == null && planned.fatG == null) ||
+          (existing.fat_g != null && planned.fatG != null && Math.abs(Number(existing.fat_g) - planned.fatG) < 0.001);
+        const isStatusSame = existing.status === "ACTIVE";
+
+        if (isVersionSame && isNameSame && isCategorySame && isCalSame && isProtSame && isCarbSame && isFatSame && isStatusSame) {
+          unchangedCount++;
+        } else {
+          toUpdate.push({
+            id: existing.id,
+            publicId: existing.public_id,
+            planned,
+            existingVersion: existing.source_version,
+          });
+        }
+      }
     }
 
-    console.log(`\n\nSUCESSO: ${insertedTotal} alimentos USDA inseridos com sucesso em nutrition_v2_foods.`);
+    // Check obsolete records in DB that belong to the active dataset being imported but are not present in the new release
+    const plannedUidSet = new Set(plannedItems.map((p) => p.sourceUid));
+    const obsoleteRows = existingRows.filter(
+      (r) => targetSourceKeys.includes(r.source_key) && !plannedUidSet.has(r.source_uid) && r.status === "ACTIVE"
+    );
+
+    console.log("\n--- ESTATÍSTICAS DE PROCESSAMENTO ---");
+    if (dataset === "all" || dataset === "foundation") {
+      console.log(`FOUNDATION 04/2026:`);
+      console.log(`  Total no arquivo:                 ${foundationRawItems.length}`);
+      console.log(`  Inválidos (nulos/sem dados):      ${prepFoundation.invalidItems}`);
+      console.log(`  Válidos:                          ${prepFoundation.records.length}`);
+      console.log(`  Sem macros essenciais:            ${prepFoundation.withoutEssentialMacros}`);
+    }
+    if (dataset === "all" || dataset === "fndds") {
+      console.log(`FNDDS:`);
+      console.log(`  Total no arquivo:                 ${fnddsRawItems.length}`);
+      console.log(`  Inválidos:                        ${prepFndds.invalidItems}`);
+      console.log(`  Válidos:                          ${prepFndds.records.length}`);
+      console.log(`  Sem macros essenciais:            ${prepFndds.withoutEssentialMacros}`);
+    }
+
+    console.log(`\nRESUMO DA OPERAÇÃO:`);
+    console.log(`  Novos a inserir (INSERT):          ${toInsert.length}`);
+    console.log(`  Existentes a atualizar (UPDATE):   ${toUpdate.length}`);
+    console.log(`  Existentes idênticos (UNCHANGED):  ${unchangedCount}`);
+    console.log(`  Obsoletos da release a inativar:   ${obsoleteRows.length}`);
+
+    if (!isApply) {
+      console.log("\n================================================================================");
+      console.log("DRY RUN CONCLUÍDO COM SUCESSO. NENHUMA ALTERAÇÃO REALIZADA NO BANCO.");
+      console.log("Para gravar no banco de dados, execute com a flag '--apply'.");
+      console.log("================================================================================");
+      return;
+    }
+
+    // Apply Phase
+    if (toUpdate.length > 0) {
+      console.log(`\nAtualizando ${toUpdate.length} registros existentes para nova versão...`);
+      const updateSql = `
+        UPDATE nutrition_v2_foods SET
+          name = ?,
+          normalized_name = ?,
+          category = ?,
+          source_version = ?,
+          source_reference = ?,
+          reference_amount = ?,
+          reference_unit_code = ?,
+          calories_kcal = ?,
+          protein_g = ?,
+          carbohydrate_g = ?,
+          fat_g = ?,
+          status = ?,
+          source_imported_at = ?
+        WHERE id = ?
+      `;
+
+      let updatedCount = 0;
+      for (const item of toUpdate) {
+        await pool.query(updateSql, [
+          item.planned.name,
+          item.planned.normalizedName,
+          item.planned.category,
+          item.planned.sourceVersion,
+          item.planned.sourceReference,
+          item.planned.referenceAmount,
+          item.planned.referenceUnitCode,
+          item.planned.caloriesKcal,
+          item.planned.proteinG,
+          item.planned.carbohydrateG,
+          item.planned.fatG,
+          item.planned.status,
+          new Date().toISOString(),
+          item.id,
+        ]);
+        updatedCount++;
+        if (updatedCount % 50 === 0 || updatedCount === toUpdate.length) {
+          process.stdout.write(`Progresso updates: ${updatedCount}/${toUpdate.length} (${Math.round((updatedCount / toUpdate.length) * 100)}%)\r`);
+        }
+      }
+      console.log(`\nUpdates concluídos: ${updatedCount} registros atualizados.`);
+    }
+
+    if (toInsert.length > 0) {
+      console.log(`\nInserindo ${toInsert.length} novos alimentos em lotes de 500...`);
+      const BATCH_SIZE = 500;
+      let insertedTotal = 0;
+
+      const insertSql = `
+        INSERT INTO nutrition_v2_foods (
+          public_id,
+          scope,
+          consultancy_id,
+          name,
+          normalized_name,
+          category,
+          reference_amount,
+          reference_unit_code,
+          calories_kcal,
+          protein_g,
+          carbohydrate_g,
+          fat_g,
+          status,
+          source_type,
+          source_key,
+          source_external_code,
+          source_version,
+          source_reference,
+          source_imported_at,
+          source_uid,
+          created_by_user_id,
+          created_by_membership_id
+        ) VALUES ?
+      `;
+
+      for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+        const chunk = toInsert.slice(i, i + BATCH_SIZE);
+        const values = chunk.map((item) => [
+          item.publicId,
+          item.scope,
+          item.consultancyId,
+          item.name,
+          item.normalizedName,
+          item.category,
+          item.referenceAmount,
+          item.referenceUnitCode,
+          item.caloriesKcal,
+          item.proteinG,
+          item.carbohydrateG,
+          item.fatG,
+          item.status,
+          item.sourceType,
+          item.sourceKey,
+          item.sourceExternalCode,
+          item.sourceVersion,
+          item.sourceReference,
+          item.sourceImportedAt,
+          item.sourceUid,
+          null,
+          null,
+        ]);
+
+        await pool.query(insertSql, [values]);
+        insertedTotal += chunk.length;
+        process.stdout.write(`Progresso inserts: ${insertedTotal}/${toInsert.length} (${Math.round((insertedTotal / toInsert.length) * 100)}%)\r`);
+      }
+      console.log(`\nInserts concluídos: ${insertedTotal} alimentos inseridos.`);
+    }
+
+    if (obsoleteRows.length > 0) {
+      console.log(`\nInativando ${obsoleteRows.length} alimentos obsoletos da release anterior...`);
+      for (const obs of obsoleteRows) {
+        await pool.query(
+          `UPDATE nutrition_v2_foods SET
+            status = 'INACTIVE',
+            source_version = ?,
+            source_imported_at = ?
+          WHERE id = ?`,
+          [SOURCE_VERSION_FOUNDATION, new Date().toISOString(), obs.id]
+        );
+      }
+      console.log(`Inativação de obsoletos concluída.`);
+    }
+
+    console.log(`\nSUCESSO: Sincronização USDA concluída.`);
 
     // Verification summary
     const [finalCounts] = await pool.query(`
       SELECT
         source_key,
+        source_version,
+        status,
         COUNT(*) as total,
         COUNT(DISTINCT source_uid) as distinct_uids
       FROM nutrition_v2_foods
       WHERE deleted_at IS NULL
-      GROUP BY source_key
+      GROUP BY source_key, source_version, status
+      ORDER BY source_key, source_version, status
     `);
-    console.log("\n--- CONTAGEM FINAL POR FONTE EM NUTRITION V2 ---");
+    console.log("\n--- CONTAGEM FINAL POR FONTE E VERSÃO EM NUTRITION V2 ---");
     console.table(finalCounts);
 
     const [totalActive] = await pool.query(
-      "SELECT COUNT(*) as total FROM nutrition_v2_foods WHERE deleted_at IS NULL"
+      "SELECT COUNT(*) as total FROM nutrition_v2_foods WHERE deleted_at IS NULL AND status = 'ACTIVE'"
     );
-    console.log(`Total geral de alimentos ativos em nutrition_v2_foods: ${totalActive[0].total}`);
+    console.log(`Total geral de alimentos ATIVOS em nutrition_v2_foods: ${totalActive[0].total}`);
+
+    // Verify 0 remaining active records of old Foundation release
+    const [oldFoundationActive] = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM nutrition_v2_foods
+      WHERE source_key = ? AND source_version = 'Foundation 2024-10-31' AND status = 'ACTIVE'
+    `, [SOURCE_KEY_FOUNDATION]);
+    console.log(`Registros Foundation 2024-10-31 ATIVOS remanescentes: ${oldFoundationActive[0].total}`);
+
   } finally {
     await pool.end();
   }

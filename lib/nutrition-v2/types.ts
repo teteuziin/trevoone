@@ -76,6 +76,8 @@ export interface NutritionV2FoodDto {
   scope: NutritionV2FoodScope;
   consultancyId: string | null;
   name: string;
+  displayNamePtBr?: string | null;
+  normalizedDisplayNamePtBr?: string | null;
   normalizedName: string;
   category: string | null;
   referenceAmount: number;

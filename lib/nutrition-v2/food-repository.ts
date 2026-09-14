@@ -137,8 +137,8 @@ export function buildFoodSearchOrderClause(
 ): { orderClause: string; orderParams: (string | number)[] } {
   if (!queryTokens || queryTokens.length === 0) {
     const defaultOrder = isUnified
-      ? `ORDER BY CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC, f.name ASC`
-      : `ORDER BY f.name ASC`;
+      ? `ORDER BY CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC, COALESCE(f.display_name_pt_br, f.name) ASC`
+      : `ORDER BY COALESCE(f.display_name_pt_br, f.name) ASC`;
     return { orderClause: defaultOrder, orderParams: [] };
   }
 
@@ -148,81 +148,138 @@ export function buildFoodSearchOrderClause(
   const firstStem = getWordStem(firstToken);
   const orderParams: (string | number)[] = [];
 
-  // Tier 1: Exact match normalized (ignoring punctuation)
-  orderParams.push(normalizedQuery);
-  orderParams.push(cleanQuery);
+  const targetCol = "COALESCE(f.normalized_display_name_pt_br, f.normalized_name)";
+
+  // Tier 1: Exact match normalized (PT-BR first, then EN alias)
+  orderParams.push(normalizedQuery, cleanQuery);
+  orderParams.push(normalizedQuery, cleanQuery);
 
   // Tier 2: Sequence starts with first token as distinct word or phrase
+  const tier2Pt: string[] = [];
+  const tier2En: string[] = [];
   if (queryTokens.length >= 2) {
     const t0 = queryTokens[0];
     const t1 = queryTokens[1];
     const s0 = getWordStem(t0);
-    orderParams.push(`${t0}, %${t1}%`);
-    orderParams.push(`${t0} %${t1}%`);
-    orderParams.push(`${s0}, %${t1}%`);
-    orderParams.push(`${s0}s, %${t1}%`);
-    orderParams.push(`${t1}, %${t0}%`);
-    orderParams.push(`${t1} %${t0}%`);
+    tier2Pt.push(`${t0}, %${t1}%`, `${t0} %${t1}%`, `${s0}, %${t1}%`, `${s0}s, %${t1}%`, `${t1}, %${t0}%`, `${t1} %${t0}%`);
+    tier2En.push(`${t0}, %${t1}%`, `${t0} %${t1}%`, `${s0}, %${t1}%`, `${s0}s, %${t1}%`, `${t1}, %${t0}%`, `${t1} %${t0}%`);
   } else {
-    orderParams.push(`${firstToken},%`);
-    orderParams.push(`${firstStem},%`);
-    orderParams.push(`${firstStem}s,%`);
-    orderParams.push(`fish, ${firstToken},%`);
-    orderParams.push(`fish, ${firstStem},%`);
-    orderParams.push(`${firstToken} %`);
+    tier2Pt.push(`${firstToken},%`, `${firstStem},%`, `${firstStem}s,%`, `peixe, ${firstToken},%`, `peixe, ${firstStem},%`, `${firstToken} %`);
+    tier2En.push(`${firstToken},%`, `${firstStem},%`, `${firstStem}s,%`, `fish, ${firstToken},%`, `fish, ${firstStem},%`, `${firstToken} %`);
   }
+  orderParams.push(...tier2Pt, ...tier2En);
 
   // Tier 3: Primary noun followed by comma
-  orderParams.push(`${firstToken},%`);
-  orderParams.push(`${firstStem},%`);
-  orderParams.push(`${firstStem}s,%`);
-  orderParams.push(`fish, ${firstToken},%`);
-  orderParams.push(`fish, ${firstStem},%`);
+  orderParams.push(`${firstToken},%`, `${firstStem},%`, `${firstStem}s,%`, `peixe, ${firstToken},%`, `peixe, ${firstStem},%`);
+  orderParams.push(`${firstToken},%`, `${firstStem},%`, `${firstStem}s,%`, `fish, ${firstToken},%`, `fish, ${firstStem},%`);
 
   // Tier 4: Starts with first token as full word (space)
-  orderParams.push(`${firstToken} %`);
-  orderParams.push(`${firstStem} %`);
+  orderParams.push(`${firstToken} %`, `${firstStem} %`);
+  orderParams.push(`${firstToken} %`, `${firstStem} %`);
 
   // Tier 5: Starts with first token prefix
   orderParams.push(`${firstToken}%`);
+  orderParams.push(`${firstToken}%`);
 
-  // Whole egg boost when query starts with egg
-  orderParams.push(firstToken);
-  orderParams.push(firstToken);
+  // Whole egg boost when query starts with egg or ovo (inlined below)
 
   const tenancyOrder = isUnified ? `CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC,` : "";
+
+  const hasCookingKeyword = queryTokens.some((t) =>
+    ["cozido", "cozida", "assado", "assada", "grelhado", "grelhada", "frito", "frita",
+     "cooked", "boiled", "baked", "roasted", "grilled", "fried", "broiled", "poached"].includes(t)
+  );
+
+  const isMilkQuery = queryTokens.some((t) => ["milk", "leite"].includes(t));
+  const hasCheeseOrYogurtQuery = queryTokens.some((t) =>
+    ["cheese", "queijo", "yogurt", "iogurte", "ricota", "ricotta"].includes(t)
+  );
+
+  const isBreadQuery = queryTokens.some((t) => ["bread", "pao"].includes(t));
+  const isYogurtQuery = queryTokens.some((t) => ["yogurt", "iogurte"].includes(t));
 
   const orderClause = `ORDER BY
     ${tenancyOrder}
     CASE
-      -- Tier 1: Exact match normalized
-      WHEN f.normalized_name = ? OR f.normalized_name = ? THEN 1
-      -- Tier 2: Query phrase or structured sequence at start with word boundaries
+      -- Tier 1: Exact match normalized PT-BR
+      WHEN ${targetCol} = ? OR ${targetCol} = ? THEN 1
+      -- Tier 1b: Exact match normalized EN alias
+      WHEN f.normalized_name = ? OR f.normalized_name = ? THEN 2
+      -- Tier 2: Query phrase or structured sequence at start with word boundaries (PT-BR)
       ${queryTokens.length >= 2 ? `
+      WHEN ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ?
+        OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? THEN 3
       WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ?
-        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 2
+        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 4
       ` : `
+      WHEN ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ?
+        OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? THEN 3
       WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ?
-        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 2
+        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 4
       `}
       -- Tier 3: Primary noun followed by comma (base food indicator)
+      WHEN ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ?
+        OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? THEN 5
       WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ?
-        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 3
+        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 6
       -- Tier 4: Starts with first token as full word
-      WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 4
+      WHEN ${targetCol} LIKE ? OR ${targetCol} LIKE ? THEN 7
+      WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 8
       -- Tier 5: Starts with first token prefix
-      WHEN f.normalized_name LIKE ? THEN 5
-      ELSE 6
+      WHEN ${targetCol} LIKE ? THEN 9
+      WHEN f.normalized_name LIKE ? THEN 10
+      ELSE 11
     END ASC,
-    -- Penalize non-intended subword collisions (e.g. "eggplant" when searching "egg")
+    -- Prioritize direct milk foods over dairy derivatives (yogurt, cheese) when querying milk / leite
     CASE
-      WHEN ${firstToken === 'egg' ? '1=1' : '1=0'} AND f.normalized_name LIKE '%eggplant%' THEN 2
+      WHEN (${isMilkQuery && !hasCheeseOrYogurtQuery ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE 'leite%' OR f.normalized_name LIKE 'milk%') THEN 1
+      WHEN (${isMilkQuery && !hasCheeseOrYogurtQuery ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE 'queijo%' OR ${targetCol} LIKE 'iogurte%' OR f.normalized_name LIKE 'cheese%' OR f.normalized_name LIKE 'yogurt%') THEN 3
+      ELSE 2
+    END ASC,
+    -- Prioritize clean, lean base cuts (sem osso / sem pele / boneless / skinless)
+    CASE
+      WHEN (${targetCol} LIKE '%sem osso%' AND ${targetCol} LIKE '%sem pele%')
+        OR (f.normalized_name LIKE '%boneless%' AND f.normalized_name LIKE '%skinless%') THEN 1
+      WHEN ${targetCol} LIKE '%sem pele%' OR f.normalized_name LIKE '%skinless%' THEN 2
+      WHEN ${targetCol} LIKE '%sem osso%' OR f.normalized_name LIKE '%boneless%' THEN 3
+      WHEN ${targetCol} LIKE '%carne e pele%' OR ${targetCol} LIKE '%com pele%'
+        OR f.normalized_name LIKE '%meat and skin%' OR f.normalized_name LIKE '%skin eaten%' OR f.normalized_name LIKE '%skin on%' THEN 5
+      ELSE 4
+    END ASC,
+    -- Prefer raw / cru base food when cooking method is not specified in query
+    CASE
+      WHEN (${!hasCookingKeyword ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE '% cru%' OR ${targetCol} LIKE '%, cru%' OR ${targetCol} LIKE 'cru,%' OR ${targetCol} = 'cru'
+             OR f.normalized_name LIKE '% raw%' OR f.normalized_name LIKE '%, raw%' OR f.normalized_name LIKE 'raw,%' OR f.normalized_name = 'raw') THEN 1
+      ELSE 2
+    END ASC,
+    -- Prefer plain / white / whole wheat bread over nut / fruit bread when querying bread
+    CASE
+      WHEN (${isBreadQuery ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE '%branco%' OR ${targetCol} LIKE '%integral%' OR f.normalized_name LIKE '%white%' OR f.normalized_name LIKE '%whole wheat%') THEN 1
+      WHEN (${isBreadQuery ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE '%noz%' OR ${targetCol} LIKE '%fruta%' OR f.normalized_name LIKE '%nut%' OR f.normalized_name LIKE '%fruit%') THEN 3
+      ELSE 2
+    END ASC,
+    -- Prefer plain / natural / traditional yogurt over fruit / flavored yogurt when querying yogurt
+    CASE
+      WHEN (${isYogurtQuery ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE '%natural%' OR ${targetCol} LIKE '%tradicional%' OR f.normalized_name LIKE '%plain%') THEN 1
+      WHEN (${isYogurtQuery ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE '%morango%' OR ${targetCol} LIKE '%fruta%' OR f.normalized_name LIKE '%strawberry%' OR f.normalized_name LIKE '%fruit%') THEN 3
+      ELSE 2
+    END ASC,
+    -- Penalize non-intended subword collisions (e.g. "eggplant" when searching "egg" or "ovo")
+    CASE
+      WHEN (${firstToken === "egg" || firstToken === "ovo" ? "1=1" : "1=0"}) AND (${targetCol} LIKE '%eggplant%' OR f.normalized_name LIKE '%eggplant%') THEN 2
       ELSE 1
     END ASC,
-    -- Whole egg over white/yolk parts when searching egg
+    -- Whole egg over white/yolk parts when searching egg or ovo
     CASE
-      WHEN ? = 'egg' AND f.normalized_name LIKE '%whole%' THEN 1
-      WHEN ? = 'egg' AND f.normalized_name LIKE '%white%' THEN 2
+      WHEN (${firstToken === "egg" || firstToken === "ovo" ? "1=1" : "1=0"}) AND (${targetCol} LIKE '%integral%' OR ${targetCol} LIKE '%inteiro%' OR f.normalized_name LIKE '%whole%') THEN 1
+      WHEN (${firstToken === "egg" || firstToken === "ovo" ? "1=1" : "1=0"}) AND (${targetCol} LIKE '%clara%' OR f.normalized_name LIKE '%white%') THEN 2
       ELSE 3
     END ASC,
     -- Simple base food tie-breaker: TACO (1) -> FOUNDATION (2) -> FNDDS (3) -> OTHER (4)
@@ -232,14 +289,17 @@ export function buildFoodSearchOrderClause(
       WHEN f.source_key = 'USDA_FNDDS' THEN 3
       ELSE 4
     END ASC,
-    -- Avoid composite dishes over simple dishes when query is simple (penalize "sandwich", "salad", "stuffing", "chips", "noodles")
+    -- Avoid composite dishes, fast-food, and restaurant preparations over simple base foods
     CASE
-      WHEN (f.normalized_name LIKE '%sandwich%' OR f.normalized_name LIKE '%chips%' OR f.normalized_name LIKE '%stuffing%' OR f.normalized_name LIKE '%pudding%' OR f.normalized_name LIKE '%salad%' OR f.normalized_name LIKE '%noodles%') THEN 2
+      WHEN (${targetCol} LIKE '%fast-food%' OR ${targetCol} LIKE '%fast food%' OR ${targetCol} LIKE '%restaurante%'
+            OR f.normalized_name LIKE '%fast food%' OR f.normalized_name LIKE '%restaurant%') THEN 3
+      WHEN (${targetCol} LIKE '%sanduiche%' OR ${targetCol} LIKE '%chips%' OR ${targetCol} LIKE '%salada%' OR ${targetCol} LIKE '%recheio%'
+            OR f.normalized_name LIKE '%sandwich%' OR f.normalized_name LIKE '%chips%' OR f.normalized_name LIKE '%salad%') THEN 2
       ELSE 1
     END ASC,
     -- Conciseness tie-breaker: shorter names mean higher term density
-    CHAR_LENGTH(f.name) ASC,
-    f.name ASC`;
+    CHAR_LENGTH(COALESCE(f.display_name_pt_br, f.name)) ASC,
+    COALESCE(f.display_name_pt_br, f.name) ASC`;
 
   return { orderClause, orderParams };
 }
@@ -296,12 +356,12 @@ export async function listUnifiedFoodsForNutritionist(
     }
   }
 
-  // Text search & tokenization
+  // Text search & tokenization (searches localized PT-BR name AND original canonical English name)
   const queryTokens = filter.query ? tokenizeSearchQuery(filter.query) : [];
   if (queryTokens.length > 0) {
     for (const token of queryTokens) {
-      conditions.push("f.normalized_name LIKE ?");
-      params.push(`%${token}%`);
+      conditions.push("(f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ?)");
+      params.push(`%${token}%`, `%${token}%`);
     }
   }
 
@@ -339,6 +399,8 @@ export async function listUnifiedFoodsForNutritionist(
         f.scope,
         f.consultancy_id,
         f.name,
+        f.display_name_pt_br,
+        f.normalized_display_name_pt_br,
         f.normalized_name,
         f.category,
         f.reference_amount,
@@ -379,6 +441,8 @@ export async function listUnifiedFoodsForNutritionist(
       scope: r.scope as NutritionV2FoodScope,
       consultancyId: r.consultancy_id != null ? String(r.consultancy_id) : null,
       name: r.name,
+      displayNamePtBr: r.display_name_pt_br != null ? String(r.display_name_pt_br) : null,
+      normalizedDisplayNamePtBr: r.normalized_display_name_pt_br != null ? String(r.normalized_display_name_pt_br) : null,
       normalizedName: r.normalized_name,
       category: r.category,
       referenceAmount: Number(r.reference_amount),
@@ -440,12 +504,12 @@ export async function listGlobalFoodsForAdmin(
     conditions.push("f.status = 'ARCHIVED'");
   }
 
-  // Text search & tokenization
+  // Text search & tokenization (searches localized PT-BR name AND original canonical English name)
   const queryTokens = filter.query ? tokenizeSearchQuery(filter.query) : [];
   if (queryTokens.length > 0) {
     for (const token of queryTokens) {
-      conditions.push("f.normalized_name LIKE ?");
-      params.push(`%${token}%`);
+      conditions.push("(f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ?)");
+      params.push(`%${token}%`, `%${token}%`);
     }
   }
 
@@ -481,6 +545,8 @@ export async function listGlobalFoodsForAdmin(
         f.scope,
         f.consultancy_id,
         f.name,
+        f.display_name_pt_br,
+        f.normalized_display_name_pt_br,
         f.normalized_name,
         f.category,
         f.reference_amount,
@@ -521,6 +587,8 @@ export async function listGlobalFoodsForAdmin(
       scope: r.scope as NutritionV2FoodScope,
       consultancyId: null,
       name: r.name,
+      displayNamePtBr: r.display_name_pt_br != null ? String(r.display_name_pt_br) : null,
+      normalizedDisplayNamePtBr: r.normalized_display_name_pt_br != null ? String(r.normalized_display_name_pt_br) : null,
       normalizedName: r.normalized_name,
       category: r.category,
       referenceAmount: Number(r.reference_amount),
@@ -601,6 +669,8 @@ export async function getFoodWithPortions(
       scope: f.scope,
       consultancyId: f.consultancy_id != null ? String(f.consultancy_id) : null,
       name: f.name,
+      displayNamePtBr: f.display_name_pt_br != null ? String(f.display_name_pt_br) : null,
+      normalizedDisplayNamePtBr: f.normalized_display_name_pt_br != null ? String(f.normalized_display_name_pt_br) : null,
       normalizedName: f.normalized_name,
       category: f.category,
       referenceAmount: Number(f.reference_amount),

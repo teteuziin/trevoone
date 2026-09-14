@@ -316,9 +316,13 @@ export function GlobalFoodManager({ initialResult }: GlobalFoodManagerProps) {
               <div className="space-y-1">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-semibold text-sm sm:text-base text-[var(--text-primary)]">{food.name}</h3>
+                    <h3 className="font-semibold text-sm sm:text-base text-[var(--text-primary)]">
+                      {food.displayNamePtBr || food.name}
+                    </h3>
                     <p className="text-xs text-[var(--text-muted)]">
-                      {food.category || "Sem categoria"} • Fonte: {food.sourceKey || "MANUAL"}
+                      {food.category || "Sem categoria"}
+                      {food.displayNamePtBr && food.displayNamePtBr !== food.name ? ` • Original: ${food.name}` : ""}
+                      {` • Fonte: ${food.sourceKey || "MANUAL"}`}
                     </p>
                   </div>
                   <span

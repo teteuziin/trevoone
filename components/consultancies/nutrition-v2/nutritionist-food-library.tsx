@@ -354,7 +354,7 @@ export function NutritionistFoodLibrary({
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-0.5">
                         <h3 className="font-semibold text-sm sm:text-base text-[var(--text-primary)] leading-tight">
-                          {food.name}
+                          {food.displayNamePtBr || food.name}
                         </h3>
                         {food.category && (
                           <p className="text-xs text-[var(--text-muted)]">{food.category}</p>
@@ -362,9 +362,16 @@ export function NutritionistFoodLibrary({
                       </div>
                       <div>
                         {isGlobal ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60">
-                            Trevo One
-                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60">
+                              Trevo One
+                            </span>
+                            {food.sourceKey && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
+                                {food.sourceKey.startsWith("USDA") ? "USDA" : food.sourceKey === "TACO" ? "TACO" : food.sourceKey}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60">
                             Minha Consultoria

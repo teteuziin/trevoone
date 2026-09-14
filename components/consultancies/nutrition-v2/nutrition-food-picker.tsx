@@ -316,7 +316,7 @@ export function NutritionFoodPicker({
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
-                            {food.name}
+                            {food.displayNamePtBr || food.name}
                           </span>
                           <span
                             className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
@@ -327,6 +327,11 @@ export function NutritionFoodPicker({
                           >
                             {food.scope === "GLOBAL" ? "Trevo One" : "Minha Consultoria"}
                           </span>
+                          {food.scope === "GLOBAL" && food.sourceKey && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
+                              {food.sourceKey.startsWith("USDA") ? "USDA" : food.sourceKey === "TACO" ? "TACO" : food.sourceKey}
+                            </span>
+                          )}
                         </div>
                         <div className="flex flex-wrap gap-x-2 text-[11px] text-[var(--text-secondary)]">
                           <span>Ref: {food.referenceAmount} {food.referenceUnitCode}</span>
@@ -387,7 +392,7 @@ export function NutritionFoodPicker({
               <div className="p-3.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm text-[var(--text-primary)]">{selectedFood.name}</h3>
+                    <h3 className="font-semibold text-sm text-[var(--text-primary)]">{selectedFood.displayNamePtBr || selectedFood.name}</h3>
                     <span
                       className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                         selectedFood.scope === "GLOBAL"
@@ -397,6 +402,11 @@ export function NutritionFoodPicker({
                     >
                       {selectedFood.scope === "GLOBAL" ? "Trevo One" : "Minha Consultoria"}
                     </span>
+                    {selectedFood.scope === "GLOBAL" && selectedFood.sourceKey && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
+                        {selectedFood.sourceKey.startsWith("USDA") ? "USDA" : selectedFood.sourceKey === "TACO" ? "TACO" : selectedFood.sourceKey}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-[var(--text-secondary)] mt-1">
                     Referência: {selectedFood.referenceAmount} {selectedFood.referenceUnitCode} ·{" "}

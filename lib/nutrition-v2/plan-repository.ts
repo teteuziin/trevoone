@@ -1160,7 +1160,7 @@ export async function addMealItem(
       }
 
       foodId = Number(food.id);
-      foodNameSnapshot = String(food.name);
+      foodNameSnapshot = String(food.display_name_pt_br || food.name);
       categorySnapshot = food.category ? String(food.category) : null;
 
       // Check portion if provided
@@ -1616,7 +1616,7 @@ export async function addSubstitution(
       }
 
       foodId = Number(food.id);
-      foodNameSnapshot = String(food.name);
+      foodNameSnapshot = String(food.display_name_pt_br || food.name);
 
       let portionEquivalentAmount: number | null = null;
       if (input.portionPublicId && input.portionPublicId.trim()) {

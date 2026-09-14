@@ -15,6 +15,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { translateUsdaFoodName } from "./translate-nutrition-v2-usda.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -207,6 +208,8 @@ export function prepareFoodRecords(items, type) {
     const fdcId = item.fdcId;
     const name = item.description.trim();
     const normalizedName = normalizeSearchText(name);
+    const displayNamePtBr = translateUsdaFoodName(name);
+    const normalizedDisplayNamePtBr = normalizeSearchText(displayNamePtBr);
     const category =
       item.foodCategory?.description?.trim() ||
       item.wweiaFoodCategory?.wweiaFoodCategoryDescription?.trim() ||
@@ -223,6 +226,8 @@ export function prepareFoodRecords(items, type) {
       consultancyId: null,
       name,
       normalizedName,
+      displayNamePtBr,
+      normalizedDisplayNamePtBr,
       category,
       referenceAmount: 100.0,
       referenceUnitCode: "G",
@@ -358,6 +363,8 @@ async function run() {
         source_version,
         name,
         normalized_name,
+        display_name_pt_br,
+        normalized_display_name_pt_br,
         category,
         reference_amount,
         reference_unit_code,
@@ -385,6 +392,7 @@ async function run() {
       } else {
         const isVersionSame = existing.source_version === planned.sourceVersion;
         const isNameSame = existing.name === planned.name;
+        const isPtBrSame = existing.display_name_pt_br === planned.displayNamePtBr;
         const isCategorySame = (existing.category || null) === (planned.category || null);
         const isCalSame =
           (existing.calories_kcal == null && planned.caloriesKcal == null) ||
@@ -400,7 +408,7 @@ async function run() {
           (existing.fat_g != null && planned.fatG != null && Math.abs(Number(existing.fat_g) - planned.fatG) < 0.001);
         const isStatusSame = existing.status === "ACTIVE";
 
-        if (isVersionSame && isNameSame && isCategorySame && isCalSame && isProtSame && isCarbSame && isFatSame && isStatusSame) {
+        if (isVersionSame && isNameSame && isPtBrSame && isCategorySame && isCalSame && isProtSame && isCarbSame && isFatSame && isStatusSame) {
           unchangedCount++;
         } else {
           toUpdate.push({
@@ -482,6 +490,8 @@ async function run() {
         UPDATE nutrition_v2_foods SET
           name = ?,
           normalized_name = ?,
+          display_name_pt_br = ?,
+          normalized_display_name_pt_br = ?,
           category = ?,
           source_version = ?,
           source_reference = ?,
@@ -501,6 +511,8 @@ async function run() {
         await pool.query(updateSql, [
           item.planned.name,
           item.planned.normalizedName,
+          item.planned.displayNamePtBr,
+          item.planned.normalizedDisplayNamePtBr,
           item.planned.category,
           item.planned.sourceVersion,
           item.planned.sourceReference,
@@ -534,6 +546,8 @@ async function run() {
           consultancy_id,
           name,
           normalized_name,
+          display_name_pt_br,
+          normalized_display_name_pt_br,
           category,
           reference_amount,
           reference_unit_code,
@@ -562,6 +576,8 @@ async function run() {
           item.consultancyId,
           item.name,
           item.normalizedName,
+          item.displayNamePtBr,
+          item.normalizedDisplayNamePtBr,
           item.category,
           item.referenceAmount,
           item.referenceUnitCode,

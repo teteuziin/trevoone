@@ -27,6 +27,16 @@ export const SOURCE_VERSION_FNDDS = "FNDDS 2021-2023 (2024-10-31)";
 export const PROD_DB_NAME = "u406031981_trevoone";
 export const DEV_DB_NAME = "u406031981_trevoone_dev";
 export const EXPECTED_HOST = "srv1595.hstgr.io";
+export const ALLOWED_PROD_HOSTS = Object.freeze([
+  "127.0.0.1",
+  "localhost",
+  "srv1595.hstgr.io",
+]);
+export const ALLOWED_DEV_HOSTS = Object.freeze([
+  "127.0.0.1",
+  "localhost",
+  "srv1595.hstgr.io",
+]);
 
 export function normalizeSearchText(text) {
   if (!text || typeof text !== "string") return "";
@@ -104,17 +114,23 @@ export function resolveDatabaseConfig(procEnv = process.env, fileEnv = {}) {
 }
 
 export function validateTargetGuards({ dbName, dbHost, isAllowProduction }) {
-  if (dbHost !== EXPECTED_HOST) {
-    throw new Error(`ERRO DE SEGURANÇA: Host inesperado: '${dbHost}'. Esperado: '${EXPECTED_HOST}'.`);
-  }
-
   if (dbName === PROD_DB_NAME) {
     if (!isAllowProduction) {
       throw new Error("PRODUÇÃO DETECTADA — EXECUÇÃO ABORTADA. Requer flag '--allow-production'.");
     }
+    if (!ALLOWED_PROD_HOSTS.includes(dbHost)) {
+      throw new Error(
+        `ERRO DE SEGURANÇA: Host de produção não autorizado: '${dbHost}'. Esperado um de: ${ALLOWED_PROD_HOSTS.join(", ")}.`
+      );
+    }
   } else if (dbName === DEV_DB_NAME) {
     if (isAllowProduction) {
       throw new Error("ERRO: '--allow-production' não pode ser usada no banco DEV.");
+    }
+    if (!ALLOWED_DEV_HOSTS.includes(dbHost)) {
+      throw new Error(
+        `ERRO DE SEGURANÇA: Host DEV não autorizado: '${dbHost}'. Esperado um de: ${ALLOWED_DEV_HOSTS.join(", ")}.`
+      );
     }
   } else {
     throw new Error(`ERRO DE SEGURANÇA: Banco de dados não autorizado: '${dbName}'.`);
@@ -299,6 +315,35 @@ async function run() {
   });
 
   try {
+    // Runtime database verification (SELECT DATABASE())
+    const [activeDbRows] = await pool.query("SELECT DATABASE() AS db");
+    const activeDb = activeDbRows[0]?.db;
+
+    if (!activeDb) {
+      throw new Error("ERRO DE SEGURANÇA: SELECT DATABASE() retornou vazio.");
+    }
+
+    if (isAllowProduction) {
+      if (activeDb !== PROD_DB_NAME) {
+        throw new Error(
+          `ERRO DE SEGURANÇA: Execução em PRODUÇÃO requer SELECT DATABASE() == '${PROD_DB_NAME}'. Retornado: '${activeDb}'. ABORTANDO.`
+        );
+      }
+    } else {
+      if (activeDb === PROD_DB_NAME) {
+        throw new Error(
+          `ERRO CRÍTICO DE SEGURANÇA: Conectado ao banco de produção '${PROD_DB_NAME}' sem a flag '--allow-production'. ABORTANDO IMEDIATAMENTE.`
+        );
+      }
+      if (activeDb !== DEV_DB_NAME) {
+        throw new Error(
+          `ERRO DE SEGURANÇA: Banco retornado por SELECT DATABASE() ('${activeDb}') não corresponde ao banco DEV autorizado ('${DEV_DB_NAME}').`
+        );
+      }
+    }
+
+    console.log(`Validação runtime do banco (SELECT DATABASE()): '${activeDb}' OK.`);
+
     // Audit current state from target database
     const targetSourceKeys = [];
     if (dataset === "all" || dataset === "foundation") targetSourceKeys.push(SOURCE_KEY_FOUNDATION);
@@ -411,7 +456,26 @@ async function run() {
       return;
     }
 
-    // Apply Phase
+    // Apply Phase — Pre-write runtime guard
+    if (toUpdate.length > 0 || toInsert.length > 0 || obsoleteToInactivate.length > 0 || obsoleteToFixProvenance.length > 0) {
+      const [preWriteRows] = await pool.query("SELECT DATABASE() AS db");
+      const preWriteDb = preWriteRows[0]?.db;
+
+      if (isAllowProduction) {
+        if (preWriteDb !== PROD_DB_NAME) {
+          throw new Error(
+            `ABORTAR: Falha de segurança pré-escrita! SELECT DATABASE() retornou '${preWriteDb}', esperado exatamente '${PROD_DB_NAME}'. Nenhuma alteração foi realizada.`
+          );
+        }
+      } else {
+        if (preWriteDb !== DEV_DB_NAME) {
+          throw new Error(
+            `ABORTAR: Falha de segurança pré-escrita! SELECT DATABASE() retornou '${preWriteDb}', esperado exatamente '${DEV_DB_NAME}'. Nenhuma alteração foi realizada.`
+          );
+        }
+      }
+    }
+
     if (toUpdate.length > 0) {
       console.log(`\nAtualizando ${toUpdate.length} registros existentes para nova versão...`);
       const updateSql = `

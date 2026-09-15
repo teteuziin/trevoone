@@ -104,32 +104,32 @@ export default async function AdminPaymentReceiptsQueuePage({
             {result.receipts.map((receipt) => (
               <div
                 key={receipt.receiptPublicId}
-                className="bg-white border border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[#00A859]/50 transition-all"
+                className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[var(--brand)] transition-all"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-sm text-zinc-900 truncate">
+                      <span className="font-bold text-sm text-[var(--text-primary)] truncate">
                         {receipt.studentName}
                       </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[var(--warning-soft)] text-[var(--warning-foreground)] border border-[var(--warning-border)]">
                         Aguardando análise
                       </span>
                     </div>
 
-                    <p className="text-xs text-zinc-600 font-medium truncate">
+                    <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
                       {receipt.chargeTitle} —{" "}
-                      <strong className="text-zinc-900">{formatCentsToBrl(receipt.amountCents)}</strong>
+                      <strong className="text-[var(--text-primary)]">{formatCentsToBrl(receipt.amountCents)}</strong>
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500">
-                      <span>Arquivo: <strong className="text-zinc-700 font-medium">{receipt.originalFileName}</strong> ({formatBytes(receipt.sizeBytes)})</span>
-                      <span>Enviado em: <strong className="text-zinc-700 font-medium">{formatDateTime(receipt.submittedAt)}</strong></span>
-                      <span>Vencimento: <strong className="text-zinc-700 font-medium">{formatDateBr(receipt.dueOn)}</strong></span>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--text-tertiary)]">
+                      <span>Arquivo: <strong className="text-[var(--text-secondary)] font-medium">{receipt.originalFileName}</strong> ({formatBytes(receipt.sizeBytes)})</span>
+                      <span>Enviado em: <strong className="text-[var(--text-secondary)] font-medium">{formatDateTime(receipt.submittedAt)}</strong></span>
+                      <span>Vencimento: <strong className="text-[var(--text-secondary)] font-medium">{formatDateBr(receipt.dueOn)}</strong></span>
                     </div>
                   </div>
 
-                  <div className="pt-2 sm:pt-0 border-t border-zinc-100 sm:border-t-0 shrink-0">
+                  <div className="pt-2 sm:pt-0 border-t border-[var(--border-subtle)] sm:border-t-0 shrink-0">
                     <Link href={`/consultoria/${slug}/financeiro/comprovantes/${receipt.receiptPublicId}`}>
                       <Button variant="primary" size="sm">
                         Analisar Comprovante →
@@ -142,10 +142,10 @@ export default async function AdminPaymentReceiptsQueuePage({
 
             {/* Pagination */}
             {result.totalPages > 1 && (
-              <div className="flex items-center justify-between p-4 bg-white border border-zinc-200/90 rounded-2xl shadow-xs text-xs">
-                <p className="text-zinc-500">
-                  Página <span className="font-bold text-zinc-900">{result.page}</span> de{" "}
-                  <span className="font-bold text-zinc-900">{result.totalPages}</span> ({result.total} comprovantes)
+              <div className="flex items-center justify-between p-4 bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl shadow-xs text-xs">
+                <p className="text-[var(--text-secondary)]">
+                  Página <span className="font-bold text-[var(--text-primary)]">{result.page}</span> de{" "}
+                  <span className="font-bold text-[var(--text-primary)]">{result.totalPages}</span> ({result.total} comprovantes)
                 </p>
 
                 <div className="flex items-center gap-2">

@@ -13,7 +13,7 @@ export interface ConsultancyAppShellProps {
   userEmail?: string;
   unreadNotificationsCount?: number;
   viewModeState?: EffectiveViewModeState;
-  maxWidth?: "default" | "wide" | "full";
+  maxWidth?: "narrow" | "default" | "wide" | "full";
   className?: string;
   children: React.ReactNode;
 }
@@ -400,11 +400,13 @@ export function ConsultancyAppShell({
       ? "max-w-full"
       : maxWidth === "wide"
       ? "max-w-7xl"
+      : maxWidth === "narrow"
+      ? "max-w-3xl"
       : "max-w-6xl";
 
   return (
-    <div className="min-h-svh w-full bg-[var(--background)] text-[var(--text-primary)] flex flex-col selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
-      {/* Navigation Shell */}
+    <div className="min-h-svh w-full bg-[var(--background)] text-[var(--text-primary)] flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
+      {/* Navigation Shell (Sidebar on desktop, Topbar + Bottom Bar on mobile/tablet) */}
       <ConsultancyNavigation
         consultancySlug={consultancySlug}
         consultancyName={consultancyName}
@@ -429,7 +431,7 @@ export function ConsultancyAppShell({
 
       {/* Main Content Area */}
       <main
-        className={`flex-1 w-full mx-auto p-4 sm:p-6 lg:p-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 ${maxWidthClass} ${className}`.trim()}
+        className={`flex-1 w-full mx-auto p-4 sm:p-6 lg:p-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 print:p-0 print:max-w-full ${maxWidthClass} ${className}`.trim()}
       >
         {children}
       </main>

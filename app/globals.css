@@ -19,12 +19,14 @@
   --text-secondary: #5c6861;
   --text-tertiary: #87948c;
   --text-muted: #5c6861;
+  --foreground-muted: #5c6861;
   --text-inverse: #ffffff;
 
   /* Restrained Neutral Borders */
   --border-subtle: #edf2ee;
   --border-default: #e1e7e2;
   --border-strong: #cdd5cf;
+  --border-hover: #cdd5cf;
   --border: #e1e7e2;
   --muted: #5c6861;
 
@@ -96,12 +98,14 @@
   --text-secondary: #9fb0a4;
   --text-tertiary: #6c7f72;
   --text-muted: #9fb0a4;
+  --foreground-muted: #9fb0a4;
   --text-inverse: #111814;
 
   /* Restrained Neutral Borders */
   --border-subtle: #1b241e;
   --border-default: #263129;
   --border-strong: #36453a;
+  --border-hover: #36453a;
   --border: #263129;
   --muted: #9fb0a4;
 
@@ -174,12 +178,14 @@
     --text-secondary: #9fb0a4;
     --text-tertiary: #6c7f72;
     --text-muted: #9fb0a4;
+    --foreground-muted: #9fb0a4;
     --text-inverse: #111814;
 
     /* Restrained Neutral Borders */
     --border-subtle: #1b241e;
     --border-default: #263129;
     --border-strong: #36453a;
+    --border-hover: #36453a;
     --border: #263129;
     --muted: #9fb0a4;
 
@@ -249,11 +255,13 @@
   --color-text-secondary: var(--text-secondary);
   --color-text-tertiary: var(--text-tertiary);
   --color-text-muted: var(--text-muted);
+  --color-foreground-muted: var(--foreground-muted);
   --color-text-inverse: var(--text-inverse);
 
   --color-border-subtle: var(--border-subtle);
   --color-border-default: var(--border-default);
   --color-border-strong: var(--border-strong);
+  --color-border-hover: var(--border-hover);
   --color-border: var(--border);
   --color-muted: var(--muted);
 
@@ -344,5 +352,27 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Print Styles: Hide navigation shells, sidebars, hotbars and floating widgets */
+@media print {
+  nav,
+  header,
+  aside,
+  .no-print,
+  [data-print-hide="true"] {
+    display: none !important;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #111814 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
   }
 }

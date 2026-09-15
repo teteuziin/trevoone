@@ -154,7 +154,7 @@ export function PlatformAdminNavigation({
       {/* =========================================================================
           DESKTOP & MOBILE TOPBAR (Sticky Top-0)
           ========================================================================= */}
-      <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] transition-colors">
+      <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] transition-colors print:hidden">
         <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 h-14 sm:h-15 flex items-center justify-between gap-2 sm:gap-4">
           {/* Left: Brand + Beta + Context */}
           <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 min-w-0">
@@ -242,7 +242,7 @@ export function PlatformAdminNavigation({
           ========================================================================= */}
       <nav
         aria-label="Navegação rápida móvel"
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_-2px_12px_rgba(0,0,0,0.25)] transition-colors"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_-2px_12px_rgba(0,0,0,0.25)] transition-colors print:hidden"
       >
         <div className="flex items-center justify-around h-16 px-1">
           {navItems.map((item) => (

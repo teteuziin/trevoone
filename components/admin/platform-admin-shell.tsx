@@ -25,7 +25,7 @@ export function PlatformAdminShell({
       />
 
       {/* Main Content Area with Bottom Offset for Mobile Hotbar */}
-      <main className={`flex-1 w-full pb-24 md:pb-8 ${className}`}>
+      <main className={`flex-1 w-full pb-24 md:pb-8 print:pb-0 ${className}`}>
         {children}
       </main>
     </div>

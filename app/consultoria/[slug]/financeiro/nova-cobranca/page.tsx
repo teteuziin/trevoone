@@ -49,7 +49,7 @@ export default async function NewChargePage({ params }: PageProps) {
           eyebrow="FINANCEIRO"
         />
 
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-6 shadow-xs">
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-6 shadow-xs">
           <ChargeForm slug={slug} hasFinanceSettings={Boolean(settings)} />
         </div>
       </div>

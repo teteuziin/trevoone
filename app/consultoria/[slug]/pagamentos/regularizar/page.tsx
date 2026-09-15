@@ -82,28 +82,28 @@ export default async function StudentRegularizationPage({ params }: PageProps) {
         </Alert>
 
         {/* Blocking Charge Card */}
-        <div className="bg-white rounded-2xl border border-zinc-200/90 shadow-xs overflow-hidden p-6 sm:p-8 space-y-6">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-hidden p-6 sm:p-8 space-y-6">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center justify-center shrink-0 text-amber-600">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--warning-soft)] border border-[var(--warning-border)] flex items-center justify-center shrink-0 text-[var(--warning)]">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
             </div>
 
             <div className="space-y-1 min-w-0">
-              <h2 className="text-base font-bold text-zinc-900 truncate">
+              <h2 className="text-base font-bold text-[var(--text-primary)] truncate">
                 {blockingCharge.title}
               </h2>
-              <p className="text-xs text-zinc-500">
-                Vencimento em <strong className="text-zinc-800 font-semibold">{formatDateBr(blockingCharge.dueOn)}</strong>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Vencimento em <strong className="text-[var(--text-primary)] font-semibold">{formatDateBr(blockingCharge.dueOn)}</strong>
               </p>
             </div>
           </div>
 
-          <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-4 flex items-center justify-between">
+          <div className="bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-xl p-4 flex items-center justify-between">
             <div>
-              <span className="text-xs text-zinc-500 font-medium block">Valor para Regularização</span>
-              <p className="text-2xl font-bold text-zinc-900 tracking-tight">
+              <span className="text-xs text-[var(--text-tertiary)] font-medium block">Valor para Regularização</span>
+              <p className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
                 {formatCentsToBrl(blockingCharge.amountCents)}
               </p>
             </div>
@@ -115,11 +115,11 @@ export default async function StudentRegularizationPage({ params }: PageProps) {
             </Link>
           </div>
 
-          <div className="pt-4 border-t border-zinc-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500">
+          <div className="pt-4 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
             <span>Dúvidas ou problemas com o pagamento?</span>
             <Link
               href={`/consultoria/${slug}/pagamentos`}
-              className="text-[#00A859] hover:underline font-semibold"
+              className="text-[var(--brand)] hover:underline font-semibold"
             >
               Ver todas as minhas mensalidades →
             </Link>

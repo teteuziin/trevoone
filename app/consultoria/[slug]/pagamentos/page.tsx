@@ -78,23 +78,23 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
         />
 
         {/* View Tabs */}
-        <div className="flex items-center gap-1.5 p-1 bg-zinc-100/80 border border-zinc-200/80 rounded-xl max-w-xs">
+        <div className="flex items-center gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl max-w-xs">
           <Link
             href={`/consultoria/${slug}/pagamentos?view=pending`}
-            className={`flex-1 text-center py-2 px-3.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex-1 text-center py-2 px-3.5 rounded-lg text-xs font-semibold transition-all border ${
               activeView === "pending"
-                ? "bg-white text-zinc-900 shadow-xs border border-zinc-200/60"
-                : "text-zinc-500 hover:text-zinc-900"
+                ? "bg-[var(--surface)] text-[var(--brand-foreground)] shadow-xs border-[var(--border-default)] font-bold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-transparent"
             }`}
           >
             Pendências
           </Link>
           <Link
             href={`/consultoria/${slug}/pagamentos?view=history`}
-            className={`flex-1 text-center py-2 px-3.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex-1 text-center py-2 px-3.5 rounded-lg text-xs font-semibold transition-all border ${
               activeView === "history"
-                ? "bg-white text-zinc-900 shadow-xs border border-zinc-200/60"
-                : "text-zinc-500 hover:text-zinc-900"
+                ? "bg-[var(--surface)] text-[var(--brand-foreground)] shadow-xs border-[var(--border-default)] font-bold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-transparent"
             }`}
           >
             Histórico
@@ -124,35 +124,35 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
                 <Link
                   key={charge.publicId}
                   href={`/consultoria/${slug}/pagamentos/${charge.publicId}`}
-                  className="block bg-white border border-zinc-200/90 rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[#00A859]/50 hover:shadow-sm transition-all group"
+                  className="block bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[var(--brand-soft-border)] hover:shadow-sm transition-all group"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="space-y-1.5 min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="font-bold text-sm sm:text-base text-zinc-900 group-hover:text-[#00A859] transition-colors break-words">
+                        <h2 className="font-bold text-sm sm:text-base text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors break-words">
                           {charge.title}
                         </h2>
                         <FinanceStatusBadge status={charge.derivedStatus} size="sm" />
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-tertiary)]">
                         <span>
-                          Vencimento: <strong className="text-zinc-800 font-semibold">{formattedDueDate}</strong>
+                          Vencimento: <strong className="text-[var(--text-primary)] font-semibold">{formattedDueDate}</strong>
                         </span>
                         {formattedPeriod && (
                           <span>
-                            Período: <span className="text-zinc-700 font-medium">{formattedPeriod}</span>
+                            Período: <span className="text-[var(--text-secondary)] font-medium">{formattedPeriod}</span>
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-4 pt-3 sm:pt-0 border-t border-zinc-100 sm:border-t-0 shrink-0">
-                      <span className="text-base sm:text-lg font-bold text-zinc-900 tracking-tight">
+                    <div className="flex items-center justify-between sm:justify-end gap-4 pt-3 sm:pt-0 border-t border-[var(--border-subtle)] sm:border-t-0 shrink-0">
+                      <span className="text-base sm:text-lg font-extrabold text-[var(--text-primary)] tracking-tight">
                         {formatCentsToBrl(charge.amountCents)}
                       </span>
 
-                      <span className="inline-flex items-center text-xs font-semibold text-[#00A859] group-hover:text-[#008f4c]">
+                      <span className="inline-flex items-center text-xs font-semibold text-[var(--brand)] group-hover:text-[var(--brand-hover)]">
                         <span>Ver detalhes</span>
                         <svg className="w-4 h-4 ml-0.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
@@ -166,10 +166,10 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
 
             {/* Pagination */}
             {result.totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white border border-zinc-200/90 rounded-2xl shadow-xs text-xs">
-                <p className="text-zinc-500 text-center sm:text-left">
-                  Página <span className="font-bold text-zinc-900">{result.page}</span> de{" "}
-                  <span className="font-bold text-zinc-900">{result.totalPages}</span> ({result.total} cobranças)
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl shadow-xs text-xs">
+                <p className="text-[var(--text-secondary)] text-center sm:text-left">
+                  Página <span className="font-bold text-[var(--text-primary)]">{result.page}</span> de{" "}
+                  <span className="font-bold text-[var(--text-primary)]">{result.totalPages}</span> ({result.total} cobranças)
                 </p>
 
                 <div className="flex items-center gap-2">

@@ -83,19 +83,19 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
 
       {/* 1. Seleção do Aluno */}
       <div className="space-y-2">
-        <label className="block text-xs font-semibold text-zinc-900">
-          Aluno <span className="text-red-500">*</span>
+        <label className="block text-xs font-semibold text-[var(--text-primary)]">
+          Aluno <span className="text-[var(--danger)]">*</span>
         </label>
 
         {selectedStudent ? (
-          <div className="flex items-center justify-between p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl">
+          <div className="flex items-center justify-between p-3.5 bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] rounded-xl">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-emerald-100 text-[#00A859] font-semibold flex items-center justify-center text-sm shrink-0">
+              <div className="w-9 h-9 rounded-full bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-semibold flex items-center justify-center text-sm shrink-0">
                 {selectedStudent.fullName.charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-sm font-semibold text-zinc-900">{selectedStudent.fullName}</p>
-                <p className="text-xs text-zinc-500">{selectedStudent.email}</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{selectedStudent.fullName}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{selectedStudent.email}</p>
               </div>
             </div>
             <button
@@ -105,7 +105,7 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
                 setSearchQuery("");
                 setSearchResults([]);
               }}
-              className="text-xs text-zinc-500 hover:text-red-600 font-semibold px-2 py-1 rounded hover:bg-white transition-colors"
+              className="text-xs text-[var(--text-secondary)] hover:text-[var(--danger)] font-semibold px-2 py-1 rounded hover:bg-[var(--surface)] transition-colors"
             >
               Trocar aluno
             </button>
@@ -121,13 +121,13 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
             />
 
             {isSearching && (
-              <div className="absolute right-3 top-3 text-xs text-zinc-400">
+              <div className="absolute right-3 top-3 text-xs text-[var(--text-tertiary)]">
                 Buscando...
               </div>
             )}
 
             {!selectedStudent && searchQuery.trim().length >= 2 && searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-zinc-200 rounded-xl shadow-lg max-h-56 overflow-y-auto z-20 divide-y divide-zinc-100">
+              <div className="absolute left-0 right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl shadow-lg max-h-56 overflow-y-auto z-20 divide-y divide-[var(--border-subtle)]">
                 {searchResults.map((student) => (
                   <button
                     key={student.membershipPublicId}
@@ -136,20 +136,20 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
                       setSelectedStudent(student);
                       setSearchResults([]);
                     }}
-                    className="w-full text-left p-3 hover:bg-zinc-50 transition-colors flex items-center justify-between"
+                    className="w-full text-left p-3 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between"
                   >
                     <div>
-                      <p className="text-xs font-semibold text-zinc-900">{student.fullName}</p>
-                      <p className="text-[11px] text-zinc-500">{student.email}</p>
+                      <p className="text-xs font-semibold text-[var(--text-primary)]">{student.fullName}</p>
+                      <p className="text-[11px] text-[var(--text-tertiary)]">{student.email}</p>
                     </div>
-                    <span className="text-xs font-semibold text-[#00A859]">Selecionar</span>
+                    <span className="text-xs font-semibold text-[var(--brand)]">Selecionar</span>
                   </button>
                 ))}
               </div>
             )}
 
             {!selectedStudent && searchQuery.trim().length >= 2 && !isSearching && searchResults.length === 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-zinc-200 rounded-xl p-3 shadow-lg z-20 text-xs text-zinc-500 text-center">
+              <div className="absolute left-0 right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-3 shadow-lg z-20 text-xs text-[var(--text-secondary)] text-center">
                 Nenhum aluno encontrado com essa busca.
               </div>
             )}
@@ -227,7 +227,7 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
       </FormField>
 
       {/* 6. Opção de Bloqueio de Acesso por Inadimplência */}
-      <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200/80 flex items-start gap-3">
+      <div className="p-4 bg-[var(--surface-subtle)] rounded-xl border border-[var(--border-subtle)] flex items-start gap-3">
         <input
           type="checkbox"
           id="blocksAccess"
@@ -235,11 +235,11 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
           value="1"
           defaultChecked
           disabled={isSubmitting}
-          className="mt-0.5 rounded border-zinc-300 text-[#00A859] focus:ring-[#00A859]"
+          className="mt-0.5 rounded border-[var(--border-default)] text-[var(--brand)] focus:ring-[var(--brand)]"
         />
         <label htmlFor="blocksAccess" className="text-xs leading-relaxed cursor-pointer select-none">
-          <strong className="text-zinc-900 font-semibold block">Restringir acesso em caso de atraso</strong>
-          <span className="text-zinc-500">
+          <strong className="text-[var(--text-primary)] font-semibold block">Restringir acesso em caso de atraso</strong>
+          <span className="text-[var(--text-secondary)]">
             Se marcado, o aluno terá acesso restrito aos módulos da consultoria após o vencimento desta cobrança até a confirmação do pagamento.
           </span>
         </label>

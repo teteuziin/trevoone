@@ -131,26 +131,28 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
           </div>
         )}
 
-        {/* Pending Receipts Alert Banner */}
-        {dashboard.underReviewCount > 0 && activeTab !== "configuracoes" && (
-          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-emerald-100 text-[#00A859] flex items-center justify-center shrink-0 font-bold">
-                {dashboard.underReviewCount}
+        {/* Operational Attention Banner (Pending Receipts) */}
+        {dashboard.underReviewCount > 0 && activeTab === "cobrancas" && (
+          <div className="bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center shrink-0 shadow-2xs">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
               </div>
-              <div>
-                <p className="font-bold text-sm text-emerald-950">
+              <div className="space-y-0.5">
+                <p className="font-bold text-sm text-[var(--text-primary)]">
                   {dashboard.underReviewCount === 1
                     ? "1 comprovante aguardando sua análise"
                     : `${dashboard.underReviewCount} comprovantes aguardando sua análise`}
                 </p>
-                <p className="text-emerald-800">
+                <p className="text-xs text-[var(--brand-foreground)] font-medium">
                   Revise e confirme os pagamentos para liberar automaticamente o acesso dos alunos.
                 </p>
               </div>
             </div>
             <Link href={`/consultoria/${slug}/financeiro/comprovantes`}>
-              <Button variant="primary" size="sm" className="shrink-0">
+              <Button variant="primary" size="sm" className="shrink-0 font-bold min-h-[40px]">
                 Ver Fila de Comprovantes →
               </Button>
             </Link>
@@ -160,29 +162,29 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
         {/* Operational KPI Grid */}
         {activeTab === "cobrancas" && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-xs space-y-1">
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+            <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1">
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
                 A Receber
               </span>
-              <p className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
+              <p className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
                 {formatCentsToBrl(dashboard.toReceiveCents)}
               </p>
             </div>
 
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-xs space-y-1">
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+            <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1">
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
                 Recebido Este Mês
               </span>
-              <p className="text-xl sm:text-2xl font-bold text-emerald-600 tracking-tight">
+              <p className="text-xl sm:text-2xl font-extrabold text-[var(--brand)] tracking-tight">
                 {formatCentsToBrl(dashboard.paidThisMonthCents)}
               </p>
             </div>
 
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-xs space-y-1">
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+            <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1">
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
                 Cobranças Vencidas
               </span>
-              <p className="text-xl sm:text-2xl font-bold text-red-600 tracking-tight">
+              <p className="text-xl sm:text-2xl font-extrabold text-[var(--danger)] tracking-tight">
                 {dashboard.overdueCount}
               </p>
             </div>
@@ -191,11 +193,11 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
 
         {/* Main Tab Content */}
         {activeTab === "configuracoes" ? (
-          <div className="bg-white border border-zinc-200/90 rounded-2xl p-6 shadow-xs max-w-3xl">
-            <div className="mb-5 pb-4 border-b border-zinc-100 flex items-center justify-between">
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 sm:p-6 shadow-xs max-w-3xl">
+            <div className="mb-5 pb-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
               <div>
-                <h2 className="text-base font-bold text-zinc-900">Configurações Financeiras</h2>
-                <p className="text-xs text-zinc-500">
+                <h2 className="text-base font-bold text-[var(--text-primary)]">Configurações Financeiras</h2>
+                <p className="text-xs text-[var(--text-secondary)]">
                   Defina a chave Pix oficial e o fuso horário para vencimento das mensalidades.
                 </p>
               </div>
@@ -210,7 +212,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
         ) : (
           <div className="space-y-4">
             {/* Filter Tabs & Search Bar */}
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 shadow-xs space-y-3">
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 {filterTabs.map((tab) => {
                   const isActive = currentStatusFilter === tab.key;
@@ -223,10 +225,10 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     <Link
                       key={tab.key}
                       href={href}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors border ${
                         isActive
-                          ? "bg-zinc-900 text-white"
-                          : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900"
+                          ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs font-bold"
+                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] border-transparent"
                       }`}
                     >
                       {tab.label}
@@ -239,7 +241,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
               <form method="GET" action={`/consultoria/${slug}/financeiro`} className="flex items-center gap-2">
                 {status && <input type="hidden" name="status" value={status} />}
                 <div className="relative flex-1">
-                  <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                   </svg>
                   <input
@@ -247,7 +249,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     name="q"
                     defaultValue={q || ""}
                     placeholder="Buscar aluno ou título da cobrança..."
-                    className="w-full h-9 pl-9 pr-3 text-xs bg-zinc-50 border border-zinc-200/90 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#00A859]"
+                    className="w-full h-10.5 pl-9 pr-3 text-xs bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
                   />
                 </div>
                 <Button type="submit" variant="outline" size="sm">
@@ -273,34 +275,34 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     <Link
                       key={charge.publicId}
                       href={`/consultoria/${slug}/financeiro/cobrancas/${charge.publicId}`}
-                      className="block bg-white border border-zinc-200/90 rounded-2xl p-4 shadow-xs hover:border-[#00A859]/50 hover:shadow-sm transition-all group"
+                      className="block bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[var(--brand-soft-border)] hover:shadow-sm transition-all group"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-sm text-zinc-900 group-hover:text-[#00A859] transition-colors truncate max-w-[240px]">
+                            <span className="font-bold text-sm text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate max-w-[240px]">
                               {charge.studentName}
                             </span>
                             <FinanceStatusBadge status={charge.derivedStatus} size="sm" />
                           </div>
 
-                          <p className="text-xs text-zinc-600 font-medium truncate">
+                          <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
                             {charge.title}
                           </p>
 
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-tertiary)]">
                             <span>
-                              Vencimento: <strong className="text-zinc-800 font-semibold">{formatDateBr(charge.dueOn)}</strong>
+                              Vencimento: <strong className="text-[var(--text-primary)] font-semibold">{formatDateBr(charge.dueOn)}</strong>
                             </span>
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-zinc-100 sm:border-t-0 shrink-0">
-                          <span className="text-base sm:text-lg font-bold text-zinc-900 tracking-tight">
+                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-[var(--border-subtle)] sm:border-t-0 shrink-0">
+                          <span className="text-base sm:text-lg font-extrabold text-[var(--text-primary)] tracking-tight">
                             {formatCentsToBrl(charge.amountCents)}
                           </span>
 
-                          <span className="inline-flex items-center text-xs font-semibold text-[#00A859] group-hover:text-[#008f4c]">
+                          <span className="inline-flex items-center text-xs font-semibold text-[var(--brand)] group-hover:text-[var(--brand-hover)]">
                             <span>Detalhes</span>
                             <svg className="w-4 h-4 ml-0.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -314,10 +316,10 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
 
                 {/* Pagination */}
                 {chargesResult.totalPages > 1 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white border border-zinc-200/90 rounded-2xl shadow-xs text-xs">
-                    <p className="text-zinc-500 text-center sm:text-left">
-                      Página <span className="font-bold text-zinc-900">{chargesResult.page}</span> de{" "}
-                      <span className="font-bold text-zinc-900">{chargesResult.totalPages}</span> ({chargesResult.total} cobranças)
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl shadow-xs text-xs">
+                    <p className="text-[var(--text-secondary)] text-center sm:text-left">
+                      Página <span className="font-bold text-[var(--text-primary)]">{chargesResult.page}</span> de{" "}
+                      <span className="font-bold text-[var(--text-primary)]">{chargesResult.totalPages}</span> ({chargesResult.total} cobranças)
                     </p>
 
                     <div className="flex items-center gap-2">

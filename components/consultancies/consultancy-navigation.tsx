@@ -392,43 +392,76 @@ export function ConsultancyNavigation({
 
   const isMoreActive = !isAnyPrimaryActive && isAnySecondaryActive;
 
+  // Categorize items for desktop sidebar
+  const mainNavItems = items.filter(
+    (item) =>
+      !item.id.startsWith("admin-") &&
+      item.id !== "personal-exercicios" &&
+      item.id !== "nutritionist-alimentos"
+  );
+  const managementNavItems = items.filter(
+    (item) =>
+      item.id.startsWith("admin-") ||
+      item.id === "personal-exercicios" ||
+      item.id === "nutritionist-alimentos"
+  );
+
   return (
     <>
-      {/* Desktop & Mobile Topbar Header */}
-      <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs pt-[env(safe-area-inset-top,0px)] transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-15 gap-3">
-            {/* Left: Branding */}
-            <Link
-              href={baseSlugHref}
-              prefetch={false}
-              className="flex items-center gap-3 min-w-0 group focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-1 px-1.5 -ml-1.5"
-            >
-              <ConsultancyLogo
-                logoUrl={consultancyLogoUrl}
-                name={consultancyName}
-                size={36}
-              />
-              <div className="min-w-0 space-y-0.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <p className="text-sm font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--brand)] transition-colors">
-                    {consultancyName}
-                  </p>
-                </div>
-                {primaryRoleLabel && (
-                  <p className="text-[11px] font-semibold text-[var(--text-secondary)] truncate leading-tight">
-                    {primaryRoleLabel}
-                  </p>
-                )}
-              </div>
-            </Link>
+      {/* =========================================================================
+          1. DESKTOP PERSISTENT SIDEBAR (>= 1024px / lg)
+          ========================================================================= */}
+      <aside
+        aria-label="Barra lateral de navegação"
+        className="hidden lg:flex fixed top-0 bottom-0 left-0 w-64 bg-[var(--surface)] border-r border-[var(--border-default)] z-30 flex-col justify-between overflow-y-auto select-none print:hidden transition-colors"
+      >
+        {/* Top: Brand Header & Navigation Sections */}
+        <div className="flex flex-col space-y-4 p-4">
+          {/* Consultancy Branding */}
+          <Link
+            href={baseSlugHref}
+            prefetch={false}
+            className="flex items-center gap-3 p-2 rounded-2xl hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)] transition-all group focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
+          >
+            <ConsultancyLogo
+              logoUrl={consultancyLogoUrl}
+              name={consultancyName}
+              size={38}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--brand)] transition-colors">
+                {consultancyName}
+              </p>
+              {primaryRoleLabel && (
+                <p className="text-[11px] font-semibold text-[var(--brand-foreground)] truncate leading-tight mt-0.5">
+                  {primaryRoleLabel}
+                </p>
+              )}
+            </div>
+          </Link>
 
-            {/* Center: Desktop Navigation Bar */}
-            <nav
-              aria-label="Navegação principal"
-              className="hidden md:flex items-center gap-1"
-            >
-              {items.map((item) => {
+          {/* View Mode Selector (if preview/multi-mode available) */}
+          {viewModeState && viewModeState.allowedOptions.length > 1 && (
+            <div className="p-2.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl">
+              <ViewModeSelector
+                consultancySlug={consultancySlug}
+                effectiveMode={viewModeState.effectiveMode}
+                defaultMode={viewModeState.defaultMode}
+                allowedOptions={viewModeState.allowedOptions}
+              />
+            </div>
+          )}
+
+          {/* Navigation Links */}
+          <nav aria-label="Navegação desktop" className="space-y-4 pt-1">
+            {/* Main Section */}
+            <div className="space-y-1">
+              {managementNavItems.length > 0 && (
+                <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-3 mb-1.5">
+                  Principal
+                </p>
+              )}
+              {mainNavItems.map((item) => {
                 const active = isItemActive(item.href);
                 return (
                   <Link
@@ -436,154 +469,346 @@ export function ConsultancyNavigation({
                     href={item.href}
                     prefetch={false}
                     aria-current={active ? "page" : undefined}
-                    className={`inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all duration-150 ease-out select-none ${
+                    className={`flex items-center gap-3 px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all ${
                       active
-                        ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)] shadow-2xs"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
+                        ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs font-bold"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent"
                     }`}
                   >
                     <NavIcon name={item.iconName} />
-                    <span>{item.label}</span>
+                    <span className="truncate">{item.label}</span>
                   </Link>
                 );
               })}
-            </nav>
-
-            {/* Right: Quick Actions & Profile */}
-            <div className="flex items-center gap-2">
-              <NotificationBell unreadCount={unreadNotificationsCount} />
-
-              {/* Desktop Profile & Preferences Popover */}
-              <div className="hidden md:block relative" ref={desktopProfileRef}>
-                <button
-                  type="button"
-                  onClick={() => setDesktopProfileOpen(!desktopProfileOpen)}
-                  aria-label="Preferências do usuário"
-                  aria-expanded={desktopProfileOpen}
-                  aria-haspopup="dialog"
-                  className="flex items-center gap-2.5 p-1.5 rounded-xl border border-[var(--border-default)] hover:border-[var(--border-strong)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] shadow-2xs"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-bold text-xs flex items-center justify-center select-none shadow-2xs">
-                    {userInitial}
-                  </div>
-                  {userName && (
-                    <span className="text-xs font-semibold text-[var(--text-primary)] max-w-[120px] truncate pr-1">
-                      {userName.split(" ")[0]}
-                    </span>
-                  )}
-                  <svg
-                    className={`w-3.5 h-3.5 text-[var(--text-tertiary)] transition-transform duration-200 ${
-                      desktopProfileOpen ? "rotate-180" : ""
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                    aria-hidden="true"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-
-                {/* Popover Card */}
-                {desktopProfileOpen && (
-                  <div
-                    role="dialog"
-                    aria-label="Menu de preferências"
-                    className="absolute right-0 mt-2 w-72 p-3 bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl shadow-lg z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3"
-                  >
-                    {/* User Info Header */}
-                    <div className="px-2 py-1.5 border-b border-[var(--border-subtle)]">
-                      <p className="text-xs font-bold text-[var(--text-primary)] truncate">{userName || "Usuário"}</p>
-                      {userEmail && <p className="text-[11px] text-[var(--text-secondary)] truncate">{userEmail}</p>}
-                      {roleLabels.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {roleLabels.map((rl) => (
-                            <span
-                              key={rl}
-                              className="px-1.5 py-0.5 text-[10px] font-semibold text-[var(--brand-foreground)] bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] rounded-md"
-                            >
-                              {rl}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* View Mode Selector (if multi-mode available) */}
-                    {viewModeState && viewModeState.allowedOptions.length > 1 && (
-                      <div className="px-1 py-1 border-b border-[var(--border-subtle)]">
-                        <ViewModeSelector
-                          consultancySlug={consultancySlug}
-                          effectiveMode={viewModeState.effectiveMode}
-                          defaultMode={viewModeState.defaultMode}
-                          allowedOptions={viewModeState.allowedOptions}
-                          onSelect={() => setDesktopProfileOpen(false)}
-                        />
-                      </div>
-                    )}
-
-                    {/* Quick Access to Account Profile & Security */}
-                    <div className="px-1 space-y-1">
-                      <Link
-                        href="/conta/perfil"
-                        prefetch={false}
-                        onClick={() => setDesktopProfileOpen(false)}
-                        className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors min-h-[44px]"
-                      >
-                        <svg className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                        </svg>
-                        <span>Meu perfil</span>
-                      </Link>
-                      <Link
-                        href="/conta/seguranca"
-                        prefetch={false}
-                        onClick={() => setDesktopProfileOpen(false)}
-                        className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors min-h-[44px]"
-                      >
-                        <svg className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                        </svg>
-                        <span>Conta e segurança</span>
-                      </Link>
-                    </div>
-
-                    {/* Theme Controls */}
-                    <div className="px-1 pt-1">
-                      <AppearanceSegmentedControl
-                        currentTheme={currentTheme}
-                        onThemeSelect={handleThemeSelect}
-                      />
-                    </div>
-
-                    {/* Actions */}
-                    <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1.5">
-                      <Link
-                        href="/selecionar-consultoria"
-                        prefetch={false}
-                        className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-colors min-h-[44px] shadow-2xs"
-                      >
-                        Trocar consultoria
-                      </Link>
-                      <LogoutButton
-                        logoutAction={logoutFromConsultancyArea}
-                        className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold text-[var(--danger-foreground)] bg-[var(--danger-soft)] hover:bg-[var(--danger-border)] border border-[var(--danger-border)] rounded-xl transition-colors cursor-pointer min-h-[44px]"
-                      >
-                        Sair da conta
-                      </LogoutButton>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
+
+            {/* Management Section (if any) */}
+            {managementNavItems.length > 0 && (
+              <div className="space-y-1 pt-2 border-t border-[var(--border-subtle)]">
+                <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-3 mb-1.5">
+                  Gestão &amp; Clínica
+                </p>
+                {managementNavItems.map((item) => {
+                  const active = isItemActive(item.href);
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      prefetch={false}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center gap-3 px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all ${
+                        active
+                          ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs font-bold"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent"
+                      }`}
+                    >
+                      <NavIcon name={item.iconName} />
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </nav>
+        </div>
+
+        {/* Bottom: User Card, Theme & Actions */}
+        <div className="p-4 border-t border-[var(--border-default)] space-y-3 bg-[var(--surface)]">
+          {/* User Info Card */}
+          <div className="flex items-center gap-2.5 px-1 py-0.5">
+            <div className="w-8 h-8 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-bold text-xs flex items-center justify-center shrink-0 select-none shadow-2xs">
+              {userInitial}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-[var(--text-primary)] truncate leading-tight">
+                {userName || "Usuário"}
+              </p>
+              {userEmail && (
+                <p className="text-[11px] text-[var(--text-secondary)] truncate leading-tight">
+                  {userEmail}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Theme Selector */}
+          <AppearanceSegmentedControl
+            compact
+            currentTheme={currentTheme}
+            onThemeSelect={handleThemeSelect}
+            className="w-full justify-center"
+          />
+
+          {/* Quick Settings & Navigation Links */}
+          <div className="grid grid-cols-3 gap-1 pt-1">
+            <Link
+              href="/notificacoes"
+              prefetch={false}
+              className={`relative flex items-center justify-center py-2 px-1 rounded-xl text-xs font-semibold transition-all border ${
+                pathname === "/notificacoes"
+                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)]"
+              }`}
+              title="Notificações"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+              </svg>
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--brand)] ring-2 ring-[var(--surface)]" />
+              )}
+            </Link>
+
+            <Link
+              href="/conta/perfil"
+              prefetch={false}
+              className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs font-semibold transition-all border ${
+                pathname === "/conta/perfil"
+                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)]"
+              }`}
+              title="Meu perfil"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+            </Link>
+
+            <Link
+              href="/conta/seguranca"
+              prefetch={false}
+              className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs font-semibold transition-all border ${
+                pathname === "/conta/seguranca"
+                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)]"
+              }`}
+              title="Conta e segurança"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+            </Link>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-1.5 pt-1">
+            <Link
+              href="/selecionar-consultoria"
+              prefetch={false}
+              className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-colors shadow-2xs"
+            >
+              Trocar consultoria
+            </Link>
+            <LogoutButton
+              logoutAction={logoutFromConsultancyArea}
+              className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold text-[var(--danger-foreground)] bg-[var(--danger-soft)] hover:bg-[var(--danger-border)] border border-[var(--danger-border)] rounded-xl transition-colors cursor-pointer"
+            >
+              Sair da conta
+            </LogoutButton>
+          </div>
+        </div>
+      </aside>
+
+      {/* =========================================================================
+          2. TABLET ADAPTIVE TOPBAR (768px - 1023px / md to lg)
+          ========================================================================= */}
+      <header className="hidden md:flex lg:hidden sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs print:hidden transition-colors">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 h-15 flex items-center justify-between gap-3">
+          {/* Left: Branding */}
+          <Link
+            href={baseSlugHref}
+            prefetch={false}
+            className="flex items-center gap-2.5 min-w-0 group focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-1"
+          >
+            <ConsultancyLogo
+              logoUrl={consultancyLogoUrl}
+              name={consultancyName}
+              size={34}
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--brand)] transition-colors">
+                {consultancyName}
+              </p>
+              {primaryRoleLabel && (
+                <p className="text-[10px] font-semibold text-[var(--brand-foreground)] truncate leading-tight">
+                  {primaryRoleLabel}
+                </p>
+              )}
+            </div>
+          </Link>
+
+          {/* Center: Primary Navigation Tabs (Max 4 items to ensure zero wrapping) */}
+          <nav aria-label="Navegação do tablet" className="flex items-center gap-1">
+            {primaryNavItems.slice(0, 4).map((item) => {
+              const active = isItemActive(item.href);
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  prefetch={false}
+                  aria-current={active ? "page" : undefined}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all ${
+                    active
+                      ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs font-bold"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent"
+                  }`}
+                >
+                  <NavIcon name={item.iconName} />
+                  <span>{item.mobileLabel || item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Right: Notifications & Drawer Menu Toggle */}
+          <div className="flex items-center gap-2">
+            <NotificationBell unreadCount={unreadNotificationsCount} />
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Abrir menu de navegação e opções"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] transition-colors cursor-pointer"
+            >
+              <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+              <span>Menu</span>
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Backdrop & Drawer Menu */}
+      {/* =========================================================================
+          3. MOBILE TOPBAR (< 768px)
+          ========================================================================= */}
+      <header className="flex md:hidden sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs pt-[env(safe-area-inset-top,0px)] print:hidden transition-colors">
+        <div className="w-full px-4 h-14 flex items-center justify-between gap-3">
+          {/* Branding */}
+          <Link
+            href={baseSlugHref}
+            prefetch={false}
+            className="flex items-center gap-2.5 min-w-0 group focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-1"
+          >
+            <ConsultancyLogo
+              logoUrl={consultancyLogoUrl}
+              name={consultancyName}
+              size={32}
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--brand)] transition-colors">
+                {consultancyName}
+              </p>
+              {primaryRoleLabel && (
+                <p className="text-[10px] font-semibold text-[var(--brand-foreground)] truncate leading-tight">
+                  {primaryRoleLabel}
+                </p>
+              )}
+            </div>
+          </Link>
+
+          {/* Right Action */}
+          <div className="flex items-center gap-1.5">
+            <NotificationBell unreadCount={unreadNotificationsCount} />
+          </div>
+        </div>
+      </header>
+
+      {/* =========================================================================
+          4. MOBILE BOTTOM NAVIGATION (< 768px)
+          ========================================================================= */}
+      <nav
+        aria-label="Navegação rápida móvel"
+        className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_-2px_12px_rgba(0,0,0,0.25)] print:hidden transition-colors"
+      >
+        <div className="flex items-center justify-around h-16 px-1">
+          {primaryNavItems.map((item) => {
+            const active = isItemActive(item.href);
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                prefetch={false}
+                aria-current={active ? "page" : undefined}
+                className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
+                  active
+                    ? "text-[var(--brand-foreground)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                <div
+                  className={`p-1.5 rounded-xl transition-all duration-150 ${
+                    active
+                      ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] ring-1 ring-[var(--brand-soft-border)] shadow-2xs"
+                      : "group-hover:bg-[var(--surface-hover)]"
+                  }`}
+                >
+                  <NavIcon name={item.iconName} />
+                </div>
+                <span
+                  className={`text-[10px] tracking-tight truncate max-w-full leading-tight mt-0.5 ${
+                    active ? "font-bold text-[var(--brand-foreground)]" : "font-medium"
+                  }`}
+                >
+                  {item.mobileLabel || item.label}
+                </span>
+              </Link>
+            );
+          })}
+
+          {/* "Mais" button */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Mais opções de navegação"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-navigation-drawer"
+            className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
+              isMoreActive
+                ? "text-[var(--brand-foreground)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <div
+              className={`p-1.5 rounded-xl relative transition-all duration-150 ${
+                isMoreActive
+                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] ring-1 ring-[var(--brand-soft-border)] shadow-2xs"
+                  : "group-hover:bg-[var(--surface-hover)]"
+              }`}
+            >
+              <svg
+                className="w-5 h-5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={1.8}
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
+                />
+              </svg>
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--brand)] ring-2 ring-[var(--surface)]" />
+              )}
+            </div>
+            <span
+              className={`text-[10px] tracking-tight truncate leading-tight mt-0.5 ${
+                isMoreActive ? "font-bold text-[var(--brand-foreground)]" : "font-medium"
+              }`}
+            >
+              Mais
+            </span>
+          </button>
+        </div>
+      </nav>
+
+      {/* =========================================================================
+          5. DRAWER MENU (For Mobile & Tablet)
+          ========================================================================= */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
@@ -622,36 +847,34 @@ export function ConsultancyNavigation({
               </button>
             </div>
 
-            {/* Section 1: Secondary Navigation Links */}
-            {secondaryNavItems.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
-                  Módulos adicionais
-                </p>
-                <nav aria-label="Módulos adicionais" className="grid grid-cols-2 gap-2">
-                  {secondaryNavItems.map((item) => {
-                    const active = isItemActive(item.href);
-                    return (
-                      <Link
-                        key={item.id}
-                        href={item.href}
-                        prefetch={false}
-                        onClick={() => setMobileMenuOpen(false)}
-                        aria-current={active ? "page" : undefined}
-                        className={`flex items-center gap-2.5 p-3 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
-                          active
-                            ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs"
-                            : "bg-[var(--surface-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
-                        }`}
-                      >
-                        <NavIcon name={item.iconName} />
-                        <span className="truncate">{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </div>
-            )}
+            {/* Section 1: All / Secondary Navigation Links */}
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+                Navegação completa
+              </p>
+              <nav aria-label="Todos os módulos" className="grid grid-cols-2 gap-2">
+                {items.map((item) => {
+                  const active = isItemActive(item.href);
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      prefetch={false}
+                      onClick={() => setMobileMenuOpen(false)}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center gap-2.5 p-3 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
+                        active
+                          ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs"
+                          : "bg-[var(--surface-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                      }`}
+                    >
+                      <NavIcon name={item.iconName} />
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
 
             {/* Section 2: Appearance & Theme */}
             <div className="space-y-2">
@@ -741,7 +964,7 @@ export function ConsultancyNavigation({
               </nav>
             </div>
 
-            {/* Section 4: Actions */}
+            {/* Section 5: Actions */}
             <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
               <Link
                 href="/selecionar-consultoria"
@@ -761,95 +984,6 @@ export function ConsultancyNavigation({
           </div>
         </div>
       )}
-
-      {/* Mobile Bottom Navigation Bar */}
-      <nav
-        aria-label="Navegação rápida móvel"
-        className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_-2px_12px_rgba(0,0,0,0.25)] transition-colors"
-      >
-        <div className="flex items-center justify-around h-16 px-1">
-          {primaryNavItems.map((item) => {
-            const active = isItemActive(item.href);
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                prefetch={false}
-                aria-current={active ? "page" : undefined}
-                className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
-                  active
-                    ? "text-[var(--brand-foreground)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                <div
-                  className={`p-1.5 rounded-xl transition-all duration-150 ${
-                    active
-                      ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] ring-1 ring-[var(--brand-soft-border)] shadow-2xs"
-                      : "group-hover:bg-[var(--surface-hover)]"
-                  }`}
-                >
-                  <NavIcon name={item.iconName} />
-                </div>
-                <span
-                  className={`text-[10px] tracking-tight truncate max-w-full leading-tight mt-0.5 ${
-                    active ? "font-bold text-[var(--brand-foreground)]" : "font-medium"
-                  }`}
-                >
-                  {item.mobileLabel || item.label}
-                </span>
-              </Link>
-            );
-          })}
-
-          {/* "Mais" button */}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Mais opções de navegação"
-            aria-expanded={mobileMenuOpen}
-            aria-controls="mobile-navigation-drawer"
-            className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
-              isMoreActive
-                ? "text-[var(--brand-foreground)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            <div
-              className={`p-1.5 rounded-xl relative transition-all duration-150 ${
-                isMoreActive
-                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] ring-1 ring-[var(--brand-soft-border)] shadow-2xs"
-                  : "group-hover:bg-[var(--surface-hover)]"
-              }`}
-            >
-              <svg
-                className="w-5 h-5 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth={1.8}
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
-                />
-              </svg>
-              {unreadNotificationsCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--brand)] ring-2 ring-[var(--surface)]" />
-              )}
-            </div>
-            <span
-              className={`text-[10px] tracking-tight truncate leading-tight mt-0.5 ${
-                isMoreActive ? "font-bold text-[var(--brand-foreground)]" : "font-medium"
-              }`}
-            >
-              Mais
-            </span>
-          </button>
-        </div>
-      </nav>
     </>
   );
 }

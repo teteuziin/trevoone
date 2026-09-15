@@ -116,13 +116,13 @@ export default async function ChargeDetailPage({ params }: PageProps) {
         )}
 
         {/* Charge Info Card */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-6 shadow-xs space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-4">
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-6 shadow-xs space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
             <div>
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block">
+              <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
                 Valor da Cobrança
               </span>
-              <p className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
+              <p className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
                 {formatCentsToBrl(charge.amountCents)}
               </p>
             </div>
@@ -132,21 +132,21 @@ export default async function ChargeDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-zinc-600">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-[var(--text-secondary)]">
             <div>
-              <span className="text-zinc-500 block">Aluno Destinatário:</span>
-              <strong className="text-zinc-900 font-semibold text-sm">{charge.studentName}</strong>
-              <p className="text-[11px] text-zinc-500">{charge.studentEmail}</p>
+              <span className="text-[var(--text-tertiary)] block">Aluno Destinatário:</span>
+              <strong className="text-[var(--text-primary)] font-semibold text-sm">{charge.studentName}</strong>
+              <p className="text-[11px] text-[var(--text-tertiary)]">{charge.studentEmail}</p>
             </div>
 
             <div>
-              <span className="text-zinc-500 block">Data de Vencimento:</span>
-              <strong className="text-zinc-900 font-semibold text-sm">{formatDatePtBr(charge.dueOn)}</strong>
+              <span className="text-[var(--text-tertiary)] block">Data de Vencimento:</span>
+              <strong className="text-[var(--text-primary)] font-semibold text-sm">{formatDatePtBr(charge.dueOn)}</strong>
             </div>
 
             <div>
-              <span className="text-zinc-500 block">Período de Referência:</span>
-              <span className="text-zinc-800 font-medium">
+              <span className="text-[var(--text-tertiary)] block">Período de Referência:</span>
+              <span className="text-[var(--text-secondary)] font-medium">
                 {charge.referencePeriodStart && charge.referencePeriodEnd
                   ? `${formatDatePtBr(charge.referencePeriodStart)} a ${formatDatePtBr(charge.referencePeriodEnd)}`
                   : "Não informado"}
@@ -154,29 +154,29 @@ export default async function ChargeDetailPage({ params }: PageProps) {
             </div>
 
             <div>
-              <span className="text-zinc-500 block">Bloqueio por Inadimplência:</span>
-              <span className="text-zinc-800 font-medium">
+              <span className="text-[var(--text-tertiary)] block">Bloqueio por Inadimplência:</span>
+              <span className="text-[var(--text-secondary)] font-medium">
                 {charge.blocksAccess ? "Restringe acesso no atraso" : "Não restringe acesso"}
               </span>
             </div>
 
             <div>
-              <span className="text-zinc-500 block">Emitida em:</span>
-              <span className="text-zinc-800 font-medium">{formatDateTimePtBr(charge.createdAt)}</span>
+              <span className="text-[var(--text-tertiary)] block">Emitida em:</span>
+              <span className="text-[var(--text-secondary)] font-medium">{formatDateTimePtBr(charge.createdAt)}</span>
             </div>
 
             <div>
-              <span className="text-zinc-500 block">Emitida por:</span>
-              <span className="text-zinc-800 font-medium">{charge.createdByUserName}</span>
+              <span className="text-[var(--text-tertiary)] block">Emitida por:</span>
+              <span className="text-[var(--text-secondary)] font-medium">{charge.createdByUserName}</span>
             </div>
           </div>
 
           {charge.description && (
-            <div className="pt-3 border-t border-zinc-100">
-              <span className="text-xs font-semibold text-zinc-700 block mb-1">
+            <div className="pt-3 border-t border-[var(--border-subtle)]">
+              <span className="text-xs font-semibold text-[var(--text-primary)] block mb-1">
                 Observações de Emissão:
               </span>
-              <p className="text-xs text-zinc-600 bg-zinc-50 p-3 rounded-xl border border-zinc-100 leading-relaxed">
+              <p className="text-xs text-[var(--text-secondary)] bg-[var(--surface-subtle)] p-3 rounded-xl border border-[var(--border-subtle)] leading-relaxed">
                 {charge.description}
               </p>
             </div>

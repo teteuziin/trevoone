@@ -100,13 +100,13 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
         />
 
         {/* Charge Overview Card */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-zinc-100 pb-4">
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
             <div className="space-y-1">
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
                 Valor da Cobrança
               </span>
-              <p className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
+              <p className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
                 {formatCentsToBrl(charge.amountCents)}
               </p>
             </div>
@@ -115,26 +115,26 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-zinc-600">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-[var(--text-secondary)]">
             <div>
-              <span className="text-zinc-500">Data de Vencimento: </span>
-              <strong className="text-zinc-900 font-semibold">{formattedDueDate}</strong>
+              <span className="text-[var(--text-tertiary)]">Data de Vencimento: </span>
+              <strong className="text-[var(--text-primary)] font-semibold">{formattedDueDate}</strong>
             </div>
 
             {formattedPeriod && (
               <div>
-                <span className="text-zinc-500">Período de Referência: </span>
-                <strong className="text-zinc-900 font-semibold">{formattedPeriod}</strong>
+                <span className="text-[var(--text-tertiary)]">Período de Referência: </span>
+                <strong className="text-[var(--text-primary)] font-semibold">{formattedPeriod}</strong>
               </div>
             )}
           </div>
 
           {charge.description && (
-            <div className="pt-2 border-t border-zinc-100">
-              <span className="text-xs font-semibold text-zinc-700 block mb-1">
+            <div className="pt-2 border-t border-[var(--border-subtle)]">
+              <span className="text-xs font-semibold text-[var(--text-primary)] block mb-1">
                 Observações da Consultoria:
               </span>
-              <p className="text-xs text-zinc-600 leading-relaxed bg-zinc-50 p-3 rounded-xl border border-zinc-100">
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed bg-[var(--surface-subtle)] p-3 rounded-xl border border-[var(--border-subtle)]">
                 {charge.description}
               </p>
             </div>
@@ -148,7 +148,7 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
               Esta cobrança foi quitada com sucesso. Seu acesso à consultoria está liberado.
             </p>
             {charge.paidConfirmedAt && (
-              <p className="text-xs mt-1 text-emerald-800 font-medium">
+              <p className="text-xs mt-1 text-emerald-800 dark:text-emerald-300 font-medium">
                 Confirmado em {formatDateTimeBr(charge.paidConfirmedAt)} via PIX.
               </p>
             )}
@@ -177,40 +177,40 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
           <div className="space-y-6">
             {/* Pix Details Card */}
             {charge.pixSettings ? (
-              <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+              <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
                   <div>
-                    <h2 className="text-base font-bold text-zinc-900">Pagamento via Pix</h2>
-                    <p className="text-xs text-zinc-500">
+                    <h2 className="text-base font-bold text-[var(--text-primary)]">Pagamento via Pix</h2>
+                    <p className="text-xs text-[var(--text-secondary)]">
                       Realize a transferência no aplicativo do seu banco usando a chave abaixo:
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-3 bg-zinc-50 p-4 rounded-xl border border-zinc-200/60">
+                <div className="space-y-3 bg-[var(--surface-subtle)] p-4 rounded-xl border border-[var(--border-subtle)]">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 block">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                         Tipo de Chave ({PIX_KEY_TYPE_LABELS[charge.pixSettings.pixKeyType] || charge.pixSettings.pixKeyType})
                       </span>
-                      <p className="text-sm sm:text-base font-mono font-bold text-zinc-900 break-all">
+                      <p className="text-sm sm:text-base font-mono font-bold text-[var(--text-primary)] break-all">
                         {charge.pixSettings.pixKey}
                       </p>
                     </div>
                     <CopyPixButton pixKey={charge.pixSettings.pixKey} className="shrink-0" />
                   </div>
 
-                  <div className="pt-2 border-t border-zinc-200/60 flex flex-wrap justify-between gap-2 text-xs">
+                  <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-wrap justify-between gap-2 text-xs">
                     <div>
-                      <span className="text-zinc-500">Favorecido: </span>
-                      <strong className="text-zinc-800 font-semibold">{charge.pixSettings.pixReceiverName}</strong>
+                      <span className="text-[var(--text-tertiary)]">Favorecido: </span>
+                      <strong className="text-[var(--text-primary)] font-semibold">{charge.pixSettings.pixReceiverName}</strong>
                     </div>
                   </div>
                 </div>
 
                 {charge.pixSettings.paymentInstructions && (
-                  <div className="text-xs text-zinc-600 bg-amber-50/60 border border-amber-200/60 p-3.5 rounded-xl space-y-1">
-                    <strong className="font-semibold text-amber-900 block">Instruções de Pagamento:</strong>
+                  <div className="text-xs text-[var(--warning-foreground)] bg-[var(--warning-soft)] border border-[var(--warning-border)] p-3.5 rounded-xl space-y-1">
+                    <strong className="font-semibold block">Instruções de Pagamento:</strong>
                     <p className="leading-relaxed">{charge.pixSettings.paymentInstructions}</p>
                   </div>
                 )}
@@ -224,7 +224,7 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
             )}
 
             {/* Receipt Upload Form Card */}
-            <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 sm:p-6 shadow-xs">
+            <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 sm:p-6 shadow-xs">
               <ReceiptUploadForm
                 slug={slug}
                 chargePublicId={charge.publicId}

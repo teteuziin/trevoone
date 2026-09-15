@@ -48,17 +48,17 @@ export function ChargeCancelDialog({
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
           <div
-            className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-zinc-200 space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-md bg-[var(--surface)] rounded-2xl p-6 shadow-2xl border border-[var(--border-default)] space-y-4 animate-in zoom-in-95 duration-150"
             role="dialog"
             aria-modal="true"
             aria-labelledby="cancel-dialog-title"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
-                <h3 id="cancel-dialog-title" className="text-base font-bold text-zinc-900">
+                <h3 id="cancel-dialog-title" className="text-base font-bold text-[var(--text-primary)]">
                   Cancelar Cobrança
                 </h3>
-                <p className="text-xs text-zinc-500 leading-relaxed">
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                   Tem certeza que deseja cancelar a cobrança &ldquo;{chargeTitle}&rdquo;? Esta ação não pode ser desfeita.
                 </p>
               </div>
@@ -66,7 +66,7 @@ export function ChargeCancelDialog({
                 type="button"
                 onClick={() => setIsOpen(false)}
                 disabled={isPending}
-                className="text-zinc-400 hover:text-zinc-700 p-1 rounded-lg"
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1 rounded-lg"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />

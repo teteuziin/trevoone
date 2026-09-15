@@ -224,114 +224,96 @@ export function DashboardStudentView({
         </div>
       )}
 
-      {/* 2. HERO SECTION / CONDITIONAL SLIDER */}
+      {/* 2. HERO SECTION */}
       {hasBothHeroes ? (
         <>
-          {/* Mobile & Tablet Slider: Native CSS Scroll Snap */}
-          <div className="lg:hidden">
-            <div
-              role="region"
-              aria-label="Planos prescritos de treino e nutrição"
-              className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 overscroll-x-contain -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-none"
-            >
-              {/* Slide 1: Training Hero (Protagonist) */}
-              <div
-                role="group"
-                aria-label="Plano de Treino Prescrito"
-                className="snap-center shrink-0 w-[88%] sm:w-[82%]"
-              >
-                <div className="h-full p-5 sm:p-7 rounded-3xl border border-[var(--brand-soft-border)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-bold text-[var(--brand-foreground)] uppercase tracking-wider">
-                        Seu Treino Prescrito
-                      </span>
-                      <Badge variant="success" size="sm">
-                        Plano Ativo
-                      </Badge>
-                    </div>
+          {/* Mobile & Tablet: Clean Vertical Stack */}
+          <div className="lg:hidden flex flex-col gap-4">
+            {/* Card 1: Training Hero (Protagonist) */}
+            <div className="p-5 sm:p-6 rounded-3xl border border-[var(--brand-soft-border)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4">
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-[var(--brand-foreground)] uppercase tracking-wider">
+                    Seu Treino Prescrito
+                  </span>
+                  <Badge variant="success" size="sm">
+                    Plano Ativo
+                  </Badge>
+                </div>
 
-                    <div className="space-y-1">
-                      <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight line-clamp-1">
-                        {activeTrainingPlan.title}
-                      </h2>
-                      {activeTrainingPlan.subtitle && (
-                        <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium line-clamp-1">
-                          {activeTrainingPlan.subtitle}
-                        </p>
-                      )}
-                    </div>
+                <div className="space-y-1">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
+                    {activeTrainingPlan.title}
+                  </h2>
+                  {activeTrainingPlan.subtitle && (
+                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
+                      {activeTrainingPlan.subtitle}
+                    </p>
+                  )}
+                </div>
 
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)]">
-                        {workoutCount} {workoutCount === 1 ? "rotina" : "rotinas"}
-                      </span>
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)]">
-                        {totalExercises} {totalExercises === 1 ? "exercício" : "exercícios no plano"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
-                    <TrainingVolumetricIcon className="w-10 h-10" />
-                    <Link href={`/consultoria/${consultancySlug}/treinos`} className="flex-1 max-w-[200px]">
-                      <Button variant="primary" fullWidth size="md" className="font-bold min-h-[44px]">
-                        Acessar treino →
-                      </Button>
-                    </Link>
-                  </div>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)]">
+                    {workoutCount} {workoutCount === 1 ? "rotina" : "rotinas"}
+                  </span>
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)]">
+                    {totalExercises} {totalExercises === 1 ? "exercício" : "exercícios no plano"}
+                  </span>
                 </div>
               </div>
 
-              {/* Slide 2: Nutrition Hero (Supporting) */}
-              <div
-                role="group"
-                aria-label="Plano Alimentar Prescrito"
-                className="snap-center shrink-0 w-[88%] sm:w-[82%]"
-              >
-                <div className="h-full p-5 sm:p-7 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                        Plano Alimentar
-                      </span>
-                      <Badge variant="success" size="sm">
-                        Plano Ativo
-                      </Badge>
-                    </div>
+              <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
+                <TrainingVolumetricIcon className="w-10 h-10" />
+                <Link href={`/consultoria/${consultancySlug}/treinos`} className="flex-1 max-w-[220px]">
+                  <Button variant="primary" fullWidth size="md" className="font-bold min-h-[44px]">
+                    Acessar treino →
+                  </Button>
+                </Link>
+              </div>
+            </div>
 
-                    <div className="space-y-1">
-                      <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight line-clamp-1">
-                        {activeNutritionPlan.title}
-                      </h2>
-                      {activeNutritionPlan.subtitle && (
-                        <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium line-clamp-1">
-                          {activeNutritionPlan.subtitle}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)]">
-                        {mealCount} {mealCount === 1 ? "refeição estruturada" : "refeições estruturadas"}
-                      </span>
-                      {firstMealTime && (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)]">
-                          1ª às {firstMealTime}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
-                    <NutritionVolumetricIcon className="w-10 h-10" />
-                    <Link href={`/consultoria/${consultancySlug}/nutricao`} className="flex-1 max-w-[200px]">
-                      <Button variant="secondary" fullWidth size="md" className="font-bold min-h-[44px]">
-                        Acessar nutrição →
-                      </Button>
-                    </Link>
-                  </div>
+            {/* Card 2: Nutrition Hero (Supporting) */}
+            <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4">
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    Plano Alimentar
+                  </span>
+                  <Badge variant="success" size="sm">
+                    Plano Ativo
+                  </Badge>
                 </div>
+
+                <div className="space-y-1">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
+                    {activeNutritionPlan.title}
+                  </h2>
+                  {activeNutritionPlan.subtitle && (
+                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
+                      {activeNutritionPlan.subtitle}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)]">
+                    {mealCount} {mealCount === 1 ? "refeição estruturada" : "refeições estruturadas"}
+                  </span>
+                  {firstMealTime && (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)]">
+                      1ª às {firstMealTime}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
+                <NutritionVolumetricIcon className="w-10 h-10" />
+                <Link href={`/consultoria/${consultancySlug}/nutricao`} className="flex-1 max-w-[220px]">
+                  <Button variant="secondary" fullWidth size="md" className="font-bold min-h-[44px]">
+                    Acessar nutrição →
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>

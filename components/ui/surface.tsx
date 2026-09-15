@@ -16,7 +16,7 @@ const variantStyles: Record<SurfaceVariant, string> = {
   elevated:
     "bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-sm rounded-2xl",
   interactive:
-    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--border-strong)] hover:shadow-sm transition-all duration-150 ease-out cursor-pointer rounded-2xl",
+    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--border-hover)] hover:shadow-sm transition-all duration-150 ease-out cursor-pointer rounded-2xl",
 };
 
 const paddingStyles: Record<SurfacePadding, string> = {

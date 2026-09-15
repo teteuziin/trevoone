@@ -150,20 +150,20 @@ export function ReceiptReviewActions({
 
       {/* Modal de Confirmação de Aprovação */}
       {showApproveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div
-            className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-zinc-200 space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-md bg-[var(--surface)] rounded-2xl p-6 shadow-2xl border border-[var(--border-default)] space-y-4 animate-in zoom-in-95 duration-150"
             role="dialog"
             aria-modal="true"
           >
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-zinc-900">Aprovar Pagamento</h3>
-              <p className="text-xs text-zinc-600 leading-relaxed">
+              <h3 className="text-base font-bold text-[var(--text-primary)]">Aprovar Pagamento</h3>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                 Você confirma a aprovação do comprovante no valor de{" "}
-                <strong className="text-zinc-900 font-bold">{formattedAmount}</strong> para o aluno{" "}
-                <strong className="text-zinc-900 font-semibold">{studentName}</strong>?
+                <strong className="text-[var(--text-primary)] font-bold">{formattedAmount}</strong> para o aluno{" "}
+                <strong className="text-[var(--text-primary)] font-semibold">{studentName}</strong>?
               </p>
-              <p className="text-[11px] text-emerald-700 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 mt-2">
+              <p className="text-[11px] text-[var(--brand-foreground)] bg-[var(--brand-soft)] p-2.5 rounded-lg border border-[var(--brand-soft-border)] mt-2">
                 A cobrança &ldquo;{chargeTitle}&rdquo; será liquidada e o acesso do aluno será liberado.
               </p>
             </div>
@@ -194,15 +194,15 @@ export function ReceiptReviewActions({
 
       {/* Modal de Rejeição */}
       {showRejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div
-            className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-zinc-200 space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-md bg-[var(--surface)] rounded-2xl p-6 shadow-2xl border border-[var(--border-default)] space-y-4 animate-in zoom-in-95 duration-150"
             role="dialog"
             aria-modal="true"
           >
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-zinc-900">Rejeitar Comprovante</h3>
-              <p className="text-xs text-zinc-600 leading-relaxed">
+              <h3 className="text-base font-bold text-[var(--text-primary)]">Rejeitar Comprovante</h3>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                 Informe o motivo da rejeição para que o aluno {studentName} possa enviar um novo comprovante correto.
               </p>
             </div>

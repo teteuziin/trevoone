@@ -135,14 +135,14 @@ export function ReceiptUploadForm({
       )}
 
       <div className="space-y-2">
-        <label className="block text-xs font-semibold text-zinc-900">
-          Enviar comprovante Pix <span className="text-red-500">*</span>
+        <label className="block text-xs font-semibold text-[var(--text-primary)]">
+          Enviar comprovante Pix <span className="text-[var(--danger)]">*</span>
         </label>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-[var(--text-secondary)]">
           Selecione a foto, print ou PDF do seu comprovante de transferência.
         </p>
 
-        <div className="relative border-2 border-dashed border-zinc-200 hover:border-emerald-500/50 transition-colors rounded-xl p-4 bg-zinc-50/50 text-center">
+        <div className="relative border-2 border-dashed border-[var(--border-default)] hover:border-[var(--brand)] transition-colors rounded-xl p-4 bg-[var(--surface-subtle)] text-center">
           <input
             ref={fileInputRef}
             type="file"
@@ -154,31 +154,31 @@ export function ReceiptUploadForm({
 
           {!selectedFile ? (
             <div className="space-y-1.5 py-1">
-              <div className="w-10 h-10 rounded-full bg-emerald-50 text-[#00A859] flex items-center justify-center mx-auto">
+              <div className="w-10 h-10 rounded-full bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center mx-auto">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
                 </svg>
               </div>
-              <p className="text-xs font-medium text-zinc-800">
+              <p className="text-xs font-medium text-[var(--text-primary)]">
                 Clique para selecionar o arquivo
               </p>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-[var(--text-tertiary)]">
                 Formatos aceitos: JPG, PNG, WEBP ou PDF (máx. 5 MB)
               </p>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-3 bg-white p-3 rounded-lg border border-zinc-200 text-left relative z-20">
+            <div className="flex items-center justify-between gap-3 bg-[var(--surface)] p-3 rounded-lg border border-[var(--border-default)] text-left relative z-20">
               <div className="min-w-0 flex-1 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100/70 text-[#00A859] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center shrink-0">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-zinc-900 truncate">
+                  <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
                     {selectedFile.name}
                   </p>
-                  <p className="text-[11px] text-zinc-500">
+                  <p className="text-[11px] text-[var(--text-tertiary)]">
                     {formatFileSize(selectedFile.size)}
                   </p>
                 </div>
@@ -188,7 +188,7 @@ export function ReceiptUploadForm({
                 type="button"
                 onClick={handleClearFile}
                 disabled={isSubmitting}
-                className="p-1 rounded-md text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+                className="p-1 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
                 title="Remover arquivo"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

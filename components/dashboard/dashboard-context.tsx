@@ -31,21 +31,22 @@ export function DashboardContext({
 }: DashboardContextProps) {
   const firstName = userName ? userName.trim().split(" ")[0] : "";
   const displaySubtitle = subtitle || getDefaultSubtitle(roles);
+  const displayRoles = roles.filter((r) => r !== "STUDENT");
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
       <div className="space-y-0.5 sm:space-y-1">
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">
-          {firstName ? `Olá, ${firstName}` : "Visão geral"}
+          {firstName ? `Olá, ${firstName}` : "Olá!"}
         </h1>
         <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
           {displaySubtitle}
         </p>
       </div>
 
-      {roles.length > 0 && (
+      {displayRoles.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-          {roles.map((role) => (
+          {displayRoles.map((role) => (
             <Badge key={role} variant="brand" size="sm">
               {ROLE_LABELS[role] || role}
             </Badge>

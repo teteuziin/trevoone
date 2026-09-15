@@ -73,6 +73,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             title: cards[0].workoutTitle,
             subtitle: cards[0].subtitle,
             workoutCount: cards.length,
+            blockCount: cards[0].blockCount,
           };
         } catch {
           return null;
@@ -235,7 +236,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
       userEmail={session.email}
       viewModeState={effectiveState}
     >
-      <div className="space-y-6 sm:space-y-8">
+      <div className="max-w-[1120px] mx-auto w-full space-y-6 sm:space-y-8">
         {/* Context Header Compacto */}
         <DashboardContext
           userName={session.fullName}

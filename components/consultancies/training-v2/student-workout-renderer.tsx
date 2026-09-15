@@ -155,6 +155,19 @@ function formatRest(seconds?: number | null, options?: { includeWord?: boolean }
   return `${mins}m ${rem}s${word}`;
 }
 
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return "";
+  try {
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  } catch {
+    // Ignore fallback
+  }
+  return dateStr;
+}
+
 type ParsedInstructions =
   | { type: "steps"; preamble: string | null; steps: string[] }
   | { type: "paragraphs"; preamble: null; paragraphs: string[] };
@@ -584,35 +597,36 @@ export function StudentWorkoutRenderer({
           )}
         </div>
 
-        {/* Compact Metadata Row */}
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-[var(--foreground-muted)]">
-          <span className="font-medium text-[var(--foreground)]">{workout.consultancyName}</span>
-          <span>•</span>
-          <span>{blocks.length} {blocks.length === 1 ? "bloco" : "blocos"}</span>
+        {/* Primary Metadata Chips (Execution Focus) */}
+        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
+            {blocks.length} {blocks.length === 1 ? "bloco de treino" : "blocos de treino"}
+          </span>
           {workout.estimatedDurationMinutes != null && (
-            <>
-              <span>•</span>
-              <span>{workout.estimatedDurationMinutes} min</span>
-            </>
+            <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
+              ⏱ {workout.estimatedDurationMinutes} min estimados
+            </span>
           )}
           {workout.difficultyLevel && (
-            <>
-              <span>•</span>
-              <span>
-                {workout.difficultyLevel === "BEGINNER"
-                  ? "Iniciante"
-                  : workout.difficultyLevel === "ADVANCED"
-                  ? "Avançado"
-                  : "Intermediário"}
-              </span>
-            </>
+            <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
+              Nível {workout.difficultyLevel === "BEGINNER"
+                ? "Iniciante"
+                : workout.difficultyLevel === "ADVANCED"
+                ? "Avançado"
+                : "Intermediário"}
+            </span>
           )}
-          <span>•</span>
-          <span>v{workout.versionNumber}</span>
+        </div>
+
+        {/* Secondary Metadata Row (Traceability & Prescription) */}
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-[var(--foreground-muted)] pt-1 border-t border-[var(--border-subtle)]">
+          <span className="font-medium text-[var(--foreground)]">{workout.consultancyName}</span>
+          <span>·</span>
+          <span>Versão {workout.versionNumber}</span>
           {workout.startsOn && (
             <>
-              <span>•</span>
-              <span>Prescrito em {workout.startsOn}</span>
+              <span>·</span>
+              <span>Prescrito em {formatDate(workout.startsOn)}</span>
             </>
           )}
         </div>
@@ -1005,7 +1019,7 @@ function ItemCard({
           {pinnedMedia.map((m) => (
             <div
               key={m.mediaAsset.publicId}
-              className="rounded-xl overflow-hidden border border-[var(--border-default)] bg-black shadow-xs"
+              className="rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-center p-1 sm:p-2 shadow-xs"
             >
               {m.mediaAsset.mediaType === "VIDEO" ? (
                 <video
@@ -1013,14 +1027,14 @@ function ItemCard({
                   playsInline
                   preload="metadata"
                   src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
-                  className="w-full max-h-72 bg-black aspect-video object-contain"
+                  className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block"
                 />
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
                   alt={item.exerciseNameSnapshot}
-                  className="w-full max-h-72 object-cover"
+                  className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block"
                 />
               )}
             </div>
@@ -1340,7 +1354,7 @@ function PendingSetControl({
           type="button"
           onClick={handleSubmit}
           disabled={isBusy}
-          className="px-3 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs ml-auto"
+          className="px-3.5 h-8 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs ml-auto"
         >
           {isBusy ? (
             <>
@@ -1466,10 +1480,10 @@ function StandardSetsPrescription({
             return (
               <div
                 key={s.setNumber || idx}
-                className="px-3.5 py-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex flex-wrap items-center justify-between gap-2 text-xs"
+                className="px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2 text-xs"
               >
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)] shrink-0">
                     <Check className="w-3 h-3" />
                   </span>
                   <span className="font-bold text-[var(--foreground)]">
@@ -1479,7 +1493,7 @@ function StandardSetsPrescription({
                     — {realizedText || "Concluída"}
                   </span>
                 </div>
-                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="text-[11px] font-semibold text-[var(--brand-foreground)]">
                   Concluída
                 </span>
               </div>
@@ -1494,15 +1508,15 @@ function StandardSetsPrescription({
             return (
               <div
                 key={s.setNumber || idx}
-                className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border-2 border-emerald-500/40 shadow-xs space-y-2.5"
+                className="p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border-2 border-[var(--brand)] shadow-xs space-y-2.5"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-[var(--brand)] animate-pulse" />
                     <span className="font-bold text-sm text-[var(--foreground)]">
                       {idx + 1}ª série
                     </span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)]">
                       Série atual
                     </span>
                     {s.setType && s.setType !== "NORMAL" && (
@@ -1556,7 +1570,7 @@ function StandardSetsPrescription({
               return (
                 <div
                   key={s.setNumber || idx}
-                  className="px-3.5 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs"
+                  className="px-3.5 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] opacity-85 hover:opacity-100 transition-opacity flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs"
                 >
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="font-semibold text-[var(--foreground-muted)]">

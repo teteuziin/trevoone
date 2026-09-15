@@ -54,61 +54,12 @@ interface DashboardStudentViewProps {
 // VOLUMETRIC SVG ICONS (Trevo One Art Direction)
 // ============================================================================
 
-function TrainingVolumetricIcon({ className = "w-10 h-10 shrink-0" }: { className?: string }) {
+function DumbbellIcon({ className = "w-7 h-7" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <linearGradient id="t-grad-main" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--brand)" />
-          <stop offset="1" stopColor="var(--brand-active)" />
-        </linearGradient>
-        <linearGradient id="t-grad-bar" x1="12" y1="20" x2="36" y2="28" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#94a3b8" />
-          <stop offset="1" stopColor="#475569" />
-        </linearGradient>
-        <radialGradient id="t-rad-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(24 24) rotate(90) scale(20)">
-          <stop stopColor="var(--brand)" stopOpacity="0.25" />
-          <stop offset="1" stopColor="var(--brand)" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <circle cx="24" cy="24" r="20" fill="url(#t-rad-glow)" />
-      <rect x="10" y="22" width="28" height="4" rx="2" fill="url(#t-grad-bar)" />
-      <rect x="14" y="14" width="4" height="20" rx="2" fill="url(#t-grad-main)" />
-      <rect x="8" y="10" width="5" height="28" rx="2.5" fill="url(#t-grad-main)" />
-      <rect x="5" y="18" width="3" height="12" rx="1.5" fill="url(#t-grad-bar)" />
-      <rect x="30" y="14" width="4" height="20" rx="2" fill="url(#t-grad-main)" />
-      <rect x="35" y="10" width="5" height="28" rx="2.5" fill="url(#t-grad-main)" />
-      <rect x="40" y="18" width="3" height="12" rx="1.5" fill="url(#t-grad-bar)" />
-      <line x1="21" y1="22" x2="21" y2="26" stroke="#cbd5e1" strokeWidth="1" strokeLinecap="round" />
-      <line x1="24" y1="22" x2="24" y2="26" stroke="#cbd5e1" strokeWidth="1" strokeLinecap="round" />
-      <line x1="27" y1="22" x2="27" y2="26" stroke="#cbd5e1" strokeWidth="1" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function NutritionVolumetricIcon({ className = "w-10 h-10 shrink-0" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <linearGradient id="n-grad-cloche" x1="8" y1="12" x2="40" y2="36" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#10b981" />
-          <stop offset="1" stopColor="#047857" />
-        </linearGradient>
-        <linearGradient id="n-grad-accent" x1="16" y1="8" x2="32" y2="24" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#34d399" />
-          <stop offset="1" stopColor="#059669" />
-        </linearGradient>
-        <radialGradient id="n-rad-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(24 24) rotate(90) scale(20)">
-          <stop stopColor="#10b981" stopOpacity="0.25" />
-          <stop offset="1" stopColor="#10b981" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <circle cx="24" cy="24" r="20" fill="url(#n-rad-glow)" />
-      <rect x="6" y="32" width="36" height="4" rx="2" fill="url(#n-grad-cloche)" />
-      <path d="M10 30C10 18.9543 16.268 10 24 10C31.732 10 38 18.9543 38 30H10Z" fill="url(#n-grad-cloche)" />
-      <circle cx="24" cy="9" r="3" fill="url(#n-grad-accent)" />
-      <path d="M16 26C16 19 20 14 24 14" stroke="#a7f3d0" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.6" />
-      <path d="M28 20C32 20 34 23 34 26C31 26 28 24 28 20Z" fill="#6ee7b7" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m6.5 6.5 11 11" />
+      <path d="m21 21-1-1a2 2 0 0 0-2.83 0l-2.5 2.5a2 2 0 0 1-2.83 0l-.84-.84a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 0 0-2.83l-1-1" />
+      <path d="m3 3 1 1a2 2 0 0 0 2.83 0l2.5-2.5a2 2 0 0 1 2.83 0l.84.84a2 2 0 0 1 0 2.83l-2.5 2.5a2 2 0 0 0 0 2.83l1 1" />
     </svg>
   );
 }
@@ -302,10 +253,9 @@ export function DashboardStudentView({
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
-                  <TrainingVolumetricIcon className="w-10 h-10 shrink-0" />
-                  <Link href={`/consultoria/${consultancySlug}/treinos`} className="flex-1 max-w-[240px]">
-                    <Button variant="primary" fullWidth size="md" className="font-bold min-h-[44px]">
+                <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-end">
+                  <Link href={`/consultoria/${consultancySlug}/treinos`} className="w-full sm:w-auto">
+                    <Button variant="primary" fullWidth size="md" className="font-bold min-h-[44px] sm:px-6">
                       Acessar treino →
                     </Button>
                   </Link>
@@ -347,10 +297,9 @@ export function DashboardStudentView({
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
-                  <NutritionVolumetricIcon className="w-10 h-10 shrink-0" />
-                  <Link href={`/consultoria/${consultancySlug}/nutricao`} className="flex-1 max-w-[240px]">
-                    <Button variant="secondary" fullWidth size="md" className="font-bold min-h-[44px]">
+                <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-end">
+                  <Link href={`/consultoria/${consultancySlug}/nutricao`} className="w-full sm:w-auto">
+                    <Button variant="secondary" fullWidth size="md" className="font-bold min-h-[44px] sm:px-6">
                       Ver alimentação →
                     </Button>
                   </Link>
@@ -400,8 +349,7 @@ export function DashboardStudentView({
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between gap-4">
-                  <TrainingVolumetricIcon className="w-11 h-11 shrink-0" />
+                <div className="pt-4 border-t border-[var(--border-subtle)] flex items-center justify-end">
                   <Link href={`/consultoria/${consultancySlug}/treinos`} className="shrink-0">
                     <Button variant="primary" size="md" className="font-bold min-h-[44px] px-6">
                       Acessar treino →
@@ -445,8 +393,7 @@ export function DashboardStudentView({
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between gap-4">
-                  <NutritionVolumetricIcon className="w-11 h-11 shrink-0" />
+                <div className="pt-4 border-t border-[var(--border-subtle)] flex items-center justify-end">
                   <Link href={`/consultoria/${consultancySlug}/nutricao`} className="shrink-0">
                     <Button variant="secondary" size="md" className="font-bold min-h-[44px] px-5">
                       Ver alimentação →
@@ -497,8 +444,7 @@ export function DashboardStudentView({
               </div>
             </div>
 
-            <div className="flex items-center gap-4 shrink-0 pt-2 sm:pt-0">
-              <TrainingVolumetricIcon className="w-12 h-12 hidden sm:block" />
+            <div className="flex items-center shrink-0 pt-2 sm:pt-0">
               <Link href={`/consultoria/${consultancySlug}/treinos`}>
                 <Button variant="primary" size="md" className="font-bold min-h-[44px] px-6">
                   Acessar treino →
@@ -542,8 +488,7 @@ export function DashboardStudentView({
               </div>
             </div>
 
-            <div className="flex items-center gap-4 shrink-0 pt-2 sm:pt-0">
-              <NutritionVolumetricIcon className="w-12 h-12 hidden sm:block" />
+            <div className="flex items-center shrink-0 pt-2 sm:pt-0">
               <Link href={`/consultoria/${consultancySlug}/nutricao`}>
                 <Button variant="secondary" size="md" className="font-bold min-h-[44px] px-6">
                   Ver alimentação →
@@ -554,8 +499,8 @@ export function DashboardStudentView({
         ) : (
           /* Estado Vazio Harmonioso e Acolhedor (Sem planos ainda) */
           <div className="p-7 sm:p-8 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs text-center space-y-4 max-w-lg mx-auto">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] mx-auto flex items-center justify-center font-bold">
-              <TrainingVolumetricIcon className="w-10 h-10" />
+            <div className="w-14 h-14 rounded-2xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] mx-auto flex items-center justify-center">
+              <DumbbellIcon className="w-7 h-7" />
             </div>
             <div className="space-y-1.5">
               <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">

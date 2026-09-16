@@ -140,9 +140,9 @@ export function ConsultancyForm() {
           variant="primary"
           isLoading={isPending}
           disabled={isPending}
-          className="w-full sm:w-auto"
+          className="w-full sm:w-auto min-h-[44px] px-5 font-semibold shadow-xs"
         >
-          {isPending ? "Criando..." : "Criar consultoria"}
+          {isPending ? "Criando consultoria..." : "Criar consultoria"}
         </Button>
       </div>
     </form>

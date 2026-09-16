@@ -110,59 +110,60 @@ export default async function PlatformReceiptReviewPage({ params }: PageProps) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         <div className="flex items-center justify-between gap-4">
           <Link href="/admin/cobranca-plataforma">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="min-h-[44px] sm:min-h-[40px] text-xs font-semibold">
               ← Voltar para Cobrança
             </Button>
           </Link>
         </div>
-        <div className="bg-white rounded-2xl border border-zinc-200/90 p-6 sm:p-8 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-4">
+
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
             <div className="space-y-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight">
                   Avaliação de Comprovante Pix
                 </h1>
                 <Badge variant={getReceiptBadgeVariant(receiptData.status)} size="md">
                   {getReceiptLabel(receiptData.status)}
                 </Badge>
               </div>
-              <p className="text-xs text-zinc-500">
-                Consultoria: <strong className="text-zinc-900 font-semibold">{receiptData.consultancy_name}</strong> ({receiptData.consultancy_slug})
+              <p className="text-xs text-[var(--text-secondary)]">
+                Consultoria: <strong className="text-[var(--text-primary)] font-semibold">{receiptData.consultancy_name}</strong> ({receiptData.consultancy_slug})
               </p>
             </div>
           </div>
 
           {/* Detalhes da Cobrança */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/60 space-y-1">
-              <span className="text-zinc-500 font-medium block">Cobrança</span>
-              <p className="text-sm font-bold text-zinc-900">{receiptData.charge_title}</p>
+            <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-1">
+              <span className="text-[var(--text-secondary)] font-medium block">Cobrança</span>
+              <p className="text-sm font-bold text-[var(--text-primary)] truncate">{receiptData.charge_title}</p>
             </div>
 
-            <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/60 space-y-1">
-              <span className="text-zinc-500 font-medium block">Valor da Fatura</span>
-              <p className="text-sm font-bold text-zinc-900">
+            <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-1">
+              <span className="text-[var(--text-secondary)] font-medium block">Valor da Fatura</span>
+              <p className="text-sm font-bold text-[var(--brand)]">
                 {formatBrlCents(Number(receiptData.charge_amount_cents))}
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/60 space-y-1">
-              <span className="text-zinc-500 font-medium block">Vencimento</span>
-              <p className="text-sm font-bold text-zinc-900">
+            <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-1">
+              <span className="text-[var(--text-secondary)] font-medium block">Vencimento</span>
+              <p className="text-sm font-bold text-[var(--text-primary)]">
                 {formatIsoDateToBr(String(receiptData.charge_due_on))}
               </p>
             </div>
           </div>
 
           {/* Detalhes do Arquivo */}
-          <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/60 space-y-3 text-xs">
+          <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-3 text-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-0.5 min-w-0">
-                <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
+                <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
                   Arquivo enviado
                 </span>
-                <p className="text-sm font-mono font-bold text-zinc-900 truncate">{receiptData.file_name}</p>
-                <p className="text-zinc-500 text-[11px]">
+                <p className="text-sm font-mono font-bold text-[var(--text-primary)] truncate">{receiptData.file_name}</p>
+                <p className="text-[var(--text-tertiary)] text-[11px]">
                   Tamanho: {(Number(receiptData.file_size_bytes) / 1024).toFixed(1)} KB • Tipo: {receiptData.mime_type} • Enviado por: {receiptData.submitter_name}
                 </p>
               </div>
@@ -173,9 +174,9 @@ export default async function PlatformReceiptReviewPage({ params }: PageProps) {
                 rel="noopener noreferrer"
                 className="shrink-0"
               >
-                <Button variant="secondary" size="sm">
+                <Button variant="secondary" size="sm" className="min-h-[44px] sm:min-h-[40px] text-xs font-semibold">
                   <span>Abrir Comprovante</span>
-                  <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                   </svg>
                 </Button>
@@ -185,15 +186,15 @@ export default async function PlatformReceiptReviewPage({ params }: PageProps) {
 
           {/* Ações de Avaliação (Apenas se SUBMITTED) */}
           {receiptData.status === "SUBMITTED" ? (
-            <div className="pt-4 border-t border-zinc-100 space-y-4">
-              <h2 className="text-sm font-bold text-zinc-900">Decisão de Análise</h2>
+            <div className="pt-4 border-t border-[var(--border-subtle)] space-y-4">
+              <h2 className="text-sm font-bold text-[var(--text-primary)]">Decisão de Análise</h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Aprovar */}
-                <div className="p-5 rounded-2xl border border-emerald-200 bg-emerald-50/40 space-y-3 flex flex-col justify-between">
+                <div className="p-5 rounded-2xl border border-[var(--brand-soft-border)] bg-[var(--brand-soft)] space-y-3 flex flex-col justify-between">
                   <div className="space-y-1 text-xs">
-                    <h3 className="text-sm font-bold text-emerald-950">Aprovar Comprovante</h3>
-                    <p className="text-emerald-800 leading-relaxed">
+                    <h3 className="text-sm font-bold text-[var(--brand-foreground)]">Aprovar Comprovante</h3>
+                    <p className="text-[var(--text-secondary)] leading-relaxed">
                       Confirma o recebimento Pix, quita a fatura e restabelece automaticamente o acesso da consultoria se estiver em atraso.
                     </p>
                   </div>
@@ -213,7 +214,7 @@ export default async function PlatformReceiptReviewPage({ params }: PageProps) {
                       type="submit"
                       variant="primary"
                       size="sm"
-                      className="w-full bg-[#00A859] hover:bg-[#008f4c]"
+                      className="w-full min-h-[44px] font-semibold shadow-xs"
                     >
                       ✓ Confirmar Aprovação e Quitação
                     </Button>
@@ -221,10 +222,10 @@ export default async function PlatformReceiptReviewPage({ params }: PageProps) {
                 </div>
 
                 {/* Rejeitar */}
-                <div className="p-5 rounded-2xl border border-red-200 bg-red-50/40 space-y-3">
+                <div className="p-5 rounded-2xl border border-[var(--danger-border)] bg-[var(--danger-soft)] space-y-3">
                   <div className="space-y-1 text-xs">
-                    <h3 className="text-sm font-bold text-red-950">Rejeitar Comprovante</h3>
-                    <p className="text-red-800 leading-relaxed">
+                    <h3 className="text-sm font-bold text-[var(--danger-foreground)]">Rejeitar Comprovante</h3>
+                    <p className="text-[var(--danger-foreground)] opacity-90 leading-relaxed">
                       Informe o motivo da rejeição para que a consultoria possa enviar um novo comprovante correto.
                     </p>
                   </div>
@@ -248,13 +249,13 @@ export default async function PlatformReceiptReviewPage({ params }: PageProps) {
                       name="reason"
                       placeholder="Motivo da rejeição (ex: valor divergente, comprovante ilegível)"
                       required
-                      className="w-full h-9 px-3 rounded-xl border border-red-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                      className="w-full min-h-[44px] sm:h-10 px-3 rounded-xl border border-[var(--danger-border)] bg-[var(--surface)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
                     />
                     <Button
                       type="submit"
                       variant="danger"
                       size="sm"
-                      className="w-full"
+                      className="w-full min-h-[44px] font-semibold shadow-xs"
                     >
                       Rejeitar Comprovante
                     </Button>

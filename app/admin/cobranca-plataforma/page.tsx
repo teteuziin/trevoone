@@ -61,102 +61,119 @@ export default async function PlatformBillingOverviewPage() {
 
   return (
     <div className="w-full">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7">
         {/* Contextual Page Header with Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[var(--border-subtle)]">
           <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--text-primary)]">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                Faturamento Global
+              </span>
+              <span className="text-xs text-[var(--border-strong)]">•</span>
+              <span className="text-xs text-[var(--text-tertiary)] font-medium">
+                Controle Financeiro
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               Cobrança da Plataforma
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
-              Faturamento das consultorias parceiras, gestão de assinaturas e conciliação Pix.
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
+              Faturamento das consultorias parceiras, gestão de assinaturas, controle de carência e conciliação Pix.
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
             <Link href="/admin/cobranca-plataforma/configuracoes">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="min-h-[44px] sm:min-h-[40px] text-xs font-semibold">
                 Configurar Pix
               </Button>
             </Link>
             <Link href="/admin/cobranca-plataforma/cobrancas/nova">
-              <Button variant="primary" size="sm">
+              <Button variant="primary" size="sm" className="min-h-[44px] sm:min-h-[40px] text-xs font-semibold shadow-xs">
                 + Nova Cobrança
               </Button>
             </Link>
           </div>
         </div>
+
         {/* Banner Pix Não Configurado */}
         {!platformSettings && (
-          <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div>
-              <p className="font-bold text-sm">Chave Pix da plataforma não configurada</p>
-              <p className="text-amber-800">
-                Configure a chave Pix oficial do Trevo One para que as consultorias possam visualizar os dados de pagamento.
+          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--warning-soft)] border border-[var(--warning-border)] text-[var(--warning-foreground)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+            <div className="space-y-0.5">
+              <p className="font-bold text-sm text-[var(--warning-foreground)]">
+                Chave Pix da plataforma não configurada
+              </p>
+              <p className="opacity-90">
+                Configure a chave Pix oficial do Trevo One para que as consultorias parceiras possam visualizar os dados de pagamento.
               </p>
             </div>
-            <Link href="/admin/cobranca-plataforma/configuracoes">
-              <Button variant="primary" size="sm" className="shrink-0 bg-amber-600 hover:bg-amber-700">
+            <Link href="/admin/cobranca-plataforma/configuracoes" className="shrink-0">
+              <Button variant="primary" size="sm" className="min-h-[44px]">
                 Configurar Pix Agora
               </Button>
             </Link>
           </div>
         )}
 
-        {/* Dashboard Title & Overview Metrics */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 block">
-              PLATFORM ADMIN
+        {/* Authoritative Global KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 shadow-xs space-y-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] block">
+              Total de Consultorias
             </span>
-            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
-              Gestão de Faturamento das Consultorias
-            </h1>
-            <p className="text-xs text-zinc-500">
-              Controle global de assinaturas, recebimento Pix, carência e liberação dos acessos.
+            <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
+              {subscriptions.length}
             </p>
+            <span className="text-[11px] text-[var(--text-tertiary)] block pt-1">
+              Organizações com assinatura ativa no sistema
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
-            <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/60 space-y-1">
-              <span className="text-zinc-500 font-medium block">Total de Consultorias</span>
-              <p className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
-                {subscriptions.length}
-              </p>
-            </div>
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 shadow-xs space-y-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] block">
+              Comprovantes em Análise
+            </span>
+            <p className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${
+              pendingReceipts.length > 0 ? "text-[var(--warning-foreground)]" : "text-[var(--text-primary)]"
+            }`}>
+              {pendingReceipts.length}
+            </p>
+            <span className="text-[11px] text-[var(--text-tertiary)] block pt-1">
+              {pendingReceipts.length > 0
+                ? "Requer validação e quitação pela equipe"
+                : "Nenhum comprovante pendente de conciliação"}
+            </span>
+          </div>
 
-            <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/60 space-y-1">
-              <span className="text-zinc-500 font-medium block">Comprovantes em Análise</span>
-              <p className="text-xl sm:text-2xl font-bold text-amber-600 tracking-tight">
-                {pendingReceipts.length}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/60 space-y-1">
-              <span className="text-zinc-500 font-medium block">Chave Pix da Plataforma</span>
-              <p className="text-xs font-mono font-bold text-zinc-900 truncate">
-                {platformSettings ? `${platformSettings.pixKeyType}: ${platformSettings.pixKey}` : "Não configurada"}
-              </p>
-            </div>
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 shadow-xs space-y-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] block">
+              Chave Pix Oficial
+            </span>
+            <p className="text-sm font-mono font-bold text-[var(--text-primary)] truncate pt-1">
+              {platformSettings ? `${platformSettings.pixKeyType}: ${platformSettings.pixKey}` : "Não configurada"}
+            </p>
+            <span className="text-[11px] text-[var(--text-tertiary)] block pt-1">
+              {platformSettings ? `Favorecido: ${platformSettings.receiverName}` : "Defina a chave nas configurações"}
+            </span>
           </div>
         </div>
 
         {/* Fila de Comprovantes em Análise */}
         {pendingReceipts.length > 0 && (
-          <div className="bg-white border border-amber-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between gap-3 border-b border-amber-100 pb-3">
-              <div>
-                <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block animate-pulse" />
+          <div className="bg-[var(--surface)] border border-[var(--warning-border)] rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+              <div className="space-y-0.5">
+                <h2 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--warning-foreground)] inline-block animate-pulse" />
                   Comprovantes Aguardando Análise ({pendingReceipts.length})
                 </h2>
-                <p className="text-xs text-zinc-500">
-                  Comprovantes enviados pelas consultorias que precisam de validação da equipe Trevo One.
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Comprovantes Pix enviados pelas consultorias que precisam de validação da equipe Trevo One.
                 </p>
               </div>
             </div>
 
-            <div className="divide-y divide-zinc-100">
+            <div className="divide-y divide-[var(--border-subtle)]">
               {pendingReceipts.map((rc) => (
                 <div
                   key={rc.publicId}
@@ -164,15 +181,17 @@ export default async function PlatformBillingOverviewPage() {
                 >
                   <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-zinc-900 text-sm truncate">{rc.consultancyName}</span>
+                      <span className="font-bold text-[var(--text-primary)] text-sm truncate">
+                        {rc.consultancyName}
+                      </span>
                       <Badge variant="warning" size="sm">
                         Em análise
                       </Badge>
                     </div>
-                    <p className="text-zinc-600 font-medium truncate">
-                      Fatura: <strong>{rc.chargeTitle}</strong> ({formatBrlCents(rc.chargeAmountCents)}) • Vencimento: {formatIsoDateToBr(rc.chargeDueOn)}
+                    <p className="text-[var(--text-secondary)] font-medium truncate">
+                      Fatura: <strong className="text-[var(--text-primary)]">{rc.chargeTitle}</strong> ({formatBrlCents(rc.chargeAmountCents)}) • Vencimento: {formatIsoDateToBr(rc.chargeDueOn)}
                     </p>
-                    <p className="text-[11px] text-zinc-400">
+                    <p className="text-[11px] text-[var(--text-tertiary)]">
                       Enviado por {rc.submitterName} em {formatIsoDateToBr(rc.createdAt.toISOString().slice(0, 10))} • Arquivo: {rc.fileName}
                     </p>
                   </div>
@@ -181,7 +200,7 @@ export default async function PlatformBillingOverviewPage() {
                     href={`/admin/cobranca-plataforma/comprovantes/${rc.publicId}`}
                     className="shrink-0"
                   >
-                    <Button variant="primary" size="sm" className="bg-amber-600 hover:bg-amber-700">
+                    <Button variant="primary" size="sm" className="min-h-[44px] text-xs font-semibold shadow-xs">
                       Avaliar Comprovante →
                     </Button>
                   </Link>
@@ -192,52 +211,60 @@ export default async function PlatformBillingOverviewPage() {
         )}
 
         {/* Lista de Consultorias & Assinaturas */}
-        <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-          <div className="border-b border-zinc-100 pb-3">
-            <h2 className="text-sm font-bold text-zinc-900">
-              Assinaturas das Consultorias
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="border-b border-[var(--border-subtle)] pb-3">
+            <h2 className="text-sm font-bold text-[var(--text-primary)]">
+              Assinaturas das Consultorias ({subscriptions.length})
             </h2>
-            <p className="text-xs text-zinc-500">
-              Status de faturamento e acesso de cada consultoria cadastrada.
+            <p className="text-xs text-[var(--text-secondary)]">
+              Status operacional de faturamento e controle de acesso por consultoria cadastrada.
             </p>
           </div>
 
-          <div className="divide-y divide-zinc-100">
-            {subscriptions.map((s) => (
-              <div
-                key={s.consultancyPublicId}
-                className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-              >
-                <div className="space-y-1 min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-zinc-900 text-sm sm:text-base truncate">{s.consultancyName}</span>
-                    <Badge variant={getSubscriptionBadgeVariant(s.effectiveStatus)} size="sm">
-                      {getSubscriptionLabel(s.effectiveStatus)}
-                    </Badge>
-                  </div>
-                  <p className="text-zinc-500 text-[11px]">
-                    Slug: <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-700">{s.consultancySlug}</code> • Timezone: {s.consultancyTimezone}
-                  </p>
-                  <p className="text-zinc-600">
-                    Faturas em aberto: <strong className="text-zinc-900 font-semibold">{s.openChargesCount}</strong>
-                    {s.pendingReceiptsCount > 0 && (
-                      <span className="text-amber-700 font-semibold ml-2">
-                        • {s.pendingReceiptsCount} comprovante(s) pendente(s)
+          {subscriptions.length === 0 ? (
+            <p className="text-xs text-[var(--text-tertiary)] py-4 text-center">
+              Nenhuma consultoria cadastrada para cobrança.
+            </p>
+          ) : (
+            <div className="divide-y divide-[var(--border-subtle)]">
+              {subscriptions.map((s) => (
+                <div
+                  key={s.consultancyPublicId}
+                  className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                >
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-[var(--text-primary)] text-sm sm:text-base truncate">
+                        {s.consultancyName}
                       </span>
-                    )}
-                  </p>
-                </div>
+                      <Badge variant={getSubscriptionBadgeVariant(s.effectiveStatus)} size="sm">
+                        {getSubscriptionLabel(s.effectiveStatus)}
+                      </Badge>
+                    </div>
+                    <p className="text-[var(--text-secondary)] text-[11px]">
+                      Slug: <code className="bg-[var(--surface-subtle)] px-1.5 py-0.5 rounded border border-[var(--border-subtle)] text-[var(--text-primary)] font-mono">{s.consultancySlug}</code> • Fuso: {s.consultancyTimezone}
+                    </p>
+                    <p className="text-[var(--text-secondary)]">
+                      Faturas em aberto: <strong className="text-[var(--text-primary)] font-semibold">{s.openChargesCount}</strong>
+                      {s.pendingReceiptsCount > 0 && (
+                        <span className="text-[var(--warning-foreground)] font-semibold ml-2">
+                          • {s.pendingReceiptsCount} comprovante(s) em análise
+                        </span>
+                      )}
+                    </p>
+                  </div>
 
-                <div className="shrink-0 pt-2 sm:pt-0 border-t border-zinc-100 sm:border-t-0">
-                  <Link href={`/admin/cobranca-plataforma/consultorias/${s.consultancyPublicId}`}>
-                    <Button variant="outline" size="sm">
-                      Detalhes & Faturas →
-                    </Button>
-                  </Link>
+                  <div className="shrink-0 pt-2 sm:pt-0 border-t border-[var(--border-subtle)] sm:border-t-0">
+                    <Link href={`/admin/cobranca-plataforma/consultorias/${s.consultancyPublicId}`}>
+                      <Button variant="outline" size="sm" className="min-h-[44px] text-xs font-medium">
+                        Detalhes & Faturas →
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

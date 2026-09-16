@@ -116,14 +116,15 @@ export function PixSettingsForm({ initialData }: PixFormProps) {
         />
       </FormField>
 
-      <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-100">
+      <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
         <Button
           type="submit"
           variant="primary"
           size="md"
           disabled={isPending}
+          className="min-h-[44px] px-5 font-semibold shadow-xs"
         >
-          {isPending ? "Salvando..." : "Salvar Configurações Pix"}
+          {isPending ? "Salvando configurações..." : "Salvar Configurações Pix"}
         </Button>
       </div>
     </form>

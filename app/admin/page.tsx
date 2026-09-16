@@ -5,119 +5,37 @@ import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { Badge } from "@/components/ui/badge";
 
 /* =========================================================================
-   VOLUMETRIC ICONS (Platform Governance - Local Inline SVG)
+   ENTERPRISE CONTROL PLANE ICONS (Linear / Stripe / V2 Precision Geometry)
    ========================================================================= */
 
-function VolumetricGovernanceConsultanciesIcon({ className = "w-12 h-12" }: { className?: string }) {
+function ConsultanciesIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 52 52" fill="none" aria-hidden="true">
-      <defs>
-        <radialGradient id="govGlow" cx="0%" cy="0%" r="90%">
-          <stop offset="0%" stopColor="#34D399" stopOpacity="0.35" />
-          <stop offset="70%" stopColor="#00A859" stopOpacity="0.1" />
-          <stop offset="100%" stopColor="#00A859" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="govBase" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#059669" />
-          <stop offset="50%" stopColor="#00A859" />
-          <stop offset="100%" stopColor="#047857" />
-        </linearGradient>
-        <linearGradient id="govHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="govSecondary" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#10B981" stopOpacity="0.8" />
-          <stop offset="100%" stopColor="#059669" stopOpacity="0.5" />
-        </linearGradient>
-        <filter id="govShadow" x="-10%" y="-10%" width="130%" height="130%">
-          <feDropShadow dx="0" dy="3" stdDeviation="2.5" floodColor="#000000" floodOpacity="0.2" />
-        </filter>
-      </defs>
-
-      {/* Ambient Glow */}
-      <circle cx="26" cy="26" r="24" fill="url(#govGlow)" />
-
-      {/* Background Organization Nodes */}
-      <rect x="8" y="18" width="16" height="22" rx="4" fill="url(#govSecondary)" filter="url(#govShadow)" />
-      <rect x="28" y="20" width="16" height="20" rx="4" fill="url(#govSecondary)" filter="url(#govShadow)" />
-
-      {/* Main Governance Tower */}
-      <rect x="16" y="10" width="20" height="32" rx="5" fill="url(#govBase)" filter="url(#govShadow)" />
-      <rect x="16" y="10" width="20" height="32" rx="5" stroke="url(#govHighlight)" strokeWidth="1" />
-
-      {/* Architectural Window Grid */}
-      <rect x="20" y="15" width="4" height="4" rx="1" fill="#FFFFFF" fillOpacity="0.75" />
-      <rect x="28" y="15" width="4" height="4" rx="1" fill="#FFFFFF" fillOpacity="0.75" />
-      <rect x="20" y="22" width="4" height="4" rx="1" fill="#FFFFFF" fillOpacity="0.75" />
-      <rect x="28" y="22" width="4" height="4" rx="1" fill="#FFFFFF" fillOpacity="0.75" />
-
-      {/* Portal Accent */}
-      <path d="M23 42v-6a3 3 0 016 0v6" fill="#34D399" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
     </svg>
   );
 }
 
-function VolumetricGovernanceBillingIcon({ className = "w-12 h-12" }: { className?: string }) {
+function BillingIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 52 52" fill="none" aria-hidden="true">
-      <defs>
-        <radialGradient id="billGlow" cx="0%" cy="0%" r="90%">
-          <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.35" />
-          <stop offset="70%" stopColor="#0284C7" stopOpacity="0.1" />
-          <stop offset="100%" stopColor="#0284C7" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="billBase" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0284C7" />
-          <stop offset="50%" stopColor="#0369A1" />
-          <stop offset="100%" stopColor="#075985" />
-        </linearGradient>
-        <linearGradient id="billHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="billCoin" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#34D399" />
-          <stop offset="100%" stopColor="#059669" />
-        </linearGradient>
-        <filter id="billShadow" x="-10%" y="-10%" width="130%" height="130%">
-          <feDropShadow dx="0" dy="3" stdDeviation="2.5" floodColor="#000000" floodOpacity="0.2" />
-        </filter>
-      </defs>
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
+    </svg>
+  );
+}
 
-      {/* Ambient Glow */}
-      <circle cx="26" cy="26" r="24" fill="url(#billGlow)" />
+function ExercisesIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+    </svg>
+  );
+}
 
-      {/* Ledger Back Card */}
-      <rect
-        x="9"
-        y="12"
-        width="34"
-        height="24"
-        rx="6"
-        fill="url(#billBase)"
-        fillOpacity="0.7"
-        filter="url(#billShadow)"
-        transform="rotate(-4 26 24)"
-      />
-
-      {/* Main Payment Card */}
-      <rect x="10" y="16" width="34" height="24" rx="6" fill="url(#billBase)" filter="url(#billShadow)" />
-      <rect x="10" y="16" width="34" height="24" rx="6" stroke="url(#billHighlight)" strokeWidth="1" />
-
-      {/* Chip / Strip Accent */}
-      <rect x="15" y="21" width="7" height="5" rx="1.5" fill="#FDE047" />
-      <line x1="10" y1="29" x2="44" y2="29" stroke="url(#billHighlight)" strokeWidth="1" />
-
-      {/* Verified Shield / Trevo Symbol */}
-      <circle cx="36" cy="32" r="7" fill="url(#billCoin)" filter="url(#billShadow)" />
-      <path
-        d="M33.5 32l1.5 1.5 3.5-3.5"
-        stroke="#FFFFFF"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+function FoodsIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18m-6-9h12" />
     </svg>
   );
 }
@@ -141,130 +59,127 @@ export default async function AdminDashboardPage() {
 
   const firstName = session.fullName ? session.fullName.split(" ")[0] : "";
 
-  const activeModules = [
+  const operationalModules = [
     {
+      id: "consultancies",
       title: "Gestão de Consultorias",
-      badge: "Tenants & Organizações",
+      tag: "Organizações & Tenants",
+      badgeVariant: "neutral" as const,
       description:
-        "Cadastre novas consultorias parceiras, defina administradores iniciais e gerencie o ciclo de vida das organizações.",
-      cta: "Abrir gestão",
+        "Cadastro e administração de consultorias parceiras, definição de administradores iniciais e controle de fusos operacionais.",
       href: "/admin/consultorias",
-      icon: <VolumetricGovernanceConsultanciesIcon className="w-12 h-12 shrink-0" />,
+      cta: "Acessar consultorias",
+      icon: <ConsultanciesIcon className="w-6 h-6" />,
     },
     {
-      title: "Cobrança & Assinaturas",
-      badge: "Financeiro Global",
+      id: "billing",
+      title: "Cobrança da Plataforma",
+      tag: "Faturamento & Pix",
+      badgeVariant: "brand" as const,
       description:
-        "Faturamento das consultorias, controle Pix da plataforma, monitoramento de carência e conciliação de comprovantes.",
-      cta: "Abrir cobrança",
+        "Controle financeiro global de faturas, verificação e aprovação de comprovantes Pix, carência e gestão de acessos.",
       href: "/admin/cobranca-plataforma",
-      icon: <VolumetricGovernanceBillingIcon className="w-12 h-12 shrink-0" />,
-    },
-  ];
-
-  const planningModules = [
-    {
-      title: "Usuários Globais",
-      description: "Visão consolidada de contas, acessos e auditoria de perfis.",
+      cta: "Acessar faturamento",
+      icon: <BillingIcon className="w-6 h-6" />,
     },
     {
-      title: "Trilha de Auditoria",
-      description: "Registro imutável de eventos administrativos e segurança.",
+      id: "exercises",
+      title: "Biblioteca Oficial de Exercícios",
+      tag: "Catálogo Global",
+      badgeVariant: "neutral" as const,
+      description:
+        "Gerenciamento da biblioteca global de movimentos, especificações biomecânicas, níveis de dificuldade e mídias de instrução.",
+      href: "/admin/exercicios",
+      cta: "Gerenciar exercícios",
+      icon: <ExercisesIcon className="w-6 h-6" />,
     },
     {
-      title: "Configurações Gerais",
-      description: "Parâmetros globais de infraestrutura e integrações.",
+      id: "foods",
+      title: "Banco Oficial de Alimentos",
+      tag: "Nutrição Global",
+      badgeVariant: "neutral" as const,
+      description:
+        "Base autoritativa de composição nutricional, porções canônicas de referência e macronutrientes para toda a plataforma.",
+      href: "/admin/alimentos",
+      cta: "Gerenciar alimentos",
+      icon: <FoodsIcon className="w-6 h-6" />,
     },
   ];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7 sm:space-y-9">
-        {/* Governance Context Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border-subtle)]">
+    <div className="w-full">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7">
+        {/* Governance Control Plane Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[var(--border-subtle)]">
           <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--text-primary)]">
-              {firstName ? `Olá, ${firstName}` : "Painel de Governança"}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                Governança Global
+              </span>
+              <span className="text-xs text-[var(--border-strong)]">•</span>
+              <span className="text-xs text-[var(--text-tertiary)] font-medium">
+                Super Administrador
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+              {firstName ? `Painel de Controle, ${firstName}` : "Painel de Governança Global"}
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
-              Painel de Governança e Infraestrutura Global • Trevo One
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
+              Visão consolidada da infraestrutura, operações financeiras e bibliotecas canônicas do Trevo One.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <Badge variant="brand" size="sm">
-              Plataforma Trevo One
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <Badge variant="brand" size="sm" className="font-semibold">
+              Plataforma Ativa
             </Badge>
           </div>
         </div>
 
-        {/* 1. Portais de Governança Ativos (2 Módulos Reais) */}
+        {/* Real Operational Modules Grid (Stripe / Linear enterprise card style) */}
         <div className="space-y-3.5">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-            Módulos Operacionais da Plataforma
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              Módulos Operacionais da Plataforma ({operationalModules.length})
+            </h2>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {activeModules.map((m) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+            {operationalModules.map((m) => (
               <Link
-                key={m.title}
+                key={m.id}
                 href={m.href}
-                className="group relative overflow-hidden bg-gradient-to-br from-[var(--surface)] to-[var(--surface-subtle)] rounded-2xl border border-[var(--border-default)] hover:border-[var(--brand)] p-6 sm:p-7 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between space-y-5 focus-visible:outline-[var(--brand)]"
+                className="group relative flex flex-col justify-between rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] p-5 sm:p-6 shadow-xs hover:shadow-sm transition-all focus-visible:outline-[var(--brand)] depth-interactive"
               >
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="group-hover:scale-105 transition-transform">{m.icon}</div>
-                    <Badge variant="neutral" size="sm" className="font-semibold text-[11px]">
-                      {m.badge}
+                    <div className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] group-hover:text-[var(--brand)] group-hover:border-[var(--brand-soft-border)] flex items-center justify-center transition-colors">
+                      {m.icon}
+                    </div>
+                    <Badge variant={m.badgeVariant} size="sm" className="font-semibold text-[10px]">
+                      {m.tag}
                     </Badge>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
                       {m.title}
                     </h3>
-                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
+                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-normal">
                       {m.description}
                     </p>
                   </div>
                 </div>
 
-                <div className="pt-3.5 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs font-bold text-[var(--brand)]">
+                <div className="pt-4 mt-4 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs font-semibold text-[var(--brand)]">
                   <span>{m.cta}</span>
-                  <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  <span className="group-hover:translate-x-1 transition-transform" aria-hidden="true">→</span>
                 </div>
               </Link>
             ))}
           </div>
         </div>
-
-        {/* 2. Módulos Estruturais em Planejamento (Sutis e Informativos) */}
-        <div className="space-y-3 pt-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-            Módulos em Planejamento
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            {planningModules.map((m) => (
-              <div
-                key={m.title}
-                className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)]/50 opacity-80 space-y-1.5"
-                aria-disabled="true"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-secondary)]">
-                    {m.title}
-                  </h4>
-                  <Badge variant="neutral" size="sm" className="text-[10px] py-0 px-2">
-                    Planejamento
-                  </Badge>
-                </div>
-                <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-                  {m.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
-    );
-  }
+    </div>
+  );
+}

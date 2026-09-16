@@ -102,7 +102,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
           backLabel="Painel de Governança"
           actions={
             <Link href="/admin/exercicios/novo">
-              <Button variant="primary" size="sm" className="font-bold">
+              <Button variant="primary" size="sm" className="min-h-[44px] sm:min-h-[40px] font-bold">
                 + Novo Exercício
               </Button>
             </Link>
@@ -122,7 +122,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
                 type="text"
                 defaultValue={q || ""}
                 placeholder="Ex: Supino, Agachamento..."
-                className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
+                className="w-full min-h-[44px] sm:h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
               />
             </div>
 
@@ -134,7 +134,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
                 id="status-select"
                 name="status"
                 defaultValue={status || "ALL"}
-                className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
+                className="w-full min-h-[44px] sm:h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
               >
                 <option value="ALL">Todos os status</option>
                 <option value="PUBLISHED">Publicados</option>
@@ -151,7 +151,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
                 id="muscle-select"
                 name="muscle"
                 defaultValue={muscle || "Todos os Músculos"}
-                className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
+                className="w-full min-h-[44px] sm:h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
               >
                 <option value="Todos os Músculos">Todos os Músculos</option>
                 {availableMuscles.map((m) => (
@@ -170,7 +170,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
                 id="equipment-select"
                 name="equipment"
                 defaultValue={equipment || "Todos os Equipamentos"}
-                className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
+                className="w-full min-h-[44px] sm:h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
               >
                 <option value="Todos os Equipamentos">Todos os Equipamentos</option>
                 {availableEquipments.map((eq) => (
@@ -183,11 +183,11 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
 
             <div className="sm:col-span-2 lg:col-span-4 flex justify-end gap-2 pt-1">
               <Link href="/admin/exercicios">
-                <Button type="button" variant="ghost" size="sm" className="text-xs">
+                <Button type="button" variant="ghost" size="sm" className="min-h-[44px] sm:min-h-[40px] text-xs">
                   Limpar filtros
                 </Button>
               </Link>
-              <Button type="submit" variant="secondary" size="sm" className="text-xs font-semibold">
+              <Button type="submit" variant="secondary" size="sm" className="min-h-[44px] sm:min-h-[40px] text-xs font-semibold">
                 Aplicar filtros
               </Button>
             </div>
@@ -212,7 +212,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
               }
               action={
                 <Link href="/admin/exercicios/novo">
-                  <Button variant="primary" size="sm" className="font-bold">
+                  <Button variant="primary" size="sm" className="min-h-[44px] sm:min-h-[40px] font-bold">
                     Adicionar primeiro exercício
                   </Button>
                 </Link>
@@ -285,7 +285,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
 
                     <div className="shrink-0 flex items-center gap-2 self-end sm:self-center">
                       <Link href={`/admin/exercicios/${ex.publicId}`}>
-                        <Button variant="secondary" size="sm" className="text-xs font-semibold">
+                        <Button variant="secondary" size="sm" className="min-h-[44px] sm:min-h-[40px] text-xs font-semibold">
                           Editar e Mídias
                         </Button>
                       </Link>
@@ -311,7 +311,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
                       muscle ? `&muscle=${encodeURIComponent(muscle)}` : ""
                     }${equipment ? `&equipment=${encodeURIComponent(equipment)}` : ""}`}
                   >
-                    <Button variant="secondary" size="sm" className="text-xs">
+                    <Button variant="secondary" size="sm" className="min-h-[44px] sm:min-h-[40px] text-xs">
                       Anterior
                     </Button>
                   </Link>
@@ -324,7 +324,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps) {
                       muscle ? `&muscle=${encodeURIComponent(muscle)}` : ""
                     }${equipment ? `&equipment=${encodeURIComponent(equipment)}` : ""}`}
                   >
-                    <Button variant="secondary" size="sm" className="text-xs">
+                    <Button variant="secondary" size="sm" className="min-h-[44px] sm:min-h-[40px] text-xs">
                       Próxima
                     </Button>
                   </Link>

@@ -50,65 +50,69 @@ export default async function AdminConsultoriasPage() {
 
   return (
     <div className="w-full">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7">
         <PageHeader
           title="Gestão de Consultorias"
-          description="Gerencie as organizações e consultorias cadastradas na plataforma Trevo One."
+          description="Controle e administração central de organizações e consultorias cadastradas na plataforma."
           backHref="/admin"
-          backLabel="Voltar ao Painel Admin"
+          backLabel="Painel de Governança"
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Formulário de Criação */}
-          <div className="lg:col-span-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] p-6 sm:p-7 shadow-xs space-y-5">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
-                Nova consultoria
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          {/* Formulário de Criação de Nova Consultoria */}
+          <div className="lg:col-span-5 bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="space-y-1 pb-3 border-b border-[var(--border-subtle)]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                Nova Organização
+              </span>
+              <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight">
+                Cadastrar Consultoria
               </h2>
-              <p className="text-xs text-[var(--text-tertiary)] mt-0.5 leading-relaxed">
-                Cadastre uma nova organização e defina seu administrador inicial.
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                Configure os dados canônicos da nova consultoria parceira e defina seu administrador inicial.
               </p>
             </div>
 
             <ConsultancyForm />
           </div>
 
-          {/* Listagem de Consultorias */}
+          {/* Listagem de Consultorias Cadastradas */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
-                Consultorias cadastradas ({consultancies.length})
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+                Consultorias Cadastradas ({consultancies.length})
               </h2>
             </div>
 
             {consultancies.length === 0 ? (
               <EmptyState
                 title="Nenhuma consultoria encontrada"
-                description="Cadastre uma consultoria utilizando o formulário ao lado."
+                description="Cadastre uma consultoria utilizando o formulário ao lado para iniciar a operação."
               />
             ) : (
               <div className="space-y-3">
                 {consultancies.map((c) => (
                   <div
                     key={c.publicId}
-                    className="bg-[var(--surface)] rounded-xl border border-[var(--border-default)] p-4 sm:p-5 shadow-xs space-y-2 hover:border-[var(--border-strong)] transition-colors"
+                    className="bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] p-4 sm:p-5 shadow-xs space-y-3 hover:border-[var(--border-strong)] transition-all"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 space-y-0.5">
-                        <h3 className="text-base font-semibold text-[var(--text-primary)] truncate">
-                          {c.name}
-                        </h3>
-                        <p className="text-xs font-mono text-[var(--text-tertiary)]">
-                          /consultoria/{c.slug}
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base font-bold text-[var(--text-primary)] truncate">
+                            {c.name}
+                          </h3>
+                          {getStatusBadge(c.status)}
+                        </div>
+                        <p className="text-xs font-mono text-[var(--text-secondary)]">
+                          /consultoria/<span className="text-[var(--text-primary)] font-semibold">{c.slug}</span>
                         </p>
                       </div>
-
-                      <div className="shrink-0">{getStatusBadge(c.status)}</div>
                     </div>
 
-                    <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                    <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs text-[var(--text-secondary)]">
                       <span>Criada em {formatDate(c.createdAt)}</span>
-                      <span className="font-mono text-[11px] text-[var(--text-secondary)] bg-[var(--surface-subtle)] px-2 py-0.5 rounded border border-[var(--border-subtle)]">
+                      <span className="font-mono text-[10px] text-[var(--text-secondary)] bg-[var(--surface-subtle)] px-2 py-1 rounded-md border border-[var(--border-default)] shrink-0 shadow-2xs">
                         {c.timezone}
                       </span>
                     </div>

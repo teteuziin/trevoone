@@ -395,14 +395,16 @@ export function ConsultancyAppShell({
 
   const roleLabels = roles.map((r) => ROLE_LABELS[r] || r);
 
-  const maxWidthClass =
-    maxWidth === "full"
-      ? "max-w-full"
-      : maxWidth === "wide"
-      ? "max-w-7xl"
-      : maxWidth === "narrow"
-      ? "max-w-3xl"
-      : "max-w-6xl";
+  const hasExplicitMaxWidth = className.includes("max-w-");
+  const effectiveMaxWidthClass = hasExplicitMaxWidth
+    ? ""
+    : maxWidth === "full"
+    ? "max-w-full"
+    : maxWidth === "wide"
+    ? "max-w-7xl"
+    : maxWidth === "narrow"
+    ? "max-w-3xl"
+    : "max-w-6xl";
 
   return (
     <div className="min-h-svh w-full bg-[var(--background)] text-[var(--text-primary)] flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
@@ -431,7 +433,7 @@ export function ConsultancyAppShell({
 
       {/* Main Content Area */}
       <main
-        className={`flex-1 w-full mx-auto p-4 sm:p-6 lg:p-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 print:p-0 print:max-w-full ${maxWidthClass} ${className}`.trim()}
+        className={`flex-1 w-full mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 lg:pb-10 print:p-0 print:max-w-full ${effectiveMaxWidthClass} ${className}`.trim()}
       >
         {children}
       </main>

@@ -79,26 +79,28 @@ export function ViewModeSelector({
               aria-checked={isSelected}
               disabled={isPending}
               onClick={() => handleSelectMode(opt.mode)}
-              className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer min-h-[44px] select-none text-left ${
+              className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all cursor-pointer min-h-[44px] select-none text-left ${
                 isSelected
-                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs font-bold"
-                  : "bg-[var(--surface-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                  ? "bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
               }`}
             >
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <div
-                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                    isSelected ? "bg-[var(--brand)]" : "bg-[var(--border-strong)]"
+                  className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
+                    isSelected ? "bg-[var(--brand)] ring-2 ring-[var(--brand-soft)]" : "bg-[var(--border-strong)]"
                   }`}
                 />
                 <span className="truncate">{opt.label}</span>
               </div>
 
               <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 border ${
                   opt.isRealRole
-                    ? "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
-                    : "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)]"
+                    ? "bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border-[var(--border-subtle)]"
+                    : isSelected
+                    ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
+                    : "bg-[var(--surface)] text-[var(--text-secondary)] border-[var(--border-default)]"
                 }`}
               >
                 {opt.isRealRole ? "Seu papel" : "Demonstração"}

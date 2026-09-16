@@ -214,7 +214,7 @@ export function AppearanceSegmentedControl({
       <div
         role="group"
         aria-label="Selecionar tema de aparência"
-        className={`inline-flex items-center p-0.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl ${className}`.trim()}
+        className={`inline-flex items-center p-0.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl shadow-inner ${className}`.trim()}
       >
         {options.map((opt) => {
           const selected = currentTheme === opt.id;
@@ -225,10 +225,10 @@ export function AppearanceSegmentedControl({
               aria-pressed={selected}
               onClick={() => handleThemeSelect(opt.id)}
               title={opt.label}
-              className={`flex items-center justify-center gap-1 py-1.5 px-2 text-[11px] font-semibold rounded-lg select-none transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 text-[11px] rounded-lg select-none transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-interactive ${
                 selected
-                  ? "bg-[var(--surface)] text-[var(--brand-foreground)] border border-[var(--border-default)] shadow-2xs font-bold"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
+                  ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-semibold"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
               }`}
             >
               {opt.icon}
@@ -244,10 +244,10 @@ export function AppearanceSegmentedControl({
     <div className={`space-y-1.5 ${className}`.trim()}>
       {showLabel && (
         <div className="flex items-center justify-between px-1">
-          <label id="appearance-label" className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+          <label id="appearance-label" className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
             Aparência
           </label>
-          <span className="text-[11px] font-semibold text-[var(--text-secondary)] capitalize">
+          <span className="text-[11px] font-medium text-[var(--text-secondary)] capitalize">
             {currentTheme === "system" ? "Sistema" : currentTheme === "dark" ? "Escuro" : "Claro"}
           </span>
         </div>
@@ -257,7 +257,7 @@ export function AppearanceSegmentedControl({
         role="group"
         aria-labelledby={showLabel ? "appearance-label" : undefined}
         aria-label={!showLabel ? "Selecionar tema de aparência" : undefined}
-        className="grid grid-cols-3 gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl"
+        className="grid grid-cols-3 gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl shadow-inner"
       >
         {options.map((opt) => {
           const selected = currentTheme === opt.id;
@@ -267,10 +267,10 @@ export function AppearanceSegmentedControl({
               type="button"
               aria-pressed={selected}
               onClick={() => handleThemeSelect(opt.id)}
-              className={`flex items-center justify-center gap-1.5 py-2 px-2 text-xs font-semibold rounded-lg min-h-[44px] select-none transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] ${
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 text-xs rounded-lg min-h-[44px] select-none transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-interactive ${
                 selected
-                  ? "bg-[var(--surface)] text-[var(--brand-foreground)] border border-[var(--border-default)] shadow-xs font-bold"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
+                  ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-semibold"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
               }`}
             >
               {opt.icon}
@@ -413,7 +413,7 @@ export function ConsultancyNavigation({
           ========================================================================= */}
       <aside
         aria-label="Barra lateral de navegação"
-        className="hidden lg:flex fixed top-0 bottom-0 left-0 w-64 bg-[var(--surface)] border-r border-[var(--border-default)] z-30 flex-col justify-between overflow-y-auto select-none print:hidden transition-colors"
+        className="hidden lg:flex fixed top-0 bottom-0 left-0 w-64 bg-[var(--surface)] border-r border-[var(--border-default)] z-30 flex-col justify-between overflow-y-auto select-none print:hidden transition-colors border-specular-t"
       >
         {/* Top: Brand Header & Navigation Sections */}
         <div className="flex flex-col space-y-4 p-4">
@@ -421,19 +421,19 @@ export function ConsultancyNavigation({
           <Link
             href={baseSlugHref}
             prefetch={false}
-            className="flex items-center gap-3 p-2 rounded-2xl hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)] transition-all group focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
+            className="flex items-center gap-3 p-2 rounded-2xl hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)] transition-all group focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-interactive"
           >
             <ConsultancyLogo
               logoUrl={consultancyLogoUrl}
               name={consultancyName}
-              size={38}
+              size={36}
             />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--brand)] transition-colors">
+              <p className="text-sm font-semibold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--text-primary)] transition-colors">
                 {consultancyName}
               </p>
               {primaryRoleLabel && (
-                <p className="text-[11px] font-semibold text-[var(--brand-foreground)] truncate leading-tight mt-0.5">
+                <p className="text-[10px] font-medium text-[var(--text-tertiary)] truncate leading-tight mt-0.5 uppercase tracking-wider">
                   {primaryRoleLabel}
                 </p>
               )}
@@ -442,7 +442,7 @@ export function ConsultancyNavigation({
 
           {/* View Mode Selector (if preview/multi-mode available) */}
           {viewModeState && viewModeState.allowedOptions.length > 1 && (
-            <div className="p-2.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl">
+            <div className="p-2.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl depth-base">
               <ViewModeSelector
                 consultancySlug={consultancySlug}
                 effectiveMode={viewModeState.effectiveMode}
@@ -457,7 +457,7 @@ export function ConsultancyNavigation({
             {/* Main Section */}
             <div className="space-y-1">
               {managementNavItems.length > 0 && (
-                <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-3 mb-1.5">
+                <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-3 mb-1.5">
                   Principal
                 </p>
               )}
@@ -469,14 +469,19 @@ export function ConsultancyNavigation({
                     href={item.href}
                     prefetch={false}
                     aria-current={active ? "page" : undefined}
-                    className={`flex items-center gap-3 px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all ${
+                    className={`flex items-center justify-between px-3 py-2 text-xs rounded-xl border transition-all depth-interactive ${
                       active
-                        ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs font-bold"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent"
+                        ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                     }`}
                   >
-                    <NavIcon name={item.iconName} />
-                    <span className="truncate">{item.label}</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <NavIcon name={item.iconName} />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    {active && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0 shadow-2xs" />
+                    )}
                   </Link>
                 );
               })}
@@ -485,7 +490,7 @@ export function ConsultancyNavigation({
             {/* Management Section (if any) */}
             {managementNavItems.length > 0 && (
               <div className="space-y-1 pt-2 border-t border-[var(--border-subtle)]">
-                <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-3 mb-1.5">
+                <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-3 mb-1.5">
                   Gestão &amp; Clínica
                 </p>
                 {managementNavItems.map((item) => {
@@ -496,14 +501,19 @@ export function ConsultancyNavigation({
                       href={item.href}
                       prefetch={false}
                       aria-current={active ? "page" : undefined}
-                      className={`flex items-center gap-3 px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all ${
+                      className={`flex items-center justify-between px-3 py-2 text-xs rounded-xl border transition-all depth-interactive ${
                         active
-                          ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs font-bold"
-                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent"
+                          ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                       }`}
                     >
-                      <NavIcon name={item.iconName} />
-                      <span className="truncate">{item.label}</span>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <NavIcon name={item.iconName} />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {active && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0 shadow-2xs" />
+                      )}
                     </Link>
                   );
                 })}
@@ -513,18 +523,18 @@ export function ConsultancyNavigation({
         </div>
 
         {/* Bottom: User Card, Theme & Actions */}
-        <div className="p-4 border-t border-[var(--border-default)] space-y-3 bg-[var(--surface)]">
+        <div className="p-3.5 border-t border-[var(--border-default)] space-y-3 bg-[var(--surface)]">
           {/* User Info Card */}
           <div className="flex items-center gap-2.5 px-1 py-0.5">
-            <div className="w-8 h-8 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-bold text-xs flex items-center justify-center shrink-0 select-none shadow-2xs">
+            <div className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] font-bold text-xs flex items-center justify-center shrink-0 select-none shadow-2xs">
               {userInitial}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-[var(--text-primary)] truncate leading-tight">
+              <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
                 {userName || "Usuário"}
               </p>
               {userEmail && (
-                <p className="text-[11px] text-[var(--text-secondary)] truncate leading-tight">
+                <p className="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
                   {userEmail}
                 </p>
               )}
@@ -540,14 +550,14 @@ export function ConsultancyNavigation({
           />
 
           {/* Quick Settings & Navigation Links */}
-          <div className="grid grid-cols-3 gap-1 pt-1">
+          <div className="grid grid-cols-3 gap-1 pt-0.5">
             <Link
               href="/notificacoes"
               prefetch={false}
-              className={`relative flex items-center justify-center py-2 px-1 rounded-xl text-xs font-semibold transition-all border ${
+              className={`relative flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === "/notificacoes"
-                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)]"
+                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
               }`}
               title="Notificações"
             >
@@ -555,17 +565,17 @@ export function ConsultancyNavigation({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
               </svg>
               {unreadNotificationsCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--brand)] ring-2 ring-[var(--surface)]" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--brand)] ring-2 ring-[var(--surface)]" />
               )}
             </Link>
 
             <Link
               href="/conta/perfil"
               prefetch={false}
-              className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs font-semibold transition-all border ${
+              className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === "/conta/perfil"
-                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)]"
+                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
               }`}
               title="Meu perfil"
             >
@@ -577,10 +587,10 @@ export function ConsultancyNavigation({
             <Link
               href="/conta/seguranca"
               prefetch={false}
-              className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs font-semibold transition-all border ${
+              className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === "/conta/seguranca"
-                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)]"
+                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
               }`}
               title="Conta e segurança"
             >
@@ -591,17 +601,17 @@ export function ConsultancyNavigation({
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-1.5 pt-1">
+          <div className="space-y-1.5 pt-0.5">
             <Link
               href="/selecionar-consultoria"
               prefetch={false}
-              className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-colors shadow-2xs"
+              className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-all shadow-2xs depth-interactive"
             >
               Trocar consultoria
             </Link>
             <LogoutButton
               logoutAction={logoutFromConsultancyArea}
-              className="flex items-center justify-center w-full py-2 px-3 text-xs font-semibold text-[var(--danger-foreground)] bg-[var(--danger-soft)] hover:bg-[var(--danger-border)] border border-[var(--danger-border)] rounded-xl transition-colors cursor-pointer"
+              className="flex items-center justify-center w-full py-2 px-3 text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] bg-[var(--surface-subtle)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)] rounded-xl transition-all cursor-pointer depth-interactive"
             >
               Sair da conta
             </LogoutButton>
@@ -612,8 +622,8 @@ export function ConsultancyNavigation({
       {/* =========================================================================
           2. TABLET ADAPTIVE TOPBAR (768px - 1023px / md to lg)
           ========================================================================= */}
-      <header className="hidden md:flex lg:hidden sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs print:hidden transition-colors">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 h-15 flex items-center justify-between gap-3">
+      <header className="hidden md:flex lg:hidden sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs print:hidden transition-colors border-specular-t">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           {/* Left: Branding */}
           <Link
             href={baseSlugHref}
@@ -623,14 +633,14 @@ export function ConsultancyNavigation({
             <ConsultancyLogo
               logoUrl={consultancyLogoUrl}
               name={consultancyName}
-              size={34}
+              size={32}
             />
             <div className="min-w-0">
-              <p className="text-sm font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--brand)] transition-colors">
+              <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
                 {consultancyName}
               </p>
               {primaryRoleLabel && (
-                <p className="text-[10px] font-semibold text-[var(--brand-foreground)] truncate leading-tight">
+                <p className="text-[10px] font-medium text-[var(--text-tertiary)] truncate leading-tight uppercase tracking-wider mt-0.5">
                   {primaryRoleLabel}
                 </p>
               )}
@@ -647,14 +657,17 @@ export function ConsultancyNavigation({
                   href={item.href}
                   prefetch={false}
                   aria-current={active ? "page" : undefined}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl border transition-all depth-interactive ${
                     active
-                      ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs font-bold"
-                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent"
+                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                   }`}
                 >
                   <NavIcon name={item.iconName} />
                   <span>{item.mobileLabel || item.label}</span>
+                  {active && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
+                  )}
                 </Link>
               );
             })}
@@ -667,7 +680,7 @@ export function ConsultancyNavigation({
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Abrir menu de navegação e opções"
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] transition-all shadow-2xs depth-interactive cursor-pointer min-h-[36px]"
             >
               <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -681,8 +694,8 @@ export function ConsultancyNavigation({
       {/* =========================================================================
           3. MOBILE TOPBAR (< 768px)
           ========================================================================= */}
-      <header className="flex md:hidden sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs pt-[env(safe-area-inset-top,0px)] print:hidden transition-colors">
-        <div className="w-full px-4 h-14 flex items-center justify-between gap-3">
+      <header className="flex md:hidden sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs pt-[env(safe-area-inset-top,0px)] print:hidden transition-colors border-specular-t">
+        <div className="w-full px-3.5 h-14 flex items-center justify-between gap-3">
           {/* Branding */}
           <Link
             href={baseSlugHref}
@@ -692,14 +705,14 @@ export function ConsultancyNavigation({
             <ConsultancyLogo
               logoUrl={consultancyLogoUrl}
               name={consultancyName}
-              size={32}
+              size={30}
             />
             <div className="min-w-0">
-              <p className="text-sm font-bold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--brand)] transition-colors">
+              <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
                 {consultancyName}
               </p>
               {primaryRoleLabel && (
-                <p className="text-[10px] font-semibold text-[var(--brand-foreground)] truncate leading-tight">
+                <p className="text-[10px] font-medium text-[var(--text-tertiary)] truncate leading-tight uppercase tracking-wider mt-0.5">
                   {primaryRoleLabel}
                 </p>
               )}
@@ -718,7 +731,7 @@ export function ConsultancyNavigation({
           ========================================================================= */}
       <nav
         aria-label="Navegação rápida móvel"
-        className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_-2px_12px_rgba(0,0,0,0.25)] print:hidden transition-colors"
+        className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-lg print:hidden transition-colors border-specular-t"
       >
         <div className="flex items-center justify-around h-16 px-1">
           {primaryNavItems.map((item) => {
@@ -731,26 +744,31 @@ export function ConsultancyNavigation({
                 aria-current={active ? "page" : undefined}
                 className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                   active
-                    ? "text-[var(--brand-foreground)]"
+                    ? "text-[var(--text-primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 <div
                   className={`p-1.5 rounded-xl transition-all duration-150 ${
                     active
-                      ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] ring-1 ring-[var(--brand-soft-border)] shadow-2xs"
+                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-2xs"
                       : "group-hover:bg-[var(--surface-hover)]"
                   }`}
                 >
                   <NavIcon name={item.iconName} />
                 </div>
-                <span
-                  className={`text-[10px] tracking-tight truncate max-w-full leading-tight mt-0.5 ${
-                    active ? "font-bold text-[var(--brand-foreground)]" : "font-medium"
-                  }`}
-                >
-                  {item.mobileLabel || item.label}
-                </span>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span
+                    className={`text-[10px] tracking-tight truncate max-w-full leading-tight ${
+                      active ? "font-semibold text-[var(--text-primary)]" : "font-medium text-[var(--text-tertiary)]"
+                    }`}
+                  >
+                    {item.mobileLabel || item.label}
+                  </span>
+                  {active && (
+                    <span className="w-1 h-1 rounded-full bg-[var(--brand)] shrink-0" />
+                  )}
+                </div>
               </Link>
             );
           })}
@@ -764,14 +782,14 @@ export function ConsultancyNavigation({
             aria-controls="mobile-navigation-drawer"
             className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
               isMoreActive
-                ? "text-[var(--brand-foreground)]"
+                ? "text-[var(--text-primary)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             <div
               className={`p-1.5 rounded-xl relative transition-all duration-150 ${
                 isMoreActive
-                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] ring-1 ring-[var(--brand-soft-border)] shadow-2xs"
+                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-2xs"
                   : "group-hover:bg-[var(--surface-hover)]"
               }`}
             >
@@ -793,13 +811,18 @@ export function ConsultancyNavigation({
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--brand)] ring-2 ring-[var(--surface)]" />
               )}
             </div>
-            <span
-              className={`text-[10px] tracking-tight truncate leading-tight mt-0.5 ${
-                isMoreActive ? "font-bold text-[var(--brand-foreground)]" : "font-medium"
-              }`}
-            >
-              Mais
-            </span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span
+                className={`text-[10px] tracking-tight truncate leading-tight ${
+                  isMoreActive ? "font-semibold text-[var(--text-primary)]" : "font-medium text-[var(--text-tertiary)]"
+                }`}
+              >
+                Mais
+              </span>
+              {isMoreActive && (
+                <span className="w-1 h-1 rounded-full bg-[var(--brand)] shrink-0" />
+              )}
+            </div>
           </button>
         </div>
       </nav>
@@ -811,7 +834,7 @@ export function ConsultancyNavigation({
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            className="fixed inset-0 bg-black/60 transition-opacity animate-in fade-in duration-150"
             onClick={() => setMobileMenuOpen(false)}
             aria-hidden="true"
           />
@@ -822,24 +845,24 @@ export function ConsultancyNavigation({
             role="dialog"
             aria-label="Mais opções de navegação"
             aria-modal="true"
-            className="relative w-full max-h-[85vh] overflow-y-auto bg-[var(--surface)] border-t border-[var(--border-default)] rounded-t-3xl p-5 shadow-2xl z-10 animate-in slide-in-from-bottom-8 duration-200 space-y-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
+            className="relative w-full max-h-[85vh] overflow-y-auto bg-[var(--surface)] border-t border-[var(--border-default)] rounded-t-3xl p-5 shadow-2xl z-10 animate-in slide-in-from-bottom-6 duration-200 space-y-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] border-specular-t"
           >
             {/* Header Handle & Close */}
-            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-bold text-sm flex items-center justify-center select-none shadow-2xs">
+                <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] font-bold text-sm flex items-center justify-center select-none shadow-2xs">
                   {userInitial}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">{userName || "Usuário"}</p>
-                  {userEmail && <p className="text-xs text-[var(--text-secondary)] truncate">{userEmail}</p>}
+                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{userName || "Usuário"}</p>
+                  {userEmail && <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{userEmail}</p>}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
                 aria-label="Fechar menu"
-                className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center border border-[var(--border-default)] bg-[var(--surface-subtle)]"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -849,7 +872,7 @@ export function ConsultancyNavigation({
 
             {/* Section 1: All / Secondary Navigation Links */}
             <div className="space-y-2">
-              <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+              <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
                 Navegação completa
               </p>
               <nav aria-label="Todos os módulos" className="grid grid-cols-2 gap-2">
@@ -862,14 +885,19 @@ export function ConsultancyNavigation({
                       prefetch={false}
                       onClick={() => setMobileMenuOpen(false)}
                       aria-current={active ? "page" : undefined}
-                      className={`flex items-center gap-2.5 p-3 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
+                      className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
                         active
-                          ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs"
-                          : "bg-[var(--surface-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                          ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
                       }`}
                     >
-                      <NavIcon name={item.iconName} />
-                      <span className="truncate">{item.label}</span>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <NavIcon name={item.iconName} />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {active && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
+                      )}
                     </Link>
                   );
                 })}
@@ -878,7 +906,7 @@ export function ConsultancyNavigation({
 
             {/* Section 2: Appearance & Theme */}
             <div className="space-y-2">
-              <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
                 Aparência
               </span>
               <AppearanceSegmentedControl
@@ -902,19 +930,19 @@ export function ConsultancyNavigation({
             )}
 
             {/* Section 4: Direct User Preferences */}
-            <div className="space-y-2 pt-1">
-              <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+            <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
+              <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
                 Preferências
               </p>
-              <nav aria-label="Preferências do usuário" className="space-y-1">
+              <nav aria-label="Preferências do usuário" className="space-y-1.5">
                 <Link
                   href="/notificacoes"
                   prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center justify-between px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
+                  className={`flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
                     pathname === "/notificacoes"
-                      ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -934,32 +962,38 @@ export function ConsultancyNavigation({
                   href="/conta/perfil"
                   prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
+                  className={`flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
                     pathname === "/conta/perfil"
-                      ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
                   }`}
                 >
-                  <svg className="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                  </svg>
-                  <span>Meu perfil</span>
+                  <div className="flex items-center gap-2.5">
+                    <svg className="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                    </svg>
+                    <span>Meu perfil</span>
+                  </div>
+                  <span className="text-xs text-[var(--text-tertiary)]">→</span>
                 </Link>
 
                 <Link
                   href="/conta/seguranca"
                   prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all min-h-[44px] ${
+                  className={`flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
                     pathname === "/conta/seguranca"
-                      ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
                   }`}
                 >
-                  <svg className="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                  </svg>
-                  <span>Conta e segurança</span>
+                  <div className="flex items-center gap-2.5">
+                    <svg className="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                    <span>Conta e segurança</span>
+                  </div>
+                  <span className="text-xs text-[var(--text-tertiary)]">→</span>
                 </Link>
               </nav>
             </div>
@@ -970,13 +1004,13 @@ export function ConsultancyNavigation({
                 href="/selecionar-consultoria"
                 prefetch={false}
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-colors min-h-[44px] shadow-2xs"
+                className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-all min-h-[44px] shadow-2xs depth-interactive"
               >
                 Trocar consultoria
               </Link>
               <LogoutButton
                 logoutAction={logoutFromConsultancyArea}
-                className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-semibold text-[var(--danger-foreground)] bg-[var(--danger-soft)] hover:bg-[var(--danger-border)] border border-[var(--danger-border)] rounded-xl transition-colors cursor-pointer min-h-[44px]"
+                className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] bg-[var(--surface-subtle)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)] rounded-xl transition-all cursor-pointer min-h-[44px] depth-interactive"
               >
                 Sair da conta
               </LogoutButton>

@@ -51,7 +51,7 @@ export function ConsultancyLogo({
   if (showImage && logoUrl) {
     return (
       <div
-        className={`relative shrink-0 overflow-hidden flex items-center justify-center rounded-lg bg-white border border-zinc-200 ${className}`}
+        className={`relative shrink-0 overflow-hidden flex items-center justify-center rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] shadow-2xs ${className}`.trim()}
         style={{ width: size, height: size }}
       >
         <Image
@@ -72,7 +72,7 @@ export function ConsultancyLogo({
 
   return (
     <div
-      className={`relative shrink-0 flex items-center justify-center rounded-lg bg-emerald-50 border border-emerald-200 text-[#00A859] font-bold select-none ${className}`}
+      className={`relative shrink-0 flex items-center justify-center rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] font-bold select-none shadow-2xs ${className}`.trim()}
       style={{ width: size, height: size, fontSize: Math.max(14, Math.floor(size * 0.45)) }}
       aria-label={name}
     >

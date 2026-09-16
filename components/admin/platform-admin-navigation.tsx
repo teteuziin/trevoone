@@ -8,7 +8,6 @@ import { BetaBadge } from "@/components/brand/beta-badge";
 import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
 import { AppearanceSegmentedControl } from "@/components/consultancies/consultancy-navigation";
 import { logoutFromPlatformAdminArea } from "@/app/admin/actions";
-import { Badge } from "@/components/ui/badge";
 
 export interface PlatformAdminNavigationProps {
   userName?: string;
@@ -154,7 +153,7 @@ export function PlatformAdminNavigation({
       {/* =========================================================================
           DESKTOP & MOBILE TOPBAR (Sticky Top-0)
           ========================================================================= */}
-      <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] transition-colors print:hidden">
+      <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] transition-colors print:hidden shadow-2xs border-specular-t">
         <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 h-14 sm:h-15 flex items-center justify-between gap-2 sm:gap-4">
           {/* Left: Brand + Beta + Context */}
           <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 min-w-0">
@@ -162,43 +161,46 @@ export function PlatformAdminNavigation({
               <TrevoOneLogo priority showWordmark size={32} />
             </Link>
             <BetaBadge />
-            <span className="hidden md:inline-block text-xs font-semibold text-[var(--border-strong)]">
+            <span className="hidden md:inline-block text-xs font-semibold text-[var(--border-default)]">
               |
             </span>
-            <span className="hidden md:inline-block text-xs font-semibold tracking-wide text-[var(--text-secondary)] uppercase">
+            <span className="hidden md:inline-block text-[11px] font-medium tracking-wider text-[var(--text-tertiary)] uppercase">
               Governança Global
             </span>
           </div>
 
           {/* Desktop Nav Links (Center / Left aligned) */}
-          <nav aria-label="Navegação administrativa" className="hidden md:flex items-center space-x-1 lg:space-x-2">
+          <nav aria-label="Navegação administrativa" className="hidden md:flex items-center space-x-1 lg:space-x-1.5">
             {navItems.map((item) => (
               <Link
                 key={item.id}
                 href={item.href}
                 prefetch={false}
                 aria-current={item.isActive ? "page" : undefined}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-all depth-interactive ${
                   item.isActive
-                    ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] font-bold shadow-2xs"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                    ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-semibold"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
                 }`}
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.isActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
+                )}
               </Link>
             ))}
           </nav>
 
           {/* Desktop Right Controls */}
           <div className="hidden md:flex items-center space-x-2.5">
-            <Badge variant="brand" size="sm" className="hidden lg:inline-flex text-[11px] font-bold">
-              Super Administrador
-            </Badge>
+            <span className="hidden lg:inline-flex px-2 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-md uppercase tracking-wider shadow-2xs">
+              Super Admin
+            </span>
             <AppearanceSegmentedControl compact />
             <Link
               href="/conta/perfil"
               prefetch={false}
-              className="inline-flex items-center px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+              className="inline-flex items-center px-2.5 py-1.5 rounded-xl text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-all shadow-2xs depth-interactive focus-visible:outline-[var(--brand)]"
               title="Meu perfil"
             >
               Perfil
@@ -206,7 +208,7 @@ export function PlatformAdminNavigation({
             <Link
               href="/conta/seguranca"
               prefetch={false}
-              className="inline-flex items-center px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+              className="inline-flex items-center px-2.5 py-1.5 rounded-xl text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-all shadow-2xs depth-interactive focus-visible:outline-[var(--brand)]"
               title="Conta e segurança"
             >
               Segurança
@@ -216,7 +218,7 @@ export function PlatformAdminNavigation({
               logoutAction={logoutFromPlatformAdminArea}
               variant="ghost"
               size="sm"
-              className="text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className="text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] transition-colors cursor-pointer"
             >
               Sair
             </LogoutButton>
@@ -229,7 +231,7 @@ export function PlatformAdminNavigation({
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label="Abrir menu de configurações"
-              className="inline-flex items-center justify-center w-10 h-10 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] bg-[var(--surface-subtle)] transition-all shadow-2xs depth-interactive focus-visible:outline-[var(--brand)]"
             >
               <NavMenuIcon className="w-5 h-5" />
             </button>
@@ -242,7 +244,7 @@ export function PlatformAdminNavigation({
           ========================================================================= */}
       <nav
         aria-label="Navegação rápida móvel"
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_-2px_12px_rgba(0,0,0,0.25)] transition-colors print:hidden"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-lg transition-colors print:hidden border-specular-t"
       >
         <div className="flex items-center justify-around h-16 px-1">
           {navItems.map((item) => (
@@ -253,24 +255,29 @@ export function PlatformAdminNavigation({
               aria-current={item.isActive ? "page" : undefined}
               className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                 item.isActive
-                  ? "text-[var(--brand-foreground)] font-bold"
+                  ? "text-[var(--text-primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               <div
                 className={`p-1.5 rounded-xl transition-all duration-150 ${
                   item.isActive
-                    ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] ring-1 ring-[var(--brand-soft-border)] shadow-2xs"
+                    ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-2xs"
                     : "group-hover:bg-[var(--surface-hover)]"
                 }`}
               >
                 {item.icon}
               </div>
-              <span className={`text-[10px] tracking-tight truncate max-w-full leading-tight mt-0.5 ${
-                item.isActive ? "font-bold text-[var(--brand-foreground)]" : "font-medium"
-              }`}>
-                {item.label}
-              </span>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className={`text-[10px] tracking-tight truncate max-w-full leading-tight ${
+                  item.isActive ? "font-semibold text-[var(--text-primary)]" : "font-medium text-[var(--text-tertiary)]"
+                }`}>
+                  {item.label}
+                </span>
+                {item.isActive && (
+                  <span className="w-1 h-1 rounded-full bg-[var(--brand)] shrink-0" />
+                )}
+              </div>
             </Link>
           ))}
 
@@ -282,24 +289,29 @@ export function PlatformAdminNavigation({
             aria-expanded={drawerOpen}
             className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
               isMoreActive
-                ? "text-[var(--brand-foreground)] font-bold"
+                ? "text-[var(--text-primary)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             <div
               className={`p-1.5 rounded-xl transition-all duration-150 ${
                 isMoreActive
-                  ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] ring-1 ring-[var(--brand-soft-border)] shadow-2xs"
+                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-2xs"
                   : "group-hover:bg-[var(--surface-hover)]"
               }`}
             >
               <NavMenuIcon className="w-5 h-5" />
             </div>
-            <span className={`text-[10px] tracking-tight truncate max-w-full leading-tight mt-0.5 ${
-              isMoreActive ? "font-bold text-[var(--brand-foreground)]" : "font-medium"
-            }`}>
-              Mais
-            </span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className={`text-[10px] tracking-tight truncate max-w-full leading-tight ${
+                isMoreActive ? "font-semibold text-[var(--text-primary)]" : "font-medium text-[var(--text-tertiary)]"
+              }`}>
+                Mais
+              </span>
+              {isMoreActive && (
+                <span className="w-1 h-1 rounded-full bg-[var(--brand)] shrink-0" />
+              )}
+            </div>
           </button>
         </div>
       </nav>
@@ -308,7 +320,7 @@ export function PlatformAdminNavigation({
           MOBILE DRAWER / MODAL (z-50)
           ========================================================================= */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end bg-black/60 transition-opacity animate-in fade-in duration-150">
           {/* Backdrop Click */}
           <div
             className="fixed inset-0"
@@ -322,15 +334,15 @@ export function PlatformAdminNavigation({
             role="dialog"
             aria-modal="true"
             aria-label="Menu administrativo e configurações"
-            className="relative w-full max-h-[85vh] overflow-y-auto bg-[var(--surface)] border-t border-[var(--border-default)] rounded-t-3xl p-5 space-y-5 shadow-2xl pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] animate-in slide-in-from-bottom duration-200"
+            className="relative w-full max-h-[85vh] overflow-y-auto bg-[var(--surface)] border-t border-[var(--border-default)] rounded-t-3xl p-5 space-y-5 shadow-2xl pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] animate-in slide-in-from-bottom duration-200 border-specular-t"
           >
             {/* Drawer Header */}
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
               <div className="space-y-0.5">
-                <h2 className="text-sm font-bold text-[var(--text-primary)]">
+                <h2 className="text-sm font-semibold text-[var(--text-primary)]">
                   Painel de Governança
                 </h2>
-                <p className="text-xs text-[var(--text-secondary)]">
+                <p className="text-xs text-[var(--text-tertiary)]">
                   Plataforma Trevo One
                 </p>
               </div>
@@ -338,7 +350,7 @@ export function PlatformAdminNavigation({
                 type="button"
                 onClick={() => setDrawerOpen(false)}
                 aria-label="Fechar menu"
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-[var(--brand)]"
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] focus-visible:outline-[var(--brand)]"
               >
                 <CloseIcon />
               </button>
@@ -346,47 +358,47 @@ export function PlatformAdminNavigation({
 
             {/* User Profile Card */}
             {(userName || userEmail) && (
-              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-between gap-3">
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-between gap-3 depth-base">
                 <div className="min-w-0 space-y-0.5">
-                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
                     {userName || "Super Administrador"}
                   </p>
                   {userEmail && (
-                    <p className="text-xs text-[var(--text-secondary)] truncate">
+                    <p className="text-xs text-[var(--text-tertiary)] truncate">
                       {userEmail}
                     </p>
                   )}
                 </div>
-                <Badge variant="brand" size="sm" className="shrink-0 text-[10px] font-bold">
+                <span className="shrink-0 px-2 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border-default)] rounded-md uppercase tracking-wider shadow-2xs">
                   Super Admin
-                </Badge>
+                </span>
               </div>
             )}
 
             {/* Theme Toggle Section */}
             <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
                 Aparência
               </span>
               <AppearanceSegmentedControl compact />
             </div>
 
             {/* Secondary Action Links */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+            <div className="space-y-2 border-t border-[var(--border-subtle)] pt-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
                 Opções da Conta
               </span>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Link
                   href="/notificacoes"
                   prefetch={false}
                   onClick={() => setDrawerOpen(false)}
-                  className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)] transition-colors min-h-[44px]"
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)] transition-all min-h-[44px] depth-interactive shadow-2xs"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     <span>Notificações</span>
                     {unreadNotificationsCount > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-[var(--brand)] text-white text-[10px] font-bold leading-none">
+                      <span className="px-1.5 py-0.5 rounded-full bg-[var(--brand)] text-[var(--text-inverse)] text-[10px] font-bold leading-none">
                         {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
                       </span>
                     )}
@@ -398,7 +410,7 @@ export function PlatformAdminNavigation({
                   href="/conta/perfil"
                   prefetch={false}
                   onClick={() => setDrawerOpen(false)}
-                  className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)] transition-colors min-h-[44px]"
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)] transition-all min-h-[44px] depth-interactive shadow-2xs"
                 >
                   <span>Meu perfil</span>
                   <span className="text-xs text-[var(--text-tertiary)]">→</span>
@@ -408,7 +420,7 @@ export function PlatformAdminNavigation({
                   href="/conta/seguranca"
                   prefetch={false}
                   onClick={() => setDrawerOpen(false)}
-                  className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)] transition-colors min-h-[44px]"
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)] transition-all min-h-[44px] depth-interactive shadow-2xs"
                 >
                   <span>Conta e segurança</span>
                   <span className="text-xs text-[var(--text-tertiary)]">→</span>
@@ -418,7 +430,7 @@ export function PlatformAdminNavigation({
                   href="/selecionar-consultoria"
                   prefetch={false}
                   onClick={() => setDrawerOpen(false)}
-                  className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)] transition-colors min-h-[44px]"
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)] transition-all min-h-[44px] depth-interactive shadow-2xs"
                 >
                   <span>Alternar para Consultorias</span>
                   <span className="text-xs text-[var(--text-tertiary)]">→</span>
@@ -427,12 +439,10 @@ export function PlatformAdminNavigation({
             </div>
 
             {/* Logout */}
-            <div className="pt-2">
+            <div className="pt-2 border-t border-[var(--border-subtle)]">
               <LogoutButton
                 logoutAction={logoutFromPlatformAdminArea}
-                variant="outline"
-                size="md"
-                className="w-full justify-center text-sm font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 border-rose-200 dark:border-rose-900 min-h-[44px]"
+                className="w-full justify-center text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] bg-[var(--surface-subtle)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)] rounded-xl transition-all min-h-[44px] cursor-pointer depth-interactive shadow-2xs"
               >
                 Encerrar Sessão
               </LogoutButton>

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import {
   searchFoodsForPickerAction,
   getFoodPortionsForPickerAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import type { FoodListItemDto, FoodWithPortionsDto } from "@/lib/nutrition-v2/food-repository";
+import { Button } from "@/components/ui/button";
 
 export interface FoodSelectionResult {
   foodPublicId?: string | null;
@@ -173,24 +174,25 @@ export function NutritionFoodPicker({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl sm:rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden depth-surface">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] flex items-center justify-center">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            <div className="w-9 h-9 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center shrink-0">
+              <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
             </div>
             <div>
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">{title}</h2>
-              <p className="text-xs text-[var(--text-muted)]">Catálogo Trevo One, consultoria ou preparação personalizada</p>
+              <h2 className="text-base font-bold text-[var(--text-primary)]">{title}</h2>
+              <p className="text-xs text-[var(--text-secondary)]">Catálogo Trevo One, consultoria ou preparação personalizada</p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)]"
+            aria-label="Fechar"
+            className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -200,14 +202,14 @@ export function NutritionFoodPicker({
 
         {/* Tab switch (only if not currently configuring a selected food) */}
         {!selectedFood && (
-          <div className="flex border-b border-[var(--border)] bg-[var(--surface-secondary)]/50 px-5 pt-2">
+          <div className="flex border-b border-[var(--border-subtle)] bg-[var(--surface-subtle)]/50 px-5 pt-2 gap-2">
             <button
               type="button"
               onClick={() => setActiveTab("CATALOG")}
-              className={`pb-2.5 px-4 text-xs font-medium border-b-2 transition-colors ${
+              className={`pb-2.5 px-4 text-xs font-bold border-b-2 transition-colors ${
                 activeTab === "CATALOG"
-                  ? "border-[var(--brand-primary)] text-[var(--brand-primary)]"
-                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  ? "border-[var(--brand)] text-[var(--brand)]"
+                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               Catálogo de Alimentos
@@ -215,10 +217,10 @@ export function NutritionFoodPicker({
             <button
               type="button"
               onClick={() => setActiveTab("CUSTOM")}
-              className={`pb-2.5 px-4 text-xs font-medium border-b-2 transition-colors ${
+              className={`pb-2.5 px-4 text-xs font-bold border-b-2 transition-colors ${
                 activeTab === "CUSTOM"
-                  ? "border-[var(--brand-primary)] text-[var(--brand-primary)]"
-                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  ? "border-[var(--brand)] text-[var(--brand)]"
+                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               Preparação Customizada
@@ -242,9 +244,9 @@ export function NutritionFoodPicker({
                       setPage(1);
                     }}
                     placeholder="Buscar no catálogo (ex: Arroz, Frango, Maçã)..."
-                    className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+                    className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
                   />
-                  <svg className="w-4 h-4 absolute left-3 top-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 absolute left-3 top-3 text-[var(--text-tertiary)] pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
@@ -256,10 +258,10 @@ export function NutritionFoodPicker({
                       setScopeFilter("ALL");
                       setPage(1);
                     }}
-                    className={`px-3 py-1 rounded-lg transition-colors font-medium ${
+                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold ${
                       scopeFilter === "ALL"
-                        ? "bg-[var(--brand-primary)] text-white"
-                        : "bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
+                        ? "bg-[var(--brand)] text-white"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                     }`}
                   >
                     Todos
@@ -270,10 +272,10 @@ export function NutritionFoodPicker({
                       setScopeFilter("GLOBAL");
                       setPage(1);
                     }}
-                    className={`px-3 py-1 rounded-lg transition-colors font-medium ${
+                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold ${
                       scopeFilter === "GLOBAL"
-                        ? "bg-[var(--brand-primary)] text-white"
-                        : "bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
+                        ? "bg-[var(--brand)] text-white"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                     }`}
                   >
                     Trevo One
@@ -284,10 +286,10 @@ export function NutritionFoodPicker({
                       setScopeFilter("CONSULTANCY");
                       setPage(1);
                     }}
-                    className={`px-3 py-1 rounded-lg transition-colors font-medium ${
+                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold ${
                       scopeFilter === "CONSULTANCY"
-                        ? "bg-[var(--brand-primary)] text-white"
-                        : "bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border)]"
+                        ? "bg-[var(--brand)] text-white"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                     }`}
                   >
                     Minha Consultoria
@@ -297,63 +299,65 @@ export function NutritionFoodPicker({
 
               {/* Food List */}
               {isLoadingPortions && (
-                <div className="py-3 text-center text-xs text-[var(--brand-primary)] font-medium animate-pulse">
+                <div className="py-3 text-center text-xs text-[var(--brand)] font-medium animate-pulse">
                   Carregando detalhes do alimento...
                 </div>
               )}
               {isSearching ? (
-                <div className="py-12 text-center text-xs text-[var(--text-muted)]">Buscando alimentos...</div>
+                <div className="py-12 text-center text-xs text-[var(--text-secondary)]">Buscando alimentos...</div>
               ) : items.length === 0 ? (
-                <div className="py-12 text-center text-xs text-[var(--text-muted)]">Nenhum alimento encontrado.</div>
+                <div className="py-12 text-center text-xs text-[var(--text-secondary)]">Nenhum alimento encontrado.</div>
               ) : (
                 <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
                   {items.map((food) => (
                     <div
                       key={food.publicId}
                       onClick={() => handlePickFood(food)}
-                      className="p-3 rounded-xl border border-[var(--border)] hover:border-[var(--brand-primary)] bg-[var(--surface-primary)] hover:bg-[var(--surface-secondary)]/50 cursor-pointer transition-all flex items-center justify-between gap-3"
+                      className="p-3.5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] cursor-pointer transition-all flex items-center justify-between gap-3 depth-interactive"
                     >
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
+                          <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] truncate">
                             {food.displayNamePtBr || food.name}
                           </span>
                           <span
                             className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
                               food.scope === "GLOBAL"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-                                : "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                                : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
                             }`}
                           >
                             {food.scope === "GLOBAL" ? "Trevo One" : "Minha Consultoria"}
                           </span>
                           {food.scope === "GLOBAL" && food.sourceKey && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
                               {food.sourceKey.startsWith("USDA") ? "USDA" : food.sourceKey === "TACO" ? "TACO" : food.sourceKey}
                             </span>
                           )}
                         </div>
                         <div className="flex flex-wrap gap-x-2 text-[11px] text-[var(--text-secondary)]">
                           <span>Ref: {food.referenceAmount} {food.referenceUnitCode}</span>
-                          <span className="font-semibold text-amber-600 dark:text-amber-400">
+                          <span className="font-bold text-[var(--brand)]">
                             {food.caloriesKcal != null ? `${food.caloriesKcal} kcal` : "-"}
                           </span>
                           <span>P: {food.proteinG != null ? `${food.proteinG}g` : "-"}</span>
                           <span>C: {food.carbohydrateG != null ? `${food.carbohydrateG}g` : "-"}</span>
                           <span>G: {food.fatG != null ? `${food.fatG}g` : "-"}</span>
                           {food.portionsCount > 0 && (
-                            <span className="text-[var(--brand-primary)] font-medium">
+                            <span className="text-[var(--brand)] font-semibold">
                               ({food.portionsCount} {food.portionsCount === 1 ? "porção" : "porções"})
                             </span>
                           )}
                         </div>
                       </div>
-                      <button
+                      <Button
                         type="button"
-                        className="px-2.5 py-1 text-xs rounded-lg bg-[var(--surface-secondary)] border border-[var(--border)] text-[var(--text-primary)] font-medium shrink-0"
+                        variant="secondary"
+                        size="sm"
+                        className="text-xs min-h-[32px] shrink-0 pointer-events-none"
                       >
                         Selecionar
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -361,26 +365,30 @@ export function NutritionFoodPicker({
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] text-xs">
-                  <button
+                <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] text-xs">
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     disabled={page <= 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="px-3 py-1 rounded bg-[var(--surface-secondary)] border border-[var(--border)] disabled:opacity-40"
+                    className="min-h-[32px]"
                   >
                     Anterior
-                  </button>
-                  <span className="text-[var(--text-muted)] font-medium">
+                  </Button>
+                  <span className="text-[var(--text-secondary)] font-medium">
                     Página {page} de {totalPages}
                   </span>
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     disabled={page >= totalPages}
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    className="px-3 py-1 rounded bg-[var(--surface-secondary)] border border-[var(--border)] disabled:opacity-40"
+                    className="min-h-[32px]"
                   >
                     Próxima
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -389,26 +397,28 @@ export function NutritionFoodPicker({
           {/* TAB 1 (Step 2): CONFIGURE PRESCRIBED QUANTITY / PORTION */}
           {activeTab === "CATALOG" && selectedFood && (
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm text-[var(--text-primary)]">{selectedFood.displayNamePtBr || selectedFood.name}</h3>
+              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-sm text-[var(--text-primary)]">
+                      {selectedFood.displayNamePtBr || selectedFood.name}
+                    </h3>
                     <span
                       className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                         selectedFood.scope === "GLOBAL"
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-blue-50 text-blue-700 border border-blue-200"
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                          : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
                       }`}
                     >
                       {selectedFood.scope === "GLOBAL" ? "Trevo One" : "Minha Consultoria"}
                     </span>
                     {selectedFood.scope === "GLOBAL" && selectedFood.sourceKey && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
                         {selectedFood.sourceKey.startsWith("USDA") ? "USDA" : selectedFood.sourceKey === "TACO" ? "TACO" : selectedFood.sourceKey}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1">
+                  <p className="text-xs text-[var(--text-secondary)]">
                     Referência: {selectedFood.referenceAmount} {selectedFood.referenceUnitCode} ·{" "}
                     {selectedFood.caloriesKcal != null ? `${selectedFood.caloriesKcal} kcal` : "-"} ·{" "}
                     P: {selectedFood.proteinG != null ? `${selectedFood.proteinG}g` : "-"} ·{" "}
@@ -419,7 +429,7 @@ export function NutritionFoodPicker({
                 <button
                   type="button"
                   onClick={() => setSelectedFood(null)}
-                  className="text-xs text-[var(--brand-primary)] hover:underline"
+                  className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0"
                 >
                   Trocar alimento
                 </button>
@@ -428,7 +438,9 @@ export function NutritionFoodPicker({
               {/* Household portions (if available) */}
               {selectedFood.portions.length > 0 && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[var(--text-secondary)]">Medida Caseira / Porção:</label>
+                  <label className="text-xs font-bold text-[var(--text-primary)]">
+                    Medida Caseira / Porção:
+                  </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -436,13 +448,16 @@ export function NutritionFoodPicker({
                         setSelectedPortionId("");
                         setUnitCode(selectedFood.referenceUnitCode || "G");
                       }}
-                      className={`p-2.5 rounded-xl border text-left text-xs transition-colors ${
+                      className={`p-3 rounded-xl border text-left text-xs transition-colors depth-interactive ${
                         !selectedPortionId
-                          ? "border-[var(--brand-primary)] bg-[var(--brand-primary)]/5 font-semibold text-[var(--brand-primary)]"
-                          : "border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
+                          ? "border-[var(--brand)] bg-[var(--brand)]/10 font-bold text-[var(--brand)]"
+                          : "border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                       }`}
                     >
-                      Medida Padrão ({selectedFood.referenceAmount} {selectedFood.referenceUnitCode})
+                      <div className="font-bold">Medida Padrão</div>
+                      <div className="text-[11px] opacity-80">
+                        {selectedFood.referenceAmount} {selectedFood.referenceUnitCode}
+                      </div>
                     </button>
                     {selectedFood.portions.map((p) => (
                       <button
@@ -452,14 +467,14 @@ export function NutritionFoodPicker({
                           setSelectedPortionId(p.publicId);
                           setQuantity("1");
                         }}
-                        className={`p-2.5 rounded-xl border text-left text-xs transition-colors ${
+                        className={`p-3 rounded-xl border text-left text-xs transition-colors depth-interactive ${
                           selectedPortionId === p.publicId
-                            ? "border-[var(--brand-primary)] bg-[var(--brand-primary)]/5 font-semibold text-[var(--brand-primary)]"
-                            : "border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
+                            ? "border-[var(--brand)] bg-[var(--brand)]/10 font-bold text-[var(--brand)]"
+                            : "border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                         }`}
                       >
-                        <div>{p.label}</div>
-                        <div className="text-[11px] text-[var(--text-muted)]">
+                        <div className="font-bold">{p.label}</div>
+                        <div className="text-[11px] opacity-80">
                           Equiv. {p.equivalentReferenceAmount} {selectedFood.referenceUnitCode}
                         </div>
                       </button>
@@ -471,7 +486,7 @@ export function NutritionFoodPicker({
               {/* Quantity & Unit */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
                     {selectedPortionId ? "Número de porções:" : "Quantidade prescrita:"}
                   </label>
                   <input
@@ -479,16 +494,16 @@ export function NutritionFoodPicker({
                     step="any"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
                   />
                 </div>
                 {!selectedPortionId && (
                   <div>
-                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">Unidade:</label>
+                    <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">Unidade:</label>
                     <select
                       value={unitCode}
                       onChange={(e) => setUnitCode(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
                     >
                       {CANONICAL_UNITS.map((u) => (
                         <option key={u.code} value={u.code}>
@@ -502,7 +517,7 @@ export function NutritionFoodPicker({
 
               {/* Notes */}
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
                   Observações de preparo / consumo (opcional):
                 </label>
                 <input
@@ -510,7 +525,7 @@ export function NutritionFoodPicker({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Ex: sem sal, cozido no vapor, picado..."
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
                 />
               </div>
             </div>
@@ -520,22 +535,22 @@ export function NutritionFoodPicker({
           {activeTab === "CUSTOM" && (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                  Nome da preparação / alimento: *
+                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                  Nome da preparação / alimento *
                 </label>
                 <input
                   type="text"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
                   placeholder="Ex: Suco verde detox, Panqueca de aveia caseira..."
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                    Quantidade (opcional):
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                    Quantidade (opcional)
                   </label>
                   <input
                     type="number"
@@ -543,15 +558,15 @@ export function NutritionFoodPicker({
                     value={customQuantity}
                     onChange={(e) => setCustomQuantity(e.target.value)}
                     placeholder="Ex: 1, 200..."
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">Unidade:</label>
+                  <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">Unidade</label>
                   <select
                     value={customUnitCode}
                     onChange={(e) => setCustomUnitCode(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
                   >
                     {CANONICAL_UNITS.map((u) => (
                       <option key={u.code} value={u.code}>
@@ -563,15 +578,15 @@ export function NutritionFoodPicker({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                  Ingredientes / Modo de preparo (opcional):
+                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                  Ingredientes / Modo de preparo (opcional)
                 </label>
                 <textarea
                   rows={3}
                   value={customNotes}
                   onChange={(e) => setCustomNotes(e.target.value)}
                   placeholder="Ex: 1 folha de couve, 1/2 maçã, 200ml água de coco..."
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)] resize-none"
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors resize-none"
                 />
               </div>
             </div>
@@ -579,31 +594,37 @@ export function NutritionFoodPicker({
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[var(--border)] bg-[var(--surface-secondary)]/30">
-          <button
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)]/30">
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={handleClose}
-            className="px-4 py-2 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] rounded-xl border border-[var(--border)]"
+            className="font-semibold min-h-[38px]"
           >
             Cancelar
-          </button>
+          </Button>
           {activeTab === "CATALOG" && selectedFood && (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={handleConfirmLibraryFood}
-              className="px-4 py-2 text-xs font-medium bg-[var(--brand-primary)] text-white rounded-xl hover:opacity-90 shadow-sm"
+              className="font-bold min-h-[38px] shadow-sm"
             >
               Adicionar ao Plano
-            </button>
+            </Button>
           )}
           {activeTab === "CUSTOM" && (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={handleConfirmCustom}
-              className="px-4 py-2 text-xs font-medium bg-[var(--brand-primary)] text-white rounded-xl hover:opacity-90 shadow-sm"
+              className="font-bold min-h-[38px] shadow-sm"
             >
               Adicionar Customizado
-            </button>
+            </Button>
           )}
         </div>
       </div>

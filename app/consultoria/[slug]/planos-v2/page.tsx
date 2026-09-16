@@ -1,3 +1,4 @@
+import React from "react";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentSession } from "@/lib/auth/session";
@@ -5,10 +6,83 @@ import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { listPlansForConsultancy } from "@/lib/nutrition-v2/plan-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface PlanosV2PageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ page?: string; q?: string }>;
+}
+
+function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 5v14m-7-7h14" />
+    </svg>
+  );
+}
+
+function MealPlanIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M9 12h6M9 16h4" />
+    </svg>
+  );
+}
+
+function SearchIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="M21 21l-4.35-4.35" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
 }
 
 export default async function PlanosV2Page({ params, searchParams }: PlanosV2PageProps) {
@@ -41,131 +115,163 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
+        {/* Header Cockpit */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
+                Nutrição Clínica
+              </span>
+              <Badge variant="brand" size="sm">
+                Prescrição
+              </Badge>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
               Planos Alimentares
             </h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium max-w-xl">
+              Editor profissional de cardápios com snapshots de versão, porções de referência e substituições.
+            </p>
           </div>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
-            Editor profissional de prescrições nutricionais com snapshots históricos e porções.
-          </p>
-        </div>
 
-        <Link
-          href={`/consultoria/${slug}/planos-v2/novo`}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-xs sm:text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm shrink-0"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          <span>Criar Novo Plano</span>
-        </Link>
-      </div>
-
-      {/* Plan list */}
-      {items.length === 0 ? (
-        <div className="text-center py-20 px-4 bg-[var(--surface-primary)] border border-dashed border-[var(--border)] rounded-2xl space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] flex items-center justify-center mx-auto">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <h3 className="text-base font-semibold text-[var(--text-primary)]">
-            Nenhum plano alimentar criado
-          </h3>
-          <p className="text-xs text-[var(--text-muted)] max-w-sm mx-auto">
-            Crie um plano alimentar para montar refeições, alimentos, porções e substituições.
-          </p>
-          <Link
-            href={`/consultoria/${slug}/planos-v2/novo`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-[var(--brand-primary)] text-white hover:opacity-90 shadow-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span>Criar Primeiro Plano</span>
+          <Link href={`/consultoria/${slug}/planos-v2/novo`} className="shrink-0">
+            <Button variant="primary" size="md" className="font-bold min-h-[44px] shadow-sm">
+              <PlusIcon className="w-4 h-4 mr-1.5" />
+              <span>Novo Plano</span>
+            </Button>
           </Link>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {items.map((plan) => (
-            <div
-              key={plan.publicId}
-              className="p-5 rounded-2xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-sm hover:border-[var(--brand-primary)]/50 transition-colors flex flex-col justify-between gap-4"
-            >
-              <div className="space-y-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-bold text-base text-[var(--text-primary)] leading-snug">
-                    {plan.currentVersion?.title || "Plano sem título"}
-                  </h3>
-                  {plan.currentVersion?.status === "DRAFT" ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0">
-                      V{plan.currentVersion.versionNumber} · Rascunho
-                    </span>
-                  ) : plan.currentVersion?.status === "PUBLISHED" ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-                      V{plan.currentVersion.versionNumber} · Publicada
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20 shrink-0">
-                      V{plan.currentVersion?.versionNumber || 1} · Arquivada
-                    </span>
-                  )}
-                </div>
-                {plan.currentVersion?.subtitle && (
-                  <p className="text-xs text-[var(--text-secondary)] line-clamp-1">
-                    {plan.currentVersion.subtitle}
-                  </p>
-                )}
-                <p className="text-[11px] text-[var(--text-muted)] pt-1">
-                  Atualizado em: {new Date(plan.updatedAt).toLocaleDateString("pt-BR")}
-                </p>
-              </div>
 
-              <div className="flex items-center justify-end pt-3 border-t border-[var(--border)]">
-                <Link
-                  href={`/consultoria/${slug}/planos-v2/${plan.publicId}`}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-[var(--brand-primary)] text-white hover:opacity-90 shadow-sm inline-flex items-center gap-1.5"
-                >
-                  <span>Abrir Editor</span>
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </div>
+        {/* Search Bar */}
+        <div className="p-3 sm:p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs">
+          <form method="GET" action={`/consultoria/${slug}/planos-v2`} className="flex gap-2">
+            <div className="relative flex-1">
+              <SearchIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" />
+              <input
+                type="search"
+                name="q"
+                defaultValue={query || ""}
+                placeholder="Buscar por título do plano..."
+                className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+              />
             </div>
-          ))}
+            <Button type="submit" variant="secondary" size="md" className="font-semibold px-4 min-h-[42px]">
+              Buscar
+            </Button>
+            {query && (
+              <Link href={`/consultoria/${slug}/planos-v2`}>
+                <Button variant="ghost" size="md" className="font-semibold px-3 min-h-[42px]">
+                  Limpar
+                </Button>
+              </Link>
+            )}
+          </form>
         </div>
-      )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          <Link
-            href={`/consultoria/${slug}/planos-v2?page=${page - 1}`}
-            className={`px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-primary)] ${
-              page <= 1 ? "pointer-events-none opacity-40" : ""
-            }`}
-          >
-            Anterior
-          </Link>
-          <span className="text-xs text-[var(--text-muted)] font-medium">
-            {page} / {totalPages}
-          </span>
-          <Link
-            href={`/consultoria/${slug}/planos-v2?page=${page + 1}`}
-            className={`px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-primary)] ${
-              page >= totalPages ? "pointer-events-none opacity-40" : ""
-            }`}
-          >
-            Próxima
-          </Link>
-        </div>
-      )}
+        {/* Plan List */}
+        {items.length === 0 ? (
+          <div className="p-10 sm:p-12 text-center rounded-2xl sm:rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface)] space-y-4 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center mx-auto shadow-2xs">
+              <MealPlanIcon className="w-6 h-6" />
+            </div>
+            <div className="space-y-1 max-w-sm mx-auto">
+              <h3 className="text-base font-bold text-[var(--text-primary)]">
+                Nenhum plano alimentar encontrado
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)]">
+                {query
+                  ? `Nenhum plano corresponde ao termo "${query}".`
+                  : "Crie um plano alimentar para montar refeições, alimentos, porções e substituições."}
+              </p>
+            </div>
+            <Link href={`/consultoria/${slug}/planos-v2/novo`}>
+              <Button variant="primary" size="sm" className="font-semibold min-h-[44px]">
+                <PlusIcon className="w-4 h-4 mr-1.5" />
+                <span>Criar Primeiro Plano</span>
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {items.map((plan) => (
+              <div
+                key={plan.publicId}
+                className="p-5 sm:p-6 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] transition-all flex flex-col justify-between gap-4 depth-surface"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="font-bold text-base sm:text-lg text-[var(--text-primary)] leading-snug">
+                      {plan.currentVersion?.title || "Plano sem título"}
+                    </h3>
+                    <Badge
+                      variant={
+                        plan.currentVersion?.status === "PUBLISHED"
+                          ? "success"
+                          : plan.currentVersion?.status === "DRAFT"
+                          ? "warning"
+                          : "neutral"
+                      }
+                      size="sm"
+                    >
+                      {plan.currentVersion?.status === "DRAFT"
+                        ? `V${plan.currentVersion.versionNumber} · Rascunho`
+                        : plan.currentVersion?.status === "PUBLISHED"
+                        ? `V${plan.currentVersion.versionNumber} · Publicada`
+                        : `V${plan.currentVersion?.versionNumber || 1} · Arquivada`}
+                    </Badge>
+                  </div>
+
+                  {plan.currentVersion?.subtitle && (
+                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
+                      {plan.currentVersion.subtitle}
+                    </p>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-1 text-[11px] text-[var(--text-tertiary)] font-medium">
+                    <span>
+                      Atualizado em {new Date(plan.updatedAt).toLocaleDateString("pt-BR")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end pt-3 border-t border-[var(--border-subtle)]">
+                  <Link href={`/consultoria/${slug}/planos-v2/${plan.publicId}`}>
+                    <Button variant="secondary" size="sm" className="font-semibold text-xs min-h-[38px] group">
+                      <span>Abrir Editor</span>
+                      <ChevronRightIcon className="w-3.5 h-3.5 ml-1 text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] group-hover:translate-x-0.5 transition-all" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 pt-4">
+            <Link
+              href={`/consultoria/${slug}/planos-v2?page=${page - 1}${query ? `&q=${encodeURIComponent(query)}` : ""}`}
+              className={page <= 1 ? "pointer-events-none opacity-40" : ""}
+            >
+              <Button variant="secondary" size="sm" disabled={page <= 1} className="min-h-[36px]">
+                Anterior
+              </Button>
+            </Link>
+            <span className="text-xs text-[var(--text-secondary)] font-medium px-2">
+              Página {page} de {totalPages}
+            </span>
+            <Link
+              href={`/consultoria/${slug}/planos-v2?page=${page + 1}${query ? `&q=${encodeURIComponent(query)}` : ""}`}
+              className={page >= totalPages ? "pointer-events-none opacity-40" : ""}
+            >
+              <Button variant="secondary" size="sm" disabled={page >= totalPages} className="min-h-[36px]">
+                Próxima
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
     </ConsultancyAppShell>
   );

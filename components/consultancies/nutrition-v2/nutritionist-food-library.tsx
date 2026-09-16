@@ -17,10 +17,81 @@ import type {
   CreateFoodInput,
   UpdateFoodInput,
 } from "@/lib/nutrition-v2/food-repository";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface NutritionistFoodLibraryProps {
   slug: string;
   initialResult: ListFoodsResult;
+}
+
+function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 5v14m-7-7h14" />
+    </svg>
+  );
+}
+
+function SearchIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="M21 21l-4.35-4.35" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
+function CloseIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
 }
 
 export function NutritionistFoodLibrary({
@@ -211,38 +282,45 @@ export function NutritionistFoodLibrary({
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
-        <div>
+    <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
+      {/* Header Cockpit */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Biblioteca de Alimentos</h1>
+            <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
+              Catálogo Nutricional
+            </span>
+            <Badge variant="brand" size="sm">
+              Tabela TACO & Consultoria
+            </Badge>
           </div>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            Consulte a Tabela TACO (Trevo One) e gerencie os alimentos exclusivos da sua consultoria.
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
+            Biblioteca de Alimentos
+          </h1>
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium max-w-xl">
+            Consulte a Tabela TACO unificada e gerencie preparações exclusivas da sua consultoria.
           </p>
         </div>
-        <div>
-          <button
-            type="button"
-            onClick={() => setIsCreateOpen(true)}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--brand-primary)] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Novo Alimento
-          </button>
-        </div>
+
+        <Button
+          type="button"
+          variant="primary"
+          size="md"
+          onClick={() => setIsCreateOpen(true)}
+          className="font-bold min-h-[44px] shadow-sm shrink-0"
+        >
+          <PlusIcon className="w-4 h-4 mr-1.5" />
+          <span>Novo Alimento</span>
+        </Button>
       </div>
 
       {/* Feedback Alert */}
       {feedbackMsg && (
         <div
-          className={`p-3.5 rounded-lg text-sm font-medium ${
+          className={`p-3.5 rounded-xl text-xs font-semibold ${
             feedbackMsg.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-              : "bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800"
+              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+              : "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
           }`}
         >
           {feedbackMsg.text}
@@ -250,9 +328,10 @@ export function NutritionistFoodLibrary({
       )}
 
       {/* Search & Filters */}
-      <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-xl p-4 space-y-4 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface">
+        <div className="flex flex-col sm:flex-row gap-2.5">
           <div className="flex-1 relative">
+            <SearchIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" />
             <input
               type="search"
               value={query}
@@ -260,32 +339,26 @@ export function NutritionistFoodLibrary({
               onKeyDown={(e) => {
                 if (e.key === "Enter") fetchFoods(1, query);
               }}
-              placeholder="Buscar por nome do alimento (ex: arroz, maca, frango)..."
-              className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+              placeholder="Buscar por nome do alimento (ex: arroz, maçã, peito de frango)..."
+              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
             />
-            <svg
-              className="w-4 h-4 absolute left-3.5 top-3 text-[var(--text-muted)] pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
           </div>
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={() => fetchFoods(1, query)}
             disabled={isPending}
-            className="px-4 py-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border)] text-sm font-medium hover:bg-[var(--surface-tertiary)] transition-colors"
+            className="font-semibold px-5 min-h-[42px]"
           >
             {isPending ? "Buscando..." : "Buscar"}
-          </button>
+          </Button>
         </div>
 
         {/* Filter Chips */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--border)] text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[var(--border-subtle)] text-xs">
           <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-            <span className="font-semibold text-[var(--text-muted)] mr-1">Origem:</span>
+            <span className="font-bold text-[var(--text-secondary)] mr-1">Origem:</span>
             {(["ALL", "GLOBAL", "CONSULTANCY"] as const).map((sc) => (
               <button
                 key={sc}
@@ -294,10 +367,10 @@ export function NutritionistFoodLibrary({
                   setScopeFilter(sc);
                   fetchFoods(1, query, sc, statusFilter);
                 }}
-                className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-full font-semibold transition-colors depth-interactive ${
                   scopeFilter === sc
-                    ? "bg-[var(--brand-primary)] text-white"
-                    : "bg-[var(--surface-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    ? "bg-[var(--brand)] text-white"
+                    : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {sc === "ALL" ? "Todos" : sc === "GLOBAL" ? "Trevo One (TACO)" : "Minha Consultoria"}
@@ -306,7 +379,7 @@ export function NutritionistFoodLibrary({
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-[var(--text-muted)] mr-1">Status:</span>
+            <span className="font-bold text-[var(--text-secondary)] mr-1">Status:</span>
             {(["ACTIVE", "ARCHIVED", "ALL"] as const).map((st) => (
               <button
                 key={st}
@@ -315,10 +388,10 @@ export function NutritionistFoodLibrary({
                   setStatusFilter(st);
                   fetchFoods(1, query, scopeFilter, st);
                 }}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors depth-interactive ${
                   statusFilter === st
-                    ? "bg-[var(--surface-tertiary)] text-[var(--text-primary)] font-semibold"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    ? "bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-default)]"
+                    : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {st === "ACTIVE" ? "Ativos" : st === "ARCHIVED" ? "Arquivados" : "Todos"}
@@ -329,8 +402,8 @@ export function NutritionistFoodLibrary({
       </div>
 
       {/* Food Cards / List */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between text-xs text-[var(--text-muted)] px-1">
+      <div className="space-y-3.5">
+        <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] font-medium px-1">
           <span>
             Exibindo {data.items.length} de {data.total} alimentos encontrados
           </span>
@@ -338,92 +411,101 @@ export function NutritionistFoodLibrary({
         </div>
 
         {data.items.length === 0 ? (
-          <div className="p-12 text-center bg-[var(--surface-primary)] border border-dashed border-[var(--border)] rounded-xl">
-            <p className="text-[var(--text-muted)] text-sm">Nenhum alimento encontrado para os filtros selecionados.</p>
+          <div className="p-12 text-center bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-2xl sm:rounded-3xl space-y-2 shadow-xs depth-surface">
+            <p className="text-sm font-bold text-[var(--text-primary)]">
+              Nenhum alimento encontrado
+            </p>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Tente ajustar o termo de busca ou selecionar outros filtros.
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {data.items.map((food) => {
               const isGlobal = food.scope === "GLOBAL";
               return (
                 <div
                   key={food.publicId}
-                  className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-xl p-4 shadow-sm hover:border-[var(--brand-primary)]/50 transition-colors flex flex-col justify-between gap-3"
+                  className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[var(--brand-soft-border)] transition-all flex flex-col justify-between gap-3 depth-surface"
                 >
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-0.5">
-                        <h3 className="font-semibold text-sm sm:text-base text-[var(--text-primary)] leading-tight">
+                      <div className="space-y-0.5 min-w-0">
+                        <h3 className="font-bold text-sm sm:text-base text-[var(--text-primary)] leading-snug truncate">
                           {food.displayNamePtBr || food.name}
                         </h3>
                         {food.category && (
-                          <p className="text-xs text-[var(--text-muted)]">{food.category}</p>
+                          <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
+                            {food.category}
+                          </p>
                         )}
                       </div>
-                      <div>
+                      <div className="shrink-0">
                         {isGlobal ? (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60">
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="success" size="sm">
                               Trevo One
-                            </span>
+                            </Badge>
                             {food.sourceKey && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
                                 {food.sourceKey.startsWith("USDA") ? "USDA" : food.sourceKey === "TACO" ? "TACO" : food.sourceKey}
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60">
+                          <Badge variant="brand" size="sm">
                             Minha Consultoria
-                          </span>
+                          </Badge>
                         )}
                       </div>
                     </div>
 
                     {/* Macro pill summary */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1.5 text-xs text-[var(--text-secondary)]">
-                      <span className="font-medium bg-[var(--surface-secondary)] px-2 py-0.5 rounded">
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-[var(--text-secondary)]">
+                      <span className="font-semibold bg-[var(--surface-subtle)] px-2 py-0.5 rounded-md border border-[var(--border-subtle)]">
                         Ref: {food.referenceAmount} {food.referenceUnitCode}
                       </span>
-                      <span className="font-semibold text-amber-600 dark:text-amber-400">
+                      <span className="font-extrabold text-[var(--brand)]">
                         {food.caloriesKcal != null ? `${Math.round(food.caloriesKcal)} kcal` : "--"}
                       </span>
-                      <span>P: {food.proteinG != null ? `${food.proteinG}g` : "--"}</span>
-                      <span>C: {food.carbohydrateG != null ? `${food.carbohydrateG}g` : "--"}</span>
-                      <span>G: {food.fatG != null ? `${food.fatG}g` : "--"}</span>
+                      <span className="font-medium">P: {food.proteinG != null ? `${food.proteinG}g` : "--"}</span>
+                      <span className="font-medium">C: {food.carbohydrateG != null ? `${food.carbohydrateG}g` : "--"}</span>
+                      <span className="font-medium">G: {food.fatG != null ? `${food.fatG}g` : "--"}</span>
                     </div>
                   </div>
 
                   {/* Actions & Portions badge */}
-                  <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] text-xs">
+                  <div className="flex items-center justify-between pt-2.5 border-t border-[var(--border-subtle)] text-xs">
                     <button
                       type="button"
                       onClick={() => handleOpenDetails(food)}
-                      className="text-[var(--brand-primary)] hover:underline font-medium inline-flex items-center gap-1"
+                      className="text-[var(--brand)] hover:underline font-bold inline-flex items-center gap-1 transition-colors"
                     >
                       <span>Porções ({food.portionsCount})</span>
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
+                      <ChevronRightIcon className="w-3.5 h-3.5" />
                     </button>
 
                     {!isGlobal && (
                       <div className="flex items-center gap-2">
-                        <button
+                        <Button
                           type="button"
+                          variant="secondary"
+                          size="sm"
                           onClick={() => setEditingFood(food)}
-                          className="px-2.5 py-1 rounded bg-[var(--surface-secondary)] hover:bg-[var(--surface-tertiary)] font-medium text-[var(--text-primary)] transition-colors"
+                          className="font-semibold text-xs min-h-[32px] px-2.5"
                         >
                           Editar
-                        </button>
+                        </Button>
                         {food.status === "ACTIVE" && (
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleArchiveFood(food)}
-                            className="px-2 py-1 rounded text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                            className="font-semibold text-xs min-h-[32px] px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                           >
                             Arquivar
-                          </button>
+                          </Button>
                         )}
                       </div>
                     )}
@@ -437,88 +519,93 @@ export function NutritionistFoodLibrary({
         {/* Pagination controls */}
         {data.totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 pt-4">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               disabled={data.page <= 1 || isPending}
               onClick={() => fetchFoods(data.page - 1)}
-              className="px-3 py-1.5 text-xs rounded-md bg-[var(--surface-secondary)] border border-[var(--border)] disabled:opacity-40"
+              className="min-h-[36px]"
             >
               Anterior
-            </button>
-            <span className="text-xs text-[var(--text-muted)] font-medium">
-              {data.page} / {data.totalPages}
+            </Button>
+            <span className="text-xs text-[var(--text-secondary)] font-medium px-2">
+              Página {data.page} de {data.totalPages}
             </span>
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               disabled={data.page >= data.totalPages || isPending}
               onClick={() => fetchFoods(data.page + 1)}
-              className="px-3 py-1.5 text-xs rounded-md bg-[var(--surface-secondary)] border border-[var(--border)] disabled:opacity-40"
+              className="min-h-[36px]"
             >
               Próxima
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       {/* Detail / Portions Modal */}
       {(selectedFood || isLoadingDetails) && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-xl">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl sm:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-2xl depth-surface">
             {isLoadingDetails ? (
-              <div className="py-12 text-center text-sm text-[var(--text-muted)]">Carregando detalhes...</div>
+              <div className="py-12 text-center text-sm text-[var(--text-secondary)] font-medium">Carregando detalhes...</div>
             ) : selectedFood ? (
               <>
-                <div className="flex items-start justify-between border-b border-[var(--border)] pb-3">
-                  <div>
-                    <h2 className="text-lg font-bold text-[var(--text-primary)]">{selectedFood.name}</h2>
-                    <p className="text-xs text-[var(--text-muted)]">{selectedFood.category || "Sem categoria"}</p>
+                <div className="flex items-start justify-between border-b border-[var(--border-subtle)] pb-3">
+                  <div className="space-y-0.5 min-w-0">
+                    <h2 className="text-lg font-bold text-[var(--text-primary)] truncate">{selectedFood.name}</h2>
+                    <p className="text-xs text-[var(--text-secondary)] font-medium">{selectedFood.category || "Sem categoria"}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setSelectedFood(null)}
-                    className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1"
+                    aria-label="Fechar"
+                    className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
                   >
-                    ✕
+                    <CloseIcon className="w-5 h-5" />
                   </button>
                 </div>
 
                 {/* Macro summary */}
-                <div className="grid grid-cols-4 gap-2 bg-[var(--surface-secondary)] p-3 rounded-lg text-center text-xs">
+                <div className="grid grid-cols-4 gap-2 bg-[var(--surface-subtle)] p-3 rounded-xl border border-[var(--border-default)] text-center text-xs">
                   <div>
-                    <span className="block text-[var(--text-muted)]">Calorias</span>
-                    <span className="font-bold text-amber-600 dark:text-amber-400">
+                    <span className="block text-[var(--text-tertiary)] text-[10px] font-bold uppercase">Calorias</span>
+                    <span className="font-extrabold text-[var(--brand)] text-sm">
                       {selectedFood.caloriesKcal != null ? Math.round(selectedFood.caloriesKcal) : "--"}
                     </span>
                   </div>
                   <div>
-                    <span className="block text-[var(--text-muted)]">Proteína</span>
-                    <span className="font-bold">{selectedFood.proteinG ?? "--"}g</span>
+                    <span className="block text-[var(--text-tertiary)] text-[10px] font-bold uppercase">Proteína</span>
+                    <span className="font-bold text-[var(--text-primary)] text-sm">{selectedFood.proteinG ?? "--"}g</span>
                   </div>
                   <div>
-                    <span className="block text-[var(--text-muted)]">Carboidrato</span>
-                    <span className="font-bold">{selectedFood.carbohydrateG ?? "--"}g</span>
+                    <span className="block text-[var(--text-tertiary)] text-[10px] font-bold uppercase">Carboidrato</span>
+                    <span className="font-bold text-[var(--text-primary)] text-sm">{selectedFood.carbohydrateG ?? "--"}g</span>
                   </div>
                   <div>
-                    <span className="block text-[var(--text-muted)]">Gordura</span>
-                    <span className="font-bold">{selectedFood.fatG ?? "--"}g</span>
+                    <span className="block text-[var(--text-tertiary)] text-[10px] font-bold uppercase">Gordura</span>
+                    <span className="font-bold text-[var(--text-primary)] text-sm">{selectedFood.fatG ?? "--"}g</span>
                   </div>
                 </div>
 
                 {/* Portions list */}
                 <div className="space-y-3 pt-2">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">Medidas Usuais / Porções</h3>
+                  <h3 className="text-sm font-bold text-[var(--text-primary)]">Medidas Usuais / Porções</h3>
                   {selectedFood.portions.length === 0 ? (
-                    <p className="text-xs text-[var(--text-muted)] italic">Nenhuma porção cadastrada para este alimento.</p>
+                    <p className="text-xs text-[var(--text-secondary)] italic">Nenhuma porção cadastrada para este alimento.</p>
                   ) : (
                     <div className="space-y-2">
                       {selectedFood.portions.map((p) => (
                         <div
                           key={p.publicId}
-                          className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)] text-xs"
+                          className="flex items-center justify-between p-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs"
                         >
                           <div>
-                            <span className="font-semibold text-[var(--text-primary)]">{p.label}</span>
-                            <span className="text-[var(--text-muted)] ml-2">
+                            <span className="font-bold text-[var(--text-primary)]">{p.label}</span>
+                            <span className="text-[var(--text-secondary)] ml-2">
                               = {p.equivalentReferenceAmount} {selectedFood.referenceUnitCode}
                             </span>
                           </div>
@@ -526,7 +613,7 @@ export function NutritionistFoodLibrary({
                             <button
                               type="button"
                               onClick={() => handleArchivePortion(p.publicId)}
-                              className="text-rose-600 hover:text-rose-700 text-xs px-2 py-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                              className="text-rose-600 hover:text-rose-700 text-xs px-2 py-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30 font-semibold"
                             >
                               Remover
                             </button>
@@ -539,8 +626,8 @@ export function NutritionistFoodLibrary({
 
                 {/* Add portion form if consultancy */}
                 {selectedFood.scope === "CONSULTANCY" ? (
-                  <form onSubmit={handleAddPortion} className="pt-3 border-t border-[var(--border)] space-y-3">
-                    <h4 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                  <form onSubmit={handleAddPortion} className="pt-3 border-t border-[var(--border-subtle)] space-y-3">
+                    <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                       Adicionar Nova Porção
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -549,10 +636,10 @@ export function NutritionistFoodLibrary({
                         placeholder="Ex: 1 colher de sopa"
                         value={newPortionLabel}
                         onChange={(e) => setNewPortionLabel(e.target.value)}
-                        className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                        className="px-3 py-2 text-xs rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                         required
                       />
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <input
                           type="number"
                           step="0.1"
@@ -560,21 +647,23 @@ export function NutritionistFoodLibrary({
                           placeholder={`Equiv. em ${selectedFood.referenceUnitCode}`}
                           value={newPortionAmount}
                           onChange={(e) => setNewPortionAmount(e.target.value)}
-                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                           required
                         />
-                        <button
+                        <Button
                           type="submit"
+                          variant="primary"
+                          size="sm"
                           disabled={isAddingPortion}
-                          className="px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+                          className="font-bold min-h-[36px] px-3"
                         >
                           {isAddingPortion ? "..." : "+"}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </form>
                 ) : (
-                  <p className="text-xs text-[var(--text-muted)] italic pt-2 border-t border-[var(--border)]">
+                  <p className="text-xs text-[var(--text-secondary)] italic pt-2 border-t border-[var(--border-subtle)]">
                     Alimentos Trevo One (TACO) são gerenciados pela plataforma. Porções globais são somente leitura.
                   </p>
                 )}
@@ -586,47 +675,48 @@ export function NutritionistFoodLibrary({
 
       {/* Create Food Modal */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl sm:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-2xl depth-surface">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <h2 className="text-lg font-bold text-[var(--text-primary)]">Novo Alimento da Consultoria</h2>
               <button
                 type="button"
                 onClick={() => setIsCreateOpen(false)}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1"
+                aria-label="Fechar"
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
               >
-                ✕
+                <CloseIcon className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateFood} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold mb-1 text-[var(--text-primary)]">Nome do Alimento *</label>
+                <label className="block font-bold mb-1.5 text-[var(--text-primary)]">Nome do Alimento *</label>
                 <input
                   name="name"
                   type="text"
                   placeholder="Ex: Panqueca Proteica de Aveia"
                   required
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)] text-sm"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] text-sm"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[var(--text-primary)]">Categoria</label>
+                  <label className="block font-bold mb-1.5 text-[var(--text-primary)]">Categoria</label>
                   <input
                     name="category"
                     type="text"
                     placeholder="Ex: Preparados"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[var(--text-primary)]">Unidade Referência</label>
+                  <label className="block font-bold mb-1.5 text-[var(--text-primary)]">Unidade Referência</label>
                   <select
                     name="referenceUnitCode"
                     defaultValue="G"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   >
                     <option value="G">Gramas (g)</option>
                     <option value="ML">Mililitros (ml)</option>
@@ -639,79 +729,83 @@ export function NutritionistFoodLibrary({
               </div>
 
               <div>
-                <label className="block font-semibold mb-1 text-[var(--text-primary)]">Quantidade de Referência</label>
+                <label className="block font-bold mb-1.5 text-[var(--text-primary)]">Quantidade de Referência</label>
                 <input
                   name="referenceAmount"
                   type="number"
                   step="0.01"
                   defaultValue={100}
                   required
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                  className="w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[var(--border)]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[var(--border-subtle)]">
                 <div>
-                  <label className="block font-semibold mb-1 text-amber-600 dark:text-amber-400">Calorias (kcal)</label>
+                  <label className="block font-bold mb-1 text-[var(--brand)]">Calorias (kcal)</label>
                   <input
                     name="caloriesKcal"
                     type="number"
                     step="0.1"
                     min="0"
                     placeholder="0"
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[var(--text-primary)]">Proteína (g)</label>
+                  <label className="block font-bold mb-1 text-[var(--text-primary)]">Proteína (g)</label>
                   <input
                     name="proteinG"
                     type="number"
                     step="0.1"
                     min="0"
                     placeholder="0"
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[var(--text-primary)]">Carboidrato (g)</label>
+                  <label className="block font-bold mb-1 text-[var(--text-primary)]">Carboidrato (g)</label>
                   <input
                     name="carbohydrateG"
                     type="number"
                     step="0.1"
                     min="0"
                     placeholder="0"
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[var(--text-primary)]">Gordura (g)</label>
+                  <label className="block font-bold mb-1 text-[var(--text-primary)]">Gordura (g)</label>
                   <input
                     name="fatG"
                     type="number"
                     step="0.1"
                     min="0"
                     placeholder="0"
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border)]">
-                <button
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="md"
                   onClick={() => setIsCreateOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-[var(--surface-secondary)] hover:bg-[var(--surface-tertiary)] font-medium"
+                  className="font-semibold"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="md"
                   disabled={isPending}
-                  className="px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-white font-semibold hover:opacity-90 disabled:opacity-50"
+                  className="font-bold shadow-sm"
                 >
                   {isPending ? "Salvando..." : "Cadastrar Alimento"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -720,126 +814,131 @@ export function NutritionistFoodLibrary({
 
       {/* Edit Food Modal */}
       {editingFood && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl sm:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-2xl depth-surface">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <h2 className="text-lg font-bold text-[var(--text-primary)]">Editar Alimento</h2>
               <button
                 type="button"
                 onClick={() => setEditingFood(null)}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1"
+                aria-label="Fechar"
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
               >
-                ✕
+                <CloseIcon className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleUpdateFood} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold mb-1 text-[var(--text-primary)]">Nome do Alimento *</label>
+                <label className="block font-bold mb-1.5 text-[var(--text-primary)]">Nome do Alimento *</label>
                 <input
                   name="name"
                   type="text"
                   defaultValue={editingFood.name}
                   required
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)] text-sm"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] text-sm"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[var(--text-primary)]">Categoria</label>
+                  <label className="block font-bold mb-1.5 text-[var(--text-primary)]">Categoria</label>
                   <input
                     name="category"
                     type="text"
                     defaultValue={editingFood.category || ""}
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[var(--text-primary)]">Unidade Referência</label>
+                  <label className="block font-bold mb-1.5 text-[var(--text-primary)]">Unidade Referência</label>
                   <input
                     name="referenceUnitCode"
                     type="text"
                     defaultValue={editingFood.referenceUnitCode}
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold mb-1 text-[var(--text-primary)]">Quantidade Referência</label>
+                <label className="block font-bold mb-1.5 text-[var(--text-primary)]">Quantidade Referência</label>
                 <input
                   name="referenceAmount"
                   type="number"
                   step="0.01"
                   defaultValue={editingFood.referenceAmount}
                   required
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                  className="w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[var(--border)]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[var(--border-subtle)]">
                 <div>
-                  <label className="block font-semibold mb-1 text-amber-600 dark:text-amber-400">Calorias (kcal)</label>
+                  <label className="block font-bold mb-1 text-[var(--brand)]">Calorias (kcal)</label>
                   <input
                     name="caloriesKcal"
                     type="number"
                     step="0.1"
                     min="0"
                     defaultValue={editingFood.caloriesKcal ?? ""}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[var(--text-primary)]">Proteína (g)</label>
+                  <label className="block font-bold mb-1 text-[var(--text-primary)]">Proteína (g)</label>
                   <input
                     name="proteinG"
                     type="number"
                     step="0.1"
                     min="0"
                     defaultValue={editingFood.proteinG ?? ""}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[var(--text-primary)]">Carboidrato (g)</label>
+                  <label className="block font-bold mb-1 text-[var(--text-primary)]">Carboidrato (g)</label>
                   <input
                     name="carbohydrateG"
                     type="number"
                     step="0.1"
                     min="0"
                     defaultValue={editingFood.carbohydrateG ?? ""}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[var(--text-primary)]">Gordura (g)</label>
+                  <label className="block font-bold mb-1 text-[var(--text-primary)]">Gordura (g)</label>
                   <input
                     name="fatG"
                     type="number"
                     step="0.1"
                     min="0"
                     defaultValue={editingFood.fatG ?? ""}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)]"
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border)]">
-                <button
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="md"
                   onClick={() => setEditingFood(null)}
-                  className="px-4 py-2 rounded-lg bg-[var(--surface-secondary)] hover:bg-[var(--surface-tertiary)] font-medium"
+                  className="font-semibold"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="md"
                   disabled={isPending}
-                  className="px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-white font-semibold hover:opacity-90 disabled:opacity-50"
+                  className="font-bold shadow-sm"
                 >
                   {isPending ? "Salvando..." : "Salvar Alterações"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

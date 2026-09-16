@@ -1,6 +1,7 @@
 import React from "react";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
+import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { listUnifiedFoodsForNutritionist } from "@/lib/nutrition-v2/food-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
@@ -20,6 +21,7 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
     redirect(`/login?returnUrl=/consultoria/${slug}/alimentos-v2`);
   }
 
+  const context = await resolveConsultancyContext(session.userId, slug);
   const ctx = await resolveNutritionAccessContext(slug);
   if (!ctx || !ctx.canAuthorNutrition) {
     // Only Nutritionists have access to this professional library
@@ -47,9 +49,10 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
 
   return (
     <ConsultancyAppShell
-      consultancyName={ctx.consultancySlug!}
-      consultancySlug={ctx.consultancySlug!}
-      roles={ctx.roles}
+      consultancyName={context?.consultancyName || ctx.consultancySlug || slug}
+      consultancySlug={context?.consultancySlug || ctx.consultancySlug || slug}
+      consultancyLogoUrl={context?.consultancyLogoUrl}
+      roles={context?.roles || ctx.roles}
       userName={session.fullName}
       userEmail={session.email}
     >

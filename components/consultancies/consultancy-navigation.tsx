@@ -413,7 +413,7 @@ export function ConsultancyNavigation({
           ========================================================================= */}
       <aside
         aria-label="Barra lateral de navegação"
-        className="hidden lg:flex fixed top-0 bottom-0 left-0 w-64 bg-[var(--surface)] border-r border-[var(--border-default)] z-30 flex-col justify-between overflow-y-auto select-none print:hidden transition-colors border-specular-t"
+        className="hidden lg:flex fixed top-0 bottom-0 left-0 w-64 bg-[var(--surface)] border-r border-[var(--border-default)] z-30 flex-col justify-between overflow-y-auto select-none print:hidden transition-colors"
       >
         {/* Top: Brand Header & Navigation Sections */}
         <div className="flex flex-col space-y-4 p-4">

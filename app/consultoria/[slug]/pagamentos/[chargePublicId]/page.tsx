@@ -148,7 +148,7 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
               Esta cobrança foi quitada com sucesso. Seu acesso à consultoria está liberado.
             </p>
             {charge.paidConfirmedAt && (
-              <p className="text-xs mt-1 text-emerald-800 dark:text-emerald-300 font-medium">
+              <p className="text-xs mt-1 text-[var(--brand)] font-medium">
                 Confirmado em {formatDateTimeBr(charge.paidConfirmedAt)} via PIX.
               </p>
             )}

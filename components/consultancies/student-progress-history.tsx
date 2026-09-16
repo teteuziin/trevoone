@@ -1,6 +1,5 @@
 import React from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import type {
   StudentProgressEntryDto,
@@ -50,12 +49,12 @@ export function StudentProgressHistory({
     <div className="space-y-6">
       {/* Latest Entry Highlight (Shown only when latestEntry is provided, i.e. on page 1) */}
       {latestEntry && (
-        <div className="p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+        <div className="p-6 sm:p-7 rounded-3xl bg-[var(--surface)] border border-[var(--border-strong)] shadow-xs space-y-4 border-specular-t depth-surface">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <div className="flex items-center gap-2">
-              <Badge variant="success" size="sm">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] shadow-2xs">
                 Última Medição
-              </Badge>
+              </span>
               <span className="text-xs text-[var(--text-secondary)] font-medium">
                 {formatDateDisplay(latestEntry.recordedOn)}
               </span>
@@ -64,66 +63,66 @@ export function StudentProgressHistory({
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
             {latestEntry.weightKg !== null && (
-              <div className="p-3 rounded-xl bg-[var(--background)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Peso
                 </span>
-                <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums">
                   {formatMeasurement(latestEntry.weightKg, "kg")}
                 </span>
               </div>
             )}
 
             {latestEntry.waistCm !== null && (
-              <div className="p-3 rounded-xl bg-[var(--background)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Cintura
                 </span>
-                <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums">
                   {formatMeasurement(latestEntry.waistCm, "cm")}
                 </span>
               </div>
             )}
 
             {latestEntry.abdomenCm !== null && (
-              <div className="p-3 rounded-xl bg-[var(--background)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Abdômen
                 </span>
-                <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums">
                   {formatMeasurement(latestEntry.abdomenCm, "cm")}
                 </span>
               </div>
             )}
 
             {latestEntry.hipCm !== null && (
-              <div className="p-3 rounded-xl bg-[var(--background)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Quadril
                 </span>
-                <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums">
                   {formatMeasurement(latestEntry.hipCm, "cm")}
                 </span>
               </div>
             )}
 
             {latestEntry.armCm !== null && (
-              <div className="p-3 rounded-xl bg-[var(--background)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Braço
                 </span>
-                <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums">
                   {formatMeasurement(latestEntry.armCm, "cm")}
                 </span>
               </div>
             )}
 
             {latestEntry.thighCm !== null && (
-              <div className="p-3 rounded-xl bg-[var(--background)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Coxa
                 </span>
-                <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums">
                   {formatMeasurement(latestEntry.thighCm, "cm")}
                 </span>
               </div>
@@ -140,7 +139,7 @@ export function StudentProgressHistory({
 
       {/* Historical Entries Timeline / Cards */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] px-1">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] px-1">
           Histórico Completo ({totalCount})
         </h3>
 
@@ -148,11 +147,11 @@ export function StudentProgressHistory({
           {entries.map((entry, idx) => (
             <div
               key={entry.publicId || `entry-${idx}`}
-              className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3"
+              className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 depth-surface"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-[var(--border-subtle)] pb-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-[var(--text-primary)] font-mono">
+                  <span className="text-xs font-semibold text-[var(--text-primary)] font-mono">
                     {formatDateDisplay(entry.recordedOn)}
                   </span>
                   {entry.createdByName && (
@@ -166,38 +165,38 @@ export function StudentProgressHistory({
               {/* Measurements Tags / Values */}
               <div className="flex flex-wrap gap-2 pt-1">
                 {entry.weightKg !== null && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40">
-                    <strong className="font-medium text-[var(--text-secondary)]">Peso:</strong>{" "}
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-default)] shadow-2xs tabular-nums">
+                    <span className="font-medium text-[var(--text-secondary)]">Peso:</span>{" "}
                     {formatMeasurement(entry.weightKg, "kg")}
                   </span>
                 )}
                 {entry.waistCm !== null && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--background)] text-[var(--text-primary)] border border-[var(--border-default)]">
-                    <strong className="font-medium text-[var(--text-secondary)]">Cintura:</strong>{" "}
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-subtle)] tabular-nums">
+                    <span className="font-medium text-[var(--text-secondary)]">Cintura:</span>{" "}
                     {formatMeasurement(entry.waistCm, "cm")}
                   </span>
                 )}
                 {entry.abdomenCm !== null && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--background)] text-[var(--text-primary)] border border-[var(--border-default)]">
-                    <strong className="font-medium text-[var(--text-secondary)]">Abdômen:</strong>{" "}
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-subtle)] tabular-nums">
+                    <span className="font-medium text-[var(--text-secondary)]">Abdômen:</span>{" "}
                     {formatMeasurement(entry.abdomenCm, "cm")}
                   </span>
                 )}
                 {entry.hipCm !== null && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--background)] text-[var(--text-primary)] border border-[var(--border-default)]">
-                    <strong className="font-medium text-[var(--text-secondary)]">Quadril:</strong>{" "}
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-subtle)] tabular-nums">
+                    <span className="font-medium text-[var(--text-secondary)]">Quadril:</span>{" "}
                     {formatMeasurement(entry.hipCm, "cm")}
                   </span>
                 )}
                 {entry.armCm !== null && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--background)] text-[var(--text-primary)] border border-[var(--border-default)]">
-                    <strong className="font-medium text-[var(--text-secondary)]">Braço:</strong>{" "}
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-subtle)] tabular-nums">
+                    <span className="font-medium text-[var(--text-secondary)]">Braço:</span>{" "}
                     {formatMeasurement(entry.armCm, "cm")}
                   </span>
                 )}
                 {entry.thighCm !== null && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--background)] text-[var(--text-primary)] border border-[var(--border-default)]">
-                    <strong className="font-medium text-[var(--text-secondary)]">Coxa:</strong>{" "}
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-subtle)] tabular-nums">
+                    <span className="font-medium text-[var(--text-secondary)]">Coxa:</span>{" "}
                     {formatMeasurement(entry.thighCm, "cm")}
                   </span>
                 )}

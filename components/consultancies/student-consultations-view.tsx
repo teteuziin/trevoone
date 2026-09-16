@@ -119,11 +119,11 @@ export function StudentConsultationsView({
       {/* Destaque: Próxima Consulta */}
       {nextConsultation && (
         <section className="space-y-3" aria-labelledby="next-consultation-heading">
-          <h2 id="next-consultation-heading" className="text-sm font-bold uppercase tracking-wider text-[var(--brand)]">
+          <h2 id="next-consultation-heading" className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] px-1">
             {nextConsultation.status === "IN_PROGRESS" ? "Consulta em Andamento" : "Próxima Consulta"}
           </h2>
 
-          <div className="p-6 sm:p-7 rounded-2xl bg-[var(--surface)] border-2 border-[var(--brand)]/40 shadow-sm space-y-6">
+          <div className="p-6 sm:p-7 rounded-3xl bg-[var(--surface)] border border-[var(--border-strong)] shadow-xs space-y-6 border-specular-t depth-surface">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2.5 flex-wrap">
@@ -132,16 +132,16 @@ export function StudentConsultationsView({
                   </span>
                   <StatusBadge status={nextConsultation.status} />
                 </div>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Profissional: <strong className="text-[var(--text-primary)]">{nextConsultation.counterpartName}</strong> ({nextConsultation.counterpartRole})
+                <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                  Profissional: <strong className="text-[var(--text-primary)] font-semibold">{nextConsultation.counterpartName}</strong> ({nextConsultation.counterpartRole})
                 </p>
               </div>
 
               <div className="text-left sm:text-right shrink-0">
-                <div className="text-sm sm:text-base font-semibold text-[var(--text-primary)]">
+                <div className="text-sm sm:text-base font-semibold text-[var(--text-primary)] tabular-nums">
                   {nextConsultation.scheduledStartFormatted}
                 </div>
-                <div className="text-xs text-[var(--text-secondary)]">
+                <div className="text-xs text-[var(--text-tertiary)] tabular-nums">
                   Término: {nextConsultation.scheduledEndFormatted}
                 </div>
               </div>
@@ -151,44 +151,44 @@ export function StudentConsultationsView({
             <div className="pt-4 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 {joinAccess?.allowed ? (
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <Link
                       href={`/consultoria/${consultancySlug}/consultas/${nextConsultation.publicId}/preflight`}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-[var(--brand)] text-white hover:opacity-90 transition-opacity shadow-sm"
+                      className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] text-[var(--text-inverse)] transition-all shadow-xs min-h-[48px] depth-interactive cursor-pointer"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-2.36a.75.75 0 0 1 1.03.682v6.356a.75.75 0 0 1-1.03.682l-4.72-2.36M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9A2.25 2.25 0 0 0 13.5 5.25h-9A2.25 2.25 0 0 0 2.25 7.5v9A2.25 2.25 0 0 0 4.5 18.75Z" />
                       </svg>
                       Entrar na consulta
                     </Link>
-                    <p className="text-xs text-[var(--text-secondary)]">
+                    <p className="text-xs text-[var(--text-tertiary)]">
                       Verificação de câmera e microfone será iniciada antes da chamada.
                     </p>
                   </div>
                 ) : !joinAccess?.allowed && joinAccess?.reason === "TOO_EARLY" ? (
-                  <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] bg-[var(--surface-sunken)] px-3.5 py-2 rounded-xl border border-[var(--border-default)]">
-                    <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] bg-[var(--surface-subtle)] px-3.5 py-2 rounded-xl border border-[var(--border-default)] shadow-2xs">
+                    <svg className="w-4 h-4 text-[var(--text-primary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     </svg>
                     <span>Entrada liberada 10 minutos antes do horário de início.</span>
                   </div>
                 ) : !joinAccess?.allowed && joinAccess?.reason === "STUDENT_BILLING_BLOCKED" ? (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 px-3.5 py-2 rounded-xl border border-amber-500/20">
-                      <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-medium text-[var(--warning-foreground)] bg-[var(--warning-soft)] px-3.5 py-2 rounded-xl border border-[var(--warning-border)]">
+                      <svg className="w-4 h-4 text-[var(--warning-foreground)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                       </svg>
                       <span>Acesso suspenso por pendência financeira. Regularize para acessar a sala.</span>
                     </div>
                     <Link
                       href={`/consultoria/${consultancySlug}/pagamentos/regularizar`}
-                      className="inline-block text-xs font-bold text-[var(--brand)] hover:underline"
+                      className="inline-block text-xs font-semibold text-[var(--brand)] hover:underline"
                     >
                       Ir para Regularização →
                     </Link>
                   </div>
                 ) : !joinAccess?.allowed && joinAccess?.reason === "JOIN_WINDOW_CLOSED" ? (
-                  <div className="text-xs text-[var(--text-secondary)]">
+                  <div className="text-xs text-[var(--text-tertiary)]">
                     Horário de atendimento encerrado.
                   </div>
                 ) : null}
@@ -199,7 +199,7 @@ export function StudentConsultationsView({
                 <button
                   type="button"
                   onClick={() => setSelectedForCancel(nextConsultation)}
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                  className="px-3.5 py-2 rounded-xl text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)] transition-all min-h-[40px] cursor-pointer depth-interactive"
                 >
                   Cancelar consulta
                 </button>
@@ -212,33 +212,33 @@ export function StudentConsultationsView({
       {/* Consultas Futuras */}
       {upcomingConsultations.length > 0 && (
         <section className="space-y-3" aria-labelledby="upcoming-heading">
-          <h2 id="upcoming-heading" className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+          <h2 id="upcoming-heading" className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] px-1">
             Outros Atendimentos Agendados
           </h2>
           <div className="grid gap-3">
             {upcomingConsultations.map((item) => (
               <div
                 key={item.publicId}
-                className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 depth-surface shadow-xs"
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-[var(--text-primary)]">
+                    <span className="font-semibold text-sm text-[var(--text-primary)]">
                       {item.title || (item.professionalType === "PERSONAL" ? "Consulta com Personal" : "Consulta com Nutricionista")}
                     </span>
                     <StatusBadge status={item.status} />
                   </div>
                   <p className="text-xs text-[var(--text-secondary)]">
-                    Profissional: <strong className="text-[var(--text-primary)]">{item.counterpartName}</strong> ({item.counterpartRole})
+                    Profissional: <strong className="text-[var(--text-primary)] font-medium">{item.counterpartName}</strong> ({item.counterpartRole})
                   </p>
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                   <div className="text-left sm:text-right">
-                    <div className="text-xs font-semibold text-[var(--text-primary)]">
+                    <div className="text-xs font-semibold text-[var(--text-primary)] tabular-nums">
                       {item.scheduledStartFormatted}
                     </div>
-                    <div className="text-[11px] text-[var(--text-secondary)]">
+                    <div className="text-[11px] text-[var(--text-tertiary)] tabular-nums">
                       até {item.scheduledEndFormatted}
                     </div>
                   </div>
@@ -247,7 +247,7 @@ export function StudentConsultationsView({
                     <button
                       type="button"
                       onClick={() => setSelectedForCancel(item)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)] transition-all min-h-[36px] cursor-pointer depth-interactive"
                     >
                       Cancelar
                     </button>

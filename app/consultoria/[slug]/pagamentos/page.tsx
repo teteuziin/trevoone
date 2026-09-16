@@ -69,7 +69,7 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="space-y-6">
+      <div className="w-full max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <PageHeader
           eyebrow="FINANCEIRO"
@@ -78,12 +78,12 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
         />
 
         {/* View Tabs */}
-        <div className="flex items-center gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl max-w-xs">
+        <div className="flex items-center gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl max-w-xs shadow-xs">
           <Link
             href={`/consultoria/${slug}/pagamentos?view=pending`}
             className={`flex-1 text-center py-2 px-3.5 rounded-lg text-xs font-semibold transition-all border ${
               activeView === "pending"
-                ? "bg-[var(--surface)] text-[var(--brand-foreground)] shadow-xs border-[var(--border-default)] font-bold"
+                ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border-[var(--border-strong)] font-bold"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-transparent"
             }`}
           >
@@ -93,7 +93,7 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
             href={`/consultoria/${slug}/pagamentos?view=history`}
             className={`flex-1 text-center py-2 px-3.5 rounded-lg text-xs font-semibold transition-all border ${
               activeView === "history"
-                ? "bg-[var(--surface)] text-[var(--brand-foreground)] shadow-xs border-[var(--border-default)] font-bold"
+                ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border-[var(--border-strong)] font-bold"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-transparent"
             }`}
           >
@@ -124,37 +124,52 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
                 <Link
                   key={charge.publicId}
                   href={`/consultoria/${slug}/pagamentos/${charge.publicId}`}
-                  className="block bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[var(--brand-soft-border)] hover:shadow-sm transition-all group"
+                  className="block bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[var(--border-strong)] hover:shadow-sm transition-all group relative overflow-hidden"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <div className="space-y-2 min-w-0 flex-1">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] group-hover:text-[var(--brand)] transition-colors shrink-0">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </span>
                         <h2 className="font-bold text-sm sm:text-base text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors break-words">
                           {charge.title}
                         </h2>
                         <FinanceStatusBadge status={charge.derivedStatus} size="sm" />
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-tertiary)]">
-                        <span>
-                          Vencimento: <strong className="text-[var(--text-primary)] font-semibold">{formattedDueDate}</strong>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-tertiary)] pl-0 sm:pl-10.5">
+                        <span className="inline-flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>
+                            Vencimento: <strong className="text-[var(--text-primary)] font-semibold">{formattedDueDate}</strong>
+                          </span>
                         </span>
                         {formattedPeriod && (
-                          <span>
-                            Período: <span className="text-[var(--text-secondary)] font-medium">{formattedPeriod}</span>
+                          <span className="inline-flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>
+                              Período: <span className="text-[var(--text-secondary)] font-medium">{formattedPeriod}</span>
+                            </span>
                           </span>
                         )}
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between sm:justify-end gap-4 pt-3 sm:pt-0 border-t border-[var(--border-subtle)] sm:border-t-0 shrink-0">
-                      <span className="text-base sm:text-lg font-extrabold text-[var(--text-primary)] tracking-tight">
+                      <span className="text-base sm:text-lg font-extrabold text-[var(--text-primary)] tabular-nums tracking-tight">
                         {formatCentsToBrl(charge.amountCents)}
                       </span>
 
-                      <span className="inline-flex items-center text-xs font-semibold text-[var(--brand)] group-hover:text-[var(--brand-hover)]">
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--brand)] group-hover:text-[var(--brand-hover)]">
                         <span>Ver detalhes</span>
-                        <svg className="w-4 h-4 ml-0.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                         </svg>
                       </span>

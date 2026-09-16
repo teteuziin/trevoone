@@ -377,6 +377,14 @@ body {
 .border-specular-t {
   position: relative;
 }
+.border-specular-t.fixed,
+.fixed.border-specular-t {
+  position: fixed;
+}
+.border-specular-t.sticky,
+.sticky.border-specular-t {
+  position: sticky;
+}
 .border-specular-t::before {
   content: "";
   position: absolute;

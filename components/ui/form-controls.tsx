@@ -90,7 +90,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           disabled={disabled}
-          className={`w-full h-11 sm:h-10.5 py-2.5 sm:py-2 ${paddingLeft} ${paddingRight} bg-[var(--surface)] border rounded-xl text-base sm:text-sm shadow-2xs transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
+          className={`w-full min-h-[44px] sm:min-h-0 sm:h-10 py-2.5 sm:py-2 ${paddingLeft} ${paddingRight} bg-[var(--surface-sunken)] border rounded-xl text-base sm:text-sm shadow-inner transition-all duration-140 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
           {...props}
         />
         {iconRight && (
@@ -122,7 +122,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         ref={ref}
         rows={rows}
         disabled={disabled}
-        className={`w-full py-3 sm:py-2.5 px-3.5 bg-[var(--surface)] border rounded-xl text-base sm:text-sm shadow-2xs transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed resize-y ${errorClasses} ${className}`.trim()}
+        className={`w-full py-3 sm:py-2.5 px-3.5 bg-[var(--surface-sunken)] border rounded-xl text-base sm:text-sm shadow-inner transition-all duration-140 ease-out placeholder:text-[var(--text-tertiary)] outline-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed resize-y ${errorClasses} ${className}`.trim()}
         {...props}
       />
     );
@@ -148,7 +148,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           disabled={disabled}
-          className={`w-full h-11 sm:h-10.5 py-2.5 sm:py-2 pl-3.5 pr-9 bg-[var(--surface)] border rounded-xl text-base sm:text-sm shadow-2xs transition-all duration-150 ease-out placeholder:text-[var(--text-tertiary)] outline-none appearance-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
+          className={`w-full min-h-[44px] sm:min-h-0 sm:h-10 py-2.5 sm:py-2 pl-3.5 pr-9 bg-[var(--surface-sunken)] border rounded-xl text-base sm:text-sm shadow-inner transition-all duration-140 ease-out placeholder:text-[var(--text-tertiary)] outline-none appearance-none disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed ${errorClasses} ${className}`.trim()}
           {...props}
         >
           {children}

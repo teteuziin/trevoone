@@ -5,30 +5,30 @@
   color-scheme: light;
 
   /* Core Surface & App Backgrounds */
-  --background: #f8faf9;
+  --background: #f7f8fa;
   --surface: #ffffff;
-  --surface-subtle: #f3f6f4;
-  --surface-sunken: #eef3f0;
-  --surface-hover: #ebf0ec;
-  --surface-active: #e1e8e3;
+  --surface-subtle: #f0f2f5;
+  --surface-sunken: #e9ecef;
+  --surface-hover: #ebeff2;
+  --surface-active: #dfe3e8;
   --surface-elevated: #ffffff;
 
   /* Typography & Text Hierarchy */
-  --foreground: #111814;
-  --text-primary: #111814;
-  --text-secondary: #5c6861;
-  --text-tertiary: #87948c;
-  --text-muted: #5c6861;
-  --foreground-muted: #5c6861;
+  --foreground: #18181b;
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-tertiary: #71717a;
+  --text-muted: #71717a;
+  --foreground-muted: #71717a;
   --text-inverse: #ffffff;
 
   /* Restrained Neutral Borders */
-  --border-subtle: #edf2ee;
-  --border-default: #e1e7e2;
-  --border-strong: #cdd5cf;
-  --border-hover: #cdd5cf;
-  --border: #e1e7e2;
-  --muted: #5c6861;
+  --border-subtle: #eceef2;
+  --border-default: #e2e4e9;
+  --border-strong: #cdd0d6;
+  --border-hover: #b8bcc4;
+  --border: #e2e4e9;
+  --muted: #71717a;
 
   /* Trevo One Primary Brand Identity (#00A859) */
   --primary: #00a859;
@@ -39,8 +39,8 @@
   --brand-active: #006e3b;
   --brand-strong: #008f4c;
   --brand-surface: #ecfdf5;
-  --brand-soft: #ecfdf5;
-  --brand-soft-border: #a7f3d0;
+  --brand-soft: rgba(0, 168, 89, 0.08);
+  --brand-soft-border: rgba(0, 168, 89, 0.22);
   --brand-foreground: #065f46;
 
   /* Semantic Status Tokens */
@@ -78,73 +78,74 @@
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.04);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  /* Core Surface & App Backgrounds */
-  --background: #0e1310;
-  --surface: #151c17;
-  --surface-subtle: #1a231d;
-  --surface-sunken: #0a0e0b;
-  --surface-hover: #1f2b23;
-  --surface-active: #26352b;
-  --surface-elevated: #1c241f;
+  /* Core Surface & App Backgrounds (Preto + Grafites) */
+  --background: #000000;
+  --surface: #090a0d;
+  --surface-subtle: #13141a;
+  --surface-sunken: #050608;
+  --surface-hover: #171821;
+  --surface-active: #20222c;
+  --surface-elevated: #1c1d24;
 
   /* Typography & Text Hierarchy */
-  --foreground: #f0f4f1;
-  --text-primary: #f0f4f1;
-  --text-secondary: #9fb0a4;
-  --text-tertiary: #6c7f72;
-  --text-muted: #9fb0a4;
-  --foreground-muted: #9fb0a4;
-  --text-inverse: #111814;
+  --foreground: #ffffff;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --text-muted: #71717a;
+  --foreground-muted: #71717a;
+  --text-inverse: #000000;
 
-  /* Restrained Neutral Borders */
-  --border-subtle: #1b241e;
-  --border-default: #263129;
-  --border-strong: #36453a;
-  --border-hover: #36453a;
-  --border: #263129;
-  --muted: #9fb0a4;
+  /* Restrained Neutral Borders (Branco em baixa opacidade) */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --border: rgba(255, 255, 255, 0.10);
+  --muted: #71717a;
 
-  /* Trevo One Primary Brand Identity (#00A859) */
+  /* Trevo One Primary Brand Identity (#00A859 - Cirúrgico) */
   --primary: #00a859;
-  --primary-hover: #05b863;
+  --primary-hover: #00bf65;
   --primary-active: #00944e;
   --brand: #00a859;
-  --brand-hover: #05b863;
+  --brand-hover: #00bf65;
   --brand-active: #00944e;
-  --brand-strong: #05b863;
-  --brand-surface: #0f281b;
-  --brand-soft: #112b1e;
-  --brand-soft-border: #1d4d35;
+  --brand-strong: #00bf65;
+  --brand-surface: #0a1f14;
+  --brand-soft: rgba(0, 168, 89, 0.14);
+  --brand-soft-border: rgba(0, 168, 89, 0.28);
   --brand-foreground: #34d399;
 
   /* Semantic Status Tokens */
   --success: #10b981;
   --success-hover: #34d399;
-  --success-soft: #0f291e;
-  --success-border: #1a4d37;
+  --success-soft: rgba(16, 185, 129, 0.12);
+  --success-border: rgba(16, 185, 129, 0.28);
   --success-foreground: #34d399;
 
   --warning: #f59e0b;
   --warning-hover: #fbbf24;
-  --warning-soft: #291e0a;
-  --warning-border: #4d3814;
+  --warning-soft: rgba(245, 158, 11, 0.12);
+  --warning-border: rgba(245, 158, 11, 0.28);
   --warning-foreground: #fbbf24;
 
   --danger: #ef4444;
   --danger-hover: #f87171;
-  --danger-soft: #2b1111;
-  --danger-border: #4d1e1e;
+  --danger-soft: rgba(239, 68, 68, 0.12);
+  --danger-border: rgba(239, 68, 68, 0.28);
   --danger-foreground: #f87171;
 
   --info: #3b82f6;
   --info-hover: #60a5fa;
-  --info-soft: #0f1d33;
-  --info-border: #1d3a66;
+  --info-soft: rgba(59, 130, 246, 0.12);
+  --info-border: rgba(59, 130, 246, 0.28);
   --info-foreground: #60a5fa;
 
   /* Focus & Restrained Elevation */
@@ -152,79 +153,80 @@
   --focus-ring-danger: rgba(239, 68, 68, 0.35);
 
   /* Elevation Shadows */
-  --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.35), 0 1px 2px -1px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.45), 0 4px 6px -4px rgba(0, 0, 0, 0.35);
+  --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-xs: 0 1px 3px 0 rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.55), 0 1px 2px -1px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 4px 10px -1px rgba(0, 0, 0, 0.65), 0 2px 5px -2px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.75), 0 4px 8px -4px rgba(0, 0, 0, 0.6);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.6);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    /* Core Surface & App Backgrounds */
-    --background: #0e1310;
-    --surface: #151c17;
-    --surface-subtle: #1a231d;
-    --surface-sunken: #0a0e0b;
-    --surface-hover: #1f2b23;
-    --surface-active: #26352b;
-    --surface-elevated: #1c241f;
+    /* Core Surface & App Backgrounds (Preto + Grafites) */
+    --background: #000000;
+    --surface: #090a0d;
+    --surface-subtle: #13141a;
+    --surface-sunken: #050608;
+    --surface-hover: #171821;
+    --surface-active: #20222c;
+    --surface-elevated: #1c1d24;
 
     /* Typography & Text Hierarchy */
-    --foreground: #f0f4f1;
-    --text-primary: #f0f4f1;
-    --text-secondary: #9fb0a4;
-    --text-tertiary: #6c7f72;
-    --text-muted: #9fb0a4;
-    --foreground-muted: #9fb0a4;
-    --text-inverse: #111814;
+    --foreground: #ffffff;
+    --text-primary: #ffffff;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --text-muted: #71717a;
+    --foreground-muted: #71717a;
+    --text-inverse: #000000;
 
-    /* Restrained Neutral Borders */
-    --border-subtle: #1b241e;
-    --border-default: #263129;
-    --border-strong: #36453a;
-    --border-hover: #36453a;
-    --border: #263129;
-    --muted: #9fb0a4;
+    /* Restrained Neutral Borders (Branco em baixa opacidade) */
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-default: rgba(255, 255, 255, 0.10);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --border-hover: rgba(255, 255, 255, 0.22);
+    --border: rgba(255, 255, 255, 0.10);
+    --muted: #71717a;
 
-    /* Trevo One Primary Brand Identity (#00A859) */
+    /* Trevo One Primary Brand Identity (#00A859 - Cirúrgico) */
     --primary: #00a859;
-    --primary-hover: #05b863;
+    --primary-hover: #00bf65;
     --primary-active: #00944e;
     --brand: #00a859;
-    --brand-hover: #05b863;
+    --brand-hover: #00bf65;
     --brand-active: #00944e;
-    --brand-strong: #05b863;
-    --brand-surface: #0f281b;
-    --brand-soft: #112b1e;
-    --brand-soft-border: #1d4d35;
+    --brand-strong: #00bf65;
+    --brand-surface: #0a1f14;
+    --brand-soft: rgba(0, 168, 89, 0.14);
+    --brand-soft-border: rgba(0, 168, 89, 0.28);
     --brand-foreground: #34d399;
 
     /* Semantic Status Tokens */
     --success: #10b981;
     --success-hover: #34d399;
-    --success-soft: #0f291e;
-    --success-border: #1a4d37;
+    --success-soft: rgba(16, 185, 129, 0.12);
+    --success-border: rgba(16, 185, 129, 0.28);
     --success-foreground: #34d399;
 
     --warning: #f59e0b;
     --warning-hover: #fbbf24;
-    --warning-soft: #291e0a;
-    --warning-border: #4d3814;
+    --warning-soft: rgba(245, 158, 11, 0.12);
+    --warning-border: rgba(245, 158, 11, 0.28);
     --warning-foreground: #fbbf24;
 
     --danger: #ef4444;
     --danger-hover: #f87171;
-    --danger-soft: #2b1111;
-    --danger-border: #4d1e1e;
+    --danger-soft: rgba(239, 68, 68, 0.12);
+    --danger-border: rgba(239, 68, 68, 0.28);
     --danger-foreground: #f87171;
 
     --info: #3b82f6;
     --info-hover: #60a5fa;
-    --info-soft: #0f1d33;
-    --info-border: #1d3a66;
+    --info-soft: rgba(59, 130, 246, 0.12);
+    --info-border: rgba(59, 130, 246, 0.28);
     --info-foreground: #60a5fa;
 
     /* Focus & Restrained Elevation */
@@ -232,11 +234,12 @@
     --focus-ring-danger: rgba(239, 68, 68, 0.35);
 
     /* Elevation Shadows */
-    --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.35), 0 1px 2px -1px rgba(0, 0, 0, 0.35);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.35);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.45), 0 4px 6px -4px rgba(0, 0, 0, 0.35);
+    --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    --shadow-xs: 0 1px 3px 0 rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.55), 0 1px 2px -1px rgba(0, 0, 0, 0.55);
+    --shadow-md: 0 4px 10px -1px rgba(0, 0, 0, 0.65), 0 2px 5px -2px rgba(0, 0, 0, 0.55);
+    --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.75), 0 4px 8px -4px rgba(0, 0, 0, 0.6);
+    --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -300,8 +303,9 @@
   --color-info-border: var(--info-border);
   --color-info-foreground: var(--info-foreground);
 
-  /* Typography */
-  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Typography (Geist + Geist Mono) */
+  --font-sans: var(--font-geist), var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 *,
@@ -344,6 +348,64 @@ body {
   scrollbar-width: none;
 }
 
+/* 3D Depth & Materials Primitives */
+.depth-base {
+  background-color: var(--surface);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-xs);
+}
+
+.depth-elevated {
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+}
+
+.depth-sunken {
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-inner);
+}
+
+.depth-overlay {
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* Subtle Specular Top Light */
+.border-specular-t {
+  position: relative;
+}
+.border-specular-t::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%);
+  pointer-events: none;
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+
+/* Tactile Interactive Lift & Press */
+.depth-interactive {
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 140ms ease-out;
+}
+.depth-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-hover);
+}
+.depth-interactive:active {
+  transform: scale(0.99);
+  box-shadow: var(--shadow-2xs);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -352,6 +414,10 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .depth-interactive:hover,
+  .depth-interactive:active {
+    transform: none !important;
   }
 }
 

@@ -23,13 +23,13 @@ export function PageHeader({
   return (
     <div className={`w-full pb-5 mb-6 border-b border-[var(--border-subtle)] ${className}`.trim()}>
       {backHref && (
-        <div className="mb-3">
+        <div className="mb-2.5">
           <Link
             href={backHref}
-            className="group inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-md"
+            className="group inline-flex items-center gap-1.5 min-h-[36px] px-2 -ml-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded-lg focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:outline-none"
           >
             <svg
-              className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform duration-150"
+              className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform duration-140"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -45,7 +45,7 @@ export function PageHeader({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1 min-w-0 flex-1">
           {eyebrow && (
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--brand)]">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--brand)]">
               {eyebrow}
             </div>
           )}

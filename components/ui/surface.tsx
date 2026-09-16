@@ -1,6 +1,6 @@
 import React, { forwardRef } from "react";
 
-export type SurfaceVariant = "default" | "subtle" | "elevated" | "interactive";
+export type SurfaceVariant = "default" | "subtle" | "elevated" | "interactive" | "sunken" | "overlay";
 export type SurfacePadding = "none" | "sm" | "md" | "lg";
 
 export interface SurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -10,13 +10,17 @@ export interface SurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const variantStyles: Record<SurfaceVariant, string> = {
   default:
-    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs rounded-2xl",
+    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs rounded-2xl relative",
   subtle:
-    "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-2xl",
+    "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-2xl relative",
   elevated:
-    "bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-sm rounded-2xl",
+    "bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-sm rounded-2xl relative",
   interactive:
-    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--border-hover)] hover:shadow-sm transition-all duration-150 ease-out cursor-pointer rounded-2xl",
+    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--border-hover)] hover:shadow-sm hover:-translate-y-px active:scale-[0.99] transition-all duration-150 ease-out cursor-pointer rounded-2xl relative select-none",
+  sunken:
+    "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] shadow-inner rounded-2xl relative",
+  overlay:
+    "bg-[var(--surface-elevated)] border border-[var(--border-strong)] shadow-md rounded-2xl relative",
 };
 
 const paddingStyles: Record<SurfacePadding, string> = {

@@ -17,10 +17,10 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center text-center p-6 sm:p-9 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs ${className}`.trim()}
+      className={`flex flex-col items-center justify-center text-center p-6 sm:p-9 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs relative ${className}`.trim()}
     >
       {icon && (
-        <div className="w-12 h-12 rounded-2xl bg-[var(--surface-sunken)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-tertiary)] mb-3.5 shadow-2xs">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-tertiary)] mb-3.5 shadow-inner">
           {icon}
         </div>
       )}

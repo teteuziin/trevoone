@@ -11,34 +11,34 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = {
   neutral: {
-    container: "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-default)]",
+    container: "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-default)] shadow-2xs",
     dot: "bg-[var(--text-tertiary)]",
   },
   brand: {
-    container: "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]",
+    container: "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs",
     dot: "bg-[var(--brand)]",
   },
   success: {
-    container: "bg-[var(--success-soft)] text-[var(--success-foreground)] border-[var(--success-border)]",
+    container: "bg-[var(--success-soft)] text-[var(--success-foreground)] border-[var(--success-border)] shadow-2xs",
     dot: "bg-[var(--success)]",
   },
   warning: {
-    container: "bg-[var(--warning-soft)] text-[var(--warning-foreground)] border-[var(--warning-border)]",
+    container: "bg-[var(--warning-soft)] text-[var(--warning-foreground)] border-[var(--warning-border)] shadow-2xs",
     dot: "bg-[var(--warning)]",
   },
   danger: {
-    container: "bg-[var(--danger-soft)] text-[var(--danger-foreground)] border-[var(--danger-border)]",
+    container: "bg-[var(--danger-soft)] text-[var(--danger-foreground)] border-[var(--danger-border)] shadow-2xs",
     dot: "bg-[var(--danger)]",
   },
   info: {
-    container: "bg-[var(--info-soft)] text-[var(--info-foreground)] border-[var(--info-border)]",
+    container: "bg-[var(--info-soft)] text-[var(--info-foreground)] border-[var(--info-border)] shadow-2xs",
     dot: "bg-[var(--info)]",
   },
 };
 
 const sizeStyles: Record<BadgeSize, string> = {
-  sm: "px-2.5 py-0.5 text-[11px] font-semibold gap-1 rounded-full",
-  md: "px-3 py-0.5 text-xs font-semibold gap-1.5 rounded-full",
+  sm: "px-2 py-0.5 text-[11px] font-medium gap-1 rounded-full",
+  md: "px-2.5 py-0.5 text-xs font-medium gap-1.5 rounded-full",
 };
 
 export function Badge({

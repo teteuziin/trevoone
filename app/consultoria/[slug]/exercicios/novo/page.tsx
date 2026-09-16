@@ -39,8 +39,9 @@ export default async function NewConsultancyExercisePage({ params }: PageProps) 
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full max-w-4xl mx-auto space-y-6">
+      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         <PageHeader
+          eyebrow="Módulo de Treinamento"
           title="Novo Exercício"
           description="Cadastre um novo exercício personalizado para sua consultoria. Por padrão, ele será criado como privado (Só para mim)."
           backHref={`/consultoria/${slug}/exercicios`}

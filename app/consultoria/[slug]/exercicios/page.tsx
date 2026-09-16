@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
@@ -40,6 +41,14 @@ function getDifficultyBadge(diff: string) {
     default:
       return <Badge variant="neutral" size="sm">{diff}</Badge>;
   }
+}
+
+function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 4v16m8-8H4" />
+    </svg>
+  );
 }
 
 export default async function ConsultancyExercisesPage({
@@ -103,10 +112,8 @@ export default async function ConsultancyExercisesPage({
   // Filter items specifically for the tab semantics if needed
   let displayItems = result.items;
   if (tab === "CONSULTORIA") {
-    // Shared exercises only
     displayItems = displayItems.filter((i) => i.scope === "CONSULTANCY" && i.visibility === "CONSULTANCY");
   } else if (tab === "MEUS") {
-    // Creator only exercises
     displayItems = displayItems.filter((i) => i.scope === "CONSULTANCY" && i.visibility === "CREATOR_ONLY");
   }
 
@@ -119,23 +126,25 @@ export default async function ConsultancyExercisesPage({
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full max-w-5xl mx-auto space-y-6">
+      <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
         <PageHeader
+          eyebrow="Módulo de Treinamento"
           title="Biblioteca de Exercícios"
           description="Consulte o acervo oficial Trevo One e gerencie os exercícios exclusivos da sua consultoria."
           backHref={`/consultoria/${slug}`}
-          backLabel="Início da Consultoria"
+          backLabel="Visão geral"
           actions={
             <Link href={`/consultoria/${slug}/exercicios/novo`}>
-              <Button variant="primary" size="sm" className="font-bold">
-                + Novo Exercício
+              <Button variant="primary" size="md" className="font-bold min-h-[44px] flex items-center gap-1.5 shadow-sm">
+                <PlusIcon className="w-4 h-4" />
+                <span>Novo Exercício</span>
               </Button>
             </Link>
           }
         />
 
         {/* Source Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl w-fit shadow-inner">
           {[
             { id: "TODOS", label: "Todos" },
             { id: "TREVO_ONE", label: "Trevo One" },
@@ -159,10 +168,10 @@ export default async function ConsultancyExercisesPage({
                 }${muscle ? `&muscle=${encodeURIComponent(muscle)}` : ""}${
                   equipment ? `&equipment=${encodeURIComponent(equipment)}` : ""
                 }`}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs select-none transition-all min-h-[36px] flex items-center justify-center depth-interactive ${
                   isActive
-                    ? "bg-[var(--surface)] text-[var(--foreground)] shadow-xs"
-                    : "text-[var(--text-secondary)] hover:text-[var(--foreground)]"
+                    ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
                 }`}
               >
                 {t.label}
@@ -172,12 +181,12 @@ export default async function ConsultancyExercisesPage({
         </div>
 
         {/* Filters Bar */}
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs space-y-4 depth-surface">
           <form method="GET" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <input type="hidden" name="tab" value={tab} />
 
-            <div>
-              <label htmlFor="search-input" className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+            <div className="space-y-1">
+              <label htmlFor="search-input" className="block text-xs font-bold text-[var(--text-primary)]">
                 Buscar por nome
               </label>
               <input
@@ -185,19 +194,19 @@ export default async function ConsultancyExercisesPage({
                 name="q"
                 defaultValue={q || ""}
                 placeholder="Ex: Supino, Agachamento..."
-                className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand)]"
+                className="w-full h-10 px-3.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-xs sm:text-sm placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent transition-all"
               />
             </div>
 
-            <div>
-              <label htmlFor="muscle-select" className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+            <div className="space-y-1">
+              <label htmlFor="muscle-select" className="block text-xs font-bold text-[var(--text-primary)]">
                 Grupo muscular
               </label>
               <select
                 id="muscle-select"
                 name="muscle"
                 defaultValue={muscle || "Todos os Músculos"}
-                className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
+                className="w-full h-10 px-3.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-xs sm:text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent transition-all"
               >
                 <option value="Todos os Músculos">Todos os Músculos</option>
                 {availableMuscles.map((m) => (
@@ -208,15 +217,15 @@ export default async function ConsultancyExercisesPage({
               </select>
             </div>
 
-            <div>
-              <label htmlFor="equipment-select" className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+            <div className="space-y-1">
+              <label htmlFor="equipment-select" className="block text-xs font-bold text-[var(--text-primary)]">
                 Equipamento
               </label>
               <select
                 id="equipment-select"
                 name="equipment"
                 defaultValue={equipment || "Todos os Equipamentos"}
-                className="w-full h-10 px-3 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-sm outline-none focus:border-[var(--brand)]"
+                className="w-full h-10 px-3.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-xs sm:text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent transition-all"
               >
                 <option value="Todos os Equipamentos">Todos os Equipamentos</option>
                 {availableEquipments.map((eq) => (
@@ -229,11 +238,11 @@ export default async function ConsultancyExercisesPage({
 
             <div className="sm:col-span-2 lg:col-span-3 flex justify-end gap-2 pt-1">
               <Link href={`/consultoria/${slug}/exercicios?tab=${tab}`}>
-                <Button type="button" variant="ghost" size="sm" className="text-xs">
+                <Button type="button" variant="ghost" size="sm" className="text-xs font-medium">
                   Limpar filtros
                 </Button>
               </Link>
-              <Button type="submit" variant="secondary" size="sm" className="text-xs font-semibold">
+              <Button type="submit" variant="secondary" size="sm" className="text-xs font-bold shadow-2xs">
                 Aplicar filtros
               </Button>
             </div>
@@ -242,9 +251,9 @@ export default async function ConsultancyExercisesPage({
 
         {/* Exercises List */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] px-1">
+          <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] px-1 font-medium">
             <span>
-              Mostrando {displayItems.length} exercício{displayItems.length === 1 ? "" : "s"}
+              Mostrando {displayItems.length} {displayItems.length === 1 ? "exercício" : "exercícios"}
             </span>
           </div>
 
@@ -260,7 +269,7 @@ export default async function ConsultancyExercisesPage({
               }
               action={
                 <Link href={`/consultoria/${slug}/exercicios/novo`}>
-                  <Button variant="primary" size="sm" className="font-bold">
+                  <Button variant="primary" size="sm" className="font-bold min-h-[44px]">
                     Cadastrar exercício
                   </Button>
                 </Link>
@@ -282,30 +291,30 @@ export default async function ConsultancyExercisesPage({
                 return (
                   <div
                     key={ex.publicId}
-                    className="bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    className="bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 depth-surface"
                   >
                     <div className="space-y-1.5 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Link
                           href={`/consultoria/${slug}/exercicios/${ex.publicId}`}
-                          className="text-base font-bold text-[var(--text-primary)] hover:text-[var(--brand-foreground)] transition-colors truncate"
+                          className="text-sm sm:text-base font-bold text-[var(--text-primary)] hover:text-[var(--brand)] transition-colors truncate"
                         >
                           {ex.name}
                         </Link>
 
-                        {/* Source Badges per Section 40 */}
+                        {/* Source Badges */}
                         {isGlobal && (
-                          <Badge variant="brand" size="sm" className="text-[10px] font-bold">
+                          <Badge variant="brand" size="sm">
                             Trevo One
                           </Badge>
                         )}
                         {isShared && (
-                          <Badge variant="info" size="sm" className="text-[10px] font-bold">
+                          <Badge variant="brand" size="sm">
                             Minha Consultoria
                           </Badge>
                         )}
                         {isPrivate && (
-                          <Badge variant="neutral" size="sm" className="text-[10px]">
+                          <Badge variant="neutral" size="sm">
                             Só para mim
                           </Badge>
                         )}
@@ -313,26 +322,26 @@ export default async function ConsultancyExercisesPage({
                         {getDifficultyBadge(ex.difficultyLevel)}
 
                         {ex.status === "DRAFT" && (
-                          <Badge variant="warning" size="sm" className="text-[10px]">
+                          <Badge variant="warning" size="sm">
                             Rascunho
                           </Badge>
                         )}
                         {ex.status === "ARCHIVED" && (
-                          <Badge variant="neutral" size="sm" className="text-[10px]">
+                          <Badge variant="neutral" size="sm">
                             Arquivado
                           </Badge>
                         )}
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
-                        <span className="font-semibold text-[var(--text-primary)]">
+                      <div className="flex flex-wrap items-center gap-2.5 text-xs text-[var(--text-secondary)] font-medium">
+                        <span className="font-bold text-[var(--text-primary)]">
                           {ex.muscleGroupPrimary}
                         </span>
-                        <span>•</span>
+                        <span className="text-[var(--text-tertiary)]">•</span>
                         <span>{ex.equipment}</span>
                         {ex.movementPattern && (
                           <>
-                            <span>•</span>
+                            <span className="text-[var(--text-tertiary)]">•</span>
                             <span className="text-[var(--text-tertiary)]">
                               {ex.movementPattern}
                             </span>
@@ -341,25 +350,25 @@ export default async function ConsultancyExercisesPage({
                       </div>
 
                       {/* Media indicators */}
-                      <div className="flex items-center gap-3 pt-1 text-[11px]">
-                        <span className="flex items-center gap-1">
+                      <div className="flex items-center gap-3 pt-1 text-[11px] font-medium">
+                        <span className="flex items-center gap-1.5">
                           <span
                             className={`w-2 h-2 rounded-full ${
                               hasImage ? "bg-[var(--brand)]" : "bg-[var(--border-strong)]"
                             }`}
                           />
-                          <span className={hasImage ? "text-[var(--text-primary)] font-medium" : "text-[var(--text-tertiary)]"}>
+                          <span className={hasImage ? "text-[var(--text-primary)]" : "text-[var(--text-tertiary)]"}>
                             {hasImage ? "Foto inicial" : "Sem foto"}
                           </span>
                         </span>
 
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1.5">
                           <span
                             className={`w-2 h-2 rounded-full ${
                               hasVideo ? "bg-[var(--brand)]" : "bg-[var(--border-strong)]"
                             }`}
                           />
-                          <span className={hasVideo ? "text-[var(--text-primary)] font-medium" : "text-[var(--text-tertiary)]"}>
+                          <span className={hasVideo ? "text-[var(--text-primary)]" : "text-[var(--text-tertiary)]"}>
                             {hasVideo ? "Vídeo anexado" : "Sem vídeo"}
                           </span>
                         </span>
@@ -371,9 +380,9 @@ export default async function ConsultancyExercisesPage({
                         <Button
                           variant={canEditThis ? "secondary" : "ghost"}
                           size="sm"
-                          className="text-xs font-semibold"
+                          className="text-xs font-semibold min-h-[36px]"
                         >
-                          {canEditThis ? "Editar e Mídias" : "Visualizar"}
+                          {canEditThis ? "Editar e Mídias →" : "Visualizar →"}
                         </Button>
                       </Link>
                     </div>
@@ -385,7 +394,7 @@ export default async function ConsultancyExercisesPage({
 
           {/* Pagination Controls */}
           {result.totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)] text-xs">
+            <div className="flex items-center justify-between pt-4 border-t border-[var(--border-default)] text-xs font-medium">
               <span className="text-[var(--text-secondary)]">
                 Página {currentPage} de {result.totalPages}
               </span>
@@ -398,7 +407,7 @@ export default async function ConsultancyExercisesPage({
                       equipment ? `&equipment=${encodeURIComponent(equipment)}` : ""
                     }`}
                   >
-                    <Button variant="secondary" size="sm" className="text-xs">
+                    <Button variant="secondary" size="sm" className="text-xs min-h-[36px]">
                       Anterior
                     </Button>
                   </Link>
@@ -411,7 +420,7 @@ export default async function ConsultancyExercisesPage({
                       equipment ? `&equipment=${encodeURIComponent(equipment)}` : ""
                     }`}
                   >
-                    <Button variant="secondary" size="sm" className="text-xs">
+                    <Button variant="secondary" size="sm" className="text-xs min-h-[36px]">
                       Próxima
                     </Button>
                   </Link>

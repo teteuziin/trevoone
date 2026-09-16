@@ -84,8 +84,9 @@ export default async function ConsultancyExerciseDetailPage({ params }: PageProp
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full max-w-4xl mx-auto space-y-6">
+      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         <PageHeader
+          eyebrow="Módulo de Treinamento"
           title={exercise.name}
           description={
             isGlobal

@@ -1,44 +1,46 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ProfessionalAssignmentListItem } from "@/lib/training-v2/assignment-repository";
 import {
   updateWorkoutAssignmentVersionAction,
   terminateWorkoutAssignmentAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
-function RefreshCw({ className = "w-4 h-4" }: { className?: string }) {
+function RefreshIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polyline points="23 4 23 10 17 10" />
       <polyline points="1 20 1 14 7 14" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
     </svg>
   );
 }
 
-function CheckCircle({ className = "w-4 h-4" }: { className?: string }) {
+function CheckCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
       <polyline points="22 4 12 14.01 9 11.01" />
     </svg>
   );
 }
 
-function User({ className = "w-4 h-4" }: { className?: string }) {
+function UserIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </svg>
   );
 }
 
-function StopCircle({ className = "w-4 h-4" }: { className?: string }) {
+function StopCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />
       <rect x="9" y="9" width="6" height="6" />
     </svg>
@@ -152,64 +154,67 @@ export function WorkoutAssignmentsList({
     <div className="space-y-4">
       {/* Feedback Messages */}
       {errorMessage && (
-        <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium">
+        <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold">
           {errorMessage}
         </div>
       )}
 
       {successMessage && (
-        <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium flex items-center gap-2">
-          <CheckCircle className="w-4 h-4 shrink-0" />
+        <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
+          <CheckCircleIcon className="w-4 h-4 shrink-0" />
           <span>{successMessage}</span>
         </div>
       )}
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl w-fit">
+      <div className="flex items-center gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl w-fit shadow-inner">
         <button
           type="button"
           onClick={() => setActiveTab("ACTIVE")}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+          className={`px-3.5 py-1.5 text-xs rounded-xl select-none transition-all min-h-[36px] flex items-center gap-1.5 depth-interactive ${
             activeTab === "ACTIVE"
-              ? "bg-[var(--surface)] text-emerald-600 dark:text-emerald-400 shadow-sm"
-              : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+              ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
           }`}
         >
-          Ativas ({items.filter((i) => i.status === "ACTIVE").length})
+          <span>Ativas</span>
+          <span className="text-[11px] opacity-75 font-mono">({items.filter((i) => i.status === "ACTIVE").length})</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("ENDED")}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+          className={`px-3.5 py-1.5 text-xs rounded-xl select-none transition-all min-h-[36px] flex items-center gap-1.5 depth-interactive ${
             activeTab === "ENDED"
-              ? "bg-[var(--surface)] text-[var(--foreground)] shadow-sm"
-              : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+              ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
           }`}
         >
-          Encerradas ({items.filter((i) => i.status === "ENDED").length})
+          <span>Encerradas</span>
+          <span className="text-[11px] opacity-75 font-mono">({items.filter((i) => i.status === "ENDED").length})</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("ALL")}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+          className={`px-3.5 py-1.5 text-xs rounded-xl select-none transition-all min-h-[36px] flex items-center gap-1.5 depth-interactive ${
             activeTab === "ALL"
-              ? "bg-[var(--surface)] text-[var(--foreground)] shadow-sm"
-              : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+              ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent font-medium"
           }`}
         >
-          Todas ({items.length})
+          <span>Todas</span>
+          <span className="text-[11px] opacity-75 font-mono">({items.length})</span>
         </button>
       </div>
 
       {/* Empty State */}
       {filteredItems.length === 0 ? (
-        <div className="p-8 text-center rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-2">
-          <p className="text-sm font-semibold text-[var(--foreground)]">
+        <div className="p-8 sm:p-10 text-center rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-2">
+          <p className="text-sm font-bold text-[var(--text-primary)]">
             Nenhuma prescrição encontrada
           </p>
-          <p className="text-xs text-[var(--foreground-muted)] max-w-sm mx-auto">
+          <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto leading-relaxed">
             {activeTab === "ACTIVE"
-              ? "Abra um treino publicado e clique em 'Prescrever para Aluno' para associar rotinas aos seus alunos."
+              ? "Abra um treino publicado e use a opção 'Prescrever para Aluno' para associar rotinas aos seus alunos."
               : "Nenhuma prescrição no filtro selecionado."}
           </p>
         </div>
@@ -219,19 +224,19 @@ export function WorkoutAssignmentsList({
           {filteredItems.map((item) => (
             <div
               key={item.assignmentPublicId}
-              className="p-4 sm:p-5 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-hover)] shadow-sm transition-all space-y-3"
+              className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] shadow-xs transition-all space-y-3 depth-surface"
             >
               {/* Header: Student and Status Badge */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                    <User className="w-4 h-4" />
+                  <div className="w-9 h-9 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--brand)] shrink-0 shadow-2xs font-bold text-xs">
+                    <UserIcon className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-[var(--foreground)] truncate">
+                    <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
                       {item.studentName}
                     </h3>
-                    <p className="text-xs text-[var(--foreground-muted)] truncate">
+                    <p className="text-xs text-[var(--text-tertiary)] font-mono truncate">
                       {item.studentEmail}
                     </p>
                   </div>
@@ -239,39 +244,39 @@ export function WorkoutAssignmentsList({
 
                 <div className="flex items-center gap-2 flex-wrap">
                   {item.status === "ACTIVE" ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                    <Badge variant="success" size="sm">
                       Ativa
-                    </span>
+                    </Badge>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--foreground-muted)]">
+                    <Badge variant="neutral" size="sm">
                       Encerrada
-                    </span>
+                    </Badge>
                   )}
 
                   {item.hasNewerPublishedVersion && item.status === "ACTIVE" && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse">
+                    <Badge variant="warning" size="sm" className="animate-pulse">
                       Nova versão disponível (V{item.currentPublishedVersionNumber})
-                    </span>
+                    </Badge>
                   )}
                 </div>
               </div>
 
               {/* Workout details and version comparison */}
               <div className="pt-2 border-t border-[var(--border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <p className="text-xs font-semibold text-[var(--foreground)]">
+                <div className="space-y-1 min-w-0">
+                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">
                     {item.workoutTitle}
                   </p>
-                  <p className="text-xs text-[var(--foreground-muted)]">
-                    Prescrito: <span className="font-semibold text-[var(--foreground)]">Versão {item.assignedVersionNumber}</span>
+                  <p className="text-xs text-[var(--text-secondary)] font-medium">
+                    Prescrito: <strong className="text-[var(--text-primary)]">Versão {item.assignedVersionNumber}</strong>
                     {item.currentPublishedVersionNumber && (
-                      <span> · Publicado atual: <span className="font-semibold text-[var(--foreground)]">Versão {item.currentPublishedVersionNumber}</span></span>
+                      <span> · Publicado atual: <strong className="text-[var(--text-primary)]">Versão {item.currentPublishedVersionNumber}</strong></span>
                     )}
                     <span> · Início: {item.startsOn}</span>
                     {item.endsOn && <span> · Término: {item.endsOn}</span>}
                   </p>
                   {item.notesForStudent && (
-                    <p className="text-xs text-[var(--foreground-muted)] italic pt-0.5">
+                    <p className="text-xs text-[var(--text-tertiary)] italic pt-0.5">
                       &ldquo;{item.notesForStudent}&rdquo;
                     </p>
                   )}
@@ -285,9 +290,9 @@ export function WorkoutAssignmentsList({
                         type="button"
                         onClick={() => setConfirmUpdateItem(item)}
                         disabled={isPending}
-                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-[var(--brand-foreground)] shadow-xs transition-all flex items-center gap-1.5 min-h-[36px] depth-interactive"
                       >
-                        <RefreshCw className="w-3.5 h-3.5" />
+                        <RefreshIcon className="w-3.5 h-3.5" />
                         <span>Atualizar para V{item.currentPublishedVersionNumber}</span>
                       </button>
                     )}
@@ -296,9 +301,9 @@ export function WorkoutAssignmentsList({
                       type="button"
                       onClick={() => setConfirmEndItem(item)}
                       disabled={isPending}
-                      className="px-3 py-1.5 rounded-xl text-xs font-medium text-[var(--foreground-muted)] hover:text-rose-600 hover:bg-rose-500/10 border border-[var(--border-default)] hover:border-rose-500/20 transition-all flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-rose-600 hover:bg-rose-500/10 border border-[var(--border-default)] hover:border-rose-500/20 transition-all flex items-center gap-1.5 min-h-[36px] depth-interactive"
                     >
-                      <StopCircle className="w-3.5 h-3.5" />
+                      <StopCircleIcon className="w-3.5 h-3.5" />
                       <span>Encerrar</span>
                     </button>
                   </div>
@@ -311,45 +316,47 @@ export function WorkoutAssignmentsList({
 
       {/* Confirmation Modal: Update Version */}
       {confirmUpdateItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl p-6 space-y-4 animate-in zoom-in-95 duration-200 depth-surface">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <RefreshCw className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--brand)]">
+                <RefreshIcon className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[var(--foreground)]">
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
                   Atualizar Versão da Prescrição?
                 </h3>
-                <p className="text-xs text-[var(--foreground-muted)]">
+                <p className="text-xs text-[var(--text-secondary)] font-medium">
                   Aluno: {confirmUpdateItem.studentName}
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
-              O aluno atualmente consome a <strong className="text-[var(--foreground)]">Versão {confirmUpdateItem.assignedVersionNumber}</strong> do treino{" "}
-              <strong className="text-[var(--foreground)]">&ldquo;{confirmUpdateItem.workoutTitle}&rdquo;</strong>.
-              Ao confirmar, a prescrição será explicitamente vinculada à nova <strong className="text-[var(--foreground)]">Versão {confirmUpdateItem.currentPublishedVersionNumber}</strong>.
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              O aluno atualmente consome a <strong className="text-[var(--text-primary)]">Versão {confirmUpdateItem.assignedVersionNumber}</strong> do treino{" "}
+              <strong className="text-[var(--text-primary)]">&ldquo;{confirmUpdateItem.workoutTitle}&rdquo;</strong>.
+              Ao confirmar, a prescrição será explicitamente vinculada à nova <strong className="text-[var(--text-primary)]">Versão {confirmUpdateItem.currentPublishedVersionNumber}</strong>.
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setConfirmUpdateItem(null)}
                 disabled={isPending}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-subtle)] transition-colors"
+                className="font-semibold min-h-[40px]"
               >
                 Cancelar
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={handleUpdateVersion}
                 disabled={isPending}
-                className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5"
+                className="font-bold min-h-[40px] flex items-center gap-1.5 shadow-sm"
               >
                 {isPending ? "Atualizando..." : `Confirmar Atualização (V${confirmUpdateItem.currentPublishedVersionNumber})`}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -357,44 +364,46 @@ export function WorkoutAssignmentsList({
 
       {/* Confirmation Modal: Terminate Assignment */}
       {confirmEndItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl p-6 space-y-4 animate-in zoom-in-95 duration-200 depth-surface">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500">
-                <StopCircle className="w-5 h-5" />
+                <StopCircleIcon className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[var(--foreground)]">
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
                   Encerrar Prescrição?
                 </h3>
-                <p className="text-xs text-[var(--foreground-muted)]">
+                <p className="text-xs text-[var(--text-secondary)] font-medium">
                   Aluno: {confirmEndItem.studentName}
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
-              Deseja encerrar o treino <strong className="text-[var(--foreground)]">&ldquo;{confirmEndItem.workoutTitle}&rdquo;</strong> para este aluno?
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Deseja encerrar o treino <strong className="text-[var(--text-primary)]">&ldquo;{confirmEndItem.workoutTitle}&rdquo;</strong> para este aluno?
               O treino não aparecerá mais na lista ativa do aluno, mas o histórico permanece preservado no sistema.
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setConfirmEndItem(null)}
                 disabled={isPending}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-subtle)] transition-colors"
+                className="font-semibold min-h-[40px]"
               >
                 Cancelar
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={handleTerminate}
                 disabled={isPending}
-                className="px-5 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5"
+                className="font-bold min-h-[40px] flex items-center gap-1.5 shadow-sm"
               >
                 {isPending ? "Encerrando..." : "Sim, Encerrar Prescrição"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

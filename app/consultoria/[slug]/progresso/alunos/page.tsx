@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
@@ -47,13 +48,14 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full max-w-5xl mx-auto space-y-6">
+      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* Page Header */}
         <PageHeader
+          eyebrow="Acompanhamento"
           title="Evolução dos Alunos"
-          description="Selecione um aluno para acompanhar o histórico de medições corporais."
+          description="Selecione um aluno para acompanhar o histórico de medições corporais e avaliações físicas."
           backHref={`/consultoria/${slug}`}
-          backLabel="Voltar à visão geral"
+          backLabel="Visão geral"
         />
 
         {/* Students List */}
@@ -63,29 +65,36 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
             description="Quando houver alunos vinculados e ativos na consultoria, eles aparecerão aqui."
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {students.map((student) => (
-              <Link
-                key={student.publicId}
-                href={`/consultoria/${slug}/progresso/alunos/${student.publicId}`}
-                className="group p-5 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] hover:border-[var(--brand)] shadow-xs transition-all flex items-center justify-between gap-3 focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
-              >
-                <div className="space-y-1 min-w-0">
-                  <span className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand-foreground)] transition-colors block truncate">
-                    {student.fullName}
-                  </span>
-                  <span className="text-xs text-[var(--text-tertiary)] block truncate font-mono">
-                    {student.email}
-                  </span>
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+            {students.map((student) => {
+              const initial = student.fullName?.charAt(0).toUpperCase() || "A";
+              return (
+                <Link
+                  key={student.publicId}
+                  href={`/consultoria/${slug}/progresso/alunos/${student.publicId}`}
+                  className="group p-4 sm:p-4.5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] hover:border-[var(--border-strong)] shadow-xs hover:shadow-sm transition-all flex items-center justify-between gap-3.5 focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-surface depth-interactive min-h-[56px]"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-primary)] font-bold text-xs shrink-0 shadow-2xs group-hover:border-[var(--brand)] transition-colors">
+                      {initial}
+                    </div>
+                    <div className="space-y-0.5 min-w-0">
+                      <span className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors block truncate">
+                        {student.fullName}
+                      </span>
+                      <span className="text-xs text-[var(--text-tertiary)] block truncate font-mono">
+                        {student.email}
+                      </span>
+                    </div>
+                  </div>
 
-                <div className="w-8 h-8 rounded-xl bg-[var(--surface-sunken)] group-hover:bg-[var(--brand-surface)] text-[var(--text-tertiary)] group-hover:text-[var(--brand-foreground)] flex items-center justify-center shrink-0 transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </Link>
-            ))}
+                  <div className="shrink-0 text-xs font-semibold text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all flex items-center gap-1">
+                    <span className="hidden sm:inline">Histórico</span>
+                    <span>→</span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

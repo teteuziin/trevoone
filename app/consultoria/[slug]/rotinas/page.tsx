@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
@@ -8,35 +9,37 @@ import { listAssignmentsForProfessional } from "@/lib/training-v2/assignment-rep
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { WorkoutTemplatePickerTrigger } from "@/components/consultancies/training-v2/workout-template-picker";
 import { WorkoutAssignmentsList } from "@/components/consultancies/training-v2/workout-assignments-list";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
-function Plus({ className = "w-4 h-4" }: { className?: string }) {
+function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 4v16m8-8H4" />
     </svg>
   );
 }
 
-function Search({ className = "w-4 h-4" }: { className?: string }) {
+function SearchIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" strokeLinecap="round" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
   );
 }
 
-function Dumbbell({ className = "w-4 h-4" }: { className?: string }) {
+function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
     </svg>
   );
 }
 
-function Calendar({ className = "w-4 h-4" }: { className?: string }) {
+function CalendarIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
       <line x1="16" y1="2" x2="16" y2="6" />
       <line x1="8" y1="2" x2="8" y2="6" />
@@ -45,29 +48,21 @@ function Calendar({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function Clock({ className = "w-4 h-4" }: { className?: string }) {
+function ClockIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }
 
-function Layers({ className = "w-4 h-4" }: { className?: string }) {
+function LayersIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points="2 12 12 17 22 12" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function Sparkles({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.286L13 21l-2.286-6.857L5 12l5.714-2.286L13 3z" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
     </svg>
   );
 }
@@ -114,9 +109,11 @@ export default async function ConsultancyWorkoutsPage({
 
   const isTemplatesTab = tab === "templates";
   const isAssignmentsTab = tab === "assignments";
-  const currentPage = Math.max(1, parseInt(page, 10) || 1);
+
   const validStatus =
     status === "DRAFT" || status === "PUBLISHED" || status === "ARCHIVED" ? status : "ALL";
+
+  const currentPage = Math.max(1, parseInt(page, 10) || 1);
 
   const assignmentsData = isAssignmentsTab
     ? await listAssignmentsForProfessional(ctx, {
@@ -142,10 +139,10 @@ export default async function ConsultancyWorkoutsPage({
     ? "Prescrições de Treino"
     : isTemplatesTab
     ? "Modelos de Treino"
-    : "Rotinas de Treino";
+    : "Treinos e Rotinas";
 
   const pageSubtitle = isAssignmentsTab
-    ? "Acompanhe e gerencie os treinos prescritos para cada aluno, atualizações de versão e encerramentos."
+    ? "Acompanhe os treinos atualmente atribuídos aos alunos vinculados."
     : isTemplatesTab
     ? "Modelos reutilizáveis para padronizar e acelerar a prescrição de novos treinos."
     : "Estruture treinos modulares por blocos, exercícios da biblioteca ou personalizados.";
@@ -159,20 +156,22 @@ export default async function ConsultancyWorkoutsPage({
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="space-y-6 max-w-7xl mx-auto pb-12">
-        {/* Header */}
+      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
+        {/* Header Cockpit */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--primary-subtle)] text-[var(--primary)]">
-                <Sparkles className="w-3.5 h-3.5" />
-                Criador de Treinos
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
+                Módulo de Treinamento
               </span>
+              <Badge variant="brand" size="sm">
+                Personal Trainer
+              </Badge>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)]">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
               {pageTitle}
             </h1>
-            <p className="text-sm text-[var(--foreground-muted)] mt-1">
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium max-w-2xl leading-relaxed">
               {pageSubtitle}
             </p>
           </div>
@@ -182,45 +181,44 @@ export default async function ConsultancyWorkoutsPage({
               <WorkoutTemplatePickerTrigger consultancySlug={slug} />
             )}
             {!isAssignmentsTab && (
-              <Link
-                href={`/consultoria/${slug}/rotinas/novo`}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] shadow-xs transition-colors shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                Novo treino
+              <Link href={`/consultoria/${slug}/rotinas/novo`} className="w-full sm:w-auto">
+                <Button variant="primary" size="md" className="w-full sm:w-auto font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2">
+                  <PlusIcon className="w-4 h-4" />
+                  <span>Novo treino</span>
+                </Button>
               </Link>
             )}
           </div>
         </div>
 
         {/* View Mode Navigation Tabs: Treinos vs Modelos vs Prescrições */}
-        <div className="flex items-center border-b border-[var(--border-default)] gap-6">
+        <div className="flex items-center gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl w-full sm:w-fit shadow-inner">
           <Link
             href={`/consultoria/${slug}/rotinas`}
-            className={`pb-3 text-sm font-semibold transition-colors relative ${
+            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center depth-interactive ${
               !isTemplatesTab && !isAssignmentsTab
-                ? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
-                : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
             }`}
           >
             Treinos
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=templates`}
-            className={`pb-3 text-sm font-semibold transition-colors relative ${
+            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center depth-interactive ${
               isTemplatesTab
-                ? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
-                : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
             }`}
           >
             Modelos
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=assignments`}
-            className={`pb-3 text-sm font-semibold transition-colors relative ${
+            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center depth-interactive ${
               isAssignmentsTab
-                ? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
-                : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
             }`}
           >
             Prescrições
@@ -235,232 +233,226 @@ export default async function ConsultancyWorkoutsPage({
           />
         ) : (
           <>
+            {/* Filter Bar */}
+            <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3 depth-surface">
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Search Input */}
+                <form method="GET" className="relative flex-1">
+                  {isTemplatesTab && <input type="hidden" name="tab" value="templates" />}
+                  <input type="hidden" name="status" value={validStatus} />
+                  <SearchIcon className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    name="q"
+                    defaultValue={q || ""}
+                    placeholder={isTemplatesTab ? "Buscar por título do modelo..." : "Buscar por título do treino..."}
+                    className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[40px]"
+                  />
+                </form>
 
-        {/* Filter bar */}
-        <div className="p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Search Input */}
-            <form method="GET" className="relative flex-1">
-              {isTemplatesTab && <input type="hidden" name="tab" value="templates" />}
-              <input type="hidden" name="status" value={validStatus} />
-              <Search className="w-4 h-4 text-[var(--foreground-muted)] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                name="q"
-                defaultValue={q || ""}
-                placeholder={isTemplatesTab ? "Buscar por título do modelo..." : "Buscar por título do treino..."}
-                className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent text-[var(--foreground)]"
-              />
-            </form>
+                {/* Status Tabs */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                  {[
+                    { id: "ALL", label: "Todos" },
+                    { id: "DRAFT", label: "Rascunhos" },
+                    { id: "PUBLISHED", label: "Publicados" },
+                    { id: "ARCHIVED", label: "Arquivados" },
+                  ].map((statusTab) => {
+                    const isActive = validStatus === statusTab.id;
+                    const url = new URL(`http://localhost/consultoria/${slug}/rotinas`);
+                    if (isTemplatesTab) url.searchParams.set("tab", "templates");
+                    if (q) url.searchParams.set("q", q);
+                    if (statusTab.id !== "ALL") url.searchParams.set("status", statusTab.id);
 
-            {/* Status Tabs */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-              {[
-                { id: "ALL", label: "Todos" },
-                { id: "DRAFT", label: "Rascunhos" },
-                { id: "PUBLISHED", label: "Publicados" },
-                { id: "ARCHIVED", label: "Arquivados" },
-              ].map((statusTab) => {
-                const isActive = validStatus === statusTab.id;
-                const url = new URL(`http://localhost/consultoria/${slug}/rotinas`);
-                if (isTemplatesTab) url.searchParams.set("tab", "templates");
-                if (q) url.searchParams.set("q", q);
-                if (statusTab.id !== "ALL") url.searchParams.set("status", statusTab.id);
+                    return (
+                      <Link
+                        key={statusTab.id}
+                        href={url.pathname + url.search}
+                        className={`px-3 py-1.5 rounded-xl text-xs select-none transition-all min-h-[36px] flex items-center justify-center whitespace-nowrap depth-interactive ${
+                          isActive
+                            ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent font-medium"
+                        }`}
+                      >
+                        {statusTab.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
 
-                return (
-                  <Link
-                    key={statusTab.id}
-                    href={url.pathname + url.search}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
-                      isActive
-                        ? "bg-[var(--primary)] text-white shadow-xs"
-                        : "text-[var(--foreground-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"
-                    }`}
-                  >
-                    {statusTab.label}
+            {/* Workouts Grid */}
+            {items.length === 0 ? (
+              <div className="p-8 sm:p-12 text-center rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
+                  <DumbbellIcon className="w-6 h-6" />
+                </div>
+                <div className="space-y-1 max-w-md mx-auto">
+                  <h3 className="text-base font-bold text-[var(--text-primary)]">
+                    {q || validStatus !== "ALL"
+                      ? isTemplatesTab
+                        ? "Nenhum modelo encontrado para os filtros informados."
+                        : "Nenhum treino encontrado para os filtros informados."
+                      : isTemplatesTab
+                      ? "Você ainda não possui modelos criados."
+                      : "Você ainda não possui rotinas criadas."}
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                    {q || validStatus !== "ALL"
+                      ? "Tente ajustar sua busca ou limpar os filtros de status."
+                      : isTemplatesTab
+                      ? "Crie treinos e use a opção 'Salvar como Modelo' para salvar modelos reutilizáveis."
+                      : "Comece agora criando seu primeiro treino modular baseado em blocos."}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                  {!isTemplatesTab && (
+                    <WorkoutTemplatePickerTrigger consultancySlug={slug} />
+                  )}
+                  <Link href={`/consultoria/${slug}/rotinas/novo`}>
+                    <Button variant="primary" size="sm" className="font-bold min-h-[44px] flex items-center gap-1.5 shadow-sm">
+                      <PlusIcon className="w-4 h-4" />
+                      <span>Criar primeiro treino</span>
+                    </Button>
                   </Link>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Workouts Grid */}
-        {items.length === 0 ? (
-          <div className="p-12 text-center rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--surface-subtle)] flex items-center justify-center mx-auto text-[var(--foreground-muted)] mb-4">
-              <Dumbbell className="w-7 h-7" />
-            </div>
-            <h3 className="text-base font-semibold text-[var(--foreground)]">
-              {q || validStatus !== "ALL"
-                ? isTemplatesTab
-                  ? "Nenhum modelo encontrado para os filtros informados."
-                  : "Nenhum treino encontrado para os filtros informados."
-                : isTemplatesTab
-                ? "Você ainda não possui modelos criados."
-                : "Você ainda não possui rotinas criadas."}
-            </h3>
-            <p className="text-sm text-[var(--foreground-muted)] max-w-md mx-auto mt-1 mb-5">
-              {q || validStatus !== "ALL"
-                ? "Tente ajustar sua busca ou limpar os filtros de status."
-                : isTemplatesTab
-                ? "Crie treinos e use a opção 'Salvar como Modelo' para salvar modelos reutilizáveis."
-                : "Comece agora criando seu primeiro treino modular baseado em blocos."}
-            </p>
-            <div className="flex items-center justify-center gap-3">
-              {!isTemplatesTab && (
-                <WorkoutTemplatePickerTrigger consultancySlug={slug} />
-              )}
-              <Link
-                href={`/consultoria/${slug}/rotinas/novo`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] shadow-xs transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Criar primeiro treino
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {items.map((w) => {
-              return (
-                <div
-                  key={w.publicId}
-                  className="p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--border-subtle)] hover:shadow-sm transition-all flex flex-col justify-between space-y-4"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-base font-semibold text-[var(--foreground)] line-clamp-1">
-                        {w.title}
-                      </h3>
-                      {/* Dual-state badges per Section 21 & 22 */}
-                      <div className="flex flex-wrap items-center gap-1.5 shrink-0 justify-end">
-                        {w.isTemplate ? (
-                          <>
-                            {w.hasActiveDraft && w.publishedVersionNumber != null ? (
-                              <>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                                  Modelo · Rascunho V{w.draftVersionNumber}
-                                </span>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {items.map((w) => {
+                  return (
+                    <div
+                      key={w.publicId}
+                      className="p-5 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--border-strong)] hover:shadow-sm transition-all flex flex-col justify-between space-y-4 depth-surface"
+                    >
+                      <div className="space-y-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="text-base font-bold text-[var(--text-primary)] line-clamp-1">
+                            {w.title}
+                          </h3>
+                          {/* Dual-state badges */}
+                          <div className="flex flex-wrap items-center gap-1.5 shrink-0 justify-end">
+                            {w.isTemplate ? (
+                              w.hasActiveDraft && w.publishedVersionNumber != null ? (
+                                <>
+                                  <Badge variant="warning" size="sm">
+                                    Modelo · Rascunho V{w.draftVersionNumber}
+                                  </Badge>
+                                  <Badge variant="brand" size="sm">
+                                    Modelo · Publicado V{w.publishedVersionNumber}
+                                  </Badge>
+                                </>
+                              ) : w.publishedVersionNumber != null ? (
+                                <Badge variant="brand" size="sm">
                                   Modelo · Publicado V{w.publishedVersionNumber}
-                                </span>
-                              </>
-                            ) : w.publishedVersionNumber != null ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                                Modelo · Publicado V{w.publishedVersionNumber}
-                              </span>
-                            ) : w.hasActiveDraft ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                                Modelo · Rascunho V{w.draftVersionNumber}
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20">
-                                Modelo · Arquivado
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            {w.hasActiveDraft && w.publishedVersionNumber != null ? (
+                                </Badge>
+                              ) : w.hasActiveDraft ? (
+                                <Badge variant="warning" size="sm">
+                                  Modelo · Rascunho V{w.draftVersionNumber}
+                                </Badge>
+                              ) : (
+                                <Badge variant="neutral" size="sm">
+                                  Modelo · Arquivado
+                                </Badge>
+                              )
+                            ) : w.hasActiveDraft && w.publishedVersionNumber != null ? (
                               <>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                <Badge variant="warning" size="sm">
                                   Rascunho V{w.draftVersionNumber}
-                                </span>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                </Badge>
+                                <Badge variant="success" size="sm">
                                   Publicado V{w.publishedVersionNumber}
-                                </span>
+                                </Badge>
                               </>
                             ) : w.hasActiveDraft ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              <Badge variant="warning" size="sm">
                                 Rascunho V{w.draftVersionNumber}
-                              </span>
+                              </Badge>
                             ) : w.publishedVersionNumber != null ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              <Badge variant="success" size="sm">
                                 Publicado V{w.publishedVersionNumber}
-                              </span>
+                              </Badge>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20">
+                              <Badge variant="neutral" size="sm">
                                 Arquivado
-                              </span>
+                              </Badge>
                             )}
-                          </>
+                          </div>
+                        </div>
+
+                        {w.objective && (
+                          <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
+                            {w.objective}
+                          </p>
                         )}
+
+                        <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-[var(--text-tertiary)] font-medium">
+                          {w.estimatedDurationMinutes != null && (
+                            <span className="flex items-center gap-1">
+                              <ClockIcon className="w-3.5 h-3.5" />
+                              ~{w.estimatedDurationMinutes} min
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <LayersIcon className="w-3.5 h-3.5" />
+                            {w.blocksCount} {w.blocksCount === 1 ? "bloco" : "blocos"}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <CalendarIcon className="w-3.5 h-3.5" />
+                            {new Date(w.updatedAt).toLocaleDateString("pt-BR")}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-[var(--border-default)] flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-medium text-[var(--text-secondary)]">
+                          {w.difficultyLevel === "BEGINNER"
+                            ? "Iniciante"
+                            : w.difficultyLevel === "ADVANCED"
+                            ? "Avançado"
+                            : "Intermediário"}
+                        </span>
+                        <Link
+                          href={`/consultoria/${slug}/rotinas/${w.publicId}`}
+                          className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] hover:border-[var(--border-strong)] transition-all min-h-[36px] depth-interactive"
+                        >
+                          Abrir no Criador →
+                        </Link>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            )}
 
-                    {w.objective && (
-                      <p className="text-xs text-[var(--foreground-muted)] line-clamp-2">
-                        {w.objective}
-                      </p>
-                    )}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-4">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+                  const url = new URL(`http://localhost/consultoria/${slug}/rotinas`);
+                  if (isTemplatesTab) url.searchParams.set("tab", "templates");
+                  if (q) url.searchParams.set("q", q);
+                  if (validStatus !== "ALL") url.searchParams.set("status", validStatus);
+                  url.searchParams.set("page", String(p));
 
-                    <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-[var(--foreground-muted)]">
-                      {w.estimatedDurationMinutes != null && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          ~{w.estimatedDurationMinutes} min
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Layers className="w-3.5 h-3.5" />
-                        {w.blocksCount} {w.blocksCount === 1 ? "bloco" : "blocos"}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {new Date(w.updatedAt).toLocaleDateString("pt-BR")}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-[var(--foreground-muted)]">
-                      {w.difficultyLevel === "BEGINNER"
-                        ? "Iniciante"
-                        : w.difficultyLevel === "ADVANCED"
-                        ? "Avançado"
-                        : "Intermediário"}
-                    </span>
+                  return (
                     <Link
-                      href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                      className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-medium bg-[var(--surface-subtle)] hover:bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-default)] transition-colors"
+                      key={p}
+                      href={url.pathname + url.search}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-semibold select-none transition-all depth-interactive ${
+                        currentPage === p
+                          ? "bg-[var(--brand)] text-[var(--brand-foreground)] font-bold shadow-xs"
+                          : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-default)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                      }`}
                     >
-                      Abrir no Criador
+                      {p}
                     </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-4">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-              const url = new URL(`http://localhost/consultoria/${slug}/rotinas`);
-              if (isTemplatesTab) url.searchParams.set("tab", "templates");
-              if (q) url.searchParams.set("q", q);
-              if (validStatus !== "ALL") url.searchParams.set("status", validStatus);
-              url.searchParams.set("page", String(p));
-
-              return (
-                <Link
-                  key={p}
-                  href={url.pathname + url.search}
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-medium transition-colors ${
-                    currentPage === p
-                      ? "bg-[var(--primary)] text-white"
-                      : "bg-[var(--surface)] text-[var(--foreground-muted)] border border-[var(--border-default)] hover:bg-[var(--surface-subtle)]"
-                  }`}
-                >
-                  {p}
-                </Link>
-              );
-            })}
-          </div>
-        )}
-        </>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
     </ConsultancyAppShell>

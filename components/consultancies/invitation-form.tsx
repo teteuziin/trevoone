@@ -31,9 +31,9 @@ export function InvitationForm({ slug }: { slug: string }) {
   };
 
   return (
-    <div className="bg-[var(--surface)] p-5 sm:p-6 rounded-xl border border-[var(--border-default)] shadow-xs space-y-4">
+    <div className="bg-[var(--surface)] p-5 sm:p-6 rounded-2xl border border-[var(--border-default)] shadow-xs space-y-4">
       <div className="space-y-1">
-        <h2 id="invitation-form-heading" className="text-base font-bold text-[var(--text-primary)] tracking-tight">
+        <h2 id="invitation-form-heading" className="text-sm sm:text-base font-bold text-[var(--text-primary)] tracking-tight">
           Convidar membro
         </h2>
         <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
@@ -50,7 +50,7 @@ export function InvitationForm({ slug }: { slug: string }) {
       {state.success && state.invitationPath && (
         <div
           role="status"
-          className="p-4 rounded-xl border border-[var(--brand-soft-border)] bg-[var(--brand-soft)] space-y-3"
+          className="p-4 sm:p-5 rounded-2xl border border-[var(--brand-soft-border)] bg-[var(--brand-soft)] space-y-3"
         >
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-0.5">
@@ -76,14 +76,14 @@ export function InvitationForm({ slug }: { slug: string }) {
                   : state.invitationPath
               }
               aria-label="Link do convite gerado"
-              className="flex-1 h-9 px-3 text-xs bg-[var(--surface)] border border-[var(--brand-soft-border)] rounded-lg text-[var(--text-primary)] font-mono select-all focus-visible:outline-[var(--brand)]"
+              className="flex-1 min-h-[44px] h-11 px-3.5 text-xs bg-[var(--surface)] border border-[var(--brand-soft-border)] rounded-xl text-[var(--text-primary)] font-mono select-all focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
             />
             <Button
               type="button"
               variant="primary"
               size="sm"
               onClick={() => handleCopy(state.invitationPath!)}
-              className="shrink-0 flex items-center justify-center gap-1.5"
+              className="shrink-0 flex items-center justify-center gap-1.5 min-h-[44px]"
             >
               {copied ? (
                 <>
@@ -128,7 +128,7 @@ export function InvitationForm({ slug }: { slug: string }) {
             Funções na consultoria <span className="text-[var(--danger)]">*</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <label className="flex items-center gap-2.5 p-3 rounded-lg border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors">
+            <label className="flex items-center gap-2.5 p-3 min-h-[44px] rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors">
               <input
                 type="checkbox"
                 name="roles"
@@ -141,7 +141,7 @@ export function InvitationForm({ slug }: { slug: string }) {
               </span>
             </label>
 
-            <label className="flex items-center gap-2.5 p-3 rounded-lg border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors">
+            <label className="flex items-center gap-2.5 p-3 min-h-[44px] rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors">
               <input
                 type="checkbox"
                 name="roles"
@@ -153,7 +153,7 @@ export function InvitationForm({ slug }: { slug: string }) {
               </span>
             </label>
 
-            <label className="flex items-center gap-2.5 p-3 rounded-lg border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors">
+            <label className="flex items-center gap-2.5 p-3 min-h-[44px] rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors">
               <input
                 type="checkbox"
                 name="roles"
@@ -165,7 +165,7 @@ export function InvitationForm({ slug }: { slug: string }) {
               </span>
             </label>
 
-            <label className="flex items-center gap-2.5 p-3 rounded-lg border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors">
+            <label className="flex items-center gap-2.5 p-3 min-h-[44px] rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors">
               <input
                 type="checkbox"
                 name="roles"
@@ -177,7 +177,7 @@ export function InvitationForm({ slug }: { slug: string }) {
               </span>
             </label>
 
-            <label className="flex items-center gap-2.5 p-3 rounded-lg border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors sm:col-span-2">
+            <label className="flex items-center gap-2.5 p-3 min-h-[44px] rounded-xl border border-[var(--border-default)] hover:bg-[var(--surface-hover)] cursor-pointer select-none transition-colors sm:col-span-2">
               <input
                 type="checkbox"
                 name="roles"
@@ -198,7 +198,7 @@ export function InvitationForm({ slug }: { slug: string }) {
             variant="primary"
             isLoading={isPending}
             disabled={isPending}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto min-h-[44px]"
           >
             {isPending ? "Criando convite..." : "Criar convite"}
           </Button>

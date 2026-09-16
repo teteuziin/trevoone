@@ -84,7 +84,7 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6 pb-12">
         {/* Header Principal */}
         <PageHeader
           backHref={`/consultoria/${slug}/financeiro/comprovantes`}
@@ -106,7 +106,7 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
                   href={fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center text-[var(--brand)] hover:underline font-semibold shrink-0"
+                  className="inline-flex items-center text-[var(--brand)] hover:underline font-semibold shrink-0 min-h-[44px]"
                 >
                   <span>Abrir em nova aba</span>
                   <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -133,7 +133,7 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
                   <div className="p-8 text-center space-y-3">
                     <p className="text-xs text-[var(--text-tertiary)]">Visualização direta indisponível para este tipo de arquivo.</p>
                     <a href={fileUrl} download={receipt.originalFileName}>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" className="min-h-[44px]">
                         Baixar Arquivo ({formatBytes(receipt.sizeBytes)})
                       </Button>
                     </a>

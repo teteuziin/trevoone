@@ -142,7 +142,7 @@ export function AdminMissionActions({
 
       {/* Modal / Inline form for Requesting Revision */}
       {showReviewModal && (
-        <Surface variant="elevated" padding="lg" className="border-amber-300 space-y-4">
+        <Surface variant="elevated" padding="lg" className="border-[var(--warning-border)] space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-[var(--text-primary)]">
               Solicitar Revisão da Entrega
@@ -152,6 +152,7 @@ export function AdminMissionActions({
               variant="ghost"
               size="sm"
               onClick={() => setShowReviewModal(false)}
+              className="min-h-[44px]"
             >
               Fechar ✕
             </Button>
@@ -237,7 +238,7 @@ export function AdminMissionActions({
                   size="sm"
                   isLoading={isUploadingAtt}
                   disabled={isUploadingAtt}
-                  className="shrink-0 w-full sm:w-auto"
+                  className="shrink-0 w-full sm:w-auto min-h-[44px]"
                 >
                   {isUploadingAtt ? "Anexando..." : "Anexar arquivo"}
                 </Button>
@@ -259,7 +260,7 @@ export function AdminMissionActions({
               variant="ghost"
               size="sm"
               onClick={() => setShowCancelConfirm(true)}
-              className="text-[var(--danger)] hover:text-[var(--danger-hover)] hover:bg-[var(--danger-soft)] text-xs font-semibold"
+              className="text-[var(--danger)] hover:text-[var(--danger-hover)] hover:bg-[var(--danger-soft)] text-xs font-semibold min-h-[44px]"
             >
               Cancelar esta missão
             </Button>
@@ -276,6 +277,7 @@ export function AdminMissionActions({
                   onClick={handleCancelMission}
                   isLoading={isCanceling}
                   disabled={isCanceling}
+                  className="min-h-[44px]"
                 >
                   {isCanceling ? "Cancelando..." : "Confirmar cancelamento"}
                 </Button>
@@ -284,6 +286,7 @@ export function AdminMissionActions({
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowCancelConfirm(false)}
+                  className="min-h-[44px]"
                 >
                   Voltar
                 </Button>

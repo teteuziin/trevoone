@@ -53,7 +53,7 @@ export default async function AdminMissionsPage({
       consultancyLogoUrl={consultancyContext.consultancyLogoUrl}
       roles={consultancyContext.roles}
     >
-      <div className="space-y-6 max-w-5xl mx-auto pb-10">
+      <div className="space-y-6 max-w-5xl mx-auto pb-12">
         <PageHeader
           eyebrow="ADMINISTRAÇÃO DA CONSULTORIA"
           title="Gestão de Missões"
@@ -88,7 +88,7 @@ export default async function AdminMissionsPage({
             description="Crie a primeira missão para orientar a produção de conteúdo e entregas dos seus influenciadores e parceiros VIP."
             action={
               <Link href={`/consultoria/${slug}/missoes/gestao/nova`}>
-                <Button variant="primary" size="sm">
+                <Button variant="primary" size="md" className="min-h-[44px]">
                   Criar missão
                 </Button>
               </Link>
@@ -156,14 +156,14 @@ export default async function AdminMissionsPage({
             <div className="flex gap-2">
               {page > 1 && (
                 <Link href={`/consultoria/${slug}/missoes/gestao?page=${page - 1}`}>
-                  <Button variant="secondary" size="sm">
+                  <Button variant="secondary" size="sm" className="min-h-[44px]">
                     Anterior
                   </Button>
                 </Link>
               )}
               {page < totalPages && (
                 <Link href={`/consultoria/${slug}/missoes/gestao?page=${page + 1}`}>
-                  <Button variant="secondary" size="sm">
+                  <Button variant="secondary" size="sm" className="min-h-[44px]">
                     Próxima
                   </Button>
                 </Link>

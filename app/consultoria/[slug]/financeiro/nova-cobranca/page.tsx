@@ -41,7 +41,7 @@ export default async function NewChargePage({ params }: PageProps) {
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6 pb-12">
         <PageHeader
           backHref={`/consultoria/${slug}/financeiro`}
           backLabel="Voltar ao Financeiro"

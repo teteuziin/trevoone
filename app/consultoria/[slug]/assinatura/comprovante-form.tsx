@@ -56,7 +56,7 @@ export function ComprovanteForm({ slug, chargePublicId }: ComprovanteFormProps) 
       )}
 
       <div className="space-y-1.5">
-        <label className="block text-xs font-semibold text-zinc-900">
+        <label className="block text-xs font-semibold text-[var(--text-primary)]">
           Anexar Comprovante Pix (JPG, PNG, WEBP ou PDF — máx 5 MB)
         </label>
         <input
@@ -64,7 +64,7 @@ export function ComprovanteForm({ slug, chargePublicId }: ComprovanteFormProps) 
           accept="image/jpeg,image/png,image/webp,application/pdf"
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           disabled={isPending}
-          className="block w-full text-xs text-zinc-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-800 hover:file:bg-zinc-200 cursor-pointer disabled:cursor-not-allowed"
+          className="block w-full text-xs text-[var(--text-secondary)] file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[var(--surface-subtle)] file:text-[var(--text-primary)] hover:file:bg-[var(--surface-hover)] cursor-pointer disabled:cursor-not-allowed min-h-[44px]"
         />
       </div>
 
@@ -72,8 +72,9 @@ export function ComprovanteForm({ slug, chargePublicId }: ComprovanteFormProps) 
         <Button
           type="submit"
           variant="primary"
-          size="sm"
+          size="md"
           disabled={isPending || !file}
+          className="w-full sm:w-auto min-h-[44px]"
         >
           {isPending ? "Enviando comprovante..." : "Enviar Comprovante Pix"}
         </Button>

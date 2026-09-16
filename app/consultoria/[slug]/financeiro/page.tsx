@@ -84,7 +84,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="space-y-6">
+      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* Header Principal */}
         <PageHeader
           eyebrow="ADMINISTRAÇÃO DA CONSULTORIA"
@@ -93,7 +93,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
           actions={
             <div className="flex items-center gap-2 flex-wrap">
               <Link href={`/consultoria/${slug}/financeiro?aba=${activeTab === "configuracoes" ? "cobrancas" : "configuracoes"}`}>
-                <Button variant={activeTab === "configuracoes" ? "primary" : "outline"} size="sm">
+                <Button variant={activeTab === "configuracoes" ? "primary" : "outline"} size="sm" className="min-h-[44px] flex items-center">
                   <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -103,7 +103,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
               </Link>
 
               <Link href={`/consultoria/${slug}/financeiro/nova-cobranca`}>
-                <Button variant="primary" size="sm">
+                <Button variant="primary" size="sm" className="min-h-[44px] flex items-center">
                   <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
@@ -116,15 +116,15 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
 
         {/* Warning Banner se não tiver Pix cadastrado */}
         {!settings && activeTab !== "configuracoes" && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="p-4 rounded-2xl bg-[var(--warning-soft)] border border-[var(--warning-border)] text-[var(--warning-foreground)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div>
               <p className="font-bold">Chave Pix da consultoria não cadastrada</p>
-              <p className="text-amber-800">
+              <p className="opacity-90">
                 Cadastre a chave Pix para que seus alunos possam realizar transferências e enviar comprovantes.
               </p>
             </div>
             <Link href={`/consultoria/${slug}/financeiro?aba=configuracoes`}>
-              <Button variant="outline" size="sm" className="shrink-0 bg-white">
+              <Button variant="outline" size="sm" className="shrink-0 bg-[var(--surface)] min-h-[44px]">
                 Cadastrar Chave Pix
               </Button>
             </Link>
@@ -152,7 +152,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
               </div>
             </div>
             <Link href={`/consultoria/${slug}/financeiro/comprovantes`}>
-              <Button variant="primary" size="sm" className="shrink-0 font-bold min-h-[40px]">
+              <Button variant="primary" size="sm" className="shrink-0 font-bold min-h-[44px]">
                 Ver Fila de Comprovantes →
               </Button>
             </Link>
@@ -202,7 +202,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                 </p>
               </div>
               <Link href={`/consultoria/${slug}/financeiro?aba=cobrancas`}>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="min-h-[44px]">
                   Voltar às Cobranças
                 </Button>
               </Link>
@@ -225,7 +225,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     <Link
                       key={tab.key}
                       href={href}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors border ${
+                      className={`px-3 py-2 min-h-[44px] inline-flex items-center rounded-xl text-xs font-semibold whitespace-nowrap transition-colors border ${
                         isActive
                           ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-2xs font-bold"
                           : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] border-transparent"
@@ -252,7 +252,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     className="w-full h-10.5 pl-9 pr-3 text-xs bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
                   />
                 </div>
-                <Button type="submit" variant="outline" size="sm">
+                <Button type="submit" variant="outline" size="sm" className="min-h-[44px]">
                   Buscar
                 </Button>
               </form>
@@ -275,7 +275,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     <Link
                       key={charge.publicId}
                       href={`/consultoria/${slug}/financeiro/cobrancas/${charge.publicId}`}
-                      className="block bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[var(--brand-soft-border)] hover:shadow-sm transition-all group"
+                      className="block bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[var(--brand)] hover:shadow-sm transition-all group"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="space-y-1 min-w-0 flex-1">
@@ -327,7 +327,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                         <Link
                           href={`/consultoria/${slug}/financeiro?page=${chargesResult.page - 1}${status ? `&status=${status}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
                         >
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="min-h-[44px]">
                             Anterior
                           </Button>
                         </Link>
@@ -337,7 +337,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                         <Link
                           href={`/consultoria/${slug}/financeiro?page=${chargesResult.page + 1}${status ? `&status=${status}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
                         >
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="min-h-[44px]">
                             Próxima
                           </Button>
                         </Link>

@@ -84,7 +84,7 @@ export default async function AdminPaymentReceiptsQueuePage({
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="space-y-6">
+      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* Header Principal */}
         <PageHeader
           backHref={`/consultoria/${slug}/financeiro`}
@@ -131,7 +131,7 @@ export default async function AdminPaymentReceiptsQueuePage({
 
                   <div className="pt-2 sm:pt-0 border-t border-[var(--border-subtle)] sm:border-t-0 shrink-0">
                     <Link href={`/consultoria/${slug}/financeiro/comprovantes/${receipt.receiptPublicId}`}>
-                      <Button variant="primary" size="sm">
+                      <Button variant="primary" size="sm" className="min-h-[44px]">
                         Analisar Comprovante →
                       </Button>
                     </Link>
@@ -142,8 +142,8 @@ export default async function AdminPaymentReceiptsQueuePage({
 
             {/* Pagination */}
             {result.totalPages > 1 && (
-              <div className="flex items-center justify-between p-4 bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl shadow-xs text-xs">
-                <p className="text-[var(--text-secondary)]">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl shadow-xs text-xs">
+                <p className="text-[var(--text-secondary)] text-center sm:text-left">
                   Página <span className="font-bold text-[var(--text-primary)]">{result.page}</span> de{" "}
                   <span className="font-bold text-[var(--text-primary)]">{result.totalPages}</span> ({result.total} comprovantes)
                 </p>
@@ -151,7 +151,7 @@ export default async function AdminPaymentReceiptsQueuePage({
                 <div className="flex items-center gap-2">
                   {result.page > 1 && (
                     <Link href={`/consultoria/${slug}/financeiro/comprovantes?pagina=${result.page - 1}`}>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" className="min-h-[44px]">
                         Anterior
                       </Button>
                     </Link>
@@ -159,7 +159,7 @@ export default async function AdminPaymentReceiptsQueuePage({
 
                   {result.page < result.totalPages && (
                     <Link href={`/consultoria/${slug}/financeiro/comprovantes?pagina=${result.page + 1}`}>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" className="min-h-[44px]">
                         Próxima
                       </Button>
                     </Link>

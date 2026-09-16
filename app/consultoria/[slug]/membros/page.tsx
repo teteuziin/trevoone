@@ -81,7 +81,7 @@ export default async function ConsultancyMembersPage({
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="space-y-8">
+      <div className="w-full max-w-5xl mx-auto space-y-8 pb-12">
         {/* Page Header */}
         <PageHeader
           title="Membros e Convites"
@@ -99,29 +99,29 @@ export default async function ConsultancyMembersPage({
         {invitations.length > 0 && (
           <section aria-labelledby="invitations-list-heading" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 id="invitations-list-heading" className="text-base font-bold text-[var(--text-primary)] tracking-tight">
+              <h2 id="invitations-list-heading" className="text-sm sm:text-base font-bold text-[var(--text-primary)] tracking-tight">
                 Convites recentes ({invitations.length})
               </h2>
             </div>
 
             {/* Desktop Table */}
-            <div className="hidden md:block bg-[var(--surface)] rounded-xl border border-[var(--border-default)] shadow-xs overflow-hidden">
+            <div className="hidden md:block bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-hidden">
               <table className="w-full text-left text-sm">
                 <thead className="bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                   <tr>
-                    <th scope="col" className="px-5 py-3.5">
+                    <th scope="col" className="px-5 py-3.5 font-semibold">
                       Convidado
                     </th>
-                    <th scope="col" className="px-5 py-3.5">
+                    <th scope="col" className="px-5 py-3.5 font-semibold">
                       Funções
                     </th>
-                    <th scope="col" className="px-5 py-3.5">
+                    <th scope="col" className="px-5 py-3.5 font-semibold">
                       Expiração
                     </th>
-                    <th scope="col" className="px-5 py-3.5">
+                    <th scope="col" className="px-5 py-3.5 font-semibold">
                       Status
                     </th>
-                    <th scope="col" className="px-5 py-3.5 text-right">
+                    <th scope="col" className="px-5 py-3.5 text-right font-semibold">
                       Ações
                     </th>
                   </tr>
@@ -190,7 +190,7 @@ export default async function ConsultancyMembersPage({
               {invitations.map((inv) => (
                 <div
                   key={inv.publicId}
-                  className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--border-default)] shadow-xs space-y-3"
+                  className="bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border-default)] shadow-xs space-y-3"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 space-y-0.5">
@@ -225,7 +225,7 @@ export default async function ConsultancyMembersPage({
                     ))}
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+                  <div className="flex items-center justify-between pt-2.5 border-t border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
                     <span>Expira em: {formatDate(inv.expiresAt)}</span>
                     {inv.status === "PENDING" && (
                       <InvitationRevokeButton
@@ -252,7 +252,7 @@ export default async function ConsultancyMembersPage({
           </div>
 
           {/* Search Bar */}
-          <div className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--border-default)] shadow-xs">
+          <div className="bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border-default)] shadow-xs">
             <form method="get" className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
               <div className="relative flex-1">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)]">
@@ -267,14 +267,14 @@ export default async function ConsultancyMembersPage({
                   aria-label="Buscar membros por nome ou e-mail"
                   defaultValue={query}
                   placeholder="Buscar por nome ou e-mail..."
-                  className="w-full h-10 pl-10 pr-4 text-sm bg-[var(--surface)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:outline-[var(--brand)] transition-colors"
+                  className="w-full h-10.5 pl-10 pr-4 text-xs sm:text-sm bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] transition-colors"
                 />
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="submit"
-                  className="w-full sm:w-auto h-10 px-5 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-xs transition-colors focus-visible:outline-[var(--brand)] flex items-center justify-center"
+                  className="w-full sm:w-auto h-10.5 px-5 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors focus-visible:outline-[var(--brand)] flex items-center justify-center min-h-[44px]"
                 >
                   Buscar
                 </button>
@@ -282,7 +282,7 @@ export default async function ConsultancyMembersPage({
                 {query.length > 0 && (
                   <Link
                     href={`/consultoria/${slug}/membros`}
-                    className="w-full sm:w-auto h-10 px-4 bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] text-xs sm:text-sm font-medium rounded-lg border border-[var(--border-default)] transition-colors flex items-center justify-center"
+                    className="w-full sm:w-auto h-10.5 px-4 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] text-xs sm:text-sm font-medium rounded-xl border border-[var(--border-default)] transition-colors flex items-center justify-center min-h-[44px]"
                   >
                     Limpar
                   </Link>
@@ -308,20 +308,20 @@ export default async function ConsultancyMembersPage({
           ) : (
             <div className="space-y-4">
               {/* Desktop Table */}
-              <div className="hidden md:block bg-[var(--surface)] rounded-xl border border-[var(--border-default)] shadow-xs overflow-hidden">
+              <div className="hidden md:block bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-hidden">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                     <tr>
-                      <th scope="col" className="px-5 py-3.5">
+                      <th scope="col" className="px-5 py-3.5 font-semibold">
                         Membro
                       </th>
-                      <th scope="col" className="px-5 py-3.5">
+                      <th scope="col" className="px-5 py-3.5 font-semibold">
                         Funções
                       </th>
-                      <th scope="col" className="px-5 py-3.5">
+                      <th scope="col" className="px-5 py-3.5 font-semibold">
                         Status
                       </th>
-                      <th scope="col" className="px-5 py-3.5 text-right">
+                      <th scope="col" className="px-5 py-3.5 text-right font-semibold">
                         Ações
                       </th>
                     </tr>
@@ -377,7 +377,7 @@ export default async function ConsultancyMembersPage({
                           {member.roles.includes("STUDENT") && member.status === "ACTIVE" && (
                             <Link
                               href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
-                              className="inline-flex items-center justify-center px-3 py-1.5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] text-xs font-semibold rounded-lg shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
+                              className="inline-flex items-center justify-center px-3.5 py-1.5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] text-xs font-semibold rounded-xl shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
                             >
                               Ver onboarding
                             </Link>
@@ -394,7 +394,7 @@ export default async function ConsultancyMembersPage({
                 {members.map((member) => (
                   <div
                     key={member.membershipPublicId}
-                    className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--border-default)] shadow-xs space-y-3"
+                    className="bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border-default)] shadow-xs space-y-3"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 space-y-0.5">
@@ -421,7 +421,7 @@ export default async function ConsultancyMembersPage({
                       </Badge>
                     </div>
 
-                    <div className="pt-1 border-t border-[var(--border-subtle)] flex flex-wrap gap-1.5">
+                    <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-wrap gap-1.5">
                       {member.roles.length > 0 ? (
                         member.roles.map((role) => (
                           <Badge key={role} variant="brand" size="sm">
@@ -439,7 +439,7 @@ export default async function ConsultancyMembersPage({
                       <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end">
                         <Link
                           href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
-                          className="inline-flex items-center text-xs font-semibold text-[var(--brand-foreground)] hover:underline"
+                          className="inline-flex items-center text-xs font-semibold text-[var(--brand-foreground)] hover:underline min-h-[44px]"
                         >
                           Ver onboarding →
                         </Link>
@@ -453,7 +453,7 @@ export default async function ConsultancyMembersPage({
               {totalPages > 1 && (
                 <nav
                   aria-label="Paginação do diretório de membros"
-                  className="bg-[var(--surface)] px-4 py-3 rounded-xl border border-[var(--border-default)] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-sm"
+                  className="bg-[var(--surface)] px-4 py-3 rounded-2xl border border-[var(--border-default)] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-sm"
                 >
                   <p className="text-xs sm:text-sm text-[var(--text-secondary)] text-center sm:text-left">
                     Mostrando página <span className="font-semibold text-[var(--text-primary)]">{currentPage}</span> de{" "}
@@ -466,12 +466,12 @@ export default async function ConsultancyMembersPage({
                         href={`/consultoria/${slug}/membros?page=${currentPage - 1}${
                           query ? `&q=${encodeURIComponent(query)}` : ""
                         }`}
-                        className="px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] text-xs font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+                        className="px-3.5 py-2 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] text-xs font-semibold rounded-xl border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)] min-h-[44px] flex items-center justify-center"
                       >
                         Anterior
                       </Link>
                     ) : (
-                      <span className="px-3 py-1.5 bg-[var(--surface-subtle)] text-[var(--text-tertiary)] text-xs font-medium rounded-lg border border-[var(--border-subtle)] cursor-not-allowed select-none">
+                      <span className="px-3.5 py-2 bg-[var(--surface-subtle)] text-[var(--text-tertiary)] text-xs font-medium rounded-xl border border-[var(--border-subtle)] cursor-not-allowed select-none min-h-[44px] flex items-center justify-center">
                         Anterior
                       </span>
                     )}
@@ -481,12 +481,12 @@ export default async function ConsultancyMembersPage({
                         href={`/consultoria/${slug}/membros?page=${currentPage + 1}${
                           query ? `&q=${encodeURIComponent(query)}` : ""
                         }`}
-                        className="px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] text-[var(--text-primary)] text-xs font-semibold rounded-lg border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)]"
+                        className="px-3.5 py-2 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] text-xs font-semibold rounded-xl border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)] min-h-[44px] flex items-center justify-center"
                       >
                         Próxima
                       </Link>
                     ) : (
-                      <span className="px-3 py-1.5 bg-[var(--surface-subtle)] text-[var(--text-tertiary)] text-xs font-medium rounded-lg border border-[var(--border-subtle)] cursor-not-allowed select-none">
+                      <span className="px-3.5 py-2 bg-[var(--surface-subtle)] text-[var(--text-tertiary)] text-xs font-medium rounded-xl border border-[var(--border-subtle)] cursor-not-allowed select-none min-h-[44px] flex items-center justify-center">
                         Próxima
                       </span>
                     )}

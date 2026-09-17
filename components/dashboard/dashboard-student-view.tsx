@@ -260,9 +260,6 @@ export function DashboardStudentView({
             fill
             priority
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1120px"
-            onError={(e) => {
-              (e.currentTarget as HTMLElement).style.display = "none";
-            }}
             className="object-cover object-[center_30%] opacity-90 transition-transform duration-700 hover:scale-[1.02]"
           />
           {/* Multi-directional Dark Scrim Overlay for pristine readability in Light & Dark */}
@@ -584,9 +581,6 @@ export function DashboardStudentView({
                   unoptimized
                   fill
                   sizes="(max-width: 768px) 80vw, 340px"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = "none";
-                  }}
                   className="object-cover opacity-80"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/70 to-neutral-950/30" />

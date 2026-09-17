@@ -170,9 +170,6 @@ export function DashboardPersonalView({
             unoptimized
             fill
             priority
-            onError={(e) => {
-              (e.currentTarget as HTMLElement).style.display = "none";
-            }}
             className="object-cover object-center opacity-15 dark:opacity-25 filter grayscale contrast-125"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--surface)] via-[var(--surface)]/95 to-[var(--surface)]/60" />

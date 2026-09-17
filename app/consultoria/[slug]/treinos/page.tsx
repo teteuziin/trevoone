@@ -153,9 +153,6 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                 unoptimized
                 fill
                 priority
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = "none";
-                }}
                 className="object-cover object-center brightness-[0.42] scale-105 transition-transform duration-700 hover:scale-100"
               />
               {/* Cinematic Gradient Overlays */}

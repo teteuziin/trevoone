@@ -269,19 +269,17 @@ export function DashboardNutritionistView({
               <Link
                 key={action.href}
                 href={action.href}
-                className={`w-[74vw] max-w-[280px] shrink-0 sm:w-auto sm:max-w-none snap-center p-4 rounded-2xl border transition-all duration-150 flex flex-col justify-between gap-3 group depth-interactive ${
-                  action.accent
+                className={`w-[74vw] max-w-[280px] shrink-0 sm:w-auto sm:max-w-none snap-center p-4 rounded-2xl border transition-all duration-150 flex flex-col justify-between gap-3 group depth-interactive ${action.accent
                     ? "bg-[var(--surface-subtle)] border-emerald-500/30 hover:border-emerald-500 shadow-2xs"
                     : "bg-[var(--surface)] border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] shadow-xs"
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${
-                      action.accent
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${action.accent
                         ? "bg-emerald-600 text-white"
                         : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-emerald-600 dark:text-emerald-400"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                   </div>
@@ -417,8 +415,8 @@ export function DashboardNutritionistView({
                         plan.status === "ACTIVE" || plan.status === "PUBLISHED"
                           ? "success"
                           : plan.status === "DRAFT"
-                          ? "warning"
-                          : "neutral"
+                            ? "warning"
+                            : "neutral"
                       }
                       size="sm"
                     >
@@ -426,10 +424,10 @@ export function DashboardNutritionistView({
                       {plan.status === "ACTIVE"
                         ? "Ativo"
                         : plan.status === "PUBLISHED"
-                        ? "Publicado"
-                        : plan.status === "DRAFT"
-                        ? "Rascunho"
-                        : "Arquivado"}
+                          ? "Publicado"
+                          : plan.status === "DRAFT"
+                            ? "Rascunho"
+                            : "Arquivado"}
                     </Badge>
 
                     {plan.mealsCount != null && (

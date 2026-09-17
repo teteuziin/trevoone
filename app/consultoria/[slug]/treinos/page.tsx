@@ -211,8 +211,8 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                             Nível {primaryAssignment.difficultyLevel === "BEGINNER"
                               ? "Iniciante"
                               : primaryAssignment.difficultyLevel === "ADVANCED"
-                              ? "Avançado"
-                              : "Intermediário"}
+                                ? "Avançado"
+                                : "Intermediário"}
                           </span>
                         )}
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
@@ -325,8 +325,8 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                               {assignment.difficultyLevel === "BEGINNER"
                                 ? "Iniciante"
                                 : assignment.difficultyLevel === "ADVANCED"
-                                ? "Avançado"
-                                : "Intermediário"}
+                                  ? "Avançado"
+                                  : "Intermediário"}
                             </span>
                           )}
                         </div>

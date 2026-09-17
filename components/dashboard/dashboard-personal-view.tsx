@@ -240,19 +240,17 @@ export function DashboardPersonalView({
               <Link
                 key={action.href}
                 href={action.href}
-                className={`w-[74vw] max-w-[280px] shrink-0 sm:w-auto sm:max-w-none snap-center p-4 rounded-2xl border transition-all duration-150 flex items-center justify-between gap-3 group depth-interactive ${
-                  action.accent
+                className={`w-[74vw] max-w-[280px] shrink-0 sm:w-auto sm:max-w-none snap-center p-4 rounded-2xl border transition-all duration-150 flex items-center justify-between gap-3 group depth-interactive ${action.accent
                     ? "bg-[var(--surface-subtle)] border-[var(--brand)]/40 hover:border-[var(--brand)] shadow-2xs"
                     : "bg-[var(--surface)] border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] shadow-xs"
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${
-                      action.accent
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${action.accent
                         ? "bg-[var(--brand)] text-white"
                         : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)]"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                   </div>
@@ -321,8 +319,8 @@ export function DashboardPersonalView({
                           {plan.difficultyLevel === "BEGINNER"
                             ? "Iniciante"
                             : plan.difficultyLevel === "ADVANCED"
-                            ? "Avançado"
-                            : "Intermediário"}
+                              ? "Avançado"
+                              : "Intermediário"}
                         </span>
                       )}
                     </div>

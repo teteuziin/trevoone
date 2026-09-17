@@ -201,14 +201,14 @@ export function DashboardStudentView({
     activeTrainingPlan?.workouts && activeTrainingPlan.workouts.length > 0
       ? activeTrainingPlan.workouts
       : activeTrainingPlan
-      ? [
+        ? [
           {
             title: activeTrainingPlan.title,
             subtitle: activeTrainingPlan.subtitle,
             blockCount: activeTrainingPlan.blockCount,
           },
         ]
-      : [];
+        : [];
 
   return (
     <div className="space-y-8 sm:space-y-10 overflow-x-clip">
@@ -291,15 +291,15 @@ export function DashboardStudentView({
               {hasTraining
                 ? activeTrainingPlan.title
                 : hasNutrition
-                ? activeNutritionPlan.title
-                : "Seu Hub de Performance e Saúde"}
+                  ? activeNutritionPlan.title
+                  : "Seu Hub de Performance e Saúde"}
             </h1>
             <p className="text-sm sm:text-base text-neutral-300 max-w-xl line-clamp-2 font-normal leading-relaxed">
               {hasTraining && activeTrainingPlan.subtitle
                 ? activeTrainingPlan.subtitle
                 : hasNutrition && activeNutritionPlan.subtitle
-                ? activeNutritionPlan.subtitle
-                : "Acompanhamento profissional estruturado para seus objetivos de saúde e evolução física."}
+                  ? activeNutritionPlan.subtitle
+                  : "Acompanhamento profissional estruturado para seus objetivos de saúde e evolução física."}
             </p>
           </div>
 
@@ -745,13 +745,12 @@ export function DashboardStudentView({
                   {weightDelta !== null && (
                     <div className="flex items-center gap-1.5 pt-0.5">
                       <span
-                        className={`text-xs font-semibold px-2 py-0.5 rounded-md tabular-nums ${
-                          weightDelta > 0
+                        className={`text-xs font-semibold px-2 py-0.5 rounded-md tabular-nums ${weightDelta > 0
                             ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                             : weightDelta < 0
-                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                            : "bg-neutral-500/10 text-neutral-600 dark:text-neutral-400"
-                        }`}
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                              : "bg-neutral-500/10 text-neutral-600 dark:text-neutral-400"
+                          }`}
                       >
                         {weightDelta > 0 ? `+${weightDelta}` : weightDelta} kg
                       </span>

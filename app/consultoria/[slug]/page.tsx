@@ -74,6 +74,14 @@ export default async function ConsultancyPage({ params }: PageProps) {
             subtitle: cards[0].subtitle,
             workoutCount: cards.length,
             blockCount: cards[0].blockCount,
+            workouts: cards.map((c) => ({
+              publicId: c.assignmentPublicId,
+              title: c.workoutTitle,
+              subtitle: c.subtitle,
+              blockCount: c.blockCount,
+              estimatedDurationMinutes: c.estimatedDurationMinutes,
+              difficultyLevel: c.difficultyLevel,
+            })),
           };
         } catch {
           return null;
@@ -225,6 +233,10 @@ export default async function ConsultancyPage({ params }: PageProps) {
   }
 
   const latestProgress = studentProgress?.latestEntry || null;
+  const previousProgress =
+    studentProgress?.entries && studentProgress.entries.length >= 2
+      ? studentProgress.entries[1]
+      : null;
 
   return (
     <ConsultancyAppShell
@@ -248,10 +260,13 @@ export default async function ConsultancyPage({ params }: PageProps) {
         {effectiveMode === "STUDENT" && (
           <DashboardStudentView
             consultancySlug={context.consultancySlug}
+            consultancyName={context.consultancyName}
+            userName={session.fullName}
             onboarding={studentOnboarding}
             activeTrainingPlan={activeTrainingPlan}
             activeNutritionPlan={activeNutritionPlan}
             latestProgress={latestProgress}
+            previousProgress={previousProgress}
           />
         )}
 

@@ -168,7 +168,7 @@ export default async function ConsultancyWorkoutsPage({
                 Personal Trainer
               </Badge>
             </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
+            <h1 className="font-heading text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
               {pageTitle}
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium max-w-2xl leading-relaxed">

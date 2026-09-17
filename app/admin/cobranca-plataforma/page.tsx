@@ -74,7 +74,7 @@ export default async function PlatformBillingOverviewPage() {
                 Controle Financeiro
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+            <h1 className="font-heading text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--text-primary)]">
               Cobrança da Plataforma
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">

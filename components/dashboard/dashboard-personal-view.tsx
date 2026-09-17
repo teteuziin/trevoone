@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -20,7 +21,7 @@ interface DashboardPersonalViewProps {
 }
 
 // ============================================================================
-// LINEAR ICONS — GLOBAL UI DIRECTION V2 (Monochrome with controlled brand tint)
+// ICONS — PERSONAL COCKPIT (Clean, high-contrast, linear precision)
 // ============================================================================
 
 function WorkoutIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -113,125 +114,148 @@ export function DashboardPersonalView({
     {
       href: `/consultoria/${consultancySlug}/rotinas/novo`,
       title: "Novo Treino",
-      description: "Criar rotina modular em blocos",
+      description: "Montagem modular em blocos",
+      badge: "Criar",
       icon: PlusIcon,
       accent: true,
     },
     {
       href: `/consultoria/${consultancySlug}/rotinas?tab=templates`,
-      title: "Modelos",
-      description: "Rotinas base reutilizáveis",
+      title: "Modelos Base",
+      description: "Estruturas reutilizáveis",
+      badge: "Templates",
       icon: TemplatesIcon,
     },
     {
       href: `/consultoria/${consultancySlug}/rotinas?tab=assignments`,
       title: "Prescrições",
-      description: "Treinos atribuídos a alunos",
+      description: "Treinos ativos dos alunos",
+      badge: "Alunos",
       icon: ClipboardListIcon,
     },
     {
       href: `/consultoria/${consultancySlug}/exercicios`,
       title: "Biblioteca",
-      description: "Catálogo de exercícios e vídeos",
+      description: "Catálogo biomecânico e vídeos",
+      badge: "Biomecânica",
       icon: ExerciseLibraryIcon,
     },
     {
       href: `/consultoria/${consultancySlug}/progresso/alunos`,
       title: "Evolução",
-      description: "Histórico e métricas dos alunos",
+      description: "Cargas, histórico e medições",
+      badge: "Métricas",
       icon: ProgressIcon,
     },
     {
       href: `/consultoria/${consultancySlug}/consultas`,
       title: "Consultas",
       description: "Agenda e teleconsultas 1:1",
+      badge: "Agenda",
       icon: ConsultationIcon,
     },
   ];
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* 1. HERO OPERACIONAL V2 (Superfície limpa, respiro e proporção elegante) */}
-      <div className="p-5 sm:p-6 md:p-7 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs relative overflow-hidden depth-surface">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
-          <div className="flex items-start sm:items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--brand)] shrink-0 shadow-2xs">
-              <WorkoutIcon className="w-6 h-6" />
+    <div className="space-y-7 sm:space-y-9 overflow-x-clip">
+      {/* 1. HERO COCKPIT DE PERFORMANCE */}
+      <div className="relative rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-xs depth-surface bg-[var(--surface)]">
+        {/* Visual Backdrop Overlay with Real Coach Image */}
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="/images/personal/coach-cockpit.jpg"
+            alt="Trevo One Performance Cockpit"
+            fill
+            priority
+            className="object-cover object-center opacity-15 dark:opacity-25 filter grayscale contrast-125"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--surface)] via-[var(--surface)]/95 to-[var(--surface)]/60" />
+        </div>
+
+        <div className="relative z-10 p-5 sm:p-7 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-3 max-w-2xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--brand)] text-white shadow-2xs">
+                Cockpit de Performance
+              </span>
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
+                Personal Trainer
+              </span>
+              {totalPlans > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)]">
+                  {totalPlans} {totalPlans === 1 ? "rotina cadastrada" : "rotinas cadastradas"}
+                </span>
+              )}
             </div>
 
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
-                  Módulo de Treinamento
-                </span>
-                <Badge variant="brand" size="sm">
-                  Personal Trainer
-                </Badge>
-              </div>
-
-              <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-                Cockpit de Treinos
-              </h2>
-
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium max-w-xl leading-relaxed">
-                Prescreva rotinas personalizadas, gerencie modelos modulares e acompanhe a evolução dos alunos vinculados.
+              <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">
+                Central de Prescrição & Alunos
+              </h1>
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
+                Controle rotinas em blocos, gerencie modelos modulares, acompanhe a evolução de cargas e realize teleconsultas com seus alunos.
               </p>
-
-              {totalPlans > 0 && (
-                <div className="flex items-center gap-2 pt-1 text-xs font-semibold text-[var(--text-secondary)]">
-                  <span>
-                    Total cadastrado: <strong className="text-[var(--text-primary)] font-bold">{totalPlans}</strong> {totalPlans === 1 ? "rotina" : "rotinas"}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
 
           {/* Action CTAs */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0 pt-2 md:pt-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
             <Link href={`/consultoria/${consultancySlug}/rotinas/novo`} className="w-full sm:w-auto">
-              <Button variant="primary" size="md" className="w-full sm:w-auto font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2">
+              <Button variant="primary" size="md" className="w-full font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2">
                 <PlusIcon className="w-4 h-4" />
                 <span>Novo Treino</span>
               </Button>
             </Link>
             <Link href={`/consultoria/${consultancySlug}/rotinas`} className="w-full sm:w-auto">
-              <Button variant="secondary" size="md" className="w-full sm:w-auto font-semibold min-h-[44px]">
-                Ver todos
+              <Button variant="secondary" size="md" className="w-full font-semibold min-h-[44px]">
+                Ver Todos
               </Button>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* 2. QUICK ACTIONS (Cards em formato canônico V2: [ícone] Título, descrição curta, chevron) */}
+      {/* 2. OPERATIONAL QUICK ACCESS (Snap Rail on mobile: 74vw cards, grid on desktop) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-            Acesso Rápido
-          </h3>
-          <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
-            Atalhos operacionais
+          <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+            Operação Rápida
+          </h2>
+          <span className="text-[11px] text-[var(--text-tertiary)] font-medium hidden sm:inline">
+            Atalhos diretos do treinador
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {/* Horizontal Rail: overflow-x confined strictly to the rail */}
+        <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-3 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-visible">
           {quickActions.map((action) => {
             const Icon = action.icon;
             return (
               <Link
                 key={action.href}
                 href={action.href}
-                className="group flex items-center justify-between gap-3.5 p-4 rounded-2xl border border-[var(--border-default)] hover:border-[var(--border-strong)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] shadow-xs hover:shadow-sm transition-all duration-150 min-h-[64px] depth-interactive"
+                className={`w-[74vw] max-w-[280px] shrink-0 sm:w-auto sm:max-w-none snap-center p-4 rounded-2xl border transition-all duration-150 flex items-center justify-between gap-3 group depth-interactive ${
+                  action.accent
+                    ? "bg-[var(--surface-subtle)] border-[var(--brand)]/40 hover:border-[var(--brand)] shadow-2xs"
+                    : "bg-[var(--surface)] border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] shadow-xs"
+                }`}
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--brand)] shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${
+                      action.accent
+                        ? "bg-[var(--brand)] text-white"
+                        : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)]"
+                    }`}
+                  >
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="min-w-0 space-y-0.5">
-                    <p className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                      {action.title}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                        {action.title}
+                      </p>
+                    </div>
                     <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
                       {action.description}
                     </p>
@@ -247,91 +271,103 @@ export function DashboardPersonalView({
         </div>
       </div>
 
-      {/* 3. TREINOS RECENTES (Linear Dense List com Statuses Reais e Badges) */}
-      <div className="space-y-3">
+      {/* 3. ROTINAS RECENTES (84vw Snap Cards on Mobile, 2-column on Desktop) */}
+      <div className="space-y-3.5">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-              Treinos Recentes
-            </h3>
+            <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              Rotinas & Prescrições Recentes
+            </h2>
             {recentPlans && recentPlans.length > 0 && (
-              <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+              <span className="text-xs font-semibold text-[var(--text-secondary)]">
                 ({recentPlans.length})
               </span>
             )}
           </div>
           <Link
             href={`/consultoria/${consultancySlug}/rotinas`}
-            className="text-xs font-semibold text-[var(--brand)] hover:underline flex items-center gap-1"
+            className="text-xs font-bold text-[var(--brand)] hover:underline flex items-center gap-1 min-h-[44px] sm:min-h-0 items-center"
           >
-            <span>Gerenciar todos</span>
+            <span>Gerenciar catálogo</span>
             <span>→</span>
           </Link>
         </div>
 
         {recentPlans && recentPlans.length > 0 ? (
-          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] divide-y divide-[var(--border-subtle)] shadow-xs overflow-hidden depth-surface">
+          <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-2 sm:overflow-visible">
             {recentPlans.map((plan) => {
               const isPublished = plan.status === "ACTIVE" || plan.currentVersionStatus === "PUBLISHED";
               return (
-                <Link
+                <div
                   key={plan.publicId}
-                  href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
-                  className="p-4 sm:p-4.5 flex items-center justify-between gap-4 hover:bg-[var(--surface-hover)] transition-all duration-150 group depth-interactive"
+                  className="w-[84vw] max-w-[380px] shrink-0 sm:w-auto sm:max-w-none snap-center p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--brand)] transition-all flex flex-col justify-between space-y-4 depth-surface"
                 >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--brand)] transition-colors">
-                        {plan.title}
-                      </span>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
                       <Badge
                         variant={isPublished ? "success" : "warning"}
                         size="sm"
                       >
                         {isPublished ? "Publicado" : "Rascunho"}
                       </Badge>
+                      {plan.difficultyLevel && (
+                        <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          {plan.difficultyLevel === "BEGINNER"
+                            ? "Iniciante"
+                            : plan.difficultyLevel === "ADVANCED"
+                            ? "Avançado"
+                            : "Intermediário"}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-medium truncate">
-                      {plan.subtitle ? (
-                        <span>{plan.subtitle}</span>
-                      ) : plan.difficultyLevel ? (
-                        <span>Nível {plan.difficultyLevel}</span>
+                    <div className="space-y-1">
+                      <h3 className="font-heading text-lg font-bold text-[var(--text-primary)] line-clamp-1">
+                        {plan.title}
+                      </h3>
+                      {plan.subtitle && (
+                        <p className="text-xs text-[var(--text-secondary)] line-clamp-1">
+                          {plan.subtitle}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-3 border-t border-[var(--border-subtle)]">
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-medium">
+                      {plan.blocksCount != null && plan.blocksCount > 0 ? (
+                        <span className="inline-flex items-center gap-1">
+                          <LayersIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+                          <strong className="text-[var(--text-primary)]">{plan.blocksCount}</strong>{" "}
+                          {plan.blocksCount === 1 ? "bloco modular" : "blocos modulares"}
+                        </span>
                       ) : (
-                        <span>Rotina de treino</span>
-                      )}
-
-                      {plan.blocksCount != null && plan.blocksCount > 0 && (
-                        <>
-                          <span className="text-[var(--text-tertiary)]">•</span>
-                          <span className="inline-flex items-center gap-1">
-                            <LayersIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                            {plan.blocksCount} {plan.blocksCount === 1 ? "bloco" : "blocos"}
-                          </span>
-                        </>
+                        <span>Ficha modular</span>
                       )}
                     </div>
-                  </div>
 
-                  <div className="shrink-0 text-xs font-semibold text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all flex items-center gap-1">
-                    <span className="hidden sm:inline">Abrir</span>
-                    <span>→</span>
+                    <Link
+                      href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] shadow-xs transition-all min-h-[44px] depth-interactive cursor-pointer"
+                    >
+                      Abrir Editor de Treino →
+                    </Link>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
         ) : (
-          <div className="p-8 sm:p-10 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
+          <div className="p-8 sm:p-10 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
             <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
               <WorkoutIcon className="w-6 h-6" />
             </div>
             <div className="space-y-1 max-w-sm mx-auto">
-              <p className="text-sm font-bold text-[var(--text-primary)]">
+              <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
                 Nenhum treino cadastrado
               </p>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Comece criando uma rotina modular personalizada para os alunos vinculados.
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                Comece criando uma rotina modular personalizada para os alunos vinculados à sua consultoria.
               </p>
             </div>
             <Link href={`/consultoria/${consultancySlug}/rotinas/novo`}>
@@ -341,6 +377,24 @@ export function DashboardPersonalView({
             </Link>
           </div>
         )}
+      </div>
+
+      {/* 4. PERFORMANCE PROTOCOL CARD */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">⚡</span>
+            <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+              Protocolo Biomecânico de Cargas
+            </h3>
+          </div>
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-xl">
+            As alterações de séries, repetições e cargas feitas pelo treinador entram em vigor imediatamente para o aluno na próxima sessão sincronizada.
+          </p>
+        </div>
+        <div className="shrink-0 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+          Sync em Tempo Real
+        </div>
       </div>
     </div>
   );

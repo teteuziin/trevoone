@@ -303,9 +303,14 @@
   --color-info-border: var(--info-border);
   --color-info-foreground: var(--info-foreground);
 
-  /* Typography (Geist + Geist Mono) */
+  /* Typography (Geist + Geist Mono + Manrope Heading) */
   --font-sans: var(--font-geist), var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-heading: var(--font-manrope), var(--font-geist), system-ui, sans-serif;
+}
+
+.font-heading {
+  font-family: var(--font-manrope), var(--font-sans);
 }
 
 *,

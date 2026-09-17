@@ -19,7 +19,9 @@ function ConsultanciesIcon({ className = "w-6 h-6" }: { className?: string }) {
 function BillingIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-6.75 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
+      <rect x="2.25" y="8.25" width="19.5" height="12" rx="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12h19.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 16h4m4 0h4" />
     </svg>
   );
 }
@@ -108,52 +110,81 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="w-full">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7 overflow-x-clip">
         {/* Governance Control Plane Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[var(--border-subtle)]">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--brand)]">
-                Governança Global
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-200 shadow-2xs font-mono">
+                ENTERPRISE CONTROL PLANE
               </span>
               <span className="text-xs text-[var(--border-strong)]">•</span>
               <span className="text-xs text-[var(--text-tertiary)] font-medium">
-                Super Administrador
+                Super Administrador Trevo One
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-              {firstName ? `Painel de Controle, ${firstName}` : "Painel de Governança Global"}
+            <h1 className="font-heading text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">
+              {firstName ? `Centro de Controle, ${firstName}` : "Centro de Governança Global"}
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
-              Visão consolidada da infraestrutura, operações financeiras e bibliotecas canônicas do Trevo One.
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal max-w-2xl leading-relaxed">
+              Supervisão consolidada de organizações multi-tenant, conciliação de faturas Pix da plataforma e bibliotecas canônicas.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-            <Badge variant="brand" size="sm" className="font-semibold">
-              Plataforma Ativa
-            </Badge>
+          <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Plataforma Online</span>
+            </div>
           </div>
         </div>
 
-        {/* Real Operational Modules Grid (Stripe / Linear enterprise card style) */}
+        {/* Dense Infrastructure Status Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 sm:p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs">
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-mono">
+              Arquitetura
+            </span>
+            <p className="font-bold text-[var(--text-primary)]">Next.js App Router</p>
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-mono">
+              Isolamento
+            </span>
+            <p className="font-bold text-[var(--text-primary)]">Multi-Tenant Server-Side</p>
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-mono">
+              Persistência
+            </span>
+            <p className="font-bold text-[var(--text-primary)]">MySQL Connection Pool</p>
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-mono">
+              Segurança
+            </span>
+            <p className="font-bold text-emerald-600 dark:text-emerald-400">Zero Client DB Access</p>
+          </div>
+        </div>
+
+        {/* Real Operational Modules Grid (Snap Rail on mobile: 84vw cards, 2-column on desktop) */}
         <div className="space-y-3.5">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-              Módulos Operacionais da Plataforma ({operationalModules.length})
+            <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              Módulos Operacionais Canônicos ({operationalModules.length})
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+          <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-2 sm:overflow-visible">
             {operationalModules.map((m) => (
               <Link
                 key={m.id}
                 href={m.href}
-                className="group relative flex flex-col justify-between rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] p-5 sm:p-6 shadow-xs hover:shadow-sm transition-all focus-visible:outline-[var(--brand)] depth-interactive"
+                className="w-[84vw] max-w-[420px] shrink-0 sm:w-auto sm:max-w-none snap-center group relative flex flex-col justify-between rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] p-5 sm:p-6 shadow-xs hover:shadow-sm transition-all focus-visible:outline-[var(--brand)] depth-surface min-h-[220px]"
               >
-                <div className="space-y-3.5">
+                <div className="space-y-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] group-hover:text-[var(--brand)] group-hover:border-[var(--brand-soft-border)] flex items-center justify-center transition-colors">
+                    <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] group-hover:text-[var(--brand)] group-hover:border-[var(--brand-soft-border)] flex items-center justify-center transition-colors shadow-2xs">
                       {m.icon}
                     </div>
                     <Badge variant={m.badgeVariant} size="sm" className="font-semibold text-[10px]">
@@ -162,7 +193,7 @@ export default async function AdminDashboardPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <h3 className="text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+                    <h3 className="font-heading text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
                       {m.title}
                     </h3>
                     <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-normal">
@@ -171,12 +202,30 @@ export default async function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs font-semibold text-[var(--brand)]">
+                <div className="pt-4 mt-4 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs font-bold text-[var(--brand)] min-h-[44px] sm:min-h-0 items-center">
                   <span>{m.cta}</span>
-                  <span className="group-hover:translate-x-1 transition-transform" aria-hidden="true">→</span>
+                  <span className="group-hover:translate-x-1.5 transition-transform" aria-hidden="true">→</span>
                 </div>
               </Link>
             ))}
+          </div>
+        </div>
+
+        {/* Governance & Platform Audit Footer */}
+        <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">⚙️</span>
+              <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                Registro de Auditoria do Super Admin
+              </h3>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-xl">
+              Ações executadas nesta central administrativa afetam globalmente o catálogo de exercícios, tabelas nutricionais e regras de faturamento da plataforma.
+            </p>
+          </div>
+          <div className="shrink-0 text-xs font-semibold text-[var(--text-secondary)] bg-[var(--surface)] px-3 py-1.5 rounded-xl border border-[var(--border-default)] font-mono">
+            Audit Log Ativo
           </div>
         </div>
       </div>

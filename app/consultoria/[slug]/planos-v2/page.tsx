@@ -127,7 +127,7 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
                 Prescrição
               </Badge>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
+            <h1 className="font-heading text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
               Planos Alimentares
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium max-w-xl">

@@ -209,7 +209,7 @@ export function GlobalFoodManager({ initialResult }: GlobalFoodManagerProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Biblioteca Global de Alimentos</h1>
+            <h1 className="font-heading text-2xl font-bold text-[var(--text-primary)]">Biblioteca Global de Alimentos</h1>
             <span className="px-2 py-0.5 text-xs font-semibold rounded bg-brand-soft text-[var(--brand-primary)]">
               Trevo One Global
             </span>

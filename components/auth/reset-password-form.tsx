@@ -51,7 +51,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors"
+            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors min-w-[44px] min-h-[44px]"
             aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
           >
             {showPassword ? (
@@ -114,7 +114,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           <button
             type="button"
             onClick={() => setShowConfirmPassword((prev) => !prev)}
-            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors"
+            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors min-w-[44px] min-h-[44px]"
             aria-label={showConfirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
           >
             {showConfirmPassword ? (
@@ -163,7 +163,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         fullWidth
         size="md"
         isLoading={isPending}
-        className="mt-2 font-semibold"
+        className="mt-2 min-h-[44px] font-semibold shadow-xs"
       >
         {isPending ? "Redefinindo..." : "Redefinir senha"}
       </Button>
@@ -172,7 +172,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
       <div className="text-center text-xs sm:text-sm text-[var(--text-secondary)] pt-4 border-t border-[var(--border-subtle)]">
         <Link
           href="/login"
-          className="inline-flex items-center font-semibold text-[var(--brand-strong)] hover:text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors"
+          className="inline-flex items-center font-semibold text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors min-h-[44px] sm:min-h-0"
         >
           ← Voltar para o login
         </Link>

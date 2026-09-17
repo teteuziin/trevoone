@@ -67,7 +67,7 @@ export function ForgotPasswordForm() {
           fullWidth
           size="md"
           isLoading={isPending}
-          className="mt-2 font-semibold"
+          className="mt-2 min-h-[44px] font-semibold shadow-xs"
         >
           {isPending ? "Enviando..." : "Enviar instruções"}
         </Button>
@@ -79,7 +79,7 @@ export function ForgotPasswordForm() {
               variant="outline"
               fullWidth
               size="md"
-              className="font-semibold"
+              className="min-h-[44px] font-semibold"
             >
               Voltar para o login
             </Button>
@@ -92,7 +92,7 @@ export function ForgotPasswordForm() {
         <div className="text-center text-xs sm:text-sm text-[var(--text-secondary)] pt-4 border-t border-[var(--border-subtle)]">
           <Link
             href="/login"
-            className="inline-flex items-center font-semibold text-[var(--brand-strong)] hover:text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors"
+            className="inline-flex items-center font-semibold text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors min-h-[44px] sm:min-h-0"
           >
             ← Voltar para o login
           </Link>

@@ -8,9 +8,12 @@ interface AuthShellProps {
   children: ReactNode;
 }
 
+const themeSyncScript = `(function(){try{var p=new URLSearchParams(window.location.search);var t=p.get("theme");if(t==="dark"){document.documentElement.setAttribute("data-theme","dark");}else if(t==="light"){document.documentElement.setAttribute("data-theme","light");}}catch(e){}})();`;
+
 export function AuthShell({ title, subtitle, badge, children }: AuthShellProps) {
   return (
-    <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 lg:p-10 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-gradient-to-b from-[var(--surface-sunken)]/60 via-[var(--background)] to-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+    <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+      <script dangerouslySetInnerHTML={{ __html: themeSyncScript }} />
       {/* Container Principal */}
       <div className="w-full max-w-[420px] mx-auto flex flex-col items-center space-y-6 my-auto">
         {/* Brand / Logo */}
@@ -26,13 +29,13 @@ export function AuthShell({ title, subtitle, badge, children }: AuthShellProps) 
         </div>
 
         {/* Card do Formulário */}
-        <div className="w-full bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
+        <div className="w-full bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-6 sm:p-8 shadow-xs sm:shadow-sm space-y-5">
           {/* Header do Form */}
           <div className="text-center space-y-1.5">
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--text-primary)]">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               {title}
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium leading-relaxed">
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal leading-relaxed">
               {subtitle}
             </p>
           </div>
@@ -42,7 +45,7 @@ export function AuthShell({ title, subtitle, badge, children }: AuthShellProps) 
         </div>
 
         {/* Rodapé institucional discreto */}
-        <p className="text-[11px] text-[var(--text-tertiary)] font-medium text-center tracking-tight select-none">
+        <p className="text-[11px] text-[var(--text-tertiary)] font-normal text-center tracking-tight select-none">
           Trevo One &bull; Plataforma para consultorias de saúde e treino
         </p>
       </div>

@@ -127,7 +127,7 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors"
+            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors min-w-[44px] min-h-[44px]"
             aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
           >
             {showPassword ? (
@@ -165,7 +165,7 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
           <button
             type="button"
             onClick={() => setShowConfirmPassword((prev) => !prev)}
-            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors"
+            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors min-w-[44px] min-h-[44px]"
             aria-label={showConfirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
           >
             {showConfirmPassword ? (
@@ -184,7 +184,7 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
 
       {/* Aceite dos Termos de Uso */}
       <div className="pt-1 text-left space-y-1">
-        <label className="flex items-start space-x-2 cursor-pointer select-none text-xs text-[var(--text-secondary)] leading-normal hover:text-[var(--text-primary)] transition-colors">
+        <label className="flex items-start gap-2 cursor-pointer select-none text-xs text-[var(--text-secondary)] leading-normal hover:text-[var(--text-primary)] transition-colors min-h-[44px] sm:min-h-0">
           <input
             type="checkbox"
             name="terms_accepted"
@@ -211,7 +211,7 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
         fullWidth
         size="md"
         isLoading={isPending}
-        className="mt-3 font-semibold"
+        className="mt-3 min-h-[44px] font-semibold shadow-xs"
       >
         {isPending ? "Criando conta..." : "Criar conta"}
       </Button>
@@ -221,7 +221,7 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
         <span>Já possui uma conta? </span>
         <Link
           href={loginHref}
-          className="font-semibold text-[var(--brand-strong)] hover:text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors"
+          className="font-semibold text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors min-h-[44px] sm:min-h-0 inline-flex items-center"
         >
           Entrar
         </Link>

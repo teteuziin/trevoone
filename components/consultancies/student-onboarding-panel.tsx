@@ -12,6 +12,64 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 
+function CheckCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      strokeWidth={2}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+function ArrowLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      strokeWidth={2}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M10 19l-7-7m0 0l7-7m-7 7h18"
+      />
+    </svg>
+  );
+}
+
+function ExternalLinkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      strokeWidth={2}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+      />
+    </svg>
+  );
+}
+
+
 export type StudentOnboardingItemPresentation = StudentOnboardingRequirementItem & {
   nativeFormKey: string | null;
   nativeSubmissionStatus: "DRAFT" | "SUBMITTED" | "NOT_STARTED" | null;
@@ -104,9 +162,10 @@ export function StudentOnboardingPanel({
         <div className="flex items-center gap-2">
           <Link
             href={`/consultoria/${consultancySlug}`}
-            className="inline-flex items-center text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors min-h-[44px]"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors min-h-[44px]"
           >
-            ← Voltar ao painel
+            <ArrowLeftIcon className="w-4 h-4" />
+            <span>Voltar ao painel</span>
           </Link>
         </div>
 
@@ -122,18 +181,18 @@ export function StudentOnboardingPanel({
       </div>
 
       {/* Progress Card */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+      <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-card)] border border-[var(--border-default)] shadow-card space-y-3">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
             Progresso Geral
           </span>
-          <Badge variant={isComplete ? "success" : "neutral"} size="sm">
+          <Badge variant={isComplete ? "brand" : "neutral"} size="sm">
             {confirmedRequirements} de {totalRequirements} confirmadas
           </Badge>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full h-2 rounded-full bg-[var(--surface-sunken)] overflow-hidden">
+        <div className="w-full h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
           <div
             className="h-full bg-[var(--brand)] transition-all duration-300 rounded-full"
             style={{ width: `${progressPercent}%` }}
@@ -141,20 +200,8 @@ export function StudentOnboardingPanel({
         </div>
 
         {isComplete ? (
-          <div className="flex items-center gap-2 pt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            <svg
-              className="w-4 h-4 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
+          <div className="flex items-center gap-2 pt-1 text-xs font-semibold text-[var(--brand)]">
+            <CheckCircleIcon className="w-4 h-4 shrink-0" />
             <span>Onboarding concluído! Seus acessos estão liberados.</span>
           </div>
         ) : (
@@ -193,7 +240,7 @@ export function StudentOnboardingPanel({
             return (
               <div
                 key={req.publicId}
-                className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 hover:border-[var(--border-strong)] transition-colors"
+                className="p-5 rounded-2xl bg-[var(--surface-card)] border border-[var(--border-default)] shadow-card space-y-4 hover:border-[var(--brand-border)] transition-colors"
               >
                 {/* Header of Item */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -209,7 +256,7 @@ export function StudentOnboardingPanel({
                   {/* Status Badge */}
                   <div>
                     {req.status === "CONFIRMED" && (
-                      <Badge variant="success" size="sm">
+                      <Badge variant="brand" size="sm">
                         Confirmado
                       </Badge>
                     )}
@@ -237,13 +284,13 @@ export function StudentOnboardingPanel({
                 {/* Body / Description based on Status & Native Type */}
                 <div className="text-xs text-[var(--text-secondary)] leading-relaxed">
                   {req.status === "CONFIRMED" && (
-                    <p className="text-emerald-600 dark:text-emerald-400 font-medium">
+                    <p className="text-[var(--brand)] font-medium">
                       Esta etapa foi verificada e confirmada pela consultoria.
                     </p>
                   )}
 
                   {req.status === "SUBMITTED" && (
-                    <p className="text-[var(--warning-foreground)] font-medium">
+                    <p className="text-[var(--warning)] font-medium">
                       {isNative
                         ? "Formulário enviado com sucesso. A equipe da consultoria está revisando as respostas para confirmar seu acesso."
                         : "Você declarou o preenchimento deste formulário. A equipe da consultoria está revisando as respostas para confirmar seu acesso."}
@@ -291,7 +338,7 @@ export function StudentOnboardingPanel({
                             type="button"
                             variant="primary"
                             size="sm"
-                            className="w-full sm:w-auto min-h-[44px] px-5 bg-[#00A859] hover:bg-[#008f4c] font-semibold"
+                            className="w-full sm:w-auto min-h-[44px] px-5 font-semibold"
                           >
                             {isDraft ? "Continuar preenchendo →" : "Começar formulário →"}
                           </Button>
@@ -321,22 +368,10 @@ export function StudentOnboardingPanel({
                           href={req.externalUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center gap-2 py-2 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] text-[var(--text-primary)] font-semibold text-xs rounded-xl border border-[var(--border-default)] shadow-2xs transition-colors focus-visible:outline-[var(--brand)] min-h-[44px]"
+                          className="inline-flex items-center justify-center gap-2 py-2 px-4 bg-[var(--surface-card)] hover:bg-[var(--surface-subtle)] active:opacity-90 text-[var(--text-primary)] font-semibold text-xs rounded-xl border border-[var(--border-default)] shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] min-h-[44px]"
                         >
                           <span>Abrir formulário</span>
-                          <svg
-                            className="w-3.5 h-3.5 text-[var(--text-tertiary)]"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                            />
-                          </svg>
+                          <ExternalLinkIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                         </a>
                       )}
 
@@ -366,7 +401,7 @@ export function StudentOnboardingPanel({
       <div className="pt-4 border-t border-[var(--border-subtle)]">
         <Link
           href={`/consultoria/${consultancySlug}`}
-          className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)] border border-[var(--border-default)] text-[var(--text-primary)] font-semibold text-sm rounded-xl shadow-2xs transition-colors focus-visible:outline-[var(--brand)] min-h-[44px]"
+          className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-[var(--surface-card)] hover:bg-[var(--surface-subtle)] active:opacity-90 border border-[var(--border-default)] text-[var(--text-primary)] font-semibold text-sm rounded-xl shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] min-h-[44px]"
         >
           Voltar ao painel da consultoria
         </Link>

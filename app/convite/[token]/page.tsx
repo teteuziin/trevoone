@@ -22,17 +22,17 @@ export default async function ConvitePage({ params }: PageProps) {
   // 1. Estado INVALID
   if (preview.status === "INVALID") {
     return (
-      <main className="min-h-svh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-white text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-        <div className="w-full max-w-[440px] mx-auto flex flex-col items-center space-y-6 text-center">
+      <main className="min-h-svh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+        <div className="w-full max-w-[440px] mx-auto bg-[var(--surface-card)] p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] shadow-card flex flex-col items-center space-y-6 text-center">
           <div className="w-[130px] sm:w-[150px] shrink-0">
             <TrevoOneLogo priority size={150} />
           </div>
 
           <div className="w-full space-y-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               Convite indisponível
             </h1>
-            <p className="text-sm text-zinc-500 leading-relaxed">
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
               Este convite é inválido ou não está mais disponível.
             </p>
           </div>
@@ -40,7 +40,7 @@ export default async function ConvitePage({ params }: PageProps) {
           <div className="w-full pt-2">
             <Link
               href="/login"
-              className="inline-flex items-center justify-center w-full h-11 bg-zinc-900 hover:bg-zinc-800 active:bg-black text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              className="inline-flex items-center justify-center w-full min-h-[44px] bg-[var(--surface-inverse)] hover:opacity-95 active:opacity-90 text-[var(--text-inverse)] font-semibold text-sm rounded-xl shadow-button transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
             >
               Ir para o início
             </Link>
@@ -71,8 +71,8 @@ export default async function ConvitePage({ params }: PageProps) {
         : "O prazo de validade deste convite expirou. Solicite um novo convite à consultoria.";
 
     return (
-      <main className="min-h-svh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-white text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-        <div className="w-full max-w-[440px] mx-auto flex flex-col items-center space-y-6 text-center">
+      <main className="min-h-svh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+        <div className="w-full max-w-[440px] mx-auto bg-[var(--surface-card)] p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] shadow-card flex flex-col items-center space-y-6 text-center">
           <ConsultancyLogo
             logoUrl={preview.consultancyLogoUrl}
             name={preview.consultancyName}
@@ -80,19 +80,19 @@ export default async function ConvitePage({ params }: PageProps) {
           />
 
           <div className="w-full space-y-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               {title}
             </h1>
-            <p className="text-sm text-zinc-500 leading-relaxed">
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
               {description}
             </p>
           </div>
 
-          <div className="w-full p-4 rounded-xl border border-zinc-200 bg-zinc-50 space-y-2 text-left">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+          <div className="w-full p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] space-y-1.5 text-left">
+            <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
               Consultoria
             </p>
-            <p className="text-sm font-bold text-zinc-900">
+            <p className="text-sm font-bold text-[var(--text-primary)]">
               {preview.consultancyName}
             </p>
           </div>
@@ -100,7 +100,7 @@ export default async function ConvitePage({ params }: PageProps) {
           <div className="w-full pt-2">
             <Link
               href={session ? "/selecionar-consultoria" : "/login"}
-              className="inline-flex items-center justify-center w-full h-11 bg-zinc-900 hover:bg-zinc-800 active:bg-black text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              className="inline-flex items-center justify-center w-full min-h-[44px] bg-[var(--surface-inverse)] hover:opacity-95 active:opacity-90 text-[var(--text-inverse)] font-semibold text-sm rounded-xl shadow-button transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
             >
               {session ? "Acessar consultorias" : "Entrar na minha conta"}
             </Link>
@@ -116,8 +116,8 @@ export default async function ConvitePage({ params }: PageProps) {
   const isEmailMatching = userEmail === invitedEmail;
 
   return (
-    <main className="min-h-svh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-zinc-50/50 text-zinc-900 selection:bg-[#00A859]/10 selection:text-[#00A859]">
-      <div className="w-full max-w-[440px] mx-auto bg-white p-6 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm flex flex-col items-center space-y-6 text-center">
+    <main className="min-h-svh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+      <div className="w-full max-w-[440px] mx-auto bg-[var(--surface-card)] p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] shadow-card flex flex-col items-center space-y-6 text-center">
         <ConsultancyLogo
           logoUrl={preview.consultancyLogoUrl}
           name={preview.consultancyName}
@@ -125,27 +125,27 @@ export default async function ConvitePage({ params }: PageProps) {
         />
 
         <div className="w-full space-y-2">
-          <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-[#008f4c] border border-emerald-200">
+          <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[var(--brand-surface)] text-[var(--brand)] border border-[var(--brand-border)]">
             Convite para consultoria
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
             {preview.consultancyName}
           </h1>
-          <p className="text-xs sm:text-sm text-zinc-500 leading-relaxed">
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
             Você recebeu um convite para entrar em {preview.consultancyName}.
           </p>
         </div>
 
         {/* Funções atribuídas no convite */}
-        <div className="w-full p-4 rounded-xl border border-zinc-200 bg-zinc-50/60 space-y-2.5 text-left">
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+        <div className="w-full p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] space-y-2.5 text-left">
+          <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
             Suas funções na consultoria
           </p>
           <div className="flex flex-wrap gap-1.5">
             {preview.roles.map((role) => (
               <span
                 key={role}
-                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-[#008f4c] border border-emerald-200 shadow-2xs"
+                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-[var(--brand-surface)] text-[var(--brand)] border border-[var(--brand-border)]"
               >
                 {ADMIN_ROLE_LABELS[role] || role}
               </span>
@@ -156,19 +156,19 @@ export default async function ConvitePage({ params }: PageProps) {
         {/* CENÁRIO A: Usuário não autenticado */}
         {!session && (
           <div className="w-full space-y-3 pt-2">
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-[var(--text-secondary)]">
               Entre na sua conta ou crie uma nova para aceitar o convite.
             </p>
             <div className="flex flex-col gap-2.5 w-full">
               <Link
                 href={`/login?returnTo=/convite/${encodeURIComponent(token)}`}
-                className="inline-flex items-center justify-center w-full h-11 bg-[#00A859] hover:bg-[#008f4c] active:bg-[#007a41] text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00A859] focus:ring-offset-2"
+                className="inline-flex items-center justify-center w-full min-h-[44px] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] text-white font-semibold text-sm rounded-xl shadow-button transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2"
               >
                 Já tenho conta
               </Link>
               <Link
                 href={`/cadastro?returnTo=/convite/${encodeURIComponent(token)}`}
-                className="inline-flex items-center justify-center w-full h-11 bg-white hover:bg-zinc-50 active:bg-zinc-100 border border-zinc-300 text-zinc-800 font-semibold text-sm rounded-lg shadow-2xs transition-all focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                className="inline-flex items-center justify-center w-full min-h-[44px] bg-[var(--surface-card)] hover:bg-[var(--surface-subtle)] active:opacity-90 border border-[var(--border-default)] text-[var(--text-primary)] font-semibold text-sm rounded-xl shadow-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
               >
                 Criar conta
               </Link>
@@ -179,19 +179,19 @@ export default async function ConvitePage({ params }: PageProps) {
         {/* CENÁRIO B: Usuário autenticado com e-mail DIFERENTE */}
         {session && !isEmailMatching && (
           <div className="w-full space-y-4 pt-2">
-            <div className="p-3.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium text-left leading-relaxed space-y-1">
-              <p className="font-semibold text-amber-950">
+            <div className="p-3.5 rounded-xl border border-[var(--warning-border)] bg-[var(--warning-surface)] text-[var(--warning)] text-xs font-medium text-left leading-relaxed space-y-1">
+              <p className="font-semibold text-[var(--text-primary)]">
                 Este convite pertence a outra conta.
               </p>
-              <p className="text-amber-800">
-                Você está conectado como <span className="font-semibold">{session.email}</span>. Para aceitar, saia e entre com o e-mail que recebeu o convite.
+              <p className="text-[var(--text-secondary)]">
+                Você está conectado como <span className="font-semibold text-[var(--text-primary)]">{session.email}</span>. Para aceitar, saia e entre com o e-mail que recebeu o convite.
               </p>
             </div>
 
             <form action={logoutAndReturnToInvitationAction.bind(null, token)} className="w-full">
               <button
                 type="submit"
-                className="w-full h-11 bg-zinc-900 hover:bg-zinc-800 active:bg-black text-white font-semibold text-sm rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                className="w-full min-h-[44px] bg-[var(--surface-inverse)] hover:opacity-95 active:opacity-90 text-[var(--text-inverse)] font-semibold text-sm rounded-xl shadow-button transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
               >
                 Sair e entrar com outra conta
               </button>
@@ -202,8 +202,8 @@ export default async function ConvitePage({ params }: PageProps) {
         {/* CENÁRIO C: Usuário autenticado com o MESMO e-mail */}
         {session && isEmailMatching && (
           <div className="w-full space-y-3 pt-2">
-            <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs text-left">
-              Conectado como <span className="font-semibold">{session.email}</span>
+            <div className="p-3 rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] text-[var(--brand)] text-xs text-left font-medium">
+              Conectado como <span className="font-semibold text-[var(--text-primary)]">{session.email}</span>
             </div>
             <InvitationAcceptForm token={token} />
           </div>

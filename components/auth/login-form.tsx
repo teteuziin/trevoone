@@ -81,7 +81,7 @@ export function LoginForm({
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors"
+            className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus-visible:text-[var(--brand)] transition-colors min-w-[44px] min-h-[44px]"
             aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
           >
             {showPassword ? (
@@ -126,7 +126,7 @@ export function LoginForm({
 
       {/* Opções: Manter conectado & Esqueci minha senha */}
       <div className="flex items-center justify-between text-xs sm:text-sm pt-0.5">
-        <label className="flex items-center space-x-2 cursor-pointer select-none text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+        <label className="flex items-center gap-2 cursor-pointer select-none text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[44px] sm:min-h-0">
           <input
             type="checkbox"
             name="remember_me"
@@ -137,7 +137,7 @@ export function LoginForm({
 
         <Link
           href="/recuperar-senha"
-          className="text-xs font-medium text-[var(--brand-strong)] hover:text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors"
+          className="text-xs font-medium text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors min-h-[44px] sm:min-h-0 inline-flex items-center"
         >
           Esqueci minha senha
         </Link>
@@ -149,7 +149,7 @@ export function LoginForm({
         fullWidth
         size="md"
         isLoading={isPending}
-        className="mt-2 font-semibold"
+        className="mt-2 min-h-[44px] font-semibold shadow-xs"
       >
         {isPending ? "Entrando..." : "Entrar"}
       </Button>
@@ -159,7 +159,7 @@ export function LoginForm({
         <span>Ainda não possui uma conta? </span>
         <Link
           href={`/cadastro${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}
-          className="font-semibold text-[var(--brand-strong)] hover:text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors"
+          className="font-semibold text-[var(--brand)] hover:underline focus-visible:outline-[var(--brand)] rounded px-1 py-0.5 transition-colors min-h-[44px] sm:min-h-0 inline-flex items-center"
         >
           Criar conta
         </Link>

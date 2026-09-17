@@ -343,6 +343,7 @@ export function WorkoutBlockCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [customizingItemMap, setCustomizingItemMap] = useState<Record<string, boolean>>({});
   const [confirmingSimplifyId, setConfirmingSimplifyId] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const methodMeta = METHOD_META[block.blockType] || METHOD_META.SINGLE;
   const items = block.items || [];
@@ -653,7 +654,8 @@ export function WorkoutBlockCard({
             onClick={onMoveUp}
             disabled={blockIndex === 0}
             title="Mover para cima"
-            className="p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] disabled:opacity-30 transition-colors"
+            aria-label="Mover bloco para cima"
+            className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] disabled:opacity-30 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
           >
             <ChevronUp className="w-4 h-4" />
           </button>
@@ -662,16 +664,28 @@ export function WorkoutBlockCard({
             onClick={onMoveDown}
             disabled={blockIndex === totalBlocks - 1}
             title="Mover para baixo"
-            className="p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] disabled:opacity-30 transition-colors"
+            aria-label="Mover bloco para baixo"
+            className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] disabled:opacity-30 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
           >
             <ChevronDown className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            title={isCollapsed ? "Expandir bloco" : "Recolher bloco"}
+            aria-label={isCollapsed ? "Expandir bloco" : "Recolher bloco"}
+            className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+          >
+            {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
           </button>
 
           <div className="relative">
             <button
               type="button"
               onClick={() => setMenuOpen(!menuOpen)}
-              className="p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] transition-colors"
+              aria-label="Mais opções do bloco"
+              className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -684,7 +698,7 @@ export function WorkoutBlockCard({
                 <button
                   type="button"
                   onClick={onDuplicate}
-                  className="w-full px-3.5 py-2 text-left text-xs text-[var(--foreground)] hover:bg-[var(--surface-subtle)] flex items-center gap-2 transition-colors"
+                  className="w-full px-3.5 py-2 text-left text-xs text-[var(--foreground)] hover:bg-[var(--surface-subtle)] flex items-center gap-2 transition-colors min-h-[44px] sm:min-h-0"
                 >
                   <Copy className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
                   Duplicar bloco
@@ -693,7 +707,7 @@ export function WorkoutBlockCard({
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(true)}
-                  className="w-full px-3.5 py-2 text-left text-xs text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                  className="w-full px-3.5 py-2 text-left text-xs text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors min-h-[44px] sm:min-h-0"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Remover bloco
@@ -704,7 +718,28 @@ export function WorkoutBlockCard({
         </div>
       </div>
 
-      {/* Delete Confirmation Banner */}
+      {isCollapsed ? (
+        <div
+          onClick={() => setIsCollapsed(false)}
+          className="p-4 bg-[var(--surface)] hover:bg-[var(--surface-subtle)] text-xs text-[var(--foreground-muted)] flex items-center justify-between cursor-pointer transition-colors"
+        >
+          <div className="flex items-center gap-2 truncate min-w-0">
+            <span className="font-semibold text-[var(--foreground)] shrink-0">
+              {items.length} {items.length === 1 ? "exercício" : "exercícios"}
+            </span>
+            {items.length > 0 && (
+              <span className="truncate text-[var(--foreground-muted)]">
+                · {items.map((it) => it.exerciseNameSnapshot || "Exercício").join(", ")}
+              </span>
+            )}
+          </div>
+          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
+            Expandir ↓
+          </span>
+        </div>
+      ) : (
+        <>
+          {/* Delete Confirmation Banner */}
       {confirmDelete && (
         <div className="p-3 bg-red-500/10 border-b border-red-500/20 flex items-center justify-between gap-3 text-xs">
           <span className="text-red-700 dark:text-red-300 font-medium">
@@ -1207,7 +1242,7 @@ export function WorkoutBlockCard({
                 <button
                   type="button"
                   onClick={onOpenPicker}
-                  className="w-full py-2.5 px-4 border-2 border-dashed border-emerald-500/40 hover:border-emerald-500 bg-emerald-50/20 hover:bg-emerald-50/40 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 transition-all active:scale-99"
+                  className="w-full py-3 px-4 border-2 border-dashed border-emerald-500/40 hover:border-emerald-500 bg-emerald-50/20 hover:bg-emerald-50/40 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 transition-all active:scale-99 min-h-[44px] cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   Adicionar {items.length + 1}º Exercício ({methodMeta.label})
@@ -1217,6 +1252,8 @@ export function WorkoutBlockCard({
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { getPlatformAdminAccess } from "@/lib/platform-admin/access";
 import { Badge } from "@/components/ui/badge";
+import { SettingsIcon as Settings } from "@/components/ui/icons";
 
 /* =========================================================================
    ENTERPRISE CONTROL PLANE ICONS (Linear / Stripe / V2 Precision Geometry)
@@ -65,7 +66,7 @@ export default async function AdminDashboardPage() {
     {
       id: "consultancies",
       title: "Gestão de Consultorias",
-      tag: "Organizações & Tenants",
+      tag: "Consultorias & Contas",
       badgeVariant: "neutral" as const,
       description:
         "Cadastro e administração de consultorias parceiras, definição de administradores iniciais e controle de fusos operacionais.",
@@ -90,33 +91,33 @@ export default async function AdminDashboardPage() {
       tag: "Catálogo Global",
       badgeVariant: "neutral" as const,
       description:
-        "Gerenciamento da biblioteca global de movimentos, especificações biomecânicas, níveis de dificuldade e mídias de instrução.",
+        "Gerenciamento da biblioteca global de movimentos, instruções técnicas, níveis de dificuldade e mídias explicativas.",
       href: "/admin/exercicios",
       cta: "Gerenciar exercícios",
       icon: <ExercisesIcon className="w-6 h-6" />,
     },
     {
       id: "foods",
-      title: "Banco Oficial de Alimentos",
-      tag: "Nutrição Global",
+      title: "Biblioteca Global de Alimentos",
+      tag: "Tabela TACO & Alimentos",
       badgeVariant: "neutral" as const,
       description:
-        "Base autoritativa de composição nutricional, porções canônicas de referência e macronutrientes para toda a plataforma.",
-      href: "/admin/alimentos",
+        "Base oficial de dados nutricionais de referência (TACO 4ª edição), catálogo de marcas e gestão de novos alimentos.",
+      href: "/admin/alimentos-v2",
       cta: "Gerenciar alimentos",
       icon: <FoodsIcon className="w-6 h-6" />,
     },
   ];
 
   return (
-    <div className="w-full">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-7 overflow-x-clip">
-        {/* Governance Control Plane Header */}
+    <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
+        {/* Enterprise Breadcrumb & Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[var(--border-subtle)]">
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-200 shadow-2xs font-mono">
-                ENTERPRISE CONTROL PLANE
+                ADMINISTRAÇÃO GLOBAL
               </span>
               <span className="text-xs text-[var(--border-strong)]">•</span>
               <span className="text-xs text-[var(--text-tertiary)] font-medium">
@@ -124,10 +125,10 @@ export default async function AdminDashboardPage() {
               </span>
             </div>
             <h1 className="font-heading text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">
-              {firstName ? `Centro de Controle, ${firstName}` : "Centro de Governança Global"}
+              {firstName ? `Centro de Gestão, ${firstName}` : "Centro de Gestão Global"}
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal max-w-2xl leading-relaxed">
-              Supervisão consolidada de organizações multi-tenant, conciliação de faturas Pix da plataforma e bibliotecas canônicas.
+              Supervisão consolidada de consultorias parceiras, conciliação de faturas Pix da plataforma e bibliotecas oficiais de exercícios e nutrição.
             </p>
           </div>
 
@@ -215,9 +216,11 @@ export default async function AdminDashboardPage() {
         <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm">⚙️</span>
+              <div className="w-7 h-7 rounded-xl bg-[var(--surface)] text-[var(--text-secondary)] flex items-center justify-center border border-[var(--border-default)]">
+                <Settings className="w-4 h-4" strokeWidth={1.75} />
+              </div>
               <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                Registro de Auditoria do Super Admin
+                Registro de Auditoria da Plataforma
               </h3>
             </div>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-xl">

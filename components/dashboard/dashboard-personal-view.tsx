@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ZapIcon as Zap } from "@/components/ui/icons";
 
 export interface PersonalWorkoutSummaryItem {
   publicId: string;
@@ -136,8 +137,8 @@ export function DashboardPersonalView({
     {
       href: `/consultoria/${consultancySlug}/exercicios`,
       title: "Biblioteca",
-      description: "Catálogo biomecânico e vídeos",
-      badge: "Biomecânica",
+      description: "Catálogo de exercícios e vídeos",
+      badge: "Exercícios",
       icon: ExerciseLibraryIcon,
     },
     {
@@ -164,7 +165,7 @@ export function DashboardPersonalView({
         <div className="absolute inset-0 z-0">
           <Image
             src="/images/personal/coach-cockpit.jpg"
-            alt="Trevo One Performance Cockpit"
+            alt="Trevo One Painel do Personal"
             fill
             priority
             className="object-cover object-center opacity-15 dark:opacity-25 filter grayscale contrast-125"
@@ -176,7 +177,7 @@ export function DashboardPersonalView({
           <div className="space-y-3 max-w-2xl">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--brand)] text-white shadow-2xs">
-                Cockpit de Performance
+                Painel do Personal
               </span>
               <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
                 Personal Trainer
@@ -383,17 +384,19 @@ export function DashboardPersonalView({
       <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm">⚡</span>
+            <div className="w-7 h-7 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <Zap className="w-4 h-4" strokeWidth={1.75} />
+            </div>
             <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-              Protocolo Biomecânico de Cargas
+              Acompanhamento de Séries e Cargas
             </h3>
           </div>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-xl">
-            As alterações de séries, repetições e cargas feitas pelo treinador entram em vigor imediatamente para o aluno na próxima sessão sincronizada.
+            As alterações de séries, repetições e cargas que você definir entram em vigor imediatamente no celular do seu aluno.
           </p>
         </div>
         <div className="shrink-0 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-          Sync em Tempo Real
+          Atualização Instantânea
         </div>
       </div>
     </div>

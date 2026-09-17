@@ -67,6 +67,9 @@ export function StudentNutritionV2Print({
                     <img
                       src={consultancyLogoUrl}
                       alt={consultancyName}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
                       className="h-7 max-w-[140px] object-contain"
                     />
                   ) : (

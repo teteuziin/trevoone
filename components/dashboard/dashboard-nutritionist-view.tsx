@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SaladIcon as Salad } from "@/components/ui/icons";
 
 export interface NutritionistPlanSummaryItem {
   publicId: string;
@@ -165,9 +166,9 @@ export function DashboardNutritionistView({
     },
     {
       href: `/consultoria/${consultancySlug}/alimentos-v2`,
-      title: "Banco TACO",
-      description: "Tabela oficial & marcas",
-      badge: "Composição",
+      title: "Alimentos",
+      description: "Tabela oficial e marcas",
+      badge: "Nutrição",
       icon: FoodLibraryIcon,
     },
     {
@@ -473,17 +474,19 @@ export function DashboardNutritionistView({
       <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm">🥗</span>
+            <div className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <Salad className="w-4 h-4" strokeWidth={1.75} />
+            </div>
             <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-              Tabela TACO 4ª Edição Integrada
+              Tabela Nutricional Integrada
             </h3>
           </div>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-xl">
-            Cálculo instantâneo de calorias, proteínas, carboidratos e lipídios ao estruturar qualquer refeição ou opção de substituição.
+            Cálculo automático de calorias, proteínas, carboidratos e gorduras ao estruturar qualquer refeição ou opção de substituição.
           </p>
         </div>
         <div className="shrink-0 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-          Dados Oficiais TACO
+          Cálculo Automático
         </div>
       </div>
     </div>

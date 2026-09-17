@@ -603,8 +603,9 @@ export function StudentWorkoutRenderer({
             {blocks.length} {blocks.length === 1 ? "bloco de treino" : "blocos de treino"}
           </span>
           {workout.estimatedDurationMinutes != null && (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
-              ⏱ {workout.estimatedDurationMinutes} min estimados
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
+              <Clock className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+              <span>{workout.estimatedDurationMinutes} min estimados</span>
             </span>
           )}
           {workout.difficultyLevel && (
@@ -1034,6 +1035,9 @@ function ItemCard({
                 <img
                   src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
                   alt={item.exerciseNameSnapshot}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = "none";
+                  }}
                   className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block"
                 />
               )}

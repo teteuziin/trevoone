@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { HelpCircleIcon as HelpCircle } from "@/components/ui/icons";
 import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
 import { logoutFromConsultancyArea } from "@/app/selecionar-consultoria/actions";
 import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
 import { ViewModeSelector } from "./view-mode-selector";
+import { FirstAccessTutorial } from "@/components/onboarding/first-access-tutorial";
 import type { EffectiveViewModeState } from "@/lib/consultancies/view-mode";
 
 export interface NavItemConfig {
@@ -550,7 +552,7 @@ export function ConsultancyNavigation({
           />
 
           {/* Quick Settings & Navigation Links */}
-          <div className="grid grid-cols-3 gap-1 pt-0.5">
+          <div className="grid grid-cols-4 gap-1 pt-0.5">
             <Link
               href="/notificacoes"
               prefetch={false}
@@ -582,6 +584,19 @@ export function ConsultancyNavigation({
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
               </svg>
+            </Link>
+
+            <Link
+              href={`/consultoria/${consultancySlug}/ajuda`}
+              prefetch={false}
+              className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
+                pathname === `/consultoria/${consultancySlug}/ajuda`
+                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
+              }`}
+              title="Central de Ajuda & Suporte"
+            >
+              <HelpCircle className="w-4 h-4" strokeWidth={1.8} />
             </Link>
 
             <Link
@@ -978,6 +993,23 @@ export function ConsultancyNavigation({
                 </Link>
 
                 <Link
+                  href={`/consultoria/${consultancySlug}/ajuda`}
+                  prefetch={false}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
+                    pathname === `/consultoria/${consultancySlug}/ajuda`
+                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <HelpCircle className="w-4 h-4 text-[var(--brand)] shrink-0" strokeWidth={1.8} />
+                    <span>Ajuda & Suporte</span>
+                  </div>
+                  <span className="text-xs text-[var(--text-tertiary)]">→</span>
+                </Link>
+
+                <Link
                   href="/conta/seguranca"
                   prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
@@ -1018,6 +1050,11 @@ export function ConsultancyNavigation({
           </div>
         </div>
       )}
+
+      {/* First Access Guided Tutorial */}
+      <FirstAccessTutorial
+        consultancyName={consultancyName}
+      />
     </>
   );
 }

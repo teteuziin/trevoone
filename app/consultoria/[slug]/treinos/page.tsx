@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { Manrope } from "next/font/google";
+import { DumbbellIcon as Dumbbell, ClockIcon as Clock } from "@/components/ui/icons";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveStudentModuleAccess } from "@/lib/consultancies/student-module-access";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
@@ -12,12 +12,6 @@ import {
 import { StudentModuleAccessPanel } from "@/components/consultancies/student-module-access-panel";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { EmptyState } from "@/components/ui/empty-state";
-
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-  display: "swap",
-});
 
 type PageProps = {
   params: Promise<{
@@ -136,7 +130,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
-              <h1 className={`${manrope.className} text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight`}>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight font-heading">
                 Seus Treinos
               </h1>
               <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-md mx-auto leading-relaxed">
@@ -175,7 +169,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                   </span>
                 </div>
 
-                <h1 className={`${manrope.className} text-2xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm`}>
+                <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm font-heading">
                   Rotinas de Treino
                 </h1>
 
@@ -191,7 +185,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    <h2 className={`${manrope.className} text-base sm:text-lg font-bold text-[var(--text-primary)]`}>
+                    <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
                       Ficha Principal em Destaque
                     </h2>
                   </div>
@@ -222,7 +216,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                       </div>
 
                       <div className="space-y-1">
-                        <h3 className={`${manrope.className} text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight`}>
+                        <h3 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight font-heading">
                           {primaryAssignment.workoutTitle}
                         </h3>
                         {primaryAssignment.subtitle && (
@@ -257,12 +251,14 @@ export default async function StudentTreinosPage({ params }: PageProps) {
 
                   {/* Metadata Chips Grid */}
                   <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-[var(--border-subtle)]">
-                    <span className="inline-flex items-center px-3.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] shadow-2xs">
-                      🏋️ {primaryAssignment.blockCount} {primaryAssignment.blockCount === 1 ? "bloco de treino" : "blocos de treino"}
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] shadow-2xs">
+                      <Dumbbell className="w-3.5 h-3.5 text-[var(--brand)]" strokeWidth={1.75} />
+                      {primaryAssignment.blockCount} {primaryAssignment.blockCount === 1 ? "bloco de treino" : "blocos de treino"}
                     </span>
                     {primaryAssignment.estimatedDurationMinutes && (
-                      <span className="inline-flex items-center px-3.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] shadow-2xs tabular-nums">
-                        ⏱ {primaryAssignment.estimatedDurationMinutes} min estimados
+                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] shadow-2xs tabular-nums">
+                        <Clock className="w-3.5 h-3.5 text-[var(--text-secondary)]" strokeWidth={1.75} />
+                        {primaryAssignment.estimatedDurationMinutes} min estimados
                       </span>
                     )}
                     <span className="inline-flex items-center px-3.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-secondary)]">
@@ -295,7 +291,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
               <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <h2 className={`${manrope.className} text-base sm:text-lg font-bold text-[var(--text-primary)]`}>
+                    <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
                       Outras Fichas & Divisões
                     </h2>
                     <p className="text-xs text-[var(--text-secondary)]">
@@ -331,7 +327,7 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                         </div>
 
                         <div className="space-y-1">
-                          <h3 className={`${manrope.className} text-lg font-bold text-[var(--text-primary)]`}>
+                          <h3 className="text-lg font-bold text-[var(--text-primary)] font-heading">
                             {assignment.workoutTitle}
                           </h3>
                           {assignment.subtitle && (
@@ -355,7 +351,9 @@ export default async function StudentTreinosPage({ params }: PageProps) {
                             {assignment.blockCount} {assignment.blockCount === 1 ? "bloco" : "blocos"}
                           </span>
                           {assignment.estimatedDurationMinutes && (
-                            <span className="tabular-nums">· ⏱ {assignment.estimatedDurationMinutes} min</span>
+                            <span className="inline-flex items-center gap-1 tabular-nums">
+                              · <Clock className="w-3 h-3 text-[var(--text-secondary)]" strokeWidth={1.75} /> {assignment.estimatedDurationMinutes} min
+                            </span>
                           )}
                           <span>· Início: {formatDate(assignment.startsOn)}</span>
                         </div>
@@ -377,8 +375,10 @@ export default async function StudentTreinosPage({ params }: PageProps) {
             <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm">⏱️</span>
-                  <h3 className={`${manrope.className} text-sm font-bold text-[var(--text-primary)]`}>
+                  <div className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <Clock className="w-4 h-4" strokeWidth={1.75} />
+                  </div>
+                  <h3 className="text-sm font-bold text-[var(--text-primary)] font-heading">
                     Registro de Execução & Séries
                   </h3>
                 </div>

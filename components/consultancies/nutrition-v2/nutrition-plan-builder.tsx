@@ -328,7 +328,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
 
   return (
     <div className="w-full min-h-[calc(100vh-4rem)] bg-[var(--background)] px-4 py-6 sm:py-8">
-      <div className="space-y-6 max-w-5xl mx-auto pb-20">
+      <div className="space-y-6 max-w-5xl mx-auto pb-28 sm:pb-20">
         {/* Top Breadcrumb & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <Link
@@ -828,6 +828,54 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
             assignments={assignments}
             onRefresh={refreshAssignments}
           />
+        </div>
+
+        {/* Mobile Sticky Footer Action Bar */}
+        <div className="fixed sm:hidden bottom-0 left-0 right-0 p-3.5 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-strong)] z-30 shadow-lg flex items-center gap-2.5">
+          {!isReadOnly ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsAddingMeal(true)}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] active:scale-98 transition-all min-h-[44px] cursor-pointer"
+              >
+                <PlusIcon className="w-4 h-4 text-[var(--brand)] shrink-0" />
+                <span>+ Refeição</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPublishDialogOpen(true)}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs font-bold shadow-sm active:scale-98 transition-all min-h-[44px] cursor-pointer"
+              >
+                <CheckIcon className="w-4 h-4 shrink-0" />
+                <span>Publicar Plano</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {tree.version.status === "PUBLISHED" && (
+                <button
+                  type="button"
+                  onClick={() => setIsAssignModalOpen(true)}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs font-bold shadow-sm active:scale-98 transition-all min-h-[44px] cursor-pointer"
+                >
+                  <UserPlusIcon className="w-4 h-4 shrink-0" />
+                  <span>Prescrever</span>
+                </button>
+              )}
+              {tree.version.status !== "DRAFT" && (
+                <button
+                  type="button"
+                  onClick={handleCreateNextVersion}
+                  disabled={isCreatingVersion}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] active:scale-98 transition-all min-h-[44px] cursor-pointer disabled:opacity-50"
+                >
+                  <PlusIcon className="w-4 h-4 shrink-0" />
+                  <span>{isCreatingVersion ? "Criando..." : "Nova Versão"}</span>
+                </button>
+              )}
+            </>
+          )}
         </div>
 
         {/* Publish Dialog */}

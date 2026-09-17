@@ -1,16 +1,8 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Manrope } from "next/font/google";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-student-manrope",
-  display: "swap",
-});
 
 export interface StudentWorkoutRoutineSummary {
   publicId?: string;
@@ -219,7 +211,7 @@ export function DashboardStudentView({
       : [];
 
   return (
-    <div className={`space-y-8 sm:space-y-10 overflow-x-clip ${manrope.variable}`}>
+    <div className="space-y-8 sm:space-y-10 overflow-x-clip">
       {/* ==================================================================== */}
       {/* 1. ONBOARDING MANDATÓRIO (Se aplicável e incompleto)                  */}
       {/* ==================================================================== */}
@@ -235,7 +227,7 @@ export function DashboardStudentView({
                   {onboarding.confirmedRequirements} de {onboarding.totalRequirements} etapas confirmadas
                 </span>
               </div>
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-[family-name:var(--font-student-manrope)]">
+              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
                 Complete seu cadastro inicial
               </h2>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -290,7 +282,7 @@ export function DashboardStudentView({
                 Olá, {firstName}
               </p>
             )}
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.1] font-[family-name:var(--font-student-manrope)]">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.1] font-heading">
               {hasTraining
                 ? activeTrainingPlan.title
                 : hasNutrition
@@ -391,7 +383,7 @@ export function DashboardStudentView({
               <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
                 Prescrição
               </span>
-              <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-[family-name:var(--font-student-manrope)]">
+              <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-heading">
                 {hasTraining ? (routineList[0]?.title || activeTrainingPlan.title) : "Sem treino ativo"}
               </p>
             </div>
@@ -414,7 +406,7 @@ export function DashboardStudentView({
               <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
                 Alimentação
               </span>
-              <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-[family-name:var(--font-student-manrope)]">
+              <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-heading">
                 {hasNutrition ? activeNutritionPlan.title : "Sem plano ativo"}
               </p>
             </div>
@@ -437,7 +429,7 @@ export function DashboardStudentView({
               <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
                 Biometria
               </span>
-              <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-[family-name:var(--font-student-manrope)]">
+              <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-heading">
                 {latestProgress?.weightKg ? `${latestProgress.weightKg} kg` : "Sem peso recente"}
               </p>
             </div>
@@ -455,7 +447,7 @@ export function DashboardStudentView({
       <section aria-label="Seu Treino Prescrito" className="space-y-3.5">
         <div className="flex items-center justify-between px-1">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-[family-name:var(--font-student-manrope)]">
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-heading">
               Seu Treino Prescrito
             </h2>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
@@ -495,7 +487,7 @@ export function DashboardStudentView({
                   </div>
 
                   <div className="space-y-1">
-                    <h3 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight font-[family-name:var(--font-student-manrope)] break-words">
+                    <h3 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight font-heading break-words">
                       {routine.title}
                     </h3>
                     {routine.subtitle && (
@@ -540,7 +532,7 @@ export function DashboardStudentView({
             <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-secondary)] mx-auto flex items-center justify-center shadow-2xs">
               <WorkoutIcon className="w-6 h-6" />
             </div>
-            <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-[family-name:var(--font-student-manrope)]">
+            <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
               Aguardando prescrição de treino
             </h3>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -556,7 +548,7 @@ export function DashboardStudentView({
       <section aria-label="Seu Plano Alimentar" className="space-y-3.5">
         <div className="flex items-center justify-between px-1">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-[family-name:var(--font-student-manrope)]">
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-heading">
               Seu Plano Alimentar
             </h2>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
@@ -601,7 +593,7 @@ export function DashboardStudentView({
                     </span>
                   )}
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight font-[family-name:var(--font-student-manrope)] break-words">
+                <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight font-heading break-words">
                   {activeNutritionPlan.title}
                 </h3>
                 {activeNutritionPlan.subtitle && (
@@ -644,7 +636,7 @@ export function DashboardStudentView({
                     </div>
 
                     <div className="space-y-1">
-                      <h4 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight font-[family-name:var(--font-student-manrope)] break-words">
+                      <h4 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight font-heading break-words">
                         {meal.title}
                       </h4>
                       {meal.itemsCount !== undefined && meal.itemsCount > 0 && (
@@ -671,7 +663,7 @@ export function DashboardStudentView({
             <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-secondary)] mx-auto flex items-center justify-center shadow-2xs">
               <NutritionIcon className="w-6 h-6" />
             </div>
-            <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-[family-name:var(--font-student-manrope)]">
+            <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
               Aguardando plano alimentar
             </h3>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -687,7 +679,7 @@ export function DashboardStudentView({
       <section aria-label="Sua Evolução Física" className="space-y-3.5">
         <div className="flex items-center justify-between px-1">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-[family-name:var(--font-student-manrope)]">
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-heading">
               Sua Evolução
             </h2>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
@@ -728,10 +720,10 @@ export function DashboardStudentView({
                 <div className="space-y-1 pt-1">
                   {latestProgress.weightKg !== null && latestProgress.weightKg !== undefined ? (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-4xl sm:text-5xl font-extrabold text-[var(--text-primary)] tabular-nums tracking-tight font-[family-name:var(--font-student-manrope)]">
+                      <span className="text-4xl sm:text-5xl font-extrabold text-[var(--text-primary)] tabular-nums tracking-tight font-heading">
                         {latestProgress.weightKg}
                       </span>
-                      <span className="text-base sm:text-lg font-bold text-[var(--text-secondary)] font-[family-name:var(--font-student-manrope)]">
+                      <span className="text-base sm:text-lg font-bold text-[var(--text-secondary)] font-heading">
                         kg
                       </span>
                     </div>
@@ -791,7 +783,7 @@ export function DashboardStudentView({
                       <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                         Cintura
                       </span>
-                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-[family-name:var(--font-student-manrope)]">
+                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-heading">
                         {latestProgress.waistCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span>
                       </p>
                     </div>
@@ -802,7 +794,7 @@ export function DashboardStudentView({
                       <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                         Abdômen
                       </span>
-                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-[family-name:var(--font-student-manrope)]">
+                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-heading">
                         {latestProgress.abdomenCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span>
                       </p>
                     </div>
@@ -813,7 +805,7 @@ export function DashboardStudentView({
                       <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                         Quadril
                       </span>
-                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-[family-name:var(--font-student-manrope)]">
+                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-heading">
                         {latestProgress.hipCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span>
                       </p>
                     </div>
@@ -824,7 +816,7 @@ export function DashboardStudentView({
                       <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                         Braço
                       </span>
-                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-[family-name:var(--font-student-manrope)]">
+                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-heading">
                         {latestProgress.armCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span>
                       </p>
                     </div>
@@ -835,7 +827,7 @@ export function DashboardStudentView({
                       <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                         Coxa
                       </span>
-                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-[family-name:var(--font-student-manrope)]">
+                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-heading">
                         {latestProgress.thighCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span>
                       </p>
                     </div>
@@ -862,7 +854,7 @@ export function DashboardStudentView({
               <ProgressIcon className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-[family-name:var(--font-student-manrope)]">
+              <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
                 Inicie o registro de evolução
               </h3>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -886,7 +878,7 @@ export function DashboardStudentView({
       {/* ==================================================================== */}
       <section aria-label="Apoio e Serviços" className="space-y-3.5">
         <div className="px-1">
-          <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-[family-name:var(--font-student-manrope)]">
+          <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-heading">
             Apoio & Serviços
           </h2>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
@@ -908,7 +900,7 @@ export function DashboardStudentView({
               </div>
 
               <div className="space-y-1">
-                <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-[family-name:var(--font-student-manrope)]">
+                <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-heading">
                   Consultas & Teleconsultas
                 </h3>
                 <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -939,7 +931,7 @@ export function DashboardStudentView({
               </div>
 
               <div className="space-y-1">
-                <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-[family-name:var(--font-student-manrope)]">
+                <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-heading">
                   Pagamentos & Faturas
                 </h3>
                 <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">

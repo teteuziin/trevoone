@@ -793,7 +793,7 @@ export function WorkoutBuilder({
   const blocks = draft.blocks || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-28 sm:pb-8">
       {/* Toast / Notification Banner */}
       {statusMessage && (
         <div
@@ -1115,6 +1115,57 @@ export function WorkoutBuilder({
             )}
             Criar Nova Versão em Rascunho
           </button>
+        )}
+      </div>
+
+      {/* Mobile Sticky Footer Action Bar */}
+      <div className="fixed sm:hidden bottom-0 left-0 right-0 p-3.5 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-strong)] z-30 shadow-lg flex items-center gap-2.5">
+        {!isReadOnly ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setIsMethodModalOpen(true)}
+              disabled={isPending}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)] active:scale-98 transition-all min-h-[44px] cursor-pointer"
+            >
+              <Plus className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>+ Adicionar Bloco</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPublishDialogOpen(true)}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm active:scale-98 transition-all min-h-[44px] cursor-pointer"
+            >
+              <Check className="w-4 h-4 shrink-0" />
+              <span>Publicar Treino</span>
+            </button>
+          </>
+        ) : (
+          <>
+            {draft.status === "PUBLISHED" && !workout.isTemplate && (
+              <button
+                type="button"
+                onClick={() => setIsAssignModalOpen(true)}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs active:scale-98 transition-all min-h-[44px] cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4 shrink-0" />
+                <span>Prescrever</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleCreateNewVersion}
+              disabled={isCreatingVersion}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs active:scale-98 transition-all min-h-[44px] cursor-pointer disabled:opacity-50"
+            >
+              {isCreatingVersion ? (
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              ) : (
+                <Plus className="w-4 h-4 shrink-0" />
+              )}
+              <span>Nova Versão</span>
+            </button>
+          </>
         )}
       </div>
 

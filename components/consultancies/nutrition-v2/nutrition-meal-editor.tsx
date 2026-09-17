@@ -50,6 +50,7 @@ export function NutritionMealEditor({
   const [notes, setNotes] = useState(meal.notes || "");
   const [isSaving, setIsSaving] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleSaveMeal = async () => {
     if (!title.trim()) {
@@ -117,61 +118,96 @@ export function NutritionMealEditor({
         </div>
 
         {/* Meal Actions */}
-        {!readOnly && (
-          <div className="flex items-center gap-1 shrink-0">
-            {onMoveUp && !isFirst && (
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            title={isCollapsed ? "Expandir refeição" : "Recolher refeição"}
+            aria-expanded={!isCollapsed}
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+          >
+            <svg className={`w-4 h-4 transition-transform duration-200 ${isCollapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+            </svg>
+          </button>
+
+          {!readOnly && (
+            <>
+              {onMoveUp && !isFirst && (
+                <button
+                  type="button"
+                  title="Mover refeição para cima"
+                  onClick={() => onMoveUp()}
+                  className="p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
+              )}
+              {onMoveDown && !isLast && (
+                <button
+                  type="button"
+                  title="Mover refeição para baixo"
+                  onClick={() => onMoveDown()}
+                  className="p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
               <button
                 type="button"
-                title="Mover refeição para cima"
-                onClick={() => onMoveUp()}
-                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)]"
+                title="Editar refeição"
+                onClick={() => setIsEditingMeal(true)}
+                className="p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </button>
-            )}
-            {onMoveDown && !isLast && (
               <button
                 type="button"
-                title="Mover refeição para baixo"
-                onClick={() => onMoveDown()}
-                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)]"
+                title="Remover refeição"
+                onClick={() => {
+                  if (confirm(`Remover a refeição "${meal.title}" e todos os seus itens?`)) {
+                    onRemoveMeal();
+                  }
+                }}
+                className="p-2 sm:p-1.5 text-red-500/80 hover:text-red-600 rounded-xl hover:bg-red-500/10 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
-            )}
-            <button
-              type="button"
-              title="Editar refeição"
-              onClick={() => setIsEditingMeal(true)}
-              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)]"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              title="Remover refeição"
-              onClick={() => {
-                if (confirm(`Remover a refeição "${meal.title}" e todos os seus itens?`)) {
-                  onRemoveMeal();
-                }
-              }}
-              className="p-1.5 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Inline meal edit form */}
+      {isCollapsed ? (
+        <div
+          onClick={() => setIsCollapsed(false)}
+          className="p-3.5 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs text-[var(--text-secondary)] rounded-xl flex items-center justify-between cursor-pointer transition-colors"
+        >
+          <div className="flex items-center gap-2 truncate min-w-0">
+            <span className="font-semibold text-[var(--text-primary)] shrink-0">
+              {meal.items.length} {meal.items.length === 1 ? "alimento" : "alimentos"}
+            </span>
+            {meal.items.length > 0 && (
+              <span className="truncate text-[var(--text-tertiary)]">
+                · {meal.items.map((it) => it.foodNameSnapshot || "Alimento").join(", ")}
+              </span>
+            )}
+          </div>
+          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
+            Expandir refeição ↓
+          </span>
+        </div>
+      ) : (
+        <>
+          {/* Inline meal edit form */}
       {isEditingMeal && (
         <div className="p-3.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -258,7 +294,7 @@ export function NutritionMealEditor({
           <button
             type="button"
             onClick={() => setIsPickerOpen(true)}
-            className="w-full py-2 px-4 rounded-xl border border-dashed border-[var(--border)] hover:border-[var(--brand-primary)] bg-[var(--surface-secondary)]/40 hover:bg-[var(--brand-primary)]/5 text-xs font-semibold text-[var(--brand-primary)] transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 rounded-xl border border-dashed border-[var(--border)] hover:border-[var(--brand-primary)] bg-[var(--surface-secondary)]/40 hover:bg-[var(--brand-primary)]/5 text-xs font-semibold text-[var(--brand-primary)] transition-colors flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -278,6 +314,8 @@ export function NutritionMealEditor({
         }}
         title={`Adicionar Alimento em "${meal.title}"`}
       />
+        </>
+      )}
     </div>
   );
 }

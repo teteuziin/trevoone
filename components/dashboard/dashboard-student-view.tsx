@@ -251,13 +251,18 @@ export function DashboardStudentView({
       {/* ==================================================================== */}
       <section aria-label="Destaque de Performance" className="relative rounded-3xl overflow-hidden border border-neutral-800/80 shadow-lg min-h-[380px] sm:min-h-[440px] lg:min-h-[480px] flex flex-col justify-end p-6 sm:p-8 lg:p-10 bg-neutral-950">
         {/* Background Editorial Athlete Image */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 bg-neutral-950">
           <Image
             src="/images/student/hero-athlete.webp"
-            alt="Atleta em foco durante treino de alta performance"
+            alt=""
+            aria-hidden="true"
+            unoptimized
             fill
             priority
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1120px"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = "none";
+            }}
             className="object-cover object-[center_30%] opacity-90 transition-transform duration-700 hover:scale-[1.02]"
           />
           {/* Multi-directional Dark Scrim Overlay for pristine readability in Light & Dark */}
@@ -574,9 +579,14 @@ export function DashboardStudentView({
               <div className="absolute inset-0 z-0">
                 <Image
                   src="/images/student/nutrition-editorial.webp"
-                  alt="Alimentação saudável e consciente"
+                  alt=""
+                  aria-hidden="true"
+                  unoptimized
                   fill
                   sizes="(max-width: 768px) 80vw, 340px"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = "none";
+                  }}
                   className="object-cover opacity-80"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/70 to-neutral-950/30" />

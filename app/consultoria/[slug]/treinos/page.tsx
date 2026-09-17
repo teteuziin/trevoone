@@ -145,12 +145,17 @@ export default async function StudentTreinosPage({ params }: PageProps) {
         ) : (
           <div className="space-y-8">
             {/* PERFORMANCE HERO BANNER */}
-            <div className="relative rounded-3xl overflow-hidden min-h-[220px] sm:min-h-[260px] flex flex-col justify-end p-6 sm:p-8 border border-[var(--border-strong)] shadow-sm">
+            <div className="relative rounded-3xl overflow-hidden min-h-[220px] sm:min-h-[260px] flex flex-col justify-end p-6 sm:p-8 border border-[var(--border-strong)] shadow-sm bg-neutral-950">
               <Image
                 src="/images/student/workout-editorial.webp"
-                alt="Treino e Performance Trevo One"
+                alt=""
+                aria-hidden="true"
+                unoptimized
                 fill
                 priority
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                }}
                 className="object-cover object-center brightness-[0.42] scale-105 transition-transform duration-700 hover:scale-100"
               />
               {/* Cinematic Gradient Overlays */}

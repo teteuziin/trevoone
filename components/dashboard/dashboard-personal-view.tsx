@@ -165,9 +165,14 @@ export function DashboardPersonalView({
         <div className="absolute inset-0 z-0">
           <Image
             src="/images/personal/coach-cockpit.jpg"
-            alt="Trevo One Painel do Personal"
+            alt=""
+            aria-hidden="true"
+            unoptimized
             fill
             priority
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = "none";
+            }}
             className="object-cover object-center opacity-15 dark:opacity-25 filter grayscale contrast-125"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--surface)] via-[var(--surface)]/95 to-[var(--surface)]/60" />

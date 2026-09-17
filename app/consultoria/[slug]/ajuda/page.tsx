@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
+import { listConsultancySupportRecipients } from "@/lib/consultancies/support";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { HelpSupportHub } from "@/components/help/help-support-hub";
 
@@ -25,6 +26,7 @@ export default async function HelpSupportPage({ params }: PageProps) {
   }
 
   const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+  const recipients = await listConsultancySupportRecipients(context.consultancySlug, session.userId);
 
   return (
     <ConsultancyAppShell
@@ -40,6 +42,8 @@ export default async function HelpSupportPage({ params }: PageProps) {
         consultancySlug={context.consultancySlug}
         consultancyName={context.consultancyName}
         userRole={effectiveState.effectiveMode}
+        recipients={recipients}
+        currentUserFullName={session.fullName}
       />
     </ConsultancyAppShell>
   );

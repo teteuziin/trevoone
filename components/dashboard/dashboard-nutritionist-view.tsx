@@ -195,9 +195,14 @@ export function DashboardNutritionistView({
         <div className="absolute inset-0 z-0">
           <Image
             src="/images/nutrition/bowl-editorial.jpg"
-            alt="Trevo One Editorial Nutrição"
+            alt=""
+            aria-hidden="true"
+            unoptimized
             fill
             priority
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = "none";
+            }}
             className="object-cover object-center opacity-20 dark:opacity-30 filter saturate-110"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--surface)] via-[var(--surface)]/95 to-[var(--surface)]/65" />
@@ -304,8 +309,13 @@ export function DashboardNutritionistView({
           <div className="relative h-36 -mx-5 -mt-5 sm:-mx-6 sm:-mt-6 overflow-hidden">
             <Image
               src="/images/nutrition/breakfast-editorial.jpg"
-              alt="Desjejum Editorial"
+              alt=""
+              aria-hidden="true"
+              unoptimized
               fill
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = "none";
+              }}
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface)] via-transparent to-black/20" />
@@ -337,8 +347,13 @@ export function DashboardNutritionistView({
           <div className="relative h-36 -mx-5 -mt-5 sm:-mx-6 sm:-mt-6 overflow-hidden">
             <Image
               src="/images/nutrition/bowl-editorial.jpg"
-              alt="Almoço e Jantar Editorial"
+              alt=""
+              aria-hidden="true"
+              unoptimized
               fill
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = "none";
+              }}
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface)] via-transparent to-black/20" />

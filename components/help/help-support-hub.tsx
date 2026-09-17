@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   SearchIcon as Search,
@@ -23,10 +23,15 @@ import {
   SmartphoneIcon as Smartphone,
 } from "@/components/ui/icons";
 
+import { sendSupportMessageAction } from "@/app/consultoria/[slug]/ajuda/actions";
+import type { SupportRecipientDto } from "@/lib/consultancies/support";
+
 interface HelpSupportHubProps {
   consultancySlug: string;
   consultancyName: string;
   userRole?: string;
+  recipients?: SupportRecipientDto[];
+  currentUserFullName?: string;
 }
 
 interface ActionCard {
@@ -34,7 +39,7 @@ interface ActionCard {
   title: string;
   description: string;
   href?: string;
-  actionType?: "route" | "offline-modal" | "install-modal" | "tutorial";
+  actionType?: "route" | "offline-modal" | "install-modal" | "tutorial" | "support-modal";
   category: "treino" | "nutricao" | "gestao" | "financeiro" | "app";
   icon: React.ElementType;
   badge?: string;
@@ -96,6 +101,8 @@ export function HelpSupportHub({
   consultancySlug,
   consultancyName,
   userRole = "STUDENT",
+  recipients = [],
+  currentUserFullName,
 }: HelpSupportHubProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFaq, setActiveFaq] = useState<string | null>(null);
@@ -103,10 +110,27 @@ export function HelpSupportHub({
   const [showOfflineModal, setShowOfflineModal] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
 
-  // Support message state
-  const [supportName, setSupportName] = useState("");
+  // Real Support message state
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string>("");
+  const activeRecipientId =
+    selectedRecipientId || (recipients && recipients.length > 0 ? recipients[0].membershipPublicId : "");
+  const [supportSubject, setSupportSubject] = useState("");
   const [supportMessage, setSupportMessage] = useState("");
-  const [supportSent, setSupportSent] = useState(false);
+  const [isSubmittingSupport, setIsSubmittingSupport] = useState(false);
+  const [supportError, setSupportError] = useState<string | null>(null);
+  const [supportSuccess, setSupportSuccess] = useState<{
+    recipientName: string;
+    recipientRoleLabel: string;
+  } | null>(null);
+
+  // Listen for global open support event
+  useEffect(() => {
+    function handleOpenSupportEvent() {
+      setShowSupportModal(true);
+    }
+    window.addEventListener("trevo:open-support", handleOpenSupportEvent);
+    return () => window.removeEventListener("trevo:open-support", handleOpenSupportEvent);
+  }, []);
 
   const actionCards: ActionCard[] = useMemo(
     () => [
@@ -234,18 +258,42 @@ export function HelpSupportHub({
       setShowInstallModal(true);
     } else if (card.actionType === "tutorial") {
       window.dispatchEvent(new Event("trevo:open-tutorial"));
+    } else if (card.actionType === "support-modal") {
+      setShowSupportModal(true);
     }
   };
 
-  const handleSendSupportMessage = (e: React.FormEvent) => {
+  const handleSendSupportMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supportMessage.trim()) return;
-    setSupportSent(true);
-    setTimeout(() => {
-      setSupportSent(false);
-      setShowSupportModal(false);
-      setSupportMessage("");
-    }, 1800);
+
+    setIsSubmittingSupport(true);
+    setSupportError(null);
+
+    const chosenRecipient = recipients.find(
+      (r) => r.membershipPublicId === activeRecipientId
+    );
+
+    const res = await sendSupportMessageAction(consultancySlug, {
+      recipientMembershipPublicId: activeRecipientId || undefined,
+      targetRole: chosenRecipient?.role,
+      subject: supportSubject.trim() || "Dúvida do aluno",
+      message: supportMessage.trim(),
+    });
+
+    setIsSubmittingSupport(false);
+
+    if (!res.success) {
+      setSupportError(res.error || "Não foi possível enviar a mensagem. Tente novamente.");
+      return;
+    }
+
+    setSupportSuccess({
+      recipientName: res.recipientName || "Administração",
+      recipientRoleLabel: res.recipientRoleLabel || "Equipe",
+    });
+    setSupportSubject("");
+    setSupportMessage("");
   };
 
   return (
@@ -471,75 +519,151 @@ export function HelpSupportHub({
                 <div className="w-9 h-9 rounded-xl bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center">
                   <MessageSquare className="w-5 h-5" strokeWidth={1.8} />
                 </div>
-                <h3 className="font-heading text-base sm:text-lg font-bold text-[var(--text-primary)]">
-                  Enviar Mensagem
-                </h3>
+                <div>
+                  <h3 className="font-heading text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                    Falar com suporte
+                  </h3>
+                  {currentUserFullName && (
+                    <p className="text-[11px] text-[var(--text-tertiary)]">
+                      De: {currentUserFullName}
+                    </p>
+                  )}
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowSupportModal(false)}
+                onClick={() => {
+                  setShowSupportModal(false);
+                  setSupportError(null);
+                  setSupportSuccess(null);
+                }}
                 aria-label="Fechar"
-                className="p-2 rounded-xl text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="p-2 rounded-xl text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {supportSent ? (
-              <div className="py-8 text-center space-y-3 animate-in zoom-in-95 duration-200">
+            {supportSuccess ? (
+              <div className="py-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
                 <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
                   <Check className="w-6 h-6" strokeWidth={2} />
                 </div>
-                <p className="font-heading text-base font-bold text-[var(--text-primary)]">
-                  Mensagem enviada com sucesso!
+                <div className="space-y-1">
+                  <h4 className="font-heading text-base font-bold text-[var(--text-primary)]">
+                    Solicitação enviada com sucesso!
+                  </h4>
+                  <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto leading-relaxed">
+                    Sua mensagem foi entregue para <strong className="text-[var(--text-primary)]">{supportSuccess.recipientName}</strong> ({supportSuccess.recipientRoleLabel}).
+                  </p>
+                </div>
+                <p className="text-[11px] text-[var(--text-tertiary)] bg-[var(--surface-subtle)] border border-[var(--border-default)] p-3 rounded-xl leading-relaxed">
+                  Uma notificação foi registrada no painel da consultoria. A equipe responderá diretamente pelo aplicativo.
                 </p>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Nossa equipe retornará o contato o mais breve possível.
-                </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSupportSuccess(null);
+                      setShowSupportModal(false);
+                    }}
+                    className="w-full py-3 px-4 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer"
+                  >
+                    Concluir
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSendSupportMessage} className="space-y-4">
-                <div className="space-y-1">
+                {/* 1. Destinatário */}
+                <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-[var(--text-secondary)]">
-                    Seu nome
+                    Com quem você quer falar? *
+                  </label>
+                  {recipients && recipients.length > 0 ? (
+                    <select
+                      value={activeRecipientId}
+                      onChange={(e) => setSelectedRecipientId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--brand)] min-h-[44px] cursor-pointer font-medium"
+                    >
+                      {recipients.map((r) => (
+                        <option key={r.membershipPublicId} value={r.membershipPublicId}>
+                          {r.roleLabel}: {r.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] font-medium">
+                      Administração da consultoria
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Assunto */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[var(--text-secondary)]">
+                    Assunto *
                   </label>
                   <input
                     type="text"
-                    value={supportName}
-                    onChange={(e) => setSupportName(e.target.value)}
-                    placeholder="Como podemos te chamar?"
+                    required
+                    minLength={3}
+                    maxLength={120}
+                    value={supportSubject}
+                    onChange={(e) => setSupportSubject(e.target.value)}
+                    placeholder="Ex: Dúvida sobre treino, ajuste de plano..."
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-hidden focus:border-[var(--brand)] min-h-[44px]"
                   />
                 </div>
 
-                <div className="space-y-1">
+                {/* 3. Mensagem */}
+                <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-[var(--text-secondary)]">
-                    Como podemos te ajudar? *
+                    Descreva como podemos ajudar *
                   </label>
                   <textarea
                     required
+                    minLength={5}
+                    maxLength={1000}
                     rows={4}
                     value={supportMessage}
                     onChange={(e) => setSupportMessage(e.target.value)}
                     placeholder="Descreva sua dúvida, sugestão ou dificuldade encontrada..."
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-hidden focus:border-[var(--brand)] resize-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-hidden focus:border-[var(--brand)] resize-none min-h-[96px]"
                   />
+                  <div className="text-[10px] text-[var(--text-tertiary)] text-right">
+                    {supportMessage.length}/1000
+                  </div>
                 </div>
+
+                {supportError && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
+                    {supportError}
+                  </div>
+                )}
 
                 <div className="pt-2 flex items-center justify-end gap-2.5">
                   <button
                     type="button"
+                    disabled={isSubmittingSupport}
                     onClick={() => setShowSupportModal(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] min-h-[44px]"
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] min-h-[44px] cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer"
+                    disabled={isSubmittingSupport}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer disabled:opacity-50"
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Enviar</span>
+                    {isSubmittingSupport ? (
+                      <span>Enviando...</span>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Enviar solicitação</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

@@ -311,6 +311,7 @@ export function NotificationCenterView({
               disabled={pushLoading || !vapidPublicKey}
               isLoading={pushLoading}
               onClick={handleTogglePush}
+              className="min-h-[44px] sm:min-h-0 sm:h-8.5"
             >
               {isPushSubscribed ? "Desativar neste aparelho" : "Ativar neste aparelho"}
             </Button>
@@ -335,7 +336,7 @@ export function NotificationCenterView({
             type="button"
             disabled={isPending}
             onClick={handleMarkAllRead}
-            className="text-xs font-semibold text-[var(--brand-strong)] hover:text-[var(--brand)] hover:underline cursor-pointer disabled:opacity-50 transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-md"
+            className="min-h-[44px] py-2 px-2 flex items-center sm:min-h-0 sm:py-0 sm:px-0 text-xs font-semibold text-[var(--brand-strong)] hover:text-[var(--brand)] hover:underline cursor-pointer disabled:opacity-50 transition-colors focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-md"
           >
             Marcar todas como lidas
           </button>

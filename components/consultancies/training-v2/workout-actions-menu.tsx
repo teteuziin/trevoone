@@ -85,7 +85,7 @@ export function WorkoutActionsMenu({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Ações do treino"
-        className="p-2 rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-subtle)] border border-[var(--border-default)] transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+        className="p-2 rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-subtle)] border border-[var(--border-default)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[40px] sm:min-w-[40px] flex items-center justify-center cursor-pointer"
       >
         <MoreVertical className="w-4 h-4" />
       </button>

@@ -112,8 +112,8 @@ export function ReceiptReviewActions({
       )}
 
       <div className="space-y-2">
-        <h3 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Decisão do Comprovante</h3>
-        <p className="text-xs text-zinc-500">
+        <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Decisão do Comprovante</h3>
+        <p className="text-xs text-[var(--text-secondary)]">
           Confirme a legitimidade do comprovante Pix para alterar o status da cobrança.
         </p>
 
@@ -136,7 +136,7 @@ export function ReceiptReviewActions({
             type="button"
             variant="outline"
             size="md"
-            className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+            className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30"
             onClick={() => {
               setErrorMessage(null);
               setShowRejectModal(true);
@@ -173,6 +173,7 @@ export function ReceiptReviewActions({
                 type="button"
                 variant="outline"
                 size="sm"
+                className="min-h-[44px] sm:min-h-0"
                 onClick={() => setShowApproveModal(false)}
                 disabled={isPending}
               >
@@ -182,6 +183,7 @@ export function ReceiptReviewActions({
                 type="button"
                 variant="primary"
                 size="sm"
+                className="min-h-[44px] sm:min-h-0"
                 onClick={handleApprove}
                 disabled={isPending}
               >
@@ -224,6 +226,7 @@ export function ReceiptReviewActions({
                 type="button"
                 variant="outline"
                 size="sm"
+                className="min-h-[44px] sm:min-h-0"
                 onClick={() => setShowRejectModal(false)}
                 disabled={isPending}
               >
@@ -233,6 +236,7 @@ export function ReceiptReviewActions({
                 type="button"
                 variant="danger"
                 size="sm"
+                className="min-h-[44px] sm:min-h-0"
                 onClick={handleReject}
                 disabled={isPending || !rejectionReason.trim()}
               >

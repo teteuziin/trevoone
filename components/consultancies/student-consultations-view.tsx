@@ -199,7 +199,7 @@ export function StudentConsultationsView({
                 <button
                   type="button"
                   onClick={() => setSelectedForCancel(nextConsultation)}
-                  className="px-3.5 py-2 rounded-xl text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)] transition-all min-h-[40px] cursor-pointer depth-interactive"
+                  className="px-3.5 py-2 rounded-xl text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)] transition-all min-h-[44px] sm:min-h-[40px] cursor-pointer depth-interactive"
                 >
                   Cancelar consulta
                 </button>

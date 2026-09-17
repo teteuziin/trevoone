@@ -344,7 +344,7 @@ export function WorkoutAssignmentsList({
                 size="sm"
                 onClick={() => setConfirmUpdateItem(null)}
                 disabled={isPending}
-                className="font-semibold min-h-[40px]"
+                className="font-semibold min-h-[44px] sm:min-h-[40px]"
               >
                 Cancelar
               </Button>
@@ -353,7 +353,7 @@ export function WorkoutAssignmentsList({
                 size="sm"
                 onClick={handleUpdateVersion}
                 disabled={isPending}
-                className="font-bold min-h-[40px] flex items-center gap-1.5 shadow-sm"
+                className="font-bold min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 shadow-sm"
               >
                 {isPending ? "Atualizando..." : `Confirmar Atualização (V${confirmUpdateItem.currentPublishedVersionNumber})`}
               </Button>
@@ -391,7 +391,7 @@ export function WorkoutAssignmentsList({
                 size="sm"
                 onClick={() => setConfirmEndItem(null)}
                 disabled={isPending}
-                className="font-semibold min-h-[40px]"
+                className="font-semibold min-h-[44px] sm:min-h-[40px]"
               >
                 Cancelar
               </Button>
@@ -400,7 +400,7 @@ export function WorkoutAssignmentsList({
                 size="sm"
                 onClick={handleTerminate}
                 disabled={isPending}
-                className="font-bold min-h-[40px] flex items-center gap-1.5 shadow-sm"
+                className="font-bold min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 shadow-sm"
               >
                 {isPending ? "Encerrando..." : "Sim, Encerrar Prescrição"}
               </Button>

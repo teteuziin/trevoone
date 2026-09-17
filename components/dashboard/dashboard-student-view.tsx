@@ -684,7 +684,7 @@ export function DashboardStudentView({
                 Medições periódicas
               </span>
               <Link href={`/consultoria/${consultancySlug}/progresso`}>
-                <Button variant="secondary" size="sm" className="font-semibold min-h-[40px]">
+                <Button variant="secondary" size="sm" className="font-semibold min-h-[44px] sm:min-h-[40px]">
                   Nova medição →
                 </Button>
               </Link>

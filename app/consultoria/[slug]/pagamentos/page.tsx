@@ -81,7 +81,7 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
         <div className="flex items-center gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl max-w-xs shadow-xs">
           <Link
             href={`/consultoria/${slug}/pagamentos?view=pending`}
-            className={`flex-1 text-center py-2 px-3.5 rounded-lg text-xs font-semibold transition-all border ${
+            className={`flex-1 text-center min-h-[44px] flex items-center justify-center sm:min-h-0 py-2 sm:py-2 px-3.5 rounded-lg text-xs font-semibold transition-all border ${
               activeView === "pending"
                 ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border-[var(--border-strong)] font-bold"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-transparent"
@@ -91,7 +91,7 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
           </Link>
           <Link
             href={`/consultoria/${slug}/pagamentos?view=history`}
-            className={`flex-1 text-center py-2 px-3.5 rounded-lg text-xs font-semibold transition-all border ${
+            className={`flex-1 text-center min-h-[44px] flex items-center justify-center sm:min-h-0 py-2 sm:py-2 px-3.5 rounded-lg text-xs font-semibold transition-all border ${
               activeView === "history"
                 ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border-[var(--border-strong)] font-bold"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-transparent"

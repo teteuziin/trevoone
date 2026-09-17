@@ -312,7 +312,7 @@ export function AdminStudentOnboardingPanel({
                           isLoading={isThisConfirming}
                           disabled={isPending}
                           onClick={() => handleConfirm(req)}
-                          className="w-full sm:w-auto min-h-[44px] px-5 bg-[#00A859] hover:bg-[#008f4c] font-semibold"
+                          className="w-full sm:w-auto min-h-[44px] px-5 font-semibold"
                         >
                           {isThisConfirming ? "Confirmando..." : "Confirmar ✓"}
                         </Button>

@@ -106,30 +106,30 @@ export function PwaRegistry() {
     <div
       role="region"
       aria-label="Atualização do aplicativo"
-      className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-50 bg-white border border-slate-200 shadow-xl rounded-2xl p-4 flex flex-col gap-3 text-slate-800 animate-in fade-in slide-in-from-bottom-3 duration-200"
+      className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-50 bg-[var(--surface)] border border-[var(--border-default)] shadow-xl rounded-2xl p-4 flex flex-col gap-3 text-[var(--text-primary)] animate-in fade-in slide-in-from-bottom-3 duration-200 depth-surface"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-0.5">
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
             Nova versão disponível
           </p>
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-[var(--text-secondary)]">
             Uma atualização do Trevo One está pronta para ser aplicada.
           </p>
         </div>
       </div>
-      <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+      <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
         <button
           type="button"
           onClick={handleDismiss}
-          className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+          className="px-3.5 py-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] sm:min-h-0 sm:py-1.5 cursor-pointer"
         >
           Depois
         </button>
         <button
           type="button"
           onClick={handleUpdate}
-          className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#00a859] hover:bg-[#008f4c] rounded-xl shadow-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-[#00a859] focus:ring-offset-1"
+          className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 min-h-[44px] sm:min-h-0 sm:py-1.5 cursor-pointer"
         >
           Atualizar
         </button>

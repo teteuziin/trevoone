@@ -33,7 +33,7 @@ export function CopyPixButton({ pixKey, className = "" }: CopyPixButtonProps) {
       size="sm"
       onClick={handleCopy}
       aria-label={copied ? "Chave Pix copiada para a área de transferência" : "Copiar chave Pix"}
-      className={className}
+      className={`min-h-[44px] sm:min-h-0 ${className}`.trim()}
     >
       {copied ? (
         <>
@@ -52,7 +52,7 @@ export function CopyPixButton({ pixKey, className = "" }: CopyPixButtonProps) {
       ) : (
         <>
           <svg
-            className="w-4 h-4 mr-1.5 shrink-0 text-zinc-500"
+            className="w-4 h-4 mr-1.5 shrink-0 text-[var(--text-tertiary)]"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

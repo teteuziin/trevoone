@@ -21,12 +21,12 @@ export function DumbbellIcon({ className = "w-5 h-5", strokeWidth = 1.8, ...prop
   return (
     <svg {...baseProps(className, strokeWidth)} {...props}>
       <path d="M6.5 6.5l11 11" />
-      <path d="M21 21l-1-1" />
-      <path d="M3 3l1 1" />
-      <path d="M18 22l4-4" />
-      <path d="M2 6l4-4" />
-      <path d="M3 10l7-7" />
-      <path d="M14 21l7-7" />
+      <path d="M4 9l3-3 2 2-3 3z" />
+      <path d="M15 20l3-3 2 2-3 3z" />
+      <path d="M2.5 10.5l4-4" />
+      <path d="M17.5 21.5l4-4" />
+      <path d="M9 15l-1.5 1.5" />
+      <path d="M16.5 7.5L15 9" />
     </svg>
   );
 }
@@ -34,12 +34,9 @@ export function DumbbellIcon({ className = "w-5 h-5", strokeWidth = 1.8, ...prop
 export function UtensilsIcon({ className = "w-5 h-5", strokeWidth = 1.8, ...props }: IconProps) {
   return (
     <svg {...baseProps(className, strokeWidth)} {...props}>
-      <path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2" />
-      <path d="M15 11v11" />
-      <path d="M5 2v8a3 3 0 0 0 3 3h1a3 3 0 0 0 3-3V2" />
-      <path d="M7 2v6" />
-      <path d="M9 2v6" />
-      <path d="M8 13v9" />
+      <path d="M12 2c1.8 2.2 1.5 4 0 5.5" />
+      <path d="M8.5 7C5.2 7.5 3 10.5 3 14c0 4 3 6.5 5.5 6.5 2 0 2.5-.8 3.5-.8s1.5.8 3.5.8c2.5 0 5.5-2.5 5.5-6.5 0-3.5-2.2-6.5-5.5-7-1.2-.2-2.3.4-3.5.4S9.7 6.8 8.5 7z" />
+      <path d="M12 11v5" />
     </svg>
   );
 }
@@ -58,8 +55,10 @@ export function UserPlusIcon({ className = "w-5 h-5", strokeWidth = 1.8, ...prop
 export function CreditCardIcon({ className = "w-5 h-5", strokeWidth = 1.8, ...props }: IconProps) {
   return (
     <svg {...baseProps(className, strokeWidth)} {...props}>
-      <rect x="2" y="5" width="20" height="14" rx="2" />
-      <line x1="2" y1="10" x2="22" y2="10" />
+      <rect x="2.5" y="5.5" width="19" height="13" rx="2.5" />
+      <path d="M2.5 10h19" />
+      <circle cx="7" cy="14.5" r="1.25" fill="currentColor" />
+      <path d="M12 14.5h5" />
     </svg>
   );
 }
@@ -67,10 +66,11 @@ export function CreditCardIcon({ className = "w-5 h-5", strokeWidth = 1.8, ...pr
 export function CalendarIcon({ className = "w-5 h-5", strokeWidth = 1.8, ...props }: IconProps) {
   return (
     <svg {...baseProps(className, strokeWidth)} {...props}>
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
+      <rect x="3" y="4.5" width="18" height="16.5" rx="2.5" />
+      <path d="M16 2.5v3.5M8 2.5v3.5M3 9.5h18" />
+      <circle cx="8" cy="14" r="1" fill="currentColor" />
+      <circle cx="12" cy="14" r="1" fill="currentColor" />
+      <circle cx="16" cy="14" r="1" fill="currentColor" />
     </svg>
   );
 }
@@ -78,8 +78,9 @@ export function CalendarIcon({ className = "w-5 h-5", strokeWidth = 1.8, ...prop
 export function TrendingUpIcon({ className = "w-5 h-5", strokeWidth = 1.8, ...props }: IconProps) {
   return (
     <svg {...baseProps(className, strokeWidth)} {...props}>
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-      <polyline points="17 6 23 6 23 12" />
+      <path d="M3 20h18M3.5 15.5l5.5-5.5 4 4 7-7.5" />
+      <path d="M15.5 6.5H20V11" />
+      <circle cx="13" cy="14" r="1.25" fill="currentColor" />
     </svg>
   );
 }

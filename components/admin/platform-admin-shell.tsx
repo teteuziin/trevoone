@@ -17,7 +17,7 @@ export function PlatformAdminShell({
   children,
 }: PlatformAdminShellProps) {
   return (
-    <div className="min-h-svh w-full bg-[var(--background)] text-[var(--text-primary)] flex flex-col selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
+    <div className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
       <PlatformAdminNavigation
         userName={userName}
         userEmail={userEmail}

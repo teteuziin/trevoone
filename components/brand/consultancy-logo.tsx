@@ -60,6 +60,7 @@ export function ConsultancyLogo({
           alt={name}
           width={size}
           height={size}
+          unoptimized
           priority={priority}
           onError={() => setHasError(true)}
           className="w-full h-full object-contain p-1"

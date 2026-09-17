@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ShieldCheckIcon as ShieldCheck } from "@/components/ui/icons";
+import { NetflixFeatureCarousel, type CarouselSlide } from "./netflix-feature-carousel";
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
 
@@ -66,6 +67,46 @@ export function DashboardAdminView({
   const isSuspendedOrCanceled = platformAccess && !platformAccess.isOperationalAllowed;
   const isInGrace = platformAccess && platformAccess.effectiveStatus === "GRACE";
 
+  const adminSlides: CarouselSlide[] = [
+    {
+      id: "admin-members",
+      tag: "EQUIPE E ALUNOS",
+      tagColor: "brand",
+      title: "Gerencie sua equipe e seus alunos",
+      description: "Coordene permissões, convites e o acesso dos profissionais e alunos vinculados à consultoria.",
+      ctaText: "Gerenciar membros",
+      ctaHref: `/consultoria/${consultancySlug}/membros`,
+      imageUrl: "/images/admin/workspace.jpg",
+      meta: overview?.activeMembers ? `${overview.activeMembers} membros ativos` : undefined,
+    },
+    {
+      id: "admin-finance",
+      tag: "FINANCEIRO",
+      tagColor: "emerald",
+      title: "Central Financeira da Consultoria",
+      description: "Acompanhe faturas, controle mensalidades e relatórios de fluxo financeiro da operação.",
+      ctaText: "Acessar financeiro",
+      ctaHref: `/consultoria/${consultancySlug}/financeiro`,
+      imageUrl: "/images/admin/finance.jpg",
+    },
+    {
+      id: "admin-subscription",
+      tag: "ASSINATURA",
+      tagColor: "blue",
+      title: "Plano & Assinatura Trevo One",
+      description: "Consulte o status do plano da sua consultoria, limites de alunos e recursos disponíveis.",
+      ctaText: "Ver assinatura",
+      ctaHref: `/consultoria/${consultancySlug}/assinatura`,
+      imageUrl: "/images/student/hero-athlete.webp",
+      meta:
+        platformAccess?.effectiveStatus === "ACTIVE"
+          ? "Plano Ativo"
+          : platformAccess?.effectiveStatus === "GRACE"
+          ? "Período de Carência"
+          : undefined,
+    },
+  ];
+
   return (
     <div className="space-y-7 sm:space-y-9 overflow-x-clip">
       {/* 1. Alertas P0 de Assinatura da Plataforma */}
@@ -128,7 +169,13 @@ export function DashboardAdminView({
         </div>
       )}
 
-      {/* 2. EXECUTIVE HERO: Gestão de Equipe & Operação */}
+      {/* 2. CARROSSEL DESTAQUE NETFLIX */}
+      <NetflixFeatureCarousel
+        slides={adminSlides}
+        consultancySlug={consultancySlug}
+      />
+
+      {/* 3. EXECUTIVE HERO: Gestão de Equipe & Operação */}
       {overview ? (
         <div className="relative rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] p-5 sm:p-7 md:p-8 shadow-xs depth-surface space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -143,7 +190,7 @@ export function DashboardAdminView({
               </div>
 
               <div className="space-y-1">
-                <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">
+                <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
                   Gestão da Consultoria & Equipe
                 </h1>
                 <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
@@ -154,7 +201,7 @@ export function DashboardAdminView({
               {/* Total Members Highlight & Role Breakdown Pills */}
               <div className="pt-2 flex flex-wrap items-center gap-2.5">
                 <div className="flex items-baseline gap-2 px-3.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
-                  <span className="font-heading text-xl font-extrabold text-[var(--text-primary)]">
+                  <span className="font-heading text-xl font-bold text-[var(--text-primary)]">
                     {overview.activeMembers}
                   </span>
                   <span className="text-xs font-semibold text-[var(--text-secondary)]">

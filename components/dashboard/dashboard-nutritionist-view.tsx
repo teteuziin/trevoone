@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SaladIcon as Salad } from "@/components/ui/icons";
+import { NetflixFeatureCarousel, type CarouselSlide } from "./netflix-feature-carousel";
 
 export interface NutritionistPlanSummaryItem {
   publicId: string;
@@ -187,65 +188,57 @@ export function DashboardNutritionistView({
     },
   ];
 
+  const nutritionistSlides: CarouselSlide[] = [
+    {
+      id: "nutri-plans",
+      tag: "PRESCRIÇÃO",
+      tagColor: "emerald",
+      title: "Crie e acompanhe planos alimentares",
+      description: "Prescreva cardápios individualizados, distribua refeições ao longo do dia e defina orientações práticas.",
+      ctaText: "Acessar planos alimentares",
+      ctaHref: `/consultoria/${consultancySlug}/planos-v2`,
+      imageUrl: "/images/nutrition/bowl-editorial.jpg",
+      meta: totalPlans > 0 ? `${totalPlans} planos cadastrados` : "Nutrição personalizada",
+    },
+    {
+      id: "nutri-foods",
+      tag: "ALIMENTOS",
+      tagColor: "brand",
+      title: "Tabela e Banco de Alimentos",
+      description: "Consulte ingredientes, porções e informações nutricionais para estruturar prescrições.",
+      ctaText: "Ver alimentos",
+      ctaHref: `/consultoria/${consultancySlug}/alimentos-v2`,
+      imageUrl: "/images/nutrition/breakfast-editorial.jpg",
+    },
+    {
+      id: "nutri-patients",
+      tag: "PACIENTES",
+      tagColor: "neutral",
+      title: "Evolução dos Pacientes",
+      description: "Monitore o histórico de pesagens corporais e registros de medidas dos seus pacientes.",
+      ctaText: "Acompanhar evolução",
+      ctaHref: `/consultoria/${consultancySlug}/progresso/alunos`,
+      imageUrl: "/images/student/hero-athlete.webp",
+    },
+    {
+      id: "nutri-consultations",
+      tag: "AGENDA",
+      tagColor: "blue",
+      title: "Consultas Nutricionais",
+      description: "Gerencie atendimentos agendados, sessões de retorno e orientações diretas.",
+      ctaText: "Ver consultas",
+      ctaHref: `/consultoria/${consultancySlug}/consultas`,
+      imageUrl: "/images/admin/workspace.jpg",
+    },
+  ];
+
   return (
     <div className="space-y-7 sm:space-y-9 overflow-x-clip">
-      {/* 1. HERO EDITORIAL GASTRONÔMICO */}
-      <div className="relative rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-xs depth-surface bg-[var(--surface)]">
-        {/* Real Food Editorial Imagery Backdrop */}
-        <div className="absolute inset-0 z-0">
-          <Image
-            src="/images/nutrition/bowl-editorial.jpg"
-            alt=""
-            aria-hidden="true"
-            unoptimized
-            fill
-            priority
-            className="object-cover object-center opacity-20 dark:opacity-30 filter saturate-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-[var(--surface)] via-[var(--surface)]/95 to-[var(--surface)]/65" />
-        </div>
-
-        <div className="relative z-10 p-5 sm:p-7 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-3 max-w-2xl">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-600 text-white shadow-2xs">
-                Espaço Nutricional
-              </span>
-              <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                Nutricionista
-              </span>
-              {totalPlans > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)]">
-                  {totalPlans} {totalPlans === 1 ? "plano cadastrado" : "planos cadastrados"}
-                </span>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">
-                Prescrição & Gastronomia Clínica
-              </h1>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
-                Elabore cardápios individualizados, estruture refeições por macronutrientes da tabela TACO e oriente a rotina alimentar dos seus pacientes.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-            <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`} className="w-full sm:w-auto">
-              <Button variant="primary" size="md" className="w-full font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2">
-                <PlusIcon className="w-4 h-4" />
-                <span>Novo Plano</span>
-              </Button>
-            </Link>
-            <Link href={`/consultoria/${consultancySlug}/planos-v2`} className="w-full sm:w-auto">
-              <Button variant="secondary" size="md" className="w-full font-semibold min-h-[44px]">
-                Ver Todos
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
+      {/* 1. CARROSSEL DESTAQUE NETFLIX */}
+      <NetflixFeatureCarousel
+        slides={nutritionistSlides}
+        consultancySlug={consultancySlug}
+      />
 
       {/* 2. EDITORIAL MEAL & INSPIRATION RAIL (84vw on mobile snap scroll) */}
       <div className="space-y-3">

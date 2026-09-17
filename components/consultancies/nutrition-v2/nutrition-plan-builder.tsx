@@ -327,7 +327,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
   };
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-[var(--background)] px-4 py-6 sm:py-8">
+    <div className="w-full min-h-[calc(100vh-4rem)] bg-transparent px-4 py-6 sm:py-8">
       <div className="space-y-6 max-w-5xl mx-auto pb-28 sm:pb-20">
         {/* Top Breadcrumb & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

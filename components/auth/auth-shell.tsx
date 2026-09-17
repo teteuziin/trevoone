@@ -12,7 +12,7 @@ const themeSyncScript = `(function(){try{var p=new URLSearchParams(window.locati
 
 export function AuthShell({ title, subtitle, badge, children }: AuthShellProps) {
   return (
-    <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+    <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-transparent text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
       <script dangerouslySetInnerHTML={{ __html: themeSyncScript }} />
       {/* Container Principal */}
       <div className="w-full max-w-[420px] mx-auto flex flex-col items-center space-y-6 my-auto">

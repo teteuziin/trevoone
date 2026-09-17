@@ -38,7 +38,7 @@ export default async function AccountProfilePage() {
   };
 
   return (
-    <main className="min-h-dvh w-full bg-[var(--background)] text-[var(--text-primary)] p-4 sm:p-6 lg:p-8 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]">
+    <main className="min-h-dvh w-full bg-transparent text-[var(--text-primary)] p-4 sm:p-6 lg:p-8 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Breadcrumb Navigation */}
         <div className="flex items-center gap-2">

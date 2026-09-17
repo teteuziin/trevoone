@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type {
   WorkoutRootDto,
@@ -204,6 +204,19 @@ export function WorkoutBuilder({
   const [activePickerBlockId, setActivePickerBlockId] = useState<string | null>(null);
   const [activeCustomBlockId, setActiveCustomBlockId] = useState<string | null>(null);
 
+  // Mobile single-block open state (accordion)
+  const [activeMobileBlockId, setActiveMobileBlockId] = useState<string | null>(null);
+
+  // Visual Guided Flow step (1: Estrutura, 2: Exercícios, 3: Ajustes, 4: Revisão)
+  const flowStep = useMemo(() => {
+    const bList = draft.blocks || [];
+    if (bList.length === 0) return 1;
+    const hasEmptyBlocks = bList.some((b) => !b.items || b.items.length === 0);
+    if (hasEmptyBlocks) return 2;
+    if (draft.status !== "PUBLISHED") return 3;
+    return 4;
+  }, [draft.blocks, draft.status]);
+
   // General loading transition
   const [isPending, startTransition] = useTransition();
 
@@ -327,7 +340,10 @@ export function WorkoutBuilder({
           ...prev,
           blocks: [...(prev.blocks || []), res.data!],
         }));
-        showNotification("success", `Novo bloco adicionado (${res.data.title || defaultTitle})`);
+        if (res.data?.publicId) {
+          setActiveMobileBlockId(res.data.publicId);
+        }
+        showNotification("success", `Bloco ${res.data.title || defaultTitle} adicionado! Agora escolha o exercício.`);
       } catch {
         showNotification("error", "Falha ao adicionar novo bloco.");
       }
@@ -793,7 +809,7 @@ export function WorkoutBuilder({
   const blocks = draft.blocks || [];
 
   return (
-    <div className="space-y-6 pb-28 sm:pb-8">
+    <div className="space-y-6 pb-32 sm:pb-12 max-w-5xl mx-auto px-2.5 sm:px-6">
       {/* Toast / Notification Banner */}
       {statusMessage && (
         <div
@@ -814,12 +830,12 @@ export function WorkoutBuilder({
         </div>
       )}
 
-      {/* Routine Metadata Card */}
-      <section className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 md:p-7 shadow-xs">
+      {/* Routine Metadata Header Card — Limpo e Confortável */}
+      <section className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-6 lg:p-7 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1 min-w-0">
+            {/* Badges de Status e Versão */}
             <div className="flex flex-wrap items-center gap-2">
-              {/* Version status badge */}
               {isReadOnly ? (
                 draft.status === "PUBLISHED" ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -834,7 +850,7 @@ export function WorkoutBuilder({
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Rascunho
+                  Rascunho em Edição
                 </span>
               )}
 
@@ -845,49 +861,49 @@ export function WorkoutBuilder({
               )}
 
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[var(--surface-subtle)] text-[var(--foreground-muted)] border border-[var(--border-subtle)]">
-                Versão {draft.versionNumber}
+                v{draft.versionNumber}
               </span>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[var(--surface-subtle)] text-[var(--foreground-muted)] border border-[var(--border-subtle)]">
-                {DIFFICULTY_LABELS[draft.difficultyLevel as DifficultyLevel] ||
-                  draft.difficultyLevel}
+                {DIFFICULTY_LABELS[draft.difficultyLevel as DifficultyLevel] || draft.difficultyLevel}
               </span>
             </div>
 
-            <h1 className="text-xl md:text-2xl font-black tracking-tight text-[var(--foreground)]">
+            {/* Nome do Treino */}
+            <h1 className="text-xl sm:text-2xl font-heading font-black tracking-tight text-[var(--foreground)] truncate">
               {draft.title}
             </h1>
 
             {draft.subtitle && (
-              <p className="text-sm font-medium text-[var(--foreground-muted)]">
+              <p className="text-xs sm:text-sm font-medium text-[var(--foreground-muted)] line-clamp-2">
                 {draft.subtitle}
               </p>
             )}
 
             {draft.objective && (
               <p className="text-xs text-[var(--foreground-muted)] bg-[var(--surface-subtle)] px-3 py-1.5 rounded-xl inline-block border border-[var(--border-subtle)]">
-                <span className="font-semibold text-[var(--foreground)]">Objetivo:</span>{" "}
-                {draft.objective}
+                <span className="font-semibold text-[var(--foreground)]">Objetivo:</span> {draft.objective}
               </p>
             )}
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons (Desktop toolbar & non-dominant secondary actions) */}
           <div className="flex items-center gap-2 shrink-0">
             {!isReadOnly ? (
               <>
                 <button
                   type="button"
                   onClick={() => setIsEditingMetadata(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors min-h-[38px] cursor-pointer"
                 >
                   <Edit3 className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
-                  Editar Informações
+                  <span className="hidden sm:inline">Editar Informações</span>
+                  <span className="sm:hidden">Editar</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsPublishDialogOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs min-h-[38px] cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
                   Publicar Treino
@@ -899,10 +915,10 @@ export function WorkoutBuilder({
                   <button
                     type="button"
                     onClick={() => setIsAssignModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-xs min-h-[38px] cursor-pointer"
                   >
                     <UserCheck className="w-3.5 h-3.5" />
-                    Prescrever para Aluno
+                    Prescrever
                   </button>
                 )}
 
@@ -910,7 +926,7 @@ export function WorkoutBuilder({
                   type="button"
                   onClick={handleCreateNewVersion}
                   disabled={isCreatingVersion}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50 min-h-[38px] cursor-pointer"
                 >
                   {isCreatingVersion ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -956,7 +972,7 @@ export function WorkoutBuilder({
               type="button"
               onClick={handleCreateNewVersion}
               disabled={isCreatingVersion}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shrink-0 shadow-xs disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shrink-0 shadow-xs disabled:opacity-50 min-h-[40px] cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               {isCreatingVersion ? "Criando..." : "Criar Nova Versão"}
@@ -966,12 +982,12 @@ export function WorkoutBuilder({
 
         {draft.notes && (
           <div className="mt-4 pt-4 border-t border-[var(--border-subtle)] text-xs text-[var(--foreground-muted)]">
-            <span className="font-semibold text-[var(--foreground)]">Observações:</span>{" "}
-            {draft.notes}
+            <span className="font-semibold text-[var(--foreground)]">Observações:</span> {draft.notes}
           </div>
         )}
 
-        <div className="mt-5 flex flex-wrap items-center gap-4 text-xs text-[var(--foreground-muted)] pt-4 border-t border-[var(--border-subtle)]">
+        {/* Resumo visual rápido: Duração, Blocos e Exercícios */}
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-[var(--foreground-muted)] pt-4 border-t border-[var(--border-subtle)]">
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-emerald-500" />
             <span>
@@ -982,30 +998,77 @@ export function WorkoutBuilder({
           </div>
           <div className="flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-emerald-500" />
-            <span>{blocks.length} {blocks.length === 1 ? "bloco" : "blocos"}</span>
+            <span className="font-semibold text-[var(--foreground)]">
+              {blocks.length} {blocks.length === 1 ? "bloco" : "blocos"}
+            </span>
           </div>
           <div className="flex items-center gap-1.5">
             <Dumbbell className="w-3.5 h-3.5 text-emerald-500" />
-            <span>
+            <span className="font-semibold text-[var(--foreground)]">
               {blocks.reduce((acc, b) => acc + (b.items?.length || 0), 0)} exercícios
             </span>
           </div>
         </div>
       </section>
 
-      {/* Routine Blocks List */}
+      {/* 1. Sensação Visual de Fluxo Guiado (1. Estrutura -> 2. Exercícios -> 3. Ajustes -> 4. Revisão) */}
+      <section className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-2.5 sm:p-3 shadow-2xs">
+        <div className="flex items-center justify-between gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-0.5">
+          {[
+            { step: 1, label: "Estrutura", desc: "Blocos de treino" },
+            { step: 2, label: "Exercícios", desc: "Adição dos itens" },
+            { step: 3, label: "Ajustes", desc: "Séries & reps" },
+            { step: 4, label: "Revisão", desc: "Publicação" },
+          ].map((item) => {
+            const isActive = flowStep === item.step;
+            const isDone = flowStep > item.step;
+            return (
+              <div
+                key={item.step}
+                className={`flex items-center gap-2 flex-1 min-w-[95px] sm:min-w-0 px-2 sm:px-3 py-1.5 rounded-xl transition-all ${
+                  isActive
+                    ? "bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 font-bold"
+                    : isDone
+                    ? "text-[var(--foreground)] opacity-90 font-medium"
+                    : "text-[var(--foreground-muted)] opacity-50 font-normal"
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0 ${
+                    isActive
+                      ? "bg-emerald-600 text-white shadow-2xs"
+                      : isDone
+                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                      : "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground-muted)]"
+                  }`}
+                >
+                  {isDone ? <Check className="w-3 h-3" /> : item.step}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs truncate leading-tight">{item.label}</p>
+                  <p className="text-[10px] text-[var(--foreground-muted)] truncate hidden md:block">
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Routine Blocks List Section */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
             <Layers className="w-4 h-4 text-emerald-500" />
-            Estrutura de Blocos (11 Métodos)
+            Estrutura de Blocos ({blocks.length})
           </h2>
 
           {!isReadOnly && (
             <button
               onClick={() => setIsMethodModalOpen(true)}
               disabled={isPending}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50 min-h-[38px] cursor-pointer"
             >
               {isPending ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1017,31 +1080,34 @@ export function WorkoutBuilder({
           )}
         </div>
 
+        {/* 8. Empty State Direto e Simples */}
         {blocks.length === 0 ? (
-          <div className="p-12 text-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)] space-y-4">
+          <div className="p-8 sm:p-12 text-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)] space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
               <Layers className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-[var(--foreground)]">
-                Nenhum bloco de exercício adicionado
+              <h3 className="text-base font-bold text-[var(--foreground)]">
+                Comece adicionando o primeiro bloco do treino.
               </h3>
               <p className="text-xs text-[var(--foreground-muted)] max-w-sm mx-auto">
-                Adicione blocos com qualquer uma das 11 metodologias disponíveis (Série Simples, Bi-Set, Tri-Set, Circuito, Drop-Set, Rest-Pause, Cardio...).
+                Escolha a metodologia desejada para iniciar a estrutura do treino.
               </p>
             </div>
             {!isReadOnly && (
               <button
+                type="button"
                 onClick={() => setIsMethodModalOpen(true)}
                 disabled={isPending}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-sm min-h-[44px] cursor-pointer active:scale-98"
               >
                 <Plus className="w-4 h-4" />
-                Escolher Metodologia do 1º Bloco
+                <span>Escolher metodologia</span>
               </button>
             )}
           </div>
         ) : (
+          /* Lista de Blocos com comportamento Mobile Accordion */
           <div className="space-y-4">
             {blocks.map((block, index) => (
               <WorkoutBlockCard
@@ -1049,6 +1115,18 @@ export function WorkoutBuilder({
                 block={block}
                 blockIndex={index}
                 totalBlocks={blocks.length}
+                isControlledCollapsed={
+                  activeMobileBlockId !== null
+                    ? activeMobileBlockId !== block.publicId
+                    : blocks.length > 1 && index > 0
+                }
+                onToggleCollapse={() => {
+                  const isOpen =
+                    activeMobileBlockId !== null
+                      ? activeMobileBlockId === block.publicId
+                      : blocks.length === 1 || index === 0;
+                  setActiveMobileBlockId(isOpen ? "NONE" : block.publicId);
+                }}
                 onMoveUp={() => handleMoveBlockUp(index)}
                 onMoveDown={() => handleMoveBlockDown(index)}
                 onDuplicate={() => handleDuplicateBlock(block.publicId)}
@@ -1084,14 +1162,14 @@ export function WorkoutBuilder({
         )}
       </section>
 
-      {/* Bottom Floating/Fixed Action */}
+      {/* Bottom Floating Action on Desktop */}
       <div className="pt-2 flex justify-center">
         {!isReadOnly ? (
           blocks.length > 0 && (
             <button
               onClick={() => setIsMethodModalOpen(true)}
               disabled={isPending}
-              className="inline-flex items-center gap-2 px-5 py-3 text-xs font-semibold rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors shadow-xs disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-3 text-xs font-semibold rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors shadow-xs disabled:opacity-50 min-h-[44px] cursor-pointer"
             >
               {isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
@@ -1106,7 +1184,7 @@ export function WorkoutBuilder({
             type="button"
             onClick={handleCreateNewVersion}
             disabled={isCreatingVersion}
-            className="inline-flex items-center gap-2 px-6 py-3 text-xs font-semibold rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-6 py-3 text-xs font-semibold rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50 min-h-[44px] cursor-pointer"
           >
             {isCreatingVersion ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -1118,18 +1196,18 @@ export function WorkoutBuilder({
         )}
       </div>
 
-      {/* Mobile Sticky Footer Action Bar */}
-      <div className="fixed sm:hidden bottom-0 left-0 right-0 p-3.5 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-strong)] z-30 shadow-lg flex items-center gap-2.5">
+      {/* 6. Mobile Sticky Footer Action Bar (Adicionar Bloco + Salvar Treino com Safe Area) */}
+      <div className="fixed sm:hidden bottom-0 left-0 right-0 p-3 pb-[max(0.875rem,env(safe-area-inset-bottom))] bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-strong)] z-30 shadow-2xl flex items-center gap-2.5">
         {!isReadOnly ? (
           <>
             <button
               type="button"
               onClick={() => setIsMethodModalOpen(true)}
               disabled={isPending}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)] active:scale-98 transition-all min-h-[44px] cursor-pointer"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-sunken)] border border-[var(--border-default)] text-xs font-bold text-[var(--foreground)] active:scale-98 transition-all min-h-[44px] cursor-pointer"
             >
               <Plus className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>+ Adicionar Bloco</span>
+              <span>Adicionar bloco</span>
             </button>
             <button
               type="button"
@@ -1137,7 +1215,7 @@ export function WorkoutBuilder({
               className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm active:scale-98 transition-all min-h-[44px] cursor-pointer"
             >
               <Check className="w-4 h-4 shrink-0" />
-              <span>Publicar Treino</span>
+              <span>Salvar treino</span>
             </button>
           </>
         ) : (

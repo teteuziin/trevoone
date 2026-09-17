@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function ConsultancyHomeLoading() {
   return (
     <div
-      className="min-h-svh w-full bg-[var(--background)] text-[var(--text-primary)] flex flex-col selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]"
+      className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]"
       aria-busy="true"
       aria-label="Carregando painel da consultoria"
     >

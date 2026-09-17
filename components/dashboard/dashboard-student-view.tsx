@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { NetflixFeatureCarousel, type CarouselSlide } from "./netflix-feature-carousel";
 
 export interface StudentWorkoutRoutineSummary {
   publicId?: string;
@@ -181,8 +182,6 @@ export function DashboardStudentView({
 
   const hasTraining = !!activeTrainingPlan;
   const hasNutrition = !!activeNutritionPlan;
-  const hasBothPlans = hasTraining && hasNutrition;
-
   const firstName = getFirstName(userName);
 
   // Weight delta calculation: strictly from baseline if 2 real entries exist
@@ -209,6 +208,63 @@ export function DashboardStudentView({
           },
         ]
         : [];
+
+  const studentSlides: CarouselSlide[] = [
+    {
+      id: "student-training",
+      tag: consultancyName ? `TREINOS • ${consultancyName.toUpperCase()}` : "TREINOS",
+      tagColor: "brand",
+      title: hasTraining
+        ? activeTrainingPlan.title
+        : firstName
+        ? `Olá, ${firstName} — Treinos Prescritos`
+        : "Rotinas e Exercícios Prescritos",
+      description: hasTraining && activeTrainingPlan.subtitle
+        ? activeTrainingPlan.subtitle
+        : "Acesse suas rotinas de treino personalizadas, exercícios e orientações do seu personal trainer.",
+      ctaText: "Acessar treinos",
+      ctaHref: `/consultoria/${consultancySlug}/treinos`,
+      imageUrl: "/images/student/workout-editorial.webp",
+      meta:
+        hasTraining && workoutCount > 0
+          ? `${workoutCount} ${workoutCount === 1 ? "rotina ativa" : "rotinas ativas"}${blockCount ? ` • ${blockCount} blocos` : ""}${totalExercises ? ` • ${totalExercises} ex.` : ""}`
+          : undefined,
+    },
+    {
+      id: "student-nutrition",
+      tag: "NUTRIÇÃO",
+      tagColor: "emerald",
+      title: hasNutrition ? activeNutritionPlan.title : "Planejamento Alimentar",
+      description: hasNutrition && activeNutritionPlan.subtitle
+        ? activeNutritionPlan.subtitle
+        : "Consulte suas refeições prescritas, horários e diretrizes nutricionais personalizadas.",
+      ctaText: "Ver plano alimentar",
+      ctaHref: `/consultoria/${consultancySlug}/nutricao`,
+      imageUrl: "/images/student/nutrition-editorial.webp",
+      meta: hasNutrition && mealCount > 0 ? `${mealCount} refeições diárias` : undefined,
+    },
+    {
+      id: "student-progress",
+      tag: "EVOLUÇÃO",
+      tagColor: "neutral",
+      title: "Registro de Evolução e Medições",
+      description: "Acompanhe seu histórico de peso corporal, medições físicas e evolução contínua.",
+      ctaText: "Acessar evolução",
+      ctaHref: `/consultoria/${consultancySlug}/progresso`,
+      imageUrl: "/images/student/hero-athlete.webp",
+      meta: latestProgress?.weightKg ? `Último registro: ${latestProgress.weightKg} kg` : "Medições corporais",
+    },
+    {
+      id: "student-appointments",
+      tag: "CONSULTAS",
+      tagColor: "blue",
+      title: "Consultas e Acompanhamento",
+      description: "Verifique suas datas agendadas, horários e orientações de atendimento com sua equipe.",
+      ctaText: "Ver consultas",
+      ctaHref: `/consultoria/${consultancySlug}/consultas`,
+      imageUrl: "/images/personal/coach-cockpit.jpg",
+    },
+  ];
 
   return (
     <div className="space-y-8 sm:space-y-10 overflow-x-clip">
@@ -247,126 +303,12 @@ export function DashboardStudentView({
       )}
 
       {/* ==================================================================== */}
-      {/* 2. HERO CINEMATOGRÁFICO (Apple Fitness+ / Nike Training / Apple TV)   */}
+      {/* 2. CARROSSEL INTERATIVO ESTILO NETFLIX (Treinos, Nutrição, Progresso) */}
       {/* ==================================================================== */}
-      <section aria-label="Destaque de Performance" className="relative rounded-3xl overflow-hidden border border-neutral-800/80 shadow-lg min-h-[380px] sm:min-h-[440px] lg:min-h-[480px] flex flex-col justify-end p-6 sm:p-8 lg:p-10 bg-neutral-950">
-        {/* Background Editorial Athlete Image */}
-        <div className="absolute inset-0 z-0 bg-neutral-950">
-          <Image
-            src="/images/student/hero-athlete.webp"
-            alt=""
-            aria-hidden="true"
-            unoptimized
-            fill
-            priority
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1120px"
-            className="object-cover object-[center_30%] opacity-90 transition-transform duration-700 hover:scale-[1.02]"
-          />
-          {/* Multi-directional Dark Scrim Overlay for pristine readability in Light & Dark */}
-          <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/75 to-neutral-950/30" />
-          <div className="absolute inset-0 bg-gradient-to-r from-neutral-950/95 via-neutral-950/80 to-transparent hidden sm:block" />
-        </div>
-
-        {/* Hero Content */}
-        <div className="relative z-10 space-y-4 sm:space-y-5 max-w-2xl">
-          {/* Editorial Label (Rule 3: Non-functional branding tag, NOT an invented user status) */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-900/80 border border-neutral-700/60 backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-[var(--brand)] animate-pulse" />
-            <span className="text-[11px] font-semibold text-neutral-200 tracking-wider uppercase">
-              TREVO ONE • {consultancyName ? consultancyName.toUpperCase() : "PERFORMANCE"}
-            </span>
-          </div>
-
-          {/* Heading */}
-          <div className="space-y-1.5">
-            {firstName && (
-              <p className="text-sm sm:text-base font-medium text-neutral-300">
-                Olá, {firstName}
-              </p>
-            )}
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.1] font-heading">
-              {hasTraining
-                ? activeTrainingPlan.title
-                : hasNutrition
-                  ? activeNutritionPlan.title
-                  : "Seu Hub de Performance e Saúde"}
-            </h1>
-            <p className="text-sm sm:text-base text-neutral-300 max-w-xl line-clamp-2 font-normal leading-relaxed">
-              {hasTraining && activeTrainingPlan.subtitle
-                ? activeTrainingPlan.subtitle
-                : hasNutrition && activeNutritionPlan.subtitle
-                  ? activeNutritionPlan.subtitle
-                  : "Acompanhamento profissional estruturado para seus objetivos de saúde e evolução física."}
-            </p>
-          </div>
-
-          {/* Authoritative Real Metrics Pills */}
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            {hasTraining && workoutCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-neutral-900/80 border border-neutral-700/60 text-xs font-semibold text-neutral-200 backdrop-blur-sm">
-                <WorkoutIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
-                {workoutCount} {workoutCount === 1 ? "rotina prescrita" : "rotinas prescritas"}
-              </span>
-            )}
-            {hasTraining && blockCount !== undefined && blockCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-neutral-900/80 border border-neutral-700/60 text-xs font-medium text-neutral-300 backdrop-blur-sm">
-                {blockCount} {blockCount === 1 ? "bloco" : "blocos de treino"}
-              </span>
-            )}
-            {hasTraining && totalExercises !== undefined && totalExercises > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-neutral-900/80 border border-neutral-700/60 text-xs font-medium text-neutral-300 backdrop-blur-sm">
-                {totalExercises} {totalExercises === 1 ? "exercício" : "exercícios"}
-              </span>
-            )}
-            {hasNutrition && mealCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-neutral-900/80 border border-neutral-700/60 text-xs font-medium text-neutral-300 backdrop-blur-sm">
-                <NutritionIcon className="w-3.5 h-3.5 text-emerald-400" />
-                {mealCount} {mealCount === 1 ? "refeição" : "refeições"}
-              </span>
-            )}
-            {latestProgress?.weightKg !== null && latestProgress?.weightKg !== undefined && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-neutral-900/80 border border-neutral-700/60 text-xs font-medium text-neutral-300 backdrop-blur-sm tabular-nums">
-                <ProgressIcon className="w-3.5 h-3.5 text-neutral-400" />
-                {latestProgress.weightKg} kg recente
-              </span>
-            )}
-          </div>
-
-          {/* Hero CTAs */}
-          <div className="pt-2 flex flex-wrap items-center gap-3">
-            {hasTraining ? (
-              <Link href={`/consultoria/${consultancySlug}/treinos`} className="w-full sm:w-auto">
-                <Button variant="primary" size="md" className="w-full sm:w-auto font-semibold min-h-[48px] px-6 text-sm shadow-md">
-                  Acessar treino prescrito →
-                </Button>
-              </Link>
-            ) : hasNutrition ? (
-              <Link href={`/consultoria/${consultancySlug}/nutricao`} className="w-full sm:w-auto">
-                <Button variant="primary" size="md" className="w-full sm:w-auto font-semibold min-h-[48px] px-6 text-sm shadow-md">
-                  Acessar nutrição →
-                </Button>
-              </Link>
-            ) : (
-              <Link href={`/consultoria/${consultancySlug}/progresso`} className="w-full sm:w-auto">
-                <Button variant="primary" size="md" className="w-full sm:w-auto font-semibold min-h-[48px] px-6 text-sm shadow-md">
-                  Registrar medição →
-                </Button>
-              </Link>
-            )}
-
-            {hasBothPlans && (
-              <Link href={`/consultoria/${consultancySlug}/nutricao`} className="w-full sm:w-auto">
-                <button
-                  type="button"
-                  className="w-full sm:w-auto inline-flex items-center justify-center min-h-[48px] px-5 py-2.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-700/80 border border-neutral-600/70 text-white text-sm font-semibold transition-colors backdrop-blur-sm cursor-pointer"
-                >
-                  Ver plano alimentar
-                </button>
-              </Link>
-            )}
-          </div>
-        </div>
-      </section>
+      <NetflixFeatureCarousel
+        slides={studentSlides}
+        consultancySlug={consultancySlug}
+      />
 
       {/* ==================================================================== */}
       {/* 2.5 BARRA DE JORNADA NATIVA (Live Status Briefing)                   */}
@@ -724,7 +666,7 @@ export function DashboardStudentView({
                 <div className="space-y-1 pt-1">
                   {latestProgress.weightKg !== null && latestProgress.weightKg !== undefined ? (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-4xl sm:text-5xl font-extrabold text-[var(--text-primary)] tabular-nums tracking-tight font-heading">
+                      <span className="text-4xl sm:text-5xl font-bold text-[var(--text-primary)] tabular-nums tracking-tight font-heading">
                         {latestProgress.weightKg}
                       </span>
                       <span className="text-base sm:text-lg font-bold text-[var(--text-secondary)] font-heading">

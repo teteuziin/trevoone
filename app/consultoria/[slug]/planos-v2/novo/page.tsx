@@ -50,7 +50,7 @@ export default function NovoPlanoPage({ params }: NovoPlanoPageProps) {
   };
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-[var(--background)] px-4 py-6 sm:py-8">
+    <div className="w-full min-h-[calc(100vh-4rem)] bg-transparent px-4 py-6 sm:py-8">
       <div className="max-w-2xl mx-auto space-y-6 pb-20">
         {/* Back navigation */}
         <div className="flex items-center gap-2">

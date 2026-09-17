@@ -39,7 +39,7 @@ export default async function NotificacoesPage({ searchParams }: NotificacoesPag
   const vapidPublicKey = getVapidPublicKey();
 
   return (
-    <div className="min-h-svh w-full bg-[var(--background)] text-[var(--text-primary)] flex flex-col selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+    <div className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
       {/* Topbar Header */}
       <header className="sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-15 flex items-center justify-between">

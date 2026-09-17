@@ -22,7 +22,7 @@ export default function AppError({ error, reset }: GlobalErrorProps) {
     <div
       role="alert"
       aria-live="assertive"
-      className="min-h-svh w-full bg-[var(--background)] text-[var(--text-primary)] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]"
+      className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]"
     >
       <div className="w-full max-w-md p-6 sm:p-8 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-sm text-center space-y-6">
         {/* Brand Header */}

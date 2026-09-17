@@ -1,9 +1,9 @@
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ZapIcon as Zap } from "@/components/ui/icons";
+import { NetflixFeatureCarousel, type CarouselSlide } from "./netflix-feature-carousel";
 
 export interface PersonalWorkoutSummaryItem {
   publicId: string;
@@ -157,66 +157,57 @@ export function DashboardPersonalView({
     },
   ];
 
+  const personalSlides: CarouselSlide[] = [
+    {
+      id: "personal-training",
+      tag: "PRESCRIÇÃO",
+      tagColor: "brand",
+      title: "Gerencie os treinos dos seus alunos",
+      description: "Monte rotinas estruturadas em blocos, gerencie modelos reutilizáveis e prescreva treinos.",
+      ctaText: "Acessar treinos",
+      ctaHref: `/consultoria/${consultancySlug}/rotinas`,
+      imageUrl: "/images/personal/coach-cockpit.jpg",
+      meta: totalPlans > 0 ? `${totalPlans} rotinas cadastradas` : "Prescrição modular",
+    },
+    {
+      id: "personal-library",
+      tag: "EXERCÍCIOS",
+      tagColor: "neutral",
+      title: "Biblioteca de Exercícios",
+      description: "Consulte o catálogo oficial de exercícios, orientações técnicas e grupos musculares.",
+      ctaText: "Ver biblioteca",
+      ctaHref: `/consultoria/${consultancySlug}/exercicios`,
+      imageUrl: "/images/student/workout-editorial.webp",
+    },
+    {
+      id: "personal-progress",
+      tag: "ACOMPANHAMENTO",
+      tagColor: "emerald",
+      title: "Evolução dos Alunos",
+      description: "Acompanhe o histórico de medições corporais, registros de peso e progresso dos seus alunos.",
+      ctaText: "Ver medições",
+      ctaHref: `/consultoria/${consultancySlug}/progresso/alunos`,
+      imageUrl: "/images/student/hero-athlete.webp",
+    },
+    {
+      id: "personal-consultations",
+      tag: "AGENDA",
+      tagColor: "blue",
+      title: "Consultas e Atendimentos",
+      description: "Gerencie horários, agendamentos e acompanhe sessões individuais com seus alunos.",
+      ctaText: "Ver consultas",
+      ctaHref: `/consultoria/${consultancySlug}/consultas`,
+      imageUrl: "/images/admin/workspace.jpg",
+    },
+  ];
+
   return (
     <div className="space-y-7 sm:space-y-9 overflow-x-clip">
-      {/* 1. HERO COCKPIT DE PERFORMANCE */}
-      <div className="relative rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-xs depth-surface bg-[var(--surface)]">
-        {/* Visual Backdrop Overlay with Real Coach Image */}
-        <div className="absolute inset-0 z-0">
-          <Image
-            src="/images/personal/coach-cockpit.jpg"
-            alt=""
-            aria-hidden="true"
-            unoptimized
-            fill
-            priority
-            className="object-cover object-center opacity-15 dark:opacity-25 filter grayscale contrast-125"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-[var(--surface)] via-[var(--surface)]/95 to-[var(--surface)]/60" />
-        </div>
-
-        <div className="relative z-10 p-5 sm:p-7 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-3 max-w-2xl">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--brand)] text-white shadow-2xs">
-                Painel do Personal
-              </span>
-              <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                Personal Trainer
-              </span>
-              {totalPlans > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)]">
-                  {totalPlans} {totalPlans === 1 ? "rotina cadastrada" : "rotinas cadastradas"}
-                </span>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">
-                Central de Prescrição & Alunos
-              </h1>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
-                Controle rotinas em blocos, gerencie modelos modulares, acompanhe a evolução de cargas e realize teleconsultas com seus alunos.
-              </p>
-            </div>
-          </div>
-
-          {/* Action CTAs */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-            <Link href={`/consultoria/${consultancySlug}/rotinas/novo`} className="w-full sm:w-auto">
-              <Button variant="primary" size="md" className="w-full font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2">
-                <PlusIcon className="w-4 h-4" />
-                <span>Novo Treino</span>
-              </Button>
-            </Link>
-            <Link href={`/consultoria/${consultancySlug}/rotinas`} className="w-full sm:w-auto">
-              <Button variant="secondary" size="md" className="w-full font-semibold min-h-[44px]">
-                Ver Todos
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
+      {/* 1. CARROSSEL DESTAQUE NETFLIX */}
+      <NetflixFeatureCarousel
+        slides={personalSlides}
+        consultancySlug={consultancySlug}
+      />
 
       {/* 2. OPERATIONAL QUICK ACCESS (Snap Rail on mobile: 74vw cards, grid on desktop) */}
       <div className="space-y-3">

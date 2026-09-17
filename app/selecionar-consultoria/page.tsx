@@ -50,7 +50,7 @@ export default async function SelecionarConsultoriaPage() {
 
     // Caso possua 1 ou mais consultorias acessíveis: exibir seletor de ambientes
     return (
-      <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+      <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-transparent text-[var(--text-primary)]">
         <div className="w-full max-w-[480px] mx-auto flex flex-col items-center space-y-6 my-auto">
           {/* Brand Header */}
           <div className="flex flex-col items-center space-y-2">
@@ -166,7 +166,7 @@ export default async function SelecionarConsultoriaPage() {
   // 2. Caso haja 0 consultorias acessíveis e 0 em configuração
   if (accessible.length === 0 && configuring.length === 0) {
     return (
-      <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+      <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-transparent text-[var(--text-primary)]">
         <div className="w-full max-w-[420px] mx-auto flex flex-col items-center space-y-6">
           <div className="shrink-0 transition-transform duration-200 hover:scale-[1.02]">
             <TrevoOneLogo priority showWordmark size={42} />
@@ -195,7 +195,7 @@ export default async function SelecionarConsultoriaPage() {
   // 3. Caso haja 0 consultorias acessíveis e 1+ em configuração (sem roles)
   if (accessible.length === 0 && configuring.length > 0) {
     return (
-      <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+      <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-transparent text-[var(--text-primary)]">
         <div className="w-full max-w-[420px] mx-auto flex flex-col items-center space-y-6">
           <div className="shrink-0 transition-transform duration-200 hover:scale-[1.02]">
             <TrevoOneLogo priority showWordmark size={42} />
@@ -223,7 +223,7 @@ export default async function SelecionarConsultoriaPage() {
 
   // 4. Caso haja 2 ou mais consultorias acessíveis para usuário comum
   return (
-    <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+    <main className="min-h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-[calc(2rem+env(safe-area-inset-bottom,0px))] bg-transparent text-[var(--text-primary)]">
       <div className="w-full max-w-[480px] mx-auto flex flex-col items-center space-y-6 my-auto">
         <div className="flex flex-col items-center space-y-2">
           <div className="shrink-0 transition-transform duration-200 hover:scale-[1.02]">

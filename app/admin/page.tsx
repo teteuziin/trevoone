@@ -110,7 +110,7 @@ export default async function AdminDashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
+    <div className="min-h-screen bg-transparent text-[var(--text-primary)]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
         {/* Enterprise Breadcrumb & Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[var(--border-subtle)]">

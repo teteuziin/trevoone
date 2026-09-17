@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-heading",
-  weight: ["500", "600", "700", "800"],
+  weight: ["500", "600", "700"],
   display: "swap",
 });
 
@@ -51,6 +51,8 @@ export const viewport: Viewport = {
 
 const themeBootstrapScript = `(function(){try{var t=localStorage.getItem("trevo_theme");if(t==="dark"){document.documentElement.setAttribute("data-theme","dark");}else if(t==="light"){document.documentElement.setAttribute("data-theme","light");}else{document.documentElement.removeAttribute("data-theme");}}catch(e){}})();`;
 
+import { BrandWallpaper } from "@/components/brand/brand-wallpaper";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -67,8 +69,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: themeBootstrapScript }}
         />
       </head>
-      <body className="min-h-full flex flex-col font-sans bg-[var(--background)] text-[var(--foreground)]">
-        {children}
+      <body className="min-h-full flex flex-col font-sans bg-[var(--background)] text-[var(--foreground)] relative">
+        <BrandWallpaper />
+        <div className="relative z-10 flex-1 flex flex-col">{children}</div>
         <PwaRegistry />
       </body>
     </html>

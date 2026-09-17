@@ -235,6 +235,8 @@ type WorkoutBlockCardProps = {
   block: WorkoutBlockDto;
   blockIndex: number;
   totalBlocks: number;
+  isControlledCollapsed?: boolean;
+  onToggleCollapse?: () => void;
   onMoveUp: () => Promise<void>;
   onMoveDown: () => Promise<void>;
   onDuplicate: () => Promise<void>;
@@ -320,6 +322,8 @@ export function WorkoutBlockCard({
   block,
   blockIndex,
   totalBlocks,
+  isControlledCollapsed,
+  onToggleCollapse,
   onMoveUp,
   onMoveDown,
   onDuplicate,
@@ -343,7 +347,10 @@ export function WorkoutBlockCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [customizingItemMap, setCustomizingItemMap] = useState<Record<string, boolean>>({});
   const [confirmingSimplifyId, setConfirmingSimplifyId] = useState<string | null>(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(totalBlocks > 1 && blockIndex > 0);
+
+  const isCollapsed = isControlledCollapsed !== undefined ? isControlledCollapsed : internalCollapsed;
+  const toggleCollapse = onToggleCollapse || (() => setInternalCollapsed((prev) => !prev));
 
   const methodMeta = METHOD_META[block.blockType] || METHOD_META.SINGLE;
   const items = block.items || [];
@@ -601,8 +608,8 @@ export function WorkoutBlockCard({
   return (
     <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs overflow-hidden transition-all hover:border-[var(--border-subtle)]">
       {/* Block Header */}
-      <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1 flex-wrap sm:flex-nowrap">
+      <div className="p-3.5 sm:p-5 border-b border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
           <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-[var(--primary)] text-white shrink-0">
             BLOCO {blockIndex + 1}
           </span>
@@ -613,8 +620,12 @@ export function WorkoutBlockCard({
             {methodMeta.label}
           </span>
 
+          <span className="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground-muted)] shrink-0">
+            {items.length} {items.length === 1 ? "exercício" : "exercícios"}
+          </span>
+
           {isEditingTitle ? (
-            <div className="flex items-center gap-1.5 flex-1 max-w-sm">
+            <div className="flex items-center gap-1.5 flex-1 max-w-sm min-w-[140px]">
               <input
                 type="text"
                 value={titleValue}
@@ -627,7 +638,7 @@ export function WorkoutBlockCard({
                 type="button"
                 onClick={handleSaveTitle}
                 disabled={savingTitle}
-                className="p-1 rounded-lg bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition-colors shrink-0"
+                className="p-1.5 rounded-lg bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition-colors shrink-0 min-h-[36px] min-w-[36px] flex items-center justify-center"
               >
                 {savingTitle ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               </button>
@@ -636,26 +647,26 @@ export function WorkoutBlockCard({
             <button
               type="button"
               onClick={() => setIsEditingTitle(true)}
-              className="text-xs font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors truncate text-left"
+              className="text-xs font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors truncate text-left min-h-[36px] flex items-center"
             >
               {block.title ? (
                 block.title
               ) : (
-                <span className="text-[var(--foreground-muted)] italic">+ Adicionar rótulo</span>
+                <span className="text-[var(--foreground-muted)] italic">+ Rótulo</span>
               )}
             </button>
           )}
         </div>
 
         {/* Header Actions */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           <button
             type="button"
             onClick={onMoveUp}
             disabled={blockIndex === 0}
             title="Mover para cima"
             aria-label="Mover bloco para cima"
-            className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] disabled:opacity-30 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+            className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] disabled:opacity-30 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
           >
             <ChevronUp className="w-4 h-4" />
           </button>
@@ -665,17 +676,17 @@ export function WorkoutBlockCard({
             disabled={blockIndex === totalBlocks - 1}
             title="Mover para baixo"
             aria-label="Mover bloco para baixo"
-            className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] disabled:opacity-30 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+            className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] disabled:opacity-30 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
           >
             <ChevronDown className="w-4 h-4" />
           </button>
 
           <button
             type="button"
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={toggleCollapse}
             title={isCollapsed ? "Expandir bloco" : "Recolher bloco"}
             aria-label={isCollapsed ? "Expandir bloco" : "Recolher bloco"}
-            className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+            className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
           >
             {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
           </button>
@@ -685,7 +696,7 @@ export function WorkoutBlockCard({
               type="button"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Mais opções do bloco"
-              className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+              className="p-2 sm:p-1.5 rounded-xl text-[var(--foreground-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--foreground)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -698,7 +709,7 @@ export function WorkoutBlockCard({
                 <button
                   type="button"
                   onClick={onDuplicate}
-                  className="w-full px-3.5 py-2 text-left text-xs text-[var(--foreground)] hover:bg-[var(--surface-subtle)] flex items-center gap-2 transition-colors min-h-[44px] sm:min-h-0"
+                  className="w-full px-3.5 py-2.5 text-left text-xs text-[var(--foreground)] hover:bg-[var(--surface-subtle)] flex items-center gap-2 transition-colors min-h-[44px]"
                 >
                   <Copy className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
                   Duplicar bloco
@@ -707,7 +718,7 @@ export function WorkoutBlockCard({
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(true)}
-                  className="w-full px-3.5 py-2 text-left text-xs text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors min-h-[44px] sm:min-h-0"
+                  className="w-full px-3.5 py-2.5 text-left text-xs text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors min-h-[44px]"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Remover bloco
@@ -720,8 +731,8 @@ export function WorkoutBlockCard({
 
       {isCollapsed ? (
         <div
-          onClick={() => setIsCollapsed(false)}
-          className="p-4 bg-[var(--surface)] hover:bg-[var(--surface-subtle)] text-xs text-[var(--foreground-muted)] flex items-center justify-between cursor-pointer transition-colors"
+          onClick={toggleCollapse}
+          className="p-3.5 sm:p-4 bg-[var(--surface)] hover:bg-[var(--surface-subtle)] text-xs text-[var(--foreground-muted)] flex items-center justify-between cursor-pointer transition-colors min-h-[48px]"
         >
           <div className="flex items-center gap-2 truncate min-w-0">
             <span className="font-semibold text-[var(--foreground)] shrink-0">
@@ -733,8 +744,9 @@ export function WorkoutBlockCard({
               </span>
             )}
           </div>
-          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
-            Expandir ↓
+          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 ml-2 flex items-center gap-1">
+            <span>Ver bloco</span>
+            <ChevronDown className="w-3.5 h-3.5" />
           </span>
         </div>
       ) : (
@@ -797,70 +809,76 @@ export function WorkoutBlockCard({
           </div>
         ) : (
           /* Render Items List */
-          <div className="space-y-6">
+          <div className="space-y-4">
             {items.map((item, itemIdx) => (
               <div
                 key={item.publicId}
-                className="space-y-3 pt-1 first:pt-0 border-t first:border-t-0 border-[var(--border-subtle)]"
+                className="p-3 sm:p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-sunken)]/60 space-y-3 transition-all hover:border-[var(--border-subtle)]"
               >
-                {/* Item Header & Snapshot info */}
-                <div className="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {methodMeta.maxItems > 1 && (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-stone-900 text-white shrink-0">
-                          Ex {itemIdx + 1}
-                        </span>
-                      )}
-                      <h4 className="text-sm font-bold text-[var(--foreground)] truncate">
-                        {item.exerciseNameSnapshot}
-                      </h4>
-                      {item.exercisePublicId ? (
-                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-                          Biblioteca
-                        </span>
-                      ) : (
-                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
-                          Personalizado
-                        </span>
-                      )}
+                {/* Item Compact Header */}
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <Dumbbell className="w-4 h-4" />
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--foreground-muted)]">
-                      {item.muscleGroupSnapshot && <span>{item.muscleGroupSnapshot}</span>}
-                      {item.equipmentSnapshot && (
-                        <>
-                          <span>•</span>
-                          <span>{item.equipmentSnapshot}</span>
-                        </>
-                      )}
-                      {item.pinnedMedia && item.pinnedMedia.length > 0 && (
-                        <>
-                          <span>•</span>
-                          <span className="flex items-center gap-1 text-[11px] text-[var(--primary)] font-medium">
-                            <Video className="w-3 h-3" />
-                            Vídeo fixado
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {methodMeta.maxItems > 1 && (
+                          <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[var(--foreground)] text-[var(--surface)] shrink-0">
+                            Ex {itemIdx + 1}
                           </span>
-                        </>
-                      )}
-                    </div>
+                        )}
+                        <h4 className="text-sm font-bold text-[var(--foreground)] truncate">
+                          {item.exerciseNameSnapshot}
+                        </h4>
+                        {item.exercisePublicId ? (
+                          <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                            Biblioteca
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
+                            Personalizado
+                          </span>
+                        )}
+                      </div>
 
-                    {item.instructionsSnapshot && (
-                      <p className="text-xs text-[var(--foreground-muted)] pt-0.5 italic line-clamp-2">
-                        {item.instructionsSnapshot}
-                      </p>
-                    )}
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                        {item.muscleGroupSnapshot && <span>{item.muscleGroupSnapshot}</span>}
+                        {item.equipmentSnapshot && (
+                          <>
+                            <span>•</span>
+                            <span>{item.equipmentSnapshot}</span>
+                          </>
+                        )}
+                        {item.pinnedMedia && item.pinnedMedia.length > 0 && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                              <Video className="w-3 h-3" />
+                              Vídeo
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => onRemoveItem(item.publicId)}
                     title="Remover exercício do bloco"
-                    className="p-1.5 rounded-xl text-[var(--foreground-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+                    aria-label="Remover exercício do bloco"
+                    className="p-2 rounded-xl text-[var(--foreground-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer shrink-0"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+
+                {item.instructionsSnapshot && (
+                  <p className="text-xs text-[var(--foreground-muted)] italic px-1 line-clamp-2">
+                    {item.instructionsSnapshot}
+                  </p>
+                )}
 
                 {/* Method-Specific Editors */}
                 {block.blockType === "DROP_SET" && onReplaceDropSet ? (
@@ -932,7 +950,7 @@ export function WorkoutBlockCard({
                                     [item.publicId]: true,
                                   }))
                                 }
-                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-colors"
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--foreground-muted)] hover:text-emerald-600 transition-colors min-h-[36px] cursor-pointer"
                               >
                                 <SlidersHorizontal className="w-3.5 h-3.5" />
                                 Personalizar por série
@@ -961,7 +979,7 @@ export function WorkoutBlockCard({
                                       e.currentTarget.blur();
                                     }
                                   }}
-                                  className="w-full h-10 px-3 text-sm font-semibold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
+                                  className="w-full h-11 min-h-[44px] sm:h-10 px-3 text-sm font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
                                   placeholder="3"
                                 />
                               </div>
@@ -985,7 +1003,7 @@ export function WorkoutBlockCard({
                                       e.currentTarget.blur();
                                     }
                                   }}
-                                  className="w-full h-10 px-3 text-sm font-semibold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
+                                  className="w-full h-11 min-h-[44px] sm:h-10 px-3 text-sm font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
                                   placeholder="12 ou 10-12"
                                 />
                               </div>
@@ -1011,7 +1029,7 @@ export function WorkoutBlockCard({
                                       e.currentTarget.blur();
                                     }
                                   }}
-                                  className="w-full h-10 px-3 text-sm font-semibold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
+                                  className="w-full h-11 min-h-[44px] sm:h-10 px-3 text-sm font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
                                   placeholder="—"
                                 />
                               </div>
@@ -1038,7 +1056,7 @@ export function WorkoutBlockCard({
                                       e.currentTarget.blur();
                                     }
                                   }}
-                                  className="w-full h-10 px-3 text-sm font-semibold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
+                                  className="w-full h-11 min-h-[44px] sm:h-10 px-3 text-sm font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] text-center transition-all"
                                   placeholder="60"
                                 />
                               </div>

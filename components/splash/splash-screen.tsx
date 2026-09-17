@@ -3,7 +3,7 @@ import { SplashRedirect } from "./splash-redirect";
 
 export function SplashScreen() {
   return (
-    <main className="min-h-dvh w-full flex flex-col items-center justify-between p-6 py-12 bg-[var(--background)] text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
+    <main className="min-h-dvh w-full flex flex-col items-center justify-between p-6 py-12 bg-transparent text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)]">
       <SplashRedirect />
       <div className="aria-hidden:true" />
 

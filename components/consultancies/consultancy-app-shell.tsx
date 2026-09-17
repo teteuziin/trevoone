@@ -91,7 +91,7 @@ export function ConsultancyAppShell({
       label: "Evolução",
       mobileLabel: "Evolução",
       href: `/consultoria/${consultancySlug}/progresso`,
-      iconName: "prescriptions",
+      iconName: "progress",
     });
   }
 
@@ -139,7 +139,7 @@ export function ConsultancyAppShell({
       label: "Evolução dos Alunos",
       mobileLabel: "Alunos",
       href: `/consultoria/${consultancySlug}/progresso/alunos`,
-      iconName: "prescriptions",
+      iconName: "progress",
     });
   }
 
@@ -156,7 +156,7 @@ export function ConsultancyAppShell({
       label: "Planos Alimentares",
       mobileLabel: "Planos",
       href: `/consultoria/${consultancySlug}/planos-v2`,
-      iconName: "prescriptions",
+      iconName: "nutrition",
     });
     items.push({
       id: "nutritionist-alimentos",
@@ -170,7 +170,7 @@ export function ConsultancyAppShell({
       label: "Evolução dos Alunos",
       mobileLabel: "Alunos",
       href: `/consultoria/${consultancySlug}/progresso/alunos`,
-      iconName: "prescriptions",
+      iconName: "progress",
     });
   }
 
@@ -407,7 +407,7 @@ export function ConsultancyAppShell({
     : "max-w-6xl";
 
   return (
-    <div className="min-h-svh w-full bg-[var(--background)] text-[var(--text-primary)] flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
+    <div className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
       {/* Navigation Shell (Sidebar on desktop, Topbar + Bottom Bar on mobile/tablet) */}
       <ConsultancyNavigation
         consultancySlug={consultancySlug}

@@ -31,6 +31,23 @@ interface CustomFormsHubProps {
   studentOptions: StudentMemberOption[];
 }
 
+export const FIELD_TYPE_LABELS: Record<CustomFormFieldType, string> = {
+  SHORT_TEXT: "Texto curto",
+  LONG_TEXT: "Texto longo",
+  NUMBER: "Número",
+  DATE: "Data",
+  SELECT: "Seleção",
+  BOOLEAN: "Sim / Não",
+  ACKNOWLEDGEMENT: "Ciência / Concordância",
+};
+
+export const STATUS_LABELS: Record<CustomFormRequestDto["status"], string> = {
+  PENDING: "Pendente",
+  SUBMITTED: "Enviado",
+  CHANGES_REQUESTED: "Ajustes solicitados",
+  APPROVED: "Aprovado",
+};
+
 export function CustomFormsHub({
   consultancySlug,
   isConsultancyAdmin,
@@ -87,7 +104,7 @@ export function CustomFormsHub({
     const newField: CustomFormFieldDefinition = {
       id,
       type,
-      label: type === "ACKNOWLEDGEMENT" ? "Concordância" : `Pergunta ${fields.length + 1}`,
+      label: type === "ACKNOWLEDGEMENT" ? "Ciência e Concordância" : `Pergunta ${fields.length + 1}`,
       required: true,
       options: type === "SELECT" ? ["Opção 1", "Opção 2"] : undefined,
       acknowledgementText:
@@ -374,13 +391,13 @@ export function CustomFormsHub({
   const getStatusBadge = (status: CustomFormRequestDto["status"]) => {
     switch (status) {
       case "PENDING":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20">Pendente</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20">{STATUS_LABELS.PENDING}</span>;
       case "SUBMITTED":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 border border-blue-500/20">Sob Análise</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 border border-blue-500/20">{STATUS_LABELS.SUBMITTED}</span>;
       case "CHANGES_REQUESTED":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 border border-rose-500/20">Ajustes Solicitados</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 border border-rose-500/20">{STATUS_LABELS.CHANGES_REQUESTED}</span>;
       case "APPROVED":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">Aprovado</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">{STATUS_LABELS.APPROVED}</span>;
     }
   };
 
@@ -422,7 +439,7 @@ export function CustomFormsHub({
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span>Criar Modelo</span>
+              <span>Criar formulário</span>
             </button>
           )}
         </div>
@@ -440,7 +457,7 @@ export function CustomFormsHub({
                 : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
-            Solicitações e Respostas ({requests.length})
+            Solicitações e respostas ({requests.length})
           </button>
           <button
             type="button"
@@ -451,7 +468,7 @@ export function CustomFormsHub({
                 : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
-            Modelos de Formulários ({templates.length})
+            Modelos de formulários ({templates.length})
           </button>
         </div>
       )}
@@ -506,7 +523,7 @@ export function CustomFormsHub({
                         onClick={() => handleOpenAnswerModal(req)}
                         className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer min-h-[44px] sm:min-h-0 sm:py-2"
                       >
-                        {req.status === "CHANGES_REQUESTED" ? "Corrigir e Reenviar" : "Preencher Formulário"}
+                        {req.status === "CHANGES_REQUESTED" ? "Corrigir e reenviar" : "Preencher formulário"}
                       </button>
                     )}
 
@@ -517,7 +534,7 @@ export function CustomFormsHub({
                         onClick={() => setSelectedRequestToReview(req)}
                         className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer min-h-[44px] sm:min-h-0 sm:py-2"
                       >
-                        Avaliar Respostas
+                        Avaliar respostas
                       </button>
                     )}
 
@@ -528,7 +545,7 @@ export function CustomFormsHub({
                         onClick={() => setSelectedRequestToReview(req)}
                         className="w-full sm:w-auto px-3 py-2 bg-[var(--surface-subtle)] hover:bg-[var(--border-subtle)] text-[var(--text-secondary)] rounded-xl text-xs font-semibold border border-[var(--border-subtle)] transition-colors cursor-pointer min-h-[44px] sm:min-h-0 sm:py-2"
                       >
-                        Visualizar Respostas
+                        Visualizar respostas
                       </button>
                     )}
                   </div>
@@ -545,10 +562,10 @@ export function CustomFormsHub({
           {templates.length === 0 ? (
             <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-2xl p-8 text-center space-y-2">
               <p className="text-sm font-semibold text-[var(--text-primary)]">
-                Nenhum modelo cadastrado
+                Nenhum formulário cadastrado
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Crie modelos de questionários, anamneses ou termos para solicitar aos seus alunos.
+                Crie formulários de questionários, anamneses ou termos para solicitar aos seus alunos.
               </p>
             </div>
           ) : (
@@ -583,7 +600,7 @@ export function CustomFormsHub({
                     <div className="flex items-center gap-3 pt-2 text-[11px] text-[var(--text-tertiary)]">
                       <span>{tpl.fields.length} perguntas</span>
                       {tpl.isOnboardingRequired && (
-                        <span className="text-emerald-600 font-semibold">• Obrigatório no Onboarding</span>
+                        <span className="text-emerald-600 font-semibold">• Obrigatório na entrada do aluno</span>
                       )}
                     </div>
                   </div>
@@ -606,7 +623,7 @@ export function CustomFormsHub({
                         }}
                         className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer min-h-[44px] sm:min-h-0"
                       >
-                        Solicitar a Aluno
+                        Solicitar a aluno
                       </button>
                     </div>
                   )}
@@ -623,8 +640,8 @@ export function CustomFormsHub({
           <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-150 my-auto">
             <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] flex items-center justify-between">
               <div>
-                <h2 className="text-base font-bold text-[var(--text-primary)]">Criar Modelo de Formulário</h2>
-                <p className="text-xs text-[var(--text-secondary)]">Defina as perguntas e tipos de resposta</p>
+                <h2 className="text-base font-bold text-[var(--text-primary)]">Criar formulário</h2>
+                <p className="text-xs text-[var(--text-secondary)]">Adicione as perguntas e escolha como o aluno deverá responder.</p>
               </div>
               <button
                 type="button"
@@ -643,7 +660,7 @@ export function CustomFormsHub({
               )}
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-[var(--text-primary)]">Título do Formulário *</label>
+                <label className="text-xs font-semibold text-[var(--text-primary)]">Título do formulário *</label>
                 <input
                   type="text"
                   value={newTitle}
@@ -655,7 +672,7 @@ export function CustomFormsHub({
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-[var(--text-primary)]">Instruções / Descrição</label>
+                <label className="text-xs font-semibold text-[var(--text-primary)]">Instruções ou descrição</label>
                 <textarea
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
@@ -674,7 +691,7 @@ export function CustomFormsHub({
                   className="w-4 h-4 rounded-sm text-emerald-600 focus:ring-emerald-500 border-slate-300"
                 />
                 <label htmlFor="onboardingCheck" className="text-xs font-medium text-[var(--text-secondary)]">
-                  Exigir preenchimento durante o Onboarding do Aluno
+                  Exigir preenchimento durante a entrada do aluno
                 </label>
               </div>
 
@@ -682,7 +699,7 @@ export function CustomFormsHub({
               <div className="space-y-3 pt-3 border-t border-[var(--border-subtle)]">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                    Perguntas e Campos ({fields.length})
+                    Perguntas ({fields.length})
                   </h3>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <button
@@ -690,14 +707,14 @@ export function CustomFormsHub({
                       onClick={() => addField("SHORT_TEXT")}
                       className="px-2 py-1 bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg text-[11px] font-semibold"
                     >
-                      + Texto
+                      + Texto curto
                     </button>
                     <button
                       type="button"
                       onClick={() => addField("LONG_TEXT")}
                       className="px-2 py-1 bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg text-[11px] font-semibold"
                     >
-                      + Parágrafo
+                      + Texto longo
                     </button>
                     <button
                       type="button"
@@ -715,10 +732,17 @@ export function CustomFormsHub({
                     </button>
                     <button
                       type="button"
+                      onClick={() => addField("SELECT")}
+                      className="px-2 py-1 bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg text-[11px] font-semibold"
+                    >
+                      + Seleção
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => addField("BOOLEAN")}
                       className="px-2 py-1 bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg text-[11px] font-semibold"
                     >
-                      + Sim/Não
+                      + Sim / Não
                     </button>
                     <button
                       type="button"
@@ -738,7 +762,7 @@ export function CustomFormsHub({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-bold text-[var(--text-primary)]">
-                          #{idx + 1} ({field.type})
+                          {idx + 1}. {FIELD_TYPE_LABELS[field.type] || field.type}
                         </span>
                         {fields.length > 1 && (
                           <button
@@ -764,10 +788,32 @@ export function CustomFormsHub({
                         <textarea
                           value={field.acknowledgementText || ""}
                           onChange={(e) => updateField(idx, { acknowledgementText: e.target.value })}
-                          placeholder="Texto de concordância para o aluno marcar..."
+                          placeholder="Texto de ciência / concordância para o aluno marcar..."
                           rows={2}
                           className="w-full px-2.5 py-1.5 bg-[var(--surface)] border border-[var(--border-default)] rounded-lg text-xs text-[var(--text-primary)]"
                         />
+                      )}
+
+                      {field.type === "SELECT" && (
+                        <div className="space-y-1">
+                          <label className="text-[11px] text-[var(--text-secondary)] font-medium">
+                            Opções (separadas por vírgula)
+                          </label>
+                          <input
+                            type="text"
+                            value={(field.options || []).join(", ")}
+                            onChange={(e) =>
+                              updateField(idx, {
+                                options: e.target.value
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean),
+                              })
+                            }
+                            placeholder="Ex: Opção 1, Opção 2, Opção 3"
+                            className="w-full px-2.5 py-1.5 bg-[var(--surface)] border border-[var(--border-default)] rounded-lg text-xs text-[var(--text-primary)]"
+                          />
+                        </div>
                       )}
 
                       <div className="flex items-center gap-2">
@@ -800,7 +846,7 @@ export function CustomFormsHub({
                   disabled={isSubmittingTemplate}
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors min-h-[44px] sm:min-h-0 cursor-pointer"
                 >
-                  {isSubmittingTemplate ? "Salvando..." : "Salvar Modelo"}
+                  {isSubmittingTemplate ? "Salvando..." : "Salvar formulário"}
                 </button>
               </div>
             </form>
@@ -812,7 +858,7 @@ export function CustomFormsHub({
       {showRequestModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl w-full max-w-md p-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <h2 className="text-base font-bold text-[var(--text-primary)]">Solicitar Formulário</h2>
+            <h2 className="text-base font-bold text-[var(--text-primary)]">Solicitar formulário</h2>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5 mb-4">
               O aluno receberá uma notificação e o formulário aparecerá como pendente.
             </p>
@@ -825,7 +871,7 @@ export function CustomFormsHub({
 
             <form onSubmit={handleRequestForm} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-[var(--text-primary)]">Modelo</label>
+                <label className="text-xs font-semibold text-[var(--text-primary)]">Formulário</label>
                 <select
                   value={selectedTemplateId}
                   onChange={(e) => setSelectedTemplateId(e.target.value)}
@@ -869,7 +915,7 @@ export function CustomFormsHub({
                   disabled={isSubmittingRequest}
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors min-h-[44px] sm:min-h-0 cursor-pointer"
                 >
-                  {isSubmittingRequest ? "Enviando..." : "Enviar Solicitação"}
+                  {isSubmittingRequest ? "Enviando..." : "Enviar solicitação"}
                 </button>
               </div>
             </form>
@@ -969,6 +1015,22 @@ export function CustomFormsHub({
                     />
                   )}
 
+                  {f.type === "SELECT" && (
+                    <select
+                      value={String(formResponses[f.id] || "")}
+                      onChange={(e) => handleUpdateResponse(f.id, e.target.value)}
+                      className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--text-primary)]"
+                      required={f.required}
+                    >
+                      <option value="">Selecione uma opção...</option>
+                      {(f.options || []).map((opt, i) => (
+                        <option key={i} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
                   {f.type === "BOOLEAN" && (
                     <div className="flex items-center gap-4 pt-1">
                       <label className="flex items-center gap-1.5 text-xs text-[var(--text-primary)] cursor-pointer">
@@ -1030,7 +1092,7 @@ export function CustomFormsHub({
                     disabled={isSubmittingAnswers}
                     className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors min-h-[44px] sm:min-h-0 cursor-pointer"
                   >
-                    {isSubmittingAnswers ? "Enviando..." : "Enviar Respostas"}
+                    {isSubmittingAnswers ? "Enviando..." : "Enviar respostas"}
                   </button>
                 </div>
               </div>
@@ -1081,7 +1143,12 @@ export function CustomFormsHub({
 
                   return (
                     <div key={f.id} className="p-3 bg-[var(--surface-subtle)] rounded-xl border border-[var(--border-subtle)] text-xs space-y-1">
-                      <div className="font-semibold text-[var(--text-secondary)]">{f.label}</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-[var(--text-secondary)]">{f.label}</span>
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)] bg-[var(--surface)] px-2 py-0.5 rounded-md border border-[var(--border-subtle)]">
+                          {FIELD_TYPE_LABELS[f.type] || f.type}
+                        </span>
+                      </div>
                       <div className="text-sm font-medium text-[var(--text-primary)] whitespace-pre-line">
                         {displayVal}
                       </div>
@@ -1113,7 +1180,7 @@ export function CustomFormsHub({
                       onClick={() => handleReviewSubmission("REQUEST_CHANGES")}
                       className="px-4 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-600 rounded-xl text-xs font-semibold border border-rose-500/20 transition-colors min-h-[44px] sm:min-h-0 cursor-pointer"
                     >
-                      Solicitar Ajustes
+                      Solicitar ajustes
                     </button>
                     <button
                       type="button"
@@ -1121,7 +1188,7 @@ export function CustomFormsHub({
                       onClick={() => handleReviewSubmission("APPROVE")}
                       className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors min-h-[44px] sm:min-h-0 cursor-pointer"
                     >
-                      Aprovar Formulário
+                      Aprovar formulário
                     </button>
                   </div>
                 </div>

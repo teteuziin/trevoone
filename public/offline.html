@@ -333,6 +333,48 @@
       font-weight: 600;
       text-align: center;
     }
+
+    .beta-watermark {
+      position: fixed;
+      bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+      right: 14px;
+      z-index: 20;
+      pointer-events: none;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+      opacity: 0.22;
+      background-color: var(--surface-subtle);
+      border: 1px solid var(--border-subtle);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .beta-watermark {
+        opacity: 0.18;
+      }
+    }
+
+    .watermark-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 9999px;
+      background-color: var(--brand);
+      opacity: 0.8;
+      display: inline-block;
+    }
+
+    .watermark-sep {
+      opacity: 0.4;
+    }
   </style>
 </head>
 <body>
@@ -386,6 +428,13 @@
       </button>
     </div>
   </main>
+
+  <div class="beta-watermark" aria-hidden="true">
+    <span class="watermark-dot"></span>
+    <span>TREVO ONE</span>
+    <span class="watermark-sep">·</span>
+    <span>BETA V1</span>
+  </div>
 
   <script src="/offline.js" defer></script>
 </body>

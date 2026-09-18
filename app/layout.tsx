@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { PwaRegistry } from "@/components/pwa/pwa-registry";
+import { BrandWallpaper } from "@/components/brand/brand-wallpaper";
+import { NetworkStatusToast } from "@/components/pwa/network-status-toast";
+import { BetaWatermark } from "@/components/brand/beta-watermark";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -51,9 +54,6 @@ export const viewport: Viewport = {
 
 const themeBootstrapScript = `(function(){try{var t=localStorage.getItem("trevo_theme");if(t==="dark"){document.documentElement.setAttribute("data-theme","dark");}else if(t==="light"){document.documentElement.setAttribute("data-theme","light");}else{document.documentElement.removeAttribute("data-theme");}}catch(e){}})();`;
 
-import { BrandWallpaper } from "@/components/brand/brand-wallpaper";
-import { NetworkStatusToast } from "@/components/pwa/network-status-toast";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -74,6 +74,7 @@ export default function RootLayout({
         <BrandWallpaper />
         <NetworkStatusToast />
         <div className="relative z-10 flex-1 flex flex-col">{children}</div>
+        <BetaWatermark />
         <PwaRegistry />
       </body>
     </html>

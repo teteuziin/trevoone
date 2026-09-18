@@ -21,6 +21,10 @@ import {
   NutritionAuthorizationError,
 } from "./access";
 import { getConsultancyLocalDate } from "../consultancies/timezone";
+import {
+  createNotificationInTransaction,
+  deliverNotificationAfterCommit,
+} from "@/services/notification-service";
 
 export type EligibleStudentDto = {
   membershipPublicId: string;
@@ -590,8 +594,14 @@ export async function endAssignment(
 
     // 2. Lock assignment
     const [assignmentRows] = await connection.query<RowDataPacket[]>(
-      `SELECT id, consultancy_id, status FROM nutrition_v2_assignments
-       WHERE public_id = ? AND deleted_at IS NULL FOR UPDATE`,
+      `SELECT
+        a.id, a.consultancy_id, a.status, a.assigned_by_user_id,
+        cm.user_id AS student_user_id, c.slug AS consultancy_slug, pv.title AS plan_title
+       FROM nutrition_v2_assignments a
+       JOIN consultancy_members cm ON cm.id = a.student_membership_id
+       JOIN consultancies c ON c.id = a.consultancy_id
+       JOIN nutrition_v2_plan_versions pv ON pv.id = a.plan_version_id
+       WHERE a.public_id = ? AND a.deleted_at IS NULL FOR UPDATE`,
       [assignmentPublicId]
     );
     if (assignmentRows.length === 0) {
@@ -615,7 +625,53 @@ export async function endAssignment(
       [effectiveDate, current.id]
     );
 
+    const notifIdsToDeliver: number[] = [];
+    try {
+      const title = "Plano Alimentar Finalizado";
+      const body = `O plano alimentar "${current.plan_title || "Prescrição"}" foi encerrado pela consultoria.`;
+
+      // Notify student
+      if (current.student_user_id) {
+        const notif = await createNotificationInTransaction(connection, {
+          userId: Number(current.student_user_id),
+          consultancyId: Number(ctx.consultancyId!),
+          title,
+          body,
+          eventType: "NUTRITION_ASSIGNMENT_ENDED",
+          priority: "NORMAL",
+          deepLink: `/consultoria/${current.consultancy_slug}/nutricao`,
+          dedupeKey: `nutrition_ended:${assignmentPublicId}:ENDED:${current.student_user_id}`,
+        });
+        notifIdsToDeliver.push(notif.id);
+      }
+
+      // If actor was admin and not the assigned nutritionist, also notify nutritionist
+      if (
+        current.assigned_by_user_id &&
+        Number(current.assigned_by_user_id) !== ctx.userId
+      ) {
+        const notif = await createNotificationInTransaction(connection, {
+          userId: Number(current.assigned_by_user_id),
+          consultancyId: Number(ctx.consultancyId!),
+          title,
+          body: `O plano alimentar "${current.plan_title || "Prescrição"}" foi encerrado pela administração da consultoria.`,
+          eventType: "NUTRITION_ASSIGNMENT_ENDED",
+          priority: "NORMAL",
+          deepLink: `/consultoria/${current.consultancy_slug}/planos-v2`,
+          dedupeKey: `nutrition_ended:${assignmentPublicId}:ENDED:${current.assigned_by_user_id}`,
+        });
+        notifIdsToDeliver.push(notif.id);
+      }
+    } catch {
+      // Non-blocking notification dispatch
+    }
+
     await connection.commit();
+
+    for (const notifId of notifIdsToDeliver) {
+      await deliverNotificationAfterCommit(notifId);
+    }
+
     return { success: true, status: "ENDED" };
   } catch (err) {
     if (connection) {

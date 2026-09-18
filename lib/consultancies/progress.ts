@@ -3,6 +3,10 @@ import type { PoolConnection, RowDataPacket, ResultSetHeader } from "mysql2/prom
 import { getDbConnection } from "@/lib/db/mysql";
 import { resolveConsultancyContext } from "./context";
 import { resolveStudentModuleAccess } from "./student-module-access";
+import {
+  createNotificationInTransaction,
+  deliverNotificationAfterCommit,
+} from "@/services/notification-service";
 
 // --- Domain Types & DTOs ---
 
@@ -282,7 +286,57 @@ export async function createStudentOwnProgressEntry(params: {
       ]
     );
 
+    // Query responsible Personal Trainer and Nutritionist with active assignments
+    const notifIdsToDeliver: number[] = [];
+    try {
+      const [profRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT DISTINCT prof_user_id FROM (
+          SELECT assigned_by_user_id AS prof_user_id
+          FROM workout_assignments
+          WHERE consultancy_id = ? AND student_membership_id = ? AND status = 'ACTIVE' AND assigned_by_user_id IS NOT NULL
+          UNION
+          SELECT assigned_by_user_id AS prof_user_id
+          FROM nutrition_v2_assignments
+          WHERE consultancy_id = ? AND student_membership_id = ? AND status = 'ACTIVE' AND assigned_by_user_id IS NOT NULL
+        ) profs;`,
+        [access.context.consultancyId, studentMembershipId, access.context.consultancyId, studentMembershipId]
+      );
+
+      const [studentRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT u.name AS student_name, cm.public_id AS student_membership_public_id
+         FROM consultancy_members cm
+         JOIN users u ON u.id = cm.user_id
+         WHERE cm.id = ? LIMIT 1;`,
+        [studentMembershipId]
+      );
+
+      const studentName = studentRows[0]?.student_name || "Seu aluno";
+      const studentMemberPublicId = studentRows[0]?.student_membership_public_id || "";
+
+      for (const row of profRows) {
+        if (!row.prof_user_id) continue;
+        const notif = await createNotificationInTransaction(connection, {
+          userId: Number(row.prof_user_id),
+          consultancyId: access.context.consultancyId,
+          title: "Nova Medição Registrada pelo Aluno",
+          body: `${studentName} registrou uma nova atualização de evolução física.`,
+          eventType: "STUDENT_PROGRESS_RECORDED",
+          priority: "NORMAL",
+          deepLink: `/consultoria/${access.context.consultancySlug}/progresso/alunos/${studentMemberPublicId}`,
+          dedupeKey: `student_progress:${entryPublicId}:${row.prof_user_id}`,
+        });
+        notifIdsToDeliver.push(notif.id);
+      }
+    } catch {
+      // Non-blocking notification dispatch
+    }
+
     await connection.commit();
+
+    for (const notifId of notifIdsToDeliver) {
+      await deliverNotificationAfterCommit(notifId);
+    }
+
     return { publicId: entryPublicId };
   } catch (error) {
     if (connection) {

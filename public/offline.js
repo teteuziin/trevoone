@@ -436,8 +436,6 @@
       return;
     }
 
-    activeContext = context;
-
     // 4. Update Header & Profile UI
     if (contextCard && ctxConsultancyName && ctxUserName && ctxSyncTime) {
       ctxConsultancyName.textContent = context.consultancyName || "Trevo One";

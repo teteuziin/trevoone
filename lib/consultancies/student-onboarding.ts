@@ -187,6 +187,50 @@ export async function getStudentOnboardingStatus(
       };
     });
 
+    // 2b. Buscar formulários personalizados da consultoria marcados como obrigatórios no onboarding
+    try {
+      const [customReqRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          t.public_id,
+          t.title,
+          r.status AS form_status,
+          r.submitted_at,
+          r.reviewed_at
+         FROM consultancy_custom_form_templates t
+         LEFT JOIN consultancy_custom_form_requests r
+           ON r.template_id = t.id AND r.student_membership_id = ?
+         WHERE t.consultancy_id = ?
+           AND t.is_active = 1
+           AND t.is_onboarding_required = 1
+           AND t.deleted_at IS NULL;`,
+        [membershipId, consultancyId]
+      );
+
+      if (Array.isArray(customReqRows)) {
+        for (const cr of customReqRows) {
+          let status: OnboardingRequirementStatus = "PENDING";
+          if (cr.form_status === "APPROVED") {
+            status = "CONFIRMED";
+          } else if (cr.form_status === "SUBMITTED") {
+            status = "SUBMITTED";
+          }
+          requirements.push({
+            publicId: String(cr.public_id),
+            key: `custom_form_${cr.public_id}`,
+            title: String(cr.title),
+            type: "CUSTOM_FORM",
+            externalUrl: `/consultoria/${consultancySlug}/formularios`,
+            sortOrder: 100,
+            status,
+            submittedAt: cr.submitted_at ? new Date(cr.submitted_at) : null,
+            confirmedAt: cr.reviewed_at ? new Date(cr.reviewed_at) : null,
+          });
+        }
+      }
+    } catch {
+      // Non-blocking fallback if custom forms table is not yet queried
+    }
+
     const totalRequirements = requirements.length;
     const confirmedRequirements = requirements.filter((r) => r.status === "CONFIRMED").length;
     const isComplete = totalRequirements > 0 && confirmedRequirements === totalRequirements;

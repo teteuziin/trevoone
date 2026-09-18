@@ -12,6 +12,10 @@ import {
   type TrainingAccessContext,
   assertStudentContext,
 } from "./access";
+import {
+  createNotificationInTransaction,
+  deliverNotificationAfterCommit,
+} from "@/services/notification-service";
 import type {
   WorkoutExecutionSessionDto,
   WorkoutExecutionSetDto,
@@ -808,6 +812,7 @@ export async function completeWorkoutExecution(
         wes.public_id,
         wes.consultancy_id,
         wes.student_membership_id,
+        wes.workout_assignment_id,
         wes.status,
         wes.started_at,
         wes.completed_at,
@@ -899,7 +904,49 @@ export async function completeWorkoutExecution(
       [s.id]
     );
 
+    // 4. Dispatch notification to responsible Personal Trainer (if valid assignment exists)
+    let notifIdToDeliver: number | null = null;
+    try {
+      const [relRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          wa.assigned_by_user_id,
+          u.name AS student_name,
+          cm.public_id AS student_membership_public_id,
+          c.slug AS consultancy_slug,
+          wv.title AS workout_title
+         FROM workout_assignments wa
+         JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+         JOIN users u ON u.id = cm.user_id
+         JOIN consultancies c ON c.id = wa.consultancy_id
+         JOIN workout_versions wv ON wv.id = wa.workout_version_id
+         WHERE wa.id = ? AND wa.assigned_by_user_id IS NOT NULL
+         LIMIT 1;`,
+        [s.workout_assignment_id]
+      );
+
+      if (Array.isArray(relRows) && relRows.length > 0 && relRows[0].assigned_by_user_id) {
+        const rel = relRows[0];
+        const notif = await createNotificationInTransaction(connection, {
+          userId: Number(rel.assigned_by_user_id),
+          consultancyId: Number(s.consultancy_id),
+          title: "Treino Concluído pelo Aluno",
+          body: `${rel.student_name || "Seu aluno"} concluiu a sessão de treino "${rel.workout_title || "Prescrição"}".`,
+          eventType: "WORKOUT_COMPLETED",
+          priority: "NORMAL",
+          deepLink: `/consultoria/${rel.consultancy_slug}/progresso/alunos/${rel.student_membership_public_id}`,
+          dedupeKey: `workout_completed:${s.public_id}`,
+        });
+        notifIdToDeliver = notif.id;
+      }
+    } catch {
+      // Non-blocking notification
+    }
+
     await connection.commit();
+
+    if (notifIdToDeliver) {
+      await deliverNotificationAfterCommit(notifIdToDeliver);
+    }
 
     return {
       publicId: String(s.public_id),

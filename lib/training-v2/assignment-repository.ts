@@ -12,6 +12,10 @@ import {
   assertCanAuthorTraining,
   assertStudentContext,
 } from "./access";
+import {
+  createNotificationInTransaction,
+  deliverNotificationAfterCommit,
+} from "@/services/notification-service";
 import { getWorkoutVersionTree } from "./workout-repository";
 import type {
   WorkoutAssignmentDto,
@@ -887,13 +891,102 @@ export async function completeOrArchiveAssignment(
   let connection;
   try {
     connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        wa.id,
+        wa.assigned_by_user_id,
+        cm.user_id AS student_user_id,
+        c.slug AS consultancy_slug,
+        wv.title AS workout_title
+       FROM workout_assignments wa
+       JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+       JOIN consultancies c ON c.id = wa.consultancy_id
+       JOIN workout_versions wv ON wv.id = wa.workout_version_id
+       WHERE wa.public_id = ? AND wa.consultancy_id = ? AND wa.deleted_at IS NULL
+       LIMIT 1
+       FOR UPDATE;`,
+      [assignmentPublicId, ctx.consultancyId!]
+    );
+
+    if (!rows || rows.length === 0) {
+      await connection.rollback();
+      return false;
+    }
+
+    const assignment = rows[0];
+
     const [res] = await connection.execute<ResultSetHeader>(
       `UPDATE workout_assignments
        SET status = ?, updated_at = NOW(3)
-       WHERE public_id = ? AND consultancy_id = ? AND deleted_at IS NULL;`,
-      [newStatus, assignmentPublicId, ctx.consultancyId!]
+       WHERE id = ?;`,
+      [newStatus, assignment.id]
     );
-    return res.affectedRows > 0;
+
+    if (res.affectedRows === 0) {
+      await connection.rollback();
+      return false;
+    }
+
+    const notifIdsToDeliver: number[] = [];
+    try {
+      const title =
+        newStatus === "COMPLETED"
+          ? "Prescrição de Treino Concluída"
+          : "Prescrição de Treino Finalizada";
+      const body = `A prescrição de treino "${assignment.workout_title || "Treino"}" foi ${newStatus === "COMPLETED" ? "marcada como concluída" : "arquivada"} pela consultoria.`;
+
+      // Notify student
+      if (assignment.student_user_id) {
+        const notif = await createNotificationInTransaction(connection, {
+          userId: Number(assignment.student_user_id),
+          consultancyId: Number(ctx.consultancyId!),
+          title,
+          body,
+          eventType: "WORKOUT_ASSIGNMENT_ENDED",
+          priority: "NORMAL",
+          deepLink: `/consultoria/${assignment.consultancy_slug}/treinos`,
+          dedupeKey: `workout_ended:${assignmentPublicId}:${newStatus}:${assignment.student_user_id}`,
+        });
+        notifIdsToDeliver.push(notif.id);
+      }
+
+      // If actor was admin and not the assigned personal trainer, also notify personal trainer
+      if (
+        assignment.assigned_by_user_id &&
+        Number(assignment.assigned_by_user_id) !== ctx.userId
+      ) {
+        const notif = await createNotificationInTransaction(connection, {
+          userId: Number(assignment.assigned_by_user_id),
+          consultancyId: Number(ctx.consultancyId!),
+          title,
+          body: `A prescrição de treino "${assignment.workout_title || "Treino"}" foi finalizada pela administração da consultoria.`,
+          eventType: "WORKOUT_ASSIGNMENT_ENDED",
+          priority: "NORMAL",
+          deepLink: `/consultoria/${assignment.consultancy_slug}/rotinas`,
+          dedupeKey: `workout_ended:${assignmentPublicId}:${newStatus}:${assignment.assigned_by_user_id}`,
+        });
+        notifIdsToDeliver.push(notif.id);
+      }
+    } catch {
+      // Non-blocking notification dispatch
+    }
+
+    await connection.commit();
+
+    for (const notifId of notifIdsToDeliver) {
+      await deliverNotificationAfterCommit(notifId);
+    }
+
+    return true;
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    throw err;
   } finally {
     if (connection) connection.release();
   }

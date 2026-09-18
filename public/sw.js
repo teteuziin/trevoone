@@ -14,7 +14,7 @@
  * - Standards-compliant Web Push event handling & notificationclick navigation.
  */
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const CACHE_NAME = `trevo-static-${CACHE_VERSION}`;
 const MAX_NEXT_STATIC_ENTRIES = 160;
 

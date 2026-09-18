@@ -49,10 +49,13 @@ async function loadAndValidateLocalMigrations() {
     const filePath = path.join(MIGRATIONS_DIR, file);
     const contentBuffer = await fs.readFile(filePath);
     const checksum = crypto.createHash("sha256").update(contentBuffer).digest("hex");
+    const normalizedBuffer = Buffer.from(contentBuffer.toString("utf-8").replace(/\r\n/g, "\n"), "utf-8");
+    const normalizedChecksum = crypto.createHash("sha256").update(normalizedBuffer).digest("hex");
     migrations.push({
       name: file,
       filePath,
       checksum,
+      normalizedChecksum,
       content: contentBuffer.toString("utf-8"),
     });
   }
@@ -143,7 +146,7 @@ async function run() {
 
     for (const [appliedMigration, dbChecksum] of appliedMap) {
       const local = localMap.get(appliedMigration);
-      if (local.checksum !== dbChecksum) {
+      if (local.checksum !== dbChecksum && local.normalizedChecksum !== dbChecksum) {
         console.error(
           `ERRO DE INTEGRIDADE DE MIGRATION\n\nMigration:\n${appliedMigration}\n\nA migration já foi aplicada anteriormente, mas seu conteúdo local foi modificado.\nNenhuma nova migration foi executada.`
         );
@@ -164,7 +167,7 @@ async function run() {
       await connection.query(m.content);
       await connection.query(
         "INSERT INTO schema_migrations (migration, checksum) VALUES (?, ?);",
-        [m.name, m.checksum]
+        [m.name, m.normalizedChecksum]
       );
       console.log(`- ${m.name} aplicada e registrada com sucesso.`);
     }

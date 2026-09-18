@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import type { StudentAssignedPlanTreeDto } from "@/lib/nutrition-v2/assignment-repository";
 
@@ -22,12 +22,45 @@ export function StudentNutritionV2Print({
 }: Props) {
   const { version, meals, totals, notesForStudent } = assignedPlan;
 
+  useEffect(() => {
+    const cleanStudentName = studentName.trim().replace(/\s+/g, "-");
+    const originalTitle = document.title;
+    document.title = `Plano-Nutricional-${cleanStudentName}`;
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [studentName]);
+
   const handlePrint = () => {
     window.print();
   };
 
+  const generationDate = new Date().toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
   return (
     <div className="min-h-screen bg-slate-100 print:bg-white text-slate-900 antialiased">
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 12mm 10mm 15mm 10mm;
+          }
+          body {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-meal-card {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+        }
+      `}</style>
       {/* Top Action Bar (Screen Only) */}
       <div className="print:hidden sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
@@ -187,6 +220,16 @@ export function StudentNutritionV2Print({
               </section>
             ))}
           </div>
+
+          {/* Document Print Footer */}
+          <footer className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 print:text-slate-500">
+            <div>
+              Trevo One • Plataforma Integrada de Saúde, Nutrição e Treinamento
+            </div>
+            <div>
+              Documento gerado em {generationDate}
+            </div>
+          </footer>
         </div>
       </main>
     </div>

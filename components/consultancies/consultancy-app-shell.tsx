@@ -110,6 +110,13 @@ export function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/pagamentos`,
       iconName: "finance",
     });
+    items.push({
+      id: "student-formularios",
+      label: "Formulários",
+      mobileLabel: "Formulários",
+      href: `/consultoria/${consultancySlug}/formularios`,
+      iconName: "missions",
+    });
   }
 
   if (presentationRoles.includes("PERSONAL")) {
@@ -140,6 +147,13 @@ export function ConsultancyAppShell({
       mobileLabel: "Alunos",
       href: `/consultoria/${consultancySlug}/progresso/alunos`,
       iconName: "progress",
+    });
+    items.push({
+      id: "personal-formularios",
+      label: "Formulários",
+      mobileLabel: "Formulários",
+      href: `/consultoria/${consultancySlug}/formularios`,
+      iconName: "missions",
     });
   }
 
@@ -172,6 +186,13 @@ export function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/progresso/alunos`,
       iconName: "progress",
     });
+    items.push({
+      id: "nutritionist-formularios",
+      label: "Formulários",
+      mobileLabel: "Formulários",
+      href: `/consultoria/${consultancySlug}/formularios`,
+      iconName: "missions",
+    });
   }
 
   if (presentationRoles.includes("CONSULTANCY_ADMIN")) {
@@ -195,6 +216,13 @@ export function ConsultancyAppShell({
       mobileLabel: "Membros",
       href: `/consultoria/${consultancySlug}/membros`,
       iconName: "members",
+    });
+    items.push({
+      id: "admin-formularios",
+      label: "Formulários",
+      mobileLabel: "Formulários",
+      href: `/consultoria/${consultancySlug}/formularios`,
+      iconName: "missions",
     });
     items.push({
       id: "admin-financeiro",

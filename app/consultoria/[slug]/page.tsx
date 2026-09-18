@@ -304,6 +304,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           <div className="space-y-8">
             <DashboardAdminView
               consultancySlug={context.consultancySlug}
+              consultancyName={context.consultancyName}
+              consultancyLogoUrl={context.consultancyLogoUrl}
               overview={adminOverview}
               platformAccess={context.platformAccess}
             />

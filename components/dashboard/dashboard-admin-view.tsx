@@ -7,8 +7,12 @@ import { NetflixFeatureCarousel, type CarouselSlide } from "./netflix-feature-ca
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
 
+import { ConsultancyPhotoEditor } from "@/components/consultancies/consultancy-photo-editor";
+
 interface DashboardAdminViewProps {
   consultancySlug: string;
+  consultancyName?: string;
+  consultancyLogoUrl?: string | null;
   overview: ConsultancyAdminOverview | null;
   platformAccess?: PlatformEffectiveAccessState;
 }
@@ -61,6 +65,8 @@ function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 export function DashboardAdminView({
   consultancySlug,
+  consultancyName,
+  consultancyLogoUrl,
   overview,
   platformAccess,
 }: DashboardAdminViewProps) {
@@ -352,7 +358,30 @@ export function DashboardAdminView({
         </div>
       </div>
 
-      {/* 4. PRIVACY & SECURITY FOOTER */}
+      {/* 4. IDENTIDADE VISUAL DA CONSULTORIA (LOGOTIPO PERSISTENTE) */}
+      <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] p-5 sm:p-7 md:p-8 shadow-xs depth-surface space-y-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--brand)] text-white shadow-2xs">
+              Marca & Identidade
+            </span>
+          </div>
+          <h2 className="font-heading text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+            Logotipo da Consultoria
+          </h2>
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
+            Personalize a imagem oficial da sua consultoria. Ela será exibida no menu, cabeçalho do aluno e relatórios impressos.
+          </p>
+        </div>
+
+        <ConsultancyPhotoEditor
+          consultancySlug={consultancySlug}
+          consultancyName={consultancyName || "Consultoria"}
+          currentLogoUrl={consultancyLogoUrl}
+        />
+      </div>
+
+      {/* 5. PRIVACY & SECURITY FOOTER */}
       <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">

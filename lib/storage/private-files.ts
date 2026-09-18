@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 
@@ -185,16 +186,32 @@ export function sanitizeOriginalFileName(rawName: unknown): string {
 
 /**
  * Resolves the private storage root lazily.
- * In production: PRIVATE_STORAGE_ROOT environment variable MUST be explicitly set.
- * In development: falls back to <project_root>/.data/private.
+ * Priority:
+ * 1. PRIVATE_STORAGE_ROOT / PERSISTENT_STORAGE_ROOT env var.
+ * 2. In production on Hostinger: native persistent directory outside git deploy root (/home/u406031981/persistent_storage).
+ * 3. In development: falls back to <project_root>/.data/private.
  */
 export function getPrivateStorageRoot(): string {
-  const envRoot = process.env.PRIVATE_STORAGE_ROOT?.trim();
+  const envRoot =
+    process.env.PRIVATE_STORAGE_ROOT?.trim() ||
+    process.env.PERSISTENT_STORAGE_ROOT?.trim();
   if (envRoot) {
     return path.resolve(envRoot);
   }
 
   if (process.env.NODE_ENV === "production") {
+    const hostingerPersistent = "/home/u406031981/persistent_storage";
+    try {
+      if (fsSync.existsSync("/home/u406031981")) {
+        if (!fsSync.existsSync(hostingerPersistent)) {
+          fsSync.mkdirSync(hostingerPersistent, { recursive: true });
+        }
+        return hostingerPersistent;
+      }
+    } catch {
+      // Fall through to error
+    }
+
     throw new Error(
       "A variável de ambiente PRIVATE_STORAGE_ROOT não está configurada no ambiente de produção."
     );

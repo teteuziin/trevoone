@@ -163,10 +163,45 @@ export function CustomFormsHub({
     setShowRequestModal(false);
   };
 
-  const handleOpenAnswerModal = (req: CustomFormRequestDto) => {
+  const [draftLoadedNotice, setDraftLoadedNotice] = useState(false);
+
+  const handleOpenAnswerModal = async (req: CustomFormRequestDto) => {
     setSelectedRequestToAnswer(req);
-    setFormResponses(req.responses || {});
     setAnswerError(null);
+    setDraftLoadedNotice(false);
+
+    let base = req.responses || {};
+    try {
+      const { getFormDraft } = await import("@/lib/offline/offline-forms");
+      const draft = await getFormDraft("student", consultancySlug, req.publicId);
+      if (draft && draft.responses && Object.keys(draft.responses).length > 0) {
+        base = { ...base, ...draft.responses };
+        setDraftLoadedNotice(true);
+      }
+    } catch {
+      // Ignore
+    }
+    setFormResponses(base);
+  };
+
+  const handleUpdateResponse = (fieldId: string, val: unknown) => {
+    setFormResponses((prev) => {
+      const updated = { ...prev, [fieldId]: val };
+      if (selectedRequestToAnswer) {
+        import("@/lib/offline/offline-forms")
+          .then(({ saveFormDraft }) => {
+            saveFormDraft({
+              userPublicId: "student",
+              consultancyPublicId: consultancySlug,
+              requestPublicId: selectedRequestToAnswer.publicId,
+              templatePublicId: selectedRequestToAnswer.templatePublicId,
+              responses: updated,
+            });
+          })
+          .catch(() => {});
+      }
+      return updated;
+    });
   };
 
   const handleSubmitAnswers = async (e: React.FormEvent) => {
@@ -187,26 +222,107 @@ export function CustomFormsHub({
     setIsSubmittingAnswers(true);
     setAnswerError(null);
 
-    const res = await submitFormResponsesAction(
-      consultancySlug,
-      selectedRequestToAnswer.publicId,
-      { responses: formResponses }
-    );
+    // If offline, queue in pending_operations and clear draft
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      try {
+        const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
+        const { clearFormDraft } = await import("@/lib/offline/offline-forms");
 
-    setIsSubmittingAnswers(false);
-    if (!res.success) {
-      setAnswerError(res.error || "Erro ao enviar respostas.");
-      return;
+        await queuePendingOperation({
+          userPublicId: "student",
+          consultancyPublicId: consultancySlug,
+          consultancySlug,
+          entityType: "FORM_SUBMISSION",
+          entityId: selectedRequestToAnswer.publicId,
+          operationType: "SUBMIT_FORM",
+          payload: {
+            requestPublicId: selectedRequestToAnswer.publicId,
+            responses: formResponses,
+          },
+        });
+
+        await clearFormDraft("student", consultancySlug, selectedRequestToAnswer.publicId);
+
+        setRequests(
+          requests.map((r) =>
+            r.publicId === selectedRequestToAnswer.publicId
+              ? { ...r, status: "SUBMITTED", responses: formResponses, submittedAt: new Date().toISOString() }
+              : r
+          )
+        );
+        setSelectedRequestToAnswer(null);
+        setIsSubmittingAnswers(false);
+        return;
+      } catch {
+        // Fall through
+      }
     }
 
-    setRequests(
-      requests.map((r) =>
-        r.publicId === selectedRequestToAnswer.publicId
-          ? { ...r, status: "SUBMITTED", responses: formResponses, submittedAt: new Date().toISOString() }
-          : r
-      )
-    );
-    setSelectedRequestToAnswer(null);
+    try {
+      const res = await submitFormResponsesAction(
+        consultancySlug,
+        selectedRequestToAnswer.publicId,
+        { responses: formResponses }
+      );
+
+      if (!res.success) {
+        setAnswerError(res.error || "Erro ao enviar respostas.");
+        return;
+      }
+
+      // Clear draft on successful submission
+      try {
+        const { clearFormDraft } = await import("@/lib/offline/offline-forms");
+        await clearFormDraft("student", consultancySlug, selectedRequestToAnswer.publicId);
+      } catch {
+        // Ignore
+      }
+
+      setRequests(
+        requests.map((r) =>
+          r.publicId === selectedRequestToAnswer.publicId
+            ? { ...r, status: "SUBMITTED", responses: formResponses, submittedAt: new Date().toISOString() }
+            : r
+        )
+      );
+      setSelectedRequestToAnswer(null);
+    } catch {
+      // Offline fallback on connection drop
+      try {
+        const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
+        const { clearFormDraft } = await import("@/lib/offline/offline-forms");
+
+        await queuePendingOperation({
+          userPublicId: "student",
+          consultancyPublicId: consultancySlug,
+          consultancySlug,
+          entityType: "FORM_SUBMISSION",
+          entityId: selectedRequestToAnswer.publicId,
+          operationType: "SUBMIT_FORM",
+          payload: {
+            requestPublicId: selectedRequestToAnswer.publicId,
+            responses: formResponses,
+          },
+        });
+
+        await clearFormDraft("student", consultancySlug, selectedRequestToAnswer.publicId);
+
+        setRequests(
+          requests.map((r) =>
+            r.publicId === selectedRequestToAnswer.publicId
+              ? { ...r, status: "SUBMITTED", responses: formResponses, submittedAt: new Date().toISOString() }
+              : r
+          )
+        );
+        setSelectedRequestToAnswer(null);
+        return;
+      } catch {
+        // Continue
+      }
+      setAnswerError("Erro de conexão ao enviar respostas.");
+    } finally {
+      setIsSubmittingAnswers(false);
+    }
   };
 
   const handleReviewSubmission = async (decision: "APPROVE" | "REQUEST_CHANGES") => {
@@ -786,6 +902,12 @@ export function CustomFormsHub({
             </div>
 
             <form onSubmit={handleSubmitAnswers} className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
+              {draftLoadedNotice && (
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-center gap-1.5">
+                  <span>✓ Rascunho salvo neste dispositivo recuperado.</span>
+                </div>
+              )}
+
               {answerError && (
                 <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 rounded-xl text-xs">
                   {answerError}
@@ -808,7 +930,7 @@ export function CustomFormsHub({
                     <input
                       type="text"
                       value={String(formResponses[f.id] || "")}
-                      onChange={(e) => setFormResponses({ ...formResponses, [f.id]: e.target.value })}
+                      onChange={(e) => handleUpdateResponse(f.id, e.target.value)}
                       placeholder={f.placeholder || "Sua resposta..."}
                       className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--text-primary)]"
                       required={f.required}
@@ -818,7 +940,7 @@ export function CustomFormsHub({
                   {f.type === "LONG_TEXT" && (
                     <textarea
                       value={String(formResponses[f.id] || "")}
-                      onChange={(e) => setFormResponses({ ...formResponses, [f.id]: e.target.value })}
+                      onChange={(e) => handleUpdateResponse(f.id, e.target.value)}
                       placeholder={f.placeholder || "Escreva sua resposta detalhada..."}
                       rows={3}
                       className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--text-primary)]"
@@ -830,7 +952,7 @@ export function CustomFormsHub({
                     <input
                       type="number"
                       value={String(formResponses[f.id] || "")}
-                      onChange={(e) => setFormResponses({ ...formResponses, [f.id]: Number(e.target.value) })}
+                      onChange={(e) => handleUpdateResponse(f.id, Number(e.target.value))}
                       placeholder="0"
                       className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--text-primary)]"
                       required={f.required}
@@ -841,7 +963,7 @@ export function CustomFormsHub({
                     <input
                       type="date"
                       value={String(formResponses[f.id] || "")}
-                      onChange={(e) => setFormResponses({ ...formResponses, [f.id]: e.target.value })}
+                      onChange={(e) => handleUpdateResponse(f.id, e.target.value)}
                       className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--text-primary)]"
                       required={f.required}
                     />
@@ -854,7 +976,7 @@ export function CustomFormsHub({
                           type="radio"
                           name={f.id}
                           checked={formResponses[f.id] === true}
-                          onChange={() => setFormResponses({ ...formResponses, [f.id]: true })}
+                          onChange={() => handleUpdateResponse(f.id, true)}
                           className="text-emerald-600 focus:ring-emerald-500"
                         />
                         <span>Sim</span>
@@ -864,7 +986,7 @@ export function CustomFormsHub({
                           type="radio"
                           name={f.id}
                           checked={formResponses[f.id] === false}
-                          onChange={() => setFormResponses({ ...formResponses, [f.id]: false })}
+                          onChange={() => handleUpdateResponse(f.id, false)}
                           className="text-emerald-600 focus:ring-emerald-500"
                         />
                         <span>Não</span>
@@ -878,7 +1000,7 @@ export function CustomFormsHub({
                         type="checkbox"
                         id={`ack_${f.id}`}
                         checked={Boolean(formResponses[f.id])}
-                        onChange={(e) => setFormResponses({ ...formResponses, [f.id]: e.target.checked })}
+                        onChange={(e) => handleUpdateResponse(f.id, e.target.checked)}
                         className="mt-0.5 w-4 h-4 rounded-sm text-emerald-600 focus:ring-emerald-500"
                         required={f.required}
                       />
@@ -890,21 +1012,27 @@ export function CustomFormsHub({
                 </div>
               ))}
 
-              <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedRequestToAnswer(null)}
-                  className="px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-xl min-h-[44px] sm:min-h-0 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingAnswers}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors min-h-[44px] sm:min-h-0 cursor-pointer"
-                >
-                  {isSubmittingAnswers ? "Enviando..." : "Enviar Respostas"}
-                </button>
+              <div className="pt-3 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-[var(--text-muted)] flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Salvo neste dispositivo
+                </span>
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRequestToAnswer(null)}
+                    className="px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-xl min-h-[44px] sm:min-h-0 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingAnswers}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors min-h-[44px] sm:min-h-0 cursor-pointer"
+                  >
+                    {isSubmittingAnswers ? "Enviando..." : "Enviar Respostas"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

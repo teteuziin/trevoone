@@ -11,6 +11,8 @@ import {
   startOrResumeWorkoutExecution,
   completeWorkoutExecutionSet,
   completeWorkoutExecution,
+  syncOfflineWorkoutExecution,
+  type SyncOfflineWorkoutExecutionInput,
 } from "@/lib/training-v2/execution-repository";
 import type {
   WorkoutExecutionSessionDto,
@@ -191,6 +193,42 @@ export async function completeWorkoutExecutionAction(
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao finalizar treino.";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Idempotently synchronizes a workout execution completed offline by a student.
+ */
+export async function syncOfflineWorkoutExecutionAction(
+  slug: string,
+  input: SyncOfflineWorkoutExecutionInput
+): Promise<{ success: boolean; sessionPublicId?: string; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Não autenticado." };
+  }
+
+  const ctx = await resolveTrainingAccessContext(slug);
+  if (!ctx) {
+    return { success: false, error: "Acesso não autorizado à consultoria." };
+  }
+
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+    return { success: false, error: "Apenas alunos podem sincronizar treinos." };
+  }
+
+  try {
+    const res = await syncOfflineWorkoutExecution(ctx, input);
+    return {
+      success: true,
+      sessionPublicId: res.sessionPublicId,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao sincronizar treino offline.";
     return {
       success: false,
       error: message,

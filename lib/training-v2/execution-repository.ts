@@ -1091,3 +1091,263 @@ export async function listStudentWorkoutExecutionHistory(
     connection.release();
   }
 }
+
+export interface SyncOfflineWorkoutExecutionInput {
+  operationId: string;
+  clientExecutionId: string;
+  assignmentPublicId: string;
+  startedAt: string;
+  completedAt: string;
+  sets: Array<{
+    setPublicId?: string;
+    actualReps: number;
+    actualLoadKg: number | null;
+    completedAt?: string | null;
+  }>;
+}
+
+/**
+ * Idempotently synchronizes a workout execution completed offline by a student.
+ */
+export async function syncOfflineWorkoutExecution(
+  ctx: TrainingAccessContext,
+  input: SyncOfflineWorkoutExecutionInput
+): Promise<{ success: boolean; sessionPublicId: string; alreadySynced: boolean }> {
+  assertStudentContext(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Verify assignment and tenancy
+    const [assignmentRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wa.id, wa.consultancy_id, wa.student_membership_id, wa.workout_version_id, wa.status
+       FROM workout_assignments wa
+       WHERE wa.public_id = ?
+       LIMIT 1;`,
+      [input.assignmentPublicId]
+    );
+
+    if (!assignmentRows || assignmentRows.length === 0) {
+      throw new TrainingAuthorizationError("Prescrição de treino não encontrada.", "NOT_FOUND", 404);
+    }
+
+    const a = assignmentRows[0];
+    if (Number(a.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado à consultoria.", "FORBIDDEN", 403);
+    }
+    if (Number(a.student_membership_id) !== ctx.membershipId) {
+      throw new TrainingAuthorizationError("Prescrição não pertence a este aluno.", "FORBIDDEN", 403);
+    }
+
+    // 2. Check if a session with this clientExecutionId already exists
+    const [existingSessions] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, status FROM workout_execution_sessions
+       WHERE public_id = ?
+       LIMIT 1
+       FOR UPDATE;`,
+      [input.clientExecutionId]
+    );
+
+    let notifIdToDeliver: number | null = null;
+
+    if (existingSessions && existingSessions.length > 0) {
+      const existing = existingSessions[0];
+      if (existing.status === "COMPLETED") {
+        await connection.commit();
+        return { success: true, sessionPublicId: input.clientExecutionId, alreadySynced: true };
+      }
+
+      // Update in-progress session to completed
+      await connection.execute<ResultSetHeader>(
+        `UPDATE workout_execution_sessions
+         SET status = 'COMPLETED', completed_at = ?, updated_at = NOW(3)
+         WHERE id = ?;`,
+        [new Date(input.completedAt), existing.id]
+      );
+
+      // Update sets
+      for (const s of input.sets) {
+        if (s.setPublicId) {
+          await connection.execute<ResultSetHeader>(
+            `UPDATE workout_execution_sets
+             SET actual_reps = ?, actual_load_kg = ?, completed_at = COALESCE(?, NOW(3)), updated_at = NOW(3)
+             WHERE execution_session_id = ? AND public_id = ?;`,
+            [s.actualReps, s.actualLoadKg, s.completedAt ? new Date(s.completedAt) : null, existing.id, s.setPublicId]
+          );
+        }
+      }
+
+      // Notification
+      try {
+        const [relRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT wa.assigned_by_user_id, u.name AS student_name, cm.public_id AS student_membership_public_id, c.slug AS consultancy_slug, wv.title AS workout_title
+           FROM workout_assignments wa
+           JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+           JOIN users u ON u.id = cm.user_id
+           JOIN consultancies c ON c.id = wa.consultancy_id
+           JOIN workout_versions wv ON wv.id = wa.workout_version_id
+           WHERE wa.id = ? AND wa.assigned_by_user_id IS NOT NULL
+           LIMIT 1;`,
+          [a.id]
+        );
+        if (Array.isArray(relRows) && relRows.length > 0 && relRows[0].assigned_by_user_id) {
+          const rel = relRows[0];
+          const notif = await createNotificationInTransaction(connection, {
+            userId: Number(rel.assigned_by_user_id),
+            consultancyId: Number(a.consultancy_id),
+            title: "Treino Concluído pelo Aluno (Sincronizado)",
+            body: `${rel.student_name || "Seu aluno"} sincronizou a conclusão do treino "${rel.workout_title || "Prescrição"}".`,
+            eventType: "WORKOUT_COMPLETED",
+            priority: "NORMAL",
+            deepLink: `/consultoria/${rel.consultancy_slug}/progresso/alunos/${rel.student_membership_public_id}`,
+            dedupeKey: `workout_completed:${input.clientExecutionId}`,
+          });
+          notifIdToDeliver = notif.id;
+        }
+      } catch {
+        // Non-blocking notification
+      }
+
+      await connection.commit();
+
+      if (notifIdToDeliver) {
+        await deliverNotificationAfterCommit(notifIdToDeliver);
+      }
+
+      return { success: true, sessionPublicId: input.clientExecutionId, alreadySynced: false };
+    }
+
+    // 3. Insert new completed session with clientExecutionId
+    const [insertSessionRes] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO workout_execution_sessions (
+        public_id,
+        consultancy_id,
+        student_membership_id,
+        workout_assignment_id,
+        workout_version_id,
+        status,
+        started_at,
+        completed_at
+      ) VALUES (?, ?, ?, ?, ?, 'COMPLETED', ?, ?);`,
+      [
+        input.clientExecutionId,
+        ctx.consultancyId!,
+        ctx.membershipId!,
+        a.id,
+        a.workout_version_id,
+        new Date(input.startedAt),
+        new Date(input.completedAt),
+      ]
+    );
+
+    const sessionId = insertSessionRes.insertId;
+
+    // Snapshot prescribed sets and attach completed values
+    const [prescribedSets] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+        wis.id AS workout_item_set_id,
+        wis.block_item_id,
+        wis.set_number,
+        wis.set_type,
+        wis.target_reps,
+        wis.target_reps_max,
+        wis.target_load_kg,
+        wis.target_rest_seconds
+       FROM workout_blocks wb
+       INNER JOIN workout_block_items wbi ON wbi.block_id = wb.id
+       INNER JOIN workout_item_sets wis ON wis.block_item_id = wbi.id
+       WHERE wb.workout_version_id = ?
+       ORDER BY wb.sort_order ASC, wbi.sort_order ASC, wis.set_number ASC;`,
+      [a.workout_version_id]
+    );
+
+    for (let i = 0; i < prescribedSets.length; i++) {
+      const ps = prescribedSets[i];
+      const matchSet = input.sets[i];
+      const actualReps = matchSet?.actualReps ?? ps.target_reps;
+      const actualLoad = matchSet?.actualLoadKg ?? ps.target_load_kg;
+      const completedAt = matchSet?.completedAt ? new Date(matchSet.completedAt) : new Date(input.completedAt);
+      const setPublicId = matchSet?.setPublicId || crypto.randomUUID();
+
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO workout_execution_sets (
+          public_id,
+          execution_session_id,
+          workout_item_set_id,
+          block_item_id,
+          set_number,
+          set_type,
+          prescribed_reps,
+          prescribed_reps_max,
+          prescribed_load_kg,
+          prescribed_rest_seconds,
+          actual_reps,
+          actual_load_kg,
+          completed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          setPublicId,
+          sessionId,
+          ps.workout_item_set_id,
+          ps.block_item_id,
+          ps.set_number,
+          ps.set_type,
+          ps.target_reps,
+          ps.target_reps_max,
+          ps.target_load_kg,
+          ps.target_rest_seconds,
+          actualReps,
+          actualLoad,
+          completedAt,
+        ]
+      );
+    }
+
+    // 4. Notification
+    try {
+      const [relRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT wa.assigned_by_user_id, u.name AS student_name, cm.public_id AS student_membership_public_id, c.slug AS consultancy_slug, wv.title AS workout_title
+         FROM workout_assignments wa
+         JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+         JOIN users u ON u.id = cm.user_id
+         JOIN consultancies c ON c.id = wa.consultancy_id
+         JOIN workout_versions wv ON wv.id = wa.workout_version_id
+         WHERE wa.id = ? AND wa.assigned_by_user_id IS NOT NULL
+         LIMIT 1;`,
+        [a.id]
+      );
+      if (Array.isArray(relRows) && relRows.length > 0 && relRows[0].assigned_by_user_id) {
+        const rel = relRows[0];
+        const notif = await createNotificationInTransaction(connection, {
+          userId: Number(rel.assigned_by_user_id),
+          consultancyId: Number(a.consultancy_id),
+          title: "Treino Concluído pelo Aluno (Sincronizado)",
+          body: `${rel.student_name || "Seu aluno"} sincronizou a conclusão do treino "${rel.workout_title || "Prescrição"}".`,
+          eventType: "WORKOUT_COMPLETED",
+          priority: "NORMAL",
+          deepLink: `/consultoria/${rel.consultancy_slug}/progresso/alunos/${rel.student_membership_public_id}`,
+          dedupeKey: `workout_completed:${input.clientExecutionId}`,
+        });
+        notifIdToDeliver = notif.id;
+      }
+    } catch {
+      // Non-blocking notification
+    }
+
+    await connection.commit();
+
+    if (notifIdToDeliver) {
+      await deliverNotificationAfterCommit(notifIdToDeliver);
+    }
+
+    return { success: true, sessionPublicId: input.clientExecutionId, alreadySynced: false };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}

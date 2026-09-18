@@ -123,6 +123,64 @@ export function HelpSupportHub({
     recipientRoleLabel: string;
   } | null>(null);
 
+  // Live Sync Status State (Section 6.18 Central de Sincronização)
+  const [syncState, setSyncState] = useState<{
+    isSyncing: boolean;
+    pendingCount: number;
+    lastSyncAt: string | null;
+    errorCount: number;
+  }>({
+    isSyncing: false,
+    pendingCount: 0,
+    lastSyncAt: null,
+    errorCount: 0,
+  });
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    let unsubscribe: (() => void) | null = null;
+    import("@/lib/offline/offline-sync").then(({ subscribeToSyncStatus }) => {
+      unsubscribe = subscribeToSyncStatus((status) => {
+        setSyncState(status);
+      });
+    });
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const handleManualSync = async () => {
+    try {
+      const { runOfflineSync } = await import("@/lib/offline/offline-sync");
+      await runOfflineSync(consultancySlug);
+    } catch {
+      // Handled via listener
+    }
+  };
+
+  const formattedLastSync = useMemo(() => {
+    if (!syncState.lastSyncAt) return "Nenhuma nesta sessão";
+    try {
+      const d = new Date(syncState.lastSyncAt);
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, "0");
+      const minutes = String(d.getMinutes()).padStart(2, "0");
+      return `${day}/${month}/${year} às ${hours}:${minutes}`;
+    } catch {
+      return "Recente";
+    }
+  }, [syncState.lastSyncAt]);
+
   // Listen for global open support event
   useEffect(() => {
     function handleOpenSupportEvent() {
@@ -199,12 +257,12 @@ export function HelpSupportHub({
       },
       {
         id: "use-offline",
-        title: "Como Usar Offline",
-        description: "Entenda como acessar seus treinos mesmo sem conexão à internet.",
+        title: "Central de Sincronização & Offline",
+        description: "Status dos dados locais, sincronização de treinos e uso sem internet.",
         actionType: "offline-modal",
         category: "app",
         icon: WifiOff,
-        badge: "Dica",
+        badge: "Offline",
       },
       {
         id: "install-app",
@@ -672,52 +730,133 @@ export function HelpSupportHub({
         </div>
       )}
 
-      {/* MODAL: COMO USAR OFFLINE */}
+      {/* MODAL: CENTRAL DE SINCRONIZAÇÃO & USO OFFLINE */}
       {showOfflineModal && (
         <div
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
         >
-          <div className="relative w-full max-w-md rounded-3xl bg-[var(--surface)] border border-[var(--border-strong)] p-6 sm:p-7 shadow-2xl space-y-5 text-[var(--text-primary)]">
+          <div className="relative w-full max-w-lg rounded-3xl bg-[var(--surface)] border border-[var(--border-strong)] p-6 sm:p-7 shadow-2xl space-y-5 text-[var(--text-primary)]">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-[var(--brand-soft)] text-[var(--brand-foreground)] flex items-center justify-center">
                   <WifiOff className="w-5 h-5" strokeWidth={1.8} />
                 </div>
-                <h3 className="font-heading text-base sm:text-lg font-bold text-[var(--text-primary)]">
-                  Uso Offline
-                </h3>
+                <div>
+                  <h3 className="font-heading text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                    Central de Sincronização & Offline
+                  </h3>
+                  <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                    <span
+                      className={`inline-block w-2 h-2 rounded-full ${
+                        isOnline ? "bg-emerald-500 shadow-xs shadow-emerald-500/50" : "bg-amber-500"
+                      }`}
+                    />
+                    <span>{isOnline ? "Conectado à internet" : "Modo Offline (sem internet)"}</span>
+                  </div>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowOfflineModal(false)}
                 aria-label="Fechar"
-                className="p-2 rounded-xl text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="p-2 rounded-xl text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            {/* PAINEL DE SINCRONIZAÇÃO */}
+            <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)]">
+                  <div className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider">
+                    Pendentes
+                  </div>
+                  <div
+                    className={`text-base font-extrabold mt-0.5 ${
+                      syncState.pendingCount > 0 ? "text-amber-500" : "text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {syncState.pendingCount}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)]">
+                  <div className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider">
+                    Com Erro
+                  </div>
+                  <div
+                    className={`text-base font-extrabold mt-0.5 ${
+                      syncState.errorCount > 0 ? "text-red-500" : "text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {syncState.errorCount}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)]">
+                  <div className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider">
+                    Status
+                  </div>
+                  <div className="text-xs font-bold text-[var(--brand)] mt-1">
+                    {syncState.isSyncing
+                      ? "Enviando..."
+                      : syncState.pendingCount > 0
+                      ? "Pendente"
+                      : "Em dia"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] pt-1 border-t border-[var(--border-subtle)]">
+                <span>Última sincronização:</span>
+                <span className="font-semibold text-[var(--text-primary)]">{formattedLastSync}</span>
+              </div>
+
+              <button
+                type="button"
+                disabled={syncState.isSyncing || !isOnline}
+                onClick={handleManualSync}
+                className="w-full py-2.5 px-4 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] min-h-[44px] shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+              >
+                {syncState.isSyncing ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
+                      <path
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span>Sincronizando dados...</span>
+                  </>
+                ) : !isOnline ? (
+                  <span>Conecte-se para sincronizar</span>
+                ) : (
+                  <span>Sincronizar agora</span>
+                )}
+              </button>
+            </div>
+
             <div className="space-y-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-              <p>
-                O Trevo One foi construído com tecnologia PWA para que você consiga treinar mesmo em academias com sinal fraco ou sem internet.
-              </p>
               <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
-                <h4 className="font-bold text-[var(--text-primary)] text-xs">Como funciona:</h4>
+                <h4 className="font-bold text-[var(--text-primary)] text-xs">Como funciona o modo offline:</h4>
                 <ul className="space-y-1.5 list-disc list-inside text-xs">
-                  <li>Abra o app enquanto ainda estiver conectado para carregar seu treino.</li>
-                  <li>Na academia, execute suas séries e registre suas repetições normalmente.</li>
-                  <li>Assim que seu celular recuperar sinal, seus dados sincronizam automaticamente.</li>
+                  <li>Seu treino e plano alimentar ativos são preparados automaticamente quando online.</li>
+                  <li>Na academia, execute suas séries e marque repetições e cargas normalmente.</li>
+                  <li>Seus dados ficam protegidos no seu aparelho até a reconexão.</li>
+                  <li>Assim que o celular recuperar sinal, a sincronização é realizada automaticamente.</li>
                 </ul>
               </div>
             </div>
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-1 flex justify-end">
               <button
                 type="button"
                 onClick={() => setShowOfflineModal(false)}
-                className="px-6 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px]"
+                className="px-6 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] cursor-pointer shadow-xs"
               >
                 Entendi
               </button>

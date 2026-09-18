@@ -19,6 +19,22 @@ export function StudentNutritionV2({
 }: Props) {
   const { version, meals, totals, notesForStudent } = assignedPlan;
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    import("@/lib/offline/offline-nutrition")
+      .then(({ saveNutritionSnapshot }) => {
+        saveNutritionSnapshot({
+          userPublicId: "student",
+          consultancyPublicId: consultancySlug,
+          planPublicId: version.publicId || "active_plan",
+          planTitle: version.title,
+          planSubtitle: version.subtitle,
+          data: assignedPlan,
+        });
+      })
+      .catch(() => {});
+  }, [assignedPlan, consultancySlug, version]);
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto pb-16 animate-in fade-in duration-200">
       {/* Plan Header Card */}
@@ -44,6 +60,10 @@ export function StudentNutritionV2({
               <span className="text-[var(--border-strong)]">•</span>
               <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-primary)] bg-[var(--surface-subtle)] border border-[var(--border-default)] px-2.5 py-0.5 rounded-md shadow-2xs">
                 Plano Alimentar Ativo
+              </span>
+              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-0.5 rounded-md inline-flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>Plano disponível offline</span>
               </span>
               <span className="text-[10px] font-medium text-[var(--text-secondary)] bg-[var(--surface-subtle)] border border-[var(--border-subtle)] px-2 py-0.5 rounded-md">
                 Versão {version.versionNumber}

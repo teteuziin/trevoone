@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useSyncExternalStore } from "react";
+import { useState, useMemo, useSyncExternalStore, useEffect } from "react";
 import type {
   StudentWorkoutViewContract,
   WorkoutExecutionSessionDto,
@@ -10,6 +10,7 @@ import type {
   WorkoutBlockDto,
   WorkoutBlockItemDto,
   WorkoutItemSetDto,
+  WorkoutSetType,
 } from "@/lib/training-v2/types";
 import {
   startOrResumeWorkoutExecutionAction,
@@ -429,6 +430,38 @@ export function StudentWorkoutRenderer({
 
   const blocks = workout.blocks || [];
 
+  const [isOffline, setIsOffline] = useState(() =>
+    typeof navigator !== "undefined" ? !navigator.onLine : false
+  );
+  const [offlineSyncedNotice, setOfflineSyncedNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // Auto-cache active workout snapshot in IndexedDB when rendered
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    import("@/lib/offline/offline-workouts").then(({ saveWorkoutSnapshot }) => {
+      saveWorkoutSnapshot({
+        userPublicId: "student",
+        consultancyPublicId: consultancySlug || "consultancy",
+        assignmentPublicId: workout.assignmentPublicId,
+        workout,
+        initialExecution,
+        initialHistory: completedSessions,
+      });
+    }).catch(() => {});
+  }, [workout, initialExecution, completedSessions, consultancySlug]);
+
   const totalSets = activeSession?.sets?.length || 0;
   const completedSets = activeSession?.sets?.filter((s) => s.completedAt != null).length || 0;
   const allSetsCompleted = totalSets > 0 && completedSets === totalSets;
@@ -438,6 +471,57 @@ export function StudentWorkoutRenderer({
 
     setIsStarting(true);
     setStartError(null);
+
+    // If device is offline, start locally via IndexedDB
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      try {
+        const { startOrResumeOfflineWorkoutSession } = await import("@/lib/offline/offline-workouts");
+        const localSession = await startOrResumeOfflineWorkoutSession({
+          userPublicId: "student",
+          consultancyPublicId: consultancySlug,
+          assignmentPublicId: workout.assignmentPublicId,
+          workout,
+          existingServerSession: activeSession,
+        });
+
+        if (localSession) {
+          const adaptedSession: WorkoutExecutionSessionDto = {
+            publicId: localSession.clientExecutionId,
+            consultancyId: 0,
+            studentMembershipId: 0,
+            workoutAssignmentPublicId: workout.assignmentPublicId,
+            workoutVersionPublicId: workout.assignmentPublicId,
+            status: "IN_PROGRESS",
+            startedAt: new Date(localSession.startedAt),
+            completedAt: null,
+            createdAt: new Date(localSession.startedAt),
+            updatedAt: new Date(localSession.updatedAt),
+            sets: localSession.sets.map((s) => ({
+              publicId: s.setPublicId,
+              blockItemId: 0,
+              blockItemPublicId: s.blockItemPublicId,
+              setNumber: s.setNumber,
+              setType: s.setType as WorkoutSetType,
+              prescribedReps: s.prescribedReps ?? null,
+              prescribedRepsMax: s.prescribedRepsMax ?? null,
+              prescribedLoadKg: s.prescribedLoadKg ?? null,
+              prescribedRestSeconds: s.prescribedRestSeconds ?? null,
+              actualReps: s.actualReps ?? null,
+              actualLoadKg: s.actualLoadKg ?? null,
+              completedAt: s.completedAt ? new Date(s.completedAt) : null,
+              createdAt: new Date(localSession.startedAt),
+              updatedAt: new Date(localSession.updatedAt),
+            })),
+          };
+          setActiveSession(adaptedSession);
+          setManualRest(null);
+          setIsStarting(false);
+          return;
+        }
+      } catch {
+        // Fall through to server action
+      }
+    }
 
     try {
       const res = await startOrResumeWorkoutExecutionAction(
@@ -452,6 +536,53 @@ export function StudentWorkoutRenderer({
         setStartError(res.error || "Erro ao iniciar o treino.");
       }
     } catch {
+      // Offline fallback on connection error
+      try {
+        const { startOrResumeOfflineWorkoutSession } = await import("@/lib/offline/offline-workouts");
+        const localSession = await startOrResumeOfflineWorkoutSession({
+          userPublicId: "student",
+          consultancyPublicId: consultancySlug,
+          assignmentPublicId: workout.assignmentPublicId,
+          workout,
+          existingServerSession: activeSession,
+        });
+
+        if (localSession) {
+          const adaptedSession: WorkoutExecutionSessionDto = {
+            publicId: localSession.clientExecutionId,
+            consultancyId: 0,
+            studentMembershipId: 0,
+            workoutAssignmentPublicId: workout.assignmentPublicId,
+            workoutVersionPublicId: workout.assignmentPublicId,
+            status: "IN_PROGRESS",
+            startedAt: new Date(localSession.startedAt),
+            completedAt: null,
+            createdAt: new Date(localSession.startedAt),
+            updatedAt: new Date(localSession.updatedAt),
+            sets: localSession.sets.map((s) => ({
+              publicId: s.setPublicId,
+              blockItemId: 0,
+              blockItemPublicId: s.blockItemPublicId,
+              setNumber: s.setNumber,
+              setType: s.setType as WorkoutSetType,
+              prescribedReps: s.prescribedReps ?? null,
+              prescribedRepsMax: s.prescribedRepsMax ?? null,
+              prescribedLoadKg: s.prescribedLoadKg ?? null,
+              prescribedRestSeconds: s.prescribedRestSeconds ?? null,
+              actualReps: s.actualReps ?? null,
+              actualLoadKg: s.actualLoadKg ?? null,
+              completedAt: s.completedAt ? new Date(s.completedAt) : null,
+              createdAt: new Date(localSession.startedAt),
+              updatedAt: new Date(localSession.updatedAt),
+            })),
+          };
+          setActiveSession(adaptedSession);
+          setManualRest(null);
+          return;
+        }
+      } catch {
+        // Ignore
+      }
       setStartError("Erro de conexão ao iniciar o treino.");
     } finally {
       setIsStarting(false);
@@ -465,6 +596,50 @@ export function StudentWorkoutRenderer({
 
     setIsCompleting(true);
     setCompleteError(null);
+
+    // If offline, record completion locally in IndexedDB and queue for sync
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      try {
+        const { completeOfflineWorkout } = await import("@/lib/offline/offline-workouts");
+        const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
+        await completeOfflineWorkout(activeSession.publicId);
+        await queuePendingOperation({
+          userPublicId: "student",
+          consultancyPublicId: consultancySlug,
+          consultancySlug,
+          entityType: "WORKOUT_EXECUTION",
+          entityId: workout.assignmentPublicId,
+          operationType: "COMPLETE_WORKOUT",
+          payload: {
+            clientExecutionId: activeSession.publicId,
+            assignmentPublicId: workout.assignmentPublicId,
+            startedAt: activeSession.startedAt.toISOString(),
+            completedAt: new Date().toISOString(),
+            sets: activeSession.sets.map((s) => ({
+              setPublicId: s.publicId,
+              actualReps: s.actualReps ?? 0,
+              actualLoadKg: s.actualLoadKg ?? null,
+              completedAt: s.completedAt ? s.completedAt.toISOString() : new Date().toISOString(),
+            })),
+          },
+        });
+
+        const completedSession: WorkoutExecutionSessionDto = {
+          ...activeSession,
+          status: "COMPLETED",
+          completedAt: new Date(),
+        };
+        setActiveSession(completedSession);
+        setManualRest(null);
+        setOfflineSyncedNotice(
+          "Treino concluído neste dispositivo. Sincronizaremos quando a conexão voltar."
+        );
+        setIsCompleting(false);
+        return;
+      } catch {
+        // Fall through to server action
+      }
+    }
 
     try {
       const res = await completeWorkoutExecutionAction(
@@ -516,6 +691,46 @@ export function StudentWorkoutRenderer({
         setCompleteError(res.error || "Erro ao finalizar o treino.");
       }
     } catch {
+      // Offline fallback on connection drop during finalization
+      try {
+        const { completeOfflineWorkout } = await import("@/lib/offline/offline-workouts");
+        const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
+        await completeOfflineWorkout(activeSession.publicId);
+        await queuePendingOperation({
+          userPublicId: "student",
+          consultancyPublicId: consultancySlug,
+          consultancySlug,
+          entityType: "WORKOUT_EXECUTION",
+          entityId: workout.assignmentPublicId,
+          operationType: "COMPLETE_WORKOUT",
+          payload: {
+            clientExecutionId: activeSession.publicId,
+            assignmentPublicId: workout.assignmentPublicId,
+            startedAt: activeSession.startedAt.toISOString(),
+            completedAt: new Date().toISOString(),
+            sets: activeSession.sets.map((s) => ({
+              setPublicId: s.publicId,
+              actualReps: s.actualReps ?? 0,
+              actualLoadKg: s.actualLoadKg ?? null,
+              completedAt: s.completedAt ? s.completedAt.toISOString() : new Date().toISOString(),
+            })),
+          },
+        });
+
+        const completedSession: WorkoutExecutionSessionDto = {
+          ...activeSession,
+          status: "COMPLETED",
+          completedAt: new Date(),
+        };
+        setActiveSession(completedSession);
+        setManualRest(null);
+        setOfflineSyncedNotice(
+          "Treino concluído neste dispositivo. Sincronizaremos quando a conexão voltar."
+        );
+        return;
+      } catch {
+        // Ignore
+      }
       setCompleteError("Erro de conexão ao finalizar o treino.");
     } finally {
       setIsCompleting(false);
@@ -536,6 +751,43 @@ export function StudentWorkoutRenderer({
       delete copy[setPublicId];
       return copy;
     });
+
+    // If offline, save set locally in IndexedDB
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      try {
+        const { completeOfflineSet } = await import("@/lib/offline/offline-workouts");
+        await completeOfflineSet(activeSession.publicId, setPublicId, input);
+        setActiveSession((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            sets: prev.sets.map((s) =>
+              s.publicId === setPublicId
+                ? { ...s, actualReps: input.actualReps, actualLoadKg: input.actualLoadKg, completedAt: new Date() }
+                : s
+            ),
+          };
+        });
+
+        const targetSet = activeSession.sets.find((s) => s.publicId === setPublicId);
+        if (targetSet?.prescribedRestSeconds && targetSet.prescribedRestSeconds > 0) {
+          setManualRest({
+            setPublicId: targetSet.publicId,
+            setNumber: targetSet.setNumber,
+            blockItemPublicId: targetSet.blockItemPublicId,
+            totalSeconds: targetSet.prescribedRestSeconds,
+            targetEndAt: Date.now() + targetSet.prescribedRestSeconds * 1000,
+          });
+        } else {
+          setManualRest(null);
+        }
+
+        setLoadingSetPublicId(null);
+        return;
+      } catch {
+        // Fall through
+      }
+    }
 
     try {
       const res = await completeWorkoutExecutionSetAction(
@@ -599,6 +851,17 @@ export function StudentWorkoutRenderer({
 
         {/* Primary Metadata Chips (Execution Focus) */}
         <div className="flex flex-wrap items-center gap-2 pt-0.5">
+          {isOffline ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span>Modo Offline (Execução Local)</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span>Disponível offline</span>
+            </span>
+          )}
           <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
             {blocks.length} {blocks.length === 1 ? "bloco de treino" : "blocos de treino"}
           </span>
@@ -711,6 +974,12 @@ export function StudentWorkoutRenderer({
           </div>
         )}
       </div>
+
+      {offlineSyncedNotice && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2">
+          <span>✓ {offlineSyncedNotice}</span>
+        </div>
+      )}
 
       {/* Blocks List */}
       <div className="space-y-5">

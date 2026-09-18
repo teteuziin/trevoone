@@ -519,6 +519,14 @@ export async function clearOfflineDataForUser(userPublicId: string): Promise<boo
  * Preserves browser Cache Storage (static assets, brand icons, Service Worker).
  */
 export async function clearAllAuthenticatedOfflineData(): Promise<boolean> {
+  // Purge v3 database first
+  try {
+    const { clearAllAuthenticatedOfflineData: clearV3 } = await import("./offline-db");
+    await clearV3();
+  } catch {
+    // Best-effort
+  }
+
   const db = await openOfflineDatabase();
   if (!db) return false;
 

@@ -44,20 +44,20 @@ export default async function FormulariosPage({ params }: FormulariosPageProps) 
     const connection = await getDbConnection();
     try {
       const [rows] = await connection.execute<RowDataPacket[]>(
-        `SELECT cm.public_id, u.name, u.email
+        `SELECT cm.public_id, u.full_name, u.email
          FROM consultancy_members cm
          JOIN users u ON u.id = cm.user_id
          JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
          WHERE cm.consultancy_id = ? AND cm.status = 'ACTIVE'
            AND cmr.role IN ('STUDENT', 'INFLUENCER')
-         GROUP BY cm.public_id, u.name, u.email
-         ORDER BY u.name ASC;`,
+         GROUP BY cm.public_id, u.full_name, u.email
+         ORDER BY u.full_name ASC;`,
         [context.consultancyId]
       );
 
       studentOptions = rows.map((r) => ({
         publicId: String(r.public_id),
-        name: String(r.name),
+        name: String(r.full_name),
         email: String(r.email),
       }));
     } finally {

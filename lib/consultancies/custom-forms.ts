@@ -366,7 +366,7 @@ export async function requestFormForStudent(
 
     // 2. Verify target student belongs to tenant and has STUDENT role
     const [students] = await connection.execute<RowDataPacket[]>(
-      `SELECT cm.id, cm.public_id, cm.user_id, u.name, u.email
+      `SELECT cm.id, cm.public_id, cm.user_id, u.full_name, u.email
        FROM consultancy_members cm
        JOIN users u ON u.id = cm.user_id
        JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
@@ -461,7 +461,7 @@ export async function requestFormForStudent(
       fields,
       studentMembershipId: Number(student.id),
       studentPublicId: String(student.public_id),
-      studentName: String(student.name),
+      studentName: String(student.full_name),
       studentEmail: String(student.email),
       requestedByUserId: userId,
       requestedByName: null,
@@ -528,8 +528,8 @@ export async function listFormRequests(
         t.description AS template_description, t.fields_json,
         cm.id AS student_membership_id, cm.public_id AS student_public_id,
         u_student.full_name AS student_name, u_student.email AS student_email,
-        r.requested_by_user_id, u_req.name AS requested_by_name,
-        r.reviewed_by_user_id, u_rev.name AS reviewed_by_name
+        r.requested_by_user_id, u_req.full_name AS requested_by_name,
+        r.reviewed_by_user_id, u_rev.full_name AS reviewed_by_name
        FROM consultancy_custom_form_requests r
        JOIN consultancy_custom_form_templates t ON t.id = r.template_id
        JOIN consultancy_members cm ON cm.id = r.student_membership_id

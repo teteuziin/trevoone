@@ -64,6 +64,7 @@ interface DashboardStudentViewProps {
   activeNutritionPlan: StudentActiveNutritionSummary | null;
   latestProgress: LatestProgressInfo | null;
   previousProgress?: LatestProgressInfo | null;
+  pendingPhotoEvaluation?: boolean;
 }
 
 // ============================================================================
@@ -164,6 +165,7 @@ export function DashboardStudentView({
   activeNutritionPlan,
   latestProgress,
   previousProgress,
+  pendingPhotoEvaluation,
 }: DashboardStudentViewProps) {
   const hasIncompleteOnboarding =
     onboarding && onboarding.applicable && !onboarding.isComplete;
@@ -643,6 +645,31 @@ export function DashboardStudentView({
             </Link>
           )}
         </div>
+
+        {pendingPhotoEvaluation && (
+          <div className="p-4 rounded-2xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] flex items-center justify-center text-[var(--brand-foreground)] shrink-0 shadow-xs">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
+                  Fotos de avaliação solicitadas
+                </h4>
+                <p className="text-[11px] sm:text-xs text-[var(--text-secondary)]">
+                  Seu profissional solicitou novas fotos para acompanhamento da sua evolução física.
+                </p>
+              </div>
+            </div>
+            <Link href={`/consultoria/${consultancySlug}/progresso?tab=fotos`} className="shrink-0">
+              <Button variant="primary" size="sm" className="font-semibold text-xs min-h-[36px]">
+                Enviar fotos →
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {latestProgress ? (
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-stretch">

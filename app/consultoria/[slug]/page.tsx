@@ -12,6 +12,7 @@ import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { getStudentAuthoritativeNutrition } from "@/lib/nutrition-v2/assignment-repository";
 import { listPlansForConsultancy } from "@/lib/nutrition-v2/plan-repository";
 import { getStudentOwnProgressHistory } from "@/lib/consultancies/progress";
+import { getStudentPhotoEvaluationsData } from "@/lib/consultancies/photo-evaluations";
 import { listInfluencerMissions } from "@/lib/consultancies/missions";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { DashboardContext } from "@/components/dashboard/dashboard-context";
@@ -167,6 +168,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     activeTrainingPlan,
     activeNutritionPlan,
     studentProgress,
+    studentPhotoEvaluations,
     personalPlansResult,
     nutritionPlansResult,
     influencerMissionsResult,
@@ -184,6 +186,9 @@ export default async function ConsultancyPage({ params }: PageProps) {
     needStudentData
       ? getStudentOwnProgressHistory({ userId: session.userId, consultancySlug: slug, page: 1 })
       : Promise.resolve(null),
+    needStudentData
+      ? getStudentPhotoEvaluationsData({ userId: session.userId, consultancySlug: slug })
+      : Promise.resolve(null),
     personalWorkoutsPromise,
     nutritionPlansPromise,
     needInfluencerData
@@ -195,6 +200,12 @@ export default async function ConsultancyPage({ params }: PageProps) {
       : Promise.resolve(null),
     needAdminData ? getConsultancyAdminOverview(context.consultancyId) : Promise.resolve(null),
   ]);
+
+  const hasPendingPhotoEvaluation = !!(
+    studentPhotoEvaluations?.activeRequest &&
+    (studentPhotoEvaluations.activeRequest.status === "PENDING" ||
+      studentPhotoEvaluations.activeRequest.status === "CHANGES_REQUESTED")
+  );
 
   if (needStudentData && !isPersonal && !isNutritionist && !isConsultancyAdmin) {
     if (studentFinancialStatus?.isRestricted) {
@@ -267,6 +278,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             activeNutritionPlan={activeNutritionPlan}
             latestProgress={latestProgress}
             previousProgress={previousProgress}
+            pendingPhotoEvaluation={hasPendingPhotoEvaluation}
           />
         )}
 

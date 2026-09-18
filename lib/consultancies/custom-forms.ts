@@ -527,7 +527,7 @@ export async function listFormRequests(
         t.public_id AS template_public_id, t.title AS template_title,
         t.description AS template_description, t.fields_json,
         cm.id AS student_membership_id, cm.public_id AS student_public_id,
-        u_student.name AS student_name, u_student.email AS student_email,
+        u_student.full_name AS student_name, u_student.email AS student_email,
         r.requested_by_user_id, u_req.name AS requested_by_name,
         r.reviewed_by_user_id, u_rev.name AS reviewed_by_name
        FROM consultancy_custom_form_requests r

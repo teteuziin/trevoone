@@ -98,6 +98,7 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
             consultancySlug={access.context.consultancySlug}
             consultancyName={access.context.consultancyName}
             consultancyLogoUrl={access.context.consultancyLogoUrl}
+            studentName={session.fullName}
             assignedPlan={v2Auth.activeAssignment}
           />
         ) : (

@@ -108,6 +108,7 @@ export type StudentNutritionMealDto = {
 
 export type StudentAssignedPlanTreeDto = {
   assignmentPublicId: string;
+  prescriberName?: string | null;
   startsOn: string;
   endsOn: string | null;
   notesForStudent: string | null;
@@ -848,10 +849,13 @@ export async function getStudentAuthoritativeNutrition(
         v.subtitle AS version_subtitle,
         v.objective AS version_objective,
         v.general_guidance AS version_guidance,
-        v.notes AS version_notes
+        v.notes AS version_notes,
+        prescriber_u.full_name AS prescriber_name
        FROM nutrition_v2_assignments a
        INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
        INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+       LEFT JOIN consultancy_members prescriber_cm ON prescriber_cm.id = a.assigned_by_membership_id
+       LEFT JOIN users prescriber_u ON prescriber_u.id = prescriber_cm.user_id
        WHERE a.consultancy_id = ?
          AND a.student_membership_id = ?
          AND a.status = 'ACTIVE'
@@ -1044,6 +1048,7 @@ async function loadFrozenTreeForAssignment(
 
   return {
     assignmentPublicId: String(assignmentRow.assignment_public_id),
+    prescriberName: assignmentRow.prescriber_name ? String(assignmentRow.prescriber_name) : null,
     startsOn: String(assignmentRow.starts_on),
     endsOn: assignmentRow.ends_on ? String(assignmentRow.ends_on) : null,
     notesForStudent: assignmentRow.notes_for_student ? String(assignmentRow.notes_for_student) : null,

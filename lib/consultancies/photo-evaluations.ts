@@ -1480,13 +1480,14 @@ export async function getPhotoEvaluationImageBuffer(params: {
   consultancySlug: string;
   requestPublicId: string;
   pose: PhotoEvaluationPose;
+  variant?: "thumb" | "full";
 }): Promise<{
   success: boolean;
   buffer?: Buffer;
   mimeType?: string;
   error?: string;
 }> {
-  const { userId, consultancySlug, requestPublicId, pose } = params;
+  const { userId, consultancySlug, requestPublicId, pose, variant = "full" } = params;
 
   if (!EVALUATION_POSES.includes(pose)) {
     return { success: false, error: "Pose inválida." };
@@ -1568,6 +1569,25 @@ export async function getPhotoEvaluationImageBuffer(params: {
 
     if (!fileResult.success || !fileResult.buffer) {
       return { success: false, error: fileResult.error || "Erro ao ler arquivo da imagem." };
+    }
+
+    // If thumbnail variant is requested, resize to compact webp (360x480 max)
+    if (variant === "thumb") {
+      try {
+        const sharp = (await import("sharp")).default;
+        const thumbBuffer = await sharp(fileResult.buffer)
+          .resize(360, 480, { fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+
+        return {
+          success: true,
+          buffer: thumbBuffer,
+          mimeType: "image/webp",
+        };
+      } catch {
+        // Graceful fallback to original verified buffer if sharp fails on any format
+      }
     }
 
     return {

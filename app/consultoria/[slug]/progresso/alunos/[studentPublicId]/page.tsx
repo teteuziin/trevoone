@@ -1,40 +1,29 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
-import { getProfessionalStudentProgressHistory } from "@/lib/consultancies/progress";
+import {
+  getStudentEvolutionHubData,
+  getEvolutionComparisonBetweenDates,
+} from "@/lib/consultancies/evolution";
 import {
   getProfessionalStudentPhotoEvaluationsData,
   getPhotoEvaluationComparisonData,
 } from "@/lib/consultancies/photo-evaluations";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
-import { StudentProgressForm } from "@/components/consultancies/student-progress-form";
-import { StudentProgressHistory } from "@/components/consultancies/student-progress-history";
-import { ProfessionalPhotoEvaluationHub } from "@/components/consultancies/photos/professional-photo-evaluation-hub";
+import { Evolution360Hub } from "@/components/consultancies/evolution/evolution-360-hub";
 
 interface PageProps {
   params: Promise<{
     slug: string;
     studentPublicId: string;
   }>;
-  searchParams?: Promise<{
-    page?: string | string[];
-    tab?: string | string[];
-  }>;
 }
 
 export default async function ProfessionalStudentProgressDetailPage({
   params,
-  searchParams,
 }: PageProps) {
   const { slug, studentPublicId } = await params;
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const rawPage = resolvedSearchParams?.page;
-  const rawTab = Array.isArray(resolvedSearchParams?.tab)
-    ? resolvedSearchParams.tab[0]
-    : resolvedSearchParams?.tab;
-  const activeTab = rawTab === "fotos" ? "fotos" : "medicoes";
 
   const session = await getCurrentSession();
 
@@ -55,44 +44,33 @@ export default async function ProfessionalStudentProgressDetailPage({
     redirect(`/consultoria/${slug}`);
   }
 
-  const [history, photoData, comparisonData] = await Promise.all([
-    activeTab === "medicoes"
-      ? getProfessionalStudentProgressHistory({
-          userId: session.userId,
-          consultancySlug: slug,
-          studentPublicId,
-          page: rawPage,
-        })
-      : Promise.resolve(null),
-    activeTab === "fotos"
-      ? getProfessionalStudentPhotoEvaluationsData({
-          userId: session.userId,
-          consultancySlug: slug,
-          studentPublicId,
-        })
-      : Promise.resolve(null),
-    activeTab === "fotos"
-      ? getPhotoEvaluationComparisonData({
-          userId: session.userId,
-          consultancySlug: slug,
-          studentPublicId,
-        })
-      : Promise.resolve(null),
+  // Fetch unified 360 data under strict operational relationship verification
+  const [hubData, initialComparisonData, photoData, comparisonData] = await Promise.all([
+    getStudentEvolutionHubData({
+      userId: session.userId,
+      consultancySlug: slug,
+      studentPublicId,
+    }),
+    getEvolutionComparisonBetweenDates({
+      userId: session.userId,
+      consultancySlug: slug,
+      studentPublicId,
+    }),
+    getProfessionalStudentPhotoEvaluationsData({
+      userId: session.userId,
+      consultancySlug: slug,
+      studentPublicId,
+    }),
+    getPhotoEvaluationComparisonData({
+      userId: session.userId,
+      consultancySlug: slug,
+      studentPublicId,
+    }),
   ]);
 
-  // If viewing measurements, history must exist or notFound()
-  if (activeTab === "medicoes" && !history) {
+  if (!hubData) {
     notFound();
   }
-
-  const student = history?.student || photoData?.student;
-  if (!student) {
-    notFound();
-  }
-
-  const entries = history?.entries || [];
-  const pagination = history?.pagination;
-  const latestEntry = history?.latestEntry || null;
 
   return (
     <ConsultancyAppShell
@@ -106,62 +84,28 @@ export default async function ProfessionalStudentProgressDetailPage({
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* Page Header */}
         <PageHeader
-          eyebrow="Histórico do Aluno"
-          title={student.fullName}
-          description={student.email}
+          eyebrow="Acompanhamento 360°"
+          title={`Evolução de ${hubData.student.fullName}`}
+          description={hubData.student.email}
           backHref={`/consultoria/${slug}/progresso/alunos`}
           backLabel="Voltar para lista de alunos"
-          actions={
-            isPersonal && activeTab === "medicoes" ? (
-              <StudentProgressForm
-                consultancySlug={slug}
-                studentPublicId={studentPublicId}
-              />
-            ) : undefined
-          }
         />
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1.5 p-1 bg-[var(--surface-sunken)] border border-[var(--border-default)] rounded-xl w-fit">
-          <Link
-            href={`/consultoria/${slug}/progresso/alunos/${studentPublicId}?tab=medicoes`}
-            className={`px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
-              activeTab === "medicoes"
-                ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border border-[var(--border-default)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent"
-            }`}
-          >
-            Medições Corporais
-          </Link>
-          <Link
-            href={`/consultoria/${slug}/progresso/alunos/${studentPublicId}?tab=fotos`}
-            className={`px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
-              activeTab === "fotos"
-                ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border border-[var(--border-default)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent"
-            }`}
-          >
-            Fotos de Avaliação
-          </Link>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === "medicoes" ? (
-          <StudentProgressHistory
-            entries={entries}
-            pagination={pagination}
-            latestEntry={latestEntry}
-            basePath={`/consultoria/${slug}/progresso/alunos/${studentPublicId}`}
-            emptyMessage={`Nenhum registro de medições corporais encontrado para ${student.fullName}.`}
-          />
-        ) : (
-          <ProfessionalPhotoEvaluationHub
-            consultancySlug={slug}
-            student={student}
-            requests={photoData?.requests || []}
-            comparisonData={comparisonData}
-          />
-        )}
+        {/* Unified 360 Hub */}
+        <Evolution360Hub
+          consultancySlug={slug}
+          hubData={hubData}
+          initialComparisonData={initialComparisonData}
+          isStudent={false}
+          isPersonal={isPersonal}
+          isNutritionist={isNutritionist}
+          isAdmin={isConsultancyAdmin}
+          studentPublicId={studentPublicId}
+          rawPhotoData={{
+            requests: photoData?.requests || [],
+            comparisonData,
+          }}
+        />
       </div>
     </ConsultancyAppShell>
   );

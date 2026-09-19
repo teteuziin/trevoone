@@ -34,11 +34,15 @@ export async function GET(request: Request, context: RouteParams) {
     return new NextResponse(null, { status: 400 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const variant = searchParams.get("variant") === "thumb" ? "thumb" : "full";
+
   const result = await getPhotoEvaluationImageBuffer({
     userId: session.userId,
     consultancySlug: slug,
     requestPublicId,
     pose: normalizedPose,
+    variant,
   });
 
   if (!result.success || !result.buffer) {

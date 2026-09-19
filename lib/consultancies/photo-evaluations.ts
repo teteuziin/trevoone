@@ -157,17 +157,46 @@ export async function assertProfessionalStudentRelationship(
 ): Promise<boolean> {
   const [rows] = await connection.execute<RowDataPacket[]>(
     `SELECT 1 FROM (
+      -- Workout assignments (V2)
       SELECT 1 FROM workout_assignments wa
       JOIN consultancy_members coach ON coach.id = wa.assigned_by_membership_id
-      WHERE wa.consultancy_id = ? AND wa.student_membership_id = ? AND coach.user_id = ? AND wa.status = 'ACTIVE'
+      WHERE wa.consultancy_id = ? AND wa.student_membership_id = ? AND coach.user_id = ? AND wa.deleted_at IS NULL
       UNION
+      -- Training plans (V1)
+      SELECT 1 FROM training_plans tp
+      WHERE tp.consultancy_id = ? AND tp.student_membership_id = ? AND tp.created_by_user_id = ? AND tp.deleted_at IS NULL
+      UNION
+      -- Nutrition assignments (V2)
       SELECT 1 FROM nutrition_v2_assignments na
       JOIN consultancy_members coach ON coach.id = na.assigned_by_membership_id
-      WHERE na.consultancy_id = ? AND na.student_membership_id = ? AND coach.user_id = ? AND na.status = 'ACTIVE'
+      WHERE na.consultancy_id = ? AND na.student_membership_id = ? AND coach.user_id = ? AND na.deleted_at IS NULL
+      UNION
+      -- Nutrition plans (V1)
+      SELECT 1 FROM nutrition_plans np
+      JOIN consultancy_members coach ON coach.id = np.nutritionist_membership_id
+      WHERE np.consultancy_id = ? AND np.student_membership_id = ? AND coach.user_id = ? AND np.deleted_at IS NULL
+      UNION
+      -- Consultations
+      SELECT 1 FROM consultations c
+      JOIN consultancy_members coach ON coach.id = c.professional_membership_id
+      WHERE c.consultancy_id = ? AND c.student_membership_id = ? AND coach.user_id = ? AND c.status != 'CANCELED'
+      UNION
+      -- Photo evaluation requested or reviewed by this professional
+      SELECT 1 FROM student_photo_evaluation_requests sper
+      WHERE sper.consultancy_id = ? AND sper.student_membership_id = ? AND (sper.requested_by_user_id = ? OR sper.reviewed_by_user_id = ?)
+      UNION
+      -- Custom forms requested or reviewed by this professional
+      SELECT 1 FROM consultancy_custom_form_requests ccfr
+      WHERE ccfr.consultancy_id = ? AND ccfr.student_membership_id = ? AND (ccfr.requested_by_user_id = ? OR ccfr.reviewed_by_user_id = ?)
     ) rel LIMIT 1;`,
     [
       params.consultancyId, params.studentMembershipId, params.professionalUserId,
       params.consultancyId, params.studentMembershipId, params.professionalUserId,
+      params.consultancyId, params.studentMembershipId, params.professionalUserId,
+      params.consultancyId, params.studentMembershipId, params.professionalUserId,
+      params.consultancyId, params.studentMembershipId, params.professionalUserId,
+      params.consultancyId, params.studentMembershipId, params.professionalUserId, params.professionalUserId,
+      params.consultancyId, params.studentMembershipId, params.professionalUserId, params.professionalUserId,
     ]
   );
   return Array.isArray(rows) && rows.length > 0;
@@ -1100,7 +1129,7 @@ export async function reviewPhotoEvaluation(params: {
     connection = await getDbConnection();
 
     const [requests] = await connection.execute<RowDataPacket[]>(
-      `SELECT r.id, r.public_id, r.consultancy_id, r.student_membership_id, r.student_user_id, r.status
+      `SELECT r.id, r.public_id, r.consultancy_id, r.student_membership_id, r.student_user_id, r.requested_by_user_id, r.status
        FROM student_photo_evaluation_requests r
        WHERE r.public_id = ? AND r.consultancy_id = ?
        LIMIT 1;`,

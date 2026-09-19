@@ -29,8 +29,9 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
 
   const isPersonal = context.roles.includes("PERSONAL");
   const isNutritionist = context.roles.includes("NUTRITIONIST");
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
 
-  if (!isPersonal && !isNutritionist) {
+  if (!isPersonal && !isNutritionist && !isConsultancyAdmin) {
     redirect(`/consultoria/${slug}`);
   }
 

@@ -211,6 +211,13 @@ export function ConsultancyAppShell({
       iconName: "exercises",
     });
     items.push({
+      id: "admin-progresso",
+      label: "Evolução dos Alunos",
+      mobileLabel: "Alunos",
+      href: `/consultoria/${consultancySlug}/progresso/alunos`,
+      iconName: "progress",
+    });
+    items.push({
       id: "admin-membros",
       label: "Membros",
       mobileLabel: "Membros",

@@ -641,9 +641,10 @@ export async function getProfessionalStudentProgressHistory(params: {
 
   const isPersonal = context.roles.includes("PERSONAL");
   const isNutritionist = context.roles.includes("NUTRITIONIST");
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
 
-  // Only PERSONAL or NUTRITIONIST can read progress history of students
-  if (!isPersonal && !isNutritionist) {
+  // Only PERSONAL, NUTRITIONIST or CONSULTANCY_ADMIN can read progress history of students
+  if (!isPersonal && !isNutritionist && !isConsultancyAdmin) {
     return null;
   }
 
@@ -770,8 +771,9 @@ export async function listProfessionalStudentsForProgress(params: {
 
   const isPersonal = context.roles.includes("PERSONAL");
   const isNutritionist = context.roles.includes("NUTRITIONIST");
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
 
-  if (!isPersonal && !isNutritionist) {
+  if (!isPersonal && !isNutritionist && !isConsultancyAdmin) {
     return [];
   }
 

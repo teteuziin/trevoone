@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
@@ -83,7 +84,7 @@ export class SessionDatabaseError extends Error {
   }
 }
 
-export async function getCurrentSession(): Promise<UserSession | null> {
+async function fetchCurrentSessionInternal(): Promise<UserSession | null> {
   let cookieStore;
   try {
     cookieStore = await cookies();
@@ -145,6 +146,13 @@ export async function getCurrentSession(): Promise<UserSession | null> {
     }
   }
 }
+
+/**
+ * Accessor request-scoped com deduplicação para Next.js App Router.
+ * Não reutiliza dados entre requisições ou usuários distintos.
+ */
+export const getCurrentSession = cache(fetchCurrentSessionInternal);
+export const getFreshCurrentSession = fetchCurrentSessionInternal;
 
 export async function revokeCurrentSession(): Promise<void> {
   let cookieStore;

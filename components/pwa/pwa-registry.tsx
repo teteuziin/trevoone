@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 /**
  * PwaRegistry — Client Component for Service Worker registration and controlled update management.
@@ -10,12 +10,14 @@ import { useEffect, useState } from "react";
  * - Register /sw.js with updateViaCache: "none".
  * - Detect waiting Service Workers (updates) while ignoring first-time installations.
  * - Surface a discreet, accessible update notification to the user.
- * - Send SKIP_WAITING message upon explicit user confirmation.
- * - Handle controllerchange safely with an in-memory single-reload guard.
+ * - Send SKIP_WAITING message ONLY upon explicit user confirmation.
+ * - Eliminate reload race conditions: controllerchange only reloads if user explicitly confirmed the update.
+ * - Moderate update checks on boot and on document visibility return (no aggressive polling).
  */
 export function PwaRegistry() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
+  const userTriggeredUpdateRef = useRef(false);
 
   useEffect(() => {
     // Only register in production environment
@@ -28,10 +30,11 @@ export function PwaRegistry() {
     }
 
     let refreshing = false;
+    let activeRegistration: ServiceWorkerRegistration | null = null;
 
-    // Single-reload guard on controllerchange
+    // Controlled reload guard: ONLY reload if user explicitly confirmed the update
     const handleControllerChange = () => {
-      if (!refreshing) {
+      if (userTriggeredUpdateRef.current && !refreshing) {
         refreshing = true;
         window.location.reload();
       }
@@ -45,6 +48,8 @@ export function PwaRegistry() {
         updateViaCache: "none",
       })
       .then((registration) => {
+        activeRegistration = registration;
+
         // Safe lightweight update check on initialization
         registration.update().catch(() => {
           // Non-blocking update check error
@@ -74,22 +79,32 @@ export function PwaRegistry() {
         });
       })
       .catch((error) => {
-        // Non-blocking diagnostic log without exposing user/session data
         if (process.env.NODE_ENV !== "production") {
           console.warn("[PWA] Service Worker registration failed:", error);
         }
       });
+
+    // Moderate update check on focus/visibility change (tab return)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && activeRegistration) {
+        activeRegistration.update().catch(() => {});
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       navigator.serviceWorker.removeEventListener(
         "controllerchange",
         handleControllerChange
       );
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
   const handleUpdate = () => {
     if (waitingWorker) {
+      userTriggeredUpdateRef.current = true;
       waitingWorker.postMessage({ type: "SKIP_WAITING" });
     }
   };

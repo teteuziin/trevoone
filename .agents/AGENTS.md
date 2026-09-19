@@ -117,6 +117,26 @@ Este documento contém as **regras permanentes de arquitetura, desenvolvimento, 
 - **Experiência de Atualização (UX)**: A detecção de nova versão deve notificar o usuário discretamente ("Nova versão disponível" -> "Atualizar"), recarregando de forma controlada sem interromper o preenchimento de formulários ou tarefas em andamento.
 - **Segurança de Sessão e Logout**: O cache client-side jamais determina permissões ou papéis (ex: `localStorage.role`). A autorização ocorre 100% no servidor. O logout deve limpar qualquer armazenamento local associado à sessão no dispositivo.
 
+# 56. REGRA MÁXIMA — ZERO PERDA DE QUALIDADE (HARDENING & PERFORMANCE)
+- **Objetivo Central**: Tornar o Trevo One MAIS RÁPIDO + MAIS ESTÁVEL + MAIS COMPATÍVEL com a MESMA OU MELHOR QUALIDADE PERCEBIDA. Hardening NUNCA é simplificação.
+- **Proibições Estritas**: É expressamente proibido melhorar performance através de:
+  - Remoção de funcionalidades aprovadas
+  - Redução de qualidade visual ou simplificação de layouts premium
+  - Retirada de informações úteis
+  - Remoção de imagens necessárias ou redução de resolução de originais de fotos privadas
+  - Remoção de gráficos ou animações úteis sem justificativa
+  - Desativação de offline ou PWA
+  - Redução de segurança, histórico ou conteúdo (treinos/nutrição)
+  - Mudança de identidade visual ou substituição de componentes premium por versões genéricas
+- **Imagens**: Preservar original em qualidade total. Usar thumbnails, previews compactos e lazy loading apenas para evitar downloads desnecessários nas listagens; ao abrir zoom ou fullscreen, servir a qualidade original apropriada.
+- **UI / Design**: O resultado visual após qualquer hardening deve ser equivalente ou superior ao atual. Validar regressões visuais em espaçamento, tipografia, wallpaper, cards, sombras, bordas, responsividade, Dark Mode, Light Mode, carrosséis, modais, drawers e navegação.
+- **Animações**: Otimizar (transform, opacity, requestAnimationFrame, reduced-motion) em vez de remover arbitrariamente. Preservar a sensação fluida e premium.
+- **Dados & Backend**: Priorizar queries eficientes com índices, deduplicação, paginação, paralelização segura (`Promise.all`), carregamento progressivo e Server Components em vez de cortar dados úteis.
+- **Bundle & JS**: Reduzir JavaScript por code splitting, `dynamic import()`, Server Components e tree shaking, sem nunca cortar recursos para bater métricas.
+- **Percepção do Usuário**: A experiência deve transmitir: *"é o mesmo Trevo One, só que mais rápido"*, e nunca *"o app ficou mais simples"*.
+- **Regression Gate**: Toda rota otimizada deve manter funcionalidade (igual/melhor), visual (igual/melhor), velocidade (melhor/equivalente), estabilidade (melhor) e segurança (igual/melhor).
+- **STOP RULE**: Se qualquer otimização de performance exigir trade-off visível de qualidade ou funcionalidade, NÃO implementar automaticamente. Reportar: (1) ganho estimado, (2) perda de qualidade e (3) alternativa sem perda, aguardando aprovação explícita.
+
 # 54. FORMATO DO RELATÓRIO OBRIGATÓRIO AO TERMINAR TAREFA
 ```text
 TAREFA CONCLUÍDA

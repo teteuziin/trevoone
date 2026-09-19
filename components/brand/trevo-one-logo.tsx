@@ -25,7 +25,7 @@ export function TrevoOneLogo({
         style={{ width: `${normalizedSize}px`, height: `${normalizedSize}px` }}
       >
         <Image
-          src="/trevo-one-logo.png"
+          src="/trevo-one-logo-44.png"
           alt="Trevo One"
           width={normalizedSize}
           height={normalizedSize}

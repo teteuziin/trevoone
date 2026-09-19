@@ -24,6 +24,7 @@ const STATIC_PWA_ASSETS = new Set([
   "/icons/icon-maskable-512x512.png",
   "/icons/apple-touch-icon.png",
   "/trevo-one-logo.png",
+  "/trevo-one-logo-44.png",
   "/favicon.ico",
   "/offline.html",
   "/offline.js",

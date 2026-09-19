@@ -138,11 +138,17 @@ export function openOfflineDatabase(): Promise<IDBDatabase | null> {
         resolve(request.result);
       };
 
-      request.onerror = () => {
+      request.onerror = (event) => {
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
         resolve(null);
       };
 
-      request.onblocked = () => {
+      request.onblocked = (event) => {
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
         resolve(null);
       };
     } catch {

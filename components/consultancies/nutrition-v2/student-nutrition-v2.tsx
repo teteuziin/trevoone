@@ -52,282 +52,225 @@ export function StudentNutritionV2({
   const pdfDownloadUrl = `/api/consultancies/${consultancySlug}/nutricao/pdf?download=true`;
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto pb-16 animate-in fade-in duration-200">
-      {/* Cardápio Header Card */}
-      <div className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-3xl p-6 sm:p-7 shadow-xs space-y-5 border-specular-t depth-surface">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="space-y-2 flex-1 min-w-0">
-            {/* Consultancy and Status Header */}
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              {consultancyLogoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={consultancyLogoUrl}
-                  alt={consultancyName}
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = "none";
-                  }}
-                  className="h-5 max-w-[120px] object-contain"
-                />
-              ) : (
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-                  {consultancyName}
-                </span>
-              )}
-              <span className="text-[var(--border-strong)]">•</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--brand)] bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] px-2.5 py-0.5 rounded-md shadow-2xs">
-                Meu Plano Alimentar
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
-              {plan.title}
-            </h1>
-
-            {plan.subtitle && (
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium leading-relaxed">
-                {plan.subtitle}
-              </p>
-            )}
-
-            {/* Prescriber and Period Metadata */}
-            <div className="flex items-center gap-3 flex-wrap pt-1 text-xs text-[var(--text-secondary)]">
-              {plan.prescriberName && (
-                <div className="inline-flex items-center gap-1.5 font-medium">
-                  <svg className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span>Prescrito por: <strong className="text-[var(--text-primary)]">{plan.prescriberName}</strong></span>
-                </div>
-              )}
-
-              {plan.periodFormatted && (
-                <div className="inline-flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span>{plan.periodFormatted}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Action Buttons: PDF & Print */}
-          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap shrink-0">
-            <a
-              href={pdfDownloadUrl}
-              download
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-white bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all shadow-xs min-h-[44px] sm:min-h-[40px] cursor-pointer"
-              title="Baixar arquivo PDF profissional"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              <span>Baixar PDF</span>
-            </a>
-
-            <Link
-              href={`/consultoria/${consultancySlug}/nutricao/imprimir`}
-              className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-all shadow-2xs min-h-[44px] sm:min-h-[40px]"
-              title="Visualizar e imprimir plano"
-            >
-              <svg className="w-4 h-4 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              <span>Imprimir</span>
-            </Link>
-          </div>
+    <div className="max-w-4xl mx-auto pb-16 animate-in fade-in duration-200">
+      {/* Top Action Bar (Refined, compact buttons) */}
+      <div className="flex items-center justify-between gap-3 mb-4 px-1">
+        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          Cardápio Oficial
         </div>
 
-        {/* Nutritional Goals Summary (Strictly Real Data) */}
-        {plan.totals.hasAnyMacro && (
-          <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">
-            <div className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-              Metas Nutricionais Estimadas
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              <div className="p-3 bg-[var(--surface-subtle)] rounded-2xl border border-[var(--border-subtle)] text-center space-y-0.5">
-                <div className="text-[10px] uppercase font-semibold text-[var(--text-tertiary)] tracking-wider">
-                  Calorias
-                </div>
-                <div className="text-base font-bold text-[var(--text-primary)] tabular-nums">
-                  {plan.totals.caloriesFormatted}
-                </div>
-              </div>
-              <div className="p-3 bg-[var(--surface-subtle)] rounded-2xl border border-[var(--border-subtle)] text-center space-y-0.5">
-                <div className="text-[10px] uppercase font-semibold text-[var(--text-tertiary)] tracking-wider">
-                  Proteínas
-                </div>
-                <div className="text-base font-bold text-[var(--text-primary)] tabular-nums">
-                  {plan.totals.proteinFormatted}
-                </div>
-              </div>
-              <div className="p-3 bg-[var(--surface-subtle)] rounded-2xl border border-[var(--border-subtle)] text-center space-y-0.5">
-                <div className="text-[10px] uppercase font-semibold text-[var(--text-tertiary)] tracking-wider">
-                  Carboidratos
-                </div>
-                <div className="text-base font-bold text-[var(--text-primary)] tabular-nums">
-                  {plan.totals.carbohydrateFormatted}
-                </div>
-              </div>
-              <div className="p-3 bg-[var(--surface-subtle)] rounded-2xl border border-[var(--border-subtle)] text-center space-y-0.5">
-                <div className="text-[10px] uppercase font-semibold text-[var(--text-tertiary)] tracking-wider">
-                  Gorduras
-                </div>
-                <div className="text-base font-bold text-[var(--text-primary)] tabular-nums">
-                  {plan.totals.fatFormatted}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <a
+            href={pdfDownloadUrl}
+            download
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-all shadow-xs min-h-[38px] sm:min-h-0"
+            title="Baixar arquivo PDF profissional"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Baixar PDF</span>
+          </a>
 
-        {/* Objective */}
-        {plan.objective && (
-          <div className="p-3.5 bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-2xl text-xs text-[var(--text-primary)] space-y-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)] block">
-              Objetivo do Plano
-            </span>
-            <p className="font-medium leading-relaxed">{plan.objective}</p>
-          </div>
-        )}
-
-        {/* General Guidance */}
-        {plan.generalGuidance && (
-          <div className="p-4 bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-2xl space-y-1 text-xs text-[var(--text-primary)]">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-              Orientações Gerais do Nutricionista
-            </div>
-            <p className="whitespace-pre-line leading-relaxed text-[var(--text-secondary)]">
-              {plan.generalGuidance}
-            </p>
-          </div>
-        )}
-
-        {/* Notes for Student */}
-        {plan.notesForStudent && (
-          <div className="p-4 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-1 text-xs text-[var(--text-primary)]">
-            <div className="font-bold text-[var(--brand)]">
-              Instruções Específicas da Prescrição
-            </div>
-            <p className="whitespace-pre-line leading-relaxed text-[var(--text-secondary)] italic">
-              {plan.notesForStudent}
-            </p>
-          </div>
-        )}
+          <Link
+            href={`/consultoria/${consultancySlug}/nutricao/imprimir`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all shadow-2xs min-h-[38px] sm:min-h-0"
+            title="Visualizar e imprimir plano"
+          >
+            <svg className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            <span>Imprimir</span>
+          </Link>
+        </div>
       </div>
 
-      {/* Meals List - strictly ordered by sort_order */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider">
-            Cardápio e Refeições
-          </h2>
-          <span className="text-xs text-[var(--text-tertiary)] font-medium">
-            {plan.meals.length} {plan.meals.length === 1 ? "refeição" : "refeições"}
-          </span>
-        </div>
+      {/* Main Continuous Cardápio Sheet (Editorial Design) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-sm p-5 sm:p-9 space-y-6 text-slate-900 dark:text-slate-100 transition-colors">
+        {/* Document Header */}
+        <header className="border-b border-slate-200 dark:border-slate-800 pb-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                {plan.consultancyLogoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={plan.consultancyLogoUrl}
+                    alt={plan.consultancyName}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = "none";
+                    }}
+                    className="h-6 max-w-[130px] object-contain"
+                  />
+                ) : (
+                  <span className="text-xs uppercase font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
+                    {plan.consultancyName}
+                  </span>
+                )}
+                <span className="text-slate-300 dark:text-slate-600">•</span>
+                <span className="text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 tracking-wider">
+                  Plano Alimentar
+                </span>
+              </div>
 
-        {plan.meals.length === 0 ? (
-          <div className="p-8 text-center bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl text-xs text-[var(--text-secondary)] depth-base">
-            Nenhuma refeição cadastrada para este plano.
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white pt-1">
+                {plan.title}
+              </h1>
+
+              {plan.subtitle && (
+                <p className="text-xs text-slate-600 dark:text-slate-400">{plan.subtitle}</p>
+              )}
+            </div>
+
+            <div className="text-left sm:text-right space-y-0.5 text-xs text-slate-500 dark:text-slate-400 shrink-0">
+              <div>Aluno: <strong className="text-slate-900 dark:text-slate-100">{plan.studentName}</strong></div>
+              {plan.prescriberName && (
+                <div>Nutricionista: <strong className="text-slate-800 dark:text-slate-200">{plan.prescriberName}</strong></div>
+              )}
+              {plan.periodFormatted && (
+                <div>Período: <span className="text-slate-700 dark:text-slate-300 font-medium">{plan.periodFormatted}</span></div>
+              )}
+              <div>Emissão: <span>{plan.generationDateFormatted}</span></div>
+            </div>
           </div>
-        ) : (
-          plan.meals.map((meal) => (
-            <div
-              key={meal.id}
-              className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-6 shadow-xs space-y-4 depth-surface"
-            >
-              {/* Meal Header */}
-              <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
-                <div className="space-y-0.5 min-w-0">
-                  <h3 className="font-bold text-base sm:text-lg text-[var(--text-primary)] tracking-tight">
-                    {meal.title}
-                  </h3>
-                  {meal.notes && (
-                    <p className="text-xs text-[var(--text-secondary)] italic">{meal.notes}</p>
+
+          {/* Objetivo do Plano (Horizontal, if present) */}
+          {plan.objective && (
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80">
+              <strong className="text-slate-900 dark:text-slate-100">Objetivo: </strong>
+              {plan.objective}
+            </div>
+          )}
+
+          {/* Nutrition Totals / Macros (4 horizontal boxes) */}
+          {plan.totals.hasAnyMacro && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-2.5 text-center">
+                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">Calorias</div>
+                <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">{plan.totals.caloriesFormatted}</div>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-2.5 text-center">
+                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">Proteínas</div>
+                <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">{plan.totals.proteinFormatted}</div>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-2.5 text-center">
+                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">Carboidratos</div>
+                <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">{plan.totals.carbohydrateFormatted}</div>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-2.5 text-center">
+                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">Gorduras</div>
+                <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">{plan.totals.fatFormatted}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Orientações do Nutricionista (if present) */}
+          {plan.generalGuidance && (
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1 text-xs text-slate-700 dark:text-slate-300">
+              <div className="font-bold text-slate-900 dark:text-slate-100">Orientações do Nutricionista</div>
+              <p className="whitespace-pre-line leading-relaxed">{plan.generalGuidance}</p>
+            </div>
+          )}
+
+          {/* Observações da Prescrição (if present) */}
+          {plan.notesForStudent && (
+            <div className="p-3 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/30 rounded-xl text-xs text-amber-950 dark:text-amber-200">
+              <strong className="text-amber-900 dark:text-amber-300">Observações: </strong>
+              {plan.notesForStudent}
+            </div>
+          )}
+        </header>
+
+        {/* Meals Section - strictly ordered by sort_order */}
+        <div className="space-y-6">
+          {plan.meals.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+              Nenhuma refeição cadastrada para este plano alimentar.
+            </div>
+          ) : (
+            plan.meals.map((meal) => (
+              <section key={meal.id} className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 space-y-3 bg-white dark:bg-slate-900/60">
+                {/* Meal Header */}
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-2">
+                  <div>
+                    <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">{meal.title}</h2>
+                    {meal.notes && <p className="text-xs text-slate-500 dark:text-slate-400 italic mt-0.5">{meal.notes}</p>}
+                  </div>
+                  {meal.timeFormatted && (
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shrink-0 tabular-nums">
+                      {meal.timeFormatted}
+                    </span>
                   )}
                 </div>
 
-                {meal.timeFormatted && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)] shrink-0 shadow-2xs tabular-nums">
-                    <svg className="w-3.5 h-3.5 text-[var(--brand)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>{meal.timeFormatted}</span>
-                  </span>
-                )}
-              </div>
-
-              {/* Items List - strictly ordered by sort_order */}
-              <div className="space-y-3">
-                {meal.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-2xl space-y-2.5 transition-colors hover:border-[var(--border-default)]"
-                  >
-                    {/* Main Item Line */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-0.5 flex-1 min-w-0">
-                        <div className="font-bold text-sm text-[var(--text-primary)] tracking-tight">
-                          {item.foodName}
+                {/* Items */}
+                <div className="space-y-2.5">
+                  {meal.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="text-xs space-y-2 bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 p-3 rounded-lg"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="font-semibold text-slate-900 dark:text-slate-100">{item.foodName}</span>
+                          {item.notes && (
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 italic ml-1.5 block sm:inline">
+                              ({item.notes})
+                            </span>
+                          )}
                         </div>
-                        {item.notes && (
-                          <div className="text-xs text-[var(--text-secondary)] italic">
-                            {item.notes}
-                          </div>
+                        {item.quantityFormatted && (
+                          <span className="font-bold text-slate-800 dark:text-slate-200 shrink-0 text-right tabular-nums">
+                            {item.quantityFormatted}
+                          </span>
                         )}
                       </div>
 
-                      {item.quantityFormatted && (
-                        <div className="text-right shrink-0">
-                          <span className="text-xs font-bold text-[var(--brand-foreground)] bg-[var(--surface)] px-2.5 py-1 rounded-lg border border-[var(--border-default)] shadow-2xs tabular-nums">
-                            {item.quantityFormatted}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Substitutions Block (Clean, non-repetitive) */}
-                    {item.substitutions.length > 0 && (
-                      <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1.5">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                          Pode ser substituído por:
-                        </div>
-                        <div className="space-y-1.5">
-                          {item.substitutions.map((sub) => (
-                            <div
-                              key={sub.id}
-                              className="flex items-center justify-between gap-2 text-xs bg-[var(--surface)] p-2.5 rounded-xl border border-[var(--border-subtle)]"
-                            >
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
-                                <span className="font-medium text-[var(--text-primary)] truncate">
-                                  {sub.foodName}
-                                </span>
-                                {sub.notes && (
-                                  <span className="text-[11px] text-[var(--text-tertiary)] italic hidden sm:inline">
-                                    ({sub.notes})
+                      {/* Substitutions with clean 'Pode ser substituído por:' block */}
+                      {item.substitutions.length > 0 && (
+                        <div className="pt-2 mt-1 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+                          <div className="text-[10px] font-semibold text-amber-900/80 dark:text-amber-400/90 uppercase tracking-wider">
+                            Pode ser substituído por:
+                          </div>
+                          <div className="space-y-1 pl-2 border-l-2 border-amber-300 dark:border-amber-700">
+                            {item.substitutions.map((sub) => (
+                              <div
+                                key={sub.id}
+                                className="flex items-start justify-between gap-2 text-[11px] text-slate-700 dark:text-slate-300"
+                              >
+                                <div className="min-w-0">
+                                  <span>{sub.foodName}</span>
+                                  {sub.notes && (
+                                    <span className="text-slate-400 dark:text-slate-500 italic ml-1">({sub.notes})</span>
+                                  )}
+                                </div>
+                                {sub.quantityFormatted && (
+                                  <span className="font-medium text-slate-800 dark:text-slate-200 shrink-0 text-right tabular-nums">
+                                    {sub.quantityFormatted}
                                   </span>
                                 )}
                               </div>
-
-                              {sub.quantityFormatted && (
-                                <span className="font-bold text-[var(--text-primary)] shrink-0 tabular-nums">
-                                  {sub.quantityFormatted}
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))
-        )}
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))
+          )}
+        </div>
+
+        {/* Document Sheet Footer */}
+        <footer className="pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+          <div>
+            Trevo One • Plataforma Integrada de Saúde, Nutrição e Treinamento
+          </div>
+          <div>
+            Documento gerado em {plan.generationDateFormatted}
+          </div>
+        </footer>
       </div>
     </div>
   );

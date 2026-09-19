@@ -157,37 +157,29 @@ export async function assertProfessionalStudentRelationship(
 ): Promise<boolean> {
   const [rows] = await connection.execute<RowDataPacket[]>(
     `SELECT 1 FROM (
-      -- Workout assignments (V2)
+      -- Active workout assignment (V2)
       SELECT 1 FROM workout_assignments wa
       JOIN consultancy_members coach ON coach.id = wa.assigned_by_membership_id
-      WHERE wa.consultancy_id = ? AND wa.student_membership_id = ? AND coach.user_id = ? AND wa.deleted_at IS NULL
+      WHERE wa.consultancy_id = ? AND wa.student_membership_id = ? AND coach.user_id = ? AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL
       UNION
-      -- Training plans (V1)
+      -- Active training plan (V1)
       SELECT 1 FROM training_plans tp
-      WHERE tp.consultancy_id = ? AND tp.student_membership_id = ? AND tp.created_by_user_id = ? AND tp.deleted_at IS NULL
+      WHERE tp.consultancy_id = ? AND tp.student_membership_id = ? AND tp.created_by_user_id = ? AND tp.status = 'ACTIVE' AND tp.deleted_at IS NULL
       UNION
-      -- Nutrition assignments (V2)
+      -- Active nutrition assignment (V2)
       SELECT 1 FROM nutrition_v2_assignments na
       JOIN consultancy_members coach ON coach.id = na.assigned_by_membership_id
-      WHERE na.consultancy_id = ? AND na.student_membership_id = ? AND coach.user_id = ? AND na.deleted_at IS NULL
+      WHERE na.consultancy_id = ? AND na.student_membership_id = ? AND coach.user_id = ? AND na.status = 'ACTIVE' AND na.deleted_at IS NULL
       UNION
-      -- Nutrition plans (V1)
+      -- Active nutrition plan (V1)
       SELECT 1 FROM nutrition_plans np
       JOIN consultancy_members coach ON coach.id = np.nutritionist_membership_id
-      WHERE np.consultancy_id = ? AND np.student_membership_id = ? AND coach.user_id = ? AND np.deleted_at IS NULL
+      WHERE np.consultancy_id = ? AND np.student_membership_id = ? AND coach.user_id = ? AND np.status = 'ACTIVE' AND np.deleted_at IS NULL
       UNION
-      -- Consultations
+      -- Scheduled or in-progress consultation
       SELECT 1 FROM consultations c
       JOIN consultancy_members coach ON coach.id = c.professional_membership_id
-      WHERE c.consultancy_id = ? AND c.student_membership_id = ? AND coach.user_id = ? AND c.status != 'CANCELED'
-      UNION
-      -- Photo evaluation requested or reviewed by this professional
-      SELECT 1 FROM student_photo_evaluation_requests sper
-      WHERE sper.consultancy_id = ? AND sper.student_membership_id = ? AND (sper.requested_by_user_id = ? OR sper.reviewed_by_user_id = ?)
-      UNION
-      -- Custom forms requested or reviewed by this professional
-      SELECT 1 FROM consultancy_custom_form_requests ccfr
-      WHERE ccfr.consultancy_id = ? AND ccfr.student_membership_id = ? AND (ccfr.requested_by_user_id = ? OR ccfr.reviewed_by_user_id = ?)
+      WHERE c.consultancy_id = ? AND c.student_membership_id = ? AND coach.user_id = ? AND c.status IN ('SCHEDULED', 'IN_PROGRESS')
     ) rel LIMIT 1;`,
     [
       params.consultancyId, params.studentMembershipId, params.professionalUserId,
@@ -195,12 +187,12 @@ export async function assertProfessionalStudentRelationship(
       params.consultancyId, params.studentMembershipId, params.professionalUserId,
       params.consultancyId, params.studentMembershipId, params.professionalUserId,
       params.consultancyId, params.studentMembershipId, params.professionalUserId,
-      params.consultancyId, params.studentMembershipId, params.professionalUserId, params.professionalUserId,
-      params.consultancyId, params.studentMembershipId, params.professionalUserId, params.professionalUserId,
     ]
   );
   return Array.isArray(rows) && rows.length > 0;
 }
+
+export const canProfessionalAccessStudent = assertProfessionalStudentRelationship;
 
 // ============================================================================
 // 1. CREATE REQUEST (Professional: Personal, Nutritionist, Admin)
@@ -572,7 +564,7 @@ export async function getProfessionalStudentPhotoEvaluationsData(params: {
       studentMembershipId,
     });
 
-    // Professional authorization: non-admin must have active assignment or be requester
+    // Professional authorization: non-admin must have active current relationship
     const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
     if (!isAdmin) {
       const hasRelationship = await assertProfessionalStudentRelationship(connection, {
@@ -581,15 +573,7 @@ export async function getProfessionalStudentPhotoEvaluationsData(params: {
         professionalUserId: userId,
       });
       if (!hasRelationship) {
-        const [ownReqs] = await connection.execute<RowDataPacket[]>(
-          `SELECT 1 FROM student_photo_evaluation_requests
-           WHERE consultancy_id = ? AND student_membership_id = ? AND requested_by_user_id = ?
-           LIMIT 1;`,
-          [context.consultancyId, studentMembershipId, userId]
-        );
-        if (!ownReqs || ownReqs.length === 0) {
-          return null;
-        }
+        return null;
       }
     }
 
@@ -1151,10 +1135,9 @@ export async function reviewPhotoEvaluation(params: {
       studentMembershipId,
     });
 
-    // Professional authorization: non-admin must be requester or have active assignment
+    // Professional authorization: non-admin must have active current relationship
     const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
-    const isRequester = Number(req.requested_by_user_id) === professionalUserId;
-    if (!isAdmin && !isRequester) {
+    if (!isAdmin) {
       const hasRelationship = await assertProfessionalStudentRelationship(connection, {
         consultancyId: context.consultancyId,
         studentMembershipId,
@@ -1336,15 +1319,7 @@ export async function getPhotoEvaluationComparisonData(params: {
           professionalUserId: userId,
         });
         if (!hasRelationship) {
-          const [ownReqs] = await connection.execute<RowDataPacket[]>(
-            `SELECT 1 FROM student_photo_evaluation_requests
-             WHERE consultancy_id = ? AND student_membership_id = ? AND requested_by_user_id = ?
-             LIMIT 1;`,
-            [consultancyId, targetStudentMembershipId, userId]
-          );
-          if (!ownReqs || ownReqs.length === 0) {
-            return null;
-          }
+          return null;
         }
       }
     } else {
@@ -1571,8 +1546,7 @@ export async function getPhotoEvaluationImageBuffer(params: {
       }
 
       const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
-      const isRequester = Number(row.requested_by_user_id) === userId;
-      if (!isAdmin && !isRequester) {
+      if (!isAdmin) {
         const hasRelationship = await assertProfessionalStudentRelationship(connection, {
           consultancyId,
           studentMembershipId,

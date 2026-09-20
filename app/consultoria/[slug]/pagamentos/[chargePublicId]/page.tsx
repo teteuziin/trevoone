@@ -89,6 +89,9 @@ export default async function StudentChargeDetailPage({ params }: PageProps) {
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={context.consultancyPublicId}
+      activeRole="STUDENT"
     >
       <div className="space-y-6 max-w-3xl mx-auto">
         {/* Header */}

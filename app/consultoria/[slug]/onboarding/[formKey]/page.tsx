@@ -68,6 +68,9 @@ export default async function StudentIntakeFormPage({ params }: PageProps) {
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={context.consultancyPublicId}
+      activeRole="STUDENT"
     >
       <StudentIntakeRunner
         consultancySlug={context.consultancySlug}

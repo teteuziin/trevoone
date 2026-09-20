@@ -68,6 +68,9 @@ export default async function StudentOnboardingPage({ params }: PageProps) {
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={context.consultancyPublicId}
+      activeRole="STUDENT"
     >
       <div className="w-full max-w-2xl mx-auto space-y-6">
         <StudentOnboardingPanel

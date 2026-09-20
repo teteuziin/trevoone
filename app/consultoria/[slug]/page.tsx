@@ -226,6 +226,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
         roles={context.roles}
         userName={session.fullName}
         userEmail={session.email}
+        userPublicId={session.userPublicId}
+        consultancyPublicId={context.consultancyPublicId}
         viewModeState={effectiveState}
       >
         <div className="p-8 sm:p-12 max-w-xl mx-auto my-8 bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] text-center space-y-4 shadow-xs">

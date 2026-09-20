@@ -68,6 +68,9 @@ export default async function StudentPaymentsPage({ params, searchParams }: Page
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={context.consultancyPublicId}
+      activeRole="STUDENT"
     >
       <div className="w-full max-w-5xl mx-auto space-y-6">
         {/* Header */}

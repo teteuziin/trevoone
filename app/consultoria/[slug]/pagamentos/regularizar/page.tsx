@@ -62,6 +62,9 @@ export default async function StudentRegularizationPage({ params }: PageProps) {
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={context.consultancyPublicId}
+      activeRole="STUDENT"
     >
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header Principal */}

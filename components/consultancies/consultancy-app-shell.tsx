@@ -17,6 +17,7 @@ export interface ConsultancyAppShellProps {
   consultancyPublicId?: string;
   unreadNotificationsCount?: number;
   viewModeState?: EffectiveViewModeState;
+  activeRole?: ConsultancyRole;
   maxWidth?: "narrow" | "default" | "wide" | "full";
   className?: string;
   children: React.ReactNode;
@@ -33,6 +34,7 @@ export function ConsultancyAppShell({
   consultancyPublicId,
   unreadNotificationsCount = 0,
   viewModeState,
+  activeRole,
   maxWidth = "default",
   className = "",
   children,
@@ -447,6 +449,36 @@ export function ConsultancyAppShell({
     ? "max-w-3xl"
     : "max-w-6xl";
 
+  // ACTIVE ROLE DERIVATION (Offline 360 Multi-Role Security Gate):
+  // 1. If activeRole is explicitly specified (e.g. from resolved route context):
+  //    Follow activeRole strictly.
+  // 2. If viewModeState is present (e.g. on Dashboard):
+  //    Active mode is determined exclusively by effectiveMode.
+  //    effectiveMode === "STUDENT"      -> "STUDENT"
+  //    effectiveMode === "ADMIN"        -> "CONSULTANCY_ADMIN"
+  //    effectiveMode === "PERSONAL"     -> "PERSONAL"
+  //    effectiveMode === "NUTRITIONIST" -> "NUTRITIONIST"
+  //    effectiveMode === "INFLUENCER"   -> "INFLUENCER"
+  // 3. If neither activeRole nor viewModeState is provided:
+  //    Only treat as STUDENT if the user is single-role STUDENT (roles.length === 1 && roles[0] === "STUDENT").
+  //    For multi-role accounts without viewModeState or activeRole, default to non-student presentation role.
+  let activeContextRole: ConsultancyRole;
+  if (activeRole) {
+    activeContextRole = activeRole;
+  } else if (viewModeState) {
+    activeContextRole =
+      viewModeState.effectiveMode === "ADMIN"
+        ? "CONSULTANCY_ADMIN"
+        : (viewModeState.effectiveMode as ConsultancyRole);
+  } else if (roles.length === 1 && roles[0] === "STUDENT") {
+    activeContextRole = "STUDENT";
+  } else {
+    activeContextRole = presentationRoles[0] || roles[0] || "STUDENT";
+  }
+
+  const isStudentActive = activeContextRole === "STUDENT";
+  const offlineRole = activeContextRole;
+
   return (
     <div className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
       {/* Session Scope & Offline Isolation Guard */}
@@ -459,14 +491,17 @@ export function ConsultancyAppShell({
             consultancySlug={consultancySlug}
             consultancyName={consultancyName}
             consultancyLogoUrl={consultancyLogoUrl}
-            role={presentationRoles[0] || "STUDENT"}
+            role={offlineRole}
           />
-          <StudentOfflinePrimer
-            userPublicId={userPublicId}
-            consultancyPublicId={consultancyPublicId}
-            consultancySlug={consultancySlug}
-            role={presentationRoles[0] || "STUDENT"}
-          />
+          {isStudentActive && (
+            <StudentOfflinePrimer
+              userPublicId={userPublicId}
+              userName={userName}
+              consultancyPublicId={consultancyPublicId}
+              consultancySlug={consultancySlug}
+              role="STUDENT"
+            />
+          )}
         </>
       )}
 

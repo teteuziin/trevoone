@@ -77,6 +77,7 @@ export default async function StudentProgressPage({ params }: PageProps) {
       userEmail={session.email}
       userPublicId={session.userPublicId}
       consultancyPublicId={access.context.consultancyPublicId}
+      activeRole="STUDENT"
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* Page Header */}

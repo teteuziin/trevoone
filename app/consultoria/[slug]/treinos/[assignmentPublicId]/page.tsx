@@ -57,6 +57,7 @@ export default async function StudentWorkoutDetailPage({ params }: PageProps) {
       userEmail={session.email}
       userPublicId={session.userPublicId}
       consultancyPublicId={context.consultancyPublicId}
+      activeRole="STUDENT"
     >
       <div className="space-y-4 max-w-3xl mx-auto pb-12">
         {/* Back Link */}

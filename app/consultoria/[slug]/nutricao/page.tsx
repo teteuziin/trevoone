@@ -81,17 +81,7 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full max-w-3xl mx-auto space-y-6">
-        {/* Back Link */}
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/consultoria/${access.context.consultancySlug}`}
-            className="inline-flex items-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-          >
-            ← Voltar ao painel
-          </Link>
-        </div>
-
+      <div className="w-full max-w-4xl mx-auto space-y-4">
         {/* Renderização exclusiva Nutrition V2 */}
         {v2Auth.activeAssignment ? (
           <StudentNutritionV2
@@ -103,6 +93,14 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
           />
         ) : (
           <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/consultoria/${access.context.consultancySlug}`}
+                className="inline-flex items-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                ← Voltar ao painel
+              </Link>
+            </div>
             <PageHeader
               title="Seu Plano Alimentar"
               description="Acompanhe sua dieta atual, opções de refeições e orientações do seu Nutricionista."

@@ -141,6 +141,7 @@ export async function saveOfflineActiveContext(
         consultancyName: String(input.consultancyName || "").trim(),
         consultancySlug: String(input.consultancySlug).trim(),
         consultancyLogoUrl: input.consultancyLogoUrl ? String(input.consultancyLogoUrl) : null,
+        role: String(input.role || "STUDENT").trim().toUpperCase(),
         syncedAt,
         validUntil,
       };

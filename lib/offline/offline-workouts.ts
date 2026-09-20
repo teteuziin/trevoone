@@ -34,6 +34,7 @@ function generateUuidV4(): string {
 export async function saveWorkoutSnapshot(input: {
   userPublicId: string;
   consultancyPublicId: string;
+  role?: string;
   assignmentPublicId: string;
   workout: StudentWorkoutViewContract;
   initialExecution?: WorkoutExecutionSessionDto | null;
@@ -44,9 +45,16 @@ export async function saveWorkoutSnapshot(input: {
     return false;
   }
 
+  // Reject legacy mock strings
+  if (input.userPublicId === "student") {
+    return false;
+  }
+
+  const role = String(input.role || "STUDENT").trim().toUpperCase();
   const record: WorkoutOfflineSnapshot = {
     userPublicId: input.userPublicId.trim(),
     consultancyPublicId: input.consultancyPublicId.trim(),
+    role,
     assignmentPublicId: input.assignmentPublicId.trim(),
     workout: input.workout,
     initialExecution: input.initialExecution || null,
@@ -69,13 +77,19 @@ export async function saveWorkoutSnapshot(input: {
 export async function getWorkoutSnapshot(
   userPublicId: string,
   consultancyPublicId: string,
-  assignmentPublicId: string
+  assignmentPublicId: string,
+  role: string = "STUDENT"
 ): Promise<WorkoutOfflineSnapshot | null> {
-  if (!userPublicId || !consultancyPublicId || !assignmentPublicId) return null;
+  if (!userPublicId || !consultancyPublicId || !assignmentPublicId || userPublicId === "student") return null;
 
   return await withReadStore(WORKOUT_SNAPSHOT_STORE, async (store) => {
     return new Promise<WorkoutOfflineSnapshot | null>((resolve) => {
-      const req = store.get([userPublicId.trim(), consultancyPublicId.trim(), assignmentPublicId.trim()]);
+      const req = store.get([
+        userPublicId.trim(),
+        consultancyPublicId.trim(),
+        role.trim().toUpperCase(),
+        assignmentPublicId.trim(),
+      ]);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => resolve(null);
     });
@@ -87,16 +101,19 @@ export async function getWorkoutSnapshot(
  */
 export async function listWorkoutSnapshots(
   userPublicId: string,
-  consultancyPublicId: string
+  consultancyPublicId: string,
+  role: string = "STUDENT"
 ): Promise<WorkoutOfflineSnapshot[]> {
-  if (!userPublicId || !consultancyPublicId) return [];
+  if (!userPublicId || !consultancyPublicId || userPublicId === "student") return [];
 
   return (
     (await withReadStore(WORKOUT_SNAPSHOT_STORE, async (store) => {
       return new Promise<WorkoutOfflineSnapshot[]>((resolve) => {
         try {
-          const index = store.index("by_user_consultancy");
-          const req = index.getAll(IDBKeyRange.only([userPublicId.trim(), consultancyPublicId.trim()]));
+          const index = store.index("by_scope");
+          const req = index.getAll(
+            IDBKeyRange.only([userPublicId.trim(), consultancyPublicId.trim(), role.trim().toUpperCase()])
+          );
           req.onsuccess = () => resolve(req.result || []);
           req.onerror = () => resolve([]);
         } catch {
@@ -113,17 +130,20 @@ export async function listWorkoutSnapshots(
 export async function startOrResumeOfflineWorkoutSession(input: {
   userPublicId: string;
   consultancyPublicId: string;
+  role?: string;
   assignmentPublicId: string;
   workout: StudentWorkoutViewContract;
   existingServerSession?: WorkoutExecutionSessionDto | null;
 }): Promise<WorkoutOfflineSession | null> {
   const { userPublicId, consultancyPublicId, assignmentPublicId, workout, existingServerSession } = input;
-  if (!userPublicId || !consultancyPublicId || !assignmentPublicId || !workout) {
+  if (!userPublicId || !consultancyPublicId || !assignmentPublicId || !workout || userPublicId === "student") {
     return null;
   }
 
+  const role = String(input.role || "STUDENT").trim().toUpperCase();
+
   // 1. Check if there's already an IN_PROGRESS session stored for this assignment
-  const existing = await getActiveOfflineWorkoutSession(userPublicId, consultancyPublicId, assignmentPublicId);
+  const existing = await getActiveOfflineWorkoutSession(userPublicId, consultancyPublicId, assignmentPublicId, role);
   if (existing) {
     return existing;
   }
@@ -135,6 +155,7 @@ export async function startOrResumeOfflineWorkoutSession(input: {
       sessionPublicId: existingServerSession.publicId,
       userPublicId: userPublicId.trim(),
       consultancyPublicId: consultancyPublicId.trim(),
+      role,
       assignmentPublicId: assignmentPublicId.trim(),
       status: "IN_PROGRESS",
       startedAt: existingServerSession.startedAt
@@ -195,6 +216,7 @@ export async function startOrResumeOfflineWorkoutSession(input: {
     sessionPublicId: undefined, // Not registered on server yet
     userPublicId: userPublicId.trim(),
     consultancyPublicId: consultancyPublicId.trim(),
+    role,
     assignmentPublicId: assignmentPublicId.trim(),
     status: "IN_PROGRESS",
     startedAt: new Date().toISOString(),
@@ -217,13 +239,21 @@ export async function startOrResumeOfflineWorkoutSession(input: {
 export async function getActiveOfflineWorkoutSession(
   userPublicId: string,
   consultancyPublicId: string,
-  assignmentPublicId: string
+  assignmentPublicId: string,
+  role: string = "STUDENT"
 ): Promise<WorkoutOfflineSession | null> {
+  if (!userPublicId || !consultancyPublicId || !assignmentPublicId || userPublicId === "student") return null;
+
   return await withReadStore(WORKOUT_SESSION_STORE, async (store) => {
     return new Promise<WorkoutOfflineSession | null>((resolve) => {
       try {
         const index = store.index("by_assignment");
-        const range = IDBKeyRange.only([userPublicId.trim(), consultancyPublicId.trim(), assignmentPublicId.trim()]);
+        const range = IDBKeyRange.only([
+          userPublicId.trim(),
+          consultancyPublicId.trim(),
+          role.trim().toUpperCase(),
+          assignmentPublicId.trim(),
+        ]);
         const req = index.openCursor(range);
 
         req.onsuccess = () => {
@@ -246,6 +276,7 @@ export async function getActiveOfflineWorkoutSession(
     });
   });
 }
+
 
 /**
  * Records completed reps and weight for a specific set in an offline session.

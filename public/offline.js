@@ -11,10 +11,12 @@
 (function () {
   "use strict";
 
-  const DB_NAME = "trevo_offline_v1";
+  const DB_NAME = "trevo_offline_v3";
+  const DB_VERSION = 4;
   const OFFLINE_CONTEXT_STORE = "offline_context";
-  const TRAINING_SNAPSHOT_STORE = "training_snapshots";
+  const WORKOUT_SNAPSHOT_STORE = "workout_snapshots";
   const NUTRITION_SNAPSHOT_STORE = "nutrition_snapshots";
+  const PENDING_OPERATIONS_STORE = "pending_operations";
   const ACTIVE_CONTEXT_ID = "active_context";
 
   let activeTrainingSnapshot = null;
@@ -48,7 +50,7 @@
     }
   }
 
-  // Open IndexedDB safely for read-only query without hardcoding version
+  // Open IndexedDB safely for read-only query using trevo_offline_v3 schema version 4
   function openDatabase() {
     return new Promise((resolve) => {
       if (typeof window === "undefined" || !window.indexedDB) {
@@ -57,23 +59,21 @@
       }
 
       try {
-        const req = window.indexedDB.open(DB_NAME);
+        const req = window.indexedDB.open(DB_NAME, DB_VERSION);
 
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => resolve(null);
         req.onblocked = () => resolve(null);
 
-        // If the DB does not exist on this client, close and abort gracefully without creating stores
         req.onupgradeneeded = (e) => {
-          // If empty newly created DB, abort transaction to avoid leaving blank schema
-          try {
-            if (e.oldVersion === 0) {
+          if (e.oldVersion === 0) {
+            try {
               e.target.transaction.abort();
+            } catch {
+              // Ignore
             }
-          } catch {
-            // Ignore abort error
+            resolve(null);
           }
-          resolve(null);
         };
       } catch {
         resolve(null);
@@ -105,7 +105,7 @@
   function renderTrainingView() {
     contentView.replaceChildren();
 
-    if (!activeTrainingSnapshot || !activeTrainingSnapshot.data) {
+    if (!activeTrainingSnapshot) {
       renderEmptyState(
         "Treino não sincronizado",
         "Nenhum plano de treino foi salvo offline para este perfil. Conecte-se à internet para sincronizar."
@@ -113,7 +113,7 @@
       return;
     }
 
-    const plan = activeTrainingSnapshot.data;
+    const plan = activeTrainingSnapshot.workout || activeTrainingSnapshot.data || activeTrainingSnapshot;
 
     // Plan Title Card
     const titleCard = document.createElement("div");
@@ -121,30 +121,30 @@
 
     const nameEl = document.createElement("h2");
     nameEl.className = "plan-name";
-    nameEl.textContent = plan.name || "Plano de Treino";
+    nameEl.textContent = plan.planName || plan.name || activeTrainingSnapshot.planTitle || "Plano de Treino";
 
     const subtitleEl = document.createElement("p");
     subtitleEl.className = "plan-subtitle";
-    subtitleEl.textContent = plan.goal ? `Objetivo: ${plan.goal}` : "Prescrição personalizada";
+    subtitleEl.textContent = plan.goal ? `Objetivo: ${plan.goal}` : "Prescrição personalizada de treino";
 
     titleCard.appendChild(nameEl);
     titleCard.appendChild(subtitleEl);
     contentView.appendChild(titleCard);
 
-    // Routines / Workouts
-    const routines = plan.routines || plan.items || [];
-    if (routines.length === 0) {
+    // Blocks / Routines / Items
+    const blocks = plan.blocks || plan.routines || plan.items || [];
+    if (blocks.length === 0) {
       const emptyRoutine = document.createElement("div");
       emptyRoutine.className = "item-card";
       const txt = document.createElement("p");
       txt.className = "item-title";
-      txt.textContent = "Nenhum exercício cadastrado no plano.";
+      txt.textContent = "Nenhum bloco ou exercício cadastrado neste plano.";
       emptyRoutine.appendChild(txt);
       contentView.appendChild(emptyRoutine);
       return;
     }
 
-    routines.forEach((routine, rIdx) => {
+    blocks.forEach((block, bIdx) => {
       const routineCard = document.createElement("div");
       routineCard.className = "card";
 
@@ -153,25 +153,25 @@
 
       const routineTitle = document.createElement("h3");
       routineTitle.className = "item-title";
-      routineTitle.textContent = routine.name || `Rotina ${String.fromCharCode(65 + rIdx)}`;
+      routineTitle.textContent = block.title || block.name || `Bloco ${bIdx + 1}`;
 
       routineHeader.appendChild(routineTitle);
 
-      if (routine.notes) {
+      if (block.notes) {
         const rNotes = document.createElement("p");
         rNotes.className = "item-notes";
         rNotes.style.marginTop = "6px";
-        rNotes.textContent = routine.notes;
+        rNotes.textContent = block.notes;
         routineHeader.appendChild(rNotes);
       }
 
       routineCard.appendChild(routineHeader);
 
-      const exercises = routine.exercises || routine.items || [];
-      if (exercises.length === 0) {
+      const items = block.items || block.exercises || [];
+      if (items.length === 0) {
         const noEx = document.createElement("p");
         noEx.className = "empty-desc";
-        noEx.textContent = "Nenhum exercício nesta rotina.";
+        noEx.textContent = "Nenhum exercício neste bloco.";
         routineCard.appendChild(noEx);
       } else {
         const listContainer = document.createElement("div");
@@ -179,7 +179,7 @@
         listContainer.style.flexDirection = "column";
         listContainer.style.gap = "10px";
 
-        exercises.forEach((ex, eIdx) => {
+        items.forEach((item, eIdx) => {
           const exItem = document.createElement("div");
           exItem.className = "item-card";
 
@@ -188,7 +188,7 @@
 
           const exName = document.createElement("p");
           exName.className = "item-title";
-          exName.textContent = `${eIdx + 1}. ${ex.exerciseName || ex.name || "Exercício"}`;
+          exName.textContent = `${eIdx + 1}. ${item.exerciseName || item.name || "Exercício"}`;
 
           exHeader.appendChild(exName);
           exItem.appendChild(exHeader);
@@ -196,24 +196,26 @@
           const metaGroup = document.createElement("div");
           metaGroup.className = "item-meta";
 
-          if (ex.sets) {
+          const setsCount = Array.isArray(item.sets) ? item.sets.length : item.sets;
+          if (setsCount) {
             const pillSets = document.createElement("span");
             pillSets.className = "badge-pill";
-            pillSets.textContent = `${ex.sets} séries`;
+            pillSets.textContent = `${setsCount} séries`;
             metaGroup.appendChild(pillSets);
           }
 
-          if (ex.reps) {
+          if (item.reps || (Array.isArray(item.sets) && item.sets[0] && item.sets[0].targetReps)) {
+            const repsVal = item.reps || item.sets[0].targetReps;
             const pillReps = document.createElement("span");
             pillReps.className = "badge-pill";
-            pillReps.textContent = `${ex.reps} reps`;
+            pillReps.textContent = `${repsVal} reps`;
             metaGroup.appendChild(pillReps);
           }
 
-          if (ex.restSeconds || ex.rest) {
+          if (item.restSeconds || item.rest) {
             const pillRest = document.createElement("span");
             pillRest.className = "badge-pill";
-            pillRest.textContent = `Descanso: ${ex.restSeconds ? `${ex.restSeconds}s` : ex.rest}`;
+            pillRest.textContent = `Descanso: ${item.restSeconds ? `${item.restSeconds}s` : item.rest}`;
             metaGroup.appendChild(pillRest);
           }
 
@@ -221,10 +223,10 @@
             exItem.appendChild(metaGroup);
           }
 
-          if (ex.notes) {
+          if (item.notes) {
             const exNotes = document.createElement("p");
             exNotes.className = "item-notes";
-            exNotes.textContent = ex.notes;
+            exNotes.textContent = item.notes;
             exItem.appendChild(exNotes);
           }
 
@@ -242,7 +244,7 @@
   function renderNutritionView() {
     contentView.replaceChildren();
 
-    if (!activeNutritionSnapshot || !activeNutritionSnapshot.data) {
+    if (!activeNutritionSnapshot) {
       renderEmptyState(
         "Nutrição não sincronizada",
         "Nenhum plano alimentar foi salvo offline para este perfil. Conecte-se à internet para sincronizar."
@@ -250,7 +252,7 @@
       return;
     }
 
-    const plan = activeNutritionSnapshot.data;
+    const plan = activeNutritionSnapshot.data || activeNutritionSnapshot;
 
     // Plan Title Card
     const titleCard = document.createElement("div");
@@ -258,7 +260,7 @@
 
     const nameEl = document.createElement("h2");
     nameEl.className = "plan-name";
-    nameEl.textContent = plan.name || "Plano Alimentar";
+    nameEl.textContent = plan.title || plan.name || activeNutritionSnapshot.planTitle || "Plano Alimentar";
 
     const subtitleEl = document.createElement("p");
     subtitleEl.className = "plan-subtitle";
@@ -293,7 +295,7 @@
 
       const mealTitle = document.createElement("h3");
       mealTitle.className = "item-title";
-      mealTitle.textContent = meal.name || `Refeição ${mIdx + 1}`;
+      mealTitle.textContent = meal.name || meal.title || `Refeição ${mIdx + 1}`;
 
       mealHeader.appendChild(mealTitle);
 
@@ -348,7 +350,10 @@
           if (food.substitutions && food.substitutions.length > 0) {
             const subTitle = document.createElement("p");
             subTitle.className = "item-notes";
-            subTitle.textContent = `Substituições: ${food.substitutions.join(", ")}`;
+            const subList = Array.isArray(food.substitutions)
+              ? food.substitutions.map((s) => (typeof s === "string" ? s : s.name || s.foodName)).join(", ")
+              : String(food.substitutions);
+            subTitle.textContent = `Substituições: ${subList}`;
             foodItem.appendChild(subTitle);
           }
 
@@ -425,7 +430,7 @@
       return;
     }
 
-    // 3. Validate TTL
+    // 3. Validate TTL & Scope
     const now = Date.now();
     const expiry = new Date(context.validUntil).getTime();
     if (isNaN(expiry) || now > expiry) {
@@ -435,6 +440,8 @@
       );
       return;
     }
+
+    const activeRole = context.role || "STUDENT";
 
     // 4. Update Header & Profile UI
     if (contextCard && ctxConsultancyName && ctxUserName && ctxSyncTime) {
@@ -446,25 +453,17 @@
 
     tabBar.style.display = "flex";
 
-    // 5. Read Training Snapshot
-    if (db.objectStoreNames.contains(TRAINING_SNAPSHOT_STORE)) {
+    // 5. Read Training Snapshot via by_scope index
+    if (db.objectStoreNames.contains(WORKOUT_SNAPSHOT_STORE)) {
       activeTrainingSnapshot = await new Promise((resolve) => {
         try {
-          const tx = db.transaction(TRAINING_SNAPSHOT_STORE, "readonly");
-          const store = tx.objectStore(TRAINING_SNAPSHOT_STORE);
-          const req = store.get([context.userPublicId, context.consultancyPublicId]);
+          const tx = db.transaction(WORKOUT_SNAPSHOT_STORE, "readonly");
+          const store = tx.objectStore(WORKOUT_SNAPSHOT_STORE);
+          const index = store.index("by_scope");
+          const req = index.getAll(IDBKeyRange.only([context.userPublicId, context.consultancyPublicId, activeRole]));
           req.onsuccess = () => {
-            const res = req.result;
-            // Strict isolation check
-            if (
-              res &&
-              res.userPublicId === context.userPublicId &&
-              res.consultancyPublicId === context.consultancyPublicId
-            ) {
-              resolve(res);
-            } else {
-              resolve(null);
-            }
+            const list = req.result || [];
+            resolve(list.length > 0 ? list[0] : null);
           };
           req.onerror = () => resolve(null);
         } catch {
@@ -473,26 +472,14 @@
       });
     }
 
-    // 6. Read Nutrition Snapshot
+    // 6. Read Nutrition Snapshot by scoped key
     if (db.objectStoreNames.contains(NUTRITION_SNAPSHOT_STORE)) {
       activeNutritionSnapshot = await new Promise((resolve) => {
         try {
           const tx = db.transaction(NUTRITION_SNAPSHOT_STORE, "readonly");
           const store = tx.objectStore(NUTRITION_SNAPSHOT_STORE);
-          const req = store.get([context.userPublicId, context.consultancyPublicId]);
-          req.onsuccess = () => {
-            const res = req.result;
-            // Strict isolation check
-            if (
-              res &&
-              res.userPublicId === context.userPublicId &&
-              res.consultancyPublicId === context.consultancyPublicId
-            ) {
-              resolve(res);
-            } else {
-              resolve(null);
-            }
-          };
+          const req = store.get([context.userPublicId, context.consultancyPublicId, activeRole]);
+          req.onsuccess = () => resolve(req.result || null);
           req.onerror = () => resolve(null);
         } catch {
           resolve(null);
@@ -500,7 +487,26 @@
       });
     }
 
-    // 7. Initial View
+    // 7. Check pending operations count
+    if (db.objectStoreNames.contains(PENDING_OPERATIONS_STORE)) {
+      pendingOpsCount = await new Promise((resolve) => {
+        try {
+          const tx = db.transaction(PENDING_OPERATIONS_STORE, "readonly");
+          const store = tx.objectStore(PENDING_OPERATIONS_STORE);
+          const req = store.count();
+          req.onsuccess = () => resolve(req.result || 0);
+          req.onerror = () => resolve(0);
+        } catch {
+          resolve(0);
+        }
+      });
+
+      if (pendingOpsCount > 0 && ctxSyncTime) {
+        ctxSyncTime.textContent += ` • ${pendingOpsCount} ${pendingOpsCount === 1 ? "alteração pendente" : "alterações pendentes"}`;
+      }
+    }
+
+    // 8. Initial View
     switchTab(currentTab);
   }
 
@@ -518,6 +524,7 @@
       window.location.reload();
     });
   }
+
 
   window.addEventListener("online", () => {
     if (onlineAlert) {

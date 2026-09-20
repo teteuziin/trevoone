@@ -27,10 +27,12 @@ export type OfflineOperationType =
  * Queue item for idempotent offline mutation synchronization.
  */
 export interface PendingOperation<TPayload = Record<string, unknown>> {
-  operationId: string; // UUID v4 (guarantees idempotency)
+  operationId: string; // UUID v4
+  clientOperationId: string; // Alias / canonical persistent UUID v4
   userPublicId: string;
   consultancyPublicId: string;
   consultancySlug: string;
+  role: string;
   entityType: OfflineEntityType;
   entityId: string; // e.g. assignmentPublicId or formRequestPublicId
   operationType: OfflineOperationType;
@@ -41,6 +43,11 @@ export interface PendingOperation<TPayload = Record<string, unknown>> {
   status: OfflineOperationStatus;
   lastAttemptAt?: string | null;
   errorMessage?: string | null;
+  conflictDetails?: {
+    serverStatus?: string;
+    reason?: string;
+    serverTimestamp?: string;
+  } | null;
 }
 
 /**
@@ -49,6 +56,7 @@ export interface PendingOperation<TPayload = Record<string, unknown>> {
 export interface WorkoutOfflineSnapshot {
   userPublicId: string;
   consultancyPublicId: string;
+  role: string;
   assignmentPublicId: string;
   workout: StudentWorkoutViewContract;
   initialExecution: WorkoutExecutionSessionDto | null;
@@ -65,6 +73,7 @@ export interface WorkoutOfflineSession {
   sessionPublicId?: string; // Existing server session ID if started online, or clientExecutionId
   userPublicId: string;
   consultancyPublicId: string;
+  role: string;
   assignmentPublicId: string;
   status: "IN_PROGRESS" | "PENDING_SYNC" | "SYNCED";
   startedAt: string;
@@ -91,6 +100,7 @@ export interface WorkoutOfflineSession {
 export interface NutritionOfflineSnapshot {
   userPublicId: string;
   consultancyPublicId: string;
+  role: string;
   planPublicId: string;
   planTitle: string;
   planSubtitle?: string | null;
@@ -105,6 +115,7 @@ export interface NutritionOfflineSnapshot {
 export interface FormOfflineSnapshot {
   userPublicId: string;
   consultancyPublicId: string;
+  role: string;
   templatePublicId: string;
   title: string;
   description: string | null;
@@ -120,10 +131,42 @@ export interface FormOfflineSnapshot {
 export interface FormOfflineDraft {
   userPublicId: string;
   consultancyPublicId: string;
+  role: string;
   requestPublicId: string;
   templatePublicId: string;
   responses: Record<string, unknown>;
   isSubmittedOffline: boolean;
+  updatedAt: string;
+}
+
+/**
+ * Snapshot of a student's scalar evolution metrics (strictly NO photos/blobs).
+ */
+export interface EvolutionOfflineSnapshot {
+  userPublicId: string;
+  consultancyPublicId: string;
+  role: string;
+  metrics: {
+    latestWeightKg: number | null;
+    weightGoalKg: number | null;
+    weightHistory: Array<{ date: string; weightKg: number }>;
+    bodyMeasurements: Array<{
+      date: string;
+      chestCm?: number | null;
+      waistCm?: number | null;
+      hipCm?: number | null;
+      armsCm?: number | null;
+      thighsCm?: number | null;
+      calvesCm?: number | null;
+    }>;
+    chartPoints: Array<{ date: string; value: number; label: string }>;
+    lastEvaluationMetadata: {
+      evaluationPublicId: string;
+      evaluatedAt: string;
+      evaluatorName: string | null;
+    } | null;
+  };
+  syncedAt: string;
   updatedAt: string;
 }
 

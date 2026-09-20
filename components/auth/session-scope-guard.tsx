@@ -55,6 +55,7 @@ export function SessionScopeGuard({
     }
 
     const activeUserPublicId = userPublicId;
+    const activeRole = (role || "STUDENT").trim().toUpperCase();
     isGuardingRef.current = true;
 
     async function evaluateSessionScope() {
@@ -81,6 +82,30 @@ export function SessionScopeGuard({
               storedContext.role
             );
           }
+          // Check 3: Same user & consultancy, but different role -> purge prior role scope
+          else if (
+            storedContext.role &&
+            activeRole &&
+            storedContext.role.trim().toUpperCase() !== activeRole
+          ) {
+            await clearOfflineDataForScope(
+              storedContext.userPublicId,
+              storedContext.consultancyPublicId,
+              storedContext.role
+            );
+          }
+        }
+
+        // Launch Core offline is strictly STUDENT.
+        // If current session role is NOT STUDENT:
+        // 1. Explicitly purge any previous STUDENT scope snapshots for this user + consultancy
+        // 2. Do not enable Student Offline 360 features (do not recover student sync / run student retention)
+        if (activeRole !== "STUDENT" && consultancyPublicId) {
+          await clearOfflineDataForScope(
+            activeUserPublicId,
+            consultancyPublicId,
+            "STUDENT"
+          );
         }
 
         if (consultancyPublicId) {
@@ -92,14 +117,17 @@ export function SessionScopeGuard({
             consultancySlug,
             consultancyName,
             consultancyLogoUrl,
-            role,
+            role: activeRole,
           });
 
-          // Recover orphan SYNCING operations
-          await recoverOrphanSyncingOperations();
+          // Only student participates in pending sync & retention maintenance
+          if (activeRole === "STUDENT") {
+            // Recover orphan SYNCING operations
+            await recoverOrphanSyncingOperations();
 
-          // Storage retention check (LRU max 5 snapshots, persistent storage)
-          await runStorageMaintenance(activeUserPublicId, consultancyPublicId, role);
+            // Storage retention check (LRU max 5 snapshots, persistent storage)
+            await runStorageMaintenance(activeUserPublicId, consultancyPublicId, activeRole);
+          }
         }
       } catch (err) {
         console.warn("[SessionScopeGuard] Error evaluating session scope:", err);

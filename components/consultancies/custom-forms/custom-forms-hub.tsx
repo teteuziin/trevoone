@@ -252,11 +252,70 @@ export function CustomFormsHub({
   };
 
   const [draftLoadedNotice, setDraftLoadedNotice] = useState(false);
+  const [conflictNotice, setConflictNotice] = useState<string | null>(null);
+  const [activeConflictOpId, setActiveConflictOpId] = useState<string | null>(null);
+  const [conflictOpsByRequestId, setConflictOpsByRequestId] = useState<
+    Record<string, { operationId: string; responses: Record<string, unknown>; reason?: string }>
+  >({});
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !scopedUserPublicId || scopedUserPublicId === "student") return;
+
+    let isMounted = true;
+    let unsubscribe: (() => void) | undefined;
+
+    const loadConflicts = async () => {
+      try {
+        const { getPendingOperations, subscribeToSyncStatus } = await import("@/lib/offline/offline-sync");
+        const fetchConflictOps = async () => {
+          const ops = await getPendingOperations(
+            scopedUserPublicId,
+            scopedConsultancyPublicId || consultancySlug,
+            scopedRole
+          );
+          if (!isMounted) return;
+          const conflictMap: Record<
+            string,
+            { operationId: string; responses: Record<string, unknown>; reason?: string }
+          > = {};
+          for (const op of ops) {
+            if (op.entityType === "FORM_SUBMISSION" && op.status === "CONFLICT") {
+              const payload = op.payload as { responses?: Record<string, unknown> };
+              conflictMap[op.entityId] = {
+                operationId: op.operationId,
+                responses: (payload && payload.responses) || {},
+                reason: op.conflictDetails?.reason || op.errorMessage || undefined,
+              };
+            }
+          }
+          setConflictOpsByRequestId(conflictMap);
+        };
+
+        await fetchConflictOps();
+        if (isMounted) {
+          unsubscribe = subscribeToSyncStatus(() => {
+            fetchConflictOps();
+          });
+        }
+      } catch {
+        // Ignore
+      }
+    };
+
+    loadConflicts();
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [scopedUserPublicId, scopedConsultancyPublicId, scopedRole, consultancySlug]);
 
   const handleOpenAnswerModal = async (req: CustomFormRequestDto) => {
     setSelectedRequestToAnswer(req);
     setAnswerError(null);
     setDraftLoadedNotice(false);
+    setConflictNotice(null);
+    setActiveConflictOpId(null);
 
     let base = req.responses || {};
     try {
@@ -271,6 +330,42 @@ export function CustomFormsHub({
         if (draft && draft.responses && Object.keys(draft.responses).length > 0) {
           base = { ...base, ...draft.responses };
           setDraftLoadedNotice(true);
+        } else {
+          // If no draft in FORM_DRAFT_STORE, check if an operation is pending or in CONFLICT
+          const { getPendingOperations } = await import("@/lib/offline/offline-sync");
+          const ops = await getPendingOperations(
+            scopedUserPublicId,
+            scopedConsultancyPublicId || consultancySlug,
+            scopedRole
+          );
+          const relatedOp = ops.find(
+            (o) =>
+              o.entityType === "FORM_SUBMISSION" &&
+              o.entityId === req.publicId &&
+              (o.status === "CONFLICT" || o.status === "FAILED" || o.status === "PENDING")
+          );
+
+          if (
+            relatedOp &&
+            relatedOp.payload &&
+            typeof relatedOp.payload === "object" &&
+            "responses" in relatedOp.payload
+          ) {
+            const opPayload = relatedOp.payload as { responses?: Record<string, unknown> };
+            if (opPayload.responses && Object.keys(opPayload.responses).length > 0) {
+              base = { ...base, ...opPayload.responses };
+              if (relatedOp.status === "CONFLICT") {
+                setActiveConflictOpId(relatedOp.operationId);
+                setConflictNotice(
+                  relatedOp.conflictDetails?.reason ||
+                    relatedOp.errorMessage ||
+                    "Respostas locais recuperadas da tentativa anterior com conflito. Revise antes de reenviar."
+                );
+              } else {
+                setDraftLoadedNotice(true);
+              }
+            }
+          }
         }
       }
     } catch {
@@ -351,6 +446,17 @@ export function CustomFormsHub({
           scopedRole
         );
 
+        if (activeConflictOpId) {
+          const { removePendingOperation } = await import("@/lib/offline/offline-sync");
+          await removePendingOperation(activeConflictOpId);
+          setActiveConflictOpId(null);
+          setConflictOpsByRequestId((prev) => {
+            const next = { ...prev };
+            delete next[selectedRequestToAnswer.publicId];
+            return next;
+          });
+        }
+
         setRequests(
           requests.map((r) =>
             r.publicId === selectedRequestToAnswer.publicId
@@ -397,6 +503,22 @@ export function CustomFormsHub({
         // Ignore
       }
 
+      // If resolving an active conflict operation, clean it up from pending operations
+      if (activeConflictOpId) {
+        try {
+          const { removePendingOperation } = await import("@/lib/offline/offline-sync");
+          await removePendingOperation(activeConflictOpId);
+          setActiveConflictOpId(null);
+          setConflictOpsByRequestId((prev) => {
+            const next = { ...prev };
+            delete next[selectedRequestToAnswer.publicId];
+            return next;
+          });
+        } catch {
+          // Ignore
+        }
+      }
+
       setRequests(
         requests.map((r) =>
           r.publicId === selectedRequestToAnswer.publicId
@@ -432,6 +554,17 @@ export function CustomFormsHub({
             selectedRequestToAnswer.publicId,
             scopedRole
           );
+
+          if (activeConflictOpId) {
+            const { removePendingOperation } = await import("@/lib/offline/offline-sync");
+            await removePendingOperation(activeConflictOpId);
+            setActiveConflictOpId(null);
+            setConflictOpsByRequestId((prev) => {
+              const next = { ...prev };
+              delete next[selectedRequestToAnswer.publicId];
+              return next;
+            });
+          }
 
           setRequests(
             requests.map((r) =>
@@ -623,17 +756,40 @@ export function CustomFormsHub({
                         <strong>Observação da consultoria:</strong> {req.reviewerNotes}
                       </div>
                     )}
+
+                    {isStudent && conflictOpsByRequestId[req.publicId] && (
+                      <div className="mt-2 text-xs p-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-xl space-y-1">
+                        <div className="flex items-center gap-1.5 font-semibold">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                          <span>Conflito detectado no envio</span>
+                        </div>
+                        <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                          Suas respostas locais foram preservadas sem perda. Clique em &ldquo;Revisar respostas (Conflito)&rdquo; para conferir ou reenviar.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
                     {/* Student actions */}
-                    {isStudent && (req.status === "PENDING" || req.status === "CHANGES_REQUESTED") && (
+                    {isStudent && (req.status === "PENDING" || req.status === "CHANGES_REQUESTED") && !conflictOpsByRequestId[req.publicId] && (
                       <button
                         type="button"
                         onClick={() => handleOpenAnswerModal(req)}
                         className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer min-h-[44px] sm:min-h-0 sm:py-2"
                       >
                         {req.status === "CHANGES_REQUESTED" ? "Corrigir e reenviar" : "Preencher formulário"}
+                      </button>
+                    )}
+
+                    {/* Conflict recovery action */}
+                    {isStudent && conflictOpsByRequestId[req.publicId] && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAnswerModal(req)}
+                        className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer min-h-[44px] sm:min-h-0 sm:py-2"
+                      >
+                        Revisar respostas (Conflito)
                       </button>
                     )}
 
@@ -1058,7 +1214,17 @@ export function CustomFormsHub({
             </div>
 
             <form onSubmit={handleSubmitAnswers} className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
-              {draftLoadedNotice && (
+              {conflictNotice && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 mt-1" />
+                  <div className="space-y-0.5">
+                    <span className="font-semibold block">Respostas locais recuperadas do conflito</span>
+                    <span>{conflictNotice}</span>
+                  </div>
+                </div>
+              )}
+
+              {draftLoadedNotice && !conflictNotice && (
                 <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-center gap-1.5">
                   <span>✓ Rascunho salvo neste dispositivo recuperado.</span>
                 </div>
@@ -1190,6 +1356,37 @@ export function CustomFormsHub({
                   Salvo neste dispositivo
                 </span>
                 <div className="flex items-center gap-2 ml-auto">
+                  {activeConflictOpId && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (
+                          typeof window !== "undefined" &&
+                          window.confirm(
+                            "Deseja descartar as respostas locais deste conflito? Esta ação não pode ser desfeita."
+                          )
+                        ) {
+                          try {
+                            const { removePendingOperation } = await import("@/lib/offline/offline-sync");
+                            await removePendingOperation(activeConflictOpId);
+                            setConflictOpsByRequestId((prev) => {
+                              const next = { ...prev };
+                              delete next[selectedRequestToAnswer.publicId];
+                              return next;
+                            });
+                            setActiveConflictOpId(null);
+                            setConflictNotice(null);
+                            setSelectedRequestToAnswer(null);
+                          } catch {
+                            // Ignore
+                          }
+                        }
+                      }}
+                      className="px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-xl text-xs font-semibold transition-colors cursor-pointer mr-1"
+                    >
+                      Descartar conflito
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setSelectedRequestToAnswer(null)}

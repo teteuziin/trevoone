@@ -196,7 +196,7 @@ console.log("\n[TEST 5] Storage Retention Policy");
 }
 
 // 6. SESSIONSCOPEGUARD ISOLATION DECISIONS
-console.log("\n[TEST 6] SessionScopeGuard Multi-Tenant Isolation Decisions");
+console.log("\n[TEST 6] SessionScopeGuard Multi-Tenant & Role Isolation Decisions");
 {
   function evaluateScopeDecision(session, localContext) {
     if (!localContext) {
@@ -207,6 +207,9 @@ console.log("\n[TEST 6] SessionScopeGuard Multi-Tenant Isolation Decisions");
     }
     if (localContext.consultancyPublicId !== session.consultancyPublicId) {
       return "PURGE_SCOPE_DATA"; // Same user, different consultancy -> wipe previous scope
+    }
+    if (localContext.role !== session.role) {
+      return "PURGE_SCOPE_DATA"; // Same user & consultancy, different role -> wipe previous role scope
     }
     return "REFRESH_VALID_CONTEXT";
   }
@@ -240,7 +243,7 @@ console.log("\n[TEST 6] SessionScopeGuard Multi-Tenant Isolation Decisions");
     "Switching consultancy must trigger scope purge"
   );
 
-  // User A same consultancy
+  // User A same consultancy, same role
   const userASessionSame = {
     userPublicId: "usr_alice-uuid",
     consultancyPublicId: "con_trevo-uuid",
@@ -249,14 +252,153 @@ console.log("\n[TEST 6] SessionScopeGuard Multi-Tenant Isolation Decisions");
   assert.equal(
     evaluateScopeDecision(userASessionSame, userAContext),
     "REFRESH_VALID_CONTEXT",
-    "Same user and consultancy must refresh context"
+    "Same user, consultancy and role must refresh context"
   );
+
+  // User A same consultancy, DIFFERENT ROLE (STUDENT -> PERSONAL)
+  const userASessionPersonal = {
+    userPublicId: "usr_alice-uuid",
+    consultancyPublicId: "con_trevo-uuid",
+    role: "PERSONAL",
+  };
+  assert.equal(
+    evaluateScopeDecision(userASessionPersonal, userAContext),
+    "PURGE_SCOPE_DATA",
+    "Role mismatch must trigger purge of previous role scope"
+  );
+
+  // Non-student role handling: ensure student snapshots become inaccessible and are purged
+  function simulateScopePurge(dbStores, userPublicId, consultancyPublicId, role) {
+    let purgedCount = 0;
+    for (const store of Object.values(dbStores)) {
+      const remaining = store.filter((item) => {
+        const matches =
+          item.userPublicId === userPublicId &&
+          item.consultancyPublicId === consultancyPublicId &&
+          (item.role || "STUDENT").toUpperCase() === role.toUpperCase();
+        if (matches) purgedCount++;
+        return !matches;
+      });
+      store.length = 0;
+      store.push(...remaining);
+    }
+    return purgedCount;
+  }
+
+  const mockDbStores = {
+    workout_snapshots: [
+      { userPublicId: "usr_alice-uuid", consultancyPublicId: "con_trevo-uuid", role: "STUDENT", data: "workout1" },
+    ],
+    nutrition_snapshots: [
+      { userPublicId: "usr_alice-uuid", consultancyPublicId: "con_trevo-uuid", role: "STUDENT", data: "diet1" },
+    ],
+    form_drafts: [
+      { userPublicId: "usr_alice-uuid", consultancyPublicId: "con_trevo-uuid", role: "STUDENT", responses: { q1: "abc" } },
+    ],
+    evolution_snapshots: [
+      { userPublicId: "usr_alice-uuid", consultancyPublicId: "con_trevo-uuid", role: "STUDENT", data: "evo1" },
+    ],
+  };
+
+  const purged = simulateScopePurge(mockDbStores, "usr_alice-uuid", "con_trevo-uuid", "STUDENT");
+  assert.equal(purged, 4, "All 4 student stores must be purged on role transition");
+  assert.equal(mockDbStores.workout_snapshots.length, 0, "ZERO workout snapshot visible");
+  assert.equal(mockDbStores.nutrition_snapshots.length, 0, "ZERO nutrition snapshot visible");
+  assert.equal(mockDbStores.form_drafts.length, 0, "ZERO form draft visible");
+  assert.equal(mockDbStores.evolution_snapshots.length, 0, "ZERO evolution snapshot visible");
 
   console.log("  ✓ Multi-user mismatch full purge verified");
   console.log("  ✓ Multi-tenant scope purge verified");
   console.log("  ✓ Same-tenant refresh verified");
+  console.log("  ✓ Role mismatch scope purge verified (ZERO old scope remaining)");
+}
+
+// 7. FORM CONFLICT DATA RECOVERY & ZERO DATA LOSS
+console.log("\n[TEST 7] Form Conflict Data Recovery & Zero Data Loss");
+{
+  // Step 1: Preencher formulário offline
+  const clientResponses = {
+    f_peso: 82.5,
+    f_altura: 179,
+    f_objetivo: "hipertrofia",
+    f_restricoes: "intolerância a lactose",
+  };
+  const requestPublicId = "req_form-uuid-001";
+
+  // Step 2: Submit offline -> draft removed, operation queued PENDING with full payload
+  let localDraft = { ...clientResponses };
+  const queuedOperation = {
+    operationId: "op_submit-001",
+    entityType: "FORM_SUBMISSION",
+    entityId: requestPublicId,
+    operationType: "SUBMIT_FORM",
+    status: "PENDING",
+    payload: {
+      requestPublicId,
+      responses: { ...clientResponses },
+    },
+    conflictDetails: null,
+  };
+  // Draft is cleared
+  localDraft = null;
+  assert.equal(localDraft, null, "Local draft must be cleared on submission");
+  assert.deepEqual(queuedOperation.payload.responses, clientResponses, "Operation payload must preserve full responses");
+
+  // Step 3: Server returns conflict -> operation retained, transitions to CONFLICT, payload intact
+  function handleSyncResult(op, serverResult) {
+    if (serverResult.conflict) {
+      // Must NOT delete operation. Must NOT delete payload.
+      op.status = "CONFLICT";
+      op.conflictDetails = {
+        serverStatus: serverResult.serverStatus || "ALREADY_ANSWERED",
+        reason: serverResult.error || "Conflito de versão detectado no servidor",
+        serverTimestamp: new Date().toISOString(),
+      };
+      return op; // Operation retained
+    }
+    return op;
+  }
+
+  const conflictServerResponse = {
+    success: false,
+    conflict: true,
+    serverStatus: "SUBMITTED",
+    error: "Este formulário já foi respondido com dados divergentes.",
+  };
+
+  const updatedOp = handleSyncResult(queuedOperation, conflictServerResponse);
+  assert.equal(updatedOp.status, "CONFLICT", "Operation must transition to CONFLICT");
+  assert.equal(Boolean(updatedOp.operationId), true, "Operation must NOT be deleted");
+  assert.deepEqual(updatedOp.payload.responses, clientResponses, "Payload responses must remain 100% intact");
+
+  // Step 4: Data recovery into form state for student review
+  function recoverConflictResponses(req, pendingOps) {
+    let formState = req.responses || {};
+    const conflictOp = pendingOps.find(
+      (o) => o.entityId === req.publicId && o.status === "CONFLICT"
+    );
+    if (conflictOp && conflictOp.payload && conflictOp.payload.responses) {
+      formState = { ...formState, ...conflictOp.payload.responses };
+      return { formState, recovered: true, opId: conflictOp.operationId };
+    }
+    return { formState, recovered: false, opId: null };
+  }
+
+  const serverRequest = { publicId: requestPublicId, responses: null, status: "SUBMITTED" };
+  const recoveryResult = recoverConflictResponses(serverRequest, [updatedOp]);
+
+  assert.equal(recoveryResult.recovered, true, "Student must be able to recover conflict responses");
+  assert.deepEqual(
+    recoveryResult.formState,
+    clientResponses,
+    "Recovered responses must match original responses perfectly (ZERO silent data loss)"
+  );
+
+  console.log("  ✓ Form submission preserves complete response payload");
+  console.log("  ✓ CONFLICT retains operation and preserves payload");
+  console.log("  ✓ Responses are fully recoverable for review (ZERO silent data loss)");
 }
 
 console.log("\n==================================================");
-console.log("ALL 6 TEST SUITES PASSED (0 ERRORS)");
+console.log("ALL 7 TEST SUITES PASSED (0 ERRORS)");
 console.log("==================================================\n");

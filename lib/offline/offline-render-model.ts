@@ -29,6 +29,15 @@ export function isSnapshotAccessibleInContext(
     return false;
   }
 
+  // 4. Strict match on role if present
+  if (
+    (snapshot as { role?: string }).role &&
+    context.role &&
+    (snapshot as { role?: string }).role!.trim().toUpperCase() !== context.role.trim().toUpperCase()
+  ) {
+    return false;
+  }
+
   return true;
 }
 

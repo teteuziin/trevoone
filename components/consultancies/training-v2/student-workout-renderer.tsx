@@ -285,9 +285,8 @@ function InstructionsAccordion({ instructions }: { instructions: string }) {
         <div className="flex items-center gap-1 text-[11px] text-[var(--foreground-muted)] font-normal">
           <span>{isOpen ? "Ocultar" : "Ver instruções"}</span>
           <ChevronDownIcon
-            className={`w-3.5 h-3.5 transition-transform duration-200 ${
-              isOpen ? "rotate-180" : ""
-            }`}
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+              }`}
           />
         </div>
       </button>
@@ -332,6 +331,9 @@ type StudentWorkoutRendererProps = {
   initialExecution?: WorkoutExecutionSessionDto | null;
   initialHistory?: WorkoutExecutionHistorySessionDto[];
   consultancySlug?: string;
+  userPublicId?: string;
+  consultancyPublicId?: string;
+  role?: string;
 };
 
 export function StudentWorkoutRenderer({
@@ -339,11 +341,49 @@ export function StudentWorkoutRenderer({
   initialExecution = null,
   initialHistory = [],
   consultancySlug,
+  userPublicId: initialUserPublicId,
+  consultancyPublicId: initialConsultancyPublicId,
+  role: initialRole,
 }: StudentWorkoutRendererProps) {
   const [activeSession, setActiveSession] = useState<WorkoutExecutionSessionDto | null>(
     initialExecution || null
   );
   const [completedSessions, setCompletedSessions] = useState<WorkoutExecutionHistorySessionDto[]>([]);
+
+  const [activeContext, setActiveContext] = useState<{
+    userPublicId: string;
+    consultancyPublicId: string;
+    role: string;
+  } | null>(() => {
+    if (initialUserPublicId && initialRole) {
+      return {
+        userPublicId: initialUserPublicId,
+        consultancyPublicId: initialConsultancyPublicId || "",
+        role: initialRole,
+      };
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (!activeContext) {
+      import("@/lib/offline/offline-context").then(({ getValidOfflineActiveContext }) => {
+        getValidOfflineActiveContext().then((ctx) => {
+          if (ctx) {
+            setActiveContext({
+              userPublicId: ctx.userPublicId,
+              consultancyPublicId: ctx.consultancyPublicId,
+              role: ctx.role,
+            });
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [activeContext]);
+
+  const scopedUserPublicId = initialUserPublicId || activeContext?.userPublicId || "";
+  const scopedConsultancyPublicId = initialConsultancyPublicId || activeContext?.consultancyPublicId || "";
+  const scopedRole = initialRole || activeContext?.role || "STUDENT";
 
   const history = useMemo(() => {
     const map = new Map<string, WorkoutExecutionHistorySessionDto>();
@@ -405,7 +445,7 @@ export function StudentWorkoutRenderer({
   };
 
   const isMounted = useSyncExternalStore(
-    () => () => {},
+    () => () => { },
     () => true,
     () => false
   );
@@ -449,18 +489,19 @@ export function StudentWorkoutRenderer({
 
   // Auto-cache active workout snapshot in IndexedDB when rendered
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !scopedUserPublicId || scopedUserPublicId === "student") return;
     import("@/lib/offline/offline-workouts").then(({ saveWorkoutSnapshot }) => {
       saveWorkoutSnapshot({
-        userPublicId: "student",
-        consultancyPublicId: consultancySlug || "consultancy",
+        userPublicId: scopedUserPublicId,
+        consultancyPublicId: scopedConsultancyPublicId || consultancySlug || "consultancy",
+        role: scopedRole,
         assignmentPublicId: workout.assignmentPublicId,
         workout,
         initialExecution,
         initialHistory: completedSessions,
       });
     }).catch(() => {});
-  }, [workout, initialExecution, completedSessions, consultancySlug]);
+  }, [workout, initialExecution, completedSessions, consultancySlug, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
 
   const totalSets = activeSession?.sets?.length || 0;
   const completedSets = activeSession?.sets?.filter((s) => s.completedAt != null).length || 0;
@@ -475,10 +516,17 @@ export function StudentWorkoutRenderer({
     // If device is offline, start locally via IndexedDB
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       try {
+        if (!scopedUserPublicId || scopedUserPublicId === "student") {
+          setStartError("Sessão offline não identificada. Conecte-se para autenticar.");
+          setIsStarting(false);
+          return;
+        }
+
         const { startOrResumeOfflineWorkoutSession } = await import("@/lib/offline/offline-workouts");
         const localSession = await startOrResumeOfflineWorkoutSession({
-          userPublicId: "student",
-          consultancyPublicId: consultancySlug,
+          userPublicId: scopedUserPublicId,
+          consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+          role: scopedRole,
           assignmentPublicId: workout.assignmentPublicId,
           workout,
           existingServerSession: activeSession,
@@ -538,47 +586,50 @@ export function StudentWorkoutRenderer({
     } catch {
       // Offline fallback on connection error
       try {
-        const { startOrResumeOfflineWorkoutSession } = await import("@/lib/offline/offline-workouts");
-        const localSession = await startOrResumeOfflineWorkoutSession({
-          userPublicId: "student",
-          consultancyPublicId: consultancySlug,
-          assignmentPublicId: workout.assignmentPublicId,
-          workout,
-          existingServerSession: activeSession,
-        });
+        if (scopedUserPublicId && scopedUserPublicId !== "student") {
+          const { startOrResumeOfflineWorkoutSession } = await import("@/lib/offline/offline-workouts");
+          const localSession = await startOrResumeOfflineWorkoutSession({
+            userPublicId: scopedUserPublicId,
+            consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+            role: scopedRole,
+            assignmentPublicId: workout.assignmentPublicId,
+            workout,
+            existingServerSession: activeSession,
+          });
 
-        if (localSession) {
-          const adaptedSession: WorkoutExecutionSessionDto = {
-            publicId: localSession.clientExecutionId,
-            consultancyId: 0,
-            studentMembershipId: 0,
-            workoutAssignmentPublicId: workout.assignmentPublicId,
-            workoutVersionPublicId: workout.assignmentPublicId,
-            status: "IN_PROGRESS",
-            startedAt: new Date(localSession.startedAt),
-            completedAt: null,
-            createdAt: new Date(localSession.startedAt),
-            updatedAt: new Date(localSession.updatedAt),
-            sets: localSession.sets.map((s) => ({
-              publicId: s.setPublicId,
-              blockItemId: 0,
-              blockItemPublicId: s.blockItemPublicId,
-              setNumber: s.setNumber,
-              setType: s.setType as WorkoutSetType,
-              prescribedReps: s.prescribedReps ?? null,
-              prescribedRepsMax: s.prescribedRepsMax ?? null,
-              prescribedLoadKg: s.prescribedLoadKg ?? null,
-              prescribedRestSeconds: s.prescribedRestSeconds ?? null,
-              actualReps: s.actualReps ?? null,
-              actualLoadKg: s.actualLoadKg ?? null,
-              completedAt: s.completedAt ? new Date(s.completedAt) : null,
+          if (localSession) {
+            const adaptedSession: WorkoutExecutionSessionDto = {
+              publicId: localSession.clientExecutionId,
+              consultancyId: 0,
+              studentMembershipId: 0,
+              workoutAssignmentPublicId: workout.assignmentPublicId,
+              workoutVersionPublicId: workout.assignmentPublicId,
+              status: "IN_PROGRESS",
+              startedAt: new Date(localSession.startedAt),
+              completedAt: null,
               createdAt: new Date(localSession.startedAt),
               updatedAt: new Date(localSession.updatedAt),
-            })),
-          };
-          setActiveSession(adaptedSession);
-          setManualRest(null);
-          return;
+              sets: localSession.sets.map((s) => ({
+                publicId: s.setPublicId,
+                blockItemId: 0,
+                blockItemPublicId: s.blockItemPublicId,
+                setNumber: s.setNumber,
+                setType: s.setType as WorkoutSetType,
+                prescribedReps: s.prescribedReps ?? null,
+                prescribedRepsMax: s.prescribedRepsMax ?? null,
+                prescribedLoadKg: s.prescribedLoadKg ?? null,
+                prescribedRestSeconds: s.prescribedRestSeconds ?? null,
+                actualReps: s.actualReps ?? null,
+                actualLoadKg: s.actualLoadKg ?? null,
+                completedAt: s.completedAt ? new Date(s.completedAt) : null,
+                createdAt: new Date(localSession.startedAt),
+                updatedAt: new Date(localSession.updatedAt),
+              })),
+            };
+            setActiveSession(adaptedSession);
+            setManualRest(null);
+            return;
+          }
         }
       } catch {
         // Ignore
@@ -600,13 +651,20 @@ export function StudentWorkoutRenderer({
     // If offline, record completion locally in IndexedDB and queue for sync
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       try {
+        if (!scopedUserPublicId || scopedUserPublicId === "student") {
+          setCompleteError("Sessão offline não identificada.");
+          setIsCompleting(false);
+          return;
+        }
+
         const { completeOfflineWorkout } = await import("@/lib/offline/offline-workouts");
         const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
         await completeOfflineWorkout(activeSession.publicId);
         await queuePendingOperation({
-          userPublicId: "student",
-          consultancyPublicId: consultancySlug,
+          userPublicId: scopedUserPublicId,
+          consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
           consultancySlug,
+          role: scopedRole,
           entityType: "WORKOUT_EXECUTION",
           entityId: workout.assignmentPublicId,
           operationType: "COMPLETE_WORKOUT",
@@ -693,43 +751,47 @@ export function StudentWorkoutRenderer({
     } catch {
       // Offline fallback on connection drop during finalization
       try {
-        const { completeOfflineWorkout } = await import("@/lib/offline/offline-workouts");
-        const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
-        await completeOfflineWorkout(activeSession.publicId);
-        await queuePendingOperation({
-          userPublicId: "student",
-          consultancyPublicId: consultancySlug,
-          consultancySlug,
-          entityType: "WORKOUT_EXECUTION",
-          entityId: workout.assignmentPublicId,
-          operationType: "COMPLETE_WORKOUT",
-          payload: {
-            clientExecutionId: activeSession.publicId,
-            assignmentPublicId: workout.assignmentPublicId,
-            startedAt: activeSession.startedAt.toISOString(),
-            completedAt: new Date().toISOString(),
-            sets: activeSession.sets.map((s) => ({
-              setPublicId: s.publicId,
-              actualReps: s.actualReps ?? 0,
-              actualLoadKg: s.actualLoadKg ?? null,
-              completedAt: s.completedAt ? s.completedAt.toISOString() : new Date().toISOString(),
-            })),
-          },
-        });
+        if (scopedUserPublicId && scopedUserPublicId !== "student") {
+          const { completeOfflineWorkout } = await import("@/lib/offline/offline-workouts");
+          const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
+          await completeOfflineWorkout(activeSession.publicId);
+          await queuePendingOperation({
+            userPublicId: scopedUserPublicId,
+            consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+            consultancySlug,
+            role: scopedRole,
+            entityType: "WORKOUT_EXECUTION",
+            entityId: workout.assignmentPublicId,
+            operationType: "COMPLETE_WORKOUT",
+            payload: {
+              clientExecutionId: activeSession.publicId,
+              assignmentPublicId: workout.assignmentPublicId,
+              startedAt: activeSession.startedAt.toISOString(),
+              completedAt: new Date().toISOString(),
+              sets: activeSession.sets.map((s) => ({
+                setPublicId: s.publicId,
+                actualReps: s.actualReps ?? 0,
+                actualLoadKg: s.actualLoadKg ?? null,
+                completedAt: s.completedAt ? s.completedAt.toISOString() : new Date().toISOString(),
+              })),
+            },
+          });
 
-        const completedSession: WorkoutExecutionSessionDto = {
-          ...activeSession,
-          status: "COMPLETED",
-          completedAt: new Date(),
-        };
-        setActiveSession(completedSession);
-        setManualRest(null);
-        setOfflineSyncedNotice(
-          "Treino concluído neste dispositivo. Sincronizaremos quando a conexão voltar."
-        );
-        return;
+          const completedSession: WorkoutExecutionSessionDto = {
+            ...activeSession,
+            status: "COMPLETED",
+            completedAt: new Date(),
+          };
+          setActiveSession(completedSession);
+          setManualRest(null);
+          setOfflineSyncedNotice(
+            "Treino concluído neste dispositivo. Sincronizaremos quando a conexão voltar."
+          );
+          setIsCompleting(false);
+          return;
+        }
       } catch {
-        // Ignore
+        // Fall through
       }
       setCompleteError("Erro de conexão ao finalizar o treino.");
     } finally {
@@ -876,8 +938,8 @@ export function StudentWorkoutRenderer({
               Nível {workout.difficultyLevel === "BEGINNER"
                 ? "Iniciante"
                 : workout.difficultyLevel === "ADVANCED"
-                ? "Avançado"
-                : "Intermediário"}
+                  ? "Avançado"
+                  : "Intermediário"}
             </span>
           )}
         </div>
@@ -1695,11 +1757,11 @@ function StandardSetsPrescription({
   const firstPendingSetNumber =
     activeSession && activeSession.status === "IN_PROGRESS"
       ? sets.find((s) => {
-          const es = activeSession.sets?.find(
-            (e) => (e.blockItemPublicId ?? "") === (item?.publicId ?? "") && e.setNumber === s.setNumber
-          );
-          return es && es.completedAt == null;
-        })?.setNumber
+        const es = activeSession.sets?.find(
+          (e) => (e.blockItemPublicId ?? "") === (item?.publicId ?? "") && e.setNumber === s.setNumber
+        );
+        return es && es.completedAt == null;
+      })?.setNumber
       : null;
 
   return (
@@ -1736,8 +1798,8 @@ function StandardSetsPrescription({
           const executionSet =
             activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
               ? activeSession.sets?.find(
-                  (es) => (es.blockItemPublicId ?? "") === (item?.publicId ?? "") && es.setNumber === s.setNumber
-                )
+                (es) => (es.blockItemPublicId ?? "") === (item?.publicId ?? "") && es.setNumber === s.setNumber
+              )
               : null;
           const isLoading = executionSet && loadingSetPublicId === executionSet.publicId;
           const setErr = executionSet ? setErrors[executionSet.publicId] : null;
@@ -1978,7 +2040,7 @@ function StandardSetsPrescription({
       {/* Rest Timer Panel */}
       {activeRest && (activeRest.blockItemPublicId ?? "") === (item?.publicId ?? "") && (
         <div className="pt-1.5">
-          <RestTimer activeRest={activeRest} onSkip={onSkipRest || (() => {})} />
+          <RestTimer activeRest={activeRest} onSkip={onSkipRest || (() => { })} />
         </div>
       )}
     </div>
@@ -2013,8 +2075,8 @@ function DropSetPrescription({
 
   const mainExecutionSet = activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
     ? activeSession.sets?.find(
-        (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === mainSet.setNumber
-      )
+      (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === mainSet.setNumber
+    )
     : null;
   const mainErr = mainExecutionSet ? setErrors[mainExecutionSet.publicId] : null;
 
@@ -2055,8 +2117,8 @@ function DropSetPrescription({
             {dropStages.map((stage, idx) => {
               const stageExecutionSet = activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
                 ? activeSession.sets?.find(
-                    (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === stage.setNumber
-                  )
+                  (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === stage.setNumber
+                )
                 : null;
               const stageErr = stageExecutionSet ? setErrors[stageExecutionSet.publicId] : null;
 
@@ -2102,7 +2164,7 @@ function DropSetPrescription({
       {/* Rest Timer Panel */}
       {activeRest && (activeRest.blockItemPublicId ?? "") === (item.publicId ?? "") && (
         <div className="pt-1">
-          <RestTimer activeRest={activeRest} onSkip={onSkipRest || (() => {})} />
+          <RestTimer activeRest={activeRest} onSkip={onSkipRest || (() => { })} />
         </div>
       )}
     </div>
@@ -2139,8 +2201,8 @@ function RestPausePrescription({
 
   const mainExecutionSet = activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
     ? activeSession.sets?.find(
-        (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === mainSet.setNumber
-      )
+      (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === mainSet.setNumber
+    )
     : null;
   const mainErr = mainExecutionSet ? setErrors[mainExecutionSet.publicId] : null;
 
@@ -2186,8 +2248,8 @@ function RestPausePrescription({
             {miniSets.map((mini, idx) => {
               const miniExecutionSet = activeSession && (activeSession.status === "IN_PROGRESS" || activeSession.status === "COMPLETED")
                 ? activeSession.sets?.find(
-                    (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === mini.setNumber
-                  )
+                  (es) => (es.blockItemPublicId ?? "") === (item.publicId ?? "") && es.setNumber === mini.setNumber
+                )
                 : null;
               const miniErr = miniExecutionSet ? setErrors[miniExecutionSet.publicId] : null;
 
@@ -2233,7 +2295,7 @@ function RestPausePrescription({
       {/* Rest Timer Panel */}
       {activeRest && (activeRest.blockItemPublicId ?? "") === (item.publicId ?? "") && (
         <div className="pt-1">
-          <RestTimer activeRest={activeRest} onSkip={onSkipRest || (() => {})} />
+          <RestTimer activeRest={activeRest} onSkip={onSkipRest || (() => { })} />
         </div>
       )}
     </div>
@@ -2480,9 +2542,8 @@ function HistorySessionCard({
         >
           <span>{isExpanded ? "Ocultar detalhes" : "Ver detalhes"}</span>
           <ChevronDownIcon
-            className={`w-3.5 h-3.5 transition-transform duration-200 ${
-              isExpanded ? "rotate-180" : ""
-            }`}
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""
+              }`}
           />
         </button>
       </div>

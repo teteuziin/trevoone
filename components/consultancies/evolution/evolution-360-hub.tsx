@@ -34,6 +34,9 @@ interface Evolution360HubProps {
     requests?: PhotoEvaluationRequestDto[];
     comparisonData?: PhotoEvaluationComparisonDto | null;
   } | null;
+  userPublicId?: string;
+  consultancyPublicId?: string;
+  role?: string;
 }
 
 export function Evolution360Hub({
@@ -44,8 +47,60 @@ export function Evolution360Hub({
   isPersonal = false,
   studentPublicId,
   rawPhotoData,
+  userPublicId: initialUserPublicId,
+  consultancyPublicId: initialConsultancyPublicId,
+  role: initialRole,
 }: Evolution360HubProps) {
   const [activeTab, setActiveTab] = useState<"timeline" | "comparar" | "graficos" | "fotos">("timeline");
+
+  const [activeContext, setActiveContext] = useState<{
+    userPublicId: string;
+    consultancyPublicId: string;
+    role: string;
+  } | null>(() => {
+    if (initialUserPublicId) {
+      return {
+        userPublicId: initialUserPublicId,
+        consultancyPublicId: initialConsultancyPublicId || "",
+        role: initialRole || "STUDENT",
+      };
+    }
+    return null;
+  });
+
+  React.useEffect(() => {
+    if (!activeContext) {
+      import("@/lib/offline/offline-context").then(({ getValidOfflineActiveContext }) => {
+        getValidOfflineActiveContext().then((ctx) => {
+          if (ctx) {
+            setActiveContext({
+              userPublicId: ctx.userPublicId,
+              consultancyPublicId: ctx.consultancyPublicId,
+              role: ctx.role,
+            });
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [activeContext]);
+
+  const scopedUserPublicId = initialUserPublicId || activeContext?.userPublicId || "";
+  const scopedConsultancyPublicId = initialConsultancyPublicId || activeContext?.consultancyPublicId || "";
+  const scopedRole = initialRole || activeContext?.role || "STUDENT";
+
+  // Auto-cache scalar Evolution 360 metrics when rendered by student (offline storage)
+  React.useEffect(() => {
+    if (!isStudent || typeof window === "undefined" || !scopedUserPublicId || scopedUserPublicId === "student") return;
+    import("@/lib/offline/offline-evolution").then(({ saveEvolutionSnapshot }) => {
+      saveEvolutionSnapshot({
+        userPublicId: scopedUserPublicId,
+        consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+        role: scopedRole,
+        hubData,
+        comparisonData: initialComparisonData,
+      }).catch(() => {});
+    }).catch(() => {});
+  }, [isStudent, hubData, initialComparisonData, consultancySlug, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
 
   const { summary, milestones, student, activePendingPhotoRequest, chartSeries } = hubData;
 

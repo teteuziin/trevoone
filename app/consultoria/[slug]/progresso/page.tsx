@@ -75,6 +75,8 @@ export default async function StudentProgressPage({ params }: PageProps) {
       roles={access.context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={access.context.consultancyPublicId}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* Page Header */}
@@ -91,6 +93,9 @@ export default async function StudentProgressPage({ params }: PageProps) {
           hubData={hubData}
           initialComparisonData={initialComparisonData}
           isStudent={true}
+          userPublicId={session.userPublicId}
+          consultancyPublicId={access.context.consultancyPublicId}
+          role="STUDENT"
           rawPhotoData={{
             activeRequest: photoData?.activeRequest || null,
             history: photoData?.history || [],

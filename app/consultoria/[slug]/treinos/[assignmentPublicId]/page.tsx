@@ -55,6 +55,8 @@ export default async function StudentWorkoutDetailPage({ params }: PageProps) {
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={context.consultancyPublicId}
     >
       <div className="space-y-4 max-w-3xl mx-auto pb-12">
         {/* Back Link */}
@@ -73,6 +75,9 @@ export default async function StudentWorkoutDetailPage({ params }: PageProps) {
           initialExecution={initialExecution}
           initialHistory={executionHistory}
           consultancySlug={slug}
+          userPublicId={session.userPublicId}
+          consultancyPublicId={context.consultancyPublicId}
+          role="STUDENT"
         />
       </div>
     </ConsultancyAppShell>

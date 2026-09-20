@@ -73,6 +73,8 @@ export default async function FormulariosPage({ params }: FormulariosPageProps) 
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={context.consultancyPublicId}
     >
       <CustomFormsHub
         consultancySlug={slug}
@@ -82,6 +84,9 @@ export default async function FormulariosPage({ params }: FormulariosPageProps) 
         initialTemplates={templates}
         initialRequests={requests}
         studentOptions={studentOptions}
+        userPublicId={session.userPublicId}
+        consultancyPublicId={context.consultancyPublicId}
+        role={isStudent ? "STUDENT" : isProfessional ? "PERSONAL" : isConsultancyAdmin ? "CONSULTANCY_ADMIN" : "STUDENT"}
       />
     </ConsultancyAppShell>
   );

@@ -80,6 +80,8 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
       roles={access.context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={access.context.consultancyPublicId}
     >
       <div className="w-full max-w-4xl mx-auto space-y-4">
         {/* Renderização exclusiva Nutrition V2 */}
@@ -90,6 +92,9 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
             consultancyLogoUrl={access.context.consultancyLogoUrl}
             studentName={session.fullName}
             assignedPlan={v2Auth.activeAssignment}
+            userPublicId={session.userPublicId}
+            consultancyPublicId={access.context.consultancyPublicId}
+            role="STUDENT"
           />
         ) : (
           <div className="space-y-6">

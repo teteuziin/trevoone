@@ -14,6 +14,9 @@ interface Props {
   consultancyLogoUrl?: string | null;
   studentName?: string;
   assignedPlan: StudentAssignedPlanTreeDto;
+  userPublicId?: string;
+  consultancyPublicId?: string;
+  role?: string;
 }
 
 export function StudentNutritionV2({
@@ -22,7 +25,45 @@ export function StudentNutritionV2({
   consultancyLogoUrl,
   studentName = "Aluno",
   assignedPlan,
+  userPublicId: initialUserPublicId,
+  consultancyPublicId: initialConsultancyPublicId,
+  role: initialRole,
 }: Props) {
+  const [activeContext, setActiveContext] = React.useState<{
+    userPublicId: string;
+    consultancyPublicId: string;
+    role: string;
+  } | null>(() => {
+    if (initialUserPublicId) {
+      return {
+        userPublicId: initialUserPublicId,
+        consultancyPublicId: initialConsultancyPublicId || "",
+        role: initialRole || "STUDENT",
+      };
+    }
+    return null;
+  });
+
+  React.useEffect(() => {
+    if (!activeContext) {
+      import("@/lib/offline/offline-context").then(({ getValidOfflineActiveContext }) => {
+        getValidOfflineActiveContext().then((ctx) => {
+          if (ctx) {
+            setActiveContext({
+              userPublicId: ctx.userPublicId,
+              consultancyPublicId: ctx.consultancyPublicId,
+              role: ctx.role,
+            });
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [activeContext]);
+
+  const scopedUserPublicId = initialUserPublicId || activeContext?.userPublicId || "";
+  const scopedConsultancyPublicId = initialConsultancyPublicId || activeContext?.consultancyPublicId || "";
+  const scopedRole = initialRole || activeContext?.role || "STUDENT";
+
   // Pure presentation transformation (zero macro recalculation, zero logic tampering)
   const plan: PresentedNutritionPlan = React.useMemo(() => {
     return presentNutritionPlan(assignedPlan, {
@@ -34,12 +75,13 @@ export function StudentNutritionV2({
 
   // Offline synchronization to existing IndexedDB store (trevo_offline_v3)
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !scopedUserPublicId || scopedUserPublicId === "student") return;
     import("@/lib/offline/offline-nutrition")
       .then(({ saveNutritionSnapshot }) => {
         saveNutritionSnapshot({
-          userPublicId: "student",
-          consultancyPublicId: consultancySlug,
+          userPublicId: scopedUserPublicId,
+          consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+          role: scopedRole,
           planPublicId: assignedPlan.version.publicId || "active_plan",
           planTitle: assignedPlan.version.title,
           planSubtitle: assignedPlan.version.subtitle,
@@ -47,7 +89,7 @@ export function StudentNutritionV2({
         });
       })
       .catch(() => {});
-  }, [assignedPlan, consultancySlug]);
+  }, [assignedPlan, consultancySlug, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
 
   const pdfDownloadUrl = `/api/consultancies/${consultancySlug}/nutricao/pdf?download=true`;
 

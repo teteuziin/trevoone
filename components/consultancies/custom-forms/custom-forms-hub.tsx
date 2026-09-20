@@ -48,6 +48,19 @@ export const STATUS_LABELS: Record<CustomFormRequestDto["status"], string> = {
   APPROVED: "Aprovado",
 };
 
+interface CustomFormsHubProps {
+  consultancySlug: string;
+  isConsultancyAdmin: boolean;
+  isProfessional: boolean;
+  isStudent: boolean;
+  initialTemplates: CustomFormTemplateDto[];
+  initialRequests: CustomFormRequestDto[];
+  studentOptions: StudentMemberOption[];
+  userPublicId?: string;
+  consultancyPublicId?: string;
+  role?: string;
+}
+
 export function CustomFormsHub({
   consultancySlug,
   isConsultancyAdmin,
@@ -56,7 +69,65 @@ export function CustomFormsHub({
   initialTemplates,
   initialRequests,
   studentOptions,
+  userPublicId: initialUserPublicId,
+  consultancyPublicId: initialConsultancyPublicId,
+  role: initialRole,
 }: CustomFormsHubProps) {
+  const [activeContext, setActiveContext] = useState<{
+    userPublicId: string;
+    consultancyPublicId: string;
+    role: string;
+  } | null>(() => {
+    if (initialUserPublicId) {
+      return {
+        userPublicId: initialUserPublicId,
+        consultancyPublicId: initialConsultancyPublicId || "",
+        role: initialRole || (isStudent ? "STUDENT" : isProfessional ? "PERSONAL" : "CONSULTANCY_ADMIN"),
+      };
+    }
+    return null;
+  });
+
+  React.useEffect(() => {
+    if (!activeContext) {
+      import("@/lib/offline/offline-context").then(({ getValidOfflineActiveContext }) => {
+        getValidOfflineActiveContext().then((ctx) => {
+          if (ctx) {
+            setActiveContext({
+              userPublicId: ctx.userPublicId,
+              consultancyPublicId: ctx.consultancyPublicId,
+              role: ctx.role,
+            });
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [activeContext]);
+
+  const scopedUserPublicId = initialUserPublicId || activeContext?.userPublicId || "";
+  const scopedConsultancyPublicId = initialConsultancyPublicId || activeContext?.consultancyPublicId || "";
+  const scopedRole = initialRole || activeContext?.role || (isStudent ? "STUDENT" : isProfessional ? "PERSONAL" : "CONSULTANCY_ADMIN");
+
+  // Auto-cache form templates into IndexedDB (trevo_offline_v3)
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !scopedUserPublicId || scopedUserPublicId === "student") return;
+    if (!initialTemplates || initialTemplates.length === 0) return;
+    import("@/lib/offline/offline-forms").then(({ saveFormSnapshot }) => {
+      for (const t of initialTemplates) {
+        saveFormSnapshot({
+          userPublicId: scopedUserPublicId,
+          consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+          role: scopedRole,
+          templatePublicId: t.publicId,
+          title: t.title,
+          description: t.description || null,
+          fields: t.fields,
+          isOnboardingRequired: t.isOnboardingRequired,
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+  }, [initialTemplates, consultancySlug, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
+
   const [activeTab, setActiveTab] = useState<"requests" | "templates">(
     isStudent ? "requests" : "requests"
   );
@@ -189,11 +260,18 @@ export function CustomFormsHub({
 
     let base = req.responses || {};
     try {
-      const { getFormDraft } = await import("@/lib/offline/offline-forms");
-      const draft = await getFormDraft("student", consultancySlug, req.publicId);
-      if (draft && draft.responses && Object.keys(draft.responses).length > 0) {
-        base = { ...base, ...draft.responses };
-        setDraftLoadedNotice(true);
+      if (scopedUserPublicId && scopedUserPublicId !== "student") {
+        const { getFormDraft } = await import("@/lib/offline/offline-forms");
+        const draft = await getFormDraft(
+          scopedUserPublicId,
+          scopedConsultancyPublicId || consultancySlug,
+          req.publicId,
+          scopedRole
+        );
+        if (draft && draft.responses && Object.keys(draft.responses).length > 0) {
+          base = { ...base, ...draft.responses };
+          setDraftLoadedNotice(true);
+        }
       }
     } catch {
       // Ignore
@@ -204,12 +282,13 @@ export function CustomFormsHub({
   const handleUpdateResponse = (fieldId: string, val: unknown) => {
     setFormResponses((prev) => {
       const updated = { ...prev, [fieldId]: val };
-      if (selectedRequestToAnswer) {
+      if (selectedRequestToAnswer && scopedUserPublicId && scopedUserPublicId !== "student") {
         import("@/lib/offline/offline-forms")
           .then(({ saveFormDraft }) => {
             saveFormDraft({
-              userPublicId: "student",
-              consultancyPublicId: consultancySlug,
+              userPublicId: scopedUserPublicId,
+              consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+              role: scopedRole,
               requestPublicId: selectedRequestToAnswer.publicId,
               templatePublicId: selectedRequestToAnswer.templatePublicId,
               responses: updated,
@@ -242,13 +321,20 @@ export function CustomFormsHub({
     // If offline, queue in pending_operations and clear draft
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       try {
+        if (!scopedUserPublicId || scopedUserPublicId === "student") {
+          setAnswerError("Sessão offline não identificada. Conecte-se para autenticar.");
+          setIsSubmittingAnswers(false);
+          return;
+        }
+
         const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
         const { clearFormDraft } = await import("@/lib/offline/offline-forms");
 
         await queuePendingOperation({
-          userPublicId: "student",
-          consultancyPublicId: consultancySlug,
+          userPublicId: scopedUserPublicId,
+          consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
           consultancySlug,
+          role: scopedRole,
           entityType: "FORM_SUBMISSION",
           entityId: selectedRequestToAnswer.publicId,
           operationType: "SUBMIT_FORM",
@@ -258,7 +344,12 @@ export function CustomFormsHub({
           },
         });
 
-        await clearFormDraft("student", consultancySlug, selectedRequestToAnswer.publicId);
+        await clearFormDraft(
+          scopedUserPublicId,
+          scopedConsultancyPublicId || consultancySlug,
+          selectedRequestToAnswer.publicId,
+          scopedRole
+        );
 
         setRequests(
           requests.map((r) =>
@@ -283,14 +374,25 @@ export function CustomFormsHub({
       );
 
       if (!res.success) {
+        if (res.conflict) {
+          setAnswerError("Este formulário já foi respondido com dados diferentes (Conflito detectado).");
+          return;
+        }
         setAnswerError(res.error || "Erro ao enviar respostas.");
         return;
       }
 
       // Clear draft on successful submission
       try {
-        const { clearFormDraft } = await import("@/lib/offline/offline-forms");
-        await clearFormDraft("student", consultancySlug, selectedRequestToAnswer.publicId);
+        if (scopedUserPublicId && scopedUserPublicId !== "student") {
+          const { clearFormDraft } = await import("@/lib/offline/offline-forms");
+          await clearFormDraft(
+            scopedUserPublicId,
+            scopedConsultancyPublicId || consultancySlug,
+            selectedRequestToAnswer.publicId,
+            scopedRole
+          );
+        }
       } catch {
         // Ignore
       }
@@ -306,33 +408,41 @@ export function CustomFormsHub({
     } catch {
       // Offline fallback on connection drop
       try {
-        const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
-        const { clearFormDraft } = await import("@/lib/offline/offline-forms");
+        if (scopedUserPublicId && scopedUserPublicId !== "student") {
+          const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
+          const { clearFormDraft } = await import("@/lib/offline/offline-forms");
 
-        await queuePendingOperation({
-          userPublicId: "student",
-          consultancyPublicId: consultancySlug,
-          consultancySlug,
-          entityType: "FORM_SUBMISSION",
-          entityId: selectedRequestToAnswer.publicId,
-          operationType: "SUBMIT_FORM",
-          payload: {
-            requestPublicId: selectedRequestToAnswer.publicId,
-            responses: formResponses,
-          },
-        });
+          await queuePendingOperation({
+            userPublicId: scopedUserPublicId,
+            consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+            consultancySlug,
+            role: scopedRole,
+            entityType: "FORM_SUBMISSION",
+            entityId: selectedRequestToAnswer.publicId,
+            operationType: "SUBMIT_FORM",
+            payload: {
+              requestPublicId: selectedRequestToAnswer.publicId,
+              responses: formResponses,
+            },
+          });
 
-        await clearFormDraft("student", consultancySlug, selectedRequestToAnswer.publicId);
+          await clearFormDraft(
+            scopedUserPublicId,
+            scopedConsultancyPublicId || consultancySlug,
+            selectedRequestToAnswer.publicId,
+            scopedRole
+          );
 
-        setRequests(
-          requests.map((r) =>
-            r.publicId === selectedRequestToAnswer.publicId
-              ? { ...r, status: "SUBMITTED", responses: formResponses, submittedAt: new Date().toISOString() }
-              : r
-          )
-        );
-        setSelectedRequestToAnswer(null);
-        return;
+          setRequests(
+            requests.map((r) =>
+              r.publicId === selectedRequestToAnswer.publicId
+                ? { ...r, status: "SUBMITTED", responses: formResponses, submittedAt: new Date().toISOString() }
+                : r
+            )
+          );
+          setSelectedRequestToAnswer(null);
+          return;
+        }
       } catch {
         // Continue
       }

@@ -914,10 +914,12 @@ export async function submitPhotoEvaluation(params: {
         r.status,
         r.reviewed_at,
         r.requested_changes_poses_json,
-        u_student.full_name AS student_name
+        u_student.full_name AS student_name,
+        cm.public_id AS student_membership_public_id
        FROM student_photo_evaluation_requests r
        JOIN consultancies c ON c.id = r.consultancy_id
        JOIN users u_student ON u_student.id = r.student_user_id
+       JOIN consultancy_members cm ON cm.id = r.student_membership_id
        WHERE r.public_id = ? AND c.slug = ?
        LIMIT 1;`,
       [requestPublicId, consultancySlug]
@@ -934,6 +936,9 @@ export async function submitPhotoEvaluation(params: {
     const studentUserId = Number(req.student_user_id);
     const requestedByUserId = Number(req.requested_by_user_id);
     const status = String(req.status);
+    const studentMembershipPublicId = req.student_membership_public_id
+      ? String(req.student_membership_public_id).trim()
+      : null;
 
     if (studentUserId !== userId) {
       return { success: false, error: "Não autorizado." };
@@ -1026,13 +1031,17 @@ export async function submitPhotoEvaluation(params: {
 
     // Persist notification inside transaction (User Instruction 3)
     try {
+      const deepLink = studentMembershipPublicId
+        ? `/consultoria/${consultancySlug}/progresso/alunos/${studentMembershipPublicId}?tab=fotos`
+        : `/consultoria/${consultancySlug}/progresso/alunos`;
+
       const notif = await createNotificationInTransaction(connection, {
         userId: requestedByUserId,
         title: "Fotos de avaliação enviadas",
         body: `${req.student_name} enviou as 4 fotos para avaliação física.`,
         eventType: "PHOTO_EVALUATION_SUBMITTED",
         priority: "NORMAL",
-        deepLink: `/consultoria/${consultancySlug}/progresso/alunos/${req.student_membership_id}?tab=fotos`,
+        deepLink,
         dedupeKey: `photo-eval:${requestPublicId}:submitted:${Date.now()}:${requestedByUserId}`,
         sourceType: "photo_evaluation_request",
         sourcePublicId: requestPublicId,

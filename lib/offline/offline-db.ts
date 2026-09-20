@@ -115,14 +115,37 @@ export function openOfflineDatabase(): Promise<IDBDatabase | null> {
 
         // 1. workout_snapshots: [userPublicId, consultancyPublicId, role, assignmentPublicId]
         if (db.objectStoreNames.contains(WORKOUT_SNAPSHOT_STORE)) {
-          db.deleteObjectStore(WORKOUT_SNAPSHOT_STORE);
+          if (event.oldVersion < 4) {
+            const oldStore = tx!.objectStore(WORKOUT_SNAPSHOT_STORE);
+            const getReq = oldStore.getAll();
+            getReq.onsuccess = () => {
+              try {
+                db.deleteObjectStore(WORKOUT_SNAPSHOT_STORE);
+                const sWs = db.createObjectStore(WORKOUT_SNAPSHOT_STORE, {
+                  keyPath: ["userPublicId", "consultancyPublicId", "role", "assignmentPublicId"],
+                });
+                sWs.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
+                  unique: false,
+                });
+                for (const rec of (getReq.result || [])) {
+                  if (rec && rec.userPublicId && rec.userPublicId !== "student" && rec.consultancyPublicId && rec.assignmentPublicId) {
+                    rec.role = rec.role || "STUDENT";
+                    sWs.put(rec);
+                  }
+                }
+              } catch {
+                // Safeguard against browser-specific versionchange state issues
+              }
+            };
+          }
+        } else {
+          const sWs = db.createObjectStore(WORKOUT_SNAPSHOT_STORE, {
+            keyPath: ["userPublicId", "consultancyPublicId", "role", "assignmentPublicId"],
+          });
+          sWs.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
+            unique: false,
+          });
         }
-        const sWs = db.createObjectStore(WORKOUT_SNAPSHOT_STORE, {
-          keyPath: ["userPublicId", "consultancyPublicId", "role", "assignmentPublicId"],
-        });
-        sWs.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
-          unique: false,
-        });
 
         // 2. workout_sessions: clientExecutionId (UUID)
         let sSess: IDBObjectStore;
@@ -170,37 +193,107 @@ export function openOfflineDatabase(): Promise<IDBDatabase | null> {
 
         // 4. nutrition_snapshots: [userPublicId, consultancyPublicId, role]
         if (db.objectStoreNames.contains(NUTRITION_SNAPSHOT_STORE)) {
-          db.deleteObjectStore(NUTRITION_SNAPSHOT_STORE);
+          if (event.oldVersion < 4) {
+            const oldStore = tx!.objectStore(NUTRITION_SNAPSHOT_STORE);
+            const getReq = oldStore.getAll();
+            getReq.onsuccess = () => {
+              try {
+                db.deleteObjectStore(NUTRITION_SNAPSHOT_STORE);
+                const sNut = db.createObjectStore(NUTRITION_SNAPSHOT_STORE, {
+                  keyPath: ["userPublicId", "consultancyPublicId", "role"],
+                });
+                sNut.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
+                  unique: false,
+                });
+                sNut.createIndex("by_user", "userPublicId", { unique: false });
+                for (const rec of (getReq.result || [])) {
+                  if (rec && rec.userPublicId && rec.userPublicId !== "student" && rec.consultancyPublicId) {
+                    rec.role = rec.role || "STUDENT";
+                    sNut.put(rec);
+                  }
+                }
+              } catch {
+                // Safeguard
+              }
+            };
+          }
+        } else {
+          const sNut = db.createObjectStore(NUTRITION_SNAPSHOT_STORE, {
+            keyPath: ["userPublicId", "consultancyPublicId", "role"],
+          });
+          sNut.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
+            unique: false,
+          });
+          sNut.createIndex("by_user", "userPublicId", { unique: false });
         }
-        const sNut = db.createObjectStore(NUTRITION_SNAPSHOT_STORE, {
-          keyPath: ["userPublicId", "consultancyPublicId", "role"],
-        });
-        sNut.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
-          unique: false,
-        });
-        sNut.createIndex("by_user", "userPublicId", { unique: false });
 
         // 5. form_snapshots: [userPublicId, consultancyPublicId, role, templatePublicId]
         if (db.objectStoreNames.contains(FORM_SNAPSHOT_STORE)) {
-          db.deleteObjectStore(FORM_SNAPSHOT_STORE);
+          if (event.oldVersion < 4) {
+            const oldStore = tx!.objectStore(FORM_SNAPSHOT_STORE);
+            const getReq = oldStore.getAll();
+            getReq.onsuccess = () => {
+              try {
+                db.deleteObjectStore(FORM_SNAPSHOT_STORE);
+                const sForm = db.createObjectStore(FORM_SNAPSHOT_STORE, {
+                  keyPath: ["userPublicId", "consultancyPublicId", "role", "templatePublicId"],
+                });
+                sForm.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
+                  unique: false,
+                });
+                for (const rec of (getReq.result || [])) {
+                  if (rec && rec.userPublicId && rec.userPublicId !== "student" && rec.consultancyPublicId && rec.templatePublicId) {
+                    rec.role = rec.role || "STUDENT";
+                    sForm.put(rec);
+                  }
+                }
+              } catch {
+                // Safeguard
+              }
+            };
+          }
+        } else {
+          const sForm = db.createObjectStore(FORM_SNAPSHOT_STORE, {
+            keyPath: ["userPublicId", "consultancyPublicId", "role", "templatePublicId"],
+          });
+          sForm.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
+            unique: false,
+          });
         }
-        const sForm = db.createObjectStore(FORM_SNAPSHOT_STORE, {
-          keyPath: ["userPublicId", "consultancyPublicId", "role", "templatePublicId"],
-        });
-        sForm.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
-          unique: false,
-        });
 
         // 6. form_drafts: [userPublicId, consultancyPublicId, role, requestPublicId]
         if (db.objectStoreNames.contains(FORM_DRAFT_STORE)) {
-          db.deleteObjectStore(FORM_DRAFT_STORE);
+          if (event.oldVersion < 4) {
+            const oldStore = tx!.objectStore(FORM_DRAFT_STORE);
+            const getReq = oldStore.getAll();
+            getReq.onsuccess = () => {
+              try {
+                db.deleteObjectStore(FORM_DRAFT_STORE);
+                const sDraft = db.createObjectStore(FORM_DRAFT_STORE, {
+                  keyPath: ["userPublicId", "consultancyPublicId", "role", "requestPublicId"],
+                });
+                sDraft.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
+                  unique: false,
+                });
+                for (const rec of (getReq.result || [])) {
+                  if (rec && rec.userPublicId && rec.userPublicId !== "student" && rec.consultancyPublicId && rec.requestPublicId) {
+                    rec.role = rec.role || "STUDENT";
+                    sDraft.put(rec);
+                  }
+                }
+              } catch {
+                // Safeguard
+              }
+            };
+          }
+        } else {
+          const sDraft = db.createObjectStore(FORM_DRAFT_STORE, {
+            keyPath: ["userPublicId", "consultancyPublicId", "role", "requestPublicId"],
+          });
+          sDraft.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
+            unique: false,
+          });
         }
-        const sDraft = db.createObjectStore(FORM_DRAFT_STORE, {
-          keyPath: ["userPublicId", "consultancyPublicId", "role", "requestPublicId"],
-        });
-        sDraft.createIndex("by_scope", ["userPublicId", "consultancyPublicId", "role"], {
-          unique: false,
-        });
 
         // 7. evolution_snapshots: [userPublicId, consultancyPublicId, role]
         if (!db.objectStoreNames.contains(EVOLUTION_SNAPSHOT_STORE)) {

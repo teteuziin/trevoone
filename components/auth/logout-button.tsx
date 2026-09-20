@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { performPushCleanup } from "@/components/notifications/notification-bell";
-import { clearAllAuthenticatedOfflineData } from "@/lib/offline/offline-storage";
+import { clearAllAuthenticatedOfflineData } from "@/lib/offline/offline-db";
 
 export interface LogoutButtonProps {
   logoutAction: () => Promise<void> | void;
@@ -170,7 +170,7 @@ export function LogoutButton({
                 Você realizou registros enquanto esteve sem conexão (como treinos ou formulários) que ainda não foram confirmados pelo servidor.
               </p>
               <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400">
-                Por motivos de segurança e privacidade multiusuário, todos os dados offline deste dispositivo serão excluídos ao sair.
+                Por motivos de segurança e privacidade multiusuário, todos os dados offline deste dispositivo serão excluídos ao sair. Suas alterações não sincronizadas serão perdidas definitivamente.
               </div>
 
               {syncErrorMessage && (

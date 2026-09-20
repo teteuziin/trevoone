@@ -11,11 +11,13 @@ export function NetworkStatusToast() {
   const [syncState, setSyncState] = useState<{
     isSyncing: boolean;
     pendingCount: number;
+    conflictCount: number;
     lastSyncAt: string | null;
     errorCount: number;
   }>({
     isSyncing: false,
     pendingCount: 0,
+    conflictCount: 0,
     lastSyncAt: null,
     errorCount: 0,
   });
@@ -23,16 +25,19 @@ export function NetworkStatusToast() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    let restoredTimer: ReturnType<typeof setTimeout> | null = null;
+
     const handleOnline = () => {
       setIsOffline(false);
       setShowRestored(true);
+
       // Auto-trigger sync on reconnection
       runOfflineSync("").catch(() => {});
 
-      const timer = setTimeout(() => {
+      if (restoredTimer) clearTimeout(restoredTimer);
+      restoredTimer = setTimeout(() => {
         setShowRestored(false);
-      }, 4000);
-      return () => clearTimeout(timer);
+      }, 2500);
     };
 
     const handleOffline = () => {
@@ -50,6 +55,7 @@ export function NetworkStatusToast() {
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      if (restoredTimer) clearTimeout(restoredTimer);
       unsubscribe();
     };
   }, []);
@@ -58,69 +64,109 @@ export function NetworkStatusToast() {
     await runOfflineSync("");
   };
 
-  // Determine what to display
+  // 1. OFFLINE
   if (isOffline) {
     return (
-      <div
+      <aside
         role="status"
         aria-live="polite"
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl shadow-lg border text-xs font-semibold flex items-center gap-2.5 transition-all duration-300 animate-in fade-in slide-in-from-top-3 max-w-[92vw] sm:max-w-md bg-amber-500/95 text-slate-950 border-amber-600/30 backdrop-blur-md"
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-3.5 py-1.5 rounded-full shadow-md border text-xs font-medium flex items-center gap-2 transition-all duration-200 animate-in fade-in slide-in-from-top-2 bg-[var(--surface)]/95 text-[var(--text-secondary)] border-[var(--border-default)] backdrop-blur-md"
       >
-        <span className="w-2 h-2 rounded-full bg-amber-900 animate-ping shrink-0" />
-        <span>Você está offline. Treinos e formulários continuam disponíveis.</span>
-      </div>
+        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+        <span>Modo offline</span>
+      </aside>
     );
   }
 
+  // 2. SINCRONIZANDO
   if (syncState.isSyncing) {
     return (
-      <div
+      <aside
         role="status"
         aria-live="polite"
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl shadow-lg border text-xs font-semibold flex items-center gap-2.5 transition-all duration-300 animate-in fade-in slide-in-from-top-3 max-w-[92vw] sm:max-w-md bg-emerald-600/95 text-white border-emerald-500/30 backdrop-blur-md"
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-3.5 py-1.5 rounded-full shadow-md border text-xs font-medium flex items-center gap-2 transition-all duration-200 animate-in fade-in slide-in-from-top-2 bg-[var(--surface)]/95 text-[var(--text-primary)] border-[var(--border-default)] backdrop-blur-md"
       >
-        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
-        <span>Sincronizando alterações...</span>
-      </div>
+        <span className="w-3 h-3 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin shrink-0" />
+        <span>Sincronizando...</span>
+      </aside>
     );
   }
 
-  if (syncState.pendingCount > 0) {
+  // 3. CONFLITO
+  if (syncState.conflictCount > 0) {
     return (
-      <div
+      <aside
         role="status"
         aria-live="polite"
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl shadow-lg border text-xs font-semibold flex items-center justify-between gap-3 transition-all duration-300 animate-in fade-in slide-in-from-top-3 max-w-[92vw] sm:max-w-md bg-emerald-600/95 text-white border-emerald-500/30 backdrop-blur-md"
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-3.5 py-1.5 rounded-full shadow-md border text-xs font-medium flex items-center gap-2.5 transition-all duration-200 animate-in fade-in slide-in-from-top-2 bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30 backdrop-blur-md"
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-2 h-2 rounded-full bg-white animate-pulse shrink-0" />
-          <span className="truncate">
+        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+        <span>Precisamos revisar uma alteração</span>
+      </aside>
+    );
+  }
+
+  // 4. FALHA
+  if (syncState.errorCount > 0 && syncState.pendingCount > 0) {
+    return (
+      <aside
+        role="status"
+        aria-live="polite"
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-3.5 py-1.5 rounded-full shadow-md border text-xs font-medium flex items-center justify-between gap-3 transition-all duration-200 animate-in fade-in slide-in-from-top-2 bg-red-500/10 text-red-800 dark:text-red-300 border-red-500/30 backdrop-blur-md"
+      >
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+          <span>Não foi possível sincronizar</span>
+        </div>
+        <button
+          type="button"
+          onClick={handleManualSync}
+          className="font-semibold underline hover:opacity-80 cursor-pointer text-xs shrink-0"
+        >
+          Tentar novamente
+        </button>
+      </aside>
+    );
+  }
+
+  // 5. PENDENTE
+  if (syncState.pendingCount > 0) {
+    return (
+      <aside
+        role="status"
+        aria-live="polite"
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-3.5 py-1.5 rounded-full shadow-md border text-xs font-medium flex items-center justify-between gap-3 transition-all duration-200 animate-in fade-in slide-in-from-top-2 bg-[var(--surface)]/95 text-[var(--text-primary)] border-[var(--border-default)] backdrop-blur-md"
+      >
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          <span>
             {syncState.pendingCount === 1
-              ? "1 alteração aguardando sincronização"
-              : `${syncState.pendingCount} alterações aguardando sincronização`}
+              ? "1 alteração pendente"
+              : `${syncState.pendingCount} alterações pendentes`}
           </span>
         </div>
         <button
           type="button"
           onClick={handleManualSync}
-          className="underline font-bold hover:text-emerald-100 cursor-pointer text-xs shrink-0"
+          className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer text-xs shrink-0"
         >
-          Sincronizar agora
+          Sincronizar
         </button>
-      </div>
+      </aside>
     );
   }
 
+  // 6. RESTAURADO / ONLINE (transiente silencioso)
   if (showRestored) {
     return (
-      <div
+      <aside
         role="status"
         aria-live="polite"
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl shadow-lg border text-xs font-semibold flex items-center gap-2.5 transition-all duration-300 animate-in fade-in slide-in-from-top-3 max-w-[92vw] sm:max-w-md bg-emerald-600/95 text-white border-emerald-500/30 backdrop-blur-md"
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-3.5 py-1.5 rounded-full shadow-md border text-xs font-medium flex items-center gap-2 transition-all duration-200 animate-in fade-in slide-in-from-top-2 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-emerald-500/30 backdrop-blur-md"
       >
-        <span className="w-2 h-2 rounded-full bg-white shrink-0" />
-        <span>Conexão restabelecida. Tudo sincronizado!</span>
-      </div>
+        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+        <span>Conectado</span>
+      </aside>
     );
   }
 

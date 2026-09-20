@@ -3,6 +3,7 @@ import { ConsultancyRole, ROLE_LABELS } from "@/lib/consultancies/context";
 import { ConsultancyNavigation, NavItemConfig } from "./consultancy-navigation";
 import { ViewModeBanner } from "./view-mode-banner";
 import type { EffectiveViewModeState } from "@/lib/consultancies/view-mode";
+import { SessionScopeGuard } from "@/components/auth/session-scope-guard";
 
 export interface ConsultancyAppShellProps {
   consultancyName: string;
@@ -11,6 +12,8 @@ export interface ConsultancyAppShellProps {
   roles: ConsultancyRole[];
   userName?: string;
   userEmail?: string;
+  userPublicId?: string;
+  consultancyPublicId?: string;
   unreadNotificationsCount?: number;
   viewModeState?: EffectiveViewModeState;
   maxWidth?: "narrow" | "default" | "wide" | "full";
@@ -25,6 +28,8 @@ export function ConsultancyAppShell({
   roles,
   userName,
   userEmail,
+  userPublicId,
+  consultancyPublicId,
   unreadNotificationsCount = 0,
   viewModeState,
   maxWidth = "default",
@@ -443,6 +448,19 @@ export function ConsultancyAppShell({
 
   return (
     <div className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
+      {/* Session Scope & Offline Isolation Guard */}
+      {userPublicId && consultancyPublicId && (
+        <SessionScopeGuard
+          userPublicId={userPublicId}
+          userName={userName}
+          consultancyPublicId={consultancyPublicId}
+          consultancySlug={consultancySlug}
+          consultancyName={consultancyName}
+          consultancyLogoUrl={consultancyLogoUrl}
+          role={presentationRoles[0] || "STUDENT"}
+        />
+      )}
+
       {/* Navigation Shell (Sidebar on desktop, Topbar + Bottom Bar on mobile/tablet) */}
       <ConsultancyNavigation
         consultancySlug={consultancySlug}

@@ -257,6 +257,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={context.consultancyPublicId}
       viewModeState={effectiveState}
     >
       <div className="max-w-[1120px] mx-auto w-full space-y-6 sm:space-y-8">

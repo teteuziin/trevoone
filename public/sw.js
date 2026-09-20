@@ -14,7 +14,7 @@
  * - Standards-compliant Web Push event handling & notificationclick navigation.
  */
 
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const CACHE_NAME = `trevo-static-${CACHE_VERSION}`;
 const MAX_NEXT_STATIC_ENTRIES = 160;
 
@@ -112,10 +112,24 @@ async function pruneNextStaticCache(cache) {
 }
 
 // Install: precache allowlisted static PWA assets including offline shell.
+// Explicitly fetches with cache: "reload" to guarantee latest files bypassing HTTP browser cache.
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(Array.from(STATIC_PWA_ASSETS));
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const assetUrls = Array.from(STATIC_PWA_ASSETS);
+      await Promise.all(
+        assetUrls.map(async (url) => {
+          try {
+            const req = new Request(url, { cache: "reload" });
+            const resp = await fetch(req);
+            if (resp && resp.status === 200) {
+              await cache.put(url, resp);
+            }
+          } catch {
+            // Best effort per asset to guarantee install completes
+          }
+        })
+      );
     })
   );
 });

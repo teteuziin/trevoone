@@ -110,13 +110,21 @@ export function CustomFormsHub({
 
   // Auto-cache form templates into IndexedDB (trevo_offline_v3)
   React.useEffect(() => {
-    if (typeof window === "undefined" || !scopedUserPublicId || scopedUserPublicId === "student") return;
+    if (
+      typeof window === "undefined" ||
+      !scopedUserPublicId ||
+      scopedUserPublicId === "student" ||
+      !scopedConsultancyPublicId ||
+      scopedConsultancyPublicId === "consultancy"
+    ) {
+      return;
+    }
     if (!initialTemplates || initialTemplates.length === 0) return;
     import("@/lib/offline/offline-forms").then(({ saveFormSnapshot }) => {
       for (const t of initialTemplates) {
         saveFormSnapshot({
           userPublicId: scopedUserPublicId,
-          consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+          consultancyPublicId: scopedConsultancyPublicId,
           role: scopedRole,
           templatePublicId: t.publicId,
           title: t.title,
@@ -126,7 +134,7 @@ export function CustomFormsHub({
         }).catch(() => {});
       }
     }).catch(() => {});
-  }, [initialTemplates, consultancySlug, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
+  }, [initialTemplates, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
 
   const [activeTab, setActiveTab] = useState<"requests" | "templates">(
     isStudent ? "requests" : "requests"
@@ -270,7 +278,7 @@ export function CustomFormsHub({
         const fetchConflictOps = async () => {
           const ops = await getPendingOperations(
             scopedUserPublicId,
-            scopedConsultancyPublicId || consultancySlug,
+            scopedConsultancyPublicId,
             scopedRole
           );
           if (!isMounted) return;
@@ -323,7 +331,7 @@ export function CustomFormsHub({
         const { getFormDraft } = await import("@/lib/offline/offline-forms");
         const draft = await getFormDraft(
           scopedUserPublicId,
-          scopedConsultancyPublicId || consultancySlug,
+          scopedConsultancyPublicId,
           req.publicId,
           scopedRole
         );
@@ -335,7 +343,7 @@ export function CustomFormsHub({
           const { getPendingOperations } = await import("@/lib/offline/offline-sync");
           const ops = await getPendingOperations(
             scopedUserPublicId,
-            scopedConsultancyPublicId || consultancySlug,
+            scopedConsultancyPublicId,
             scopedRole
           );
           const relatedOp = ops.find(
@@ -382,7 +390,7 @@ export function CustomFormsHub({
           .then(({ saveFormDraft }) => {
             saveFormDraft({
               userPublicId: scopedUserPublicId,
-              consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+              consultancyPublicId: scopedConsultancyPublicId,
               role: scopedRole,
               requestPublicId: selectedRequestToAnswer.publicId,
               templatePublicId: selectedRequestToAnswer.templatePublicId,
@@ -427,7 +435,7 @@ export function CustomFormsHub({
 
         await queuePendingOperation({
           userPublicId: scopedUserPublicId,
-          consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+          consultancyPublicId: scopedConsultancyPublicId,
           consultancySlug,
           role: scopedRole,
           entityType: "FORM_SUBMISSION",
@@ -441,7 +449,7 @@ export function CustomFormsHub({
 
         await clearFormDraft(
           scopedUserPublicId,
-          scopedConsultancyPublicId || consultancySlug,
+          scopedConsultancyPublicId,
           selectedRequestToAnswer.publicId,
           scopedRole
         );
@@ -494,7 +502,7 @@ export function CustomFormsHub({
           const { clearFormDraft } = await import("@/lib/offline/offline-forms");
           await clearFormDraft(
             scopedUserPublicId,
-            scopedConsultancyPublicId || consultancySlug,
+            scopedConsultancyPublicId,
             selectedRequestToAnswer.publicId,
             scopedRole
           );
@@ -536,7 +544,7 @@ export function CustomFormsHub({
 
           await queuePendingOperation({
             userPublicId: scopedUserPublicId,
-            consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+            consultancyPublicId: scopedConsultancyPublicId,
             consultancySlug,
             role: scopedRole,
             entityType: "FORM_SUBMISSION",
@@ -550,7 +558,7 @@ export function CustomFormsHub({
 
           await clearFormDraft(
             scopedUserPublicId,
-            scopedConsultancyPublicId || consultancySlug,
+            scopedConsultancyPublicId,
             selectedRequestToAnswer.publicId,
             scopedRole
           );

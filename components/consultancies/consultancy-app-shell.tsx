@@ -4,6 +4,7 @@ import { ConsultancyNavigation, NavItemConfig } from "./consultancy-navigation";
 import { ViewModeBanner } from "./view-mode-banner";
 import type { EffectiveViewModeState } from "@/lib/consultancies/view-mode";
 import { SessionScopeGuard } from "@/components/auth/session-scope-guard";
+import { StudentOfflinePrimer } from "@/components/offline/student-offline-primer";
 
 export interface ConsultancyAppShellProps {
   consultancyName: string;
@@ -450,15 +451,23 @@ export function ConsultancyAppShell({
     <div className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
       {/* Session Scope & Offline Isolation Guard */}
       {userPublicId && consultancyPublicId && (
-        <SessionScopeGuard
-          userPublicId={userPublicId}
-          userName={userName}
-          consultancyPublicId={consultancyPublicId}
-          consultancySlug={consultancySlug}
-          consultancyName={consultancyName}
-          consultancyLogoUrl={consultancyLogoUrl}
-          role={presentationRoles[0] || "STUDENT"}
-        />
+        <>
+          <SessionScopeGuard
+            userPublicId={userPublicId}
+            userName={userName}
+            consultancyPublicId={consultancyPublicId}
+            consultancySlug={consultancySlug}
+            consultancyName={consultancyName}
+            consultancyLogoUrl={consultancyLogoUrl}
+            role={presentationRoles[0] || "STUDENT"}
+          />
+          <StudentOfflinePrimer
+            userPublicId={userPublicId}
+            consultancyPublicId={consultancyPublicId}
+            consultancySlug={consultancySlug}
+            role={presentationRoles[0] || "STUDENT"}
+          />
+        </>
       )}
 
       {/* Navigation Shell (Sidebar on desktop, Topbar + Bottom Bar on mobile/tablet) */}

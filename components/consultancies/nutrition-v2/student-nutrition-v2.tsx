@@ -75,12 +75,20 @@ export function StudentNutritionV2({
 
   // Offline synchronization to existing IndexedDB store (trevo_offline_v3)
   React.useEffect(() => {
-    if (typeof window === "undefined" || !scopedUserPublicId || scopedUserPublicId === "student") return;
+    if (
+      typeof window === "undefined" ||
+      !scopedUserPublicId ||
+      scopedUserPublicId === "student" ||
+      !scopedConsultancyPublicId ||
+      scopedConsultancyPublicId === "consultancy"
+    ) {
+      return;
+    }
     import("@/lib/offline/offline-nutrition")
       .then(({ saveNutritionSnapshot }) => {
         saveNutritionSnapshot({
           userPublicId: scopedUserPublicId,
-          consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+          consultancyPublicId: scopedConsultancyPublicId,
           role: scopedRole,
           planPublicId: assignedPlan.version.publicId || "active_plan",
           planTitle: assignedPlan.version.title,
@@ -89,7 +97,7 @@ export function StudentNutritionV2({
         });
       })
       .catch(() => {});
-  }, [assignedPlan, consultancySlug, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
+  }, [assignedPlan, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
 
   const pdfDownloadUrl = `/api/consultancies/${consultancySlug}/nutricao/pdf?download=true`;
 

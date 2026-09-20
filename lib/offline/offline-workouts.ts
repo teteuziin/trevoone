@@ -354,3 +354,67 @@ export async function completeOfflineWorkout(
     });
   });
 }
+
+/**
+ * Deletes a specific workout snapshot by compound key.
+ */
+export async function deleteWorkoutSnapshot(
+  userPublicId: string,
+  consultancyPublicId: string,
+  assignmentPublicId: string,
+  role: string = "STUDENT"
+): Promise<boolean> {
+  if (!userPublicId || !consultancyPublicId || !assignmentPublicId || userPublicId === "student") return false;
+
+  const res = await withWriteStore(WORKOUT_SNAPSHOT_STORE, async (store) => {
+    store.delete([
+      userPublicId.trim(),
+      consultancyPublicId.trim(),
+      role.trim().toUpperCase(),
+      assignmentPublicId.trim(),
+    ]);
+    return true;
+  });
+
+  return Boolean(res);
+}
+
+/**
+ * Removes all workout snapshots for a specific scope (reconciliation when server has no active workouts).
+ * Strictly preserves workout_sessions and pending_operations.
+ */
+export async function clearWorkoutSnapshotsForScope(
+  userPublicId: string,
+  consultancyPublicId: string,
+  role: string = "STUDENT"
+): Promise<boolean> {
+  if (!userPublicId || !consultancyPublicId || userPublicId === "student") return false;
+
+  const res = await withWriteStore(WORKOUT_SNAPSHOT_STORE, async (store) => {
+    return new Promise<boolean>((resolve) => {
+      try {
+        const index = store.index("by_scope");
+        const range = IDBKeyRange.only([
+          userPublicId.trim(),
+          consultancyPublicId.trim(),
+          role.trim().toUpperCase(),
+        ]);
+        const req = index.openCursor(range);
+        req.onsuccess = () => {
+          const cursor = req.result;
+          if (cursor) {
+            cursor.delete();
+            cursor.continue();
+          } else {
+            resolve(true);
+          }
+        };
+        req.onerror = () => resolve(false);
+      } catch {
+        resolve(false);
+      }
+    });
+  });
+
+  return Boolean(res);
+}

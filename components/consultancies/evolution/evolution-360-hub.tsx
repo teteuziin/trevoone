@@ -90,17 +90,26 @@ export function Evolution360Hub({
 
   // Auto-cache scalar Evolution 360 metrics when rendered by student (offline storage)
   React.useEffect(() => {
-    if (!isStudent || typeof window === "undefined" || !scopedUserPublicId || scopedUserPublicId === "student") return;
+    if (
+      !isStudent ||
+      typeof window === "undefined" ||
+      !scopedUserPublicId ||
+      scopedUserPublicId === "student" ||
+      !scopedConsultancyPublicId ||
+      scopedConsultancyPublicId === "consultancy"
+    ) {
+      return;
+    }
     import("@/lib/offline/offline-evolution").then(({ saveEvolutionSnapshot }) => {
       saveEvolutionSnapshot({
         userPublicId: scopedUserPublicId,
-        consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+        consultancyPublicId: scopedConsultancyPublicId,
         role: scopedRole,
         hubData,
         comparisonData: initialComparisonData,
       }).catch(() => {});
     }).catch(() => {});
-  }, [isStudent, hubData, initialComparisonData, consultancySlug, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
+  }, [isStudent, hubData, initialComparisonData, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
 
   const { summary, milestones, student, activePendingPhotoRequest, chartSeries } = hubData;
 

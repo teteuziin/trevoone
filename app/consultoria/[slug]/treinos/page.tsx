@@ -68,6 +68,8 @@ export default async function StudentTreinosPage({ params }: PageProps) {
         roles={access.context.roles}
         userName={session.fullName}
         userEmail={session.email}
+        userPublicId={session.userPublicId}
+        consultancyPublicId={access.context.consultancyPublicId}
       >
         <div className="w-full max-w-2xl mx-auto space-y-6">
           <StudentModuleAccessPanel
@@ -106,6 +108,8 @@ export default async function StudentTreinosPage({ params }: PageProps) {
       roles={access.context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={access.context.consultancyPublicId}
     >
       <div className="w-full max-w-4xl mx-auto space-y-8 pb-16 overflow-x-hidden">
         {/* Navigation Breadcrumb */}

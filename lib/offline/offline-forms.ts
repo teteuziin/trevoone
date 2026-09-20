@@ -191,3 +191,28 @@ export async function clearFormDraft(
 
   return Boolean(res);
 }
+
+
+/**
+ * Deletes a specific form template snapshot.
+ */
+export async function deleteFormSnapshot(
+  userPublicId: string,
+  consultancyPublicId: string,
+  templatePublicId: string,
+  role: string = "STUDENT"
+): Promise<boolean> {
+  if (!userPublicId || !consultancyPublicId || !templatePublicId || userPublicId === "student") return false;
+
+  const res = await withWriteStore(FORM_SNAPSHOT_STORE, async (store) => {
+    store.delete([
+      userPublicId.trim(),
+      consultancyPublicId.trim(),
+      role.trim().toUpperCase(),
+      templatePublicId.trim(),
+    ]);
+    return true;
+  });
+
+  return Boolean(res);
+}

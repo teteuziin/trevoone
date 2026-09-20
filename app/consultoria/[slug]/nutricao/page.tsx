@@ -51,6 +51,8 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
         roles={access.context.roles}
         userName={session.fullName}
         userEmail={session.email}
+        userPublicId={session.userPublicId}
+        consultancyPublicId={access.context.consultancyPublicId}
       >
         <div className="w-full max-w-2xl mx-auto space-y-6">
           <StudentModuleAccessPanel

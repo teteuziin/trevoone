@@ -79,3 +79,21 @@ export async function getNutritionSnapshot(
     });
   });
 }
+
+/**
+ * Safely removes a nutrition snapshot when authoritative server confirms no active plan exists.
+ */
+export async function deleteNutritionSnapshot(
+  userPublicId: string,
+  consultancyPublicId: string,
+  role: string = "STUDENT"
+): Promise<boolean> {
+  if (!userPublicId || !consultancyPublicId || userPublicId === "student") return false;
+
+  const res = await withWriteStore(NUTRITION_SNAPSHOT_STORE, async (store) => {
+    store.delete([userPublicId.trim(), consultancyPublicId.trim(), role.trim().toUpperCase()]);
+    return true;
+  });
+
+  return Boolean(res);
+}

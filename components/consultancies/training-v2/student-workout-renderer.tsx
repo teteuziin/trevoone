@@ -489,11 +489,19 @@ export function StudentWorkoutRenderer({
 
   // Auto-cache active workout snapshot in IndexedDB when rendered
   useEffect(() => {
-    if (typeof window === "undefined" || !scopedUserPublicId || scopedUserPublicId === "student") return;
+    if (
+      typeof window === "undefined" ||
+      !scopedUserPublicId ||
+      scopedUserPublicId === "student" ||
+      !scopedConsultancyPublicId ||
+      scopedConsultancyPublicId === "consultancy"
+    ) {
+      return;
+    }
     import("@/lib/offline/offline-workouts").then(({ saveWorkoutSnapshot }) => {
       saveWorkoutSnapshot({
         userPublicId: scopedUserPublicId,
-        consultancyPublicId: scopedConsultancyPublicId || consultancySlug || "consultancy",
+        consultancyPublicId: scopedConsultancyPublicId,
         role: scopedRole,
         assignmentPublicId: workout.assignmentPublicId,
         workout,
@@ -501,7 +509,7 @@ export function StudentWorkoutRenderer({
         initialHistory: completedSessions,
       });
     }).catch(() => {});
-  }, [workout, initialExecution, completedSessions, consultancySlug, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
+  }, [workout, initialExecution, completedSessions, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
 
   const totalSets = activeSession?.sets?.length || 0;
   const completedSets = activeSession?.sets?.filter((s) => s.completedAt != null).length || 0;
@@ -516,7 +524,7 @@ export function StudentWorkoutRenderer({
     // If device is offline, start locally via IndexedDB
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       try {
-        if (!scopedUserPublicId || scopedUserPublicId === "student") {
+        if (!scopedUserPublicId || scopedUserPublicId === "student" || !scopedConsultancyPublicId) {
           setStartError("Sessão offline não identificada. Conecte-se para autenticar.");
           setIsStarting(false);
           return;
@@ -525,7 +533,7 @@ export function StudentWorkoutRenderer({
         const { startOrResumeOfflineWorkoutSession } = await import("@/lib/offline/offline-workouts");
         const localSession = await startOrResumeOfflineWorkoutSession({
           userPublicId: scopedUserPublicId,
-          consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+          consultancyPublicId: scopedConsultancyPublicId,
           role: scopedRole,
           assignmentPublicId: workout.assignmentPublicId,
           workout,
@@ -586,11 +594,11 @@ export function StudentWorkoutRenderer({
     } catch {
       // Offline fallback on connection error
       try {
-        if (scopedUserPublicId && scopedUserPublicId !== "student") {
+        if (scopedUserPublicId && scopedUserPublicId !== "student" && scopedConsultancyPublicId) {
           const { startOrResumeOfflineWorkoutSession } = await import("@/lib/offline/offline-workouts");
           const localSession = await startOrResumeOfflineWorkoutSession({
             userPublicId: scopedUserPublicId,
-            consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+            consultancyPublicId: scopedConsultancyPublicId,
             role: scopedRole,
             assignmentPublicId: workout.assignmentPublicId,
             workout,
@@ -632,7 +640,7 @@ export function StudentWorkoutRenderer({
           }
         }
       } catch {
-        // Ignore
+        setStartError("Erro ao iniciar sessão offline.");
       }
       setStartError("Erro de conexão ao iniciar o treino.");
     } finally {
@@ -651,7 +659,7 @@ export function StudentWorkoutRenderer({
     // If offline, record completion locally in IndexedDB and queue for sync
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       try {
-        if (!scopedUserPublicId || scopedUserPublicId === "student") {
+        if (!scopedUserPublicId || scopedUserPublicId === "student" || !scopedConsultancyPublicId) {
           setCompleteError("Sessão offline não identificada.");
           setIsCompleting(false);
           return;
@@ -662,7 +670,7 @@ export function StudentWorkoutRenderer({
         await completeOfflineWorkout(activeSession.publicId);
         await queuePendingOperation({
           userPublicId: scopedUserPublicId,
-          consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+          consultancyPublicId: scopedConsultancyPublicId,
           consultancySlug,
           role: scopedRole,
           entityType: "WORKOUT_EXECUTION",
@@ -751,13 +759,13 @@ export function StudentWorkoutRenderer({
     } catch {
       // Offline fallback on connection drop during finalization
       try {
-        if (scopedUserPublicId && scopedUserPublicId !== "student") {
+        if (scopedUserPublicId && scopedUserPublicId !== "student" && scopedConsultancyPublicId) {
           const { completeOfflineWorkout } = await import("@/lib/offline/offline-workouts");
           const { queuePendingOperation } = await import("@/lib/offline/offline-sync");
           await completeOfflineWorkout(activeSession.publicId);
           await queuePendingOperation({
             userPublicId: scopedUserPublicId,
-            consultancyPublicId: scopedConsultancyPublicId || consultancySlug,
+            consultancyPublicId: scopedConsultancyPublicId,
             consultancySlug,
             role: scopedRole,
             entityType: "WORKOUT_EXECUTION",

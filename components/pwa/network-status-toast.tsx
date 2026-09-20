@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { subscribeToSyncStatus, runOfflineSync } from "@/lib/offline/offline-sync";
+import { checkRealConnectivity, type ConnectivityState } from "@/lib/offline/offline-connectivity";
 
 export function NetworkStatusToast() {
-  const [isOffline, setIsOffline] = useState(() =>
-    typeof navigator !== "undefined" ? !navigator.onLine : false
-  );
+  const [connectivityState, setConnectivityState] = useState<ConnectivityState>("CHECKING");
   const [showRestored, setShowRestored] = useState(false);
   const [syncState, setSyncState] = useState<{
     isSyncing: boolean;
@@ -22,39 +21,89 @@ export function NetworkStatusToast() {
     errorCount: 0,
   });
 
+  const offlineDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     let restoredTimer: ReturnType<typeof setTimeout> | null = null;
+    let isCancelled = false;
 
-    const handleOnline = () => {
-      setIsOffline(false);
-      setShowRestored(true);
+    // Initial state check: verify real connectivity before claiming online or offline
+    checkRealConnectivity()
+      .then((isReachable) => {
+        if (isCancelled) return;
+        setConnectivityState(isReachable ? "ONLINE" : "OFFLINE");
+      })
+      .catch(() => {
+        if (isCancelled) return;
+        setConnectivityState("ONLINE");
+      });
 
-      // Auto-trigger sync on reconnection
-      runOfflineSync("").catch(() => {});
+    const handleOnline = async () => {
+      if (offlineDebounceRef.current) {
+        clearTimeout(offlineDebounceRef.current);
+        offlineDebounceRef.current = null;
+      }
 
-      if (restoredTimer) clearTimeout(restoredTimer);
-      restoredTimer = setTimeout(() => {
-        setShowRestored(false);
-      }, 2500);
+      setConnectivityState("RECONNECTING");
+
+      // Verify real connectivity with short timeout
+      const isReachable = await checkRealConnectivity(3000);
+      if (isCancelled) return;
+
+      if (isReachable) {
+        setConnectivityState("ONLINE");
+        setShowRestored(true);
+
+        // Auto-trigger sync on confirmed reconnection
+        runOfflineSync("").catch(() => {});
+
+        if (restoredTimer) clearTimeout(restoredTimer);
+        restoredTimer = setTimeout(() => {
+          if (!isCancelled) {
+            setShowRestored(false);
+          }
+        }, 2500);
+      } else {
+        setConnectivityState("OFFLINE");
+      }
     };
 
     const handleOffline = () => {
-      setIsOffline(true);
-      setShowRestored(false);
+      // Debounce flapping to prevent false offline toasts during brief radio handoffs
+      if (offlineDebounceRef.current) {
+        clearTimeout(offlineDebounceRef.current);
+      }
+
+      offlineDebounceRef.current = setTimeout(async () => {
+        if (isCancelled) return;
+        const isReachable = await checkRealConnectivity(2000);
+        if (isCancelled) return;
+
+        if (!isReachable) {
+          setConnectivityState("OFFLINE");
+          setShowRestored(false);
+        } else {
+          setConnectivityState("ONLINE");
+        }
+      }, 500);
     };
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
     const unsubscribe = subscribeToSyncStatus((status) => {
-      setSyncState(status);
+      if (!isCancelled) {
+        setSyncState(status);
+      }
     });
 
     return () => {
+      isCancelled = true;
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      if (offlineDebounceRef.current) clearTimeout(offlineDebounceRef.current);
       if (restoredTimer) clearTimeout(restoredTimer);
       unsubscribe();
     };
@@ -64,8 +113,8 @@ export function NetworkStatusToast() {
     await runOfflineSync("");
   };
 
-  // 1. OFFLINE
-  if (isOffline) {
+  // 1. OFFLINE CONFIRMADO: exibe badge de modo offline
+  if (connectivityState === "OFFLINE") {
     return (
       <aside
         role="status"
@@ -78,8 +127,8 @@ export function NetworkStatusToast() {
     );
   }
 
-  // 2. SINCRONIZANDO
-  if (syncState.isSyncing) {
+  // 2. SINCRONIZANDO: exibe spinner com "Sincronizando..."
+  if (syncState.isSyncing || connectivityState === "SYNCING") {
     return (
       <aside
         role="status"
@@ -156,7 +205,7 @@ export function NetworkStatusToast() {
     );
   }
 
-  // 6. RESTAURADO / ONLINE (transiente silencioso)
+  // 6. RESTAURADO / ONLINE (transiente de 2.5s)
   if (showRestored) {
     return (
       <aside
@@ -170,5 +219,6 @@ export function NetworkStatusToast() {
     );
   }
 
+  // CHECKING ou ONLINE normal: 100% silencioso
   return null;
 }

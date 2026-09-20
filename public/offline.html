@@ -1,51 +1,48 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Trevo One — Modo Offline</title>
-  <meta name="theme-color" content="#00a859" />
-  <link rel="icon" href="/favicon.ico" />
   <style>
     :root {
-      --brand: #00a859;
-      --brand-hover: #008f4c;
-      --brand-soft: rgba(0, 168, 89, 0.1);
-      --brand-border: rgba(0, 168, 89, 0.25);
-      --bg: #f8faf9;
+      --bg: #ffffff;
       --surface: #ffffff;
-      --surface-subtle: #f1f5f3;
+      --surface-subtle: #f8fafc;
+      --border: #e2e8f0;
+      --border-subtle: #f1f5f9;
       --text-primary: #0f172a;
       --text-secondary: #475569;
-      --text-muted: #64748b;
-      --border: #e2e8f0;
-      --border-subtle: #edf2f0;
+      --text-muted: #94a3b8;
+      --brand: #10b981;
+      --brand-hover: #059669;
+      --brand-soft: #ecfdf5;
+      --brand-border: #a7f3d0;
       --warning-bg: #fffbeb;
       --warning-text: #b45309;
       --warning-border: #fde68a;
       --radius-sm: 8px;
       --radius-md: 12px;
       --radius-lg: 16px;
-      --radius-xl: 20px;
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --brand: #00c86b;
-        --brand-hover: #00a859;
-        --brand-soft: rgba(0, 200, 107, 0.15);
-        --brand-border: rgba(0, 200, 107, 0.3);
-        --bg: #0c120e;
-        --surface: #141c17;
-        --surface-subtle: #1c2620;
+        --bg: #090d16;
+        --surface: #0f172a;
+        --surface-subtle: #1e293b;
+        --border: #334155;
+        --border-subtle: #1e293b;
         --text-primary: #f8fafc;
         --text-secondary: #cbd5e1;
-        --text-muted: #94a3b8;
-        --border: #24332a;
-        --border-subtle: #1a261f;
-        --warning-bg: #291e0a;
+        --text-muted: #64748b;
+        --brand: #10b981;
+        --brand-hover: #34d399;
+        --brand-soft: rgba(16, 185, 129, 0.12);
+        --brand-border: rgba(16, 185, 129, 0.28);
+        --warning-bg: rgba(245, 158, 11, 0.12);
         --warning-text: #fbbf24;
-        --warning-border: #4d360e;
+        --warning-border: rgba(245, 158, 11, 0.28);
       }
     }
 
@@ -57,22 +54,24 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: var(--bg);
       color: var(--text-primary);
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
-      line-height: 1.5;
     }
 
     header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
       background-color: var(--surface);
       border-bottom: 1px solid var(--border);
       padding: 12px 16px;
-      position: sticky;
-      top: 0;
-      z-index: 20;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
 
     .header-content {
@@ -81,7 +80,6 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
     }
 
     .brand-group {
@@ -91,10 +89,10 @@
     }
 
     .brand-logo-text {
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 800;
-      color: var(--brand);
       letter-spacing: -0.02em;
+      color: var(--brand);
     }
 
     .offline-badge {
@@ -105,19 +103,19 @@
       font-weight: 700;
       padding: 4px 8px;
       border-radius: 9999px;
-      background-color: var(--warning-bg);
-      color: var(--warning-text);
-      border: 1px solid var(--warning-border);
+      background-color: var(--surface-subtle);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
       text-transform: uppercase;
       letter-spacing: 0.04em;
+      transition: all 0.2s ease;
     }
 
     .offline-dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background-color: var(--warning-text);
-      animation: pulse 2s infinite ease-in-out;
+      background-color: currentColor;
     }
 
     @keyframes pulse {
@@ -176,20 +174,23 @@
       padding: 4px;
       border-radius: var(--radius-md);
       gap: 4px;
+      overflow-x: auto;
     }
 
     .nav-tab {
       flex: 1;
+      min-width: 70px;
       border: none;
       background: transparent;
       color: var(--text-secondary);
-      padding: 8px 12px;
-      font-size: 13px;
+      padding: 8px 10px;
+      font-size: 12px;
       font-weight: 600;
       border-radius: var(--radius-sm);
       cursor: pointer;
       transition: all 0.15s ease-out;
       text-align: center;
+      white-space: nowrap;
     }
 
     .nav-tab.active {
@@ -252,7 +253,7 @@
       color: var(--text-secondary);
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
     }
 
     .badge-pill {
@@ -266,6 +267,35 @@
       border: 1px solid var(--brand-border);
     }
 
+    .macros-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .macro-card {
+      background-color: var(--surface-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+      text-align: center;
+    }
+
+    .macro-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .macro-value {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 2px;
+    }
+
     .item-notes {
       font-size: 12px;
       color: var(--text-muted);
@@ -273,6 +303,57 @@
       padding: 8px 10px;
       border-radius: var(--radius-sm);
       font-style: italic;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .action-btn-primary {
+      background-color: var(--brand);
+      color: #ffffff;
+    }
+
+    .action-btn-primary:hover {
+      background-color: var(--brand-hover);
+    }
+
+    .action-btn-secondary {
+      background-color: var(--surface-subtle);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .set-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      background-color: var(--surface-subtle);
+      font-size: 12px;
+    }
+
+    .set-row.completed {
+      background-color: var(--brand-soft);
+      border: 1px solid var(--brand-border);
+    }
+
+    .set-check {
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--brand);
     }
 
     .empty-state {
@@ -385,14 +466,14 @@
       </div>
       <div class="offline-badge" id="network-badge">
         <span class="offline-dot"></span>
-        <span id="network-status-text">Modo Offline</span>
+        <span id="network-status-text">Verificando...</span>
       </div>
     </div>
   </header>
 
   <main class="container">
     <div id="online-alert" class="status-toast">
-      Conexão de internet restabelecida! Toque em reconectar para abrir o app completo.
+      Conexão de internet restabelecida! Redirecionando de volta ao app...
     </div>
 
     <!-- Active Profile & Consultancy Card -->
@@ -408,6 +489,8 @@
     <div class="nav-tabs" id="tab-bar" style="display: none;">
       <button type="button" class="nav-tab active" id="tab-training">Treino</button>
       <button type="button" class="nav-tab" id="tab-nutrition">Nutrição</button>
+      <button type="button" class="nav-tab" id="tab-forms" style="display: none;">Formulários</button>
+      <button type="button" class="nav-tab" id="tab-evolution" style="display: none;">Evolução</button>
     </div>
 
     <!-- Content Sections -->
@@ -424,8 +507,9 @@
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        <span>Tentar reconectar</span>
+        <span id="btn-reconnect-text">Tentar reconectar</span>
       </button>
+      <p id="reconnect-feedback" class="empty-desc" style="display: none; margin-top: 8px; text-align: center; font-size: 11px;"></p>
     </div>
   </main>
 

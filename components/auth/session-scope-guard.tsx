@@ -106,31 +106,6 @@ export function SessionScopeGuard({
             consultancyPublicId,
             "STUDENT"
           );
-          if (typeof window !== "undefined") {
-            window.__TREVO_PRIME_DIAGNOSTICS__ = {
-              mounted: false,
-              primerMounted: false,
-              hasUserPublicId: Boolean(activeUserPublicId && activeUserPublicId !== "student"),
-              hasConsultancyPublicId: Boolean(consultancyPublicId),
-              roleIsStudent: false,
-              connectivityConfirmed: false,
-              throttled: false,
-              actionStarted: false,
-              actionSucceeded: false,
-              actionSuccess: false,
-              workoutReceived: false,
-              nutritionReceived: false,
-              formsReceived: false,
-              evolutionReceived: false,
-              workoutSaved: false,
-              nutritionSaved: false,
-              formsSaved: 0,
-              formsSavedCount: 0,
-              evolutionSaved: false,
-              contextSaved: false,
-              lastFailureStage: `ROLE_NOT_STUDENT_${activeRole}`,
-            };
-          }
         }
 
         if (consultancyPublicId) {

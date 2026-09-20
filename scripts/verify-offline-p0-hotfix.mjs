@@ -150,61 +150,39 @@ assert.match(toastContent, /setTimeout\(async \(\) => {[\s\S]*checkRealConnectiv
 
 console.log("  PASS: Online state is 100% silent; offline badge only visible on confirmed unreachable network");
 
-// --- TEST 7: DIAGNOSTIC LOGGING ---
-console.log("\n[TEST 7] Internal QA Diagnostics in offline.js");
+// --- TEST 7: INTERNAL SHELL CLEANLINESS ---
+console.log("\n[TEST 7] Internal Shell Cleanliness in offline.js");
 
-assert.match(offlineJsContent, /window\.__TREVO_OFFLINE_DIAGNOSTICS__/, "Exposes diagnostic object for QA");
-assert.match(offlineJsContent, /workoutSnapshotsCount:/, "Diagnostics tracks workout snapshots");
-assert.match(offlineJsContent, /nutritionSnapshotsCount:/, "Diagnostics tracks nutrition snapshots");
-assert.match(offlineJsContent, /formSnapshotsCount:/, "Diagnostics tracks forms snapshots");
-assert.match(offlineJsContent, /evolutionSnapshotsCount:/, "Diagnostics tracks evolution snapshots");
+assert.equal(
+  offlineJsContent.includes("window.__TREVO_OFFLINE_DIAGNOSTICS__"),
+  false,
+  "Must NOT expose temporary __TREVO_OFFLINE_DIAGNOSTICS__ object"
+);
+assert.match(offlineJsContent, /getActiveContext/, "Uses clean getActiveContext validation");
 
-console.log("  PASS: Internal diagnostics available for QA without leaking private IDs to UI");
+console.log("  PASS: Internal diagnostics cleaned up without leaking debug state or private IDs");
 
-// --- TEST 8: PRIMER DIAGNOSTICS SCHEMA & PRIVACY ---
-console.log("\n[TEST 8] Student Offline Primer Diagnostics & Data Privacy");
+// --- TEST 8: PRIMER CLEANLINESS & DATA PRIVACY ---
+console.log("\n[TEST 8] Student Offline Primer Cleanliness & Data Privacy");
 
 const primerContent = fs.readFileSync(path.join(ROOT, "components/offline/student-offline-primer.tsx"), "utf-8");
 
-const requiredDiagFields = [
-  "mounted",
-  "hasUserPublicId",
-  "hasConsultancyPublicId",
-  "roleIsStudent",
-  "connectivityConfirmed",
-  "throttled",
-  "actionStarted",
-  "actionSucceeded",
-  "workoutReceived",
-  "nutritionReceived",
-  "formsReceived",
-  "evolutionReceived",
-  "workoutSaved",
-  "nutritionSaved",
-  "formsSaved",
-  "evolutionSaved",
-  "contextSaved",
-  "lastFailureStage",
-];
+assert.equal(
+  primerContent.includes("window.__TREVO_PRIME_DIAGNOSTICS__"),
+  false,
+  "Must NOT expose temporary __TREVO_PRIME_DIAGNOSTICS__ window property"
+);
+assert.equal(
+  primerContent.includes("TrevoPrimeDiagnostics"),
+  false,
+  "Must NOT retain temporary TrevoPrimeDiagnostics debug type"
+);
 
-for (const field of requiredDiagFields) {
-  assert.match(
-    primerContent,
-    new RegExp(`\\b${field}\\b`),
-    `StudentOfflinePrimer must track diagnostic field: ${field}`
-  );
-}
+// Ensure zero PII/UUIDs in primer
+assert.equal(primerContent.includes("email:"), false, "Primer must NOT store user email");
+assert.equal(primerContent.includes("payload:"), false, "Primer must NOT store raw payload data");
 
-// Ensure zero PII/UUIDs in TrevoPrimeDiagnostics type definition
-const diagTypeMatch = primerContent.match(/export type TrevoPrimeDiagnostics = \{([\s\S]*?)\};/);
-assert.ok(diagTypeMatch, "TrevoPrimeDiagnostics type must exist");
-const diagTypeContent = diagTypeMatch[1];
-assert.equal(diagTypeContent.includes("userPublicId:"), false, "Diagnostics must NOT store userPublicId");
-assert.equal(diagTypeContent.includes("consultancyPublicId:"), false, "Diagnostics must NOT store consultancyPublicId");
-assert.equal(diagTypeContent.includes("email:"), false, "Diagnostics must NOT store user email");
-assert.equal(diagTypeContent.includes("payload:"), false, "Diagnostics must NOT store payload data");
-
-console.log("  PASS: All 18 diagnostic flags/counts tracked with zero PII/UUID/health data");
+console.log("  PASS: Temporary diagnostics completely removed; zero PII/health data exposed");
 
 // --- TEST 9: SAFE THROTTLE & CONTROLLED RETRY ---
 console.log("\n[TEST 9] Throttle on Confirmed Success & Controlled Retry");
@@ -533,73 +511,63 @@ assert.equal(evaluateReasonCode({ contextFound: true, isContextValid: true, user
 
 console.log("  PASS: All 4 telemetry scenarios + priority hierarchy produce correct reason codes");
 
-// --- TEST 17: VISUAL DIAGNOSTIC FIELDS IN OFFLINE.JS & OFFLINE.HTML ---
-console.log("\n[TEST 17] Visual Diagnostic Panel Fields Audit");
+// --- TEST 17: FALLBACK SHELL QA UI REMOVAL AUDIT ---
+console.log("\n[TEST 17] Fallback Shell QA UI Removal Audit");
 
 const offlineHtmlContent = fs.readFileSync(path.join(ROOT, "public/offline.html"), "utf-8");
 const freshOfflineJsContent = fs.readFileSync(path.join(ROOT, "public/offline.js"), "utf-8");
 
-assert.match(offlineHtmlContent, /\.diag-card/, "offline.html must define .diag-card CSS style");
-assert.match(offlineHtmlContent, /\.diag-badge/, "offline.html must define .diag-badge CSS style");
+assert.equal(offlineHtmlContent.includes(".diag-card"), false, "offline.html must NOT contain .diag-card CSS");
+assert.equal(offlineHtmlContent.includes(".diag-badge"), false, "offline.html must NOT contain .diag-badge CSS");
 
-const expectedVisualRows = [
-  "DB OPEN:",
-  "DB VERSION:",
-  "OFFLINE CONTEXT:",
-  "CONTEXT VALID:",
-  "ROLE:",
-  "WORKOUT TOTAL:",
-  "WORKOUT SCOPED:",
-  "NUTRITION TOTAL:",
-  "NUTRITION SCOPED:",
-  "FORMS TOTAL:",
-  "FORMS SCOPED:",
-  "EVOLUTION TOTAL:",
-  "EVOLUTION SCOPED:",
-  "WORKOUT SESSIONS:",
-  "PENDING OPERATIONS:",
-  "SW CONTROLLER:",
-  "STATIC CACHE V4:",
-  "EMPTY REASON:",
-];
-
-for (const row of expectedVisualRows) {
-  assert.ok(
-    freshOfflineJsContent.includes(`addRow("${row}"`),
-    `offline.js visual panel must include row: ${row}`
-  );
-}
-
-console.log("  PASS: All 18 visual telemetry rows verified in offline.js and styled in offline.html");
-
-// --- TEST 18: ZERO PII AUDIT ON DIAGNOSTIC PANEL & TELEMETRY ---
-console.log("\n[TEST 18] Zero PII Audit on Diagnostics");
-
-// Diagnostic panel must NOT render private user/consultancy IDs or health payloads
 assert.equal(
-  freshOfflineJsContent.includes('addRow("USER ID:'),
+  freshOfflineJsContent.includes('addRow("DB OPEN:'),
   false,
-  "Must NOT render user ID row"
+  "offline.js must NOT render diagnostic row DB OPEN:"
 );
 assert.equal(
-  freshOfflineJsContent.includes('addRow("CONSULTANCY ID:'),
+  freshOfflineJsContent.includes('addRow("EMPTY REASON:'),
   false,
-  "Must NOT render consultancy ID row"
+  "offline.js must NOT render diagnostic row EMPTY REASON:"
 );
 assert.equal(
-  freshOfflineJsContent.includes('addRow("EMAIL:'),
+  freshOfflineJsContent.includes("offline-diagnostics"),
   false,
-  "Must NOT render user email row"
+  "offline.js must NOT create offline-diagnostics card"
 );
 
-console.log("  PASS: Zero PII verified. Only counts, flags, roles, versions, and codes exposed");
+console.log("  PASS: Diagnostic QA UI 100% removed from offline.html and offline.js; clean premium interface restored");
 
-// --- TEST 19: ONLINE APP QA INDICATOR & PRIME DIAGNOSTICS SCHEMA ---
-console.log("\n[TEST 19] Online App QA Indicator & Prime Diagnostics Schema");
+// --- TEST 18: ZERO PII AUDIT ON OFFLINE SHELL ---
+console.log("\n[TEST 18] Zero PII & Clean Empty State Audit");
+
+// Empty state must NOT render private user/consultancy IDs, emails or technical debug rows
+assert.equal(
+  freshOfflineJsContent.includes('USER ID:'),
+  false,
+  "Must NOT render user ID"
+);
+assert.equal(
+  freshOfflineJsContent.includes('CONSULTANCY ID:'),
+  false,
+  "Must NOT render consultancy ID"
+);
+assert.equal(
+  freshOfflineJsContent.includes('EMAIL:'),
+  false,
+  "Must NOT render user email"
+);
+
+console.log("  PASS: Zero PII verified. Empty state is clean, user-friendly, and free of technical telemetry");
+
+// --- TEST 19: ONLINE APP QA UI REMOVAL AUDIT ---
+console.log("\n[TEST 19] Online App QA UI Removal Audit");
 
 const freshPrimerContent = fs.readFileSync(path.join(ROOT, "components/offline/student-offline-primer.tsx"), "utf-8");
 
-const expectedOnlineIndicatorRows = [
+const removedOnlineIndicatorRows = [
+  "QA Primer",
+  "QA PRIMER ONLINE",
   "PRIMER MOUNTED:",
   "ACTION STARTED:",
   "ACTION SUCCESS:",
@@ -609,43 +577,22 @@ const expectedOnlineIndicatorRows = [
   "LAST FAILURE:",
 ];
 
-for (const row of expectedOnlineIndicatorRows) {
-  assert.ok(
+for (const row of removedOnlineIndicatorRows) {
+  assert.equal(
     freshPrimerContent.includes(row),
-    `Online QA indicator must display row: ${row}`
+    false,
+    `StudentOfflinePrimer must NOT contain temporary QA UI: "${row}"`
   );
 }
 
-// Section 5 schema check on window.__TREVO_PRIME_DIAGNOSTICS__
-const section5Fields = [
-  "mounted",
-  "roleIsStudent",
-  "hasUserPublicId",
-  "hasConsultancyPublicId",
-  "actionStarted",
-  "actionSucceeded",
-  "contextSaved",
-  "workoutReceived",
-  "workoutSaved",
-  "nutritionReceived",
-  "nutritionSaved",
-  "formsReceived",
-  "formsSavedCount",
-  "evolutionReceived",
-  "evolutionSaved",
-  "throttled",
-  "lastFailureStage",
-];
+// StudentOfflinePrimer must return null
+assert.match(
+  freshPrimerContent,
+  /return null;\s*\}/,
+  "StudentOfflinePrimer must return null (zero visual elements rendered)"
+);
 
-for (const f of section5Fields) {
-  assert.match(
-    freshPrimerContent,
-    new RegExp(`\\b${f}\\b`),
-    `Primer diagnostics must include Section 5 field: ${f}`
-  );
-}
-
-console.log("  PASS: Online QA indicator tracks all Section 5 fields with zero functional logic changes");
+console.log("  PASS: Online QA indicator UI completely removed. Primer renders zero elements to the DOM");
 
 // --- TEST 20: COMPATIBLE INDEXEDDB OPEN (NO VERSIONERROR) ---
 console.log("\n[TEST 20] Compatible IndexedDB Open in Fallback Shell");

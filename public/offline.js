@@ -78,30 +78,317 @@
   function openDatabase() {
     return new Promise((resolve) => {
       if (typeof window === "undefined" || !window.indexedDB) {
-        resolve(null);
+        resolve({ db: null, errorName: "NO_INDEXEDDB_SUPPORT", version: null });
         return;
       }
 
       try {
-        const req = window.indexedDB.open(DB_NAME, DB_VERSION);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => resolve(null);
-        req.onblocked = () => resolve(null);
+        // Open without version parameter to inspect existing schema and avoid VersionError
+        const req = window.indexedDB.open(DB_NAME);
 
-        req.onupgradeneeded = (e) => {
-          if (e.oldVersion === 0) {
-            try {
-              e.target.transaction.abort();
-            } catch {
-              // Ignore
-            }
-            resolve(null);
-          }
+        req.onsuccess = () => {
+          const database = req.result;
+          resolve({ db: database, errorName: null, version: database.version });
         };
-      } catch {
-        resolve(null);
+
+        req.onerror = () => {
+          const errName = (req.error && req.error.name) || "OPEN_ERROR";
+          resolve({ db: null, errorName: errName, version: null });
+        };
+
+        req.onblocked = () => {
+          resolve({ db: null, errorName: "BLOCKED", version: null });
+        };
+
+        req.onupgradeneeded = () => {
+          // If called when DB doesn't exist, IndexedDB fires onupgradeneeded.
+          // We let it proceed so that db opens and we can accurately report stores missing.
+        };
+      } catch (err) {
+        const errName = (err && err.name) || "OPEN_EXCEPTION";
+        resolve({ db: null, errorName: errName, version: null });
       }
     });
+  }
+
+  function checkOriginMatch() {
+    try {
+      const origin = window.location.origin || "";
+      const hostname = window.location.hostname || "";
+      const isHttpsOrLocal =
+        window.location.protocol === "https:" ||
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname.startsWith("192.168.");
+      const isExpectedHost =
+        hostname.includes("trevo") ||
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname.startsWith("192.168.") ||
+        hostname.includes("hostinger");
+      return Boolean(origin && isHttpsOrLocal && isExpectedHost);
+    } catch {
+      return false;
+    }
+  }
+
+  function checkSwController() {
+    try {
+      return Boolean(navigator.serviceWorker && navigator.serviceWorker.controller);
+    } catch {
+      return false;
+    }
+  }
+
+  async function checkCacheV4() {
+    try {
+      if (typeof window !== "undefined" && "caches" in window) {
+        return await window.caches.has("trevo-static-v4");
+      }
+    } catch {
+      // Best-effort
+    }
+    return false;
+  }
+
+  function getStoreTotalCount(database, storeName) {
+    return new Promise((resolve) => {
+      if (!database || !database.objectStoreNames.contains(storeName)) {
+        resolve(0);
+        return;
+      }
+      try {
+        const tx = database.transaction(storeName, "readonly");
+        const store = tx.objectStore(storeName);
+        const req = store.count();
+        req.onsuccess = () => resolve(req.result || 0);
+        req.onerror = () => resolve(0);
+      } catch {
+        resolve(0);
+      }
+    });
+  }
+
+  async function collectDiagnostics(database, dbErrorName, dbVersion) {
+    const originMatch = checkOriginMatch();
+    const swController = checkSwController();
+    const cacheV4 = await checkCacheV4();
+
+    if (!database) {
+      return {
+        dbOpen: false,
+        dbOpenError: dbErrorName || "DB_OPEN_FAILED",
+        dbVersion: dbVersion,
+        expectedDbVersion: DB_VERSION,
+        originMatch,
+        swController,
+        cacheV4,
+        contextFound: false,
+        contextValid: false,
+        role: "MISSING",
+        workoutTotal: 0,
+        workoutScoped: 0,
+        nutritionTotal: 0,
+        nutritionScoped: 0,
+        formTotal: 0,
+        formScoped: 0,
+        evolutionTotal: 0,
+        evolutionScoped: 0,
+        workoutSessionsTotal: 0,
+        pendingOperationsTotal: 0,
+        lookupMatched: false,
+        emptyReason: "DB_OPEN_FAILED",
+        context: null,
+        workoutSnapshotsCount: 0,
+        nutritionSnapshotsCount: 0,
+        formSnapshotsCount: 0,
+        evolutionSnapshotsCount: 0,
+      };
+    }
+
+    const requiredStores = [
+      OFFLINE_CONTEXT_STORE,
+      WORKOUT_SNAPSHOT_STORE,
+      NUTRITION_SNAPSHOT_STORE,
+      FORM_SNAPSHOT_STORE,
+      EVOLUTION_SNAPSHOT_STORE,
+      WORKOUT_SESSION_STORE,
+      PENDING_OPERATIONS_STORE,
+    ];
+
+    const missingStores = requiredStores.filter((s) => !database.objectStoreNames.contains(s));
+    const hasContextStore = database.objectStoreNames.contains(OFFLINE_CONTEXT_STORE);
+
+    let ctx = null;
+    if (hasContextStore) {
+      ctx = await new Promise((resolve) => {
+        try {
+          const tx = database.transaction(OFFLINE_CONTEXT_STORE, "readonly");
+          const store = tx.objectStore(OFFLINE_CONTEXT_STORE);
+          const req = store.get(ACTIVE_CONTEXT_ID);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        } catch {
+          resolve(null);
+        }
+      });
+    }
+
+    const contextFound = Boolean(ctx);
+    const now = Date.now();
+    const expiry = ctx && ctx.validUntil ? new Date(ctx.validUntil).getTime() : 0;
+    const isContextValid = Boolean(
+      ctx &&
+      ctx.userPublicId &&
+      ctx.userPublicId !== "student" &&
+      ctx.consultancyPublicId &&
+      !isNaN(expiry) &&
+      now <= expiry
+    );
+
+    const userRole = ctx && ctx.role ? String(ctx.role).toUpperCase() : (contextFound ? "OTHER" : "MISSING");
+    const activeRole = ctx && ctx.role ? ctx.role : "STUDENT";
+    const uId = ctx ? ctx.userPublicId : null;
+    const cId = ctx ? ctx.consultancyPublicId : null;
+
+    // Total counts across stores
+    const workoutTotal = await getStoreTotalCount(database, WORKOUT_SNAPSHOT_STORE);
+    const nutritionTotal = await getStoreTotalCount(database, NUTRITION_SNAPSHOT_STORE);
+    const formTotal = await getStoreTotalCount(database, FORM_SNAPSHOT_STORE);
+    const evolutionTotal = await getStoreTotalCount(database, EVOLUTION_SNAPSHOT_STORE);
+    const workoutSessionsTotal = await getStoreTotalCount(database, WORKOUT_SESSION_STORE);
+    const pendingOperationsTotal = await getStoreTotalCount(database, PENDING_OPERATIONS_STORE);
+
+    // Scoped counts
+    let workoutScoped = 0;
+    let nutritionScoped = 0;
+    let formScoped = 0;
+    let evolutionScoped = 0;
+
+    if (uId && cId) {
+      if (database.objectStoreNames.contains(WORKOUT_SNAPSHOT_STORE)) {
+        try {
+          const count = await new Promise((resolve) => {
+            const tx = database.transaction(WORKOUT_SNAPSHOT_STORE, "readonly");
+            const store = tx.objectStore(WORKOUT_SNAPSHOT_STORE);
+            if (!store.indexNames.contains("by_scope")) {
+              resolve(0);
+              return;
+            }
+            const index = store.index("by_scope");
+            const req = index.count(IDBKeyRange.only([uId, cId, activeRole]));
+            req.onsuccess = () => resolve(req.result || 0);
+            req.onerror = () => resolve(0);
+          });
+          workoutScoped = count;
+        } catch {
+          // Non-blocking
+        }
+      }
+
+      if (database.objectStoreNames.contains(NUTRITION_SNAPSHOT_STORE)) {
+        try {
+          const found = await new Promise((resolve) => {
+            const tx = database.transaction(NUTRITION_SNAPSHOT_STORE, "readonly");
+            const store = tx.objectStore(NUTRITION_SNAPSHOT_STORE);
+            const req = store.get([uId, cId, activeRole]);
+            req.onsuccess = () => resolve(Boolean(req.result));
+            req.onerror = () => resolve(false);
+          });
+          nutritionScoped = found ? 1 : 0;
+        } catch {
+          // Non-blocking
+        }
+      }
+
+      if (database.objectStoreNames.contains(FORM_SNAPSHOT_STORE)) {
+        try {
+          const count = await new Promise((resolve) => {
+            const tx = database.transaction(FORM_SNAPSHOT_STORE, "readonly");
+            const store = tx.objectStore(FORM_SNAPSHOT_STORE);
+            if (!store.indexNames.contains("by_scope")) {
+              resolve(0);
+              return;
+            }
+            const index = store.index("by_scope");
+            const req = index.count(IDBKeyRange.only([uId, cId, activeRole]));
+            req.onsuccess = () => resolve(req.result || 0);
+            req.onerror = () => resolve(0);
+          });
+          formScoped = count;
+        } catch {
+          // Non-blocking
+        }
+      }
+
+      if (database.objectStoreNames.contains(EVOLUTION_SNAPSHOT_STORE)) {
+        try {
+          const found = await new Promise((resolve) => {
+            const tx = database.transaction(EVOLUTION_SNAPSHOT_STORE, "readonly");
+            const store = tx.objectStore(EVOLUTION_SNAPSHOT_STORE);
+            const req = store.get([uId, cId, activeRole]);
+            req.onsuccess = () => resolve(Boolean(req.result));
+            req.onerror = () => resolve(false);
+          });
+          evolutionScoped = found ? 1 : 0;
+        } catch {
+          // Non-blocking
+        }
+      }
+    }
+
+    const totalSnapshots = workoutTotal + nutritionTotal + formTotal + evolutionTotal;
+    const scopedSnapshots = workoutScoped + nutritionScoped + formScoped + evolutionScoped;
+    const lookupMatched = scopedSnapshots > 0;
+
+    // Strict priority order matching Section 3:
+    // DB_OPEN_FAILED -> STORE_MISSING -> NO_CONTEXT -> INVALID_CONTEXT -> ROLE_NOT_STUDENT -> NO_SNAPSHOTS -> SCOPE_MISMATCH -> RENDER_EMPTY -> UNKNOWN
+    let emptyReason = "UNKNOWN";
+    if (missingStores.length > 0 || missingStores.includes(OFFLINE_CONTEXT_STORE)) {
+      emptyReason = "STORE_MISSING";
+    } else if (!contextFound) {
+      emptyReason = "NO_CONTEXT";
+    } else if (!isContextValid) {
+      emptyReason = "INVALID_CONTEXT";
+    } else if (userRole !== "STUDENT") {
+      emptyReason = "ROLE_NOT_STUDENT";
+    } else if (totalSnapshots === 0) {
+      emptyReason = "NO_SNAPSHOTS";
+    } else if (scopedSnapshots === 0) {
+      emptyReason = "SCOPE_MISMATCH";
+    } else {
+      emptyReason = "RENDER_EMPTY";
+    }
+
+    return {
+      dbOpen: true,
+      dbOpenError: null,
+      dbVersion: dbVersion,
+      expectedDbVersion: DB_VERSION,
+      originMatch,
+      swController,
+      cacheV4,
+      contextFound,
+      contextValid: isContextValid,
+      role: userRole,
+      workoutTotal,
+      workoutScoped,
+      nutritionTotal,
+      nutritionScoped,
+      formTotal,
+      formScoped,
+      evolutionTotal,
+      evolutionScoped,
+      workoutSessionsTotal,
+      pendingOperationsTotal,
+      lookupMatched,
+      emptyReason,
+      context: ctx,
+      workoutSnapshotsCount: workoutScoped,
+      nutritionSnapshotsCount: nutritionScoped,
+      formSnapshotsCount: formScoped,
+      evolutionSnapshotsCount: evolutionScoped,
+    };
   }
 
   // --- CONNECTIVITY & RECONNECT ENGINE ---
@@ -196,7 +483,7 @@
 
   // --- RENDERING VIEWS ---
 
-  function renderEmptyState(title, description) {
+  function renderEmptyState(title, description, diag) {
     contentView.replaceChildren();
 
     const container = document.createElement("div");
@@ -212,6 +499,65 @@
 
     container.appendChild(titleEl);
     container.appendChild(descEl);
+
+    // Visual Safe Telemetry Panel (Zero PII)
+    if (diag) {
+      const diagCard = document.createElement("div");
+      diagCard.className = "diag-card";
+      diagCard.id = "offline-diagnostics";
+
+      const header = document.createElement("div");
+      header.className = "diag-header";
+      header.innerHTML = `<span>DIAGNÓSTICO DO DISPOSITIVO</span><span class="diag-badge">${diag.emptyReason || "UNKNOWN"}</span>`;
+      diagCard.appendChild(header);
+
+      const rowsContainer = document.createElement("div");
+
+      function addRow(label, value, statusClass) {
+        const row = document.createElement("div");
+        row.className = "diag-row";
+        const lbl = document.createElement("span");
+        lbl.className = "diag-label";
+        lbl.textContent = label;
+        const val = document.createElement("span");
+        val.className = "diag-val" + (statusClass ? " " + statusClass : "");
+        val.textContent = value;
+        row.appendChild(lbl);
+        row.appendChild(val);
+        rowsContainer.appendChild(row);
+      }
+
+      function addDivider() {
+        const d = document.createElement("div");
+        d.className = "diag-divider";
+        rowsContainer.appendChild(d);
+      }
+
+      addRow("DB OPEN:", diag.dbOpen ? "PASS" : "FAIL", diag.dbOpen ? "pass" : "fail");
+      addRow("DB VERSION:", diag.dbVersion != null ? String(diag.dbVersion) : "—");
+      addRow("OFFLINE CONTEXT:", diag.contextFound ? "FOUND" : "MISSING", diag.contextFound ? "pass" : "fail");
+      addRow("CONTEXT VALID:", diag.contextValid ? "YES" : "NO", diag.contextValid ? "pass" : "fail");
+      addRow("ROLE:", diag.role || "MISSING", diag.role === "STUDENT" ? "pass" : "warn");
+      addRow("WORKOUT TOTAL:", String(diag.workoutTotal));
+      addRow("WORKOUT SCOPED:", String(diag.workoutScoped));
+      addRow("NUTRITION TOTAL:", String(diag.nutritionTotal));
+      addRow("NUTRITION SCOPED:", String(diag.nutritionScoped));
+      addRow("FORMS TOTAL:", String(diag.formTotal));
+      addRow("FORMS SCOPED:", String(diag.formScoped));
+      addRow("EVOLUTION TOTAL:", String(diag.evolutionTotal));
+      addRow("EVOLUTION SCOPED:", String(diag.evolutionScoped));
+      addRow("WORKOUT SESSIONS:", String(diag.workoutSessionsTotal));
+      addRow("PENDING OPERATIONS:", String(diag.pendingOperationsTotal));
+      addRow("SW CONTROLLER:", diag.swController ? "YES" : "NO", diag.swController ? "pass" : "warn");
+      addRow("STATIC CACHE V4:", diag.cacheV4 ? "YES" : "NO", diag.cacheV4 ? "pass" : "warn");
+
+      addDivider();
+      addRow("EMPTY REASON:", diag.emptyReason || "UNKNOWN", "fail");
+
+      diagCard.appendChild(rowsContainer);
+      container.appendChild(diagCard);
+    }
+
     contentView.appendChild(container);
   }
 
@@ -845,62 +1191,37 @@
       }
     });
 
-    db = await openDatabase();
-    if (!db) {
-      logDiagnostics(null, false, 0, 0, 0, 0);
+    const openResult = await openDatabase();
+    const diag = await collectDiagnostics(openResult.db, openResult.errorName, openResult.version);
+    logDiagnostics(diag);
+
+    if (!diag.dbOpen) {
       renderEmptyState(
         "Nenhum conteúdo offline disponível",
-        "Conecte-se à internet para sincronizar seu treino e sua alimentação."
+        "Conecte-se à internet para sincronizar seu treino e sua alimentação.",
+        diag
       );
       return;
     }
 
-    // 2. Read Active Context
-    if (!db.objectStoreNames.contains(OFFLINE_CONTEXT_STORE)) {
-      logDiagnostics(null, false, 0, 0, 0, 0);
+    db = openResult.db;
+
+    // 2. Validate Context
+    if (!diag.contextFound || !diag.contextValid) {
       renderEmptyState(
-        "Nenhum conteúdo offline disponível",
-        "Conecte-se à internet para sincronizar seu treino e sua alimentação."
+        diag.contextFound ? "Seu acesso offline expirou" : "Nenhum conteúdo offline disponível",
+        diag.contextFound
+          ? "Conecte-se à internet para validar e sincronizar suas prescrições novamente."
+          : "Conecte-se à internet para sincronizar seu treino e sua alimentação.",
+        diag
       );
       return;
     }
 
-    activeContext = await new Promise((resolve) => {
-      try {
-        const tx = db.transaction(OFFLINE_CONTEXT_STORE, "readonly");
-        const store = tx.objectStore(OFFLINE_CONTEXT_STORE);
-        const req = store.get(ACTIVE_CONTEXT_ID);
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => resolve(null);
-      } catch {
-        resolve(null);
-      }
-    });
-
-    if (!activeContext || !activeContext.userPublicId || !activeContext.consultancyPublicId) {
-      logDiagnostics(activeContext, false, 0, 0, 0, 0);
-      renderEmptyState(
-        "Nenhum conteúdo offline disponível",
-        "Conecte-se à internet para sincronizar seu treino e sua alimentação."
-      );
-      return;
-    }
-
-    // 3. Validate TTL
-    const now = Date.now();
-    const expiry = new Date(activeContext.validUntil).getTime();
-    if (isNaN(expiry) || now > expiry) {
-      logDiagnostics(activeContext, false, 0, 0, 0, 0);
-      renderEmptyState(
-        "Seu acesso offline expirou",
-        "Conecte-se à internet para validar e sincronizar suas prescrições novamente."
-      );
-      return;
-    }
-
+    activeContext = diag.context;
     const activeRole = activeContext.role || "STUDENT";
 
-    // 4. Update Header Profile UI
+    // 3. Update Header Profile UI
     if (contextCard && ctxConsultancyName && ctxUserName && ctxSyncTime) {
       ctxConsultancyName.textContent = activeContext.consultancyName || "Trevo One";
       ctxUserName.textContent = activeContext.userName ? `Aluno: ${activeContext.userName}` : "Acesso Offline";
@@ -910,7 +1231,7 @@
 
     tabBar.style.display = "flex";
 
-    // 5. Read Workout Snapshot via by_scope index
+    // 4. Read Workout Snapshot via by_scope index
     let workoutSnapshots = [];
     if (db.objectStoreNames.contains(WORKOUT_SNAPSHOT_STORE)) {
       workoutSnapshots = await new Promise((resolve) => {
@@ -928,7 +1249,7 @@
       activeTrainingSnapshot = workoutSnapshots.length > 0 ? workoutSnapshots[0] : null;
     }
 
-    // 6. Read Active Workout Session
+    // 5. Read Active Workout Session
     if (activeTrainingSnapshot && db.objectStoreNames.contains(WORKOUT_SESSION_STORE)) {
       const assignmentId = activeTrainingSnapshot.assignmentPublicId || activeTrainingSnapshot.workout?.assignmentPublicId;
       activeWorkoutSession = await new Promise((resolve) => {
@@ -944,11 +1265,7 @@
           ]));
           req.onsuccess = () => {
             const cursor = req.result;
-            if (cursor) {
-              resolve(cursor.value);
-            } else {
-              resolve(null);
-            }
+            resolve(cursor ? cursor.value : null);
           };
           req.onerror = () => resolve(null);
         } catch {
@@ -957,7 +1274,7 @@
       });
     }
 
-    // 7. Read Nutrition Snapshot
+    // 6. Read Nutrition Snapshot
     if (db.objectStoreNames.contains(NUTRITION_SNAPSHOT_STORE)) {
       activeNutritionSnapshot = await new Promise((resolve) => {
         try {
@@ -972,7 +1289,7 @@
       });
     }
 
-    // 8. Read Form Snapshots
+    // 7. Read Form Snapshots
     if (db.objectStoreNames.contains(FORM_SNAPSHOT_STORE)) {
       formSnapshots = await new Promise((resolve) => {
         try {
@@ -992,7 +1309,7 @@
       }
     }
 
-    // 9. Read Evolution Snapshot
+    // 8. Read Evolution Snapshot
     if (db.objectStoreNames.contains(EVOLUTION_SNAPSHOT_STORE)) {
       activeEvolutionSnapshot = await new Promise((resolve) => {
         try {
@@ -1011,7 +1328,7 @@
       }
     }
 
-    // 10. Check Pending Operations Count
+    // 9. Check Pending Operations Count
     if (db.objectStoreNames.contains(PENDING_OPERATIONS_STORE)) {
       const pendingCount = await new Promise((resolve) => {
         try {
@@ -1030,24 +1347,28 @@
       }
     }
 
-    // Log diagnostics internally for QA
-    logDiagnostics(
-      activeContext,
-      true,
-      workoutSnapshots.length,
-      activeNutritionSnapshot ? 1 : 0,
-      formSnapshots.length,
-      activeEvolutionSnapshot ? 1 : 0
-    );
+    // 10. If no offline content is available to render, show empty state with diagnostics!
+    if (!activeTrainingSnapshot && !activeNutritionSnapshot && formSnapshots.length === 0 && !activeEvolutionSnapshot) {
+      renderEmptyState(
+        "Nenhum conteúdo offline disponível",
+        "Conecte-se à internet para sincronizar seu treino e sua alimentação.",
+        diag
+      );
+      return;
+    }
 
     // Initial Tab Selection based on URL preference
     const path = window.location.pathname || "";
-    if (path.includes("/nutricao")) {
+    if (path.includes("/nutricao") && activeNutritionSnapshot) {
       currentTab = "nutrition";
     } else if (path.includes("/formularios") && formSnapshots.length > 0) {
       currentTab = "forms";
     } else if (path.includes("/progresso") && activeEvolutionSnapshot) {
       currentTab = "evolution";
+    } else if (activeTrainingSnapshot) {
+      currentTab = "training";
+    } else if (activeNutritionSnapshot) {
+      currentTab = "nutrition";
     } else {
       currentTab = "training";
     }
@@ -1055,18 +1376,7 @@
     switchTab(currentTab);
   }
 
-  function logDiagnostics(context, valid, wCount, nCount, fCount, eCount) {
-    const diag = {
-      contextFound: Boolean(context),
-      contextValid: Boolean(valid),
-      hasUser: Boolean(context && context.userPublicId),
-      hasConsultancy: Boolean(context && context.consultancyPublicId),
-      role: context ? context.role : null,
-      workoutSnapshotsCount: wCount,
-      nutritionSnapshotsCount: nCount,
-      formSnapshotsCount: fCount,
-      evolutionSnapshotsCount: eCount,
-    };
+  function logDiagnostics(diag) {
     window.__TREVO_OFFLINE_DIAGNOSTICS__ = diag;
     if (typeof console !== "undefined" && console.info) {
       console.info("[Offline 360 QA Diagnostic]", diag);

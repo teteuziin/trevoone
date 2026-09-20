@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { getStudentOfflinePrimeDataAction } from "@/lib/offline/offline-prime-actions";
 
 export interface StudentOfflinePrimerProps {
@@ -13,6 +13,7 @@ export interface StudentOfflinePrimerProps {
 
 export type TrevoPrimeDiagnostics = {
   mounted: boolean;
+  primerMounted?: boolean;
   hasUserPublicId: boolean;
   hasConsultancyPublicId: boolean;
   roleIsStudent: boolean;
@@ -20,6 +21,7 @@ export type TrevoPrimeDiagnostics = {
   throttled: boolean;
   actionStarted: boolean;
   actionSucceeded: boolean;
+  actionSuccess?: boolean;
   workoutReceived: boolean;
   nutritionReceived: boolean;
   formsReceived: boolean;
@@ -27,6 +29,7 @@ export type TrevoPrimeDiagnostics = {
   workoutSaved: boolean;
   nutritionSaved: boolean;
   formsSaved: number;
+  formsSavedCount: number;
   evolutionSaved: boolean;
   contextSaved: boolean;
   lastFailureStage: string | null;
@@ -71,19 +74,34 @@ function markThrottled(key: string): void {
   }
 }
 
-/**
- * StudentOfflinePrimer
- *
- * Runs non-blocking background auto-prime for authenticated STUDENT sessions.
- * Guarantees:
- * - First run right after mount via short non-blocking timer (never blocking initial render).
- * - Partial success handling (Promise.allSettled on server, individual domain processing on client).
- * - Canonical scope isolation (strictly userPublicId + consultancyPublicId UUID + role STUDENT).
- * - Stale data reconciliation (clears inactive prescriptions while strictly preserving pending sync operations).
- * - Safe throttle: updated ONLY upon confirmed successful prime and persistence.
- * - Safe retry on transient network/action failure (up to 2 retries, 3s delay).
- * - Exposes window.__TREVO_PRIME_DIAGNOSTICS__ for internal QA verification.
- */
+function createInitialDiag(userPublicId?: string, consultancyPublicId?: string, role?: string): TrevoPrimeDiagnostics {
+  return {
+    mounted: true,
+    primerMounted: true,
+    hasUserPublicId: Boolean(userPublicId && userPublicId !== "student"),
+    hasConsultancyPublicId: Boolean(consultancyPublicId),
+    roleIsStudent: (role || "STUDENT").trim().toUpperCase() === "STUDENT",
+    connectivityConfirmed: false,
+    throttled: false,
+    actionStarted: false,
+    actionSucceeded: false,
+    actionSuccess: false,
+    workoutReceived: false,
+    nutritionReceived: false,
+    formsReceived: false,
+    evolutionReceived: false,
+    workoutSaved: false,
+    nutritionSaved: false,
+    formsSaved: 0,
+    formsSavedCount: 0,
+    evolutionSaved: false,
+    contextSaved: false,
+    lastFailureStage: null,
+  };
+}
+
+const emptySubscribe = () => () => {};
+
 export function StudentOfflinePrimer({
   userPublicId,
   userName = "Aluno",
@@ -92,28 +110,14 @@ export function StudentOfflinePrimer({
   role = "STUDENT",
 }: StudentOfflinePrimerProps) {
   const isPrimingRef = useRef(false);
+  const isClient = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const [diagState, setDiagState] = useState<TrevoPrimeDiagnostics>(() =>
+    createInitialDiag(userPublicId, consultancyPublicId, role)
+  );
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const diag: TrevoPrimeDiagnostics = {
-      mounted: true,
-      hasUserPublicId: Boolean(userPublicId && userPublicId !== "student"),
-      hasConsultancyPublicId: Boolean(consultancyPublicId),
-      roleIsStudent: (role || "STUDENT").trim().toUpperCase() === "STUDENT",
-      connectivityConfirmed: false,
-      throttled: false,
-      actionStarted: false,
-      actionSucceeded: false,
-      workoutReceived: false,
-      nutritionReceived: false,
-      formsReceived: false,
-      evolutionReceived: false,
-      workoutSaved: false,
-      nutritionSaved: false,
-      formsSaved: 0,
-      evolutionSaved: false,
-      contextSaved: false,
-      lastFailureStage: null,
-    };
+    const diag = createInitialDiag(userPublicId, consultancyPublicId, role);
     if (typeof window !== "undefined") {
       window.__TREVO_PRIME_DIAGNOSTICS__ = diag;
     }
@@ -303,6 +307,7 @@ export function StudentOfflinePrimer({
             }
           }
           diag.formsSaved = formsSavedCount;
+          diag.formsSavedCount = formsSavedCount;
         } else {
           diag.formsReceived = false;
         }
@@ -351,6 +356,9 @@ export function StudentOfflinePrimer({
         }
       } finally {
         isPrimingRef.current = false;
+        if (!isDisposed) {
+          setDiagState({ ...diag });
+        }
       }
     }
 
@@ -384,5 +392,76 @@ export function StudentOfflinePrimer({
     };
   }, [userPublicId, userName, consultancyPublicId, consultancySlug, role]);
 
-  return null;
+  if (!isClient) return null;
+
+  return (
+    <aside aria-label="Diagnóstico de sincronização" className="fixed bottom-3 left-3 z-[9999] font-mono text-[11px] select-none print:hidden">
+      {!isOpen ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-900/90 text-white dark:bg-slate-100 dark:text-slate-900 border border-slate-700/50 shadow-md backdrop-blur-sm cursor-pointer hover:opacity-90 active:scale-95 transition-all"
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="font-bold tracking-tight">QA Prime</span>
+          <span className="text-[9px] opacity-70">
+            {diagState?.actionSuccess || diagState?.actionSucceeded ? "OK" : diagState?.actionStarted ? "RUNNING" : "READY"}
+          </span>
+        </button>
+      ) : (
+        <div className="w-72 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-3.5 shadow-2xl text-slate-800 dark:text-slate-100 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1.5 mb-1">
+            <span className="font-bold text-[10px] tracking-wider text-slate-500 uppercase">QA Primer Online</span>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="text-[10px] font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 cursor-pointer"
+            >
+              Fechar
+            </button>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">PRIMER MOUNTED:</span>
+            <span className="font-bold text-emerald-600">YES</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">ACTION STARTED:</span>
+            <span className={`font-bold ${diagState?.actionStarted ? "text-emerald-600" : "text-amber-500"}`}>
+              {diagState?.actionStarted ? "YES" : "NO"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">ACTION SUCCESS:</span>
+            <span className={`font-bold ${diagState?.actionSuccess || diagState?.actionSucceeded ? "text-emerald-600" : "text-red-500"}`}>
+              {diagState?.actionSuccess || diagState?.actionSucceeded ? "YES" : "NO"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">CONTEXT SAVED:</span>
+            <span className={`font-bold ${diagState?.contextSaved ? "text-emerald-600" : "text-red-500"}`}>
+              {diagState?.contextSaved ? "YES" : "NO"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">WORKOUT SAVED:</span>
+            <span className={`font-bold ${diagState?.workoutSaved ? "text-emerald-600" : "text-slate-400"}`}>
+              {diagState?.workoutSaved ? "YES" : "NO"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">NUTRITION SAVED:</span>
+            <span className={`font-bold ${diagState?.nutritionSaved ? "text-emerald-600" : "text-slate-400"}`}>
+              {diagState?.nutritionSaved ? "YES" : "NO"}
+            </span>
+          </div>
+          <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-1 mt-0.5">
+            <span className="text-slate-500">LAST FAILURE:</span>
+            <span className="font-bold text-red-500 truncate max-w-[140px]">
+              {diagState?.lastFailureStage || "NONE"}
+            </span>
+          </div>
+        </div>
+      )}
+    </aside>
+  );
 }

@@ -601,8 +601,33 @@ export async function getFormRequest(
 }
 
 /**
+ * Normalizes a form responses map for deterministic semantic equality comparison.
+ */
+export function areFormResponsesSemanticallyEqual(
+  a: Record<string, unknown> | null | undefined,
+  b: Record<string, unknown> | null | undefined
+): boolean {
+  const normA = normalizeResponsesMap(a);
+  const normB = normalizeResponsesMap(b);
+  return JSON.stringify(normA) === JSON.stringify(normB);
+}
+
+function normalizeResponsesMap(obj: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  if (!obj || typeof obj !== "object") return {};
+  const sortedKeys = Object.keys(obj).sort();
+  const result: Record<string, unknown> = {};
+  for (const k of sortedKeys) {
+    const val = obj[k];
+    if (val !== undefined && val !== null && val !== "") {
+      result[k] = val;
+    }
+  }
+  return result;
+}
+
+/**
  * Submits student responses for a pending or changes-requested form.
- * Status becomes 'SUBMITTED'.
+ * Status becomes 'SUBMITTED'. Idempotent on retries with identical responses.
  */
 export async function submitFormResponses(
   userId: number,
@@ -620,7 +645,7 @@ export async function submitFormResponses(
     await connection.beginTransaction();
 
     const [requests] = await connection.execute<RowDataPacket[]>(
-      `SELECT r.id, r.consultancy_id, r.status, r.student_user_id, r.requested_by_user_id, t.title AS template_title
+      `SELECT r.id, r.consultancy_id, r.status, r.student_user_id, r.requested_by_user_id, r.responses_json, t.title AS template_title
        FROM consultancy_custom_form_requests r
        JOIN consultancy_custom_form_templates t ON t.id = r.template_id
        WHERE r.public_id = ? AND r.consultancy_id = ?
@@ -640,9 +665,40 @@ export async function submitFormResponses(
       throw new Error("Apenas o aluno destinatário pode responder a este formulário.");
     }
 
+    // 1. Idempotency check: if already SUBMITTED, verify if responses match
+    if (req.status === "SUBMITTED") {
+      let existingResponses: Record<string, unknown> = {};
+      try {
+        existingResponses = typeof req.responses_json === "string"
+          ? JSON.parse(req.responses_json)
+          : (req.responses_json || {});
+      } catch {
+        existingResponses = {};
+      }
+
+      const isSemanticEqual = areFormResponsesSemanticallyEqual(existingResponses, input.responses || {});
+      if (isSemanticEqual) {
+        // Idempotent retry: payload is identical to already submitted responses
+        // Commit transaction without repeating side effects or notifications
+        await connection.commit();
+        return true;
+      } else {
+        // Conflict: form was already submitted, and incoming payload is different
+        await connection.rollback();
+        const err = new Error("Este formulário já foi enviado anteriormente e o novo envio contém respostas divergentes.");
+        (err as unknown as { isConflict: boolean; serverStatus: string }).isConflict = true;
+        (err as unknown as { isConflict: boolean; serverStatus: string }).serverStatus = "SUBMITTED";
+        throw err;
+      }
+    }
+
+    // 2. Reject other terminal statuses as conflict
     if (req.status !== "PENDING" && req.status !== "CHANGES_REQUESTED") {
       await connection.rollback();
-      throw new Error("Este formulário já foi enviado e está sob análise ou aprovado.");
+      const err = new Error("Este formulário já está sob análise ou aprovado.");
+      (err as unknown as { isConflict: boolean; serverStatus: string }).isConflict = true;
+      (err as unknown as { isConflict: boolean; serverStatus: string }).serverStatus = req.status;
+      throw err;
     }
 
     await connection.execute<ResultSetHeader>(
@@ -651,6 +707,7 @@ export async function submitFormResponses(
        WHERE id = ?;`,
       [JSON.stringify(input.responses || {}), req.id]
     );
+
 
     // Notify requester (Admin or Professional)
     let notifId: number | null = null;

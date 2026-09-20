@@ -30,6 +30,7 @@ function generateUuidV4(): string {
 type SyncListener = (status: {
   isSyncing: boolean;
   pendingCount: number;
+  conflictCount: number;
   lastSyncAt: string | null;
   errorCount: number;
 }) => void;
@@ -41,10 +42,11 @@ let lastSyncTimestamp: string | null = null;
 export function subscribeToSyncStatus(listener: SyncListener): () => void {
   syncListeners.add(listener);
   // Emit current state immediately
-  getPendingOperationsCount().then((count) => {
+  Promise.all([getPendingOperationsCount(), getConflictOperationsCount()]).then(([pCount, cCount]) => {
     listener({
       isSyncing: isSyncingActive,
-      pendingCount: count,
+      pendingCount: pCount,
+      conflictCount: cCount,
       lastSyncAt: lastSyncTimestamp,
       errorCount: 0,
     });
@@ -56,12 +58,13 @@ export function subscribeToSyncStatus(listener: SyncListener): () => void {
 }
 
 function notifySyncListeners(errorCount = 0) {
-  getPendingOperationsCount().then((pendingCount) => {
+  Promise.all([getPendingOperationsCount(), getConflictOperationsCount()]).then(([pendingCount, conflictCount]) => {
     syncListeners.forEach((fn) => {
       try {
         fn({
           isSyncing: isSyncingActive,
           pendingCount,
+          conflictCount,
           lastSyncAt: lastSyncTimestamp,
           errorCount,
         });
@@ -73,16 +76,28 @@ function notifySyncListeners(errorCount = 0) {
 }
 
 /**
- * Adds an operation to the pending queue with a unique idempotent operationId.
+ * Adds an operation to the pending queue with a unique idempotent operationId and clientOperationId.
  */
 export async function queuePendingOperation<TPayload = Record<string, unknown>>(
-  input: Omit<PendingOperation<TPayload>, "operationId" | "createdAt" | "retryCount" | "status">
+  input: Omit<PendingOperation<TPayload>, "operationId" | "clientOperationId" | "createdAt" | "retryCount" | "status"> & {
+    clientOperationId?: string;
+    role?: string;
+  }
 ): Promise<PendingOperation<TPayload> | null> {
+  if (input.userPublicId === "student") {
+    return null;
+  }
+
+  const opId = input.clientOperationId || generateUuidV4();
+  const role = String(input.role || "STUDENT").trim().toUpperCase();
+
   const op: PendingOperation<TPayload> = {
-    operationId: generateUuidV4(),
+    operationId: opId,
+    clientOperationId: opId,
     userPublicId: input.userPublicId.trim(),
     consultancyPublicId: input.consultancyPublicId.trim(),
     consultancySlug: input.consultancySlug.trim(),
+    role,
     entityType: input.entityType,
     entityId: input.entityId.trim(),
     operationType: input.operationType,
@@ -93,6 +108,7 @@ export async function queuePendingOperation<TPayload = Record<string, unknown>>(
     status: "PENDING",
     lastAttemptAt: null,
     errorMessage: null,
+    conflictDetails: null,
   };
 
   const res = await withWriteStore(PENDING_OPERATIONS_STORE, async (store) => {
@@ -109,15 +125,18 @@ export async function queuePendingOperation<TPayload = Record<string, unknown>>(
  */
 export async function getPendingOperations(
   userPublicId?: string,
-  consultancyPublicId?: string
+  consultancyPublicId?: string,
+  role?: string
 ): Promise<PendingOperation[]> {
   return (
     (await withReadStore(PENDING_OPERATIONS_STORE, async (store) => {
       return new Promise<PendingOperation[]>((resolve) => {
         try {
-          if (userPublicId && consultancyPublicId) {
-            const index = store.index("by_user_consultancy");
-            const req = index.getAll(IDBKeyRange.only([userPublicId.trim(), consultancyPublicId.trim()]));
+          if (userPublicId && consultancyPublicId && role) {
+            const index = store.index("by_scope");
+            const req = index.getAll(
+              IDBKeyRange.only([userPublicId.trim(), consultancyPublicId.trim(), role.trim().toUpperCase()])
+            );
             req.onsuccess = () => resolve((req.result as PendingOperation[]) || []);
             req.onerror = () => resolve([]);
           } else {
@@ -141,7 +160,8 @@ export async function getPendingOperationsCount(): Promise<number> {
     (await withReadStore(PENDING_OPERATIONS_STORE, async (store) => {
       return new Promise<number>((resolve) => {
         try {
-          const req = store.count();
+          const index = store.index("by_status");
+          const req = index.count(IDBKeyRange.only("PENDING"));
           req.onsuccess = () => resolve(req.result || 0);
           req.onerror = () => resolve(0);
         } catch {
@@ -153,12 +173,65 @@ export async function getPendingOperationsCount(): Promise<number> {
 }
 
 /**
+ * Returns total count of operations currently marked as CONFLICT.
+ */
+export async function getConflictOperationsCount(): Promise<number> {
+  return (
+    (await withReadStore(PENDING_OPERATIONS_STORE, async (store) => {
+      return new Promise<number>((resolve) => {
+        try {
+          const index = store.index("by_status");
+          const req = index.count(IDBKeyRange.only("CONFLICT"));
+          req.onsuccess = () => resolve(req.result || 0);
+          req.onerror = () => resolve(0);
+        } catch {
+          resolve(0);
+        }
+      });
+    })) || 0
+  );
+}
+
+/**
+ * Recovers any operations left in SYNCING state back to PENDING.
+ */
+export async function recoverOrphanSyncingOperations(): Promise<number> {
+  const res = await withWriteStore(PENDING_OPERATIONS_STORE, async (store) => {
+    return new Promise<number>((resolve) => {
+      let recovered = 0;
+      const index = store.index("by_status");
+      const req = index.openCursor(IDBKeyRange.only("SYNCING"));
+
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (cursor) {
+          const op = cursor.value as PendingOperation;
+          op.status = "PENDING";
+          cursor.update(op);
+          recovered++;
+          cursor.continue();
+        } else {
+          resolve(recovered);
+        }
+      };
+      req.onerror = () => resolve(0);
+    });
+  });
+
+  if (res && res > 0) {
+    notifySyncListeners();
+  }
+  return res || 0;
+}
+
+/**
  * Updates status of a queued operation.
  */
 export async function updateOperationStatus(
   operationId: string,
   status: OfflineOperationStatus,
-  error?: string | null
+  error?: string | null,
+  conflictDetails?: PendingOperation["conflictDetails"]
 ): Promise<boolean> {
   const res = await withWriteStore(PENDING_OPERATIONS_STORE, async (store) => {
     return new Promise<boolean>((resolve) => {
@@ -174,6 +247,9 @@ export async function updateOperationStatus(
         op.lastAttemptAt = new Date().toISOString();
         if (error !== undefined) {
           op.errorMessage = error;
+        }
+        if (conflictDetails !== undefined) {
+          op.conflictDetails = conflictDetails;
         }
         if (status === "FAILED") {
           op.retryCount = (op.retryCount || 0) + 1;
@@ -204,7 +280,7 @@ export async function removePendingOperation(operationId: string): Promise<boole
 }
 
 /**
- * Purges all pending operations and offline snapshots for a user across all consultancies.
+ * Purges all pending operations and offline snapshots across all consultancies.
  */
 export async function clearAllPendingOperations(): Promise<boolean> {
   const res = await withWriteStore(PENDING_OPERATIONS_STORE, async (store) => {
@@ -223,13 +299,14 @@ export async function clearAllPendingOperations(): Promise<boolean> {
 export async function runOfflineSync(consultancySlug: string): Promise<{
   synced: number;
   failed: number;
+  conflicts: number;
 }> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
-    return { synced: 0, failed: 0 };
+    return { synced: 0, failed: 0, conflicts: 0 };
   }
 
   if (isSyncingActive) {
-    return { synced: 0, failed: 0 };
+    return { synced: 0, failed: 0, conflicts: 0 };
   }
 
   isSyncingActive = true;
@@ -237,9 +314,14 @@ export async function runOfflineSync(consultancySlug: string): Promise<{
 
   let synced = 0;
   let failed = 0;
+  let conflicts = 0;
 
   try {
+    // 1. Recover any prior orphan syncing items first
+    await recoverOrphanSyncingOperations();
+
     const operations = await getPendingOperations();
+    // Exclude CONFLICT operations from automatic retry loop
     const activeOps = operations.filter((op) => op.status === "PENDING" || op.status === "FAILED");
 
     // Dynamic imports of server actions to avoid SSR bundle issues
@@ -299,6 +381,13 @@ export async function runOfflineSync(consultancySlug: string): Promise<{
           if (res.success) {
             await removePendingOperation(op.operationId);
             synced++;
+          } else if ((res as { conflict?: boolean }).conflict) {
+            await updateOperationStatus(op.operationId, "CONFLICT", res.error, {
+              serverStatus: (res as { serverStatus?: string }).serverStatus,
+              reason: res.error,
+              serverTimestamp: new Date().toISOString(),
+            });
+            conflicts++;
           } else {
             await updateOperationStatus(op.operationId, "FAILED", res.error || "Erro ao sincronizar formulário.");
             failed++;
@@ -314,8 +403,8 @@ export async function runOfflineSync(consultancySlug: string): Promise<{
     lastSyncTimestamp = new Date().toISOString();
   } finally {
     isSyncingActive = false;
-    notifySyncListeners(failed);
+    notifySyncListeners(failed + conflicts);
   }
 
-  return { synced, failed };
+  return { synced, failed, conflicts };
 }

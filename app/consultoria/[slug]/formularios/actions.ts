@@ -90,10 +90,21 @@ export async function submitFormResponsesAction(
     revalidatePath(`/consultoria/${slug}/formularios`);
     revalidatePath(`/consultoria/${slug}/formularios/${requestPublicId}`);
     return { success: ok };
-  } catch (err) {
+  } catch (err: unknown) {
+    const isConflict = Boolean((err as { isConflict?: boolean })?.isConflict);
+    const serverStatus = (err as { serverStatus?: string })?.serverStatus;
+    if (isConflict) {
+      return {
+        success: false,
+        conflict: true,
+        serverStatus,
+        error: err instanceof Error ? err.message : "Conflito ao enviar formulário.",
+      };
+    }
     return { success: false, error: err instanceof Error ? err.message : "Erro ao enviar respostas." };
   }
 }
+
 
 export async function reviewFormRequestAction(
   slug: string,

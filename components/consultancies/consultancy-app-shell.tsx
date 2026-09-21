@@ -436,8 +436,6 @@ export function ConsultancyAppShell({
     );
   }
 
-  const roleLabels = roles.map((r) => ROLE_LABELS[r] || r);
-
   const hasExplicitMaxWidth = className.includes("max-w-");
   const effectiveMaxWidthClass = hasExplicitMaxWidth
     ? ""
@@ -475,6 +473,13 @@ export function ConsultancyAppShell({
   } else {
     activeContextRole = presentationRoles[0] || roles[0] || "STUDENT";
   }
+
+  // Derive presentation role labels, placing active role first
+  const activeRoleLabel = ROLE_LABELS[activeContextRole] || activeContextRole;
+  const otherRoleLabels = roles
+    .filter((r) => r !== activeContextRole)
+    .map((r) => ROLE_LABELS[r] || r);
+  const roleLabels = [activeRoleLabel, ...otherRoleLabels];
 
   const isStudentActive = activeContextRole === "STUDENT";
   const offlineRole = activeContextRole;

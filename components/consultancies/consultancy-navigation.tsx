@@ -405,7 +405,18 @@ export function ConsultancyNavigation({
   }, [mobileMenuOpen, desktopProfileOpen]);
 
   const userInitial = (userName?.trim().charAt(0) || "U").toUpperCase();
-  const primaryRoleLabel = roleLabels.length > 0 ? roleLabels[0] : null;
+  const primaryRoleLabel =
+    viewModeState?.effectiveMode === "INFLUENCER"
+      ? "Influenciador / VIP"
+      : viewModeState?.effectiveMode === "ADMIN"
+      ? "Administrador"
+      : viewModeState?.effectiveMode === "PERSONAL"
+      ? "Personal Trainer"
+      : viewModeState?.effectiveMode === "NUTRITIONIST"
+      ? "Nutricionista"
+      : roleLabels.length > 0
+      ? roleLabels[0]
+      : null;
 
   // Determine primary (max 4) and secondary items for mobile navigation
   const primaryNavItems =

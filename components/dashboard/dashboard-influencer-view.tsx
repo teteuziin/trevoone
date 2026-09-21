@@ -4,7 +4,6 @@ import React from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   NetflixFeatureCarousel,
   type CarouselSlide,
@@ -185,20 +184,20 @@ export function DashboardInfluencerView({
     },
   ];
 
-  // 4. Hero Slides (Reusing NetflixFeatureCarousel with verified local photography)
+  // 4. Hero Slides (Reusing NetflixFeatureCarousel with enhanced editorial photography and typography)
   const firstName = getFirstName(userName);
 
   const influencerSlides: CarouselSlide[] = [
     {
       id: "vip-missions",
-      tag: consultancyName ? `PARCERIA VIP • ${consultancyName.toUpperCase()}` : "PARCERIA VIP",
+      tag: consultancyName ? `PARCERIA VIP • ${consultancyName.toUpperCase()}` : "PARCERIA OFICIAL VIP",
       tagColor: "brand",
       title: firstName
         ? `Olá, ${firstName} — Central de Parceria VIP`
         : "Central de Parceria & Missões VIP",
       description:
         "Cumpra suas diretrizes de divulgação, registre comprovações oficiais e acompanhe a aprovação das suas entregas.",
-      ctaText: "Ver missões",
+      ctaText: "Acessar Missões",
       ctaHref: `/consultoria/${consultancySlug}/missoes`,
       imageUrl: "/images/personal/coach-cockpit.jpg",
       meta:
@@ -208,12 +207,12 @@ export function DashboardInfluencerView({
     },
     {
       id: "vip-training",
-      tag: "TREINOS VIP",
+      tag: "PRESCRIÇÃO VIP",
       tagColor: "emerald",
       title: "Rotinas de Treino Prescritas",
       description:
         "Acesse seus treinos personalizados elaborados pelo seu treinador, com orientações completas de exercícios e cargas.",
-      ctaText: "Acessar treinos",
+      ctaText: "Acessar Treinos",
       ctaHref: `/consultoria/${consultancySlug}/treinos`,
       imageUrl: "/images/student/workout-editorial.webp",
       meta: activeTrainingPlan?.title || "Treinos VIP",
@@ -225,19 +224,19 @@ export function DashboardInfluencerView({
       title: "Planejamento Nutricional",
       description:
         "Consulte seu cardápio, horários e diretrizes alimentares formuladas para apoiar sua performance e estética.",
-      ctaText: "Ver plano alimentar",
+      ctaText: "Ver Nutrição",
       ctaHref: `/consultoria/${consultancySlug}/nutricao`,
       imageUrl: "/images/student/nutrition-editorial.webp",
       meta: activeNutritionPlan?.title || "Nutrição VIP",
     },
     {
       id: "vip-progress",
-      tag: "EVOLUÇÃO",
+      tag: "BIOMETRIA VIP",
       tagColor: "blue",
       title: "Registro de Evolução & Resultados",
       description:
         "Monitore suas medições corporais, registros de peso e evolução estética ao longo do período de acompanhamento.",
-      ctaText: "Acessar evolução",
+      ctaText: "Acompanhar Evolução",
       ctaHref: `/consultoria/${consultancySlug}/progresso`,
       imageUrl: "/images/student/hero-athlete.webp",
       meta: "Acompanhamento VIP",
@@ -245,14 +244,14 @@ export function DashboardInfluencerView({
   ];
 
   return (
-    <div className="space-y-7 sm:space-y-9 overflow-x-clip">
+    <div className="space-y-5 sm:space-y-6 overflow-x-clip">
       {/* ==================================================================== */}
       {/* 1. ALERTA P0: MISSÃO ATRASADA (Se houver registro com isLate)         */}
       {/* ==================================================================== */}
       {lateMission && (
-        <div className="p-4.5 sm:p-5 rounded-2xl border border-red-500/30 bg-red-500/5 dark:bg-red-950/20 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <span className="w-3 h-3 rounded-full bg-red-500 shrink-0 mt-1 animate-pulse" />
+        <div className="p-4 sm:p-4.5 rounded-2xl border border-red-500/30 bg-red-500/5 dark:bg-red-950/20 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+          <div className="flex items-start gap-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 mt-1.5 animate-pulse" />
             <div className="space-y-0.5 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
@@ -274,7 +273,7 @@ export function DashboardInfluencerView({
 
           <div className="shrink-0">
             <Link href={`/consultoria/${consultancySlug}/missoes/${lateMission.publicId}`}>
-              <Button variant="danger" size="sm" className="w-full sm:w-auto font-bold min-h-[44px]">
+              <Button variant="danger" size="sm" className="w-full sm:w-auto font-bold min-h-[42px]">
                 Submeter missão →
               </Button>
             </Link>
@@ -291,134 +290,79 @@ export function DashboardInfluencerView({
       />
 
       {/* ==================================================================== */}
-      {/* 3. OPERAÇÃO RÁPIDA (Snap rail no mobile, grid 4 cols no desktop)      */}
+      {/* 3. COCKPIT DE MISSÕES (SEMPRE VISÍVEL — mesmo com 0 missões)         */}
       {/* ==================================================================== */}
-      <section aria-label="Operação Rápida" className="space-y-3">
+      <section aria-label="Cockpit de Missões" className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-              Operação Rápida
+              Cockpit de Missões
             </h2>
             <Badge variant="brand" size="sm">
               Influenciador / VIP
             </Badge>
           </div>
           <span className="text-[11px] text-[var(--text-tertiary)] font-medium hidden sm:inline">
-            Acesso prioritário às rotinas e entregas
-          </span>
-        </div>
-
-        <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-3 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible">
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Link
-                key={action.href}
-                href={action.href}
-                className={`w-[74vw] max-w-[280px] shrink-0 sm:w-auto sm:max-w-none snap-center p-4 rounded-2xl border transition-all duration-150 flex items-center justify-between gap-3 group depth-interactive min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
-                  action.accent
-                    ? "bg-[var(--surface-subtle)] border-[var(--brand)]/40 hover:border-[var(--brand)] shadow-2xs"
-                    : "bg-[var(--surface)] border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] shadow-xs"
-                }`}
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${
-                      action.accent
-                        ? "bg-[var(--brand)] text-white"
-                        : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)]"
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                      {action.title}
-                    </p>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-medium truncate">
-                      {action.description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="shrink-0 text-xs font-semibold text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all">
-                  <ArrowRightIcon className="w-4 h-4" />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ==================================================================== */}
-      {/* 4. COCKPIT DE MISSÕES (4 Métricas Táteis: Ativas, Revisão, Aprovadas, Urgência) */}
-      {/* ==================================================================== */}
-      <section aria-label="Cockpit de Missões" className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-            Cockpit de Missões
-          </h2>
-          <span className="text-[11px] text-[var(--text-tertiary)] font-medium hidden sm:inline">
             Status consolidado de entregas
           </span>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
           {/* 1. Ativas */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col justify-between space-y-3">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col justify-between space-y-2.5 hover:border-[var(--border-strong)] transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                 Ativas
               </span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[var(--brand)]">
-                <TargetIcon className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[var(--brand)]">
+                <TargetIcon className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="space-y-0.5">
               <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-heading tabular-nums">
                 {activeCount}
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)] font-medium">
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium truncate">
                 Em andamento ou pendentes
               </p>
             </div>
           </div>
 
           {/* 2. Aguardando Revisão */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col justify-between space-y-3">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col justify-between space-y-2.5 hover:border-[var(--border-strong)] transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                 Em Revisão
               </span>
-              <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-500">
-                <ClockIcon className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-500">
+                <ClockIcon className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="space-y-0.5">
               <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-heading tabular-nums">
                 {reviewCount}
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)] font-medium">
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium truncate">
                 Submetidas à consultoria
               </p>
             </div>
           </div>
 
           {/* 3. Aprovadas */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col justify-between space-y-3">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col justify-between space-y-2.5 hover:border-[var(--border-strong)] transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                 Aprovadas
               </span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
-                <CheckCircleIcon className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
+                <CheckCircleIcon className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="space-y-0.5">
               <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-heading tabular-nums">
                 {approvedCount}
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)] font-medium">
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium truncate">
                 Entregas homologadas
               </p>
             </div>
@@ -426,28 +370,28 @@ export function DashboardInfluencerView({
 
           {/* 4. Urgência (Deduplicada) */}
           <div
-            className={`p-4 sm:p-5 rounded-2xl border shadow-xs flex flex-col justify-between space-y-3 ${
+            className={`p-3.5 sm:p-4 rounded-2xl border shadow-xs flex flex-col justify-between space-y-2.5 transition-colors ${
               urgentCount > 0
                 ? "bg-red-500/5 dark:bg-red-950/20 border-red-500/30"
-                : "bg-[var(--surface)] border-[var(--border-default)]"
+                : "bg-[var(--surface)] border-[var(--border-default)] hover:border-[var(--border-strong)]"
             }`}
           >
             <div className="flex items-center justify-between">
               <span
-                className={`text-xs font-bold uppercase tracking-wider ${
+                className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider ${
                   urgentCount > 0 ? "text-red-600 dark:text-red-400" : "text-[var(--text-secondary)]"
                 }`}
               >
                 Urgência
               </span>
               <div
-                className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                className={`w-7 h-7 rounded-xl flex items-center justify-center ${
                   urgentCount > 0
                     ? "bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400"
                     : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]"
                 }`}
               >
-                <AlertTriangleIcon className="w-4 h-4" />
+                <AlertTriangleIcon className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="space-y-0.5">
@@ -458,7 +402,7 @@ export function DashboardInfluencerView({
               >
                 {urgentCount}
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)] font-medium">
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium truncate">
                 {urgentCount > 0 ? "Atrasadas ou prioridade alta" : "Sem pendências críticas"}
               </p>
             </div>
@@ -467,9 +411,64 @@ export function DashboardInfluencerView({
       </section>
 
       {/* ==================================================================== */}
-      {/* 5. FILA DE MISSÕES ATRIBUÍDAS                                         */}
+      {/* 4. OPERAÇÃO RÁPIDA (Exibida claramente após o cockpit)                */}
       {/* ==================================================================== */}
-      <section aria-label="Fila de Missões Atribuídas" className="space-y-3.5">
+      <section aria-label="Operação Rápida" className="space-y-2.5">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+            Ações Rápidas
+          </h2>
+          <span className="text-[11px] text-[var(--text-tertiary)] font-medium hidden sm:inline">
+            Atalhos diretos às rotinas
+          </span>
+        </div>
+
+        <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-2.5 pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Link
+                key={action.href}
+                href={action.href}
+                className={`w-[72vw] max-w-[260px] shrink-0 sm:w-auto sm:max-w-none snap-center p-3.5 rounded-2xl border transition-all duration-150 flex items-center justify-between gap-3 group depth-interactive min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
+                  action.accent
+                    ? "bg-[var(--surface-subtle)] border-[var(--brand)]/40 hover:border-[var(--brand)] shadow-2xs"
+                    : "bg-[var(--surface)] border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] shadow-xs"
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${
+                      action.accent
+                        ? "bg-[var(--brand)] text-white"
+                        : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)]"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                      {action.title}
+                    </p>
+                    <p className="text-[10px] sm:text-[11px] text-[var(--text-secondary)] font-medium truncate">
+                      {action.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="shrink-0 text-xs font-semibold text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all">
+                  <ArrowRightIcon className="w-3.5 h-3.5" />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ==================================================================== */}
+      {/* 5. FILA DE MISSÕES ATRIBUÍDAS / COMPACT EMPTY STATE                   */}
+      {/* ==================================================================== */}
+      <section aria-label="Fila de Missões Atribuídas" className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
@@ -496,11 +495,11 @@ export function DashboardInfluencerView({
               <Link
                 key={mission.publicId}
                 href={`/consultoria/${consultancySlug}/missoes/${mission.publicId}`}
-                className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-[var(--surface-hover)] transition-all duration-150 group min-h-[64px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+                className="p-3.5 sm:p-4.5 flex items-center justify-between gap-4 hover:bg-[var(--surface-hover)] transition-all duration-150 group min-h-[58px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
               >
                 <div className="space-y-1.5 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--brand)] transition-colors">
+                    <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--brand)] transition-colors">
                       {mission.title}
                     </p>
                     <MissionStatusGroup status={mission.status} isLate={mission.isLate} size="sm" />
@@ -508,7 +507,7 @@ export function DashboardInfluencerView({
                       <MissionPriorityBadge priority={mission.priority} size="sm" />
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] font-medium">
+                  <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] font-medium">
                     <ClockIcon className="w-3.5 h-3.5 shrink-0 text-[var(--text-tertiary)]" />
                     <span>Prazo de entrega: {mission.formattedDueAt}</span>
                   </div>
@@ -516,31 +515,40 @@ export function DashboardInfluencerView({
 
                 <div className="shrink-0 text-xs font-semibold text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all flex items-center gap-1">
                   <span className="hidden sm:inline">Ver detalhes</span>
-                  <ArrowRightIcon className="w-4 h-4" />
+                  <ArrowRightIcon className="w-3.5 h-3.5" />
                 </div>
               </Link>
             ))}
           </div>
         ) : (
-          <EmptyState
-            icon={<TargetIcon className="w-6 h-6" />}
-            title="Nenhuma missão pendente"
-            description="Você não possui missões ativas no momento. Novas diretrizes e metas de divulgação aparecerão aqui assim que atribuídas pela consultoria."
-            action={
-              <Link href={`/consultoria/${consultancySlug}/missoes`}>
-                <Button variant="secondary" size="sm" className="font-semibold min-h-[44px]">
-                  Acessar histórico de missões
-                </Button>
-              </Link>
-            }
-          />
+          /* Empty State Compacto (30-40% menor em altura) */
+          <div className="p-4.5 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-tertiary)] shrink-0 shadow-inner">
+                <TargetIcon className="w-4.5 h-4.5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">
+                  Nenhuma missão pendente
+                </h3>
+                <p className="text-[11px] sm:text-xs text-[var(--text-secondary)] mt-0.5 leading-relaxed">
+                  Novas diretrizes e metas de divulgação aparecerão aqui assim que atribuídas pela consultoria.
+                </p>
+              </div>
+            </div>
+            <Link href={`/consultoria/${consultancySlug}/missoes`} className="shrink-0 w-full sm:w-auto">
+              <Button variant="secondary" size="sm" className="w-full sm:w-auto font-semibold min-h-[40px] text-xs">
+                Histórico de missões →
+              </Button>
+            </Link>
+          </div>
         )}
       </section>
 
       {/* ==================================================================== */}
       {/* 6. MÓDULOS DE APOIO: SEU ACOMPANHAMENTO VIP                           */}
       {/* ==================================================================== */}
-      <section aria-label="Seu Acompanhamento VIP" className="space-y-3.5">
+      <section aria-label="Seu Acompanhamento VIP" className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
           <div>
             <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
@@ -552,30 +560,30 @@ export function DashboardInfluencerView({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-3.5">
           {/* Treinos VIP */}
           <Link
             href={`/consultoria/${consultancySlug}/treinos`}
-            className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex flex-col justify-between space-y-4 min-h-[140px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+            className="p-4 sm:p-4.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex flex-col justify-between space-y-3.5 min-h-[135px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[var(--brand)] shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                <WorkoutIcon className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[var(--brand)] shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                <WorkoutIcon className="w-4.5 h-4.5" />
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]">
-                Treinos VIP
+                Prescrição VIP
               </span>
             </div>
             <div className="space-y-1 min-w-0">
-              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
                 {activeTrainingPlan ? activeTrainingPlan.title : "Treinos Prescritos"}
               </h3>
-              <p className="text-xs text-[var(--text-secondary)] font-normal line-clamp-2">
-                Acesse suas rotinas personalizadas, séries e orientações do treinador.
+              <p className="text-[11px] sm:text-xs text-[var(--text-secondary)] font-normal line-clamp-2 leading-relaxed">
+                Rotinas estruturadas pelo seu treinador com exercícios e cargas.
               </p>
             </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-[var(--brand)] pt-1">
-              <span>Acessar rotinas</span>
+            <div className="flex items-center gap-1 text-xs font-semibold text-[var(--brand)] pt-0.5">
+              <span>Acessar treinos</span>
               <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </Link>
@@ -583,26 +591,26 @@ export function DashboardInfluencerView({
           {/* Nutrição VIP */}
           <Link
             href={`/consultoria/${consultancySlug}/nutricao`}
-            className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex flex-col justify-between space-y-4 min-h-[140px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+            className="p-4 sm:p-4.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex flex-col justify-between space-y-3.5 min-h-[135px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                <NutritionIcon className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                <NutritionIcon className="w-4.5 h-4.5" />
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]">
                 Nutrição VIP
               </span>
             </div>
             <div className="space-y-1 min-w-0">
-              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
                 {activeNutritionPlan ? activeNutritionPlan.title : "Plano Alimentar"}
               </h3>
-              <p className="text-xs text-[var(--text-secondary)] font-normal line-clamp-2">
-                Consulte seu cardápio prescrito, horários e diretrizes nutricionais.
+              <p className="text-[11px] sm:text-xs text-[var(--text-secondary)] font-normal line-clamp-2 leading-relaxed">
+                Refeições prescritas, horários e diretrizes nutricionais.
               </p>
             </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-[var(--brand)] pt-1">
-              <span>Ver refeições</span>
+            <div className="flex items-center gap-1 text-xs font-semibold text-[var(--brand)] pt-0.5">
+              <span>Ver nutrição</span>
               <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </Link>
@@ -610,26 +618,26 @@ export function DashboardInfluencerView({
           {/* Evolução */}
           <Link
             href={`/consultoria/${consultancySlug}/progresso`}
-            className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex flex-col justify-between space-y-4 min-h-[140px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+            className="p-4 sm:p-4.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex flex-col justify-between space-y-3.5 min-h-[135px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-500 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                <ProgressIcon className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-500 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                <ProgressIcon className="w-4.5 h-4.5" />
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]">
-                Biometria
+                Biometria VIP
               </span>
             </div>
             <div className="space-y-1 min-w-0">
-              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
                 Evolução & Resultados
               </h3>
-              <p className="text-xs text-[var(--text-secondary)] font-normal line-clamp-2">
-                Acompanhe seu histórico de medições corporais, registros e fotos.
+              <p className="text-[11px] sm:text-xs text-[var(--text-secondary)] font-normal line-clamp-2 leading-relaxed">
+                Histórico de medições corporais, registros de peso e fotos.
               </p>
             </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-[var(--brand)] pt-1">
-              <span>Ver evolução</span>
+            <div className="flex items-center gap-1 text-xs font-semibold text-[var(--brand)] pt-0.5">
+              <span>Acompanhar evolução</span>
               <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </Link>

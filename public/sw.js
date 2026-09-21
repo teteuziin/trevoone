@@ -154,6 +154,20 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/**
+ * Strips internal WebKit redirect metadata from a followed navigation response.
+ * WebKit/iOS aborts navigation with 'Response served by service worker has redirections'
+ * if a Response with redirected: true is returned from event.respondWith.
+ */
+function cleanRedirectedResponse(response) {
+  const hasBody = response.status !== 204 && response.status !== 205 && response.status !== 304;
+  return new Response(hasBody ? response.body : null, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
 // Fetch: intercept navigation requests for offline fallback, and allowlisted static assets.
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
@@ -161,19 +175,26 @@ self.addEventListener("fetch", (event) => {
   // 1. Navigation requests: Strict network-first with precached /offline.html fallback
   if (event.request.mode === "navigate" && event.request.method === "GET") {
     event.respondWith(
-      fetch(event.request).catch(async () => {
-        // Network unavailable (offline) -> deliver precached offline shell
-        const cache = await caches.open(CACHE_NAME);
-        const fallback = await cache.match("/offline.html");
-        if (fallback) {
-          return fallback;
-        }
-        return new Response("Trevo One está offline.", {
-          status: 503,
-          statusText: "Service Unavailable",
-          headers: { "Content-Type": "text/plain; charset=utf-8" },
-        });
-      })
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.redirected) {
+            return cleanRedirectedResponse(response);
+          }
+          return response;
+        })
+        .catch(async () => {
+          // Network unavailable (offline) -> deliver precached offline shell
+          const cache = await caches.open(CACHE_NAME);
+          const fallback = await cache.match("/offline.html");
+          if (fallback) {
+            return fallback;
+          }
+          return new Response("Trevo One está offline.", {
+            status: 503,
+            statusText: "Service Unavailable",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+          });
+        })
     );
     return;
   }

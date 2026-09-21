@@ -1,4 +1,5 @@
-import type { RowDataPacket } from "mysql2/promise";
+import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
+import crypto from "node:crypto";
 import { getDbConnection } from "../db/mysql";
 import { VALID_ROLES, type ConsultancyRole } from "./context";
 
@@ -243,6 +244,238 @@ export async function listConsultancyMembers(params: {
       page,
       pageSize,
       totalPages: 1,
+    };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+export type DeactivateConsultancyMemberParams = {
+  consultancyId: number;
+  actorUserId: number;
+  memberPublicId: string;
+};
+
+export type DeactivateConsultancyMemberResult = {
+  success: boolean;
+  error?: string;
+};
+
+/**
+ * Encerra com segurança o vínculo de um membro da consultoria.
+ *
+ * Princípios aplicados:
+ * 1. Não executa DELETE físico; atualiza logicamente cm.status para 'SUSPENDED'.
+ * 2. Bloqueia auto-remoção do usuário autenticado.
+ * 3. Bloqueia desligamento se for o último CONSULTANCY_ADMIN ativo.
+ * 4. Bloqueia operação sobre membership já inativo/inexistente ou cross-tenant.
+ * 5. Preserva histórico intacto (não remove roles, treinos, dietas, fotos ou cobranças).
+ * 6. Registra evento imutável em audit_events ('CONSULTANCY_MEMBER_DEACTIVATED').
+ */
+export async function deactivateConsultancyMember(
+  params: DeactivateConsultancyMemberParams
+): Promise<DeactivateConsultancyMemberResult> {
+  const { consultancyId, actorUserId, memberPublicId } = params;
+
+  if (!consultancyId || typeof consultancyId !== "number" || consultancyId <= 0) {
+    return { success: false, error: "Consultoria inválida." };
+  }
+  if (!actorUserId || typeof actorUserId !== "number" || actorUserId <= 0) {
+    return { success: false, error: "Usuário não autenticado." };
+  }
+  if (
+    !memberPublicId ||
+    typeof memberPublicId !== "string" ||
+    memberPublicId.trim().length === 0 ||
+    memberPublicId.trim().length > 36
+  ) {
+    return { success: false, error: "Identificador de membro inválido." };
+  }
+
+  const cleanMemberPublicId = memberPublicId.trim();
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Validar se o autor possui papel de CONSULTANCY_ADMIN ativo nesta consultoria
+    const [actorRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id
+       FROM consultancy_members cm
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE cm.consultancy_id = ?
+         AND cm.user_id = ?
+         AND cm.status = 'ACTIVE'
+         AND cmr.role = 'CONSULTANCY_ADMIN'
+       LIMIT 1
+       FOR UPDATE;`,
+      [consultancyId, actorUserId]
+    );
+
+    if (!Array.isArray(actorRows) || actorRows.length === 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Você não possui permissão de administrador nesta consultoria.",
+      };
+    }
+
+    // 2. Localizar membership alvo dentro do mesmo tenant
+    const [targetRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT
+         cm.id AS membership_id,
+         cm.public_id AS membership_public_id,
+         cm.user_id,
+         cm.status,
+         u.full_name,
+         u.email,
+         GROUP_CONCAT(DISTINCT cmr.role) AS roles_csv
+       FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
+       LEFT JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE cm.public_id = ?
+         AND cm.consultancy_id = ?
+       GROUP BY cm.id, cm.public_id, cm.user_id, cm.status, u.full_name, u.email
+       LIMIT 1
+       FOR UPDATE;`,
+      [cleanMemberPublicId, consultancyId]
+    );
+
+    if (!Array.isArray(targetRows) || targetRows.length === 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Membro não encontrado nesta consultoria.",
+      };
+    }
+
+    const target = targetRows[0];
+    const targetUserId = Number(target.user_id);
+    const targetMembershipId = Number(target.membership_id);
+    const currentStatus = String(target.status);
+
+    // 3. Regra B: Bloquear auto-remoção
+    if (targetUserId === actorUserId) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Não é permitido desligar o próprio usuário nesta ação administrativa.",
+      };
+    }
+
+    // 4. Regra: Membro já inativo (idempotência segura / bloqueio)
+    if (currentStatus !== "ACTIVE") {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Este membro já se encontra inativo ou desligado.",
+      };
+    }
+
+    // 5. Regra A: Proteção do último administrador ativo
+    const rawRoles = target.roles_csv ? String(target.roles_csv).split(",") : [];
+    const isTargetAdmin = rawRoles.includes("CONSULTANCY_ADMIN");
+
+    if (isTargetAdmin) {
+      const [adminCountRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT COUNT(DISTINCT cm.id) AS active_admins
+         FROM consultancy_members cm
+         INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+         INNER JOIN users u ON u.id = cm.user_id
+         WHERE cm.consultancy_id = ?
+           AND cm.status = 'ACTIVE'
+           AND cmr.role = 'CONSULTANCY_ADMIN'
+           AND u.status = 'ACTIVE'
+           AND u.deleted_at IS NULL
+         FOR UPDATE;`,
+        [consultancyId]
+      );
+
+      const activeAdmins =
+        Array.isArray(adminCountRows) && adminCountRows.length > 0
+          ? Number(adminCountRows[0].active_admins) || 0
+          : 0;
+
+      if (activeAdmins <= 1) {
+        await connection.rollback();
+        return {
+          success: false,
+          error: "Não é possível remover o último administrador ativo da consultoria.",
+        };
+      }
+    }
+
+    // 6. Atualizar status para SUSPENDED (sem apagar histórico nem roles)
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      `UPDATE consultancy_members
+       SET status = 'SUSPENDED',
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ?
+         AND consultancy_id = ?
+         AND status = 'ACTIVE';`,
+      [targetMembershipId, consultancyId]
+    );
+
+    if (updateResult.affectedRows !== 1) {
+      await connection.rollback();
+      return {
+        success: false,
+        error: "Não foi possível atualizar o status do membro. Tente novamente.",
+      };
+    }
+
+    // 7. Registrar evento de auditoria
+    const auditPublicId = crypto.randomUUID();
+    await connection.execute<ResultSetHeader>(
+      `INSERT INTO audit_events (
+        public_id,
+        actor_user_id,
+        consultancy_id,
+        action,
+        target_type,
+        target_public_id,
+        metadata_json,
+        created_at
+      ) VALUES (
+        ?,
+        ?,
+        ?,
+        'CONSULTANCY_MEMBER_DEACTIVATED',
+        'CONSULTANCY_MEMBER',
+        ?,
+        ?,
+        UTC_TIMESTAMP(3)
+      );`,
+      [
+        auditPublicId,
+        actorUserId,
+        consultancyId,
+        cleanMemberPublicId,
+        JSON.stringify({
+          previousStatus: currentStatus,
+          newStatus: "SUSPENDED",
+          targetUserId,
+          targetRoles: rawRoles,
+        }),
+      ]
+    );
+
+    await connection.commit();
+    return { success: true };
+  } catch {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {
+        // Ignorado
+      }
+    }
+    return {
+      success: false,
+      error: "Ocorreu um erro interno ao processar o desligamento do membro.",
     };
   } finally {
     if (connection) {

@@ -7,6 +7,7 @@ import {
   createConsultancyInvitation,
   revokeConsultancyInvitation,
 } from "@/lib/consultancies/invitations";
+import { deactivateConsultancyMember } from "@/lib/consultancies/admin";
 
 export type InvitationFormState = {
   success: boolean;
@@ -18,6 +19,12 @@ export type InvitationFormState = {
 export type RevokeInvitationState = {
   success: boolean;
   error?: string;
+};
+
+export type DeactivateMemberState = {
+  success: boolean;
+  error?: string;
+  message?: string;
 };
 
 export async function createInvitationAction(
@@ -112,5 +119,51 @@ export async function revokeInvitationAction(
 
   return {
     success: true,
+  };
+}
+
+export async function deactivateMemberAction(
+  slug: string,
+  memberPublicId: string
+): Promise<DeactivateMemberState> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return {
+      success: false,
+      error: "Sessão expirada. Faça login novamente.",
+    };
+  }
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return {
+      success: false,
+      error: "Você não possui permissão de administrador nesta consultoria.",
+    };
+  }
+
+  const result = await deactivateConsultancyMember({
+    consultancyId: context.consultancyId,
+    actorUserId: session.userId,
+    memberPublicId,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  try {
+    revalidatePath(`/consultoria/${slug}/membros`);
+    revalidatePath(`/consultoria/${slug}`);
+  } catch {
+    // Ignorado fora do contexto HTTP
+  }
+
+  return {
+    success: true,
+    message: "Membro desligado da consultoria com sucesso.",
   };
 }

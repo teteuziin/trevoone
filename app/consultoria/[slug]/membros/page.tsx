@@ -11,6 +11,7 @@ import { listConsultancyInvitations } from "@/lib/consultancies/invitations";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { InvitationForm } from "@/components/consultancies/invitation-form";
 import { InvitationRevokeButton } from "@/components/consultancies/invitation-revoke-button";
+import { DeactivateMemberButton } from "@/components/consultancies/deactivate-member-button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -374,14 +375,23 @@ export default async function ConsultancyMembersPage({
                         </td>
 
                         <td className="px-5 py-4 text-right whitespace-nowrap">
-                          {member.roles.includes("STUDENT") && member.status === "ACTIVE" && (
-                            <Link
-                              href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
-                              className="inline-flex items-center justify-center px-3.5 py-1.5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] text-xs font-semibold rounded-xl shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
-                            >
-                              Ver onboarding
-                            </Link>
-                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            {member.roles.includes("STUDENT") && member.status === "ACTIVE" && (
+                              <Link
+                                href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
+                                className="inline-flex items-center justify-center px-3.5 py-1.5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] text-xs font-semibold rounded-xl shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
+                              >
+                                Ver onboarding
+                              </Link>
+                            )}
+                            {member.status === "ACTIVE" && member.membershipPublicId !== context.membershipPublicId && (
+                              <DeactivateMemberButton
+                                slug={slug}
+                                memberPublicId={member.membershipPublicId}
+                                memberName={member.fullName}
+                              />
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -435,14 +445,23 @@ export default async function ConsultancyMembersPage({
                       )}
                     </div>
 
-                    {member.roles.includes("STUDENT") && member.status === "ACTIVE" && (
-                      <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end">
-                        <Link
-                          href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
-                          className="inline-flex items-center text-xs font-semibold text-[var(--brand-foreground)] hover:underline min-h-[44px]"
-                        >
-                          Ver onboarding →
-                        </Link>
+                    {(member.status === "ACTIVE" && (member.roles.includes("STUDENT") || member.membershipPublicId !== context.membershipPublicId)) && (
+                      <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end gap-3 flex-wrap">
+                        {member.roles.includes("STUDENT") && member.status === "ACTIVE" && (
+                          <Link
+                            href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
+                            className="inline-flex items-center text-xs font-semibold text-[var(--brand-foreground)] hover:underline min-h-[44px]"
+                          >
+                            Ver onboarding →
+                          </Link>
+                        )}
+                        {member.status === "ACTIVE" && member.membershipPublicId !== context.membershipPublicId && (
+                          <DeactivateMemberButton
+                            slug={slug}
+                            memberPublicId={member.membershipPublicId}
+                            memberName={member.fullName}
+                          />
+                        )}
                       </div>
                     )}
                   </div>

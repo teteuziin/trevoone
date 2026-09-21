@@ -8,6 +8,10 @@ import { EvolutionCharts } from "./evolution-charts";
 import { StudentProgressForm } from "@/components/consultancies/student-progress-form";
 import { StudentPhotoEvaluationHub } from "@/components/consultancies/photos/student-photo-evaluation-hub";
 import { ProfessionalPhotoEvaluationHub } from "@/components/consultancies/photos/professional-photo-evaluation-hub";
+import {
+  loadPhotoEvaluationTabDataAction,
+  type PhotoEvaluationTabDataResult,
+} from "@/app/consultoria/[slug]/progresso/fotos-actions";
 import type {
   EvolutionHubDataDto,
   EvolutionComparisonDataDto,
@@ -111,11 +115,45 @@ export function Evolution360Hub({
     }).catch(() => {});
   }, [isStudent, hubData, initialComparisonData, scopedUserPublicId, scopedConsultancyPublicId, scopedRole]);
 
+  const [fetchedPhotoData, setFetchedPhotoData] = useState<PhotoEvaluationTabDataResult["data"] | null>(null);
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  const photoData = rawPhotoData || fetchedPhotoData;
+
+  const loadPhotos = React.useCallback(async () => {
+    if (photoData || isLoadingPhotos) return;
+    setIsLoadingPhotos(true);
+    setPhotoError(null);
+    try {
+      const res = await loadPhotoEvaluationTabDataAction({
+        consultancySlug,
+        studentPublicId,
+      });
+      if (res.success && res.data) {
+        setFetchedPhotoData(res.data);
+      } else {
+        setPhotoError(res.error || "Não foi possível carregar as fotos.");
+      }
+    } catch {
+      setPhotoError("Erro de comunicação ao carregar fotos.");
+    } finally {
+      setIsLoadingPhotos(false);
+    }
+  }, [photoData, isLoadingPhotos, consultancySlug, studentPublicId]);
+
+  const handleSelectTab = (tab: "timeline" | "comparar" | "graficos" | "fotos") => {
+    setActiveTab(tab);
+    if (tab === "fotos" && !photoData && !isLoadingPhotos) {
+      loadPhotos();
+    }
+  };
+
   const { summary, milestones, student, activePendingPhotoRequest, chartSeries } = hubData;
 
   // Handle clicking "Comparar" on a specific milestone card
   const handleSelectMilestoneForComparison = () => {
-    setActiveTab("comparar");
+    handleSelectTab("comparar");
   };
 
   const hasMultipleMilestones = milestones.length > 1;
@@ -263,7 +301,7 @@ export function Evolution360Hub({
           <Button
             type="button"
             size="sm"
-            onClick={() => setActiveTab("fotos")}
+            onClick={() => handleSelectTab("fotos")}
             className="self-start sm:self-auto shrink-0 text-xs font-semibold"
           >
             {isStudent
@@ -281,7 +319,7 @@ export function Evolution360Hub({
       <div className="flex items-center gap-1.5 p-1 bg-[var(--surface-sunken)] border border-[var(--border-default)] rounded-xl w-fit flex-wrap">
         <button
           type="button"
-          onClick={() => setActiveTab("timeline")}
+          onClick={() => handleSelectTab("timeline")}
           className={`px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
             activeTab === "timeline"
               ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border border-[var(--border-default)]"
@@ -293,7 +331,7 @@ export function Evolution360Hub({
 
         <button
           type="button"
-          onClick={() => setActiveTab("comparar")}
+          onClick={() => handleSelectTab("comparar")}
           className={`px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
             activeTab === "comparar"
               ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border border-[var(--border-default)]"
@@ -305,7 +343,7 @@ export function Evolution360Hub({
 
         <button
           type="button"
-          onClick={() => setActiveTab("graficos")}
+          onClick={() => handleSelectTab("graficos")}
           className={`px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
             activeTab === "graficos"
               ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border border-[var(--border-default)]"
@@ -317,7 +355,7 @@ export function Evolution360Hub({
 
         <button
           type="button"
-          onClick={() => setActiveTab("fotos")}
+          onClick={() => handleSelectTab("fotos")}
           className={`px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
             activeTab === "fotos"
               ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-xs border border-[var(--border-default)]"
@@ -342,7 +380,7 @@ export function Evolution360Hub({
           <EvolutionComparator
             initialComparisonData={initialComparisonData}
             allMilestones={milestones}
-            onClose={() => setActiveTab("timeline")}
+            onClose={() => handleSelectTab("timeline")}
           />
         ) : (
           <div className="p-8 text-center space-y-3 bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl">
@@ -365,19 +403,47 @@ export function Evolution360Hub({
       )}
 
       {activeTab === "fotos" && (
-        isStudent ? (
+        isLoadingPhotos ? (
+          <div
+            className="p-8 sm:p-12 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-6 animate-pulse"
+            aria-busy="true"
+            aria-label="Carregando fotos corporais"
+          >
+            <div className="space-y-2">
+              <div className="h-5 w-48 bg-[var(--surface-subtle)] rounded-lg" />
+              <div className="h-3.5 w-72 bg-[var(--surface-subtle)] rounded-md" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-[var(--border-subtle)]">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="aspect-3/4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center"
+                >
+                  <div className="h-4 w-16 bg-[var(--border-default)] rounded-md" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : photoError ? (
+          <div className="p-8 text-center space-y-4 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs">
+            <p className="text-sm font-medium text-[var(--text-secondary)]">{photoError}</p>
+            <Button type="button" size="sm" onClick={loadPhotos} variant="outline">
+              Tentar novamente
+            </Button>
+          </div>
+        ) : isStudent ? (
           <StudentPhotoEvaluationHub
             consultancySlug={consultancySlug}
-            activeRequest={rawPhotoData?.activeRequest || null}
-            history={rawPhotoData?.history || []}
-            comparisonData={rawPhotoData?.comparisonData || null}
+            activeRequest={photoData?.activeRequest || null}
+            history={photoData?.history || []}
+            comparisonData={photoData?.comparisonData || null}
           />
         ) : (
           <ProfessionalPhotoEvaluationHub
             consultancySlug={consultancySlug}
             student={student}
-            requests={rawPhotoData?.requests || []}
-            comparisonData={rawPhotoData?.comparisonData || null}
+            requests={photoData?.requests || []}
+            comparisonData={photoData?.comparisonData || null}
           />
         )
       )}

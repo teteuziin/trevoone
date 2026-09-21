@@ -5,10 +5,6 @@ import {
   getStudentEvolutionHubData,
   getEvolutionComparisonBetweenDates,
 } from "@/lib/consultancies/evolution";
-import {
-  getStudentPhotoEvaluationsData,
-  getPhotoEvaluationComparisonData,
-} from "@/lib/consultancies/photo-evaluations";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { Evolution360Hub } from "@/components/consultancies/evolution/evolution-360-hub";
@@ -43,29 +39,22 @@ export default async function StudentProgressPage({ params }: PageProps) {
     redirect(`/consultoria/${slug}`);
   }
 
-  // Fetch unified 360 evolution data in parallel
-  const [hubData, initialComparisonData, photoData, comparisonData] = await Promise.all([
-    getStudentEvolutionHubData({
-      userId: session.userId,
-      consultancySlug: slug,
-    }),
-    getEvolutionComparisonBetweenDates({
-      userId: session.userId,
-      consultancySlug: slug,
-    }),
-    getStudentPhotoEvaluationsData({
-      userId: session.userId,
-      consultancySlug: slug,
-    }),
-    getPhotoEvaluationComparisonData({
-      userId: session.userId,
-      consultancySlug: slug,
-    }),
-  ]);
+  // 1. Fetch unified 360 evolution hub data (measurements, timeline, summary, charts)
+  const hubData = await getStudentEvolutionHubData({
+    userId: session.userId,
+    consultancySlug: slug,
+  });
 
   if (!hubData) {
     redirect(`/consultoria/${slug}`);
   }
+
+  // 2. Compute initial comparison deltas in memory from pre-loaded hub data (0 extra DB queries)
+  const initialComparisonData = await getEvolutionComparisonBetweenDates({
+    userId: session.userId,
+    consultancySlug: slug,
+    hubData,
+  });
 
   return (
     <ConsultancyAppShell
@@ -97,11 +86,6 @@ export default async function StudentProgressPage({ params }: PageProps) {
           userPublicId={session.userPublicId}
           consultancyPublicId={access.context.consultancyPublicId}
           role="STUDENT"
-          rawPhotoData={{
-            activeRequest: photoData?.activeRequest || null,
-            history: photoData?.history || [],
-            comparisonData,
-          }}
         />
       </div>
     </ConsultancyAppShell>

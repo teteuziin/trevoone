@@ -5,10 +5,6 @@ import {
   getStudentEvolutionHubData,
   getEvolutionComparisonBetweenDates,
 } from "@/lib/consultancies/evolution";
-import {
-  getProfessionalStudentPhotoEvaluationsData,
-  getPhotoEvaluationComparisonData,
-} from "@/lib/consultancies/photo-evaluations";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { Evolution360Hub } from "@/components/consultancies/evolution/evolution-360-hub";
@@ -44,33 +40,24 @@ export default async function ProfessionalStudentProgressDetailPage({
     redirect(`/consultoria/${slug}`);
   }
 
-  // Fetch unified 360 data under strict operational relationship verification
-  const [hubData, initialComparisonData, photoData, comparisonData] = await Promise.all([
-    getStudentEvolutionHubData({
-      userId: session.userId,
-      consultancySlug: slug,
-      studentPublicId,
-    }),
-    getEvolutionComparisonBetweenDates({
-      userId: session.userId,
-      consultancySlug: slug,
-      studentPublicId,
-    }),
-    getProfessionalStudentPhotoEvaluationsData({
-      userId: session.userId,
-      consultancySlug: slug,
-      studentPublicId,
-    }),
-    getPhotoEvaluationComparisonData({
-      userId: session.userId,
-      consultancySlug: slug,
-      studentPublicId,
-    }),
-  ]);
+  // 1. Fetch unified 360 data under strict operational relationship verification
+  const hubData = await getStudentEvolutionHubData({
+    userId: session.userId,
+    consultancySlug: slug,
+    studentPublicId,
+  });
 
   if (!hubData) {
     notFound();
   }
+
+  // 2. Compute initial comparison deltas in memory from pre-loaded hub data (0 extra DB queries)
+  const initialComparisonData = await getEvolutionComparisonBetweenDates({
+    userId: session.userId,
+    consultancySlug: slug,
+    studentPublicId,
+    hubData,
+  });
 
   return (
     <ConsultancyAppShell
@@ -101,10 +88,6 @@ export default async function ProfessionalStudentProgressDetailPage({
           isNutritionist={isNutritionist}
           isAdmin={isConsultancyAdmin}
           studentPublicId={studentPublicId}
-          rawPhotoData={{
-            requests: photoData?.requests || [],
-            comparisonData,
-          }}
         />
       </div>
     </ConsultancyAppShell>

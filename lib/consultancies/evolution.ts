@@ -629,8 +629,9 @@ export async function getEvolutionComparisonBetweenDates(params: {
   studentPublicId?: string;
   beforeDate?: string;
   afterDate?: string;
+  hubData?: EvolutionHubDataDto;
 }): Promise<EvolutionComparisonDataDto | null> {
-  const hubData = await getStudentEvolutionHubData(params);
+  const hubData = params.hubData || (await getStudentEvolutionHubData(params));
   if (!hubData) return null;
 
   const { milestones, student } = hubData;

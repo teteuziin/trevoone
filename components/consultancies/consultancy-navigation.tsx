@@ -414,6 +414,8 @@ export function ConsultancyNavigation({
       ? "Personal Trainer"
       : viewModeState?.effectiveMode === "NUTRITIONIST"
       ? "Nutricionista"
+      : viewModeState?.effectiveMode === "STUDENT"
+      ? "Aluno"
       : roleLabels.length > 0
       ? roleLabels[0]
       : null;

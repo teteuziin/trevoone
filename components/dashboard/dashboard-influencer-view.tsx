@@ -1,6 +1,18 @@
+"use client";
+
+import React from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  NetflixFeatureCarousel,
+  type CarouselSlide,
+} from "./netflix-feature-carousel";
+import {
+  MissionPriorityBadge,
+  MissionStatusGroup,
+} from "@/components/missions/mission-ui-badges";
 import type { MissionListItemView } from "@/lib/consultancies/missions";
 
 export interface InfluencerPlanSummary {
@@ -9,203 +21,238 @@ export interface InfluencerPlanSummary {
 
 interface DashboardInfluencerViewProps {
   consultancySlug: string;
+  consultancyName?: string;
+  userName?: string;
   missions: MissionListItemView[];
   totalMissions?: number;
   activeTrainingPlan?: InfluencerPlanSummary | null;
   activeNutritionPlan?: InfluencerPlanSummary | null;
 }
 
-const MISSION_STATUS_LABELS: Record<string, string> = {
-  ASSIGNED: "Atribuída",
-  IN_PROGRESS: "Em andamento",
-  SUBMITTED: "Enviada",
-  APPROVED: "Aprovada",
-  REVISION_REQUESTED: "Revisão solicitada",
-  CANCELED: "Cancelada",
-};
+// ============================================================================
+// ICONS (Trevo One Art Direction — Clean, tactile, linear precision)
+// ============================================================================
 
-const MISSION_STATUS_VARIANTS: Record<string, "brand" | "warning" | "success" | "neutral" | "danger"> = {
-  ASSIGNED: "brand",
-  IN_PROGRESS: "warning",
-  SUBMITTED: "brand",
-  APPROVED: "success",
-  REVISION_REQUESTED: "danger",
-  CANCELED: "neutral",
-};
-
-const MISSION_PRIORITY_LABELS: Record<string, string> = {
-  LOW: "Baixa",
-  NORMAL: "Normal",
-  HIGH: "Alta",
-};
-
-function MissionVolumetricIcon({ className = "w-12 h-12" }: { className?: string }) {
+function TargetIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="infl-grad-bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--brand)" stopOpacity="0.22" />
-          <stop stopColor="#f59e0b" stopOpacity="0.06" />
-        </linearGradient>
-        <linearGradient id="infl-grad-gold" x1="16" y1="12" x2="48" y2="52" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#fbbf24" />
-          <stop stopColor="#d97706" />
-        </linearGradient>
-        <linearGradient id="infl-grad-brand" x1="20" y1="16" x2="44" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--brand)" />
-          <stop stopColor="#047857" />
-        </linearGradient>
-        <linearGradient id="infl-grad-target" x1="18" y1="18" x2="46" y2="46" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--surface)" />
-          <stop stopColor="var(--surface-subtle)" />
-        </linearGradient>
-      </defs>
-
-      {/* Ambient glow */}
-      <circle cx="32" cy="32" r="28" fill="url(#infl-grad-bg)" />
-
-      {/* Target Base Plate */}
-      <circle cx="32" cy="32" r="22" fill="url(#infl-grad-target)" stroke="var(--border-default)" strokeWidth="1.5" />
-      <circle cx="32" cy="32" r="16" fill="var(--surface)" stroke="var(--brand-soft-border)" strokeWidth="1.2" />
-
-      {/* Inner Target Core */}
-      <circle cx="32" cy="32" r="10" fill="url(#infl-grad-brand)" />
-
-      {/* Golden VIP Star Overlay */}
-      <path
-        d="M32 23 L34.5 29 L41 29.5 L36 34 L37.5 40.5 L32 37 L26.5 40.5 L28 34 L23 29.5 L29.5 29 Z"
-        fill="url(#infl-grad-gold)"
-      />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
     </svg>
   );
 }
 
-function TrainingSupportVolumetricIcon({ className = "w-10 h-10" }: { className?: string }) {
+function WorkoutIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="infl-t-bg" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--brand)" stopOpacity="0.2" />
-          <stop stopColor="var(--brand)" stopOpacity="0.03" />
-        </linearGradient>
-        <linearGradient id="infl-t-brand" x1="12" y1="12" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--brand)" />
-          <stop stopColor="#059669" />
-        </linearGradient>
-        <linearGradient id="infl-t-metal" x1="16" y1="20" x2="32" y2="28" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#cbd5e1" />
-          <stop stopColor="#64748b" />
-        </linearGradient>
-      </defs>
-
-      <circle cx="24" cy="24" r="20" fill="url(#infl-t-bg)" />
-      <g transform="rotate(-30 24 24)">
-        <rect x="14" y="22" width="20" height="4" rx="2" fill="url(#infl-t-metal)" />
-        <rect x="10" y="16" width="4" height="16" rx="2" fill="url(#infl-t-brand)" />
-        <rect x="34" y="16" width="4" height="16" rx="2" fill="url(#infl-t-brand)" />
-        <rect x="15" y="18" width="2" height="12" rx="1" fill="var(--surface)" fillOpacity="0.7" />
-        <rect x="31" y="18" width="2" height="12" rx="1" fill="var(--surface)" fillOpacity="0.7" />
-      </g>
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m6.5 6.5 11 11" />
+      <path d="m21 21-1-1a2 2 0 0 0-2.83 0l-2.5 2.5a2 2 0 0 1-2.83 0l-.84-.84a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 0 0-2.83l-1-1" />
+      <path d="m3 3 1 1a2 2 0 0 0 2.83 0l2.5-2.5a2 2 0 0 1 2.83 0l.84.84a2 2 0 0 1 0 2.83l-2.5 2.5a2 2 0 0 0 0 2.83l1 1" />
     </svg>
   );
 }
 
-function NutritionSupportVolumetricIcon({ className = "w-10 h-10" }: { className?: string }) {
+function NutritionIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="infl-n-bg" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#10b981" stopOpacity="0.2" />
-          <stop stopColor="var(--brand)" stopOpacity="0.03" />
-        </linearGradient>
-        <linearGradient id="infl-n-plate" x1="12" y1="14" x2="36" y2="38" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--surface)" />
-          <stop stopColor="var(--surface-subtle)" />
-        </linearGradient>
-        <linearGradient id="infl-n-leaf" x1="18" y1="12" x2="32" y2="28" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#34d399" />
-          <stop stopColor="#059669" />
-        </linearGradient>
-      </defs>
-
-      <circle cx="24" cy="24" r="20" fill="url(#infl-n-bg)" />
-      <circle cx="24" cy="25" r="14" fill="url(#infl-n-plate)" stroke="var(--border-default)" strokeWidth="1.5" />
-      <circle cx="24" cy="25" r="9" fill="var(--surface)" stroke="var(--border-subtle)" strokeWidth="1" />
-      <path d="M24 19 C24 16 28 15 29.5 15 C29.5 16.5 28.5 19.5 26 19.5 C25 19.5 24 19.2 24 19 Z" fill="url(#infl-n-leaf)" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2a9 9 0 0 0-9 9c0 4.97 4.03 9 9 9s9-4.03 9-9" />
+      <path d="M12 2c2.5 2.5 3 6 1 8.5" />
+      <path d="M18 11c0 3.31-2.69 6-6 6s-6-2.69-6-6" />
+      <path d="M12 2v4" />
     </svg>
   );
 }
 
-function ProgressSupportVolumetricIcon({ className = "w-10 h-10" }: { className?: string }) {
+function ProgressIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="infl-p-bg" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#3b82f6" stopOpacity="0.2" />
-          <stop stopColor="var(--brand)" stopOpacity="0.05" />
-        </linearGradient>
-        <linearGradient id="infl-p-blue" x1="12" y1="12" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#3b82f6" />
-          <stop stopColor="#1d4ed8" />
-        </linearGradient>
-        <linearGradient id="infl-p-brand" x1="20" y1="12" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--brand)" />
-          <stop stopColor="#059669" />
-        </linearGradient>
-      </defs>
-
-      <circle cx="24" cy="24" r="20" fill="url(#infl-p-bg)" />
-      <rect x="12" y="28" width="6" height="10" rx="2" fill="url(#infl-p-blue)" fillOpacity="0.7" />
-      <rect x="21" y="21" width="6" height="17" rx="2" fill="url(#infl-p-blue)" />
-      <rect x="30" y="14" width="6" height="24" rx="2" fill="url(#infl-p-brand)" />
-      <path d="M14 26 L23 18 L33 11" stroke="var(--brand)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="33" cy="11" r="2.5" fill="var(--surface)" stroke="var(--brand)" strokeWidth="2" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 3v18h18" />
+      <path d="m19 9-5 5-4-4-3 3" />
     </svg>
   );
+}
+
+function ClockIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+function AlertTriangleIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </svg>
+  );
+}
+
+function getFirstName(fullName?: string): string {
+  if (!fullName) return "";
+  const parts = fullName.trim().split(/\s+/);
+  return parts[0] || "";
 }
 
 export function DashboardInfluencerView({
   consultancySlug,
-  missions,
+  consultancyName,
+  userName,
+  missions = [],
   totalMissions,
   activeTrainingPlan,
   activeNutritionPlan,
 }: DashboardInfluencerViewProps) {
-  const lateMission = missions?.find((m) => m.isLate);
-  const activeMissions = missions?.filter((m) => m.status !== "APPROVED" && m.status !== "CANCELED") || [];
-  const primaryMission = activeMissions[0] || missions?.[0];
+  // 1. Definition of Late & Priority: canonical isLate boolean already computed server-side per timezone
+  const lateMission = missions.find((m) => m.isLate);
+
+  // 2. Cockpit Metrics: calculated strictly and deduplicated from authoritative missions list
+  const activeCount = missions.filter(
+    (m) =>
+      m.status === "PENDING" ||
+      m.status === "IN_PROGRESS" ||
+      m.status === "REVISION_REQUESTED"
+  ).length;
+
+  const reviewCount = missions.filter((m) => m.status === "SUBMITTED").length;
+  const approvedCount = missions.filter((m) => m.status === "APPROVED").length;
+
+  // Urgent: unique missions that are late OR high priority, among non-terminal missions (not APPROVED and not CANCELED)
+  const urgentMissionPublicIds = new Set(
+    missions
+      .filter(
+        (m) =>
+          (m.isLate || m.priority === "HIGH") &&
+          m.status !== "APPROVED" &&
+          m.status !== "CANCELED"
+      )
+      .map((m) => m.publicId)
+  );
+  const urgentCount = urgentMissionPublicIds.size;
+
+  // 3. Quick Actions Configuration (Canonical existing routes)
+  const quickActions = [
+    {
+      href: `/consultoria/${consultancySlug}/missoes`,
+      title: "Minhas Missões",
+      description: "Entregas & diretrizes VIP",
+      badge: "Missões",
+      icon: TargetIcon,
+      accent: true,
+    },
+    {
+      href: `/consultoria/${consultancySlug}/treinos`,
+      title: "Treinos VIP",
+      description: "Rotinas prescritas",
+      badge: "Treinos",
+      icon: WorkoutIcon,
+    },
+    {
+      href: `/consultoria/${consultancySlug}/nutricao`,
+      title: "Nutrição VIP",
+      description: "Plano alimentar",
+      badge: "Nutrição",
+      icon: NutritionIcon,
+    },
+    {
+      href: `/consultoria/${consultancySlug}/progresso`,
+      title: "Evolução",
+      description: "Medições & biometria",
+      badge: "Resultados",
+      icon: ProgressIcon,
+    },
+  ];
+
+  // 4. Hero Slides (Reusing NetflixFeatureCarousel with verified local photography)
+  const firstName = getFirstName(userName);
+
+  const influencerSlides: CarouselSlide[] = [
+    {
+      id: "vip-missions",
+      tag: consultancyName ? `PARCERIA VIP • ${consultancyName.toUpperCase()}` : "PARCERIA VIP",
+      tagColor: "brand",
+      title: firstName
+        ? `Olá, ${firstName} — Central de Parceria VIP`
+        : "Central de Parceria & Missões VIP",
+      description:
+        "Cumpra suas diretrizes de divulgação, registre comprovações oficiais e acompanhe a aprovação das suas entregas.",
+      ctaText: "Ver missões",
+      ctaHref: `/consultoria/${consultancySlug}/missoes`,
+      imageUrl: "/images/personal/coach-cockpit.jpg",
+      meta:
+        typeof totalMissions === "number" && totalMissions > 0
+          ? `${totalMissions} ${totalMissions === 1 ? "missão atribuída" : "missões atribuídas"}`
+          : undefined,
+    },
+    {
+      id: "vip-training",
+      tag: "TREINOS VIP",
+      tagColor: "emerald",
+      title: "Rotinas de Treino Prescritas",
+      description:
+        "Acesse seus treinos personalizados elaborados pelo seu treinador, com orientações completas de exercícios e cargas.",
+      ctaText: "Acessar treinos",
+      ctaHref: `/consultoria/${consultancySlug}/treinos`,
+      imageUrl: "/images/student/workout-editorial.webp",
+      meta: activeTrainingPlan?.title || "Treinos VIP",
+    },
+    {
+      id: "vip-nutrition",
+      tag: "NUTRIÇÃO VIP",
+      tagColor: "amber",
+      title: "Planejamento Nutricional",
+      description:
+        "Consulte seu cardápio, horários e diretrizes alimentares formuladas para apoiar sua performance e estética.",
+      ctaText: "Ver plano alimentar",
+      ctaHref: `/consultoria/${consultancySlug}/nutricao`,
+      imageUrl: "/images/student/nutrition-editorial.webp",
+      meta: activeNutritionPlan?.title || "Nutrição VIP",
+    },
+    {
+      id: "vip-progress",
+      tag: "EVOLUÇÃO",
+      tagColor: "blue",
+      title: "Registro de Evolução & Resultados",
+      description:
+        "Monitore suas medições corporais, registros de peso e evolução estética ao longo do período de acompanhamento.",
+      ctaText: "Acessar evolução",
+      ctaHref: `/consultoria/${consultancySlug}/progresso`,
+      imageUrl: "/images/student/hero-athlete.webp",
+      meta: "Acompanhamento VIP",
+    },
+  ];
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* 1. ALERTA P0: MISSÃO ATRASADA (Se isLate for verdadeiro) */}
+    <div className="space-y-7 sm:space-y-9 overflow-x-clip">
+      {/* ==================================================================== */}
+      {/* 1. ALERTA P0: MISSÃO ATRASADA (Se houver registro com isLate)         */}
+      {/* ==================================================================== */}
       {lateMission && (
-        <div className="p-4.5 sm:p-5 rounded-3xl border border-red-500/30 bg-red-500/5 dark:bg-red-950/20 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="p-4.5 sm:p-5 rounded-2xl border border-red-500/30 bg-red-500/5 dark:bg-red-950/20 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <span className="w-3 h-3 rounded-full bg-red-500 shrink-0 mt-1" />
+            <span className="w-3 h-3 rounded-full bg-red-500 shrink-0 mt-1 animate-pulse" />
             <div className="space-y-0.5 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
@@ -218,14 +265,15 @@ export function DashboardInfluencerView({
               <p className="text-sm font-bold text-[var(--text-primary)] truncate">
                 {lateMission.title}
               </p>
-              <p className="text-xs text-[var(--text-secondary)] font-medium">
-                Vencimento: {lateMission.formattedDueAt}
-              </p>
+              <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] font-medium">
+                <ClockIcon className="w-3.5 h-3.5 text-red-500" />
+                <span>Vencimento oficial: {lateMission.formattedDueAt}</span>
+              </div>
             </div>
           </div>
 
           <div className="shrink-0">
-            <Link href={`/consultoria/${consultancySlug}/missoes`}>
+            <Link href={`/consultoria/${consultancySlug}/missoes/${lateMission.publicId}`}>
               <Button variant="danger" size="sm" className="w-full sm:w-auto font-bold min-h-[44px]">
                 Submeter missão →
               </Button>
@@ -234,210 +282,359 @@ export function DashboardInfluencerView({
         </div>
       )}
 
-      {/* 2. HERO PROTAGONISTA: CENTRAL DE MISSÕES VIP */}
-      <div className="relative overflow-hidden p-6 sm:p-7 rounded-3xl border border-[var(--brand-soft-border)] bg-[var(--surface)] shadow-xs">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0 p-1 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-              <MissionVolumetricIcon className="w-12 h-12 sm:w-14 sm:h-14" />
-            </div>
+      {/* ==================================================================== */}
+      {/* 2. HERO EDITORIAL PROTAGONISTA (NetflixFeatureCarousel)               */}
+      {/* ==================================================================== */}
+      <NetflixFeatureCarousel
+        slides={influencerSlides}
+        consultancySlug={consultancySlug}
+      />
 
-            <div className="space-y-1.5 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold text-[var(--brand)] uppercase tracking-wider">
-                  Painel de Parceria VIP
-                </span>
-                <Badge variant="brand" size="sm">
-                  Influenciador
-                </Badge>
-                {typeof totalMissions === "number" && totalMissions > 0 && (
-                  <Badge variant="neutral" size="sm">
-                    {totalMissions} {totalMissions === 1 ? "missão" : "missões"}
-                  </Badge>
-                )}
-              </div>
-
-              <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-                Suas Missões & Atividades
-              </h2>
-
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium max-w-xl">
-                Cumpra as diretrizes de divulgação, registre evidências e acompanhe suas entregas oficiais na consultoria.
-              </p>
-
-              {/* Status Preview */}
-              {primaryMission && (
-                <div className="pt-2 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="font-bold text-[var(--text-secondary)]">Destaque:</span>
-                  <span className="font-semibold text-[var(--text-primary)] truncate max-w-xs sm:max-w-sm">
-                    {primaryMission.title}
-                  </span>
-                  <Badge
-                    variant={MISSION_STATUS_VARIANTS[primaryMission.status] || "neutral"}
-                    size="sm"
-                  >
-                    {MISSION_STATUS_LABELS[primaryMission.status] || primaryMission.status}
-                  </Badge>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="shrink-0 pt-2 md:pt-0">
-            <Link href={`/consultoria/${consultancySlug}/missoes`}>
-              <Button variant="primary" size="md" className="w-full sm:w-auto font-bold min-h-[44px] shadow-sm">
-                Acessar central de missões →
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. FILA DE MISSÕES ATRIBUÍDAS */}
-      <div className="space-y-3.5">
+      {/* ==================================================================== */}
+      {/* 3. OPERAÇÃO RÁPIDA (Snap rail no mobile, grid 4 cols no desktop)      */}
+      {/* ==================================================================== */}
+      <section aria-label="Operação Rápida" className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-              Fila de Missões
-            </h3>
-            {missions && missions.length > 0 && (
-              <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                ({missions.length})
+            <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              Operação Rápida
+            </h2>
+            <Badge variant="brand" size="sm">
+              Influenciador / VIP
+            </Badge>
+          </div>
+          <span className="text-[11px] text-[var(--text-tertiary)] font-medium hidden sm:inline">
+            Acesso prioritário às rotinas e entregas
+          </span>
+        </div>
+
+        <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-3 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Link
+                key={action.href}
+                href={action.href}
+                className={`w-[74vw] max-w-[280px] shrink-0 sm:w-auto sm:max-w-none snap-center p-4 rounded-2xl border transition-all duration-150 flex items-center justify-between gap-3 group depth-interactive min-h-[44px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
+                  action.accent
+                    ? "bg-[var(--surface-subtle)] border-[var(--brand)]/40 hover:border-[var(--brand)] shadow-2xs"
+                    : "bg-[var(--surface)] border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] shadow-xs"
+                }`}
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${
+                      action.accent
+                        ? "bg-[var(--brand)] text-white"
+                        : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)]"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                      {action.title}
+                    </p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-medium truncate">
+                      {action.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="shrink-0 text-xs font-semibold text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all">
+                  <ArrowRightIcon className="w-4 h-4" />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ==================================================================== */}
+      {/* 4. COCKPIT DE MISSÕES (4 Métricas Táteis: Ativas, Revisão, Aprovadas, Urgência) */}
+      {/* ==================================================================== */}
+      <section aria-label="Cockpit de Missões" className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+            Cockpit de Missões
+          </h2>
+          <span className="text-[11px] text-[var(--text-tertiary)] font-medium hidden sm:inline">
+            Status consolidado de entregas
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* 1. Ativas */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col justify-between space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                Ativas
               </span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[var(--brand)]">
+                <TargetIcon className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-heading tabular-nums">
+                {activeCount}
+              </p>
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium">
+                Em andamento ou pendentes
+              </p>
+            </div>
+          </div>
+
+          {/* 2. Aguardando Revisão */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col justify-between space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                Em Revisão
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-500">
+                <ClockIcon className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-heading tabular-nums">
+                {reviewCount}
+              </p>
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium">
+                Submetidas à consultoria
+              </p>
+            </div>
+          </div>
+
+          {/* 3. Aprovadas */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex flex-col justify-between space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                Aprovadas
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
+                <CheckCircleIcon className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-heading tabular-nums">
+                {approvedCount}
+              </p>
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium">
+                Entregas homologadas
+              </p>
+            </div>
+          </div>
+
+          {/* 4. Urgência (Deduplicada) */}
+          <div
+            className={`p-4 sm:p-5 rounded-2xl border shadow-xs flex flex-col justify-between space-y-3 ${
+              urgentCount > 0
+                ? "bg-red-500/5 dark:bg-red-950/20 border-red-500/30"
+                : "bg-[var(--surface)] border-[var(--border-default)]"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span
+                className={`text-xs font-bold uppercase tracking-wider ${
+                  urgentCount > 0 ? "text-red-600 dark:text-red-400" : "text-[var(--text-secondary)]"
+                }`}
+              >
+                Urgência
+              </span>
+              <div
+                className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                  urgentCount > 0
+                    ? "bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400"
+                    : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]"
+                }`}
+              >
+                <AlertTriangleIcon className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <p
+                className={`text-2xl sm:text-3xl font-extrabold font-heading tabular-nums ${
+                  urgentCount > 0 ? "text-red-600 dark:text-red-400" : "text-[var(--text-primary)]"
+                }`}
+              >
+                {urgentCount}
+              </p>
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium">
+                {urgentCount > 0 ? "Atrasadas ou prioridade alta" : "Sem pendências críticas"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ==================================================================== */}
+      {/* 5. FILA DE MISSÕES ATRIBUÍDAS                                         */}
+      {/* ==================================================================== */}
+      <section aria-label="Fila de Missões Atribuídas" className="space-y-3.5">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              Fila de Missões Atribuídas
+            </h2>
+            {missions.length > 0 && (
+              <Badge variant="neutral" size="sm">
+                {missions.length}
+              </Badge>
             )}
           </div>
           <Link
             href={`/consultoria/${consultancySlug}/missoes`}
-            className="text-xs font-bold text-[var(--brand)] hover:underline"
+            className="text-xs sm:text-sm font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1 shrink-0"
           >
-            Ver todas as missões →
+            <span>Ver todas</span>
+            <ArrowRightIcon className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        {missions && missions.length > 0 ? (
-          <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] divide-y divide-[var(--border-subtle)] shadow-xs overflow-hidden">
+        {missions.length > 0 ? (
+          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] divide-y divide-[var(--border-subtle)] shadow-xs overflow-hidden">
             {missions.map((mission) => (
               <Link
                 key={mission.publicId}
-                href={`/consultoria/${consultancySlug}/missoes`}
-                className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-[var(--surface-hover)] transition-all duration-150 group"
+                href={`/consultoria/${consultancySlug}/missoes/${mission.publicId}`}
+                className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-[var(--surface-hover)] transition-all duration-150 group min-h-[64px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
               >
-                <div className="space-y-1 min-w-0">
+                <div className="space-y-1.5 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--brand)] transition-colors">
+                    <p className="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--brand)] transition-colors">
                       {mission.title}
-                    </span>
-                    <Badge
-                      variant={MISSION_STATUS_VARIANTS[mission.status] || "neutral"}
-                      size="sm"
-                    >
-                      {MISSION_STATUS_LABELS[mission.status] || mission.status}
-                    </Badge>
+                    </p>
+                    <MissionStatusGroup status={mission.status} isLate={mission.isLate} size="sm" />
                     {mission.priority && mission.priority !== "NORMAL" && (
-                      <Badge
-                        variant={mission.priority === "HIGH" ? "warning" : "neutral"}
-                        size="sm"
-                      >
-                        {MISSION_PRIORITY_LABELS[mission.priority] || mission.priority}
-                      </Badge>
+                      <MissionPriorityBadge priority={mission.priority} size="sm" />
                     )}
                   </div>
-                  <p className="text-xs text-[var(--text-secondary)] font-medium">
-                    Prazo de entrega: {mission.formattedDueAt}
-                  </p>
+                  <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] font-medium">
+                    <ClockIcon className="w-3.5 h-3.5 shrink-0 text-[var(--text-tertiary)]" />
+                    <span>Prazo de entrega: {mission.formattedDueAt}</span>
+                  </div>
                 </div>
 
-                <div className="shrink-0 text-xs font-bold text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all flex items-center gap-1">
-                  <span>Abrir</span>
-                  <span>→</span>
+                <div className="shrink-0 text-xs font-semibold text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all flex items-center gap-1">
+                  <span className="hidden sm:inline">Ver detalhes</span>
+                  <ArrowRightIcon className="w-4 h-4" />
                 </div>
               </Link>
             ))}
           </div>
         ) : (
-          <div className="p-8 sm:p-10 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs">
-            <div className="inline-flex p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-              <MissionVolumetricIcon className="w-10 h-10" />
-            </div>
-            <div className="space-y-1 max-w-sm mx-auto">
-              <p className="text-sm font-bold text-[var(--text-primary)]">
-                Nenhuma missão pendente
-              </p>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Novas diretrizes e metas de divulgação aparecerão aqui assim que atribuídas.
-              </p>
-            </div>
-            <Link href={`/consultoria/${consultancySlug}/missoes`}>
-              <Button variant="secondary" size="sm" className="font-semibold min-h-[44px]">
-                Acessar histórico de missões
-              </Button>
-            </Link>
-          </div>
+          <EmptyState
+            icon={<TargetIcon className="w-6 h-6" />}
+            title="Nenhuma missão pendente"
+            description="Você não possui missões ativas no momento. Novas diretrizes e metas de divulgação aparecerão aqui assim que atribuídas pela consultoria."
+            action={
+              <Link href={`/consultoria/${consultancySlug}/missoes`}>
+                <Button variant="secondary" size="sm" className="font-semibold min-h-[44px]">
+                  Acessar histórico de missões
+                </Button>
+              </Link>
+            }
+          />
         )}
-      </div>
+      </section>
 
-      {/* 4. MÓDULOS DE APOIO: SEU ACOMPANHAMENTO VIP */}
-      <div className="space-y-3.5">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] px-1">
-          Seu Acompanhamento Pessoal
-        </h3>
+      {/* ==================================================================== */}
+      {/* 6. MÓDULOS DE APOIO: SEU ACOMPANHAMENTO VIP                           */}
+      {/* ==================================================================== */}
+      <section aria-label="Seu Acompanhamento VIP" className="space-y-3.5">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              Seu Acompanhamento VIP
+            </h2>
+          </div>
+          <span className="text-[11px] text-[var(--text-tertiary)] font-medium hidden sm:inline">
+            Acesso direto aos seus módulos de saúde e performance
+          </span>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
-          {/* Treinos */}
+          {/* Treinos VIP */}
           <Link
             href={`/consultoria/${consultancySlug}/treinos`}
-            className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex items-center gap-3.5"
+            className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex flex-col justify-between space-y-4 min-h-[140px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
           >
-            <div className="shrink-0">
-              <TrainingSupportVolumetricIcon className="w-10 h-10" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[var(--brand)] shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                <WorkoutIcon className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]">
+                Treinos VIP
+              </span>
             </div>
-            <div className="space-y-0.5 min-w-0">
-              <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                Treinos
-              </h4>
-              <p className="text-[11px] text-[var(--text-secondary)] font-medium truncate">
-                {activeTrainingPlan ? activeTrainingPlan.title : "Rotinas prescritas"}
+            <div className="space-y-1 min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                {activeTrainingPlan ? activeTrainingPlan.title : "Treinos Prescritos"}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] font-normal line-clamp-2">
+                Acesse suas rotinas personalizadas, séries e orientações do treinador.
               </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-semibold text-[var(--brand)] pt-1">
+              <span>Acessar rotinas</span>
+              <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </Link>
 
-          {/* Nutrição */}
+          {/* Nutrição VIP */}
           <Link
             href={`/consultoria/${consultancySlug}/nutricao`}
-            className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex items-center gap-3.5"
+            className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex flex-col justify-between space-y-4 min-h-[140px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
           >
-            <div className="shrink-0">
-              <NutritionSupportVolumetricIcon className="w-10 h-10" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                <NutritionIcon className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]">
+                Nutrição VIP
+              </span>
             </div>
-            <div className="space-y-0.5 min-w-0">
-              <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                Nutrição
-              </h4>
-              <p className="text-[11px] text-[var(--text-secondary)] font-medium truncate">
-                {activeNutritionPlan ? activeNutritionPlan.title : "Plano alimentar"}
+            <div className="space-y-1 min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                {activeNutritionPlan ? activeNutritionPlan.title : "Plano Alimentar"}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] font-normal line-clamp-2">
+                Consulte seu cardápio prescrito, horários e diretrizes nutricionais.
               </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-semibold text-[var(--brand)] pt-1">
+              <span>Ver refeições</span>
+              <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </Link>
 
           {/* Evolução */}
           <Link
             href={`/consultoria/${consultancySlug}/progresso`}
-            className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex items-center gap-3.5"
+            className="p-4.5 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] hover:bg-[var(--surface-hover)] hover:-translate-y-0.5 transition-all duration-150 group flex flex-col justify-between space-y-4 min-h-[140px] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
           >
-            <div className="shrink-0">
-              <ProgressSupportVolumetricIcon className="w-10 h-10" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-500 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                <ProgressIcon className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]">
+                Biometria
+              </span>
             </div>
-            <div className="space-y-0.5 min-w-0">
-              <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                Evolução
-              </h4>
-              <p className="text-[11px] text-[var(--text-secondary)] font-medium truncate">
-                Medidas e histórico
+            <div className="space-y-1 min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                Evolução & Resultados
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] font-normal line-clamp-2">
+                Acompanhe seu histórico de medições corporais, registros e fotos.
               </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-semibold text-[var(--brand)] pt-1">
+              <span>Ver evolução</span>
+              <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </Link>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

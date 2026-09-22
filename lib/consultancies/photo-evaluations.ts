@@ -248,9 +248,10 @@ export async function createPhotoEvaluationRequest(params: {
       studentMembershipId,
     });
 
-    // 2.1. Professional-student assignment authorization (non-admins must have active relationship)
+    // 2.1. Professional-student assignment authorization (non-admins must have active relationship, Nutritionist has consultancy scope)
     const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
-    if (!isAdmin) {
+    const isNutritionist = context.roles.includes("NUTRITIONIST");
+    if (!isAdmin && !isNutritionist) {
       const hasRelationship = await assertProfessionalStudentRelationship(connection, {
         consultancyId: context.consultancyId,
         studentMembershipId,
@@ -1144,9 +1145,10 @@ export async function reviewPhotoEvaluation(params: {
       studentMembershipId,
     });
 
-    // Professional authorization: non-admin must have active current relationship
+    // Professional authorization: non-admin must have active current relationship (Nutritionist has tenancy scope)
     const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
-    if (!isAdmin) {
+    const isNutritionist = context.roles.includes("NUTRITIONIST");
+    if (!isAdmin && !isNutritionist) {
       const hasRelationship = await assertProfessionalStudentRelationship(connection, {
         consultancyId: context.consultancyId,
         studentMembershipId,
@@ -1307,9 +1309,9 @@ export async function getPhotoEvaluationComparisonData(params: {
         `SELECT cm.id, cm.public_id, cm.user_id, cm.status, u.full_name, u.email
          FROM consultancy_members cm
          JOIN users u ON u.id = cm.user_id
-         WHERE cm.public_id = ? AND cm.consultancy_id = ?
+         WHERE (cm.public_id = ? OR u.public_id = ?) AND cm.consultancy_id = ?
          LIMIT 1;`,
-        [studentPublicId, consultancyId]
+        [studentPublicId, studentPublicId, consultancyId]
       );
       if (!targetMembers || targetMembers.length === 0) return null;
 
@@ -1319,9 +1321,10 @@ export async function getPhotoEvaluationComparisonData(params: {
       targetStudentEmail = String(targetMembers[0].email);
       targetStudentPublicId = String(targetMembers[0].public_id);
 
-      // Verify relationship for non-admin professional
+      // Verify relationship for non-admin professional (Nutritionist has consultancy scope)
       const isAdmin = professionalContext ? professionalContext.roles.includes("CONSULTANCY_ADMIN") : false;
-      if (!isAdmin) {
+      const isNutritionist = professionalContext ? professionalContext.roles.includes("NUTRITIONIST") : false;
+      if (!isAdmin && !isNutritionist) {
         const hasRelationship = await assertProfessionalStudentRelationship(connection, {
           consultancyId,
           studentMembershipId: targetStudentMembershipId,
@@ -1556,7 +1559,8 @@ export async function getPhotoEvaluationImageBuffer(params: {
       }
 
       const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
-      if (!isAdmin) {
+      const isNutritionist = context.roles.includes("NUTRITIONIST");
+      if (!isAdmin && !isNutritionist) {
         const hasRelationship = await assertProfessionalStudentRelationship(connection, {
           consultancyId,
           studentMembershipId,

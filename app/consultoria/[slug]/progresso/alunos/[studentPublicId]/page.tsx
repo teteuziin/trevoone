@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import {
   getStudentEvolutionHubData,
   getEvolutionComparisonBetweenDates,
@@ -32,19 +33,29 @@ export default async function ProfessionalStudentProgressDetailPage({
     redirect("/selecionar-consultoria");
   }
 
-  const isPersonal = context.roles.includes("PERSONAL");
-  const isNutritionist = context.roles.includes("NUTRITIONIST");
-  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+  const { effectiveMode } = effectiveState;
+
+  if (effectiveMode === "STUDENT" || effectiveMode === "INFLUENCER") {
+    redirect(`/consultoria/${slug}/progresso`);
+  }
+
+  const isPersonal = effectiveMode === "PERSONAL" && context.roles.includes("PERSONAL");
+  const isNutritionist = effectiveMode === "NUTRITIONIST" && context.roles.includes("NUTRITIONIST");
+  const isConsultancyAdmin =
+    (effectiveMode === "ADMIN" || (effectiveMode as string) === "CONSULTANCY_ADMIN") &&
+    context.roles.includes("CONSULTANCY_ADMIN");
 
   if (!isPersonal && !isNutritionist && !isConsultancyAdmin) {
     redirect(`/consultoria/${slug}`);
   }
 
-  // 1. Fetch unified 360 data under strict operational relationship verification
+  // 1. Fetch unified 360 data under canonical operational relationship verification
   const hubData = await getStudentEvolutionHubData({
     userId: session.userId,
     consultancySlug: slug,
     studentPublicId,
+    effectiveRole: effectiveMode,
   });
 
   if (!hubData) {
@@ -57,6 +68,7 @@ export default async function ProfessionalStudentProgressDetailPage({
     consultancySlug: slug,
     studentPublicId,
     hubData,
+    effectiveRole: effectiveMode,
   });
 
   return (
@@ -67,6 +79,9 @@ export default async function ProfessionalStudentProgressDetailPage({
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={context.consultancyPublicId}
+      viewModeState={effectiveState}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* Page Header */}
@@ -88,6 +103,9 @@ export default async function ProfessionalStudentProgressDetailPage({
           isNutritionist={isNutritionist}
           isAdmin={isConsultancyAdmin}
           studentPublicId={studentPublicId}
+          userPublicId={session.userPublicId}
+          consultancyPublicId={context.consultancyPublicId}
+          role={effectiveMode}
         />
       </div>
     </ConsultancyAppShell>

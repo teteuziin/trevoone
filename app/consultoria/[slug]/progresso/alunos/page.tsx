@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { listProfessionalStudentsForProgress } from "@/lib/consultancies/progress";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
@@ -27,9 +28,18 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
     redirect("/selecionar-consultoria");
   }
 
-  const isPersonal = context.roles.includes("PERSONAL");
-  const isNutritionist = context.roles.includes("NUTRITIONIST");
-  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+  const { effectiveMode } = effectiveState;
+
+  if (effectiveMode === "STUDENT" || effectiveMode === "INFLUENCER") {
+    redirect(`/consultoria/${slug}/progresso`);
+  }
+
+  const isPersonal = effectiveMode === "PERSONAL" && context.roles.includes("PERSONAL");
+  const isNutritionist = effectiveMode === "NUTRITIONIST" && context.roles.includes("NUTRITIONIST");
+  const isConsultancyAdmin =
+    (effectiveMode === "ADMIN" || (effectiveMode as string) === "CONSULTANCY_ADMIN") &&
+    context.roles.includes("CONSULTANCY_ADMIN");
 
   if (!isPersonal && !isNutritionist && !isConsultancyAdmin) {
     redirect(`/consultoria/${slug}`);
@@ -38,6 +48,7 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
   const students = await listProfessionalStudentsForProgress({
     userId: session.userId,
     consultancySlug: slug,
+    effectiveRole: effectiveMode,
   });
 
   return (
@@ -48,6 +59,9 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      consultancyPublicId={context.consultancyPublicId}
+      viewModeState={effectiveState}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* Page Header */}

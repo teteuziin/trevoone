@@ -757,23 +757,46 @@ export async function getProfessionalStudentProgressHistory(params: {
 
 /**
  * Lists active students in the consultancy for the Professional Progress area.
+ * Follows the canonical evolution access policy:
+ * - NUTRITIONIST / ADMIN: lists all active students in the current consultancy.
+ * - PERSONAL: lists only active students with an active professional-student relationship.
+ * - STUDENT / INFLUENCER: returns empty list.
  */
 export async function listProfessionalStudentsForProgress(params: {
   userId: number;
   consultancySlug: string;
+  effectiveRole?: string;
 }): Promise<ProgressTargetStudentDto[]> {
-  const { userId, consultancySlug } = params;
+  const { userId, consultancySlug, effectiveRole: passedEffectiveRole } = params;
 
   const context = await resolveConsultancyContext(userId, consultancySlug);
   if (!context) {
     return [];
   }
 
-  const isPersonal = context.roles.includes("PERSONAL");
-  const isNutritionist = context.roles.includes("NUTRITIONIST");
-  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  let effectiveRole = passedEffectiveRole;
+  if (!effectiveRole) {
+    try {
+      const { resolveEffectiveViewMode } = await import("./view-mode-server");
+      const viewModeState = await resolveEffectiveViewMode(consultancySlug, context.roles);
+      effectiveRole = viewModeState.effectiveMode;
+    } catch {
+      const { resolveDefaultPresentationMode } = await import("./view-mode");
+      effectiveRole = resolveDefaultPresentationMode(context.roles);
+    }
+  }
 
-  if (!isPersonal && !isNutritionist && !isConsultancyAdmin) {
+  if (effectiveRole === "STUDENT" || effectiveRole === "INFLUENCER") {
+    return [];
+  }
+
+  const isPersonal = effectiveRole === "PERSONAL" && context.roles.includes("PERSONAL");
+  const isNutritionist = effectiveRole === "NUTRITIONIST" && context.roles.includes("NUTRITIONIST");
+  const isAdmin =
+    (effectiveRole === "ADMIN" || effectiveRole === "CONSULTANCY_ADMIN") &&
+    context.roles.includes("CONSULTANCY_ADMIN");
+
+  if (!isPersonal && !isNutritionist && !isAdmin) {
     return [];
   }
 
@@ -781,8 +804,12 @@ export async function listProfessionalStudentsForProgress(params: {
   try {
     connection = await getDbConnection();
 
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT
+    let sql: string;
+    let queryParams: (string | number)[];
+
+    if (isPersonal) {
+      // Personal: exactly matching assertProfessionalStudentRelationship
+      sql = `SELECT DISTINCT
         cm.public_id AS membership_public_id,
         u.full_name,
         u.email
@@ -792,9 +819,57 @@ export async function listProfessionalStudentsForProgress(params: {
        WHERE cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
          AND cmr.role IN ('STUDENT', 'INFLUENCER')
-       ORDER BY u.full_name ASC;`,
-      [context.consultancyId]
-    );
+         AND (
+           -- Active workout assignment (V2)
+           EXISTS (
+             SELECT 1 FROM workout_assignments wa
+             JOIN consultancy_members coach ON coach.id = wa.assigned_by_membership_id
+             WHERE wa.consultancy_id = cm.consultancy_id
+               AND wa.student_membership_id = cm.id
+               AND coach.user_id = ?
+               AND wa.status = 'ACTIVE'
+               AND wa.deleted_at IS NULL
+           )
+           OR
+           -- Active training plan (V1)
+           EXISTS (
+             SELECT 1 FROM training_plans tp
+             WHERE tp.consultancy_id = cm.consultancy_id
+               AND tp.student_membership_id = cm.id
+               AND tp.created_by_user_id = ?
+               AND tp.status = 'ACTIVE'
+               AND tp.deleted_at IS NULL
+           )
+           OR
+           -- Scheduled or in-progress consultation
+           EXISTS (
+             SELECT 1 FROM consultations c
+             JOIN consultancy_members coach ON coach.id = c.professional_membership_id
+             WHERE c.consultancy_id = cm.consultancy_id
+               AND c.student_membership_id = cm.id
+               AND coach.user_id = ?
+               AND c.status IN ('SCHEDULED', 'IN_PROGRESS')
+           )
+         )
+       ORDER BY u.full_name ASC;`;
+      queryParams = [context.consultancyId, userId, userId, userId];
+    } else {
+      // Nutritionist or Admin: all active students in tenancy
+      sql = `SELECT
+        cm.public_id AS membership_public_id,
+        u.full_name,
+        u.email
+       FROM consultancy_members cm
+       JOIN users u ON u.id = cm.user_id
+       JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE cm.consultancy_id = ?
+         AND cm.status = 'ACTIVE'
+         AND cmr.role IN ('STUDENT', 'INFLUENCER')
+       ORDER BY u.full_name ASC;`;
+      queryParams = [context.consultancyId];
+    }
+
+    const [rows] = await connection.execute<RowDataPacket[]>(sql, queryParams);
 
     return (rows || []).map((r) => ({
       publicId: String(r.membership_public_id),

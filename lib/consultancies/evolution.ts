@@ -113,15 +113,60 @@ interface ResolvedTargetStudent {
   studentEmail: string;
 }
 
+/**
+ * Canonical access policy for Professional Student Evolution (List & Detail).
+ *
+ * Rules:
+ * - ADMIN / CONSULTANCY_ADMIN: Can access any active student in current tenancy.
+ * - NUTRITIONIST: Can access any active student in current tenancy according to the consultancy flow.
+ * - PERSONAL: Preserves existing behavior (requires active professional-student relationship:
+ *             workout assignment, training plan, or consultation).
+ * - STUDENT / INFLUENCER: Forbidden from accessing other students' evolution.
+ */
+export async function canProfessionalAccessStudentEvolution(
+  connection: PoolConnection,
+  params: {
+    consultancyId: number;
+    studentMembershipId: number;
+    professionalUserId: number;
+    effectiveRole: string;
+  }
+): Promise<boolean> {
+  const { consultancyId, studentMembershipId, professionalUserId, effectiveRole } = params;
+
+  if (effectiveRole === "STUDENT" || effectiveRole === "INFLUENCER") {
+    return false;
+  }
+
+  if (effectiveRole === "ADMIN" || effectiveRole === "CONSULTANCY_ADMIN") {
+    return true;
+  }
+
+  if (effectiveRole === "NUTRITIONIST") {
+    return true;
+  }
+
+  if (effectiveRole === "PERSONAL") {
+    return assertProfessionalStudentRelationship(connection, {
+      consultancyId,
+      studentMembershipId,
+      professionalUserId,
+    });
+  }
+
+  return false;
+}
+
 async function resolveEvolutionTargetStudent(
   connection: PoolConnection,
   params: {
     userId: number;
     consultancySlug: string;
     studentPublicId?: string;
+    effectiveRole?: string;
   }
 ): Promise<ResolvedTargetStudent | null> {
-  const { userId, consultancySlug, studentPublicId } = params;
+  const { userId, consultancySlug, studentPublicId, effectiveRole: passedEffectiveRole } = params;
 
   // 1. Resolve Consultancy
   const [consultancies] = await connection.execute<RowDataPacket[]>(
@@ -136,26 +181,46 @@ async function resolveEvolutionTargetStudent(
     const context = await resolveConsultancyContext(userId, consultancySlug);
     if (!context) return null;
 
-    const isPersonal = context.roles.includes("PERSONAL");
-    const isNutritionist = context.roles.includes("NUTRITIONIST");
-    const isAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+    let effectiveRole = passedEffectiveRole;
+    if (!effectiveRole) {
+      try {
+        const { resolveEffectiveViewMode } = await import("./view-mode-server");
+        const viewModeState = await resolveEffectiveViewMode(consultancySlug, context.roles);
+        effectiveRole = viewModeState.effectiveMode;
+      } catch {
+        const { resolveDefaultPresentationMode } = await import("./view-mode");
+        effectiveRole = resolveDefaultPresentationMode(context.roles);
+      }
+    }
+
+    if (effectiveRole === "STUDENT" || effectiveRole === "INFLUENCER") {
+      return null;
+    }
+
+    const isPersonal = effectiveRole === "PERSONAL" && context.roles.includes("PERSONAL");
+    const isNutritionist = effectiveRole === "NUTRITIONIST" && context.roles.includes("NUTRITIONIST");
+    const isAdmin =
+      (effectiveRole === "ADMIN" || effectiveRole === "CONSULTANCY_ADMIN") &&
+      context.roles.includes("CONSULTANCY_ADMIN");
 
     if (!isPersonal && !isNutritionist && !isAdmin) {
       return null;
     }
 
     // Resolve target student membership in this consultancy
+    // Strictly scoped to consultancyId and status = 'ACTIVE' (zero cross-tenant)
+    // Accepts cm.public_id (canonical membership publicId) or u.public_id (user publicId)
     const [members] = await connection.execute<RowDataPacket[]>(
       `SELECT cm.id, cm.public_id, cm.user_id, cm.status, u.full_name, u.email
        FROM consultancy_members cm
        JOIN users u ON u.id = cm.user_id
        JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
-       WHERE cm.public_id = ?
+       WHERE (cm.public_id = ? OR u.public_id = ?)
          AND cm.consultancy_id = ?
          AND cm.status = 'ACTIVE'
          AND cmr.role IN ('STUDENT', 'INFLUENCER')
        LIMIT 1;`,
-      [studentPublicId.trim(), consultancyId]
+      [studentPublicId.trim(), studentPublicId.trim(), consultancyId]
     );
 
     if (!members || members.length === 0) return null;
@@ -163,16 +228,16 @@ async function resolveEvolutionTargetStudent(
     const studentMembershipId = Number(members[0].id);
     const studentUserId = Number(members[0].user_id);
 
-    // Strict RBAC: Non-admin professionals MUST possess an active, current relationship
-    if (!isAdmin) {
-      const hasRelationship = await assertProfessionalStudentRelationship(connection, {
-        consultancyId,
-        studentMembershipId,
-        professionalUserId: userId,
-      });
-      if (!hasRelationship) {
-        return null;
-      }
+    // Apply the canonical evolution access policy
+    const hasAccess = await canProfessionalAccessStudentEvolution(connection, {
+      consultancyId,
+      studentMembershipId,
+      professionalUserId: userId,
+      effectiveRole,
+    });
+
+    if (!hasAccess) {
+      return null;
     }
 
     return {
@@ -222,6 +287,7 @@ export async function getStudentEvolutionHubData(params: {
   userId: number;
   consultancySlug: string;
   studentPublicId?: string;
+  effectiveRole?: string;
 }): Promise<EvolutionHubDataDto | null> {
   let connection: PoolConnection | null = null;
   try {
@@ -630,6 +696,7 @@ export async function getEvolutionComparisonBetweenDates(params: {
   beforeDate?: string;
   afterDate?: string;
   hubData?: EvolutionHubDataDto;
+  effectiveRole?: string;
 }): Promise<EvolutionComparisonDataDto | null> {
   const hubData = params.hubData || (await getStudentEvolutionHubData(params));
   if (!hubData) return null;

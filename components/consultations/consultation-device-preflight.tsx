@@ -15,7 +15,87 @@ export interface ConsultationDevicePreflightProps {
   timezone: string;
 }
 
-type PreflightStatus = "IDLE" | "REQUESTING" | "READY" | "ERROR";
+export type DeviceState =
+  | "IDLE"
+  | "REQUESTING"
+  | "READY"
+  | "BLOCKED"
+  | "NOT_FOUND"
+  | "BUSY"
+  | "ERROR";
+
+export type OverallStatus = "IDLE" | "REQUESTING" | "READY" | "PARTIAL" | "ERROR";
+
+function parseMediaError(
+  err: unknown,
+  deviceType: "CAMERA" | "MIC" | "BOTH"
+): { state: DeviceState; message: string } {
+  const name =
+    err instanceof DOMException || (err && typeof err === "object" && "name" in err)
+      ? String((err as { name: string }).name)
+      : "";
+
+  switch (name) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+      return {
+        state: "BLOCKED",
+        message:
+          deviceType === "CAMERA"
+            ? "Acesso à câmera bloqueado. Permita a câmera no ícone de configurações ou cadeado na barra de endereços do navegador."
+            : deviceType === "MIC"
+            ? "Acesso ao microfone bloqueado. Permita o microfone no ícone de configurações ou cadeado na barra de endereços do navegador."
+            : "Acesso bloqueado. Permita a câmera e o microfone nas configurações do navegador.",
+      };
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return {
+        state: "NOT_FOUND",
+        message:
+          deviceType === "CAMERA"
+            ? "Nenhuma câmera encontrada no seu dispositivo."
+            : deviceType === "MIC"
+            ? "Nenhum microfone encontrado no seu dispositivo."
+            : "Câmera e microfone não foram encontrados no seu dispositivo.",
+      };
+    case "NotReadableError":
+    case "TrackStartError":
+      return {
+        state: "BUSY",
+        message:
+          deviceType === "CAMERA"
+            ? "A câmera pode estar sendo usada por outro aplicativo (como Zoom, Teams ou Meet)."
+            : deviceType === "MIC"
+            ? "O microfone pode estar sendo usado por outro aplicativo (como Zoom, Teams ou Meet)."
+            : "O dispositivo pode estar sendo usado por outro aplicativo.",
+      };
+    case "OverconstrainedError":
+      return {
+        state: "ERROR",
+        message: "Este dispositivo não suporta a configuração solicitada.",
+      };
+    case "SecurityError":
+      return {
+        state: "ERROR",
+        message: "O navegador bloqueou o acesso por segurança (requer conexão segura HTTPS).",
+      };
+    case "AbortError":
+      return {
+        state: "ERROR",
+        message: "A inicialização foi interrompida. Tente novamente.",
+      };
+    case "TypeError":
+      return {
+        state: "ERROR",
+        message: "Configuração de dispositivo inválida.",
+      };
+    default:
+      return {
+        state: "ERROR",
+        message: "Não foi possível iniciar este dispositivo. Verifique as permissões do sistema.",
+      };
+  }
+}
 
 export function ConsultationDevicePreflight({
   consultancySlug,
@@ -27,8 +107,12 @@ export function ConsultationDevicePreflight({
   scheduledEndFormatted,
   timezone,
 }: ConsultationDevicePreflightProps) {
-  const [status, setStatus] = useState<PreflightStatus>("IDLE");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [overallStatus, setOverallStatus] = useState<OverallStatus>("IDLE");
+  const [cameraState, setCameraState] = useState<DeviceState>("IDLE");
+  const [micState, setMicState] = useState<DeviceState>("IDLE");
+
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
 
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
@@ -106,27 +190,39 @@ export function ConsultationDevicePreflight({
     };
   }, [updateDeviceList]);
 
+  // Starts media testing with decoupled and resilient device acquisition
   const startMediaTest = async (preferredVideoId?: string, preferredAudioId?: string) => {
-    setErrorMessage(null);
+    // 1. Immediate visual feedback
+    setOverallStatus("REQUESTING");
+    setCameraState("REQUESTING");
+    setMicState("REQUESTING");
+    setCameraError(null);
+    setMicError(null);
 
-    // 1. Secure context verification
-    if (typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost") {
-      setStatus("ERROR");
-      setErrorMessage("O acesso à câmera e microfone requer conexão segura HTTPS.");
-      return;
-    }
-
-    // 2. Feature detection
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus("ERROR");
-      setErrorMessage("Este navegador não oferece suporte ao acesso à câmera e ao microfone.");
-      return;
-    }
-
-    setStatus("REQUESTING");
-
-    // Clean any existing media before requesting new
+    // Stop existing streams before requesting new ones
     stopAllTracks();
+
+    // 2. Secure context verification
+    if (typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost") {
+      const secErr = "O acesso à câmera e ao microfone requer conexão segura HTTPS.";
+      setOverallStatus("ERROR");
+      setCameraState("ERROR");
+      setMicState("ERROR");
+      setCameraError(secErr);
+      setMicError(secErr);
+      return;
+    }
+
+    // 3. Feature detection
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      const featErr = "Este navegador não oferece suporte ao acesso à câmera e ao microfone.";
+      setOverallStatus("ERROR");
+      setCameraState("ERROR");
+      setMicState("ERROR");
+      setCameraError(featErr);
+      setMicError(featErr);
+      return;
+    }
 
     const videoConstraint: MediaTrackConstraints | boolean = preferredVideoId
       ? { deviceId: { exact: preferredVideoId } }
@@ -136,33 +232,74 @@ export function ConsultationDevicePreflight({
       ? { deviceId: { exact: preferredAudioId } }
       : true;
 
+    let videoTrack: MediaStreamTrack | null = null;
+    let audioTrack: MediaStreamTrack | null = null;
+
+    // Step A: Attempt combined acquisition first
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const combinedStream = await navigator.mediaDevices.getUserMedia({
         video: videoConstraint,
         audio: audioConstraint,
       });
+      const vTracks = combinedStream.getVideoTracks();
+      const aTracks = combinedStream.getAudioTracks();
+      if (vTracks.length > 0) videoTrack = vTracks[0];
+      if (aTracks.length > 0) audioTrack = aTracks[0];
+    } catch {
+      // Step B: Combined failed — diagnose individually to isolate camera vs mic
+    }
 
-      streamRef.current = stream;
-
-      // Verify track presence
-      const videoTracks = stream.getVideoTracks();
-      const audioTracks = stream.getAudioTracks();
-
-      if (videoTracks.length === 0 || audioTracks.length === 0) {
-        setStatus("ERROR");
-        setErrorMessage("Não foi possível detectar a câmera ou o microfone.");
-        stopAllTracks();
-        return;
-      }
-
-      // Attach stream to video element
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-
-      // Setup audio analyzer
+    // Step B1: Acquire video independently if not yet acquired
+    if (!videoTrack) {
       try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const vStream = await navigator.mediaDevices.getUserMedia({ video: videoConstraint });
+        const vTracks = vStream.getVideoTracks();
+        if (vTracks.length > 0) {
+          videoTrack = vTracks[0];
+        } else {
+          setCameraState("NOT_FOUND");
+          setCameraError("Nenhuma câmera foi detectada no dispositivo.");
+        }
+      } catch (vErr) {
+        const parsed = parseMediaError(vErr, "CAMERA");
+        setCameraState(parsed.state);
+        setCameraError(parsed.message);
+      }
+    }
+
+    // Step B2: Acquire audio independently if not yet acquired
+    if (!audioTrack) {
+      try {
+        const aStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraint });
+        const aTracks = aStream.getAudioTracks();
+        if (aTracks.length > 0) {
+          audioTrack = aTracks[0];
+        } else {
+          setMicState("NOT_FOUND");
+          setMicError("Nenhum microfone foi detectado no dispositivo.");
+        }
+      } catch (aErr) {
+        const parsed = parseMediaError(aErr, "MIC");
+        setMicState(parsed.state);
+        setMicError(parsed.message);
+      }
+    }
+
+    // Step C: Process acquired video track
+    if (videoTrack) {
+      setCameraState("READY");
+      setCameraError(null);
+    }
+
+    // Step D: Process acquired audio track
+    if (audioTrack) {
+      setMicState("READY");
+      setMicError(null);
+
+      try {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         const audioCtx = new AudioCtx();
         if (audioCtx.state === "suspended") {
           await audioCtx.resume();
@@ -174,7 +311,8 @@ export function ConsultationDevicePreflight({
         analyser.smoothingTimeConstant = 0.4;
         analyserRef.current = analyser;
 
-        const source = audioCtx.createMediaStreamSource(stream);
+        const micOnlyStream = new MediaStream([audioTrack]);
+        const source = audioCtx.createMediaStreamSource(micOnlyStream);
         source.connect(analyser);
         sourceNodeRef.current = source;
 
@@ -188,7 +326,6 @@ export function ConsultationDevicePreflight({
             sum += dataArray[i];
           }
           const average = sum / dataArray.length;
-          // Scale roughly to 0-100%
           const normalized = Math.min(100, Math.round((average / 128) * 100));
           setMicVolumeLevel(normalized);
           animationFrameRef.current = requestAnimationFrame(checkAudioVolume);
@@ -196,58 +333,51 @@ export function ConsultationDevicePreflight({
 
         animationFrameRef.current = requestAnimationFrame(checkAudioVolume);
       } catch {
-        // Non-critical AudioContext failure fallback
+        // Non-critical AudioContext analyzer failure fallback
       }
+    }
 
-      // Populate devices & select active device IDs
-      await updateDeviceList();
+    // Step E: Combine active tracks into single MediaStream
+    const activeTracks = [videoTrack, audioTrack].filter(Boolean) as MediaStreamTrack[];
+    if (activeTracks.length > 0) {
+      const activeStream = new MediaStream(activeTracks);
+      streamRef.current = activeStream;
 
-      const activeVideoTrack = videoTracks[0];
-      const activeAudioTrack = audioTracks[0];
-      const currentVideoSettings = activeVideoTrack.getSettings ? activeVideoTrack.getSettings() : {};
-      const currentAudioSettings = activeAudioTrack.getSettings ? activeAudioTrack.getSettings() : {};
+      if (videoTrack && videoRef.current) {
+        videoRef.current.srcObject = activeStream;
+        videoRef.current.play().catch(() => {
+          // Play rejection due to browser policies does not invalidate permission
+        });
+      }
+    }
 
+    // Step F: Populate device selectors
+    await updateDeviceList();
+
+    if (videoTrack) {
+      const currentVideoSettings = videoTrack.getSettings ? videoTrack.getSettings() : {};
       if (currentVideoSettings.deviceId) {
         setSelectedVideoDeviceId(currentVideoSettings.deviceId);
       }
+    }
+
+    if (audioTrack) {
+      const currentAudioSettings = audioTrack.getSettings ? audioTrack.getSettings() : {};
       if (currentAudioSettings.deviceId) {
         setSelectedAudioDeviceId(currentAudioSettings.deviceId);
       }
+    }
 
-      setIsCameraOn(true);
-      setIsMicOn(true);
-      setStatus("READY");
-    } catch (err: unknown) {
-      stopAllTracks();
-      setStatus("ERROR");
+    setIsCameraOn(true);
+    setIsMicOn(true);
 
-      if (err instanceof DOMException || (err && typeof err === "object" && "name" in err)) {
-        const errorName = (err as { name: string }).name;
-        switch (errorName) {
-          case "NotAllowedError":
-          case "PermissionDeniedError":
-            setErrorMessage("A câmera ou o microfone foram bloqueados. Autorize o acesso no navegador e tente novamente.");
-            break;
-          case "NotFoundError":
-          case "DevicesNotFoundError":
-            setErrorMessage("Não encontramos uma câmera ou microfone disponível no seu dispositivo.");
-            break;
-          case "NotReadableError":
-          case "TrackStartError":
-            setErrorMessage("Não foi possível usar o dispositivo. Ele pode estar sendo usado por outro aplicativo.");
-            break;
-          case "OverconstrainedError":
-            setErrorMessage("As configurações solicitadas não são suportadas pela sua câmera ou microfone.");
-            break;
-          case "SecurityError":
-            setErrorMessage("Acesso aos dispositivos bloqueado por política de segurança do navegador.");
-            break;
-          default:
-            setErrorMessage("Não foi possível acessar a câmera ou o microfone. Verifique as permissões do dispositivo.");
-        }
-      } else {
-        setErrorMessage("Ocorreu um erro ao inicializar o teste de dispositivos.");
-      }
+    // Step G: Determine overall presentation status
+    if (videoTrack && audioTrack) {
+      setOverallStatus("READY");
+    } else if (videoTrack || audioTrack) {
+      setOverallStatus("PARTIAL");
+    } else {
+      setOverallStatus("ERROR");
     }
   };
 
@@ -283,6 +413,8 @@ export function ConsultationDevicePreflight({
     setSelectedAudioDeviceId(newId);
     startMediaTest(selectedVideoDeviceId, newId);
   };
+
+  const isBothReady = cameraState === "READY" && micState === "READY";
 
   return (
     <div className="w-full max-w-3xl mx-auto space-y-6 pb-12">
@@ -324,12 +456,12 @@ export function ConsultationDevicePreflight({
           playsInline
           muted
           className={`w-full h-full object-cover -scale-x-100 transition-opacity duration-200 ${
-            status === "READY" && isCameraOn ? "opacity-100" : "opacity-0"
+            cameraState === "READY" && isCameraOn ? "opacity-100" : "opacity-0"
           }`}
         />
 
         {/* Camera Off Overlay */}
-        {status === "READY" && !isCameraOn && (
+        {cameraState === "READY" && !isCameraOn && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-900/90 text-zinc-400">
             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.6">
               <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-2.36a.75.75 0 0 1 1.03.682v6.356a.75.75 0 0 1-1.03.682l-4.72-2.36M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9A2.25 2.25 0 0 0 13.5 5.25h-9A2.25 2.25 0 0 0 2.25 7.5v9A2.25 2.25 0 0 0 4.5 18.75Z" />
@@ -339,8 +471,8 @@ export function ConsultationDevicePreflight({
           </div>
         )}
 
-        {/* Idle Overlay (Explicit user gesture required) */}
-        {status === "IDLE" && (
+        {/* Idle Overlay */}
+        {overallStatus === "IDLE" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 space-y-4">
             <div className="w-14 h-14 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[var(--brand)] shadow-sm">
               <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
@@ -358,46 +490,56 @@ export function ConsultationDevicePreflight({
             <button
               type="button"
               onClick={() => startMediaTest()}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[var(--brand)] text-white hover:opacity-90 transition-all shadow-sm"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-[var(--brand)] text-white hover:opacity-90 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
             >
               Iniciar teste de câmera e microfone
             </button>
           </div>
         )}
 
-        {/* Requesting Overlay */}
-        {status === "REQUESTING" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 space-y-3">
-            <div className="w-8 h-8 rounded-full border-3 border-[var(--brand)] border-t-transparent animate-spin" />
-            <p className="text-xs font-semibold text-zinc-300">
-              Solicitando autorização de câmera e microfone...
-            </p>
+        {/* Requesting Overlay with Immediate Feedback */}
+        {overallStatus === "REQUESTING" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 space-y-4 animate-in fade-in duration-150">
+            <div className="w-10 h-10 rounded-full border-3 border-[var(--brand)] border-t-transparent animate-spin" />
+            <div className="space-y-1.5 max-w-sm">
+              <h4 className="text-sm font-bold text-white">
+                Solicitando acesso à câmera e ao microfone...
+              </h4>
+              <p className="text-xs text-zinc-300 bg-zinc-800/80 px-3 py-2 rounded-xl border border-zinc-700/80 leading-relaxed">
+                Se o navegador pedir permissão, clique em <strong className="text-[var(--brand)]">Permitir</strong> no topo da janela ou na barra de endereços.
+              </p>
+            </div>
           </div>
         )}
 
-        {/* Error Overlay */}
-        {status === "ERROR" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+        {/* Error Overlay (when both devices failed) */}
+        {overallStatus === "ERROR" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 space-y-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
               </svg>
             </div>
-            <p role="alert" className="text-xs text-red-300 max-w-md leading-relaxed">
-              {errorMessage || "Não foi possível acessar a câmera ou o microfone."}
-            </p>
+            <div className="space-y-1 max-w-md">
+              <h4 className="text-sm font-bold text-red-300">
+                Não foi possível iniciar seus dispositivos
+              </h4>
+              <p role="alert" className="text-xs text-zinc-400 leading-relaxed">
+                {cameraError || micError || "Verifique se a câmera e o microfone estão conectados e autorizados no navegador."}
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => startMediaTest()}
-              className="px-5 py-2 rounded-xl font-bold text-xs bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700 transition-colors"
+              className="px-5 py-2.5 rounded-xl font-bold text-xs bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700 transition-colors cursor-pointer"
             >
               Tentar novamente
             </button>
           </div>
         )}
 
-        {/* Live Audio Activity Meter Bar (bottom of video preview) */}
-        {status === "READY" && (
+        {/* Live Audio Activity Meter Bar (bottom of video preview when mic is ready) */}
+        {micState === "READY" && (
           <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs">
             <div className="flex items-center gap-2 min-w-0">
               <svg
@@ -427,40 +569,137 @@ export function ConsultationDevicePreflight({
         )}
       </div>
 
+      {/* Device Status Pills (Granular Camera & Microphone Indicators) */}
+      {(overallStatus === "READY" || overallStatus === "PARTIAL" || overallStatus === "ERROR") && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Camera Status Card */}
+          <div
+            className={`p-3.5 rounded-xl border flex items-start gap-3 transition-colors ${
+              cameraState === "READY"
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-200"
+                : "bg-red-500/10 border-red-500/30 text-red-950 dark:text-red-200"
+            }`}
+          >
+            <div
+              className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                cameraState === "READY"
+                  ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                  : "bg-red-500/20 text-red-600 dark:text-red-400"
+              }`}
+            >
+              {cameraState === "READY" ? (
+                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+              ) : (
+                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              )}
+            </div>
+            <div className="space-y-0.5 min-w-0 flex-1">
+              <div className="font-bold text-xs">
+                Câmera: {cameraState === "READY" ? "✓ Funcionando" : "✗ Não detectada ou bloqueada"}
+              </div>
+              <p className="text-[11px] opacity-80 leading-relaxed">
+                {cameraState === "READY"
+                  ? "Imagem de vídeo captada com sucesso."
+                  : cameraError || "Permita o acesso à câmera nas configurações do navegador."}
+              </p>
+            </div>
+          </div>
+
+          {/* Microphone Status Card */}
+          <div
+            className={`p-3.5 rounded-xl border flex items-start gap-3 transition-colors ${
+              micState === "READY"
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-200"
+                : "bg-red-500/10 border-red-500/30 text-red-950 dark:text-red-200"
+            }`}
+          >
+            <div
+              className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                micState === "READY"
+                  ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                  : "bg-red-500/20 text-red-600 dark:text-red-400"
+              }`}
+            >
+              {micState === "READY" ? (
+                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+              ) : (
+                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              )}
+            </div>
+            <div className="space-y-0.5 min-w-0 flex-1">
+              <div className="font-bold text-xs">
+                Microfone: {micState === "READY" ? "✓ Funcionando" : "✗ Não detectado ou bloqueado"}
+              </div>
+              <p className="text-[11px] opacity-80 leading-relaxed">
+                {micState === "READY"
+                  ? "Captação de voz ativa e testada."
+                  : micError || "Permita o acesso ao microfone nas configurações do navegador."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Control Buttons & Device Selectors */}
-      {status === "READY" && (
+      {(overallStatus === "READY" || overallStatus === "PARTIAL") && (
         <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-5">
           {/* Quick Toggle Buttons */}
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={toggleCamera}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                isCameraOn
-                  ? "bg-zinc-800 text-white hover:bg-zinc-700 dark:bg-zinc-700 dark:hover:bg-zinc-600 border border-zinc-700"
-                  : "bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/30 hover:bg-red-500/20"
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-2.36a.75.75 0 0 1 1.03.682v6.356a.75.75 0 0 1-1.03.682l-4.72-2.36M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9A2.25 2.25 0 0 0 13.5 5.25h-9A2.25 2.25 0 0 0 2.25 7.5v9A2.25 2.25 0 0 0 4.5 18.75Z" />
-              </svg>
-              <span>{isCameraOn ? "Desligar câmera" : "Ligar câmera"}</span>
-            </button>
+            {cameraState === "READY" && (
+              <button
+                type="button"
+                onClick={toggleCamera}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  isCameraOn
+                    ? "bg-zinc-800 text-white hover:bg-zinc-700 dark:bg-zinc-700 dark:hover:bg-zinc-600 border border-zinc-700"
+                    : "bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/30 hover:bg-red-500/20"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-2.36a.75.75 0 0 1 1.03.682v6.356a.75.75 0 0 1-1.03.682l-4.72-2.36M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9A2.25 2.25 0 0 0 13.5 5.25h-9A2.25 2.25 0 0 0 2.25 7.5v9A2.25 2.25 0 0 0 4.5 18.75Z" />
+                </svg>
+                <span>{isCameraOn ? "Desligar câmera" : "Ligar câmera"}</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={toggleMic}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                isMicOn
-                  ? "bg-zinc-800 text-white hover:bg-zinc-700 dark:bg-zinc-700 dark:hover:bg-zinc-600 border border-zinc-700"
-                  : "bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/30 hover:bg-red-500/20"
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" />
-              </svg>
-              <span>{isMicOn ? "Mutar microfone" : "Ativar microfone"}</span>
-            </button>
+            {micState === "READY" && (
+              <button
+                type="button"
+                onClick={toggleMic}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  isMicOn
+                    ? "bg-zinc-800 text-white hover:bg-zinc-700 dark:bg-zinc-700 dark:hover:bg-zinc-600 border border-zinc-700"
+                    : "bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/30 hover:bg-red-500/20"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" />
+                </svg>
+                <span>{isMicOn ? "Mutar microfone" : "Ativar microfone"}</span>
+              </button>
+            )}
+
+            {/* Retry Button to re-diagnose if anything failed */}
+            {!isBothReady && (
+              <button
+                type="button"
+                onClick={() => startMediaTest()}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700 transition-colors cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                <span>Tentar novamente</span>
+              </button>
+            )}
           </div>
 
           {/* Selectors for multiple devices */}
@@ -473,7 +712,7 @@ export function ConsultationDevicePreflight({
                 id="camera-select"
                 value={selectedVideoDeviceId}
                 onChange={handleVideoDeviceChange}
-                disabled={videoDevices.length <= 1}
+                disabled={videoDevices.length <= 1 || cameraState !== "READY"}
                 className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-default)] text-[var(--text-primary)] focus:outline-2 focus:outline-[var(--brand)] disabled:opacity-60"
               >
                 {videoDevices.length > 0 ? (
@@ -496,7 +735,7 @@ export function ConsultationDevicePreflight({
                 id="mic-select"
                 value={selectedAudioDeviceId}
                 onChange={handleAudioDeviceChange}
-                disabled={audioDevices.length <= 1}
+                disabled={audioDevices.length <= 1 || micState !== "READY"}
                 className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-default)] text-[var(--text-primary)] focus:outline-2 focus:outline-[var(--brand)] disabled:opacity-60"
               >
                 {audioDevices.length > 0 ? (
@@ -518,12 +757,22 @@ export function ConsultationDevicePreflight({
       <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-0.5">
           <div className="text-xs font-bold text-[var(--text-primary)]">
-            {status === "READY" ? "Dispositivos verificados com sucesso" : "Pré-teste de dispositivos"}
+            {isBothReady
+              ? "Dispositivos verificados com sucesso"
+              : overallStatus === "PARTIAL"
+              ? "Dispositivos parcialmente detectados"
+              : overallStatus === "REQUESTING"
+              ? "Verificando dispositivos..."
+              : "Pré-teste de dispositivos"}
           </div>
           <p className="text-[11px] text-[var(--text-secondary)]">
-            {status === "READY"
+            {isBothReady
               ? "Sua câmera e microfone estão funcionando perfeitamente."
-              : "Inicie o teste para conferir sua imagem e som."}
+              : overallStatus === "PARTIAL"
+              ? "Para entrar na teleconsulta, ambos os dispositivos (câmera e microfone) devem estar funcionando."
+              : overallStatus === "REQUESTING"
+              ? "Aguardando confirmação de permissões no navegador."
+              : "Inicie o teste para conferir sua imagem e som antes de entrar."}
           </p>
         </div>
 
@@ -536,11 +785,11 @@ export function ConsultationDevicePreflight({
             Voltar
           </Link>
 
-          {status === "READY" ? (
+          {isBothReady ? (
             <Link
               href={`/consultoria/${consultancySlug}/consultas/${consultationPublicId}/sala`}
               onClick={() => stopAllTracks()}
-              className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-[var(--brand)] hover:opacity-90 transition-all shadow-xs inline-flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-[var(--brand)] hover:opacity-90 active:scale-[0.98] transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer"
             >
               <span>Entrar na chamada</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">

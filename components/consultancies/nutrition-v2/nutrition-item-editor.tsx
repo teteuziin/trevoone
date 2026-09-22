@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { MealItemWithSubstitutionsDto } from "@/lib/nutrition-v2/plan-repository";
 import { NutritionSubstitutionEditor } from "./nutrition-substitution-editor";
 import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-picker";
+import { NutritionEquivalentsModal } from "./nutrition-equivalents-modal";
+import type { FoodListItemDto } from "@/lib/nutrition-v2/food-repository";
 
 interface NutritionItemEditorProps {
   slug: string;
@@ -19,6 +21,7 @@ interface NutritionItemEditorProps {
   onUpdateSubstitution: (subPublicId: string, data: { prescribedQuantity?: number | null; notes?: string | null }) => Promise<void>;
   onRemoveSubstitution: (subPublicId: string) => Promise<void>;
   onReorderSubstitutions: (orderedSubPublicIds: string[]) => Promise<void>;
+  initialFoodsForEquivalents?: FoodListItemDto[];
 }
 
 export function NutritionItemEditor({
@@ -35,12 +38,14 @@ export function NutritionItemEditor({
   onUpdateSubstitution,
   onRemoveSubstitution,
   onReorderSubstitutions,
+  initialFoodsForEquivalents,
 }: NutritionItemEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [quantity, setQuantity] = useState(String(item.prescribedQuantity || ""));
   const [notes, setNotes] = useState(item.notes || "");
   const [isSaving, setIsSaving] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isEquivalentsOpen, setIsEquivalentsOpen] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -234,18 +239,30 @@ export function NutritionItemEditor({
           </div>
         )}
 
-        {/* Add substitution button */}
+        {/* Add substitution button and Recalculate Equivalents button */}
         {!readOnly && (
-          <div className="pt-1">
+          <div className="pt-1 flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setIsPickerOpen(true)}
-              className="text-xs text-[var(--brand-primary)] hover:underline font-medium inline-flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-[var(--brand-primary)]/5"
+              className="text-xs text-[var(--brand-primary)] hover:underline font-medium inline-flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-[var(--brand-primary)]/5 cursor-pointer"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
               </svg>
               <span>Adicionar Substituição</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsEquivalentsOpen(true)}
+              className="text-xs text-amber-700 dark:text-amber-400 hover:underline font-medium inline-flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-amber-500/10 cursor-pointer"
+              title="Calcular quantidade equivalente com base em energia, proteína, carboidrato ou gordura"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <span>Recalcular equivalentes</span>
             </button>
           </div>
         )}
@@ -260,6 +277,16 @@ export function NutritionItemEditor({
           await onAddSubstitution(res);
         }}
         title={`Adicionar Substituição para "${item.foodNameSnapshot}"`}
+      />
+
+      {/* Equivalents Calculator Modal */}
+      <NutritionEquivalentsModal
+        slug={slug}
+        isOpen={isEquivalentsOpen}
+        onClose={() => setIsEquivalentsOpen(false)}
+        prescribedItem={item}
+        onAddSubstitution={onAddSubstitution}
+        initialFoods={initialFoodsForEquivalents}
       />
     </div>
   );

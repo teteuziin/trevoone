@@ -1588,9 +1588,23 @@ export async function addSubstitution(
 
     let foodId: number | null = null;
     let foodNameSnapshot: string = "";
-    const prescribedQuantity: number | null = input.prescribedQuantity != null && input.prescribedQuantity > 0 ? Number(input.prescribedQuantity) : null;
+
+    const rawQty = input.prescribedQuantity != null ? Number(input.prescribedQuantity) : null;
+    if (rawQty != null) {
+      if (!Number.isFinite(rawQty) || rawQty <= 0) {
+        throw new NutritionAuthorizationError("Quantidade prescrita inválida.", "INVALID_QUANTITY", 400);
+      }
+    }
+    const prescribedQuantity: number | null = rawQty;
     let prescribedUnitCode: string | null = input.prescribedUnitCode ? input.prescribedUnitCode.trim().toUpperCase() : null;
     let prescribedUnitLabel: string | null = input.prescribedUnitLabel ? input.prescribedUnitLabel.trim() : null;
+
+    if (prescribedQuantity != null) {
+      const qtyInG = prescribedUnitCode === "KG" ? prescribedQuantity * 1000 : prescribedUnitCode === "G" ? prescribedQuantity : null;
+      if (qtyInG != null && qtyInG > 2000) {
+        throw new NutritionAuthorizationError("Quantidade superior a 2.000 g não é permitida para substituição.", "IMPRACTICAL_QUANTITY", 400);
+      }
+    }
     let caloriesSnapshot: number | null = null;
     let proteinSnapshot: number | null = null;
     let carbsSnapshot: number | null = null;
@@ -1764,13 +1778,27 @@ export async function updateSubstitution(
     const sub = subRows[0];
     await getAndAssertDraftVersion(connection, String(sub.version_public_id), ctx, true);
 
-    const prescribedQuantity = input.prescribedQuantity !== undefined
-      ? (input.prescribedQuantity != null && input.prescribedQuantity > 0 ? Number(input.prescribedQuantity) : null)
+    const rawUpdatedQty = input.prescribedQuantity !== undefined
+      ? (input.prescribedQuantity != null ? Number(input.prescribedQuantity) : null)
       : (sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null);
+
+    if (rawUpdatedQty != null) {
+      if (!Number.isFinite(rawUpdatedQty) || rawUpdatedQty <= 0) {
+        throw new NutritionAuthorizationError("Quantidade prescrita inválida.", "INVALID_QUANTITY", 400);
+      }
+    }
+    const prescribedQuantity = rawUpdatedQty;
 
     let prescribedUnitCode = input.prescribedUnitCode !== undefined
       ? (input.prescribedUnitCode ? input.prescribedUnitCode.trim().toUpperCase() : null)
       : (sub.prescribed_unit_code ? String(sub.prescribed_unit_code) : null);
+
+    if (prescribedQuantity != null) {
+      const qtyInG = prescribedUnitCode === "KG" ? prescribedQuantity * 1000 : prescribedUnitCode === "G" ? prescribedQuantity : null;
+      if (qtyInG != null && qtyInG > 2000) {
+        throw new NutritionAuthorizationError("Quantidade superior a 2.000 g não é permitida para substituição.", "IMPRACTICAL_QUANTITY", 400);
+      }
+    }
 
     let prescribedUnitLabel = input.prescribedUnitLabel !== undefined
       ? (input.prescribedUnitLabel ? input.prescribedUnitLabel.trim() : null)

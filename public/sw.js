@@ -111,9 +111,14 @@ async function pruneNextStaticCache(cache) {
   }
 }
 
+const IS_IOS =
+  /iPhone|iPod|iPad/i.test(self.navigator?.userAgent || "") ||
+  (self.navigator?.platform === "MacIntel" && (self.navigator?.maxTouchPoints || 0) > 1);
+
 // Install: precache allowlisted static PWA assets including offline shell.
 // Explicitly fetches with cache: "reload" to guarantee latest files bypassing HTTP browser cache.
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       const assetUrls = Array.from(STATIC_PWA_ASSETS);
@@ -136,6 +141,30 @@ self.addEventListener("install", (event) => {
 
 // Activate: clean up outdated Trevo caches and claim clients.
 self.addEventListener("activate", (event) => {
+  if (IS_IOS) {
+    // P0 iOS Self-Destruct: unregister this service worker and purge all Trevo caches
+    // so iOS WebKit never gets intercepted by a Service Worker.
+    // Explicitly NO clients.claim() and NO reload from SW.
+    event.waitUntil(
+      (async () => {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(
+            keys
+              .filter((key) => key.startsWith("trevo-"))
+              .map((key) => caches.delete(key))
+          );
+          if (self.registration) {
+            await self.registration.unregister();
+          }
+        } catch {
+          // Best effort self-destruct
+        }
+      })()
+    );
+    return;
+  }
+
   event.waitUntil(
     caches
       .keys()
@@ -172,7 +201,17 @@ function cleanRedirectedResponse(response) {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // 1. Navigation requests: Strict network-first with precached /offline.html fallback
+  // 1. Navigation requests: iOS navigation bypass (Defense-in-depth)
+  // In iOS WebKit, service worker HTML navigation interception can fail or produce blank screens.
+  // We completely bypass SW respondWith on iOS for HTML navigation so WebKit performs native navigation.
+  if (
+    IS_IOS &&
+    event.request.mode === "navigate"
+  ) {
+    return;
+  }
+
+  // 1b. Navigation requests (Non-iOS): Strict network-first with precached /offline.html fallback
   if (event.request.mode === "navigate" && event.request.method === "GET") {
     event.respondWith(
       fetch(event.request)

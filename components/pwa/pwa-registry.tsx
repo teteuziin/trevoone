@@ -14,6 +14,15 @@ import { useEffect, useState, useRef } from "react";
  * - Eliminate reload race conditions: controllerchange only reloads if user explicitly confirmed the update.
  * - Moderate update checks on boot and on document visibility return (no aggressive polling).
  */
+function isIOSDevice(): boolean {
+  if (typeof window === "undefined" || !navigator) return false;
+  const ua = navigator.userAgent || "";
+  return (
+    /iPhone|iPad|iPod/i.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
 export function PwaRegistry() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
@@ -26,6 +35,54 @@ export function PwaRegistry() {
     }
 
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+
+    // P0 iOS Safe Mode: Completely disable SW on iOS to guarantee online reliability.
+    // Self-heal: If an existing SW is registered or controlling, unregister it and clear Trevo SW caches once.
+    if (isIOSDevice()) {
+      const RECOVERY_KEY = "trevo_ios_sw_recovery_v1";
+
+      const performIOSCleanup = async () => {
+        try {
+          const hasRecoveryRun = Boolean(sessionStorage.getItem(RECOVERY_KEY));
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          const trevoRegistrations = registrations.filter((reg) => {
+            try {
+              const regUrl = new URL(reg.scope);
+              return regUrl.origin === window.location.origin;
+            } catch {
+              return false;
+            }
+          });
+
+          const hasActiveWorker = Boolean(
+            navigator.serviceWorker.controller || trevoRegistrations.length > 0
+          );
+
+          if (trevoRegistrations.length > 0) {
+            await Promise.all(trevoRegistrations.map((reg) => reg.unregister()));
+          }
+
+          if ("caches" in window) {
+            const cacheNames = await caches.keys();
+            const trevoCaches = cacheNames.filter((name) => name.startsWith("trevo-"));
+            await Promise.all(trevoCaches.map((name) => caches.delete(name)));
+          }
+
+          // One-time safe reload guard: only reload if an existing SW/controller was active and recovery hasn't run
+          if (hasActiveWorker && !hasRecoveryRun) {
+            sessionStorage.setItem(RECOVERY_KEY, "1");
+            window.location.replace(
+              window.location.pathname + window.location.search + window.location.hash
+            );
+          }
+        } catch {
+          // Cleanup failure must never crash page rendering
+        }
+      };
+
+      void performIOSCleanup();
       return;
     }
 

@@ -243,7 +243,7 @@ export function DashboardInfluencerView({
       meta:
         typeof totalMissions === "number" && totalMissions > 0
           ? `${totalMissions} ${totalMissions === 1 ? "missão atribuída" : "missões atribuídas"}`
-          : "Parceria homologada",
+          : "Parceria VIP",
     },
     {
       id: "vip-training",
@@ -326,12 +326,13 @@ export function DashboardInfluencerView({
       <NetflixFeatureCarousel
         slides={influencerSlides}
         consultancySlug={consultancySlug}
+        mobileCompact={true}
       />
 
       {/* ==================================================================== */}
       {/* 2. COCKPIT / RESUMO (Linha de 4 indicadores sempre visíveis)          */}
       {/* ==================================================================== */}
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
@@ -346,70 +347,70 @@ export function DashboardInfluencerView({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           {/* Ativas */}
-          <div className="p-4 sm:p-4.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-2.5 depth-surface">
+          <div className="p-3 sm:p-4.5 rounded-xl sm:rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2.5 depth-surface">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                 Ativas
               </span>
-              <div className="w-7 h-7 rounded-lg bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center">
-                <TargetIcon className="w-4 h-4" />
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center">
+                <TargetIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
             </div>
             <div>
-              <p className="font-heading text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
+              <p className="font-heading text-xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
                 {activeCount}
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 truncate">
+              <p className="text-[10px] sm:text-[11px] text-[var(--text-tertiary)] mt-0.5 truncate">
                 Em andamento ou pendentes
               </p>
             </div>
           </div>
 
           {/* Em Revisão */}
-          <div className="p-4 sm:p-4.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-2.5 depth-surface">
+          <div className="p-3 sm:p-4.5 rounded-xl sm:rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2.5 depth-surface">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                 Em Revisão
               </span>
-              <div className="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center">
-                <ClockIcon className="w-4 h-4" />
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center">
+                <ClockIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
             </div>
             <div>
-              <p className="font-heading text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
+              <p className="font-heading text-xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
                 {reviewCount}
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 truncate">
+              <p className="text-[10px] sm:text-[11px] text-[var(--text-tertiary)] mt-0.5 truncate">
                 Submetidas à consultoria
               </p>
             </div>
           </div>
 
           {/* Aprovadas */}
-          <div className="p-4 sm:p-4.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-2.5 depth-surface">
+          <div className="p-3 sm:p-4.5 rounded-xl sm:rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2.5 depth-surface">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                 Aprovadas
               </span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-                <CheckCircleIcon className="w-4 h-4" />
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                <CheckCircleIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
             </div>
             <div>
-              <p className="font-heading text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
+              <p className="font-heading text-xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
                 {approvedCount}
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 truncate">
-                Entregas homologadas
+              <p className="text-[10px] sm:text-[11px] text-[var(--text-tertiary)] mt-0.5 truncate">
+                Entregas aprovadas
               </p>
             </div>
           </div>
 
           {/* Urgentes */}
           <div
-            className={`p-4 sm:p-4.5 rounded-2xl border shadow-xs flex flex-col justify-between space-y-2.5 depth-surface ${
+            className={`p-3 sm:p-4.5 rounded-xl sm:rounded-2xl border shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2.5 depth-surface ${
               urgentCount > 0
                 ? "border-rose-500/40 bg-rose-500/5 dark:bg-rose-950/15"
                 : "border-[var(--border-default)] bg-[var(--surface)]"
@@ -417,7 +418,7 @@ export function DashboardInfluencerView({
           >
             <div className="flex items-center justify-between">
               <span
-                className={`text-[11px] font-bold uppercase tracking-wider ${
+                className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider ${
                   urgentCount > 0
                     ? "text-rose-600 dark:text-rose-400"
                     : "text-[var(--text-secondary)]"
@@ -426,18 +427,18 @@ export function DashboardInfluencerView({
                 Urgência
               </span>
               <div
-                className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center ${
                   urgentCount > 0
                     ? "bg-rose-500/15 text-rose-500"
                     : "bg-[var(--surface-subtle)] text-[var(--text-tertiary)]"
                 }`}
               >
-                <AlertTriangleIcon className="w-4 h-4" />
+                <AlertTriangleIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
             </div>
             <div>
               <p
-                className={`font-heading text-2xl sm:text-3xl font-bold tracking-tight ${
+                className={`font-heading text-xl sm:text-3xl font-bold tracking-tight ${
                   urgentCount > 0
                     ? "text-rose-600 dark:text-rose-400"
                     : "text-[var(--text-primary)]"
@@ -445,7 +446,7 @@ export function DashboardInfluencerView({
               >
                 {urgentCount}
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 truncate">
+              <p className="text-[10px] sm:text-[11px] text-[var(--text-tertiary)] mt-0.5 truncate">
                 {urgentCount > 0 ? "Atrasadas ou prioridade alta" : "Sem pendências críticas"}
               </p>
             </div>
@@ -581,9 +582,9 @@ export function DashboardInfluencerView({
                       </div>
                       <span className="text-[11px] font-semibold text-[var(--text-tertiary)] shrink-0">
                         {mission.status === "SUBMITTED"
-                          ? "Em homologação"
+                          ? "Em revisão"
                           : mission.status === "APPROVED"
-                          ? "Homologada"
+                          ? "Aprovada"
                           : "Pendente"}
                       </span>
                     </div>
@@ -733,11 +734,11 @@ export function DashboardInfluencerView({
             </h3>
           </div>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-xl">
-            Envie links e registros das suas publicações para homologação da consultoria e manutenção ativa dos seus benefícios VIP.
+            Envie links e registros das suas publicações para acompanhamento da consultoria e manutenção ativa dos seus benefícios VIP.
           </p>
         </div>
         <div className="shrink-0 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-          Parceria Homologada
+          Parceria VIP
         </div>
       </div>
     </div>

@@ -22,6 +22,7 @@ export interface NetflixFeatureCarouselProps {
   consultancySlug?: string;
   className?: string;
   autoSlideIntervalMs?: number;
+  mobileCompact?: boolean;
 }
 
 function subscribeReducedMotion(callback: () => void) {
@@ -44,6 +45,7 @@ export function NetflixFeatureCarousel({
   slides,
   className = "",
   autoSlideIntervalMs = 5500,
+  mobileCompact = false,
 }: NetflixFeatureCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -128,7 +130,11 @@ export function NetflixFeatureCarousel({
   return (
     <section
       aria-label="Destaques do Hub"
-      className={`relative rounded-3xl overflow-hidden border border-neutral-800/80 shadow-lg min-h-[360px] sm:min-h-[420px] md:min-h-[440px] flex flex-col justify-end p-6 sm:p-8 lg:p-10 bg-neutral-950 select-none group ${className}`.trim()}
+      className={`relative rounded-3xl overflow-hidden border border-neutral-800/80 shadow-lg ${
+        mobileCompact
+          ? "min-h-[310px] sm:min-h-[420px] md:min-h-[440px] p-5 sm:p-8 lg:p-10"
+          : "min-h-[360px] sm:min-h-[420px] md:min-h-[440px] p-6 sm:p-8 lg:p-10"
+      } flex flex-col justify-end bg-neutral-950 select-none group ${className}`.trim()}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onFocus={() => setIsPaused(true)}
@@ -156,7 +162,7 @@ export function NetflixFeatureCarousel({
       </div>
 
       {/* 2. Slide Content */}
-      <div className="relative z-10 space-y-4 sm:space-y-5 max-w-2xl">
+      <div className={`relative z-10 ${mobileCompact ? "space-y-3.5 sm:space-y-5" : "space-y-4 sm:space-y-5"} max-w-2xl`}>
         <div className="flex items-center gap-2.5 flex-wrap">
           <span
             className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wider border backdrop-blur-md ${tagColorClass}`}
@@ -170,16 +176,16 @@ export function NetflixFeatureCarousel({
           )}
         </div>
 
-        <div className="space-y-2">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight leading-[1.15] font-heading">
+        <div className="space-y-1.5 sm:space-y-2">
+          <h2 className={`${mobileCompact ? "text-xl sm:text-3xl md:text-4xl leading-tight" : "text-2xl sm:text-3xl md:text-4xl leading-[1.15]"} font-bold text-white tracking-tight font-heading`}>
             {currentSlide.title}
           </h2>
-          <p className="text-xs sm:text-sm md:text-base text-neutral-300 max-w-xl line-clamp-2 font-normal leading-relaxed">
+          <p className={`text-xs sm:text-sm md:text-base text-neutral-300 max-w-xl ${mobileCompact ? "line-clamp-3" : "line-clamp-2"} font-normal leading-relaxed`}>
             {currentSlide.description}
           </p>
         </div>
 
-        <div className="flex items-center gap-3 pt-1">
+        <div className="flex items-center gap-3 pt-0.5 sm:pt-1">
           <Link href={currentSlide.ctaHref}>
             <Button
               variant="primary"
@@ -194,7 +200,7 @@ export function NetflixFeatureCarousel({
       </div>
 
       {/* 3. Netflix-Style Progress Bar & Slide Thumbnails (Bottom Right) */}
-      <div className="relative z-10 pt-6 sm:pt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-neutral-800/60 mt-6">
+      <div className={`relative z-10 ${mobileCompact ? "pt-4 mt-4 sm:pt-8 sm:mt-6" : "pt-6 sm:pt-8 mt-6"} flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-neutral-800/60`}>
         <div className="flex items-center gap-2">
           {slides.map((slide, idx) => {
             const isActive = idx === currentIndex;

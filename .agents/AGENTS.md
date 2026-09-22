@@ -137,6 +137,109 @@ Este documento contém as **regras permanentes de arquitetura, desenvolvimento, 
 - **Regression Gate**: Toda rota otimizada deve manter funcionalidade (igual/melhor), visual (igual/melhor), velocidade (melhor/equivalente), estabilidade (melhor) e segurança (igual/melhor).
 - **STOP RULE**: Se qualquer otimização de performance exigir trade-off visível de qualidade ou funcionalidade, NÃO implementar automaticamente. Reportar: (1) ganho estimado, (2) perda de qualidade e (3) alternativa sem perda, aguardando aprovação explícita.
 
+# 57. REGRA DE NÃO REGRESSÃO — OBRIGATÓRIA
+
+## 1. Princípio Fundamental & Objetivo Permanente
+- Esta alteração **NÃO pode piorar a experiência atual dos usuários**.
+- **Objetivo Permanente**: O usuário existente deve perceber: *"algo melhorou"*, e nunca: *"algo que funcionava parou de funcionar"*.
+
+## 2. Perfis Protegidos
+Toda análise de impacto deve considerar explicitamente e sem omissões:
+- `STUDENT`
+- `PERSONAL`
+- `NUTRITIONIST`
+- `CONSULTANCY_ADMIN`
+- `INFLUENCER` / `VIP`
+- `PLATFORM_ADMIN`
+*Nenhum perfil pode ser omitido.*
+
+## 3. Multi-Role & Modo Efetivo
+Usuários com múltiplos papéis precisam ser tratados como cenário obrigatório de regressão. Toda alteração relacionada a:
+- Dashboard
+- Navegação
+- Permissões
+- Consultoria
+- Aluno
+- Treino
+- Nutrição
+- Evolução
+- Financeiro
+
+Deve verificar obrigatoriamente:
+- Active role
+- Effective mode
+- Troca de modo
+- Refresh após troca de modo
+- Deep links
+- Acesso direto por URL
+*Regra*: Uma alteração em um modo não pode vazar comportamento visual ou autorização para outro.
+
+## 4. Tenancy & Isolamento
+É obrigatório garantir que alterações não permitam:
+- Acesso cross-tenant
+- Acesso de ex-membro
+- Acesso a aluno não vinculado
+- Dados de outra consultoria
+- Reutilização indevida de IDs em URL
+*A autorização deve continuar sendo estritamente revalidada no destino (servidor).*
+
+## 5. Sessão Existente
+Não testar somente usuário recém-logado. Sempre que a mudança puder afetar runtime, auth, PWA ou shell, testar também:
+- Usuário já autenticado antes do deploy
+- Usuário com aba aberta durante o deploy
+- Refresh após deploy
+- Fechar e reabrir aplicação
+- Mudança de Wi-Fi para dados móveis quando relevante
+
+## 6. iOS — Base Protegida
+O estado atual de produção em iOS deve ser considerado **BASE PROTEGIDA**.
+- Não reativar Service Worker no iOS incidentalmente.
+- **Proibido alterar sem tarefa explícita e auditoria própria**:
+  - iOS Safe Mode
+  - Two-layer self-heal
+  - Comportamento de SW
+  - `/sw.js`
+  - Cache/CDN relacionado
+  - Ciclo de vida PWA
+
+## 7. Alterações Globais
+- Qualquer arquivo compartilhado por múltiplos perfis deve ser marcado como: **GLOBAL IMPACT**.
+- Antes de editá-lo, perguntar: *"Consigo resolver isso no componente específico da feature?"*
+  - Se SIM: usar solução isolada.
+  - Só alterar componente global quando tecnicamente necessário.
+
+## 8. Runtime > Build (Separação de Evidências)
+PASS de lint, build, typecheck e testes automatizados **NÃO significa RELEASE PASS**.
+Para mudanças relevantes, manter essas três evidências obrigatoriamente separadas:
+`LOCAL PASS` ≠ `PROD PASS` ≠ `REAL USER PASS`.
+
+## 9. Rollback & Contingência
+Antes de todo release relevante registrar explicitamente:
+- **BASE PROD**: `<commit>`
+- **NEW RELEASE**: `<commit>`
+- **ROLLBACK TARGET**: `<commit>`
+- **FILES CHANGED**: `...`
+*Diretriz de crise*: Se ocorrer regressão real, **restaurar o serviço primeiro**; investigar a causa depois.
+
+## 10. Não Regressão Visual
+Redesign de uma role não pode:
+- Alterar wallpaper global
+- Alterar shell global
+- Alterar spacing global
+- Alterar labels de outras roles
+- Alterar navegação de outras roles
+*Sem autorização explícita.*
+
+## 11. Checklist de Conclusão (Regra Final)
+A mudança só pode ser considerada concluída quando:
+- [ ] **FUNCIONALIDADE NOVA**: PASS
+- [ ] **FLUXO ANTERIOR**: PASS
+- [ ] **PERFIS NÃO RELACIONADOS**: PASS
+- [ ] **MOBILE**: PASS
+- [ ] **DESKTOP**: PASS
+- [ ] **TENANCY/RBAC**: PASS (quando aplicável)
+- [ ] **REAL USER**: PASS (quando a alteração justificar teste humano)
+
 # 54. FORMATO DO RELATÓRIO OBRIGATÓRIO AO TERMINAR TAREFA
 ```text
 TAREFA CONCLUÍDA

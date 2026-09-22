@@ -290,8 +290,6 @@ export default async function ConsultancyPage({ params }: PageProps) {
         {effectiveMode === "INFLUENCER" && (
           <DashboardInfluencerView
             consultancySlug={context.consultancySlug}
-            consultancyName={context.consultancyName}
-            userName={session.fullName}
             missions={influencerMissionsResult?.items || []}
             totalMissions={influencerMissionsResult?.total}
             activeTrainingPlan={activeTrainingPlan}

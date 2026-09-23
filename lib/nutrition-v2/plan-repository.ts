@@ -12,6 +12,9 @@ import {
   type NutritionAccessContext,
   assertCanAuthorNutrition,
 } from "./access";
+import {
+  calculateItemNutrients,
+} from "./nutrient-calculator";
 
 // ============================================================================
 // DTOs & INPUT TYPES
@@ -198,62 +201,7 @@ export type UpdateSubstitutionInput = {
 // MACRO CALCULATION & UNIT CONVERSION UTILITIES
 // ============================================================================
 
-const MASS_UNITS = new Set(["G", "KG"]);
-const VOLUME_UNITS = new Set(["ML", "L"]);
-
-export function calculateMacroFactor(
-  refAmount: number,
-  refUnit: string,
-  prescribedQty: number,
-  prescribedUnit: string,
-  portionEquivalentAmount?: number | null
-): number | null {
-  if (refAmount <= 0 || prescribedQty <= 0) return null;
-
-  const rUnit = refUnit.trim().toUpperCase();
-  const pUnit = prescribedUnit.trim().toUpperCase();
-
-  // 1. If portion is provided with equivalent reference amount
-  if (portionEquivalentAmount != null && portionEquivalentAmount > 0) {
-    const totalRefAmount = prescribedQty * portionEquivalentAmount;
-    return totalRefAmount / refAmount;
-  }
-
-  // 2. Direct mass conversion (G <-> KG)
-  if (MASS_UNITS.has(rUnit) && MASS_UNITS.has(pUnit)) {
-    let rInG = refAmount;
-    if (rUnit === "KG") rInG = refAmount * 1000;
-
-    let pInG = prescribedQty;
-    if (pUnit === "KG") pInG = prescribedQty * 1000;
-
-    return pInG / rInG;
-  }
-
-  // 3. Direct volume conversion (ML <-> L)
-  if (VOLUME_UNITS.has(rUnit) && VOLUME_UNITS.has(pUnit)) {
-    let rInMl = refAmount;
-    if (rUnit === "L") rInMl = refAmount * 1000;
-
-    let pInMl = prescribedQty;
-    if (pUnit === "L") pInMl = prescribedQty * 1000;
-
-    return pInMl / rInMl;
-  }
-
-  // 4. Same unit match
-  if (rUnit === pUnit) {
-    return prescribedQty / refAmount;
-  }
-
-  // Incompatible or unknown conversion - no guessing!
-  return null;
-}
-
-export function roundMacro(val: number | null | undefined): number | null {
-  if (val == null || isNaN(Number(val))) return null;
-  return Math.round(Number(val) * 100) / 100;
-}
+export { roundMacro, calculateMacroFactor } from "./nutrient-calculator";
 
 // ============================================================================
 // INTERNAL GUARD HELPERS
@@ -1128,7 +1076,7 @@ export async function addMealItem(
     let foodId: number | null = null;
     let foodNameSnapshot: string = "";
     let categorySnapshot: string | null = null;
-    const prescribedQuantity: number | null = input.prescribedQuantity != null && input.prescribedQuantity > 0 ? Number(input.prescribedQuantity) : null;
+    let prescribedQuantity: number | null = null;
     let prescribedUnitCode: string | null = input.prescribedUnitCode ? input.prescribedUnitCode.trim().toUpperCase() : null;
     let prescribedUnitLabel: string | null = input.prescribedUnitLabel ? input.prescribedUnitLabel.trim() : null;
     let caloriesSnapshot: number | null = null;
@@ -1163,6 +1111,16 @@ export async function addMealItem(
       foodNameSnapshot = String(food.display_name_pt_br || food.name);
       categorySnapshot = food.category ? String(food.category) : null;
 
+      // Validate quantity
+      if (input.prescribedQuantity == null) {
+        throw new NutritionAuthorizationError("A quantidade prescrita é obrigatória para alimentos do catálogo.", "INVALID_QUANTITY", 400);
+      }
+      const parsedQty = Number(input.prescribedQuantity);
+      if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+        throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
+      }
+      prescribedQuantity = parsedQty;
+
       // Check portion if provided
       let portionEquivalentAmount: number | null = null;
       if (input.portionPublicId && input.portionPublicId.trim()) {
@@ -1182,27 +1140,41 @@ export async function addMealItem(
         }
 
         portionEquivalentAmount = Number(portion.equivalent_reference_amount);
+        if (!Number.isFinite(portionEquivalentAmount) || portionEquivalentAmount <= 0) {
+          throw new NutritionAuthorizationError("Peso ou referência da porção inválido.", "INVALID_PORTION_AMOUNT", 400);
+        }
+
         prescribedUnitCode = "PORCAO";
         prescribedUnitLabel = String(portion.label);
       }
 
-      // Derive macro snapshots
-      if (prescribedQuantity != null && prescribedQuantity > 0 && prescribedUnitCode) {
-        const factor = calculateMacroFactor(
-          Number(food.reference_amount),
-          String(food.reference_unit_code),
-          prescribedQuantity,
-          prescribedUnitCode,
-          portionEquivalentAmount
-        );
+      // Authoritatively calculate nutrient snapshots using canonical food data
+      const calc = calculateItemNutrients({
+        food: {
+          referenceAmount: Number(food.reference_amount),
+          referenceUnitCode: String(food.reference_unit_code),
+          caloriesKcal: food.calories_kcal != null ? Number(food.calories_kcal) : null,
+          proteinG: food.protein_g != null ? Number(food.protein_g) : null,
+          carbohydrateG: food.carbohydrate_g != null ? Number(food.carbohydrate_g) : null,
+          fatG: food.fat_g != null ? Number(food.fat_g) : null,
+          fiberG: food.fiber_g != null ? Number(food.fiber_g) : null,
+        },
+        prescribedQuantity,
+        prescribedUnitCode,
+        portion: portionEquivalentAmount != null ? {
+          label: prescribedUnitLabel || "Porção",
+          equivalentReferenceAmount: portionEquivalentAmount,
+        } : null,
+      });
 
-        if (factor != null) {
-          caloriesSnapshot = food.calories_kcal != null ? roundMacro(Number(food.calories_kcal) * factor) : null;
-          proteinSnapshot = food.protein_g != null ? roundMacro(Number(food.protein_g) * factor) : null;
-          carbsSnapshot = food.carbohydrate_g != null ? roundMacro(Number(food.carbohydrate_g) * factor) : null;
-          fatSnapshot = food.fat_g != null ? roundMacro(Number(food.fat_g) * factor) : null;
-        }
+      if (!calc.isValid) {
+        throw new NutritionAuthorizationError(calc.errorMessage || "Erro no cálculo nutricional do item.", "CALCULATION_ERROR", 400);
       }
+
+      caloriesSnapshot = calc.caloriesKcal;
+      proteinSnapshot = calc.proteinG;
+      carbsSnapshot = calc.carbohydrateG;
+      fatSnapshot = calc.fatG;
     } else {
       // Custom Inline item
       const customName = input.customName ? input.customName.trim() : "";
@@ -1210,6 +1182,13 @@ export async function addMealItem(
         throw new NutritionAuthorizationError("O nome do alimento é obrigatório.", "VALIDATION_ERROR", 400);
       }
       foodNameSnapshot = customName;
+      if (input.prescribedQuantity != null) {
+        const parsedQty = Number(input.prescribedQuantity);
+        if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+          throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
+        }
+        prescribedQuantity = parsedQty;
+      }
       // For custom items, macros default to null unless otherwise provided
     }
 
@@ -1299,7 +1278,8 @@ export async function updateMealItem(
         f.calories_kcal,
         f.protein_g,
         f.carbohydrate_g,
-        f.fat_g
+        f.fat_g,
+        f.fiber_g
        FROM nutrition_v2_meal_items mi
        INNER JOIN nutrition_v2_meals m ON m.id = mi.meal_id
        INNER JOIN nutrition_v2_plan_versions v ON v.id = m.nutrition_plan_version_id
@@ -1315,9 +1295,18 @@ export async function updateMealItem(
     const item = itemRows[0];
     await getAndAssertDraftVersion(connection, String(item.version_public_id), ctx, true);
 
-    const prescribedQuantity = input.prescribedQuantity !== undefined
-      ? (input.prescribedQuantity != null && input.prescribedQuantity > 0 ? Number(input.prescribedQuantity) : null)
-      : (item.prescribed_quantity != null ? Number(item.prescribed_quantity) : null);
+    let prescribedQuantity: number | null = null;
+    if (input.prescribedQuantity !== undefined) {
+      if (input.prescribedQuantity != null) {
+        const parsed = Number(input.prescribedQuantity);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+          throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
+        }
+        prescribedQuantity = parsed;
+      }
+    } else {
+      prescribedQuantity = item.prescribed_quantity != null ? Number(item.prescribed_quantity) : null;
+    }
 
     let prescribedUnitCode = input.prescribedUnitCode !== undefined
       ? (input.prescribedUnitCode ? input.prescribedUnitCode.trim().toUpperCase() : null)
@@ -1334,6 +1323,10 @@ export async function updateMealItem(
 
     // Recalculate if library food and quantities/portion changed
     if (item.food_id != null) {
+      if (prescribedQuantity == null || prescribedQuantity <= 0) {
+        throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
+      }
+
       let portionEquivalentAmount: number | null = null;
       if (input.portionPublicId !== undefined) {
         if (input.portionPublicId && input.portionPublicId.trim()) {
@@ -1346,7 +1339,14 @@ export async function updateMealItem(
             throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
           }
           const portion = portions[0];
-          portionEquivalentAmount = Number(portion.equivalent_reference_amount);
+          if (portion.status !== "ACTIVE") {
+            throw new NutritionAuthorizationError("Porção arquivada não pode ser selecionada.", "ARCHIVED_PORTION", 400);
+          }
+          const eq = Number(portion.equivalent_reference_amount);
+          if (!Number.isFinite(eq) || eq <= 0) {
+            throw new NutritionAuthorizationError("Peso ou referência da porção inválido.", "INVALID_PORTION_AMOUNT", 400);
+          }
+          portionEquivalentAmount = eq;
           prescribedUnitCode = "PORCAO";
           prescribedUnitLabel = String(portion.label);
         } else {
@@ -1354,26 +1354,33 @@ export async function updateMealItem(
         }
       }
 
-      if (prescribedQuantity != null && prescribedQuantity > 0 && prescribedUnitCode && item.reference_amount != null) {
-        const factor = calculateMacroFactor(
-          Number(item.reference_amount),
-          String(item.reference_unit_code),
+      if (item.reference_amount != null) {
+        const calc = calculateItemNutrients({
+          food: {
+            referenceAmount: Number(item.reference_amount),
+            referenceUnitCode: String(item.reference_unit_code),
+            caloriesKcal: item.calories_kcal != null ? Number(item.calories_kcal) : null,
+            proteinG: item.protein_g != null ? Number(item.protein_g) : null,
+            carbohydrateG: item.carbohydrate_g != null ? Number(item.carbohydrate_g) : null,
+            fatG: item.fat_g != null ? Number(item.fat_g) : null,
+            fiberG: item.fiber_g != null ? Number(item.fiber_g) : null,
+          },
           prescribedQuantity,
           prescribedUnitCode,
-          portionEquivalentAmount
-        );
+          portion: portionEquivalentAmount != null ? {
+            label: prescribedUnitLabel || "Porção",
+            equivalentReferenceAmount: portionEquivalentAmount,
+          } : null,
+        });
 
-        if (factor != null) {
-          caloriesSnapshot = item.calories_kcal != null ? roundMacro(Number(item.calories_kcal) * factor) : null;
-          proteinSnapshot = item.protein_g != null ? roundMacro(Number(item.protein_g) * factor) : null;
-          carbsSnapshot = item.carbohydrate_g != null ? roundMacro(Number(item.carbohydrate_g) * factor) : null;
-          fatSnapshot = item.fat_g != null ? roundMacro(Number(item.fat_g) * factor) : null;
-        } else {
-          caloriesSnapshot = null;
-          proteinSnapshot = null;
-          carbsSnapshot = null;
-          fatSnapshot = null;
+        if (!calc.isValid) {
+          throw new NutritionAuthorizationError(calc.errorMessage || "Erro no cálculo de nutrientes.", "CALCULATION_ERROR", 400);
         }
+
+        caloriesSnapshot = calc.caloriesKcal;
+        proteinSnapshot = calc.proteinG;
+        carbsSnapshot = calc.carbohydrateG;
+        fatSnapshot = calc.fatG;
       }
     }
 
@@ -1649,27 +1656,46 @@ export async function addSubstitution(
           throw new NutritionAuthorizationError("Porção arquivada não pode ser selecionada.", "ARCHIVED_PORTION", 400);
         }
 
-        portionEquivalentAmount = Number(portion.equivalent_reference_amount);
+        const eq = Number(portion.equivalent_reference_amount);
+        if (!Number.isFinite(eq) || eq <= 0) {
+          throw new NutritionAuthorizationError("Peso ou referência da porção inválido.", "INVALID_PORTION_AMOUNT", 400);
+        }
+
+        portionEquivalentAmount = eq;
         prescribedUnitCode = "PORCAO";
         prescribedUnitLabel = String(portion.label);
       }
 
-      if (prescribedQuantity != null && prescribedQuantity > 0 && prescribedUnitCode) {
-        const factor = calculateMacroFactor(
-          Number(food.reference_amount),
-          String(food.reference_unit_code),
-          prescribedQuantity,
-          prescribedUnitCode,
-          portionEquivalentAmount
-        );
-
-        if (factor != null) {
-          caloriesSnapshot = food.calories_kcal != null ? roundMacro(Number(food.calories_kcal) * factor) : null;
-          proteinSnapshot = food.protein_g != null ? roundMacro(Number(food.protein_g) * factor) : null;
-          carbsSnapshot = food.carbohydrate_g != null ? roundMacro(Number(food.carbohydrate_g) * factor) : null;
-          fatSnapshot = food.fat_g != null ? roundMacro(Number(food.fat_g) * factor) : null;
-        }
+      if (prescribedQuantity == null || !Number.isFinite(prescribedQuantity) || prescribedQuantity <= 0) {
+        throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
       }
+
+      const calc = calculateItemNutrients({
+        food: {
+          referenceAmount: Number(food.reference_amount),
+          referenceUnitCode: String(food.reference_unit_code),
+          caloriesKcal: food.calories_kcal != null ? Number(food.calories_kcal) : null,
+          proteinG: food.protein_g != null ? Number(food.protein_g) : null,
+          carbohydrateG: food.carbohydrate_g != null ? Number(food.carbohydrate_g) : null,
+          fatG: food.fat_g != null ? Number(food.fat_g) : null,
+          fiberG: food.fiber_g != null ? Number(food.fiber_g) : null,
+        },
+        prescribedQuantity,
+        prescribedUnitCode,
+        portion: portionEquivalentAmount != null ? {
+          label: prescribedUnitLabel || "Porção",
+          equivalentReferenceAmount: portionEquivalentAmount,
+        } : null,
+      });
+
+      if (!calc.isValid) {
+        throw new NutritionAuthorizationError(calc.errorMessage || "Erro no cálculo nutricional da substituição.", "CALCULATION_ERROR", 400);
+      }
+
+      caloriesSnapshot = calc.caloriesKcal;
+      proteinSnapshot = calc.proteinG;
+      carbsSnapshot = calc.carbohydrateG;
+      fatSnapshot = calc.fatG;
     } else {
       const customName = input.customName ? input.customName.trim() : "";
       if (!customName) {
@@ -1761,7 +1787,8 @@ export async function updateSubstitution(
         f.calories_kcal,
         f.protein_g,
         f.carbohydrate_g,
-        f.fat_g
+        f.fat_g,
+        f.fiber_g
        FROM nutrition_v2_item_substitutions s
        INNER JOIN nutrition_v2_meal_items mi ON mi.id = s.meal_item_id
        INNER JOIN nutrition_v2_meals m ON m.id = mi.meal_id
@@ -1810,6 +1837,10 @@ export async function updateSubstitution(
     let fatSnapshot = sub.fat_g_snapshot != null ? Number(sub.fat_g_snapshot) : null;
 
     if (sub.food_id != null) {
+      if (prescribedQuantity == null || prescribedQuantity <= 0) {
+        throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
+      }
+
       let portionEquivalentAmount: number | null = null;
       if (input.portionPublicId !== undefined) {
         if (input.portionPublicId && input.portionPublicId.trim()) {
@@ -1822,7 +1853,14 @@ export async function updateSubstitution(
             throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
           }
           const portion = portions[0];
-          portionEquivalentAmount = Number(portion.equivalent_reference_amount);
+          if (portion.status !== "ACTIVE") {
+            throw new NutritionAuthorizationError("Porção arquivada não pode ser selecionada.", "ARCHIVED_PORTION", 400);
+          }
+          const eq = Number(portion.equivalent_reference_amount);
+          if (!Number.isFinite(eq) || eq <= 0) {
+            throw new NutritionAuthorizationError("Peso ou referência da porção inválido.", "INVALID_PORTION_AMOUNT", 400);
+          }
+          portionEquivalentAmount = eq;
           prescribedUnitCode = "PORCAO";
           prescribedUnitLabel = String(portion.label);
         } else {
@@ -1830,26 +1868,33 @@ export async function updateSubstitution(
         }
       }
 
-      if (prescribedQuantity != null && prescribedQuantity > 0 && prescribedUnitCode && sub.reference_amount != null) {
-        const factor = calculateMacroFactor(
-          Number(sub.reference_amount),
-          String(sub.reference_unit_code),
+      if (sub.reference_amount != null) {
+        const calc = calculateItemNutrients({
+          food: {
+            referenceAmount: Number(sub.reference_amount),
+            referenceUnitCode: String(sub.reference_unit_code),
+            caloriesKcal: sub.calories_kcal != null ? Number(sub.calories_kcal) : null,
+            proteinG: sub.protein_g != null ? Number(sub.protein_g) : null,
+            carbohydrateG: sub.carbohydrate_g != null ? Number(sub.carbohydrate_g) : null,
+            fatG: sub.fat_g != null ? Number(sub.fat_g) : null,
+            fiberG: sub.fiber_g != null ? Number(sub.fiber_g) : null,
+          },
           prescribedQuantity,
           prescribedUnitCode,
-          portionEquivalentAmount
-        );
+          portion: portionEquivalentAmount != null ? {
+            label: prescribedUnitLabel || "Porção",
+            equivalentReferenceAmount: portionEquivalentAmount,
+          } : null,
+        });
 
-        if (factor != null) {
-          caloriesSnapshot = sub.calories_kcal != null ? roundMacro(Number(sub.calories_kcal) * factor) : null;
-          proteinSnapshot = sub.protein_g != null ? roundMacro(Number(sub.protein_g) * factor) : null;
-          carbsSnapshot = sub.carbohydrate_g != null ? roundMacro(Number(sub.carbohydrate_g) * factor) : null;
-          fatSnapshot = sub.fat_g != null ? roundMacro(Number(sub.fat_g) * factor) : null;
-        } else {
-          caloriesSnapshot = null;
-          proteinSnapshot = null;
-          carbsSnapshot = null;
-          fatSnapshot = null;
+        if (!calc.isValid) {
+          throw new NutritionAuthorizationError(calc.errorMessage || "Erro no cálculo nutricional da substituição.", "CALCULATION_ERROR", 400);
         }
+
+        caloriesSnapshot = calc.caloriesKcal;
+        proteinSnapshot = calc.proteinG;
+        carbsSnapshot = calc.carbohydrateG;
+        fatSnapshot = calc.fatG;
       }
     }
 

@@ -6,6 +6,10 @@ import {
   getFoodPortionsForPickerAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import { getDataQualityBadgeInfo } from "@/lib/nutrition-v2/food-search";
+import {
+  calculateItemNutrients,
+  getSafeStandardUnitsForFood,
+} from "@/lib/nutrition-v2/nutrient-calculator";
 import type { FoodListItemDto, FoodWithPortionsDto } from "@/lib/nutrition-v2/food-repository";
 import { Button } from "@/components/ui/button";
 
@@ -103,7 +107,8 @@ export function NutritionFoodPicker({
     if (res.success && res.data) {
       setSelectedFood(res.data);
       setQuantity(String(res.data.referenceAmount || 100));
-      setUnitCode(res.data.referenceUnitCode || "G");
+      const safeUnits = getSafeStandardUnitsForFood(res.data.referenceUnitCode || "G");
+      setUnitCode(safeUnits[0]?.code || res.data.referenceUnitCode || "G");
       setSelectedPortionId("");
       setNotes("");
     }
@@ -123,7 +128,8 @@ export function NutritionFoodPicker({
       const p = selectedFood.portions.find((pt) => pt.publicId === selectedPortionId);
       if (p) unitLabel = p.label;
     } else {
-      const u = CANONICAL_UNITS.find((un) => un.code === unitCode);
+      const safeUnits = getSafeStandardUnitsForFood(selectedFood.referenceUnitCode);
+      const u = safeUnits.find((un) => un.code === unitCode);
       unitLabel = u ? u.label : unitCode;
     }
 
@@ -450,173 +456,267 @@ export function NutritionFoodPicker({
           )}
 
           {/* TAB 1 (Step 2): CONFIGURE PRESCRIBED QUANTITY / PORTION */}
-          {activeTab === "CATALOG" && selectedFood && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-sm text-[var(--text-primary)]">
-                      {selectedFood.displayNamePtBr || selectedFood.name}
-                    </h3>
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                        selectedFood.scope === "GLOBAL"
-                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                          : "bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20"
-                      }`}
-                    >
-                      {selectedFood.scope === "GLOBAL"
-                        ? selectedFood.sourceKey?.startsWith("USDA")
-                          ? "USDA"
-                          : selectedFood.sourceKey === "TACO"
-                          ? "TACO"
-                          : "Trevo One"
-                        : "Consultoria"}
-                    </span>
-                    {(() => {
-                      const badge = getDataQualityBadgeInfo(selectedFood.dataQuality);
-                      if (!badge) return null;
-                      return (
-                        <span
-                          title={badge.title}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            badge.variant === "analytical"
-                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                              : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
-                          }`}
-                        >
-                          {badge.label}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                  {Boolean(selectedFood.displayNamePtBr) &&
-                    selectedFood.name &&
-                    selectedFood.displayNamePtBr?.toLowerCase() !== selectedFood.name.toLowerCase() && (
-                      <div className="text-[11px] text-[var(--text-tertiary)] italic">
-                        {selectedFood.name}
-                      </div>
-                  )}
-                  <p className="text-xs text-[var(--text-secondary)] flex flex-wrap gap-x-2">
-                    <span>Referência: {selectedFood.referenceAmount} {selectedFood.referenceUnitCode}</span>
-                    <span>·</span>
-                    <span className="font-semibold text-[var(--brand)]">
-                      {selectedFood.caloriesKcal != null ? `${selectedFood.caloriesKcal} kcal` : "-"}
-                    </span>
-                    <span>·</span>
-                    <span>P: {selectedFood.proteinG != null ? `${selectedFood.proteinG}g` : "-"}</span>
-                    <span>·</span>
-                    <span>C: {selectedFood.carbohydrateG != null ? `${selectedFood.carbohydrateG}g` : "-"}</span>
-                    <span>·</span>
-                    <span>G: {selectedFood.fatG != null ? `${selectedFood.fatG}g` : "-"}</span>
-                    <span>·</span>
-                    <span>Fibra: {selectedFood.fiberG != null ? `${selectedFood.fiberG}g` : "-"}</span>
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedFood(null)}
-                  className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0"
-                >
-                  Trocar alimento
-                </button>
-              </div>
+          {activeTab === "CATALOG" && selectedFood && (() => {
+            const numQty = parseFloat(quantity.replace(",", "."));
+            const activePortions = selectedFood.portions.filter(
+              (p) => p.status === "ACTIVE" && p.equivalentReferenceAmount > 0
+            );
+            const activePortion = selectedPortionId
+              ? activePortions.find((p) => p.publicId === selectedPortionId)
+              : null;
+            const safeStandardUnits = getSafeStandardUnitsForFood(selectedFood.referenceUnitCode);
 
-              {/* Household portions (if available) */}
-              {selectedFood.portions.length > 0 && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[var(--text-primary)]">
-                    Medida Caseira / Porção:
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedPortionId("");
-                        setUnitCode(selectedFood.referenceUnitCode || "G");
-                      }}
-                      className={`p-3 rounded-xl border text-left text-xs transition-colors depth-interactive ${
-                        !selectedPortionId
-                          ? "border-[var(--brand)] bg-[var(--brand)]/10 font-bold text-[var(--brand)]"
-                          : "border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                      }`}
-                    >
-                      <div className="font-bold">Medida Padrão</div>
-                      <div className="text-[11px] opacity-80">
-                        {selectedFood.referenceAmount} {selectedFood.referenceUnitCode}
-                      </div>
-                    </button>
-                    {selectedFood.portions.map((p) => (
+            const liveRecalc = calculateItemNutrients({
+              food: {
+                referenceAmount: selectedFood.referenceAmount,
+                referenceUnitCode: selectedFood.referenceUnitCode,
+                caloriesKcal: selectedFood.caloriesKcal,
+                proteinG: selectedFood.proteinG,
+                carbohydrateG: selectedFood.carbohydrateG,
+                fatG: selectedFood.fatG,
+                fiberG: selectedFood.fiberG,
+              },
+              prescribedQuantity: numQty,
+              prescribedUnitCode: selectedPortionId ? "PORCAO" : unitCode,
+              portion: activePortion
+                ? {
+                    publicId: activePortion.publicId,
+                    label: activePortion.label,
+                    equivalentReferenceAmount: activePortion.equivalentReferenceAmount,
+                  }
+                : null,
+            });
+
+            return (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-sm text-[var(--text-primary)]">
+                        {selectedFood.displayNamePtBr || selectedFood.name}
+                      </h3>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                          selectedFood.scope === "GLOBAL"
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                            : "bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20"
+                        }`}
+                      >
+                        {selectedFood.scope === "GLOBAL"
+                          ? selectedFood.sourceKey?.startsWith("USDA")
+                            ? "USDA"
+                            : selectedFood.sourceKey === "TACO"
+                            ? "TACO"
+                            : "Trevo One"
+                          : "Consultoria"}
+                      </span>
+                      {(() => {
+                        const badge = getDataQualityBadgeInfo(selectedFood.dataQuality);
+                        if (!badge) return null;
+                        return (
+                          <span
+                            title={badge.title}
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              badge.variant === "analytical"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                                : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
+                            }`}
+                          >
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    {Boolean(selectedFood.displayNamePtBr) &&
+                      selectedFood.name &&
+                      selectedFood.displayNamePtBr?.toLowerCase() !== selectedFood.name.toLowerCase() && (
+                        <div className="text-[11px] text-[var(--text-tertiary)] italic">
+                          {selectedFood.name}
+                        </div>
+                    )}
+                    <p className="text-xs text-[var(--text-secondary)] flex flex-wrap gap-x-2">
+                      <span>Referência: {selectedFood.referenceAmount} {selectedFood.referenceUnitCode}</span>
+                      <span>·</span>
+                      <span className="font-semibold text-[var(--brand)]">
+                        {selectedFood.caloriesKcal != null ? `${selectedFood.caloriesKcal} kcal` : "-"}
+                      </span>
+                      <span>·</span>
+                      <span>P: {selectedFood.proteinG != null ? `${selectedFood.proteinG}g` : "-"}</span>
+                      <span>·</span>
+                      <span>C: {selectedFood.carbohydrateG != null ? `${selectedFood.carbohydrateG}g` : "-"}</span>
+                      <span>·</span>
+                      <span>G: {selectedFood.fatG != null ? `${selectedFood.fatG}g` : "-"}</span>
+                      <span>·</span>
+                      <span>Fibra: {selectedFood.fiberG != null ? `${selectedFood.fiberG}g` : "-"}</span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFood(null)}
+                    className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0"
+                  >
+                    Trocar alimento
+                  </button>
+                </div>
+
+                {/* Household portions (if available) */}
+                {activePortions.length > 0 && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-[var(--text-primary)]">
+                      Medida Caseira ou Padrão:
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <button
-                        key={p.publicId}
                         type="button"
                         onClick={() => {
-                          setSelectedPortionId(p.publicId);
-                          setQuantity("1");
+                          setSelectedPortionId("");
+                          setUnitCode(safeStandardUnits[0]?.code || selectedFood.referenceUnitCode || "G");
                         }}
                         className={`p-3 rounded-xl border text-left text-xs transition-colors depth-interactive ${
-                          selectedPortionId === p.publicId
+                          !selectedPortionId
                             ? "border-[var(--brand)] bg-[var(--brand)]/10 font-bold text-[var(--brand)]"
                             : "border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                         }`}
                       >
-                        <div className="font-bold">{p.label}</div>
+                        <div className="font-bold">Medida Padrão</div>
                         <div className="text-[11px] opacity-80">
-                          Equiv. {p.equivalentReferenceAmount} {selectedFood.referenceUnitCode}
+                          {selectedFood.referenceAmount} {selectedFood.referenceUnitCode}
                         </div>
                       </button>
-                    ))}
+                      {activePortions.map((p) => (
+                        <button
+                          key={p.publicId}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPortionId(p.publicId);
+                            setQuantity("1");
+                          }}
+                          className={`p-3 rounded-xl border text-left text-xs transition-colors depth-interactive ${
+                            selectedPortionId === p.publicId
+                              ? "border-[var(--brand)] bg-[var(--brand)]/10 font-bold text-[var(--brand)]"
+                              : "border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                          }`}
+                        >
+                          <div className="font-bold">{p.label}</div>
+                          <div className="text-[11px] opacity-80">
+                            Equiv. {p.equivalentReferenceAmount} {selectedFood.referenceUnitCode}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Quantity & Unit */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Quantity & Safe Unit Inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                      {selectedPortionId ? `Número de porções (${activePortion?.label}):` : "Quantidade prescrita:"}
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                    />
+                  </div>
+                  {!selectedPortionId && (
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">Unidade:</label>
+                      <select
+                        value={unitCode}
+                        onChange={(e) => setUnitCode(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                      >
+                        {safeStandardUnits.map((u) => (
+                          <option key={u.code} value={u.code}>
+                            {u.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Live Recalculated Nutrient Summary Card */}
+                {liveRecalc && liveRecalc.isValid ? (
+                  <div className="p-4 rounded-2xl border border-[var(--brand)]/30 bg-[var(--brand)]/5 space-y-2.5 depth-surface">
+                    <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
+                      <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-[var(--brand)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        Recálculo Automático de Nutrientes
+                      </span>
+                      <span className="font-semibold text-[var(--brand)] text-[11px] bg-[var(--brand)]/10 px-2.5 py-0.5 rounded-full border border-[var(--brand)]/20">
+                        Quantidade efetiva: {liveRecalc.formattedEffectiveQuantity}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-0.5">
+                      <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-center shadow-xs">
+                        <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Energia</div>
+                        <div className="text-sm font-bold text-[var(--brand)]">
+                          {liveRecalc.caloriesKcal != null ? `${liveRecalc.caloriesKcal} kcal` : "—"}
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-center shadow-xs">
+                        <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Proteína</div>
+                        <div className="text-sm font-bold text-[var(--text-primary)]">
+                          {liveRecalc.proteinG != null ? `${liveRecalc.proteinG} g` : "—"}
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-center shadow-xs">
+                        <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Carboidrato</div>
+                        <div className="text-sm font-bold text-[var(--text-primary)]">
+                          {liveRecalc.carbohydrateG != null ? `${liveRecalc.carbohydrateG} g` : "—"}
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-center shadow-xs">
+                        <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Gordura</div>
+                        <div className="text-sm font-bold text-[var(--text-primary)]">
+                          {liveRecalc.fatG != null ? `${liveRecalc.fatG} g` : "—"}
+                        </div>
+                      </div>
+                      {liveRecalc.fiberG != null ? (
+                        <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-center shadow-xs col-span-2 sm:col-span-1">
+                          <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Fibra</div>
+                          <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                            {liveRecalc.fiberG} g
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-center shadow-xs col-span-2 sm:col-span-1 opacity-60">
+                          <div className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider">Fibra</div>
+                          <div className="text-sm font-bold text-[var(--text-tertiary)]">—</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : selectedFood && numQty > 0 ? (
+                  <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-700 dark:text-amber-400">
+                    {liveRecalc?.errorMessage || "Informe uma quantidade válida para ver os nutrientes recalculados."}
+                  </div>
+                ) : null}
+
+                {/* Notes */}
                 <div>
                   <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
-                    {selectedPortionId ? "Número de porções:" : "Quantidade prescrita:"}
+                    Observações de preparo / consumo (opcional):
                   </label>
                   <input
-                    type="number"
-                    step="any"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Ex: sem sal, cozido no vapor, picado..."
                     className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
                   />
                 </div>
-                {!selectedPortionId && (
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">Unidade:</label>
-                    <select
-                      value={unitCode}
-                      onChange={(e) => setUnitCode(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
-                    >
-                      {CANONICAL_UNITS.map((u) => (
-                        <option key={u.code} value={u.code}>
-                          {u.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
-                  Observações de preparo / consumo (opcional):
-                </label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ex: sem sal, cozido no vapor, picado..."
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
-                />
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* TAB 2: CUSTOM INLINE ITEM */}
           {activeTab === "CUSTOM" && (
@@ -696,8 +796,9 @@ export function NutritionFoodPicker({
               type="button"
               variant="primary"
               size="sm"
+              disabled={parseFloat(quantity.replace(",", ".")) <= 0 || isNaN(parseFloat(quantity.replace(",", ".")))}
               onClick={handleConfirmLibraryFood}
-              className="font-bold min-h-[38px] shadow-sm"
+              className="font-bold min-h-[38px] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Adicionar ao Plano
             </Button>

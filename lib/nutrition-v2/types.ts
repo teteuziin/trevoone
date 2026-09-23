@@ -86,13 +86,16 @@ export interface NutritionV2FoodDto {
   proteinG: number | null;
   carbohydrateG: number | null;
   fatG: number | null;
+  fiberG?: number | null;
   status: NutritionV2FoodStatus;
   sourceType: string;
+  dataQuality?: string;
   sourceKey: string | null;
   sourceExternalCode: string | null;
   sourceVersion: string | null;
   sourceReference: string | null;
   sourceImportedAt: string | null;
+  lastVerifiedAt?: string | null;
   sourceUid: string | null;
   createdByUserId: string | null;
   createdByMembershipId: string | null;

@@ -143,9 +143,10 @@ export function extractMacros(foodNutrients, isFoundation = false) {
   let protein = null;
   let carb = null;
   let fat = null;
+  let fiber = null;
 
   if (!foodNutrients || !Array.isArray(foodNutrients)) {
-    return { calories, protein, carb, fat };
+    return { calories, protein, carb, fat, fiber };
   }
 
   let atwaterSpecific = null;
@@ -169,6 +170,8 @@ export function extractMacros(foodNutrients, isFoundation = false) {
       if (carb == null || num === "205") carb = amount;
     } else if (num === "204") {
       fat = amount;
+    } else if (num === "291") {
+      fiber = amount;
     }
   }
 
@@ -180,20 +183,23 @@ export function extractMacros(foodNutrients, isFoundation = false) {
   if (protein != null && protein < 0) protein = 0;
   if (carb != null && carb < 0) carb = 0;
   if (fat != null && fat < 0) fat = 0;
+  if (fiber != null && fiber < 0) fiber = 0;
 
   return {
     calories: calories != null ? Number(calories.toFixed(2)) : null,
     protein: protein != null ? Number(protein.toFixed(2)) : null,
     carb: carb != null ? Number(carb.toFixed(2)) : null,
     fat: fat != null ? Number(fat.toFixed(2)) : null,
+    fiber: fiber != null ? Number(fiber.toFixed(2)) : null,
   };
 }
 
 export function prepareFoodRecords(items, type) {
-  const isFoundation = type === "FOUNDATION";
+  const isFoundation = String(type).toUpperCase() === "FOUNDATION";
   const sourceKey = isFoundation ? SOURCE_KEY_FOUNDATION : SOURCE_KEY_FNDDS;
   const sourceVersion = isFoundation ? SOURCE_VERSION_FOUNDATION : SOURCE_VERSION_FNDDS;
   const prefix = isFoundation ? "USDA:FOUNDATION:" : "USDA:FNDDS:";
+  const dataQuality = isFoundation ? "ANALYTICAL_GOLD" : "SURVEY_RECIPE";
 
   const records = [];
   let withoutEssentialMacros = 0;
@@ -220,6 +226,8 @@ export function prepareFoodRecords(items, type) {
       withoutEssentialMacros++;
     }
 
+    const nowIso = new Date().toISOString();
+
     records.push({
       publicId: crypto.randomUUID(),
       scope: "GLOBAL",
@@ -235,18 +243,105 @@ export function prepareFoodRecords(items, type) {
       proteinG: macros.protein,
       carbohydrateG: macros.carb,
       fatG: macros.fat,
+      fiberG: macros.fiber,
       status: "ACTIVE",
       sourceType: "EXTERNAL",
+      dataQuality,
       sourceKey,
       sourceExternalCode: String(fdcId),
       sourceVersion,
       sourceReference: `USDA FoodData Central [FDC ID: ${fdcId}]`,
-      sourceImportedAt: new Date().toISOString(),
+      sourceImportedAt: nowIso,
+      lastVerifiedAt: nowIso,
       sourceUid: `${prefix}${fdcId}`,
     });
   }
 
   return { records, withoutEssentialMacros, invalidItems };
+}
+
+export function reconcilePlannedWithExisting(
+  plannedItems,
+  existingRows,
+  targetSourceKeys,
+  { hasFiber = true, hasDataQuality = true } = {}
+) {
+  const existingMap = new Map(existingRows.map((r) => [r.source_uid, r]));
+  const toInsert = [];
+  const toUpdate = [];
+  let unchangedCount = 0;
+
+  for (const planned of plannedItems) {
+    const existing = existingMap.get(planned.sourceUid);
+    if (!existing) {
+      toInsert.push(planned);
+    } else {
+      const isVersionSame = existing.source_version === planned.sourceVersion;
+      const isNameSame = existing.name === planned.name;
+      const isPtBrSame = existing.display_name_pt_br === planned.displayNamePtBr;
+      const isCategorySame = (existing.category || null) === (planned.category || null);
+      const isCalSame =
+        (existing.calories_kcal == null && planned.caloriesKcal == null) ||
+        (existing.calories_kcal != null && planned.caloriesKcal != null && Math.abs(Number(existing.calories_kcal) - planned.caloriesKcal) < 0.001);
+      const isProtSame =
+        (existing.protein_g == null && planned.proteinG == null) ||
+        (existing.protein_g != null && planned.proteinG != null && Math.abs(Number(existing.protein_g) - planned.proteinG) < 0.001);
+      const isCarbSame =
+        (existing.carbohydrate_g == null && planned.carbohydrateG == null) ||
+        (existing.carbohydrate_g != null && planned.carbohydrateG != null && Math.abs(Number(existing.carbohydrate_g) - planned.carbohydrateG) < 0.001);
+      const isFatSame =
+        (existing.fat_g == null && planned.fatG == null) ||
+        (existing.fat_g != null && planned.fatG != null && Math.abs(Number(existing.fat_g) - planned.fatG) < 0.001);
+      const isFiberSame =
+        !hasFiber ||
+        (existing.fiber_g == null && planned.fiberG == null) ||
+        (existing.fiber_g != null && planned.fiberG != null && Math.abs(Number(existing.fiber_g) - planned.fiberG) < 0.001);
+      const isDataQualitySame =
+        !hasDataQuality || existing.data_quality === planned.dataQuality;
+      const isStatusSame = existing.status === "ACTIVE";
+
+      if (
+        isVersionSame &&
+        isNameSame &&
+        isPtBrSame &&
+        isCategorySame &&
+        isCalSame &&
+        isProtSame &&
+        isCarbSame &&
+        isFatSame &&
+        isFiberSame &&
+        isDataQualitySame &&
+        isStatusSame
+      ) {
+        unchangedCount++;
+      } else {
+        toUpdate.push({
+          id: existing.id,
+          publicId: existing.public_id,
+          planned,
+          existingVersion: existing.source_version,
+        });
+      }
+    }
+  }
+
+  const plannedUidSet = new Set(plannedItems.map((p) => p.sourceUid));
+  const obsoleteRows = existingRows.filter(
+    (r) => targetSourceKeys.includes(r.source_key) && !plannedUidSet.has(r.source_uid)
+  );
+  const obsoleteToInactivate = obsoleteRows.filter((r) => r.status === "ACTIVE");
+  const obsoleteToFixProvenance = obsoleteRows.filter(
+    (r) => r.source_key === SOURCE_KEY_FOUNDATION && r.source_version === SOURCE_VERSION_FOUNDATION
+  );
+
+  return {
+    toInsert,
+    toUpdate,
+    unchangedCount,
+    obsoleteRows,
+    obsoleteToInactivate,
+    obsoleteToFixProvenance,
+  };
 }
 
 async function run() {
@@ -349,30 +444,49 @@ async function run() {
 
     console.log(`Validação runtime do banco (SELECT DATABASE()): '${activeDb}' OK.`);
 
+    // Audit schema capabilities from target database
+    const [colRows] = await pool.query("SHOW COLUMNS FROM nutrition_v2_foods");
+    const existingCols = new Set(colRows.map((c) => c.Field));
+    const hasFiber = existingCols.has("fiber_g");
+    const hasDataQuality = existingCols.has("data_quality");
+    const hasLastVerifiedAt = existingCols.has("last_verified_at");
+
+    console.log(`Capacidade de schema em nutrition_v2_foods:`);
+    console.log(`  fiber_g:          ${hasFiber ? "PRESENTE" : "AUSENTE"}`);
+    console.log(`  data_quality:     ${hasDataQuality ? "PRESENTE" : "AUSENTE"}`);
+    console.log(`  last_verified_at: ${hasLastVerifiedAt ? "PRESENTE" : "AUSENTE"}`);
+
     // Audit current state from target database
     const targetSourceKeys = [];
     if (dataset === "all" || dataset === "foundation") targetSourceKeys.push(SOURCE_KEY_FOUNDATION);
     if (dataset === "all" || dataset === "fndds") targetSourceKeys.push(SOURCE_KEY_FNDDS);
 
+    const selectCols = [
+      "id",
+      "public_id",
+      "source_uid",
+      "source_key",
+      "source_version",
+      "name",
+      "normalized_name",
+      "display_name_pt_br",
+      "normalized_display_name_pt_br",
+      "category",
+      "reference_amount",
+      "reference_unit_code",
+      "calories_kcal",
+      "protein_g",
+      "carbohydrate_g",
+      "fat_g",
+      "status",
+    ];
+    if (hasFiber) selectCols.push("fiber_g");
+    if (hasDataQuality) selectCols.push("data_quality");
+    if (hasLastVerifiedAt) selectCols.push("last_verified_at");
+
     const [existingRows] = await pool.query(
       `SELECT
-        id,
-        public_id,
-        source_uid,
-        source_key,
-        source_version,
-        name,
-        normalized_name,
-        display_name_pt_br,
-        normalized_display_name_pt_br,
-        category,
-        reference_amount,
-        reference_unit_code,
-        calories_kcal,
-        protein_g,
-        carbohydrate_g,
-        fat_g,
-        status
+        ${selectCols.join(",\n        ")}
       FROM nutrition_v2_foods
       WHERE source_key IN (${targetSourceKeys.map(() => "?").join(", ")})`,
       targetSourceKeys
@@ -381,54 +495,18 @@ async function run() {
     const existingMap = new Map(existingRows.map((r) => [r.source_uid, r]));
     console.log(`\nRegistros USDA já existentes no banco para [${targetSourceKeys.join(", ")}]: ${existingMap.size}`);
 
-    const toInsert = [];
-    const toUpdate = [];
-    let unchangedCount = 0;
-
-    for (const planned of plannedItems) {
-      const existing = existingMap.get(planned.sourceUid);
-      if (!existing) {
-        toInsert.push(planned);
-      } else {
-        const isVersionSame = existing.source_version === planned.sourceVersion;
-        const isNameSame = existing.name === planned.name;
-        const isPtBrSame = existing.display_name_pt_br === planned.displayNamePtBr;
-        const isCategorySame = (existing.category || null) === (planned.category || null);
-        const isCalSame =
-          (existing.calories_kcal == null && planned.caloriesKcal == null) ||
-          (existing.calories_kcal != null && planned.caloriesKcal != null && Math.abs(Number(existing.calories_kcal) - planned.caloriesKcal) < 0.001);
-        const isProtSame =
-          (existing.protein_g == null && planned.proteinG == null) ||
-          (existing.protein_g != null && planned.proteinG != null && Math.abs(Number(existing.protein_g) - planned.proteinG) < 0.001);
-        const isCarbSame =
-          (existing.carbohydrate_g == null && planned.carbohydrateG == null) ||
-          (existing.carbohydrate_g != null && planned.carbohydrateG != null && Math.abs(Number(existing.carbohydrate_g) - planned.carbohydrateG) < 0.001);
-        const isFatSame =
-          (existing.fat_g == null && planned.fatG == null) ||
-          (existing.fat_g != null && planned.fatG != null && Math.abs(Number(existing.fat_g) - planned.fatG) < 0.001);
-        const isStatusSame = existing.status === "ACTIVE";
-
-        if (isVersionSame && isNameSame && isPtBrSame && isCategorySame && isCalSame && isProtSame && isCarbSame && isFatSame && isStatusSame) {
-          unchangedCount++;
-        } else {
-          toUpdate.push({
-            id: existing.id,
-            publicId: existing.public_id,
-            planned,
-            existingVersion: existing.source_version,
-          });
-        }
-      }
-    }
-
-    // Check obsolete records in DB that belong to the active dataset being imported but are not present in the new release
-    const plannedUidSet = new Set(plannedItems.map((p) => p.sourceUid));
-    const obsoleteRows = existingRows.filter(
-      (r) => targetSourceKeys.includes(r.source_key) && !plannedUidSet.has(r.source_uid)
-    );
-    const obsoleteToInactivate = obsoleteRows.filter((r) => r.status === "ACTIVE");
-    const obsoleteToFixProvenance = obsoleteRows.filter(
-      (r) => r.source_key === SOURCE_KEY_FOUNDATION && r.source_version === SOURCE_VERSION_FOUNDATION
+    const {
+      toInsert,
+      toUpdate,
+      unchangedCount,
+      obsoleteRows,
+      obsoleteToInactivate,
+      obsoleteToFixProvenance,
+    } = reconcilePlannedWithExisting(
+      plannedItems,
+      existingRows,
+      targetSourceKeys,
+      { hasFiber, hasDataQuality }
     );
 
     console.log("\n--- ESTATÍSTICAS DE PROCESSAMENTO ---");
@@ -486,29 +564,36 @@ async function run() {
 
     if (toUpdate.length > 0) {
       console.log(`\nAtualizando ${toUpdate.length} registros existentes para nova versão...`);
+      const updateCols = [
+        "name = ?",
+        "normalized_name = ?",
+        "display_name_pt_br = ?",
+        "normalized_display_name_pt_br = ?",
+        "category = ?",
+        "source_version = ?",
+        "source_reference = ?",
+        "reference_amount = ?",
+        "reference_unit_code = ?",
+        "calories_kcal = ?",
+        "protein_g = ?",
+        "carbohydrate_g = ?",
+        "fat_g = ?",
+      ];
+      if (hasFiber) updateCols.push("fiber_g = ?");
+      if (hasDataQuality) updateCols.push("data_quality = ?");
+      updateCols.push("status = ?");
+      updateCols.push("source_imported_at = ?");
+      if (hasLastVerifiedAt) updateCols.push("last_verified_at = ?");
+
       const updateSql = `
         UPDATE nutrition_v2_foods SET
-          name = ?,
-          normalized_name = ?,
-          display_name_pt_br = ?,
-          normalized_display_name_pt_br = ?,
-          category = ?,
-          source_version = ?,
-          source_reference = ?,
-          reference_amount = ?,
-          reference_unit_code = ?,
-          calories_kcal = ?,
-          protein_g = ?,
-          carbohydrate_g = ?,
-          fat_g = ?,
-          status = ?,
-          source_imported_at = ?
+          ${updateCols.join(",\n          ")}
         WHERE id = ?
       `;
 
       let updatedCount = 0;
       for (const item of toUpdate) {
-        await pool.query(updateSql, [
+        const updateParams = [
           item.planned.name,
           item.planned.normalizedName,
           item.planned.displayNamePtBr,
@@ -522,10 +607,15 @@ async function run() {
           item.planned.proteinG,
           item.planned.carbohydrateG,
           item.planned.fatG,
-          item.planned.status,
-          new Date().toISOString(),
-          item.id,
-        ]);
+        ];
+        if (hasFiber) updateParams.push(item.planned.fiberG);
+        if (hasDataQuality) updateParams.push(item.planned.dataQuality);
+        updateParams.push(item.planned.status);
+        updateParams.push(new Date().toISOString());
+        if (hasLastVerifiedAt) updateParams.push(item.planned.lastVerifiedAt);
+        updateParams.push(item.id);
+
+        await pool.query(updateSql, updateParams);
         updatedCount++;
         if (updatedCount % 50 === 0 || updatedCount === toUpdate.length) {
           process.stdout.write(`Progresso updates: ${updatedCount}/${toUpdate.length} (${Math.round((updatedCount / toUpdate.length) * 100)}%)\r`);
@@ -539,63 +629,78 @@ async function run() {
       const BATCH_SIZE = 500;
       let insertedTotal = 0;
 
+      const insertCols = [
+        "public_id",
+        "scope",
+        "consultancy_id",
+        "name",
+        "normalized_name",
+        "display_name_pt_br",
+        "normalized_display_name_pt_br",
+        "category",
+        "reference_amount",
+        "reference_unit_code",
+        "calories_kcal",
+        "protein_g",
+        "carbohydrate_g",
+        "fat_g",
+      ];
+      if (hasFiber) insertCols.push("fiber_g");
+      insertCols.push("status", "source_type");
+      if (hasDataQuality) insertCols.push("data_quality");
+      insertCols.push(
+        "source_key",
+        "source_external_code",
+        "source_version",
+        "source_reference",
+        "source_imported_at"
+      );
+      if (hasLastVerifiedAt) insertCols.push("last_verified_at");
+      insertCols.push(
+        "source_uid",
+        "created_by_user_id",
+        "created_by_membership_id"
+      );
+
       const insertSql = `
         INSERT INTO nutrition_v2_foods (
-          public_id,
-          scope,
-          consultancy_id,
-          name,
-          normalized_name,
-          display_name_pt_br,
-          normalized_display_name_pt_br,
-          category,
-          reference_amount,
-          reference_unit_code,
-          calories_kcal,
-          protein_g,
-          carbohydrate_g,
-          fat_g,
-          status,
-          source_type,
-          source_key,
-          source_external_code,
-          source_version,
-          source_reference,
-          source_imported_at,
-          source_uid,
-          created_by_user_id,
-          created_by_membership_id
+          ${insertCols.join(",\n          ")}
         ) VALUES ?
       `;
 
       for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
         const chunk = toInsert.slice(i, i + BATCH_SIZE);
-        const values = chunk.map((item) => [
-          item.publicId,
-          item.scope,
-          item.consultancyId,
-          item.name,
-          item.normalizedName,
-          item.displayNamePtBr,
-          item.normalizedDisplayNamePtBr,
-          item.category,
-          item.referenceAmount,
-          item.referenceUnitCode,
-          item.caloriesKcal,
-          item.proteinG,
-          item.carbohydrateG,
-          item.fatG,
-          item.status,
-          item.sourceType,
-          item.sourceKey,
-          item.sourceExternalCode,
-          item.sourceVersion,
-          item.sourceReference,
-          item.sourceImportedAt,
-          item.sourceUid,
-          null,
-          null,
-        ]);
+        const values = chunk.map((item) => {
+          const row = [
+            item.publicId,
+            item.scope,
+            item.consultancyId,
+            item.name,
+            item.normalizedName,
+            item.displayNamePtBr,
+            item.normalizedDisplayNamePtBr,
+            item.category,
+            item.referenceAmount,
+            item.referenceUnitCode,
+            item.caloriesKcal,
+            item.proteinG,
+            item.carbohydrateG,
+            item.fatG,
+          ];
+          if (hasFiber) row.push(item.fiberG);
+          row.push(item.status, item.sourceType);
+          if (hasDataQuality) row.push(item.dataQuality);
+          row.push(
+            item.sourceKey,
+            item.sourceExternalCode,
+            item.sourceVersion,
+            item.sourceReference,
+            item.sourceImportedAt
+          );
+          if (hasLastVerifiedAt) row.push(item.lastVerifiedAt);
+          row.push(item.sourceUid, null, null);
+          return row;
+        });
 
         await pool.query(insertSql, [values]);
         insertedTotal += chunk.length;
@@ -671,6 +776,34 @@ async function run() {
     console.log(`INACTIVE Foundation 04/2026 ausentes do dataset:      ${foundation2026Inactive[0].total}`);
     console.log(`INACTIVE Foundation release anterior (2024-10-31):    ${foundationOldInactive[0].total}`);
 
+    if (hasDataQuality) {
+      const [qualityCounts] = await pool.query(`
+        SELECT data_quality, COUNT(*) as total
+        FROM nutrition_v2_foods
+        WHERE deleted_at IS NULL
+        GROUP BY data_quality
+        ORDER BY total DESC
+      `);
+      console.log("\n--- CONTAGEM POR DATA QUALITY ---");
+      console.table(qualityCounts);
+    }
+
+    if (hasFiber) {
+      const [fiberCounts] = await pool.query(`
+        SELECT
+          source_key,
+          COUNT(*) as total_foods,
+          COUNT(fiber_g) as fiber_known,
+          SUM(CASE WHEN fiber_g IS NULL THEN 1 ELSE 0 END) as fiber_null,
+          SUM(CASE WHEN fiber_g = 0 THEN 1 ELSE 0 END) as fiber_zero,
+          SUM(CASE WHEN fiber_g > 0 THEN 1 ELSE 0 END) as fiber_positive
+        FROM nutrition_v2_foods
+        WHERE deleted_at IS NULL AND status = 'ACTIVE'
+        GROUP BY source_key
+      `);
+      console.log("\n--- COBERTURA DE FIBRA (FIBER_G) EM ATIVOS ---");
+      console.table(fiberCounts);
+    }
   } finally {
     await pool.end();
   }

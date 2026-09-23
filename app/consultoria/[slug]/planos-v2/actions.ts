@@ -369,7 +369,8 @@ export async function searchFoodsForPickerAction(
   slug: string,
   query: string,
   scope: "ALL" | "GLOBAL" | "CONSULTANCY" = "ALL",
-  page: number = 1
+  page: number = 1,
+  source?: "ALL" | "TACO" | "USDA" | "CONSULTANCY"
 ) {
   try {
     const ctx = await resolveNutritionAccessContext(slug);
@@ -379,6 +380,7 @@ export async function searchFoodsForPickerAction(
     const res = await listUnifiedFoodsForNutritionist(ctx, {
       query,
       scope,
+      source,
       status: "ACTIVE", // Picker only allows active foods
       page,
       pageSize: 20,

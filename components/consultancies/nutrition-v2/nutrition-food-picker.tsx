@@ -5,6 +5,7 @@ import {
   searchFoodsForPickerAction,
   getFoodPortionsForPickerAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
+import { getDataQualityBadgeInfo } from "@/lib/nutrition-v2/food-search";
 import type { FoodListItemDto, FoodWithPortionsDto } from "@/lib/nutrition-v2/food-repository";
 import { Button } from "@/components/ui/button";
 
@@ -51,7 +52,7 @@ export function NutritionFoodPicker({
 
   // Catalog search state
   const [query, setQuery] = useState("");
-  const [scopeFilter, setScopeFilter] = useState<"ALL" | "GLOBAL" | "CONSULTANCY">("ALL");
+  const [sourceFilter, setSourceFilter] = useState<"ALL" | "TACO" | "USDA" | "CONSULTANCY">("ALL");
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<FoodListItemDto[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -78,7 +79,8 @@ export function NutritionFoodPicker({
     let isCurrent = true;
     const timer = setTimeout(() => {
       startSearchTransition(async () => {
-        const res = await searchFoodsForPickerAction(slug, query, scopeFilter, page);
+        const scope = sourceFilter === "CONSULTANCY" ? "CONSULTANCY" : sourceFilter === "ALL" ? "ALL" : "GLOBAL";
+        const res = await searchFoodsForPickerAction(slug, query, scope, page, sourceFilter);
         if (isCurrent && res.success && res.data) {
           setItems(res.data.items);
           setTotalPages(res.data.totalPages);
@@ -90,7 +92,7 @@ export function NutritionFoodPicker({
       isCurrent = false;
       clearTimeout(timer);
     };
-  }, [isOpen, activeTab, selectedFood, query, scopeFilter, page, slug]);
+  }, [isOpen, activeTab, selectedFood, query, sourceFilter, page, slug]);
 
   // Handle food selection
   const handlePickFood = async (foodItem: FoodListItemDto) => {
@@ -251,15 +253,15 @@ export function NutritionFoodPicker({
                   </svg>
                 </div>
 
-                <div className="flex gap-1.5 overflow-x-auto text-xs pb-1">
+                <div className="flex gap-1.5 overflow-x-auto text-xs pb-1 scrollbar-none">
                   <button
                     type="button"
                     onClick={() => {
-                      setScopeFilter("ALL");
+                      setSourceFilter("ALL");
                       setPage(1);
                     }}
-                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold ${
-                      scopeFilter === "ALL"
+                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold shrink-0 ${
+                      sourceFilter === "ALL"
                         ? "bg-[var(--brand)] text-white"
                         : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                     }`}
@@ -269,25 +271,39 @@ export function NutritionFoodPicker({
                   <button
                     type="button"
                     onClick={() => {
-                      setScopeFilter("GLOBAL");
+                      setSourceFilter("TACO");
                       setPage(1);
                     }}
-                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold ${
-                      scopeFilter === "GLOBAL"
+                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold shrink-0 ${
+                      sourceFilter === "TACO"
                         ? "bg-[var(--brand)] text-white"
                         : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                     }`}
                   >
-                    Trevo One
+                    TACO (Brasil)
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setScopeFilter("CONSULTANCY");
+                      setSourceFilter("USDA");
                       setPage(1);
                     }}
-                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold ${
-                      scopeFilter === "CONSULTANCY"
+                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold shrink-0 ${
+                      sourceFilter === "USDA"
+                        ? "bg-[var(--brand)] text-white"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                    }`}
+                  >
+                    USDA (EUA)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSourceFilter("CONSULTANCY");
+                      setPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold shrink-0 ${
+                      sourceFilter === "CONSULTANCY"
                         ? "bg-[var(--brand)] text-white"
                         : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                     }`}
@@ -306,60 +322,99 @@ export function NutritionFoodPicker({
               {isSearching ? (
                 <div className="py-12 text-center text-xs text-[var(--text-secondary)]">Buscando alimentos...</div>
               ) : items.length === 0 ? (
-                <div className="py-12 text-center text-xs text-[var(--text-secondary)]">Nenhum alimento encontrado.</div>
+                <div className="py-12 text-center text-xs text-[var(--text-secondary)] space-y-1">
+                  <p className="font-semibold text-[var(--text-primary)]">Nenhum alimento encontrado.</p>
+                  <p className="text-[var(--text-tertiary)]">
+                    {query.trim()
+                      ? `Nenhum resultado para "${query}". Experimente buscar por termos comuns (ex: arroz, frango, batata, whey) ou trocar o filtro de origem.`
+                      : "Digite um termo para pesquisar ou selecione outra fonte de dados."}
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
-                  {items.map((food) => (
-                    <div
-                      key={food.publicId}
-                      onClick={() => handlePickFood(food)}
-                      className="p-3.5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] cursor-pointer transition-all flex items-center justify-between gap-3 depth-interactive"
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] truncate">
-                            {food.displayNamePtBr || food.name}
-                          </span>
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
-                              food.scope === "GLOBAL"
-                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                                : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
-                            }`}
-                          >
-                            {food.scope === "GLOBAL" ? "Trevo One" : "Minha Consultoria"}
-                          </span>
-                          {food.scope === "GLOBAL" && food.sourceKey && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-                              {food.sourceKey.startsWith("USDA") ? "USDA" : food.sourceKey === "TACO" ? "TACO" : food.sourceKey}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-x-2 text-[11px] text-[var(--text-secondary)]">
-                          <span>Ref: {food.referenceAmount} {food.referenceUnitCode}</span>
-                          <span className="font-bold text-[var(--brand)]">
-                            {food.caloriesKcal != null ? `${food.caloriesKcal} kcal` : "-"}
-                          </span>
-                          <span>P: {food.proteinG != null ? `${food.proteinG}g` : "-"}</span>
-                          <span>C: {food.carbohydrateG != null ? `${food.carbohydrateG}g` : "-"}</span>
-                          <span>G: {food.fatG != null ? `${food.fatG}g` : "-"}</span>
-                          {food.portionsCount > 0 && (
-                            <span className="text-[var(--brand)] font-semibold">
-                              ({food.portionsCount} {food.portionsCount === 1 ? "porção" : "porções"})
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="text-xs min-h-[32px] shrink-0 pointer-events-none"
+                  {items.map((food) => {
+                    const hasDifferentEnglishName =
+                      Boolean(food.displayNamePtBr) &&
+                      food.name &&
+                      food.displayNamePtBr?.toLowerCase() !== food.name.toLowerCase();
+
+                    return (
+                      <div
+                        key={food.publicId}
+                        onClick={() => handlePickFood(food)}
+                        className="p-3.5 rounded-xl border border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] cursor-pointer transition-all flex items-center justify-between gap-3 depth-interactive"
                       >
-                        Selecionar
-                      </Button>
-                    </div>
-                  ))}
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] truncate">
+                              {food.displayNamePtBr || food.name}
+                            </span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
+                                food.scope === "GLOBAL"
+                                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                                  : "bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20"
+                              }`}
+                            >
+                              {food.scope === "GLOBAL"
+                                ? food.sourceKey?.startsWith("USDA")
+                                  ? "USDA"
+                                  : food.sourceKey === "TACO"
+                                  ? "TACO"
+                                  : "Trevo One"
+                                : "Consultoria"}
+                            </span>
+                            {(() => {
+                              const badge = getDataQualityBadgeInfo(food.dataQuality);
+                              if (!badge) return null;
+                              return (
+                                <span
+                                  title={badge.title}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                                    badge.variant === "analytical"
+                                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                                      : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
+                                  }`}
+                                >
+                                  {badge.label}
+                                </span>
+                              );
+                            })()}
+                          </div>
+
+                          {hasDifferentEnglishName && (
+                            <div className="text-[11px] text-[var(--text-tertiary)] italic truncate">
+                              {food.name}
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--text-secondary)]">
+                            <span>Ref: {food.referenceAmount} {food.referenceUnitCode}</span>
+                            <span className="font-bold text-[var(--brand)]">
+                              {food.caloriesKcal != null ? `${food.caloriesKcal} kcal` : "-"}
+                            </span>
+                            <span>P: {food.proteinG != null ? `${food.proteinG}g` : "-"}</span>
+                            <span>C: {food.carbohydrateG != null ? `${food.carbohydrateG}g` : "-"}</span>
+                            <span>G: {food.fatG != null ? `${food.fatG}g` : "-"}</span>
+                            <span>Fibra: {food.fiberG != null ? `${food.fiberG}g` : "-"}</span>
+                            {food.portionsCount > 0 && (
+                              <span className="text-[var(--brand)] font-semibold">
+                                ({food.portionsCount} {food.portionsCount === 1 ? "porção" : "porções"})
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="text-xs min-h-[32px] shrink-0 pointer-events-none"
+                        >
+                          Selecionar
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -407,23 +462,55 @@ export function NutritionFoodPicker({
                       className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                         selectedFood.scope === "GLOBAL"
                           ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                          : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
+                          : "bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20"
                       }`}
                     >
-                      {selectedFood.scope === "GLOBAL" ? "Trevo One" : "Minha Consultoria"}
+                      {selectedFood.scope === "GLOBAL"
+                        ? selectedFood.sourceKey?.startsWith("USDA")
+                          ? "USDA"
+                          : selectedFood.sourceKey === "TACO"
+                          ? "TACO"
+                          : "Trevo One"
+                        : "Consultoria"}
                     </span>
-                    {selectedFood.scope === "GLOBAL" && selectedFood.sourceKey && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-                        {selectedFood.sourceKey.startsWith("USDA") ? "USDA" : selectedFood.sourceKey === "TACO" ? "TACO" : selectedFood.sourceKey}
-                      </span>
-                    )}
+                    {(() => {
+                      const badge = getDataQualityBadgeInfo(selectedFood.dataQuality);
+                      if (!badge) return null;
+                      return (
+                        <span
+                          title={badge.title}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            badge.variant === "analytical"
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                              : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
+                          }`}
+                        >
+                          {badge.label}
+                        </span>
+                      );
+                    })()}
                   </div>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    Referência: {selectedFood.referenceAmount} {selectedFood.referenceUnitCode} ·{" "}
-                    {selectedFood.caloriesKcal != null ? `${selectedFood.caloriesKcal} kcal` : "-"} ·{" "}
-                    P: {selectedFood.proteinG != null ? `${selectedFood.proteinG}g` : "-"} ·{" "}
-                    C: {selectedFood.carbohydrateG != null ? `${selectedFood.carbohydrateG}g` : "-"} ·{" "}
-                    G: {selectedFood.fatG != null ? `${selectedFood.fatG}g` : "-"}
+                  {Boolean(selectedFood.displayNamePtBr) &&
+                    selectedFood.name &&
+                    selectedFood.displayNamePtBr?.toLowerCase() !== selectedFood.name.toLowerCase() && (
+                      <div className="text-[11px] text-[var(--text-tertiary)] italic">
+                        {selectedFood.name}
+                      </div>
+                  )}
+                  <p className="text-xs text-[var(--text-secondary)] flex flex-wrap gap-x-2">
+                    <span>Referência: {selectedFood.referenceAmount} {selectedFood.referenceUnitCode}</span>
+                    <span>·</span>
+                    <span className="font-semibold text-[var(--brand)]">
+                      {selectedFood.caloriesKcal != null ? `${selectedFood.caloriesKcal} kcal` : "-"}
+                    </span>
+                    <span>·</span>
+                    <span>P: {selectedFood.proteinG != null ? `${selectedFood.proteinG}g` : "-"}</span>
+                    <span>·</span>
+                    <span>C: {selectedFood.carbohydrateG != null ? `${selectedFood.carbohydrateG}g` : "-"}</span>
+                    <span>·</span>
+                    <span>G: {selectedFood.fatG != null ? `${selectedFood.fatG}g` : "-"}</span>
+                    <span>·</span>
+                    <span>Fibra: {selectedFood.fiberG != null ? `${selectedFood.fiberG}g` : "-"}</span>
                   </p>
                 </div>
                 <button

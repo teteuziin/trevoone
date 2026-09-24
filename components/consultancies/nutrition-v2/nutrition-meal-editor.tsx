@@ -103,15 +103,38 @@ export function NutritionMealEditor({
 
           {/* Meal macro totals badge */}
           <div className="flex items-center gap-2 pt-1 flex-wrap text-xs">
-            <span className="font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-              {meal.mealTotals.caloriesKcal} kcal
+            <span className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+              Total da refeição:
             </span>
-            <span className="text-[var(--text-secondary)]">P: {meal.mealTotals.proteinG}g</span>
-            <span className="text-[var(--text-secondary)]">C: {meal.mealTotals.carbohydrateG}g</span>
-            <span className="text-[var(--text-secondary)]">G: {meal.mealTotals.fatG}g</span>
-            {meal.mealTotals.hasIncompleteData && (
-              <span className="text-[11px] text-[var(--text-muted)] italic">
-                (estimado · itens sem cálculo)
+            <span className="font-bold text-[var(--brand)] bg-[var(--brand)]/10 px-2.5 py-0.5 rounded-full border border-[var(--brand)]/20">
+              {meal.mealTotals.caloriesKcal} kcal
+              {!meal.mealTotals.empty && meal.mealTotals.details?.calories?.hasUnknown && (
+                <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.details.calories.knownItemCount} de ${meal.mealTotals.details.calories.totalItemCount} alimentos com dado conhecido`}>*</span>
+              )}
+            </span>
+            <span className="font-medium text-[var(--text-secondary)]">
+              P <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.proteinG} g</strong>
+              {!meal.mealTotals.empty && meal.mealTotals.details?.protein?.hasUnknown && (
+                <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.details.protein.knownItemCount} de ${meal.mealTotals.details.protein.totalItemCount} alimentos com dado conhecido`}>*</span>
+              )}
+            </span>
+            <span className="text-[var(--text-tertiary)]">·</span>
+            <span className="font-medium text-[var(--text-secondary)]">
+              C <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.carbohydrateG} g</strong>
+              {!meal.mealTotals.empty && meal.mealTotals.details?.carbohydrate?.hasUnknown && (
+                <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.details.carbohydrate.knownItemCount} de ${meal.mealTotals.details.carbohydrate.totalItemCount} alimentos com dado conhecido`}>*</span>
+              )}
+            </span>
+            <span className="text-[var(--text-tertiary)]">·</span>
+            <span className="font-medium text-[var(--text-secondary)]">
+              G <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.fatG} g</strong>
+              {!meal.mealTotals.empty && meal.mealTotals.details?.fat?.hasUnknown && (
+                <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.details.fat.knownItemCount} de ${meal.mealTotals.details.fat.totalItemCount} alimentos com dado conhecido`}>*</span>
+              )}
+            </span>
+            {!meal.mealTotals.empty && meal.mealTotals.hasIncompleteData && (
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                * Contém dados incompletos
               </span>
             )}
           </div>

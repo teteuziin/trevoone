@@ -14,6 +14,9 @@ import {
 } from "./access";
 import {
   calculateItemNutrients,
+  calculateMealTotals,
+  calculatePlanTotals,
+  type MacroTotals,
 } from "./nutrient-calculator";
 
 // ============================================================================
@@ -125,13 +128,7 @@ export interface ItemSubstitutionDto {
   sortOrder: number;
 }
 
-export interface MacroTotals {
-  caloriesKcal: number;
-  proteinG: number;
-  carbohydrateG: number;
-  fatG: number;
-  hasIncompleteData: boolean;
-}
+export type { MacroTotals, NutrientTotalDetail } from "./nutrient-calculator";
 
 export type CreatePlanInput = {
   title: string;
@@ -201,7 +198,12 @@ export type UpdateSubstitutionInput = {
 // MACRO CALCULATION & UNIT CONVERSION UTILITIES
 // ============================================================================
 
-export { roundMacro, calculateMacroFactor } from "./nutrient-calculator";
+export {
+  roundMacro,
+  calculateMacroFactor,
+  calculateMealTotals,
+  calculatePlanTotals,
+} from "./nutrient-calculator";
 
 // ============================================================================
 // INTERNAL GUARD HELPERS
@@ -624,53 +626,9 @@ export async function getPlanVersionTreeByPlanPublicId(
       });
     }
 
-    let dailyCalories = 0;
-    let dailyProtein = 0;
-    let dailyCarbs = 0;
-    let dailyFat = 0;
-    let dailyHasIncomplete = false;
-
     const formattedMeals: MealWithItemsDto[] = meals.map((m) => {
       const mealItems = itemsByMealId.get(Number(m.id)) || [];
-
-      let mealCalories = 0;
-      let mealProtein = 0;
-      let mealCarbs = 0;
-      let mealFat = 0;
-      let mealHasIncomplete = false;
-
-      // Calculate totals from MAIN items only (substitutions excluded!)
-      for (const item of mealItems) {
-        if (item.caloriesKcalSnapshot != null) {
-          mealCalories += item.caloriesKcalSnapshot;
-        } else {
-          mealHasIncomplete = true;
-        }
-
-        if (item.proteinGSnapshot != null) {
-          mealProtein += item.proteinGSnapshot;
-        } else {
-          mealHasIncomplete = true;
-        }
-
-        if (item.carbohydrateGSnapshot != null) {
-          mealCarbs += item.carbohydrateGSnapshot;
-        } else {
-          mealHasIncomplete = true;
-        }
-
-        if (item.fatGSnapshot != null) {
-          mealFat += item.fatGSnapshot;
-        } else {
-          mealHasIncomplete = true;
-        }
-      }
-
-      dailyCalories += mealCalories;
-      dailyProtein += mealProtein;
-      dailyCarbs += mealCarbs;
-      dailyFat += mealFat;
-      if (mealHasIncomplete) dailyHasIncomplete = true;
+      const mealTotals = calculateMealTotals(mealItems);
 
       return {
         publicId: String(m.public_id),
@@ -679,15 +637,11 @@ export async function getPlanVersionTreeByPlanPublicId(
         notes: m.notes ? String(m.notes) : null,
         sortOrder: Number(m.sort_order),
         items: mealItems,
-        mealTotals: {
-          caloriesKcal: Math.round(mealCalories * 100) / 100,
-          proteinG: Math.round(mealProtein * 100) / 100,
-          carbohydrateG: Math.round(mealCarbs * 100) / 100,
-          fatG: Math.round(mealFat * 100) / 100,
-          hasIncompleteData: mealHasIncomplete,
-        },
+        mealTotals,
       };
     });
+
+    const dailyTotals = calculatePlanTotals(formattedMeals);
 
     return {
       plan: {
@@ -710,13 +664,7 @@ export async function getPlanVersionTreeByPlanPublicId(
         updatedAt: new Date(v.updated_at).toISOString(),
       },
       meals: formattedMeals,
-      dailyTotals: {
-        caloriesKcal: Math.round(dailyCalories * 100) / 100,
-        proteinG: Math.round(dailyProtein * 100) / 100,
-        carbohydrateG: Math.round(dailyCarbs * 100) / 100,
-        fatG: Math.round(dailyFat * 100) / 100,
-        hasIncompleteData: dailyHasIncomplete,
-      },
+      dailyTotals,
     };
   } finally {
     if (connection) connection.release();

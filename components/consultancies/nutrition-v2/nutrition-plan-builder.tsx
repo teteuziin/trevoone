@@ -23,6 +23,7 @@ import {
   publishPlanVersionAction,
   createNextVersionAction,
   getPlanVersionHistoryAction,
+  getPlanVersionTreeAction,
   listPlanAssignmentsAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import { NutritionMealEditor } from "./nutrition-meal-editor";
@@ -191,7 +192,12 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
   };
 
   const refreshTree = async () => {
-    window.location.reload();
+    const res = await getPlanVersionTreeAction(slug, tree.plan.publicId, tree.version.publicId);
+    if (res.success && res.data) {
+      setTree(res.data);
+    } else {
+      router.refresh();
+    }
   };
 
   // Open history dialog
@@ -557,33 +563,62 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
           )}
 
           {/* Primary Daily Totals Bar */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex flex-wrap items-center justify-between gap-4">
-            <div>
+          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
-                Meta Diária Prescrita (Refeições Principais)
+                Total do plano
               </span>
-              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 mt-1.5">
-                <span className="text-lg sm:text-xl font-extrabold text-[var(--brand)]">
-                  {tree.dailyTotals.caloriesKcal} kcal
+              {!tree.dailyTotals.empty && tree.dailyTotals.totalItemsCount > 0 && (
+                <span className="text-xs text-[var(--text-tertiary)] font-medium">
+                  {tree.dailyTotals.totalItemsCount} alimento{tree.dailyTotals.totalItemsCount === 1 ? "" : "s"} prescrito{tree.dailyTotals.totalItemsCount === 1 ? "" : "s"}
                 </span>
-                <span className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
-                  Proteínas: <span className="font-normal text-[var(--text-secondary)]">{tree.dailyTotals.proteinG}g</span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+              <div>
+                <span className="text-2xl sm:text-3xl font-extrabold text-[var(--brand)]">
+                  {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}
                 </span>
-                <span className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
-                  Carboidratos: <span className="font-normal text-[var(--text-secondary)]">{tree.dailyTotals.carbohydrateG}g</span>
-                </span>
-                <span className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
-                  Gorduras: <span className="font-normal text-[var(--text-secondary)]">{tree.dailyTotals.fatG}g</span>
-                </span>
+                <span className="text-xs font-semibold text-[var(--text-secondary)] ml-1">kcal</span>
+                {!tree.dailyTotals.empty && tree.dailyTotals.details?.calories?.hasUnknown && (
+                  <span className="text-amber-500 font-bold ml-0.5" title={`${tree.dailyTotals.details.calories.knownItemCount} de ${tree.dailyTotals.details.calories.totalItemCount} alimentos com dado conhecido`}>*</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs sm:text-sm">
+                <span className="font-bold text-[var(--text-primary)]">Proteína:</span>
+                <span className="font-semibold text-[var(--text-primary)]">{tree.dailyTotals.proteinG} g</span>
+                {!tree.dailyTotals.empty && tree.dailyTotals.details?.protein?.hasUnknown && (
+                  <span className="text-amber-500 font-bold" title={`${tree.dailyTotals.details.protein.knownItemCount} de ${tree.dailyTotals.details.protein.totalItemCount} alimentos com dado conhecido`}>*</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs sm:text-sm">
+                <span className="font-bold text-[var(--text-primary)]">Carboidratos:</span>
+                <span className="font-semibold text-[var(--text-primary)]">{tree.dailyTotals.carbohydrateG} g</span>
+                {!tree.dailyTotals.empty && tree.dailyTotals.details?.carbohydrate?.hasUnknown && (
+                  <span className="text-amber-500 font-bold" title={`${tree.dailyTotals.details.carbohydrate.knownItemCount} de ${tree.dailyTotals.details.carbohydrate.totalItemCount} alimentos com dado conhecido`}>*</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs sm:text-sm">
+                <span className="font-bold text-[var(--text-primary)]">Gorduras:</span>
+                <span className="font-semibold text-[var(--text-primary)]">{tree.dailyTotals.fatG} g</span>
+                {!tree.dailyTotals.empty && tree.dailyTotals.details?.fat?.hasUnknown && (
+                  <span className="text-amber-500 font-bold" title={`${tree.dailyTotals.details.fat.knownItemCount} de ${tree.dailyTotals.details.fat.totalItemCount} alimentos com dado conhecido`}>*</span>
+                )}
               </div>
             </div>
 
-            {tree.dailyTotals.hasIncompleteData && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+            {!tree.dailyTotals.empty && tree.dailyTotals.hasIncompleteData && (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                 <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span>Total estimado · contém itens customizados sem cálculo</span>
+                <span>
+                  * Subtotal conhecido: alguns alimentos prescritos possuem informações ausentes na fonte de dados (exibindo soma dos itens com dados conhecidos).
+                </span>
               </div>
             )}
           </div>

@@ -297,3 +297,202 @@ export function getSafeStandardUnitsForFood(referenceUnitCode: string): Array<{ 
 
   return [{ code: rUnit, label: rUnit }];
 }
+
+// ============================================================================
+// RELEASE D: MEAL & PLAN MACRO TOTALS AGGREGATION
+// ============================================================================
+
+export interface NutrientTotalDetail {
+  value: number;
+  knownItemCount: number;
+  totalItemCount: number;
+  isComplete: boolean;
+  hasUnknown: boolean;
+  empty: boolean;
+}
+
+export interface MacroTotals {
+  caloriesKcal: number;
+  proteinG: number;
+  carbohydrateG: number;
+  fatG: number;
+  hasIncompleteData: boolean;
+  totalItemsCount: number;
+  empty: boolean;
+  details: {
+    calories: NutrientTotalDetail;
+    protein: NutrientTotalDetail;
+    carbohydrate: NutrientTotalDetail;
+    fat: NutrientTotalDetail;
+  };
+}
+
+export interface SnapshotItemSource {
+  caloriesKcalSnapshot?: number | null;
+  proteinGSnapshot?: number | null;
+  carbohydrateGSnapshot?: number | null;
+  fatGSnapshot?: number | null;
+  substitutions?: unknown[];
+}
+
+export function calculateSingleNutrientTotal(
+  values: Array<number | null | undefined>
+): NutrientTotalDetail {
+  const totalItemCount = values.length;
+  if (totalItemCount === 0) {
+    return {
+      value: 0,
+      knownItemCount: 0,
+      totalItemCount: 0,
+      isComplete: false,
+      hasUnknown: false,
+      empty: true,
+    };
+  }
+
+  let knownItemCount = 0;
+  let rawSum = 0;
+
+  for (const v of values) {
+    if (v != null && Number.isFinite(Number(v))) {
+      knownItemCount += 1;
+      rawSum += Number(v);
+    }
+  }
+
+  const isComplete = knownItemCount === totalItemCount;
+  const hasUnknown = knownItemCount < totalItemCount;
+  const value = Math.round(rawSum * 100) / 100;
+
+  return {
+    value,
+    knownItemCount,
+    totalItemCount,
+    isComplete,
+    hasUnknown,
+    empty: false,
+  };
+}
+
+export function calculateMealTotals(
+  items: SnapshotItemSource[]
+): MacroTotals {
+  const totalItemsCount = items.length;
+  const calDetail = calculateSingleNutrientTotal(items.map((i) => i.caloriesKcalSnapshot));
+  const protDetail = calculateSingleNutrientTotal(items.map((i) => i.proteinGSnapshot));
+  const carbDetail = calculateSingleNutrientTotal(items.map((i) => i.carbohydrateGSnapshot));
+  const fatDetail = calculateSingleNutrientTotal(items.map((i) => i.fatGSnapshot));
+
+  const hasIncompleteData = totalItemsCount > 0 && (
+    !calDetail.isComplete ||
+    !protDetail.isComplete ||
+    !carbDetail.isComplete ||
+    !fatDetail.isComplete
+  );
+
+  return {
+    caloriesKcal: calDetail.value,
+    proteinG: protDetail.value,
+    carbohydrateG: carbDetail.value,
+    fatG: fatDetail.value,
+    hasIncompleteData,
+    totalItemsCount,
+    empty: totalItemsCount === 0,
+    details: {
+      calories: calDetail,
+      protein: protDetail,
+      carbohydrate: carbDetail,
+      fat: fatDetail,
+    },
+  };
+}
+
+export function calculatePlanTotals(
+  mealsOrTotals: Array<MacroTotals | { mealTotals: MacroTotals }>
+): MacroTotals {
+  const totalsList: MacroTotals[] = mealsOrTotals.map((item) =>
+    "mealTotals" in item ? item.mealTotals : item
+  );
+
+  let rawCalories = 0;
+  let rawProtein = 0;
+  let rawCarbs = 0;
+  let rawFat = 0;
+
+  let totalItemsCount = 0;
+  let calKnown = 0;
+  let protKnown = 0;
+  let carbKnown = 0;
+  let fatKnown = 0;
+
+  for (const m of totalsList) {
+    rawCalories += m.caloriesKcal;
+    rawProtein += m.proteinG;
+    rawCarbs += m.carbohydrateG;
+    rawFat += m.fatG;
+
+    totalItemsCount += m.totalItemsCount;
+    calKnown += m.details.calories.knownItemCount;
+    protKnown += m.details.protein.knownItemCount;
+    carbKnown += m.details.carbohydrate.knownItemCount;
+    fatKnown += m.details.fat.knownItemCount;
+  }
+
+  const isEmpty = totalItemsCount === 0;
+  const totalItemCount = totalItemsCount;
+  const calValue = Math.round(rawCalories * 100) / 100;
+  const protValue = Math.round(rawProtein * 100) / 100;
+  const carbValue = Math.round(rawCarbs * 100) / 100;
+  const fatValue = Math.round(rawFat * 100) / 100;
+
+  const calComplete = !isEmpty && calKnown === totalItemsCount;
+  const protComplete = !isEmpty && protKnown === totalItemsCount;
+  const carbComplete = !isEmpty && carbKnown === totalItemsCount;
+  const fatComplete = !isEmpty && fatKnown === totalItemsCount;
+
+  const hasIncompleteData = !isEmpty && (!calComplete || !protComplete || !carbComplete || !fatComplete);
+
+  return {
+    caloriesKcal: calValue,
+    proteinG: protValue,
+    carbohydrateG: carbValue,
+    fatG: fatValue,
+    hasIncompleteData,
+    totalItemsCount,
+    empty: isEmpty,
+    details: {
+      calories: {
+        value: calValue,
+        knownItemCount: calKnown,
+        totalItemCount,
+        isComplete: calComplete,
+        hasUnknown: !isEmpty && calKnown < totalItemsCount,
+        empty: isEmpty,
+      },
+      protein: {
+        value: protValue,
+        knownItemCount: protKnown,
+        totalItemCount,
+        isComplete: protComplete,
+        hasUnknown: !isEmpty && protKnown < totalItemsCount,
+        empty: isEmpty,
+      },
+      carbohydrate: {
+        value: carbValue,
+        knownItemCount: carbKnown,
+        totalItemCount,
+        isComplete: carbComplete,
+        hasUnknown: !isEmpty && carbKnown < totalItemsCount,
+        empty: isEmpty,
+      },
+      fat: {
+        value: fatValue,
+        knownItemCount: fatKnown,
+        totalItemCount,
+        isComplete: fatComplete,
+        hasUnknown: !isEmpty && fatKnown < totalItemsCount,
+        empty: isEmpty,
+      },
+    },
+  };
+}

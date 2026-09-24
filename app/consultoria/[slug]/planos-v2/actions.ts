@@ -20,11 +20,13 @@ import {
   publishPlanVersion,
   createNextDraftVersion,
   getPlanVersionHistory,
+  getPlanVersionTreeByPlanPublicId,
   type AddMealItemInput,
   type UpdateMealItemInput,
   type AddSubstitutionInput,
   type UpdateSubstitutionInput,
   type PlanVersionHistoryItemDto,
+  type PlanVersionTreeDto,
 } from "@/lib/nutrition-v2/plan-repository";
 import {
   listUnifiedFoodsForNutritionist,
@@ -470,6 +472,25 @@ export async function getPlanVersionHistoryAction(
     return { success: true, data: res };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao carregar histórico de versões.";
+    return { success: false, error: message };
+  }
+}
+
+export async function getPlanVersionTreeAction(
+  slug: string,
+  planPublicId: string,
+  versionPublicId?: string
+): Promise<ActionResult<PlanVersionTreeDto>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const data = await getPlanVersionTreeByPlanPublicId(ctx, planPublicId, versionPublicId);
+    if (!data) return { success: false, error: "Plano não encontrado." };
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao carregar dados do plano.";
     return { success: false, error: message };
   }
 }

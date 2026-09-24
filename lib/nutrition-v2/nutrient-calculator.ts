@@ -496,3 +496,349 @@ export function calculatePlanTotals(
     },
   };
 }
+
+// ============================================================================
+// RELEASE E: MICRONUTRIENT TOTALS AGGREGATION & COMPLETENESS
+// ============================================================================
+
+export type MicronutrientCategory = "MACRO_SUB" | "MINERAL" | "VITAMIN" | "OTHER";
+
+export type FoodNutrientStatus = "KNOWN" | "KNOWN_ZERO" | "TRACE";
+
+export type MicronutrientStatus = "KNOWN" | "KNOWN_ZERO" | "TRACE" | "UNKNOWN";
+
+export interface CanonicalNutrientDefinition {
+  code: string;
+  namePtBr: string;
+  unit: string;
+  category: MicronutrientCategory;
+  sortOrder: number;
+  usdaNutrientNumber: string;
+}
+
+export const CANONICAL_NUTRIENTS: readonly CanonicalNutrientDefinition[] = Object.freeze([
+  { code: "FIBER", namePtBr: "Fibra Alimentar", unit: "g", category: "MACRO_SUB", sortOrder: 10, usdaNutrientNumber: "291" },
+  { code: "CA", namePtBr: "Cálcio", unit: "mg", category: "MINERAL", sortOrder: 20, usdaNutrientNumber: "301" },
+  { code: "FE", namePtBr: "Ferro", unit: "mg", category: "MINERAL", sortOrder: 30, usdaNutrientNumber: "303" },
+  { code: "MG", namePtBr: "Magnésio", unit: "mg", category: "MINERAL", sortOrder: 40, usdaNutrientNumber: "304" },
+  { code: "P", namePtBr: "Fósforo", unit: "mg", category: "MINERAL", sortOrder: 50, usdaNutrientNumber: "305" },
+  { code: "K", namePtBr: "Potássio", unit: "mg", category: "MINERAL", sortOrder: 60, usdaNutrientNumber: "306" },
+  { code: "NA", namePtBr: "Sódio", unit: "mg", category: "MINERAL", sortOrder: 70, usdaNutrientNumber: "307" },
+  { code: "ZN", namePtBr: "Zinco", unit: "mg", category: "MINERAL", sortOrder: 80, usdaNutrientNumber: "309" },
+  { code: "CU", namePtBr: "Cobre", unit: "mg", category: "MINERAL", sortOrder: 90, usdaNutrientNumber: "312" },
+  { code: "MN", namePtBr: "Manganês", unit: "mg", category: "MINERAL", sortOrder: 100, usdaNutrientNumber: "315" },
+  { code: "SE", namePtBr: "Selênio", unit: "mcg", category: "MINERAL", sortOrder: 110, usdaNutrientNumber: "317" },
+  { code: "VIT_A", namePtBr: "Vitamina A (RAE)", unit: "mcg", category: "VITAMIN", sortOrder: 120, usdaNutrientNumber: "320" },
+  { code: "VIT_C", namePtBr: "Vitamina C", unit: "mg", category: "VITAMIN", sortOrder: 130, usdaNutrientNumber: "401" },
+  { code: "VIT_D", namePtBr: "Vitamina D", unit: "mcg", category: "VITAMIN", sortOrder: 140, usdaNutrientNumber: "328" },
+  { code: "VIT_E", namePtBr: "Vitamina E", unit: "mg", category: "VITAMIN", sortOrder: 150, usdaNutrientNumber: "323" },
+  { code: "VIT_K", namePtBr: "Vitamina K", unit: "mcg", category: "VITAMIN", sortOrder: 160, usdaNutrientNumber: "430" },
+  { code: "VIT_B1", namePtBr: "Vitamina B1 (Tiamina)", unit: "mg", category: "VITAMIN", sortOrder: 170, usdaNutrientNumber: "404" },
+  { code: "VIT_B2", namePtBr: "Vitamina B2 (Riboflavina)", unit: "mg", category: "VITAMIN", sortOrder: 180, usdaNutrientNumber: "405" },
+  { code: "VIT_B3", namePtBr: "Vitamina B3 (Niacina)", unit: "mg", category: "VITAMIN", sortOrder: 190, usdaNutrientNumber: "406" },
+  { code: "VIT_B5", namePtBr: "Vitamina B5 (Ácido Pantotênico)", unit: "mg", category: "VITAMIN", sortOrder: 200, usdaNutrientNumber: "410" },
+  { code: "VIT_B6", namePtBr: "Vitamina B6", unit: "mg", category: "VITAMIN", sortOrder: 210, usdaNutrientNumber: "415" },
+  { code: "FOLATE", namePtBr: "Folato Total", unit: "mcg", category: "VITAMIN", sortOrder: 220, usdaNutrientNumber: "417" },
+  { code: "VIT_B12", namePtBr: "Vitamina B12", unit: "mcg", category: "VITAMIN", sortOrder: 230, usdaNutrientNumber: "418" },
+]);
+
+export const CANONICAL_NUTRIENTS_BY_CODE = Object.freeze(
+  new Map(CANONICAL_NUTRIENTS.map((n) => [n.code, n]))
+);
+
+export interface MicronutrientSnapshotItem {
+  code: string;
+  value: number | null;
+  unit: string;
+  status: MicronutrientStatus;
+}
+
+export interface MicronutrientsSnapshotEnvelope {
+  schemaVersion: 1;
+  catalogVersion: "1.0";
+  sourceUid: string | null;
+  sourceType: string;
+  sourceKey: string | null;
+  sourceVersion: string | null;
+  dataQuality: string | null;
+  capturedAt: string;
+  nutrients: MicronutrientSnapshotItem[];
+}
+
+export interface BuildSnapshotOptions {
+  sourceUid?: string | null;
+  sourceType?: string;
+  sourceKey?: string | null;
+  sourceVersion?: string | null;
+  dataQuality?: string | null;
+  capturedAt?: string;
+}
+
+export function buildMicronutrientsSnapshotEnvelope(
+  valuesMap: Map<string, { value: number | null; status: MicronutrientStatus }>,
+  options: BuildSnapshotOptions = {}
+): MicronutrientsSnapshotEnvelope {
+  const nutrients: MicronutrientSnapshotItem[] = CANONICAL_NUTRIENTS.map((defn) => {
+    const entry = valuesMap.get(defn.code);
+    if (!entry) {
+      return {
+        code: defn.code,
+        value: null,
+        unit: defn.unit,
+        status: "UNKNOWN",
+      };
+    }
+
+    if (entry.status === "TRACE") {
+      return {
+        code: defn.code,
+        value: null,
+        unit: defn.unit,
+        status: "TRACE",
+      };
+    }
+
+    if (entry.status === "KNOWN_ZERO" || (entry.value === 0 && entry.status !== "UNKNOWN")) {
+      return {
+        code: defn.code,
+        value: 0,
+        unit: defn.unit,
+        status: "KNOWN_ZERO",
+      };
+    }
+
+    if (entry.status === "KNOWN" && entry.value != null && Number.isFinite(entry.value)) {
+      return {
+        code: defn.code,
+        value: Math.round(Number(entry.value) * 10000) / 10000,
+        unit: defn.unit,
+        status: "KNOWN",
+      };
+    }
+
+    return {
+      code: defn.code,
+      value: null,
+      unit: defn.unit,
+      status: "UNKNOWN",
+    };
+  });
+
+  return {
+    schemaVersion: 1,
+    catalogVersion: "1.0",
+    sourceUid: options.sourceUid ?? null,
+    sourceType: options.sourceType ?? "MANUAL",
+    sourceKey: options.sourceKey ?? null,
+    sourceVersion: options.sourceVersion ?? null,
+    dataQuality: options.dataQuality ?? null,
+    capturedAt: options.capturedAt || new Date().toISOString(),
+    nutrients,
+  };
+}
+
+export interface MicronutrientTotalDetail {
+  code: string;
+  namePtBr: string;
+  unit: string;
+  category: MicronutrientCategory;
+  value: number; // Subtotal quantificado (KNOWN + KNOWN_ZERO)
+  quantifiedItemCount: number;
+  traceItemCount: number;
+  unknownItemCount: number;
+  totalItemCount: number;
+  isFullyQuantified: boolean;
+  hasTrace: boolean;
+  hasUnknown: boolean;
+  empty: boolean;
+  dataCompletenessPercent: number;
+}
+
+export interface MicronutrientTotalsSummary {
+  totalItemsCount: number;
+  empty: boolean;
+  nutrients: Record<string, MicronutrientTotalDetail>;
+}
+
+export interface FoodNutrientDensityItem {
+  nutrientCode: string;
+  amountPerReference: number | null;
+  unitCode: string;
+  status: FoodNutrientStatus;
+}
+
+/**
+ * Authoritative scaling of food library nutrient densities by calculated portion/quantity factor.
+ * Returns a 23-nutrient deterministic snapshot envelope v1.
+ */
+export function scaleMicronutrientsForFood(
+  nutrientDensities: FoodNutrientDensityItem[],
+  factor: number | null,
+  options?: BuildSnapshotOptions
+): MicronutrientsSnapshotEnvelope {
+  const valuesMap = new Map<string, { value: number | null; status: MicronutrientStatus }>();
+
+  if (factor != null && Number.isFinite(factor) && factor > 0) {
+    for (const item of nutrientDensities) {
+      if (item.status === "TRACE") {
+        valuesMap.set(item.nutrientCode, { value: null, status: "TRACE" });
+      } else if (item.status === "KNOWN_ZERO" || item.amountPerReference === 0) {
+        valuesMap.set(item.nutrientCode, { value: 0, status: "KNOWN_ZERO" });
+      } else if (item.status === "KNOWN" && item.amountPerReference != null && Number.isFinite(item.amountPerReference)) {
+        const scaled = Math.round(Number(item.amountPerReference) * factor * 10000) / 10000;
+        valuesMap.set(item.nutrientCode, { value: scaled, status: "KNOWN" });
+      } else {
+        valuesMap.set(item.nutrientCode, { value: null, status: "UNKNOWN" });
+      }
+    }
+  }
+
+  return buildMicronutrientsSnapshotEnvelope(valuesMap, options);
+}
+
+/**
+ * Authoritative meal micronutrient aggregation.
+ * Historical items with null snapshot are treated as UNKNOWN for all 23 nutrients without DB backfill.
+ */
+export function calculateMealMicronutrientTotals(
+  items: Array<{ micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null }>
+): MicronutrientTotalsSummary {
+  const totalItemsCount = items.length;
+  const empty = totalItemsCount === 0;
+
+  const nutrientsMap: Record<string, MicronutrientTotalDetail> = {};
+
+  for (const defn of CANONICAL_NUTRIENTS) {
+    let rawSum = 0;
+    let quantifiedItemCount = 0;
+    let traceItemCount = 0;
+    let unknownItemCount = 0;
+
+    for (const item of items) {
+      const envelope = item.micronutrientsSnapshotJson;
+      // Historical item without snapshot: counted as UNKNOWN for completeness
+      if (!envelope || !Array.isArray(envelope.nutrients)) {
+        unknownItemCount += 1;
+        continue;
+      }
+
+      const nut = envelope.nutrients.find((n) => n.code === defn.code);
+      if (!nut || nut.status === "UNKNOWN") {
+        unknownItemCount += 1;
+      } else if (nut.status === "TRACE") {
+        traceItemCount += 1;
+      } else if (nut.status === "KNOWN_ZERO") {
+        quantifiedItemCount += 1;
+      } else if (nut.status === "KNOWN" && nut.value != null && Number.isFinite(Number(nut.value))) {
+        quantifiedItemCount += 1;
+        rawSum += Number(nut.value);
+      } else {
+        unknownItemCount += 1;
+      }
+    }
+
+    const value = Math.round(rawSum * 100) / 100;
+    const isFullyQuantified = !empty && quantifiedItemCount === totalItemsCount;
+    const hasTrace = !empty && traceItemCount > 0;
+    const hasUnknown = !empty && unknownItemCount > 0;
+    const dataCompletenessPercent = empty ? 0 : Math.round((quantifiedItemCount / totalItemsCount) * 100);
+
+    nutrientsMap[defn.code] = {
+      code: defn.code,
+      namePtBr: defn.namePtBr,
+      unit: defn.unit,
+      category: defn.category,
+      value,
+      quantifiedItemCount,
+      traceItemCount,
+      unknownItemCount,
+      totalItemCount: totalItemsCount,
+      isFullyQuantified,
+      hasTrace,
+      hasUnknown,
+      empty,
+      dataCompletenessPercent,
+    };
+  }
+
+  return {
+    totalItemsCount,
+    empty,
+    nutrients: nutrientsMap,
+  };
+}
+
+/**
+ * Authoritative plan micronutrient aggregation across meals.
+ */
+export function calculatePlanMicronutrientTotals(
+  mealsOrTotals: Array<
+    | MicronutrientTotalsSummary
+    | { micronutrientTotals: MicronutrientTotalsSummary }
+    | { items: Array<{ micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null }> }
+  >
+): MicronutrientTotalsSummary {
+  const summaries: MicronutrientTotalsSummary[] = mealsOrTotals.map((item) => {
+    if ("micronutrientTotals" in item && item.micronutrientTotals) {
+      return item.micronutrientTotals;
+    }
+    if ("items" in item && Array.isArray(item.items)) {
+      return calculateMealMicronutrientTotals(item.items);
+    }
+    return item as MicronutrientTotalsSummary;
+  });
+
+  let totalItemsCount = 0;
+  for (const s of summaries) {
+    totalItemsCount += s.totalItemsCount;
+  }
+  const empty = totalItemsCount === 0;
+
+  const nutrientsMap: Record<string, MicronutrientTotalDetail> = {};
+
+  for (const defn of CANONICAL_NUTRIENTS) {
+    let rawSum = 0;
+    let quantifiedItemCount = 0;
+    let traceItemCount = 0;
+    let unknownItemCount = 0;
+
+    for (const s of summaries) {
+      const d = s.nutrients?.[defn.code];
+      if (d) {
+        rawSum += d.value;
+        quantifiedItemCount += d.quantifiedItemCount;
+        traceItemCount += d.traceItemCount;
+        unknownItemCount += d.unknownItemCount;
+      }
+    }
+
+    const value = Math.round(rawSum * 100) / 100;
+    const isFullyQuantified = !empty && quantifiedItemCount === totalItemsCount;
+    const hasTrace = !empty && traceItemCount > 0;
+    const hasUnknown = !empty && unknownItemCount > 0;
+    const dataCompletenessPercent = empty ? 0 : Math.round((quantifiedItemCount / totalItemsCount) * 100);
+
+    nutrientsMap[defn.code] = {
+      code: defn.code,
+      namePtBr: defn.namePtBr,
+      unit: defn.unit,
+      category: defn.category,
+      value,
+      quantifiedItemCount,
+      traceItemCount,
+      unknownItemCount,
+      totalItemCount: totalItemsCount,
+      isFullyQuantified,
+      hasTrace,
+      hasUnknown,
+      empty,
+      dataCompletenessPercent,
+    };
+  }
+
+  return {
+    totalItemsCount,
+    empty,
+    nutrients: nutrientsMap,
+  };
+}

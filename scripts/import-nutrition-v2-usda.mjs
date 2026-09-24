@@ -53,6 +53,7 @@ export function parseArgs(argv) {
   let isApply = false;
   let isAllowProduction = false;
   let dataset = "all"; // 'all', 'foundation', 'fndds'
+  let mode = "foods"; // 'foods', 'micronutrients-only'
 
   for (const arg of argv) {
     if (arg === "--apply") {
@@ -63,13 +64,17 @@ export function parseArgs(argv) {
       isAllowProduction = true;
     } else if (arg.startsWith("--dataset=")) {
       dataset = arg.split("=")[1].toLowerCase();
+    } else if (arg === "--micronutrients-only" || arg === "--mode=micronutrients-only") {
+      mode = "micronutrients-only";
+    } else if (arg === "--mode=foods") {
+      mode = "foods";
     } else {
       console.error(`ERRO: Argumento desconhecido ou inválido: '${arg}'`);
       process.exit(1);
     }
   }
 
-  return { isApply, isAllowProduction, dataset };
+  return { isApply, isAllowProduction, dataset, mode };
 }
 
 export function loadFileEnv(filePath = ".env.local") {
@@ -192,6 +197,79 @@ export function extractMacros(foodNutrients, isFoundation = false) {
     fat: fat != null ? Number(fat.toFixed(2)) : null,
     fiber: fiber != null ? Number(fiber.toFixed(2)) : null,
   };
+}
+
+/**
+ * Release E Canonical Micronutrients Mapping based on USDA Nutrient Numbers.
+ * Strict mapping without ambiguous fallbacks (no 318 for Vit A, no 324 for Vit D, no 435 for Folate).
+ */
+export const CANONICAL_NUTRIENT_MAP = Object.freeze({
+  "291": { code: "FIBER", unit: "g" },
+  "301": { code: "CA", unit: "mg" },
+  "303": { code: "FE", unit: "mg" },
+  "304": { code: "MG", unit: "mg" },
+  "305": { code: "P", unit: "mg" },
+  "306": { code: "K", unit: "mg" },
+  "307": { code: "NA", unit: "mg" },
+  "309": { code: "ZN", unit: "mg" },
+  "312": { code: "CU", unit: "mg" },
+  "315": { code: "MN", unit: "mg" },
+  "317": { code: "SE", unit: "mcg" },
+  "320": { code: "VIT_A", unit: "mcg" },
+  "401": { code: "VIT_C", unit: "mg" },
+  "328": { code: "VIT_D", unit: "mcg" },
+  "323": { code: "VIT_E", unit: "mg" },
+  "430": { code: "VIT_K", unit: "mcg" },
+  "404": { code: "VIT_B1", unit: "mg" },
+  "405": { code: "VIT_B2", unit: "mg" },
+  "406": { code: "VIT_B3", unit: "mg" },
+  "410": { code: "VIT_B5", unit: "mg" },
+  "415": { code: "VIT_B6", unit: "mg" },
+  "417": { code: "FOLATE", unit: "mcg" },
+  "418": { code: "VIT_B12", unit: "mcg" },
+});
+
+/**
+ * Authoritative, pure extraction of 23 canonical micronutrients from USDA foodNutrients array.
+ * Values > 0 are marked KNOWN.
+ * Values === 0 are marked KNOWN_ZERO.
+ * Audited USDA datasets do not contain explicit trace representation (no synthetic trace produced).
+ * Missing/unreported nutrients are not included in the map (resolving to UNKNOWN).
+ */
+export function extractMicronutrients(foodNutrients) {
+  const result = new Map(); // nutrientCode -> { code, amount, unit, status }
+
+  if (!Array.isArray(foodNutrients)) {
+    return result;
+  }
+
+  for (const fn of foodNutrients) {
+    if (!fn || !fn.nutrient) continue;
+    const num = String(fn.nutrient.number);
+    const defn = CANONICAL_NUTRIENT_MAP[num];
+    if (!defn) continue;
+
+    if (fn.amount != null && !isNaN(fn.amount)) {
+      const rawNum = Number(fn.amount);
+      if (rawNum > 0) {
+        result.set(defn.code, {
+          code: defn.code,
+          amount: Number(rawNum.toFixed(4)),
+          unit: defn.unit,
+          status: "KNOWN",
+        });
+      } else if (rawNum === 0) {
+        result.set(defn.code, {
+          code: defn.code,
+          amount: 0,
+          unit: defn.unit,
+          status: "KNOWN_ZERO",
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 export function prepareFoodRecords(items, type) {
@@ -344,8 +422,213 @@ export function reconcilePlannedWithExisting(
   };
 }
 
+export async function runMicronutrientsOnlyImport({
+  pool,
+  dataset,
+  isApply,
+  foundationRawItems,
+  fnddsRawItems,
+}) {
+  console.log("\n================================================================================");
+  console.log("MODO SELECIONADO: MICRONUTRIENTS_ONLY");
+  console.log("Gravação restrita exclusivamente à tabela: nutrition_v2_food_nutrients");
+  console.log("Preservação estrita: nutrition_v2_foods, meal_items, substitutions, plans INTACTOS");
+  console.log("================================================================================");
+
+  const targetSourceKeys = [];
+  if (dataset === "all" || dataset === "foundation") targetSourceKeys.push(SOURCE_KEY_FOUNDATION);
+  if (dataset === "all" || dataset === "fndds") targetSourceKeys.push(SOURCE_KEY_FNDDS);
+
+  // 1. Fetch active foods from DB
+  const [foods] = await pool.query(
+    `SELECT id, source_uid, source_key, source_external_code, reference_amount, reference_unit_code
+     FROM nutrition_v2_foods
+     WHERE source_key IN (${targetSourceKeys.map(() => "?").join(", ")})
+       AND status = 'ACTIVE'
+       AND deleted_at IS NULL`,
+    targetSourceKeys
+  );
+
+  const foodByUid = new Map(foods.map((f) => [f.source_uid, f]));
+  console.log(`\nAlimentos USDA ativos no banco para [${targetSourceKeys.join(", ")}]: ${foods.length}`);
+
+  // 2. Prepare planned micronutrients
+  const plannedNutrients = [];
+  let foundationRowsCount = 0;
+  let fnddsRowsCount = 0;
+
+  if (dataset === "all" || dataset === "foundation") {
+    for (const item of foundationRawItems) {
+      if (!item || !item.fdcId || !item.description) continue;
+      const uid = `USDA:FOUNDATION:${item.fdcId}`;
+      const food = foodByUid.get(uid);
+      if (!food) continue;
+
+      const micronutrients = extractMicronutrients(item.foodNutrients);
+      for (const [code, nutrient] of micronutrients.entries()) {
+        const factor = Number(food.reference_amount) / 100.0;
+        const amount = nutrient.amount != null ? Number((nutrient.amount * factor).toFixed(4)) : null;
+        plannedNutrients.push({
+          foodId: food.id,
+          sourceKey: SOURCE_KEY_FOUNDATION,
+          nutrientCode: code,
+          amountPerReference: amount,
+          unitCode: nutrient.unit,
+          status: nutrient.status,
+        });
+        foundationRowsCount++;
+      }
+    }
+  }
+
+  if (dataset === "all" || dataset === "fndds") {
+    for (const item of fnddsRawItems) {
+      if (!item || !item.fdcId || !item.description) continue;
+      const uid = `USDA:FNDDS:${item.fdcId}`;
+      const food = foodByUid.get(uid);
+      if (!food) continue;
+
+      const micronutrients = extractMicronutrients(item.foodNutrients);
+      for (const [code, nutrient] of micronutrients.entries()) {
+        const factor = Number(food.reference_amount) / 100.0;
+        const amount = nutrient.amount != null ? Number((nutrient.amount * factor).toFixed(4)) : null;
+        plannedNutrients.push({
+          foodId: food.id,
+          sourceKey: SOURCE_KEY_FNDDS,
+          nutrientCode: code,
+          amountPerReference: amount,
+          unitCode: nutrient.unit,
+          status: nutrient.status,
+        });
+        fnddsRowsCount++;
+      }
+    }
+  }
+
+  console.log(`Linhas de micronutrientes extraídas do dataset:`);
+  if (dataset === "all" || dataset === "foundation") console.log(`  Foundation: ${foundationRowsCount}`);
+  if (dataset === "all" || dataset === "fndds") console.log(`  FNDDS:      ${fnddsRowsCount}`);
+  console.log(`  Total:      ${plannedNutrients.length}`);
+
+  // 3. Reconcile with existing nutrition_v2_food_nutrients
+  const foodIds = [...new Set(plannedNutrients.map((p) => p.foodId))];
+  const existingMap = new Map(); // `${food_id}:${nutrient_code}` -> row
+
+  const CHUNK_SIZE = 1000;
+  for (let i = 0; i < foodIds.length; i += CHUNK_SIZE) {
+    const chunkIds = foodIds.slice(i, i + CHUNK_SIZE);
+    const [rows] = await pool.query(
+      `SELECT id, food_id, nutrient_code, amount_per_reference, unit_code, status
+       FROM nutrition_v2_food_nutrients
+       WHERE food_id IN (${chunkIds.map(() => "?").join(", ")})`,
+      chunkIds
+    );
+    for (const r of rows) {
+      existingMap.set(`${r.food_id}:${r.nutrient_code}`, r);
+    }
+  }
+
+  const toInsert = [];
+  const toUpdate = [];
+  let unchangedCount = 0;
+
+  for (const planned of plannedNutrients) {
+    const key = `${planned.foodId}:${planned.nutrientCode}`;
+    const existing = existingMap.get(key);
+    if (!existing) {
+      toInsert.push(planned);
+    } else {
+      const isStatusSame = existing.status === planned.status;
+      const isUnitSame = existing.unit_code === planned.unitCode;
+      const isAmountSame =
+        (existing.amount_per_reference == null && planned.amountPerReference == null) ||
+        (existing.amount_per_reference != null &&
+          planned.amountPerReference != null &&
+          Math.abs(Number(existing.amount_per_reference) - planned.amountPerReference) < 0.0001);
+
+      if (isStatusSame && isUnitSame && isAmountSame) {
+        unchangedCount++;
+      } else {
+        toUpdate.push({ id: existing.id, planned });
+      }
+    }
+  }
+
+  console.log(`\nReconciliação com o banco de dados:`);
+  console.log(`  Novos a inserir (toInsert):          ${toInsert.length}`);
+  console.log(`  Existentes a atualizar (toUpdate):   ${toUpdate.length}`);
+  console.log(`  Inalterados idênticos (unchanged):   ${unchangedCount}`);
+
+  if (!isApply) {
+    console.log("\n================================================================================");
+    console.log("DRY RUN MICRONUTRIENTS CONCLUÍDO COM SUCESSO. NENHUMA ALTERAÇÃO REALIZADA NO BANCO.");
+    console.log("Para gravar no banco de dados, execute com a flag '--apply'.");
+    console.log("================================================================================");
+    return {
+      foundationRowsCount,
+      fnddsRowsCount,
+      totalRowsCount: plannedNutrients.length,
+      toInsertCount: toInsert.length,
+      toUpdateCount: toUpdate.length,
+      unchangedCount,
+    };
+  }
+
+  // 4. Batch Inserts
+  if (toInsert.length > 0) {
+    console.log(`\nInserindo ${toInsert.length} micronutrientes em lotes de 1000...`);
+    let insertedTotal = 0;
+    for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
+      const chunk = toInsert.slice(i, i + CHUNK_SIZE);
+      const values = chunk.map((p) => [
+        p.foodId,
+        p.nutrientCode,
+        p.amountPerReference,
+        p.unitCode,
+        p.status,
+      ]);
+      await pool.query(
+        `INSERT INTO nutrition_v2_food_nutrients (
+           food_id, nutrient_code, amount_per_reference, unit_code, status
+         ) VALUES ?`,
+        [values]
+      );
+      insertedTotal += chunk.length;
+      process.stdout.write(`Progresso inserts: ${insertedTotal}/${toInsert.length} (${Math.round((insertedTotal / toInsert.length) * 100)}%)\r`);
+    }
+    console.log(`\nInserts concluídos: ${insertedTotal} micronutrientes inseridos.`);
+  }
+
+  // 5. Updates
+  if (toUpdate.length > 0) {
+    console.log(`\nAtualizando ${toUpdate.length} micronutrientes alterados...`);
+    let updatedTotal = 0;
+    for (const u of toUpdate) {
+      await pool.query(
+        `UPDATE nutrition_v2_food_nutrients
+         SET amount_per_reference = ?, unit_code = ?, status = ?
+         WHERE id = ?`,
+        [u.planned.amountPerReference, u.planned.unitCode, u.planned.status, u.id]
+      );
+      updatedTotal++;
+    }
+    console.log(`Updates concluídos: ${updatedTotal} micronutrientes atualizados.`);
+  }
+
+  console.log(`\nSUCESSO: Persistência de micronutrientes concluída.`);
+
+  return {
+    foundationRowsCount,
+    fnddsRowsCount,
+    totalRowsCount: plannedNutrients.length,
+    toInsertCount: toInsert.length,
+    toUpdateCount: toUpdate.length,
+    unchangedCount,
+  };
+}
+
 async function run() {
-  const { isApply, isAllowProduction, dataset } = parseArgs(process.argv.slice(2));
+  const { isApply, isAllowProduction, dataset, mode } = parseArgs(process.argv.slice(2));
   const fileEnv = loadFileEnv(".env.local");
   const dbConfig = resolveDatabaseConfig(process.env, fileEnv);
 
@@ -361,23 +644,35 @@ async function run() {
   console.log("Banco de dados:", dbConfig.database);
   console.log("Ambiente:      ", dbConfig.database === PROD_DB_NAME ? "PRODUÇÃO" : "DEV");
   console.log("Modo:          ", isApply ? "APPLY (Gravação no banco)" : "DRY RUN (Simulação / Sem gravação)");
+  console.log("Escopo:        ", mode.toUpperCase());
   console.log("Dataset:       ", dataset.toUpperCase());
 
-  const scratchDir = path.resolve(__dirname, "../scratch");
+  const scratchDir = process.env.USDA_SCRATCH_DIR
+    ? path.resolve(process.env.USDA_SCRATCH_DIR)
+    : path.resolve(__dirname, "../scratch");
 
-  // Determine Foundation JSON path (prefer 04/2026 release)
-  const foundation2026Path = path.join(scratchDir, "foundation_2026_extracted/FoodData_Central_foundation_food_json_2026-04-30.json");
-  const foundationFallbackPath = path.join(scratchDir, "foundation_extracted/foundationDownload.json");
-  const foundationPath = fs.existsSync(foundation2026Path) ? foundation2026Path : foundationFallbackPath;
+  // Determine Foundation and FNDDS JSON paths with robust candidates
+  const candidateFoundation = [
+    process.env.USDA_FOUNDATION_PATH,
+    path.join(scratchDir, "foundation_2026_extracted/FoodData_Central_foundation_food_json_2026-04-30.json"),
+    path.join(scratchDir, "foundation_extracted/FoodData_Central_foundation_food_json_2026-04-30.json"),
+    path.join(scratchDir, "foundation_extracted/foundationDownload.json"),
+  ].filter(Boolean);
 
-  const fnddsPath = path.join(scratchDir, "fndds_extracted/surveyDownload.json");
+  const candidateFndds = [
+    process.env.USDA_FNDDS_PATH,
+    path.join(scratchDir, "fndds_extracted/surveyDownload.json"),
+  ].filter(Boolean);
+
+  const foundationPath = candidateFoundation.find((p) => fs.existsSync(p));
+  const fnddsPath = candidateFndds.find((p) => fs.existsSync(p));
 
   let foundationRawItems = [];
   let fnddsRawItems = [];
 
   if (dataset === "all" || dataset === "foundation") {
-    if (!fs.existsSync(foundationPath)) {
-      throw new Error(`Arquivo não encontrado: ${foundationPath}. Execute o download antes.`);
+    if (!foundationPath) {
+      throw new Error(`Arquivo Foundation não encontrado nos caminhos candidatos. Execute o download antes.`);
     }
     const raw = fs.readFileSync(foundationPath, "utf8");
     foundationRawItems = JSON.parse(raw).FoundationFoods || [];
@@ -385,23 +680,12 @@ async function run() {
   }
 
   if (dataset === "all" || dataset === "fndds") {
-    if (!fs.existsSync(fnddsPath)) {
-      throw new Error(`Arquivo não encontrado: ${fnddsPath}. Execute o download antes.`);
+    if (!fnddsPath) {
+      throw new Error(`Arquivo FNDDS não encontrado nos caminhos candidatos. Execute o download antes.`);
     }
     const raw = fs.readFileSync(fnddsPath, "utf8");
     fnddsRawItems = JSON.parse(raw).SurveyFoods || [];
     console.log(`- Survey Foods (FNDDS) carregados do JSON (${path.basename(fnddsPath)}): ${fnddsRawItems.length}`);
-  }
-
-  const prepFoundation = prepareFoodRecords(foundationRawItems, "FOUNDATION");
-  const prepFndds = prepareFoodRecords(fnddsRawItems, "FNDDS");
-
-  const plannedItems = [];
-  if (dataset === "all" || dataset === "foundation") {
-    plannedItems.push(...prepFoundation.records);
-  }
-  if (dataset === "all" || dataset === "fndds") {
-    plannedItems.push(...prepFndds.records);
   }
 
   const pool = mysql.createPool({
@@ -443,6 +727,28 @@ async function run() {
     }
 
     console.log(`Validação runtime do banco (SELECT DATABASE()): '${activeDb}' OK.`);
+
+    if (mode === "micronutrients-only") {
+      await runMicronutrientsOnlyImport({
+        pool,
+        dataset,
+        isApply,
+        foundationRawItems,
+        fnddsRawItems,
+      });
+      return;
+    }
+
+    const prepFoundation = prepareFoodRecords(foundationRawItems, "FOUNDATION");
+    const prepFndds = prepareFoodRecords(fnddsRawItems, "FNDDS");
+
+    const plannedItems = [];
+    if (dataset === "all" || dataset === "foundation") {
+      plannedItems.push(...prepFoundation.records);
+    }
+    if (dataset === "all" || dataset === "fndds") {
+      plannedItems.push(...prepFndds.records);
+    }
 
     // Audit schema capabilities from target database
     const [colRows] = await pool.query("SHOW COLUMNS FROM nutrition_v2_foods");

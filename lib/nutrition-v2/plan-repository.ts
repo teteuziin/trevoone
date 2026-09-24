@@ -16,8 +16,14 @@ import {
   calculateItemNutrients,
   calculateMealTotals,
   calculatePlanTotals,
+  calculateMealMicronutrientTotals,
+  calculatePlanMicronutrientTotals,
   type MacroTotals,
+  type MicronutrientTotalsSummary,
 } from "./nutrient-calculator";
+import {
+  type MicronutrientsSnapshotEnvelope,
+} from "./micronutrients";
 
 // ============================================================================
 // DTOs & INPUT TYPES
@@ -63,6 +69,7 @@ export interface PlanVersionTreeDto {
   };
   meals: MealWithItemsDto[];
   dailyTotals: MacroTotals;
+  dailyMicronutrientTotals?: MicronutrientTotalsSummary;
 }
 
 export interface PlanVersionHistoryItemDto {
@@ -90,6 +97,7 @@ export interface MealWithItemsDto {
   sortOrder: number;
   items: MealItemWithSubstitutionsDto[];
   mealTotals: MacroTotals;
+  micronutrientTotals?: MicronutrientTotalsSummary;
 }
 
 export interface MealItemWithSubstitutionsDto {
@@ -106,6 +114,7 @@ export interface MealItemWithSubstitutionsDto {
   proteinGSnapshot: number | null;
   carbohydrateGSnapshot: number | null;
   fatGSnapshot: number | null;
+  micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null;
   notes: string | null;
   sortOrder: number;
   substitutions: ItemSubstitutionDto[];
@@ -124,11 +133,36 @@ export interface ItemSubstitutionDto {
   proteinGSnapshot: number | null;
   carbohydrateGSnapshot: number | null;
   fatGSnapshot: number | null;
+  micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null;
   notes: string | null;
   sortOrder: number;
 }
 
-export type { MacroTotals, NutrientTotalDetail } from "./nutrient-calculator";
+export type {
+  MacroTotals,
+  NutrientTotalDetail,
+  MicronutrientTotalsSummary,
+  MicronutrientTotalDetail,
+} from "./nutrient-calculator";
+export type { MicronutrientsSnapshotEnvelope } from "./micronutrients";
+
+export function parseMicronutrientsSnapshot(val: unknown): MicronutrientsSnapshotEnvelope | null {
+  if (!val) return null;
+  if (typeof val === "object" && val !== null && "schemaVersion" in val && "nutrients" in val) {
+    return val as MicronutrientsSnapshotEnvelope;
+  }
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (parsed && typeof parsed === "object" && "schemaVersion" in parsed && "nutrients" in parsed) {
+        return parsed as MicronutrientsSnapshotEnvelope;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 export type CreatePlanInput = {
   title: string;
@@ -523,23 +557,9 @@ export async function getPlanVersionTreeByPlanPublicId(
       // 4. Get all meal items
       const [itemRows] = await connection.query<RowDataPacket[]>(
         `SELECT
-          mi.id,
-          mi.public_id,
-          mi.meal_id,
-          mi.food_id,
+          mi.*,
           f.public_id AS food_public_id,
-          f.scope AS food_scope,
-          mi.food_name_snapshot,
-          mi.category_snapshot,
-          mi.prescribed_quantity,
-          mi.prescribed_unit_code,
-          mi.prescribed_unit_label,
-          mi.calories_kcal_snapshot,
-          mi.protein_g_snapshot,
-          mi.carbohydrate_g_snapshot,
-          mi.fat_g_snapshot,
-          mi.notes,
-          mi.sort_order
+          f.scope AS food_scope
          FROM nutrition_v2_meal_items mi
          LEFT JOIN nutrition_v2_foods f ON f.id = mi.food_id
          WHERE mi.meal_id IN (?) AND mi.deleted_at IS NULL
@@ -553,22 +573,9 @@ export async function getPlanVersionTreeByPlanPublicId(
         // 5. Get all substitutions
         const [subRows] = await connection.query<RowDataPacket[]>(
           `SELECT
-            s.id,
-            s.public_id,
-            s.meal_item_id,
-            s.food_id,
+            s.*,
             f.public_id AS food_public_id,
-            f.scope AS food_scope,
-            s.food_name_snapshot,
-            s.prescribed_quantity,
-            s.prescribed_unit_code,
-            s.prescribed_unit_label,
-            s.calories_kcal_snapshot,
-            s.protein_g_snapshot,
-            s.carbohydrate_g_snapshot,
-            s.fat_g_snapshot,
-            s.notes,
-            s.sort_order
+            f.scope AS food_scope
            FROM nutrition_v2_item_substitutions s
            LEFT JOIN nutrition_v2_foods f ON f.id = s.food_id
            WHERE s.meal_item_id IN (?) AND s.deleted_at IS NULL
@@ -597,6 +604,7 @@ export async function getPlanVersionTreeByPlanPublicId(
         proteinGSnapshot: s.protein_g_snapshot != null ? Number(s.protein_g_snapshot) : null,
         carbohydrateGSnapshot: s.carbohydrate_g_snapshot != null ? Number(s.carbohydrate_g_snapshot) : null,
         fatGSnapshot: s.fat_g_snapshot != null ? Number(s.fat_g_snapshot) : null,
+        micronutrientsSnapshotJson: parseMicronutrientsSnapshot(s.micronutrients_snapshot_json),
         notes: s.notes ? String(s.notes) : null,
         sortOrder: Number(s.sort_order),
       });
@@ -620,6 +628,7 @@ export async function getPlanVersionTreeByPlanPublicId(
         proteinGSnapshot: it.protein_g_snapshot != null ? Number(it.protein_g_snapshot) : null,
         carbohydrateGSnapshot: it.carbohydrate_g_snapshot != null ? Number(it.carbohydrate_g_snapshot) : null,
         fatGSnapshot: it.fat_g_snapshot != null ? Number(it.fat_g_snapshot) : null,
+        micronutrientsSnapshotJson: parseMicronutrientsSnapshot(it.micronutrients_snapshot_json),
         notes: it.notes ? String(it.notes) : null,
         sortOrder: Number(it.sort_order),
         substitutions: subsByItemId.get(Number(it.id)) || [],
@@ -629,6 +638,7 @@ export async function getPlanVersionTreeByPlanPublicId(
     const formattedMeals: MealWithItemsDto[] = meals.map((m) => {
       const mealItems = itemsByMealId.get(Number(m.id)) || [];
       const mealTotals = calculateMealTotals(mealItems);
+      const micronutrientTotals = calculateMealMicronutrientTotals(mealItems);
 
       return {
         publicId: String(m.public_id),
@@ -638,10 +648,12 @@ export async function getPlanVersionTreeByPlanPublicId(
         sortOrder: Number(m.sort_order),
         items: mealItems,
         mealTotals,
+        micronutrientTotals,
       };
     });
 
     const dailyTotals = calculatePlanTotals(formattedMeals);
+    const dailyMicronutrientTotals = calculatePlanMicronutrientTotals(formattedMeals);
 
     return {
       plan: {
@@ -665,6 +677,7 @@ export async function getPlanVersionTreeByPlanPublicId(
       },
       meals: formattedMeals,
       dailyTotals,
+      dailyMicronutrientTotals,
     };
   } finally {
     if (connection) connection.release();

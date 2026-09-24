@@ -160,6 +160,35 @@ export interface NutritionV2MealDto {
   deletedAt: string | null;
 }
 
+import type {
+  MicronutrientCategory,
+  FoodNutrientStatus,
+  MicronutrientStatus,
+  CanonicalNutrientDefinition,
+  MicronutrientSnapshotItem,
+  MicronutrientsSnapshotEnvelope,
+} from "./micronutrients";
+
+export type {
+  MicronutrientCategory,
+  FoodNutrientStatus,
+  MicronutrientStatus,
+  CanonicalNutrientDefinition,
+  MicronutrientSnapshotItem,
+  MicronutrientsSnapshotEnvelope,
+};
+
+export interface NutritionV2FoodNutrientDto {
+  id: string;
+  foodId: string;
+  nutrientCode: string;
+  amountPerReference: number | null;
+  unitCode: string;
+  status: FoodNutrientStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface NutritionV2MealItemDto {
   id: string;
   publicId: string;
@@ -175,6 +204,7 @@ export interface NutritionV2MealItemDto {
   proteinGSnapshot: number | null;
   carbohydrateGSnapshot: number | null;
   fatGSnapshot: number | null;
+  micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -195,6 +225,7 @@ export interface NutritionV2ItemSubstitutionDto {
   proteinGSnapshot: number | null;
   carbohydrateGSnapshot: number | null;
   fatGSnapshot: number | null;
+  micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -234,6 +265,7 @@ export interface NutritionV2ItemSubstitutionTreeDto {
   proteinGSnapshot: number | null;
   carbohydrateGSnapshot: number | null;
   fatGSnapshot: number | null;
+  micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null;
   notes: string | null;
 }
 
@@ -251,6 +283,7 @@ export interface NutritionV2MealItemTreeDto {
   proteinGSnapshot: number | null;
   carbohydrateGSnapshot: number | null;
   fatGSnapshot: number | null;
+  micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null;
   notes: string | null;
   substitutions: NutritionV2ItemSubstitutionTreeDto[];
 }

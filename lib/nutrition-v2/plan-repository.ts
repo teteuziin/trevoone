@@ -18,10 +18,15 @@ import {
   calculatePlanTotals,
   calculateMealMicronutrientTotals,
   calculatePlanMicronutrientTotals,
+  scaleMicronutrientsForFood,
   type MacroTotals,
   type MicronutrientTotalsSummary,
+  type FoodNutrientDensityItem,
+  type FoodNutrientStatus,
 } from "./nutrient-calculator";
 import {
+  parseMicronutrientsSnapshot,
+  buildMicronutrientsSnapshotEnvelope,
   type MicronutrientsSnapshotEnvelope,
 } from "./micronutrients";
 
@@ -145,23 +150,56 @@ export type {
   MicronutrientTotalDetail,
 } from "./nutrient-calculator";
 export type { MicronutrientsSnapshotEnvelope } from "./micronutrients";
+export { parseMicronutrientsSnapshot } from "./micronutrients";
 
-export function parseMicronutrientsSnapshot(val: unknown): MicronutrientsSnapshotEnvelope | null {
-  if (!val) return null;
-  if (typeof val === "object" && val !== null && "schemaVersion" in val && "nutrients" in val) {
-    return val as MicronutrientsSnapshotEnvelope;
+/**
+ * Authoritative server-side helper to capture the 23-nutrient snapshot envelope for an item or substitution.
+ * - If foodId is null: returns a valid snapshot where all 23 canonical nutrients have status UNKNOWN and value null.
+ * - If foodId is provided: loads nutrient densities from nutrition_v2_food_nutrients, scales them by factor,
+ *   and builds a deterministic 23-nutrient snapshot envelope v1.
+ * - Missing nutrients in food_nutrients become UNKNOWN/null.
+ * - KNOWN_ZERO remains 0. TRACE remains null.
+ */
+export async function captureMicronutrientsSnapshotForFood(
+  conn: PoolConnection,
+  foodId: number | null,
+  foodRow: RowDataPacket | null,
+  factor: number | null,
+  capturedAt?: string
+): Promise<MicronutrientsSnapshotEnvelope> {
+  if (!foodId || !foodRow) {
+    return buildMicronutrientsSnapshotEnvelope(new Map(), {
+      sourceType: "MANUAL",
+      sourceUid: null,
+      sourceKey: null,
+      sourceVersion: null,
+      dataQuality: null,
+      capturedAt,
+    });
   }
-  if (typeof val === "string") {
-    try {
-      const parsed = JSON.parse(val);
-      if (parsed && typeof parsed === "object" && "schemaVersion" in parsed && "nutrients" in parsed) {
-        return parsed as MicronutrientsSnapshotEnvelope;
-      }
-    } catch {
-      return null;
-    }
-  }
-  return null;
+
+  const [nutrientRows] = await conn.query<RowDataPacket[]>(
+    `SELECT nutrient_code, amount_per_reference, unit_code, status
+     FROM nutrition_v2_food_nutrients
+     WHERE food_id = ?`,
+    [foodId]
+  );
+
+  const nutrientDensities: FoodNutrientDensityItem[] = (nutrientRows as RowDataPacket[]).map((r) => ({
+    nutrientCode: String(r.nutrient_code),
+    amountPerReference: r.amount_per_reference != null ? Number(r.amount_per_reference) : null,
+    unitCode: String(r.unit_code),
+    status: r.status as FoodNutrientStatus,
+  }));
+
+  return scaleMicronutrientsForFood(nutrientDensities, factor, {
+    sourceUid: foodRow.source_uid ? String(foodRow.source_uid) : (foodRow.public_id ? String(foodRow.public_id) : null),
+    sourceType: foodRow.source_type ? String(foodRow.source_type) : "EXTERNAL",
+    sourceKey: foodRow.source_key ? String(foodRow.source_key) : null,
+    sourceVersion: foodRow.source_version ? String(foodRow.source_version) : null,
+    dataQuality: foodRow.data_quality ? String(foodRow.data_quality) : null,
+    capturedAt,
+  });
 }
 
 export type CreatePlanInput = {
@@ -203,6 +241,7 @@ export type AddMealItemInput = {
 };
 
 export type UpdateMealItemInput = {
+  foodPublicId?: string | null;
   prescribedQuantity?: number | null;
   prescribedUnitCode?: string | null;
   prescribedUnitLabel?: string | null;
@@ -221,6 +260,7 @@ export type AddSubstitutionInput = {
 };
 
 export type UpdateSubstitutionInput = {
+  foodPublicId?: string | null;
   prescribedQuantity?: number | null;
   prescribedUnitCode?: string | null;
   prescribedUnitLabel?: string | null;
@@ -1035,6 +1075,8 @@ export async function addMealItem(
 
     // 2. Resolve Food or Custom Item
     let foodId: number | null = null;
+    let foodRow: RowDataPacket | null = null;
+    let factor: number | null = null;
     let foodNameSnapshot: string = "";
     let categorySnapshot: string | null = null;
     let prescribedQuantity: number | null = null;
@@ -1057,6 +1099,7 @@ export async function addMealItem(
       }
 
       const food = foods[0];
+      foodRow = food;
 
       // Exclude archived foods for new insertion (Section 28, 80)
       if (food.status !== "ACTIVE") {
@@ -1132,6 +1175,7 @@ export async function addMealItem(
         throw new NutritionAuthorizationError(calc.errorMessage || "Erro no cálculo nutricional do item.", "CALCULATION_ERROR", 400);
       }
 
+      factor = calc.factor;
       caloriesSnapshot = calc.caloriesKcal;
       proteinSnapshot = calc.proteinG;
       carbsSnapshot = calc.carbohydrateG;
@@ -1152,6 +1196,14 @@ export async function addMealItem(
       }
       // For custom items, macros default to null unless otherwise provided
     }
+
+    // Authoritatively capture 23-nutrient snapshot envelope
+    const micronutrientsSnapshot = await captureMicronutrientsSnapshotForFood(
+      connection,
+      foodId,
+      foodRow,
+      factor
+    );
 
     // 3. Get next sort order
     const [maxRows] = await connection.query<RowDataPacket[]>(
@@ -1180,8 +1232,9 @@ export async function addMealItem(
         protein_g_snapshot,
         carbohydrate_g_snapshot,
         fat_g_snapshot,
+        micronutrients_snapshot_json,
         notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         itemPublicId,
         meal.id,
@@ -1196,6 +1249,7 @@ export async function addMealItem(
         proteinSnapshot,
         carbsSnapshot,
         fatSnapshot,
+        JSON.stringify(micronutrientsSnapshot),
         notes,
       ]
     );
@@ -1229,11 +1283,27 @@ export async function updateMealItem(
         mi.id,
         mi.meal_id,
         mi.food_id,
+        mi.food_name_snapshot,
+        mi.category_snapshot,
         mi.prescribed_quantity,
         mi.prescribed_unit_code,
         mi.prescribed_unit_label,
+        mi.micronutrients_snapshot_json,
         m.nutrition_plan_version_id,
         v.public_id AS version_public_id,
+        f.id AS f_id,
+        f.public_id AS f_public_id,
+        f.scope AS f_scope,
+        f.consultancy_id AS f_consultancy_id,
+        f.status AS f_status,
+        f.source_type AS f_source_type,
+        f.data_quality AS f_data_quality,
+        f.source_key AS f_source_key,
+        f.source_version AS f_source_version,
+        f.source_uid AS f_source_uid,
+        f.display_name_pt_br AS f_display_name_pt_br,
+        f.name AS f_name,
+        f.category AS f_category,
         f.reference_amount,
         f.reference_unit_code,
         f.calories_kcal,
@@ -1255,6 +1325,62 @@ export async function updateMealItem(
 
     const item = itemRows[0];
     await getAndAssertDraftVersion(connection, String(item.version_public_id), ctx, true);
+
+    let effectiveFoodId: number | null = item.food_id != null ? Number(item.food_id) : null;
+    let effectiveFoodRow: RowDataPacket | null = item.food_id != null ? ({
+      id: item.f_id,
+      public_id: item.f_public_id,
+      scope: item.f_scope,
+      consultancy_id: item.f_consultancy_id,
+      status: item.f_status,
+      source_type: item.f_source_type,
+      data_quality: item.f_data_quality,
+      source_key: item.f_source_key,
+      source_version: item.f_source_version,
+      source_uid: item.f_source_uid,
+      display_name_pt_br: item.f_display_name_pt_br,
+      name: item.f_name,
+      category: item.f_category,
+      reference_amount: item.reference_amount,
+      reference_unit_code: item.reference_unit_code,
+      calories_kcal: item.calories_kcal,
+      protein_g: item.protein_g,
+      carbohydrate_g: item.carbohydrate_g,
+      fat_g: item.fat_g,
+      fiber_g: item.fiber_g,
+    } as RowDataPacket) : null;
+
+    let foodNameSnapshot = String(item.food_name_snapshot);
+    let categorySnapshot = item.category_snapshot ? String(item.category_snapshot) : null;
+    let foodReplaced = false;
+
+    if (input.foodPublicId !== undefined) {
+      if (input.foodPublicId && input.foodPublicId.trim()) {
+        const [foods] = await connection.query<RowDataPacket[]>(
+          `SELECT * FROM nutrition_v2_foods WHERE public_id = ? AND deleted_at IS NULL`,
+          [input.foodPublicId.trim()]
+        );
+        if (foods.length === 0) {
+          throw new NutritionAuthorizationError("Alimento não encontrado.", "FOOD_NOT_FOUND", 404);
+        }
+        const newFood = foods[0];
+        if (newFood.status !== "ACTIVE") {
+          throw new NutritionAuthorizationError("Alimentos arquivados não podem ser adicionados.", "ARCHIVED_FOOD", 400);
+        }
+        if (newFood.scope === "CONSULTANCY" && Number(newFood.consultancy_id) !== ctx.consultancyId) {
+          throw new NutritionAuthorizationError("Acesso negado a este alimento da consultoria.", "FORBIDDEN_FOOD", 403);
+        }
+        effectiveFoodId = Number(newFood.id);
+        effectiveFoodRow = newFood;
+        foodNameSnapshot = String(newFood.display_name_pt_br || newFood.name);
+        categorySnapshot = newFood.category ? String(newFood.category) : null;
+        foodReplaced = true;
+      } else {
+        effectiveFoodId = null;
+        effectiveFoodRow = null;
+        foodReplaced = true;
+      }
+    }
 
     let prescribedQuantity: number | null = null;
     if (input.prescribedQuantity !== undefined) {
@@ -1281,9 +1407,10 @@ export async function updateMealItem(
     let proteinSnapshot = item.protein_g_snapshot != null ? Number(item.protein_g_snapshot) : null;
     let carbsSnapshot = item.carbohydrate_g_snapshot != null ? Number(item.carbohydrate_g_snapshot) : null;
     let fatSnapshot = item.fat_g_snapshot != null ? Number(item.fat_g_snapshot) : null;
+    let factor: number | null = null;
 
-    // Recalculate if library food and quantities/portion changed
-    if (item.food_id != null) {
+    // Recalculate if library food and quantities/portion changed or food replaced
+    if (effectiveFoodId != null && effectiveFoodRow != null) {
       if (prescribedQuantity == null || prescribedQuantity <= 0) {
         throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
       }
@@ -1294,7 +1421,7 @@ export async function updateMealItem(
           const [portions] = await connection.query<RowDataPacket[]>(
             `SELECT * FROM nutrition_v2_food_portions
              WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL`,
-            [input.portionPublicId.trim(), item.food_id]
+            [input.portionPublicId.trim(), effectiveFoodId]
           );
           if (portions.length === 0) {
             throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
@@ -1315,16 +1442,16 @@ export async function updateMealItem(
         }
       }
 
-      if (item.reference_amount != null) {
+      if (effectiveFoodRow.reference_amount != null) {
         const calc = calculateItemNutrients({
           food: {
-            referenceAmount: Number(item.reference_amount),
-            referenceUnitCode: String(item.reference_unit_code),
-            caloriesKcal: item.calories_kcal != null ? Number(item.calories_kcal) : null,
-            proteinG: item.protein_g != null ? Number(item.protein_g) : null,
-            carbohydrateG: item.carbohydrate_g != null ? Number(item.carbohydrate_g) : null,
-            fatG: item.fat_g != null ? Number(item.fat_g) : null,
-            fiberG: item.fiber_g != null ? Number(item.fiber_g) : null,
+            referenceAmount: Number(effectiveFoodRow.reference_amount),
+            referenceUnitCode: String(effectiveFoodRow.reference_unit_code),
+            caloriesKcal: effectiveFoodRow.calories_kcal != null ? Number(effectiveFoodRow.calories_kcal) : null,
+            proteinG: effectiveFoodRow.protein_g != null ? Number(effectiveFoodRow.protein_g) : null,
+            carbohydrateG: effectiveFoodRow.carbohydrate_g != null ? Number(effectiveFoodRow.carbohydrate_g) : null,
+            fatG: effectiveFoodRow.fat_g != null ? Number(effectiveFoodRow.fat_g) : null,
+            fiberG: effectiveFoodRow.fiber_g != null ? Number(effectiveFoodRow.fiber_g) : null,
           },
           prescribedQuantity,
           prescribedUnitCode,
@@ -1338,15 +1465,38 @@ export async function updateMealItem(
           throw new NutritionAuthorizationError(calc.errorMessage || "Erro no cálculo de nutrientes.", "CALCULATION_ERROR", 400);
         }
 
+        factor = calc.factor;
         caloriesSnapshot = calc.caloriesKcal;
         proteinSnapshot = calc.proteinG;
         carbsSnapshot = calc.carbohydrateG;
         fatSnapshot = calc.fatG;
       }
+    } else {
+      caloriesSnapshot = null;
+      proteinSnapshot = null;
+      carbsSnapshot = null;
+      fatSnapshot = null;
     }
+
+    // Authoritatively recapture 23-nutrient snapshot envelope for this updated item
+    const micronutrientsSnapshot = await captureMicronutrientsSnapshotForFood(
+      connection,
+      effectiveFoodId,
+      effectiveFoodRow,
+      factor
+    );
 
     const updates: string[] = [];
     const params: (string | number | null)[] = [];
+
+    if (foodReplaced) {
+      updates.push("food_id = ?");
+      params.push(effectiveFoodId);
+      updates.push("food_name_snapshot = ?");
+      params.push(foodNameSnapshot);
+      updates.push("category_snapshot = ?");
+      params.push(categorySnapshot);
+    }
 
     updates.push("prescribed_quantity = ?");
     params.push(prescribedQuantity);
@@ -1368,6 +1518,9 @@ export async function updateMealItem(
 
     updates.push("fat_g_snapshot = ?");
     params.push(fatSnapshot);
+
+    updates.push("micronutrients_snapshot_json = ?");
+    params.push(JSON.stringify(micronutrientsSnapshot));
 
     if (input.notes !== undefined) {
       updates.push("notes = ?");
@@ -1555,6 +1708,8 @@ export async function addSubstitution(
     await getAndAssertDraftVersion(connection, String(item.version_public_id), ctx, true);
 
     let foodId: number | null = null;
+    let foodRow: RowDataPacket | null = null;
+    let factor: number | null = null;
     let foodNameSnapshot: string = "";
 
     const rawQty = input.prescribedQuantity != null ? Number(input.prescribedQuantity) : null;
@@ -1589,6 +1744,8 @@ export async function addSubstitution(
       }
 
       const food = foods[0];
+      foodRow = food;
+
       if (food.status !== "ACTIVE") {
         throw new NutritionAuthorizationError("Alimentos arquivados não podem ser adicionados.", "ARCHIVED_FOOD", 400);
       }
@@ -1653,6 +1810,7 @@ export async function addSubstitution(
         throw new NutritionAuthorizationError(calc.errorMessage || "Erro no cálculo nutricional da substituição.", "CALCULATION_ERROR", 400);
       }
 
+      factor = calc.factor;
       caloriesSnapshot = calc.caloriesKcal;
       proteinSnapshot = calc.proteinG;
       carbsSnapshot = calc.carbohydrateG;
@@ -1664,6 +1822,14 @@ export async function addSubstitution(
       }
       foodNameSnapshot = customName;
     }
+
+    // Capture substitution's own snapshot
+    const micronutrientsSnapshot = await captureMicronutrientsSnapshotForFood(
+      connection,
+      foodId,
+      foodRow,
+      factor
+    );
 
     const [maxRows] = await connection.query<RowDataPacket[]>(
       `SELECT COALESCE(MAX(sort_order), -1) AS max_sort
@@ -1690,8 +1856,9 @@ export async function addSubstitution(
         protein_g_snapshot,
         carbohydrate_g_snapshot,
         fat_g_snapshot,
+        micronutrients_snapshot_json,
         notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         substitutionPublicId,
         item.id,
@@ -1705,6 +1872,7 @@ export async function addSubstitution(
         proteinSnapshot,
         carbsSnapshot,
         fatSnapshot,
+        JSON.stringify(micronutrientsSnapshot),
         notes,
       ]
     );
@@ -1738,11 +1906,26 @@ export async function updateSubstitution(
         s.id,
         s.meal_item_id,
         s.food_id,
+        s.food_name_snapshot,
         s.prescribed_quantity,
         s.prescribed_unit_code,
         s.prescribed_unit_label,
+        s.micronutrients_snapshot_json,
         m.nutrition_plan_version_id,
         v.public_id AS version_public_id,
+        f.id AS f_id,
+        f.public_id AS f_public_id,
+        f.scope AS f_scope,
+        f.consultancy_id AS f_consultancy_id,
+        f.status AS f_status,
+        f.source_type AS f_source_type,
+        f.data_quality AS f_data_quality,
+        f.source_key AS f_source_key,
+        f.source_version AS f_source_version,
+        f.source_uid AS f_source_uid,
+        f.display_name_pt_br AS f_display_name_pt_br,
+        f.name AS f_name,
+        f.category AS f_category,
         f.reference_amount,
         f.reference_unit_code,
         f.calories_kcal,
@@ -1765,6 +1948,60 @@ export async function updateSubstitution(
 
     const sub = subRows[0];
     await getAndAssertDraftVersion(connection, String(sub.version_public_id), ctx, true);
+
+    let effectiveFoodId: number | null = sub.food_id != null ? Number(sub.food_id) : null;
+    let effectiveFoodRow: RowDataPacket | null = sub.food_id != null ? ({
+      id: sub.f_id,
+      public_id: sub.f_public_id,
+      scope: sub.f_scope,
+      consultancy_id: sub.f_consultancy_id,
+      status: sub.f_status,
+      source_type: sub.f_source_type,
+      data_quality: sub.f_data_quality,
+      source_key: sub.f_source_key,
+      source_version: sub.f_source_version,
+      source_uid: sub.f_source_uid,
+      display_name_pt_br: sub.f_display_name_pt_br,
+      name: sub.f_name,
+      category: sub.f_category,
+      reference_amount: sub.reference_amount,
+      reference_unit_code: sub.reference_unit_code,
+      calories_kcal: sub.calories_kcal,
+      protein_g: sub.protein_g,
+      carbohydrate_g: sub.carbohydrate_g,
+      fat_g: sub.fat_g,
+      fiber_g: sub.fiber_g,
+    } as RowDataPacket) : null;
+
+    let foodNameSnapshot = String(sub.food_name_snapshot);
+    let foodReplaced = false;
+
+    if (input.foodPublicId !== undefined) {
+      if (input.foodPublicId && input.foodPublicId.trim()) {
+        const [foods] = await connection.query<RowDataPacket[]>(
+          `SELECT * FROM nutrition_v2_foods WHERE public_id = ? AND deleted_at IS NULL`,
+          [input.foodPublicId.trim()]
+        );
+        if (foods.length === 0) {
+          throw new NutritionAuthorizationError("Alimento não encontrado.", "FOOD_NOT_FOUND", 404);
+        }
+        const newFood = foods[0];
+        if (newFood.status !== "ACTIVE") {
+          throw new NutritionAuthorizationError("Alimentos arquivados não podem ser adicionados.", "ARCHIVED_FOOD", 400);
+        }
+        if (newFood.scope === "CONSULTANCY" && Number(newFood.consultancy_id) !== ctx.consultancyId) {
+          throw new NutritionAuthorizationError("Acesso negado a este alimento da consultoria.", "FORBIDDEN_FOOD", 403);
+        }
+        effectiveFoodId = Number(newFood.id);
+        effectiveFoodRow = newFood;
+        foodNameSnapshot = String(newFood.display_name_pt_br || newFood.name);
+        foodReplaced = true;
+      } else {
+        effectiveFoodId = null;
+        effectiveFoodRow = null;
+        foodReplaced = true;
+      }
+    }
 
     const rawUpdatedQty = input.prescribedQuantity !== undefined
       ? (input.prescribedQuantity != null ? Number(input.prescribedQuantity) : null)
@@ -1796,8 +2033,9 @@ export async function updateSubstitution(
     let proteinSnapshot = sub.protein_g_snapshot != null ? Number(sub.protein_g_snapshot) : null;
     let carbsSnapshot = sub.carbohydrate_g_snapshot != null ? Number(sub.carbohydrate_g_snapshot) : null;
     let fatSnapshot = sub.fat_g_snapshot != null ? Number(sub.fat_g_snapshot) : null;
+    let factor: number | null = null;
 
-    if (sub.food_id != null) {
+    if (effectiveFoodId != null && effectiveFoodRow != null) {
       if (prescribedQuantity == null || prescribedQuantity <= 0) {
         throw new NutritionAuthorizationError("A quantidade prescrita deve ser um número positivo e finito.", "INVALID_QUANTITY", 400);
       }
@@ -1808,7 +2046,7 @@ export async function updateSubstitution(
           const [portions] = await connection.query<RowDataPacket[]>(
             `SELECT * FROM nutrition_v2_food_portions
              WHERE public_id = ? AND food_id = ? AND deleted_at IS NULL`,
-            [input.portionPublicId.trim(), sub.food_id]
+            [input.portionPublicId.trim(), effectiveFoodId]
           );
           if (portions.length === 0) {
             throw new NutritionAuthorizationError("Porção inválida para este alimento.", "INVALID_PORTION", 400);
@@ -1829,16 +2067,16 @@ export async function updateSubstitution(
         }
       }
 
-      if (sub.reference_amount != null) {
+      if (effectiveFoodRow.reference_amount != null) {
         const calc = calculateItemNutrients({
           food: {
-            referenceAmount: Number(sub.reference_amount),
-            referenceUnitCode: String(sub.reference_unit_code),
-            caloriesKcal: sub.calories_kcal != null ? Number(sub.calories_kcal) : null,
-            proteinG: sub.protein_g != null ? Number(sub.protein_g) : null,
-            carbohydrateG: sub.carbohydrate_g != null ? Number(sub.carbohydrate_g) : null,
-            fatG: sub.fat_g != null ? Number(sub.fat_g) : null,
-            fiberG: sub.fiber_g != null ? Number(sub.fiber_g) : null,
+            referenceAmount: Number(effectiveFoodRow.reference_amount),
+            referenceUnitCode: String(effectiveFoodRow.reference_unit_code),
+            caloriesKcal: effectiveFoodRow.calories_kcal != null ? Number(effectiveFoodRow.calories_kcal) : null,
+            proteinG: effectiveFoodRow.protein_g != null ? Number(effectiveFoodRow.protein_g) : null,
+            carbohydrateG: effectiveFoodRow.carbohydrate_g != null ? Number(effectiveFoodRow.carbohydrate_g) : null,
+            fatG: effectiveFoodRow.fat_g != null ? Number(effectiveFoodRow.fat_g) : null,
+            fiberG: effectiveFoodRow.fiber_g != null ? Number(effectiveFoodRow.fiber_g) : null,
           },
           prescribedQuantity,
           prescribedUnitCode,
@@ -1852,15 +2090,36 @@ export async function updateSubstitution(
           throw new NutritionAuthorizationError(calc.errorMessage || "Erro no cálculo nutricional da substituição.", "CALCULATION_ERROR", 400);
         }
 
+        factor = calc.factor;
         caloriesSnapshot = calc.caloriesKcal;
         proteinSnapshot = calc.proteinG;
         carbsSnapshot = calc.carbohydrateG;
         fatSnapshot = calc.fatG;
       }
+    } else {
+      caloriesSnapshot = null;
+      proteinSnapshot = null;
+      carbsSnapshot = null;
+      fatSnapshot = null;
     }
+
+    // Authoritatively recapture 23-nutrient snapshot envelope for this updated substitution
+    const micronutrientsSnapshot = await captureMicronutrientsSnapshotForFood(
+      connection,
+      effectiveFoodId,
+      effectiveFoodRow,
+      factor
+    );
 
     const updates: string[] = [];
     const params: (string | number | null)[] = [];
+
+    if (foodReplaced) {
+      updates.push("food_id = ?");
+      params.push(effectiveFoodId);
+      updates.push("food_name_snapshot = ?");
+      params.push(foodNameSnapshot);
+    }
 
     updates.push("prescribed_quantity = ?");
     params.push(prescribedQuantity);
@@ -1882,6 +2141,9 @@ export async function updateSubstitution(
 
     updates.push("fat_g_snapshot = ?");
     params.push(fatSnapshot);
+
+    updates.push("micronutrients_snapshot_json = ?");
+    params.push(JSON.stringify(micronutrientsSnapshot));
 
     if (input.notes !== undefined) {
       updates.push("notes = ?");
@@ -2430,6 +2692,7 @@ export async function createNextDraftVersion(
           food_name_snapshot, category_snapshot,
           prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
           calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
+          micronutrients_snapshot_json,
           notes
          FROM nutrition_v2_meal_items
          WHERE meal_id = ? AND deleted_at IS NULL
@@ -2443,6 +2706,11 @@ export async function createNextDraftVersion(
         if (testHook === "FAIL_MID_ITEM" && iIdx === 1) {
           throw new Error("TEST_HOOK_FAIL_MID_ITEM");
         }
+
+        const rawItemMicro = si.micronutrients_snapshot_json;
+        const serializedItemMicro = rawItemMicro
+          ? (typeof rawItemMicro === "object" ? JSON.stringify(rawItemMicro) : String(rawItemMicro))
+          : null;
 
         const newItemPublicId = crypto.randomUUID();
         const [iInsertRes] = await connection.query<ResultSetHeader>(
@@ -2460,8 +2728,9 @@ export async function createNextDraftVersion(
             protein_g_snapshot,
             carbohydrate_g_snapshot,
             fat_g_snapshot,
+            micronutrients_snapshot_json,
             notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             newItemPublicId,
             newMealId,
@@ -2476,6 +2745,7 @@ export async function createNextDraftVersion(
             si.protein_g_snapshot,
             si.carbohydrate_g_snapshot,
             si.fat_g_snapshot,
+            serializedItemMicro,
             si.notes,
           ]
         );
@@ -2487,6 +2757,7 @@ export async function createNextDraftVersion(
             id, public_id, food_id, sort_order,
             food_name_snapshot, prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
             calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
+            micronutrients_snapshot_json,
             notes
            FROM nutrition_v2_item_substitutions
            WHERE meal_item_id = ? AND deleted_at IS NULL
@@ -2500,6 +2771,11 @@ export async function createNextDraftVersion(
           if (testHook === "FAIL_MID_SUB" && sIdx === 1) {
             throw new Error("TEST_HOOK_FAIL_MID_SUB");
           }
+
+          const rawSubMicro = ss.micronutrients_snapshot_json;
+          const serializedSubMicro = rawSubMicro
+            ? (typeof rawSubMicro === "object" ? JSON.stringify(rawSubMicro) : String(rawSubMicro))
+            : null;
 
           const newSubPublicId = crypto.randomUUID();
           await connection.query(
@@ -2516,8 +2792,9 @@ export async function createNextDraftVersion(
               protein_g_snapshot,
               carbohydrate_g_snapshot,
               fat_g_snapshot,
+              micronutrients_snapshot_json,
               notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               newSubPublicId,
               newItemId,
@@ -2531,6 +2808,7 @@ export async function createNextDraftVersion(
               ss.protein_g_snapshot,
               ss.carbohydrate_g_snapshot,
               ss.fat_g_snapshot,
+              serializedSubMicro,
               ss.notes,
             ]
           );

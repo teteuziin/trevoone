@@ -31,6 +31,7 @@ import { NutritionPublishDialog } from "./nutrition-publish-dialog";
 import { NutritionVersionHistory } from "./nutrition-version-history";
 import { NutritionAssignModal } from "./nutrition-assign-modal";
 import { NutritionAssignmentsList } from "./nutrition-assignments-list";
+import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import type { AssignmentListItemDto } from "@/lib/nutrition-v2/assignment-repository";
 import type { FoodSelectionResult } from "./nutrition-food-picker";
 
@@ -622,6 +623,15 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
               </div>
             )}
           </div>
+
+          {/* Plan Micronutrients Analysis Panel */}
+          {tree.dailyMicronutrientTotals && (
+            <NutritionMicronutrientsPanel
+              totals={tree.dailyMicronutrientTotals}
+              title="Análise de micronutrientes do plano"
+              defaultCollapsed={true}
+            />
+          )}
         </div>
 
         {/* Meals Section */}

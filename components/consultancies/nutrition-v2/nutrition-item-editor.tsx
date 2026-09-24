@@ -6,6 +6,8 @@ import { NutritionSubstitutionEditor } from "./nutrition-substitution-editor";
 import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-picker";
 import { NutritionEquivalentsModal } from "./nutrition-equivalents-modal";
 import type { FoodListItemDto } from "@/lib/nutrition-v2/food-repository";
+import { calculateMealMicronutrientTotals } from "@/lib/nutrition-v2/nutrient-calculator";
+import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 
 interface NutritionItemEditorProps {
   slug: string;
@@ -46,6 +48,7 @@ export function NutritionItemEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isEquivalentsOpen, setIsEquivalentsOpen] = useState(false);
+  const [showMicro, setShowMicro] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -106,6 +109,15 @@ export function NutritionItemEditor({
             <span>C: {item.carbohydrateGSnapshot != null ? `${item.carbohydrateGSnapshot}g` : "-"}</span>
             <span>G: {item.fatGSnapshot != null ? `${item.fatGSnapshot}g` : "-"}</span>
             {item.notes && <span className="text-[var(--text-muted)] italic">· {item.notes}</span>}
+            {item.micronutrientsSnapshotJson && (
+              <button
+                type="button"
+                onClick={() => setShowMicro(!showMicro)}
+                className="text-xs text-[var(--brand-primary)] hover:underline font-semibold ml-auto cursor-pointer"
+              >
+                {showMicro ? "Ocultar micronutrientes" : "Micronutrientes"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -264,6 +276,17 @@ export function NutritionItemEditor({
               </svg>
               <span>Recalcular equivalentes</span>
             </button>
+          </div>
+        )}
+
+        {/* Item Micronutrients Breakdown */}
+        {showMicro && item.micronutrientsSnapshotJson && (
+          <div className="pt-2">
+            <NutritionMicronutrientsPanel
+              totals={calculateMealMicronutrientTotals([item])}
+              title={`Micronutrientes — ${item.foodNameSnapshot}`}
+              defaultCollapsed={false}
+            />
           </div>
         )}
       </div>

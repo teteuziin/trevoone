@@ -147,3 +147,106 @@ export function buildMicronutrientsSnapshotEnvelope(
     nutrients,
   };
 }
+
+/**
+ * Authoritatively parses and validates a stored micronutrients snapshot envelope v1.
+ * Strict fail-safe semantics:
+ * - Returns null if input is null, undefined, malformed JSON, or invalid object.
+ * - Returns null if schemaVersion !== 1 or catalogVersion !== "1.0".
+ * - Returns null if nutrients array is not valid or doesn't have 23 valid canonical nutrients.
+ * - Validates status and value coherence (KNOWN: >0; KNOWN_ZERO: 0; TRACE: null; UNKNOWN: null).
+ */
+export function parseMicronutrientsSnapshot(val: unknown): MicronutrientsSnapshotEnvelope | null {
+  if (!val) return null;
+
+  let obj: unknown = val;
+  if (typeof val === "string") {
+    try {
+      obj = JSON.parse(val);
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof obj !== "object" || obj === null || Array.isArray(obj)) {
+    return null;
+  }
+
+  const raw = obj as Record<string, unknown>;
+
+  if (raw.schemaVersion !== 1) {
+    return null;
+  }
+
+  if (raw.catalogVersion !== "1.0") {
+    return null;
+  }
+
+  if (!Array.isArray(raw.nutrients) || raw.nutrients.length !== CANONICAL_NUTRIENTS.length) {
+    return null;
+  }
+
+  const nutrients: MicronutrientSnapshotItem[] = [];
+  const seenCodes = new Set<string>();
+
+  for (const item of raw.nutrients) {
+    if (typeof item !== "object" || item === null) return null;
+    const n = item as Record<string, unknown>;
+    const code = typeof n.code === "string" ? n.code : "";
+    const defn = CANONICAL_NUTRIENTS_BY_CODE.get(code);
+    if (!defn) return null;
+
+    if (seenCodes.has(code)) return null;
+    seenCodes.add(code);
+
+    if (n.unit !== defn.unit) return null;
+
+    const status = n.status;
+    if (status !== "KNOWN" && status !== "KNOWN_ZERO" && status !== "TRACE" && status !== "UNKNOWN") {
+      return null;
+    }
+
+    let valNum: number | null = null;
+    if (status === "KNOWN") {
+      if (typeof n.value !== "number" || !Number.isFinite(n.value) || n.value <= 0) {
+        return null;
+      }
+      valNum = n.value;
+    } else if (status === "KNOWN_ZERO") {
+      if (n.value !== 0) {
+        return null;
+      }
+      valNum = 0;
+    } else {
+      // TRACE or UNKNOWN
+      if (n.value !== null && n.value !== undefined) {
+        return null;
+      }
+      valNum = null;
+    }
+
+    nutrients.push({
+      code,
+      value: valNum,
+      unit: defn.unit,
+      status,
+    });
+  }
+
+  // Ensure all 23 canonical nutrients are present
+  if (nutrients.length !== CANONICAL_NUTRIENTS.length) {
+    return null;
+  }
+
+  return {
+    schemaVersion: 1,
+    catalogVersion: "1.0",
+    sourceUid: typeof raw.sourceUid === "string" ? raw.sourceUid : null,
+    sourceType: typeof raw.sourceType === "string" ? raw.sourceType : "MANUAL",
+    sourceKey: typeof raw.sourceKey === "string" ? raw.sourceKey : null,
+    sourceVersion: typeof raw.sourceVersion === "string" ? raw.sourceVersion : null,
+    dataQuality: typeof raw.dataQuality === "string" ? raw.dataQuality : null,
+    capturedAt: typeof raw.capturedAt === "string" ? raw.capturedAt : new Date().toISOString(),
+    nutrients,
+  };
+}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { MealWithItemsDto } from "@/lib/nutrition-v2/plan-repository";
 import { NutritionItemEditor } from "./nutrition-item-editor";
 import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-picker";
+import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 
 interface NutritionMealEditorProps {
   slug: string;
@@ -324,6 +325,17 @@ export function NutritionMealEditor({
             </svg>
             <span>Adicionar Alimento a esta Refeição</span>
           </button>
+        </div>
+      )}
+
+      {/* Meal Micronutrients Breakdown */}
+      {meal.micronutrientTotals && meal.items.length > 0 && (
+        <div className="pt-1">
+          <NutritionMicronutrientsPanel
+            totals={meal.micronutrientTotals}
+            title={`Micronutrientes — ${meal.title}`}
+            defaultCollapsed={true}
+          />
         </div>
       )}
 

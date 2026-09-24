@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { ItemSubstitutionDto } from "@/lib/nutrition-v2/plan-repository";
+import { calculateMealMicronutrientTotals } from "@/lib/nutrition-v2/nutrient-calculator";
+import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 
 interface NutritionSubstitutionEditorProps {
   substitution: ItemSubstitutionDto;
@@ -28,6 +30,7 @@ export function NutritionSubstitutionEditor({
   const [quantity, setQuantity] = useState(String(substitution.prescribedQuantity || ""));
   const [notes, setNotes] = useState(substitution.notes || "");
   const [isSaving, setIsSaving] = useState(false);
+  const [showMicro, setShowMicro] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -173,6 +176,26 @@ export function NutritionSubstitutionEditor({
           {substitution.carbohydrateGSnapshot != null && <span>C: {substitution.carbohydrateGSnapshot}g</span>}
           {substitution.fatGSnapshot != null && <span>G: {substitution.fatGSnapshot}g</span>}
           {substitution.notes && <span className="italic">· {substitution.notes}</span>}
+          {substitution.micronutrientsSnapshotJson && (
+            <button
+              type="button"
+              onClick={() => setShowMicro(!showMicro)}
+              className="text-[10px] text-[var(--brand-primary)] hover:underline font-semibold ml-auto cursor-pointer"
+            >
+              {showMicro ? "Ocultar micronutrientes" : "Micronutrientes"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Substitution Micronutrients Breakdown */}
+      {showMicro && substitution.micronutrientsSnapshotJson && (
+        <div className="pt-2">
+          <NutritionMicronutrientsPanel
+            totals={calculateMealMicronutrientTotals([substitution])}
+            title={`Micronutrientes — ${substitution.foodNameSnapshot}`}
+            defaultCollapsed={false}
+          />
         </div>
       )}
     </div>

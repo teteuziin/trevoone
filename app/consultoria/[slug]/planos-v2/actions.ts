@@ -1,5 +1,17 @@
 "use server";
 
+import {
+  createTemplateFromPlan,
+  listTemplates,
+  renameTemplate,
+  archiveTemplate,
+  unarchiveTemplate,
+  createPlanFromTemplate,
+} from "@/lib/nutrition-v2/template-repository";
+import type {
+  NutritionV2PlanTemplateListItemDto,
+} from "@/lib/nutrition-v2/types";
+
 import { revalidatePath } from "next/cache";
 import { resolveNutritionAccessContext, assertCanAuthorNutrition } from "@/lib/nutrition-v2/access";
 import {
@@ -931,6 +943,167 @@ export async function listPlanAssignmentsAction(
     return { success: true, data };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao carregar prescrições.";
+    return { success: false, error: message };
+  }
+}
+
+// ============================================================================
+// TEMPLATE ACTIONS (RELEASE G)
+// ============================================================================
+
+export async function createTemplateFromPlanAction(
+  slug: string,
+  formData: FormData
+): Promise<ActionResult<{ templatePublicId: string }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const planPublicId = String(formData.get("planPublicId") || "").trim();
+    const versionPublicId = String(formData.get("versionPublicId") || "").trim() || undefined;
+    const name = String(formData.get("name") || "").trim();
+    const description = String(formData.get("description") || "").trim() || null;
+
+    if (!planPublicId) {
+      return { success: false, error: "Identificador do plano é obrigatório.", code: "VALIDATION_ERROR" };
+    }
+    if (!name) {
+      return { success: false, error: "Nome do modelo é obrigatório.", code: "VALIDATION_ERROR" };
+    }
+
+    const res = await createTemplateFromPlan(ctx, {
+      planPublicId,
+      versionPublicId,
+      name,
+      description,
+    });
+
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao salvar modelo.";
+    return { success: false, error: message };
+  }
+}
+
+export async function listTemplatesAction(
+  slug: string,
+  includeArchived: boolean = false
+): Promise<ActionResult<NutritionV2PlanTemplateListItemDto[]>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const data = await listTemplates(ctx, { includeArchived });
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao carregar modelos.";
+    return { success: false, error: message };
+  }
+}
+
+export async function renameTemplateAction(
+  slug: string,
+  formData: FormData
+): Promise<ActionResult<{ success: boolean }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const templatePublicId = String(formData.get("templatePublicId") || "").trim();
+    const name = String(formData.get("name") || "").trim();
+    const description = String(formData.get("description") || "").trim() || null;
+
+    if (!templatePublicId || !name) {
+      return { success: false, error: "Dados do modelo incompletos.", code: "VALIDATION_ERROR" };
+    }
+
+    const res = await renameTemplate(ctx, {
+      templatePublicId,
+      name,
+      description,
+    });
+
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao renomear modelo.";
+    return { success: false, error: message };
+  }
+}
+
+export async function archiveTemplateAction(
+  slug: string,
+  templatePublicId: string
+): Promise<ActionResult<{ success: boolean }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    if (!templatePublicId) {
+      return { success: false, error: "Identificador do modelo é obrigatório.", code: "VALIDATION_ERROR" };
+    }
+
+    const res = await archiveTemplate(ctx, templatePublicId);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao arquivar modelo.";
+    return { success: false, error: message };
+  }
+}
+
+export async function unarchiveTemplateAction(
+  slug: string,
+  templatePublicId: string
+): Promise<ActionResult<{ success: boolean }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    if (!templatePublicId) {
+      return { success: false, error: "Identificador do modelo é obrigatório.", code: "VALIDATION_ERROR" };
+    }
+
+    const res = await unarchiveTemplate(ctx, templatePublicId);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao desarquivar modelo.";
+    return { success: false, error: message };
+  }
+}
+
+export async function createPlanFromTemplateAction(
+  slug: string,
+  formData: FormData
+): Promise<ActionResult<{ planPublicId: string; versionPublicId: string }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const templatePublicId = String(formData.get("templatePublicId") || "").trim();
+    const title = String(formData.get("title") || "").trim() || undefined;
+
+    if (!templatePublicId) {
+      return { success: false, error: "Identificador do modelo é obrigatório.", code: "VALIDATION_ERROR" };
+    }
+
+    const res = await createPlanFromTemplate(ctx, {
+      templatePublicId,
+      title,
+    });
+
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao criar plano a partir do modelo.";
     return { success: false, error: message };
   }
 }

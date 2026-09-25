@@ -327,3 +327,73 @@ export interface NutritionV2MacroSummary {
   carbohydrateG: number;
   fatG: number;
 }
+
+// ============================================================================
+// TEMPLATES (RELEASE G - REUSABLE BLUEPRINTS)
+// ============================================================================
+
+export interface NutritionV2TemplateItemSubstitutionDto {
+  id?: string;
+  publicId: string;
+  foodId: number | null;
+  foodPublicId?: string | null;
+  sortOrder: number;
+  foodNameSnapshot: string;
+  prescribedQuantity: number | null;
+  prescribedUnitCode: string | null;
+  prescribedUnitLabel: string | null;
+  notes: string | null;
+}
+
+export interface NutritionV2TemplateMealItemDto {
+  id?: string;
+  publicId: string;
+  foodId: number | null;
+  foodPublicId?: string | null;
+  sortOrder: number;
+  foodNameSnapshot: string;
+  categorySnapshot?: string | null;
+  prescribedQuantity: number | null;
+  prescribedUnitCode: string | null;
+  prescribedUnitLabel: string | null;
+  notes: string | null;
+  substitutions: NutritionV2TemplateItemSubstitutionDto[];
+}
+
+export interface NutritionV2TemplateMealDto {
+  id?: string;
+  publicId: string;
+  title: string;
+  scheduledTime: string | null;
+  sortOrder: number;
+  notes: string | null;
+  items: NutritionV2TemplateMealItemDto[];
+}
+
+export interface NutritionV2PlanTemplateDetailDto {
+  id: string;
+  publicId: string;
+  consultancyId: number;
+  createdByMembershipId: number;
+  name: string;
+  description: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  meals: NutritionV2TemplateMealDto[];
+  mealCount: number;
+  itemCount: number;
+}
+
+export interface NutritionV2PlanTemplateListItemDto {
+  id: string;
+  publicId: string;
+  consultancyId: number;
+  name: string;
+  description: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  mealCount: number;
+  itemCount: number;
+}

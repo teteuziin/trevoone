@@ -334,3 +334,29 @@ export const nutritionV2AssignmentSchema = z
       });
     }
   });
+
+// ============================================================================
+// TEMPLATES SCHEMAS (RELEASE G)
+// ============================================================================
+
+export const nutritionV2CreateTemplateFromPlanSchema = z.object({
+  planPublicId: z.string().trim().min(1, 'Identificador do plano é obrigatório.'),
+  versionPublicId: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1, 'Nome do modelo é obrigatório.').max(255, 'Nome do modelo não pode exceder 255 caracteres.'),
+  description: z.string().trim().max(2000).nullable().optional(),
+});
+
+export const nutritionV2RenameTemplateSchema = z.object({
+  templatePublicId: z.string().trim().min(1, 'Identificador do modelo é obrigatório.'),
+  name: z.string().trim().min(1, 'Nome do modelo é obrigatório.').max(255, 'Nome do modelo não pode exceder 255 caracteres.'),
+  description: z.string().trim().max(2000).nullable().optional(),
+});
+
+export const nutritionV2ArchiveTemplateSchema = z.object({
+  templatePublicId: z.string().trim().min(1, 'Identificador do modelo é obrigatório.'),
+});
+
+export const nutritionV2CreatePlanFromTemplateSchema = z.object({
+  templatePublicId: z.string().trim().min(1, 'Identificador do modelo é obrigatório.'),
+  title: z.string().trim().min(1, 'Título do novo plano é obrigatório.').max(255).optional(),
+});

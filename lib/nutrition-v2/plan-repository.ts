@@ -1724,8 +1724,12 @@ export async function addSubstitution(
 
     if (prescribedQuantity != null) {
       const qtyInG = prescribedUnitCode === "KG" ? prescribedQuantity * 1000 : prescribedUnitCode === "G" ? prescribedQuantity : null;
+      const qtyInMl = prescribedUnitCode === "L" ? prescribedQuantity * 1000 : prescribedUnitCode === "ML" ? prescribedQuantity : null;
       if (qtyInG != null && qtyInG > 2000) {
         throw new NutritionAuthorizationError("Quantidade superior a 2.000 g não é permitida para substituição.", "IMPRACTICAL_QUANTITY", 400);
+      }
+      if (qtyInMl != null && qtyInMl > 2000) {
+        throw new NutritionAuthorizationError("Quantidade superior a 2.000 ml não é permitida para substituição.", "IMPRACTICAL_QUANTITY", 400);
       }
     }
     let caloriesSnapshot: number | null = null;
@@ -2020,8 +2024,12 @@ export async function updateSubstitution(
 
     if (prescribedQuantity != null) {
       const qtyInG = prescribedUnitCode === "KG" ? prescribedQuantity * 1000 : prescribedUnitCode === "G" ? prescribedQuantity : null;
+      const qtyInMl = prescribedUnitCode === "L" ? prescribedQuantity * 1000 : prescribedUnitCode === "ML" ? prescribedQuantity : null;
       if (qtyInG != null && qtyInG > 2000) {
         throw new NutritionAuthorizationError("Quantidade superior a 2.000 g não é permitida para substituição.", "IMPRACTICAL_QUANTITY", 400);
+      }
+      if (qtyInMl != null && qtyInMl > 2000) {
+        throw new NutritionAuthorizationError("Quantidade superior a 2.000 ml não é permitida para substituição.", "IMPRACTICAL_QUANTITY", 400);
       }
     }
 

@@ -166,6 +166,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
 
   // Add meal state
   const [isAddingMeal, setIsAddingMeal] = useState(false);
+  const [showMobileAnalysis, setShowMobileAnalysis] = useState(false);
   const [newMealTitle, setNewMealTitle] = useState("");
   const [newMealTime, setNewMealTime] = useState("");
   const [newMealNotes, setNewMealNotes] = useState("");
@@ -337,7 +338,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
 
   return (
     <div className="w-full min-h-[calc(100vh-4rem)] bg-transparent px-4 py-6 sm:py-8">
-      <div className="space-y-6 max-w-5xl mx-auto pb-28 sm:pb-20">
+      <div className="space-y-6 max-w-7xl mx-auto pb-28 sm:pb-20">
         {/* Top Breadcrumb & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <Link
@@ -433,7 +434,59 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
           </div>
         </div>
 
-        {/* Plan Header Card */}
+        {/* Mobile Compact Totals Bar / Accordion */}
+        <div className="lg:hidden p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Total Diário</span>
+              <div className="text-xl font-extrabold text-[var(--brand)] font-heading leading-tight">
+                {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}{" "}
+                <span className="text-xs font-semibold text-[var(--text-secondary)]">kcal</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)]">
+              <span>P: {tree.dailyTotals.proteinG}g</span>
+              <span>·</span>
+              <span>C: {tree.dailyTotals.carbohydrateG}g</span>
+              <span>·</span>
+              <span>G: {tree.dailyTotals.fatG}g</span>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowMobileAnalysis(!showMobileAnalysis)}
+              className="text-xs min-h-[34px] px-3 font-semibold"
+            >
+              {showMobileAnalysis ? "Ocultar" : "Análise"}
+            </Button>
+          </div>
+          {showMobileAnalysis && (
+            <div className="pt-3 border-t border-[var(--border-subtle)] space-y-3">
+              {tree.dailyMicronutrientTotals?.nutrients?.FIBER && (
+                <div className="flex items-center justify-between text-xs px-2 py-1.5 rounded-lg bg-[var(--surface-subtle)]">
+                  <span className="text-[var(--text-secondary)] font-medium">Fibras</span>
+                  <span className="font-bold text-[var(--text-primary)]">
+                    {tree.dailyMicronutrientTotals.nutrients.FIBER.value} g
+                  </span>
+                </div>
+              )}
+              {tree.dailyMicronutrientTotals && (
+                <NutritionMicronutrientsPanel
+                  totals={tree.dailyMicronutrientTotals}
+                  title="Micronutrientes do Plano"
+                  defaultCollapsed={false}
+                />
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 12-Column Responsive Workspace Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* LEFT / MAIN WORKSPACE: Plan Header & Meals */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Plan Header Card */}
         <div className="p-5 sm:p-6 md:p-7 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-5 depth-surface">
           {!isEditingMetadata ? (
             <div className="flex items-start justify-between gap-4">
@@ -577,75 +630,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
             </div>
           )}
 
-          {/* Primary Daily Totals Bar */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
-                Total do plano
-              </span>
-              {!tree.dailyTotals.empty && tree.dailyTotals.totalItemsCount > 0 && (
-                <span className="text-xs text-[var(--text-tertiary)] font-medium">
-                  {tree.dailyTotals.totalItemsCount} alimento{tree.dailyTotals.totalItemsCount === 1 ? "" : "s"} prescrito{tree.dailyTotals.totalItemsCount === 1 ? "" : "s"}
-                </span>
-              )}
-            </div>
 
-            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-              <div>
-                <span className="text-2xl sm:text-3xl font-extrabold text-[var(--brand)]">
-                  {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}
-                </span>
-                <span className="text-xs font-semibold text-[var(--text-secondary)] ml-1">kcal</span>
-                {!tree.dailyTotals.empty && tree.dailyTotals.details?.calories?.hasUnknown && (
-                  <span className="text-amber-500 font-bold ml-0.5" title={`${tree.dailyTotals.details.calories.knownItemCount} de ${tree.dailyTotals.details.calories.totalItemCount} alimentos com dado conhecido`}>*</span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-1.5 text-xs sm:text-sm">
-                <span className="font-bold text-[var(--text-primary)]">Proteína:</span>
-                <span className="font-semibold text-[var(--text-primary)]">{tree.dailyTotals.proteinG} g</span>
-                {!tree.dailyTotals.empty && tree.dailyTotals.details?.protein?.hasUnknown && (
-                  <span className="text-amber-500 font-bold" title={`${tree.dailyTotals.details.protein.knownItemCount} de ${tree.dailyTotals.details.protein.totalItemCount} alimentos com dado conhecido`}>*</span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-1.5 text-xs sm:text-sm">
-                <span className="font-bold text-[var(--text-primary)]">Carboidratos:</span>
-                <span className="font-semibold text-[var(--text-primary)]">{tree.dailyTotals.carbohydrateG} g</span>
-                {!tree.dailyTotals.empty && tree.dailyTotals.details?.carbohydrate?.hasUnknown && (
-                  <span className="text-amber-500 font-bold" title={`${tree.dailyTotals.details.carbohydrate.knownItemCount} de ${tree.dailyTotals.details.carbohydrate.totalItemCount} alimentos com dado conhecido`}>*</span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-1.5 text-xs sm:text-sm">
-                <span className="font-bold text-[var(--text-primary)]">Gorduras:</span>
-                <span className="font-semibold text-[var(--text-primary)]">{tree.dailyTotals.fatG} g</span>
-                {!tree.dailyTotals.empty && tree.dailyTotals.details?.fat?.hasUnknown && (
-                  <span className="text-amber-500 font-bold" title={`${tree.dailyTotals.details.fat.knownItemCount} de ${tree.dailyTotals.details.fat.totalItemCount} alimentos com dado conhecido`}>*</span>
-                )}
-              </div>
-            </div>
-
-            {!tree.dailyTotals.empty && tree.dailyTotals.hasIncompleteData && (
-              <div className="flex items-center gap-2 p-2.5 rounded-xl text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span>
-                  * Subtotal conhecido: alguns alimentos prescritos possuem informações ausentes na fonte de dados (exibindo soma dos itens com dados conhecidos).
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Plan Micronutrients Analysis Panel */}
-          {tree.dailyMicronutrientTotals && (
-            <NutritionMicronutrientsPanel
-              totals={tree.dailyMicronutrientTotals}
-              title="Análise de micronutrientes do plano"
-              defaultCollapsed={true}
-            />
-          )}
         </div>
 
         {/* Meals Section */}
@@ -888,6 +873,80 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
             onRefresh={refreshAssignments}
           />
         </div>
+      </div>
+
+      {/* RIGHT / STICKY PANEL: Nutritional Analysis */}
+      <div className="hidden lg:block lg:col-span-4 lg:sticky lg:top-6 space-y-4">
+        {/* Daily Totals Cockpit */}
+        <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                Totais Nutricionais
+              </span>
+              <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
+                Análise Diária do Cardápio
+              </h3>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-extrabold text-[var(--brand)] font-heading leading-tight">
+                {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}
+                <span className="text-xs font-semibold text-[var(--text-secondary)] ml-1">kcal</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Macro Breakdown Cards */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+              <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400 block">Proteínas</span>
+              <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+                {tree.dailyTotals.proteinG}g
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+              <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">Carboidratos</span>
+              <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+                {tree.dailyTotals.carbohydrateG}g
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+              <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block">Gorduras</span>
+              <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
+                {tree.dailyTotals.fatG}g
+              </span>
+            </div>
+          </div>
+
+          {/* Fiber row */}
+          {tree.dailyMicronutrientTotals?.nutrients?.FIBER && (
+            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-subtle)]/70 text-xs border border-[var(--border-subtle)]">
+              <span className="text-[var(--text-secondary)] font-medium">Fibras Alimentares</span>
+              <span className="font-bold text-[var(--text-primary)]">
+                {tree.dailyMicronutrientTotals.nutrients.FIBER.value} g
+              </span>
+            </div>
+          )}
+
+          {/* Incomplete data notice */}
+          {!tree.dailyTotals.empty && tree.dailyTotals.hasIncompleteData && (
+            <div className="flex items-start gap-2 p-2.5 rounded-xl text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+              <span className="font-bold shrink-0">*</span>
+              <span>Subtotal conhecido: alguns alimentos possuem informações nutricionais ausentes na base.</span>
+            </div>
+          )}
+        </div>
+
+        {/* Plan Micronutrients Panel */}
+        {tree.dailyMicronutrientTotals && (
+          <NutritionMicronutrientsPanel
+            totals={tree.dailyMicronutrientTotals}
+            title="Micronutrientes do Plano"
+            defaultCollapsed={true}
+          />
+        )}
+      </div>
+    </div>
 
         {/* Mobile Sticky Footer Action Bar */}
         <div className="fixed sm:hidden bottom-0 left-0 right-0 p-3.5 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-strong)] z-30 shadow-lg flex items-center gap-2.5">

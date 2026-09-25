@@ -235,34 +235,80 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
-        <div>
+      {/* Header Cockpit */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs">
+        <div className="space-y-2 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <Link
               href={`/consultoria/${slug}/planos-v2/prontuario`}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
             >
-              ← Voltar aos Pacientes
+              <span>← Voltar aos Pacientes</span>
             </Link>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            {detail.student.fullName}
-            <Badge variant="neutral" className="text-xs font-normal">
-              Paciente Nutrição V2
-            </Badge>
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {detail.student.email} • Membro desde {new Date(detail.student.joinedAt).toLocaleDateString("pt-BR")}
-          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="w-11 h-11 rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center font-bold text-base shrink-0 border border-[var(--brand-soft-border)]">
+              {detail.student.fullName ? detail.student.fullName.charAt(0).toUpperCase() : "P"}
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--text-primary)] flex items-center gap-2.5 flex-wrap">
+                {detail.student.fullName}
+                <Badge variant="brand" size="sm">
+                  Paciente Ativo
+                </Badge>
+                {pregnancyForm.pregnancyStatus === "PREGNANT" && (
+                  <Badge variant="brand" size="sm">Gestante</Badge>
+                )}
+                {pregnancyForm.pregnancyStatus === "POSTPARTUM" && (
+                  <Badge variant="warning" size="sm">Pós-parto</Badge>
+                )}
+              </h1>
+              <p className="text-xs text-[var(--text-secondary)] font-medium">
+                {detail.student.email} • Vinculado em {new Date(detail.student.joinedAt).toLocaleDateString("pt-BR")}
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Metrics Bar in Header */}
+          <div className="flex items-center gap-4 pt-1 flex-wrap text-xs text-[var(--text-secondary)] font-medium">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">Último Peso:</span>
+              <span className="font-bold text-[var(--text-primary)]">
+                {latestAnthro?.weightKg ? `${latestAnthro.weightKg} kg` : "Não registrado"}
+              </span>
+              {latestAnthro?.measurementDate && (
+                <span className="text-[10px] text-[var(--text-tertiary)]">
+                  ({new Date(latestAnthro.measurementDate).toLocaleDateString("pt-BR")})
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">Anamnese:</span>
+              <span className="font-bold text-[var(--text-primary)]">
+                {detail.onboardingReference ? "Vinculada" : "Pendente"}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
+          <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
+            <Button
+              variant="secondary"
+              size="md"
+              className="font-bold min-h-[42px] text-xs"
+            >
+              Prescrever Plano
+            </Button>
+          </Link>
           {activeTab !== "antropometria" && activeTab !== "gestacao" && (
             <Button
               onClick={handleSaveClinicalRecord}
               disabled={isPending}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              variant="primary"
+              size="md"
+              className="font-bold min-h-[42px] text-xs shadow-sm"
             >
               {isPending ? "Salvando..." : "Salvar Prontuário"}
             </Button>
@@ -271,7 +317,9 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
             <Button
               onClick={handleSavePregnancy}
               disabled={isPending}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-medium"
+              variant="primary"
+              size="md"
+              className="font-bold min-h-[42px] text-xs shadow-sm"
             >
               {isPending ? "Salvando..." : "Salvar Dados Gestacionais"}
             </Button>
@@ -279,7 +327,9 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
           {activeTab === "antropometria" && (
             <Button
               onClick={() => setShowAddAnthro(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              variant="primary"
+              size="md"
+              className="font-bold min-h-[42px] text-xs shadow-sm"
             >
               + Nova Medição
             </Button>
@@ -290,10 +340,10 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
       {/* Notifications */}
       {message && (
         <div
-          className={`p-3 rounded-lg text-sm border ${
+          className={`p-3 rounded-xl text-sm border ${
             message.type === "success"
-              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-              : "bg-destructive/10 border-destructive/30 text-destructive"
+              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-medium"
+              : "bg-destructive/10 border-destructive/30 text-destructive font-medium"
           }`}
         >
           {message.text}
@@ -301,7 +351,7 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex overflow-x-auto gap-2 border-b border-border/40 pb-2">
+      <div className="flex overflow-x-auto gap-1.5 border-b border-[var(--border-default)] pb-2 no-scrollbar">
         {(
           [
             { id: "resumo", label: "Resumo Geral" },
@@ -325,10 +375,10 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors ${
+            className={`px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeTab === tab.id
-                ? "bg-secondary text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                ? "bg-[var(--brand-soft)] text-[var(--brand)] border border-[var(--brand-soft-border)] shadow-2xs font-bold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent"
             }`}
           >
             {tab.label}

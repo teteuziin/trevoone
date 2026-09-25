@@ -105,36 +105,46 @@ function NutrientItemCard({ detail }: { detail: MicronutrientTotalDetail }) {
 
       {/* Main Quantitative Value */}
       <div className="flex items-baseline gap-1.5 flex-wrap">
-        <span className="text-lg font-extrabold text-[var(--text-primary)]">
-          {formatNutrientValue(value)}
-        </span>
-        <span className="text-xs font-semibold text-[var(--text-secondary)]">{unit}</span>
-
-        {/* Trace presence indicator if LOQ */}
-        {hasTrace && (
-          <span
-            className="text-[11px] font-medium text-blue-600 dark:text-blue-400 ml-1"
-            title={`${traceItemCount} alimento(s) com concentração em nível de traço (< LOQ)`}
-          >
-            + traço em {traceItemCount} {traceItemCount === 1 ? "alimento" : "alimentos"}
+        {quantifiedItemCount === 0 && !hasTrace ? (
+          <span className="text-sm font-semibold text-[var(--text-tertiary)] italic">
+            Não disponível
           </span>
-        )}
-
-        {/* Asterisk if there are unknown items */}
-        {hasUnknown && (
-          <span
-            className="text-amber-500 font-bold ml-0.5 cursor-help"
-            title={`${unknownItemCount} alimento(s) sem dado quantificado nesta fonte`}
-          >
-            *
+        ) : quantifiedItemCount === 0 && hasTrace ? (
+          <span className="text-sm font-bold text-sky-600 dark:text-sky-400">
+            Traços
           </span>
+        ) : (
+          <>
+            <span className="text-lg font-extrabold text-[var(--text-primary)]">
+              {formatNutrientValue(value)}
+            </span>
+            <span className="text-xs font-semibold text-[var(--text-secondary)]">{unit}</span>
+            {hasTrace && (
+              <span
+                className="text-[11px] font-medium text-sky-600 dark:text-sky-400 ml-1"
+                title={`${traceItemCount} alimento(s) com concentração em nível de traço (< LOQ)`}
+              >
+                + traços (${traceItemCount})
+              </span>
+            )}
+            {hasUnknown && (
+              <span
+                className="text-amber-500 font-bold ml-0.5 cursor-help"
+                title={`${unknownItemCount} alimento(s) sem dado quantificado nesta fonte`}
+              >
+                *
+              </span>
+            )}
+          </>
         )}
       </div>
 
       {/* Descriptive Coverage Text */}
       <div className="text-[11px] text-[var(--text-tertiary)] flex items-center justify-between gap-1 pt-0.5">
         <span>
-          {quantifiedItemCount} de {totalItemCount} {totalItemCount === 1 ? "alimento" : "alimentos"} com valor quantificado
+          {quantifiedItemCount === 0
+            ? "Sem dados quantificados disponíveis"
+            : `${quantifiedItemCount} de ${totalItemCount} ${totalItemCount === 1 ? "alimento" : "alimentos"} com valor quantificado`}
         </span>
       </div>
 

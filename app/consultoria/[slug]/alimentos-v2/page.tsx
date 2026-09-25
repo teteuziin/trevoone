@@ -6,6 +6,7 @@ import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { listUnifiedFoodsForNutritionist } from "@/lib/nutrition-v2/food-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { NutritionistFoodLibrary } from "@/components/consultancies/nutrition-v2/nutritionist-food-library";
+import { NutritionWorkspaceNav } from "@/components/consultancies/nutrition-v2/nutrition-workspace-nav";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -56,7 +57,10 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
       userName={session.fullName}
       userEmail={session.email}
     >
-      <NutritionistFoodLibrary slug={slug} initialResult={initialResult} />
+      <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
+        <NutritionWorkspaceNav slug={slug} activeTab="alimentos" />
+        <NutritionistFoodLibrary slug={slug} initialResult={initialResult} />
+      </div>
     </ConsultancyAppShell>
   );
 }

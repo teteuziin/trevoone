@@ -1,4 +1,3 @@
-import { NutritionTemplatesButton } from "@/components/consultancies/nutrition-v2/nutrition-templates-button";
 import React from "react";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
@@ -9,6 +8,7 @@ import { listPlansForConsultancy } from "@/lib/nutrition-v2/plan-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { NutritionWorkspaceNav } from "@/components/consultancies/nutrition-v2/nutrition-workspace-nav";
 
 interface PlanosV2PageProps {
   params: Promise<{ slug: string }>;
@@ -44,9 +44,9 @@ function MealPlanIcon({ className = "w-5 h-5" }: { className?: string }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-      <rect x="8" y="2" width="8" height="4" rx="1" />
-      <path d="M9 12h6M9 16h4" />
+      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+      <path d="M7 2v20" />
+      <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
     </svg>
   );
 }
@@ -116,13 +116,16 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
       userName={session.fullName}
       userEmail={session.email}
     >
-      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
+        {/* Workspace Navigation Bar */}
+        <NutritionWorkspaceNav slug={slug} activeTab="planos" />
+
         {/* Header Cockpit */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
-                Nutrição Clínica
+                Nutrição Clínica V2
               </span>
               <Badge variant="brand" size="sm">
                 Prescrição
@@ -137,12 +140,6 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
-            <NutritionTemplatesButton consultancySlug={slug} />
-            <Link href={`/consultoria/${slug}/planos-v2/prontuario`} className="shrink-0">
-              <Button variant="secondary" size="md" className="font-bold min-h-[44px]">
-                <span>Prontuários</span>
-              </Button>
-            </Link>
             <Link href={`/consultoria/${slug}/planos-v2/novo`} className="shrink-0">
               <Button variant="primary" size="md" className="font-bold min-h-[44px] shadow-sm">
                 <PlusIcon className="w-4 h-4 mr-1.5" />
@@ -206,7 +203,7 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
             {items.map((plan) => (
               <div
                 key={plan.publicId}
-                className="p-5 sm:p-6 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] transition-all flex flex-col justify-between gap-4 depth-surface"
+                className="p-5 sm:p-6 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] transition-all flex flex-col justify-between gap-4"
               >
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-3">

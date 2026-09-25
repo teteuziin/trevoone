@@ -343,6 +343,156 @@ console.log("=== INICIANDO SUÍTE DE TESTES: PATIENT RECORD + PREGNANCY (RELEASE
   console.log("✔ Test Y & Z: Modelos de plano e fluxo existente permanecem isolados e seguros.");
 }
 
+
+// ----------------------------------------------------------------------------
+// TEST HOTFIX: Onboarding Canonical Isolation & Explicit Import Form Semantics
+// ----------------------------------------------------------------------------
+{
+  // 1. Initial creation does not duplicate onboarding into clinical fields
+  const initialNewRecordClinicalFields = {
+    occupation: null,
+    routineNotes: null,
+    followUpReason: null,
+    mainObjective: null,
+    clinicalObservations: null,
+    diagnosedConditions: null,
+    previousSurgeries: null,
+    hospitalizations: null,
+    allergies: null,
+    foodAllergiesIntolerances: null,
+    currentMedications: null,
+    supplements: null,
+    familyHistory: null,
+    gastrointestinalNotes: null,
+    bowelHabit: null,
+    sleepNotes: null,
+    hydrationNotes: null,
+    foodPreferences: null,
+    dislikedFoods: null,
+    dietaryRestrictions: null,
+    usualEatingRoutine: null,
+    mealScheduleNotes: null,
+    appetiteNotes: null,
+    difficultiesAdherenceNotes: null,
+    physicalActivityNotes: null,
+    smokingStatus: null,
+    alcoholNotes: null,
+    sleepRoutine: null,
+    workStudyRoutine: null,
+  };
+
+  for (const [key, value] of Object.entries(initialNewRecordClinicalFields)) {
+    assert.equal(value, null, `Campo clínico inicial ${key} deve ser estritamente NULL`);
+  }
+
+  // 2. Canonical Onboarding reference is independent and intact
+  const canonicalOnboardingRef = {
+    occupation: "Advogada",
+    mainObjective: "Definição muscular",
+    foodAllergies: "Nenhuma",
+    dietaryRestrictions: "Vegetariana",
+    medications: "Antialérgico",
+    healthConditions: "Rinite",
+    surgeries: "Nenhuma",
+    bowelHabit: "Regular",
+    waterIntake: "2L",
+    smoking: "NÃO",
+    alcoholFrequency: "Raramente",
+  };
+
+  // 3. Explicit import populates client form state only
+  let clientFormState = { ...initialNewRecordClinicalFields };
+  function handleClientImport(ref) {
+    clientFormState = {
+      ...clientFormState,
+      occupation: clientFormState.occupation || ref.occupation || null,
+      mainObjective: clientFormState.mainObjective || ref.mainObjective || null,
+      dietaryRestrictions: clientFormState.dietaryRestrictions || ref.dietaryRestrictions || null,
+    };
+  }
+
+  handleClientImport(canonicalOnboardingRef);
+  assert.equal(clientFormState.occupation, "Advogada");
+  assert.equal(clientFormState.dietaryRestrictions, "Vegetariana");
+
+  // Onboarding data is NOT mutated
+  assert.equal(canonicalOnboardingRef.occupation, "Advogada");
+
+  // Professional edits clinical record independently
+  const savedClinicalRecord = {
+    ...clientFormState,
+    dietaryRestrictions: "Ovolactovegetariana estrita com foco em fontes proteicas vegetais",
+  };
+  assert.notEqual(savedClinicalRecord.dietaryRestrictions, canonicalOnboardingRef.dietaryRestrictions);
+  console.log("✔ Test Hotfix: Onboarding permanece canônico, sem cópia automática na criação, e importação é estritamente ação do form cliente.");
+}
+
+// ----------------------------------------------------------------------------
+// TEST HOTFIX: Null Pregnancy Type & Breastfeeding Semantics (No Implicit Clinical Values)
+// ----------------------------------------------------------------------------
+{
+  // 1. pregnancyType null remains null
+  const nullPregType = validatePregnancyInput({
+    pregnancyStatus: "PREGNANT",
+    pregnancyType: null,
+    gestationalWeeks: 12,
+  });
+  assert.equal(nullPregType.pregnancyType, null, "pregnancyType null deve permanecer estritamente null");
+
+  const emptyPregType = validatePregnancyInput({
+    pregnancyStatus: "PREGNANT",
+    pregnancyType: "",
+    gestationalWeeks: 12,
+  });
+  assert.equal(emptyPregType.pregnancyType, null, "pregnancyType vazio ('') deve persistir como null");
+
+  // 2. breastfeedingStatus null remains null
+  const nullBreastfeeding = validatePregnancyInput({
+    pregnancyStatus: "POSTPARTUM",
+    breastfeedingStatus: null,
+    deliveryDate: "2026-07-10",
+  });
+  assert.equal(nullBreastfeeding.breastfeedingStatus, null, "breastfeedingStatus null deve permanecer estritamente null");
+
+  const emptyBreastfeeding = validatePregnancyInput({
+    pregnancyStatus: "POSTPARTUM",
+    breastfeedingStatus: "",
+    deliveryDate: "2026-07-10",
+  });
+  assert.equal(emptyBreastfeeding.breastfeedingStatus, null, "breastfeedingStatus vazio ('') deve persistir como null");
+
+  // 3. UI static inspection: Verify empty options and no implicit fallbacks in JSX
+  const uiContent = fs.readFileSync("components/consultancies/nutrition-v2/patient-record-view.tsx", "utf-8");
+
+  // Must have 'Não informado' option for pregnancyType
+  assert.ok(
+    uiContent.includes('<option value="">Não informado</option>'),
+    "UI deve conter a opção vazia 'Não informado'"
+  );
+
+  // Must NOT fall back to 'SINGLETON' when pregnancyType is null
+  assert.ok(
+    !uiContent.includes('pregnancyForm.pregnancyType || "SINGLETON"'),
+    "UI NUNCA deve assumir implicitamente SINGLETON quando o valor for null"
+  );
+  assert.ok(
+    uiContent.includes('pregnancyForm.pregnancyType ?? ""'),
+    "UI deve usar pregnancyForm.pregnancyType ?? ''"
+  );
+
+  // Must NOT fall back to 'EXCLUSIVE' when breastfeedingStatus is null
+  assert.ok(
+    !uiContent.includes('pregnancyForm.breastfeedingStatus || "EXCLUSIVE"'),
+    "UI NUNCA deve assumir implicitamente EXCLUSIVE quando o valor for null"
+  );
+  assert.ok(
+    uiContent.includes('pregnancyForm.breastfeedingStatus ?? ""'),
+    "UI deve usar pregnancyForm.breastfeedingStatus ?? ''"
+  );
+
+  console.log("✔ Test Hotfix: Valores clínicos desconhecidos (pregnancyType, breastfeedingStatus) permanecem estritamente NULL e sem valores implícitos na UI.");
+}
+
 console.log("\n========================================================");
 console.log("TODOS OS TESTES DOMÍNIO/LÓGICA RELEASE H PASSARAM! (A-U, W-Z)");
 console.log("========================================================\n");

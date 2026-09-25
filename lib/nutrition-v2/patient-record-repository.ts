@@ -249,46 +249,22 @@ export async function getOrCreatePatientRecord(
     return mapRowToPatientRecord(existingRows[0]);
   }
 
-  // 3. Create new patient record if absent
+  // 3. Create new patient record if absent (clinical fields remain strictly NULL)
+  // Onboarding data is exposed through onboardingReference as canonical read-only reference.
   const publicId = crypto.randomUUID();
-
-  // If student has onboarding data, prefill initial clinical record non-destructively
-  const onboardingRef = await getOnboardingReferenceData(connection, consultancyId, studentMembershipId);
 
   await connection.execute<ResultSetHeader>(
     `INSERT INTO nutrition_v2_patient_records (
       public_id,
       consultancy_id,
       student_membership_id,
-      created_by_membership_id,
-      occupation,
-      main_objective,
-      food_allergies_intolerances,
-      dietary_restrictions,
-      current_medications,
-      diagnosed_conditions,
-      previous_surgeries,
-      bowel_habit,
-      hydration_notes,
-      smoking_status,
-      alcohol_notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      created_by_membership_id
+    ) VALUES (?, ?, ?, ?);`,
     [
       publicId,
       consultancyId,
       studentMembershipId,
       authorMembershipId,
-      onboardingRef.occupation,
-      onboardingRef.mainObjective,
-      onboardingRef.foodAllergies,
-      onboardingRef.dietaryRestrictions,
-      onboardingRef.medications,
-      onboardingRef.healthConditions,
-      onboardingRef.surgeries,
-      onboardingRef.bowelHabit,
-      onboardingRef.waterIntake,
-      onboardingRef.smoking,
-      onboardingRef.alcoholFrequency,
     ]
   );
 

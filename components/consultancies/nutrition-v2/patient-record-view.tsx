@@ -1074,7 +1074,7 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
                   <div>
                     <label className="text-xs text-muted-foreground font-medium">Tipo de Gestação</label>
                     <select
-                      value={pregnancyForm.pregnancyType || "SINGLETON"}
+                      value={pregnancyForm.pregnancyType ?? ""}
                       onChange={(e) =>
                         setPregnancyForm({
                           ...pregnancyForm,
@@ -1083,9 +1083,11 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
                       }
                       className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
                     >
+                      <option value="">Não informado</option>
                       <option value="SINGLETON">Única</option>
                       <option value="TWINS">Gemelar</option>
                       <option value="TRIPLETS_PLUS">Trigêmeos ou mais</option>
+                      <option value="OTHER">Outro</option>
                     </select>
                   </div>
                 </div>
@@ -1145,7 +1147,7 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
                   <div>
                     <label className="text-xs text-muted-foreground font-medium">Status de Amamentação</label>
                     <select
-                      value={pregnancyForm.breastfeedingStatus || "EXCLUSIVE"}
+                      value={pregnancyForm.breastfeedingStatus ?? ""}
                       onChange={(e) =>
                         setPregnancyForm({
                           ...pregnancyForm,
@@ -1154,11 +1156,12 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
                       }
                       className="w-full rounded-lg border border-border/50 bg-background p-2.5 mt-1"
                     >
-                      <option value="EXCLUSIVE">Aleitamento Materno Exclusivo</option>
-                      <option value="PARTIAL">Aleitamento Misto / Parcial</option>
-                      <option value="FORMULA_ONLY">Fórmula Infantil Exclusiva</option>
+                      <option value="">Não informado</option>
+                      <option value="EXCLUSIVE">Aleitamento materno exclusivo</option>
+                      <option value="PARTIAL">Aleitamento misto / parcial</option>
+                      <option value="FORMULA_ONLY">Fórmula infantil exclusiva</option>
                       <option value="WEANED">Desmamado</option>
-                      <option value="NOT_APPLICABLE">Não se Aplica</option>
+                      <option value="NOT_APPLICABLE">Não se aplica</option>
                     </select>
                   </div>
                 </div>

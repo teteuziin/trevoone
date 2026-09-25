@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import type {
   PregnancyStatus,
 } from "@/lib/nutrition-v2/patient-record-types";
 import { deriveTrimester } from "@/lib/nutrition-v2/patient-record-validation";
+import { calculatePatientBMI } from "@/lib/nutrition-v2/clinical-calculations";
 import {
   updatePatientRecordAction,
   addAnthropometricEntryAction,
@@ -24,13 +25,66 @@ interface PatientRecordViewProps {
   initialDetail: PatientRecordDetail;
 }
 
-type TabType = "resumo" | "clinico" | "alimentar" | "estilo_vida" | "antropometria" | "gestacao";
+type TabType = "resumo" | "clinico" | "alimentar" | "estilo_vida" | "antropometria" | "gestacao" | "calculos";
 
 export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProps) {
   const [detail, setDetail] = useState<PatientRecordDetail>(initialDetail);
   const [activeTab, setActiveTab] = useState<TabType>("resumo");
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Calculation manual overrides state (ephemeral client simulation only)
+  const [calcWeightOverride, setCalcWeightOverride] = useState<string>("");
+  const [calcHeightOverride, setCalcHeightOverride] = useState<string>("");
+
+  const latestAnthro = detail.anthropometrics.length > 0 ? detail.anthropometrics[0] : null;
+
+  const patientCalcContext = useMemo(() => {
+    return {
+      consultancyId: detail.record.consultancyId,
+      studentMembershipId: detail.record.studentMembershipId,
+      patientRecordPublicId: detail.record.publicId,
+      latestAnthropometrics: latestAnthro
+        ? {
+            publicId: latestAnthro.publicId,
+            measurementDate: latestAnthro.measurementDate,
+            weightKg: latestAnthro.weightKg,
+            heightCm: latestAnthro.heightCm,
+            waistCm: latestAnthro.waistCm,
+            hipCm: latestAnthro.hipCm,
+          }
+        : null,
+      onboardingReference: detail.onboardingReference
+        ? {
+            reportedWeightKg: detail.onboardingReference.reportedWeightKg,
+            reportedHeightCm: detail.onboardingReference.reportedHeightCm,
+            sex: detail.onboardingReference.sex,
+            birthDate: detail.onboardingReference.birthDate,
+            mainObjective: detail.onboardingReference.mainObjective,
+          }
+        : null,
+      pregnancy: detail.pregnancy
+        ? {
+            pregnancyStatus: detail.pregnancy.pregnancyStatus,
+            gestationalWeeks: detail.pregnancy.gestationalWeeks,
+            deliveryDate: detail.pregnancy.deliveryDate,
+          }
+        : null,
+    };
+  }, [detail, latestAnthro]);
+
+  const bmiOverrides = useMemo(() => {
+    const ov: Record<string, number> = {};
+    const w = parseFloat(calcWeightOverride);
+    if (!isNaN(w) && w > 0) ov.weightKg = w;
+    const h = parseFloat(calcHeightOverride);
+    if (!isNaN(h) && h > 0) ov.heightCm = h;
+    return ov;
+  }, [calcWeightOverride, calcHeightOverride]);
+
+  const bmiResult = useMemo(() => {
+    return calculatePatientBMI(patientCalcContext, bmiOverrides);
+  }, [patientCalcContext, bmiOverrides]);
 
   // Form states for clinical fields
   const [clinicalForm, setClinicalForm] = useState<UpdatePatientRecordInput>({
@@ -264,6 +318,7 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
                   ? "Pós-parto"
                   : "Gestação",
             },
+            { id: "calculos", label: "Cálculos Clínicos" },
           ] as const
         ).map((tab) => (
           <button
@@ -1189,6 +1244,175 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
                 Nenhum acompanhamento obstétrico ativo para este paciente. Altere o status acima caso deseje registrar gestação ou puerpério.
               </p>
             )}
+          </div>
+        </div>
+      )}
+      {/* TAB 7: CÁLCULOS CLÍNICOS E METABÓLICOS */}
+      {activeTab === "calculos" && (
+        <div className="space-y-6">
+          {/* Card 1: IMC */}
+          <div className="rounded-2xl border border-border/50 bg-card p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading text-lg font-bold text-foreground">
+                    Índice de Massa Corporal (IMC)
+                  </h3>
+                  <Badge variant="brand" size="sm">Aprovado (v1.0)</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Fórmula matemática padrão: peso (kg) / [altura (m)]². Decisão de suporte sem diagnósticos automáticos.
+                </p>
+              </div>
+              <div className="text-left sm:text-right">
+                <span className="text-xs text-muted-foreground font-mono">Fórmula: BMI_STANDARD_V1</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+              {/* Entradas e Fontes */}
+              <div className="space-y-3 md:col-span-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Dados de Entrada Utilizados
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/40 space-y-1">
+                    <span className="text-xs text-muted-foreground font-medium">Peso Corporal</span>
+                    <div className="font-semibold text-foreground">
+                      {bmiResult.inputs.weightKg
+                        ? `${bmiResult.inputs.weightKg.value} kg`
+                        : "Não informado"}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Origem: {bmiResult.inputs.weightKg?.sourceLabel || "Sem registro"}
+                      {bmiResult.inputs.weightKg?.isOverride && " (Ajuste temporário)"}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/40 space-y-1">
+                    <span className="text-xs text-muted-foreground font-medium">Estatura</span>
+                    <div className="font-semibold text-foreground">
+                      {bmiResult.inputs.heightCm
+                        ? `${bmiResult.inputs.heightCm.value} cm`
+                        : "Não informada"}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Origem: {bmiResult.inputs.heightCm?.sourceLabel || "Sem registro"}
+                      {bmiResult.inputs.heightCm?.isOverride && " (Ajuste temporário)"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Ajuste manual temporário (Override) */}
+                <div className="pt-2">
+                  <span className="text-xs font-medium text-foreground block mb-1.5">
+                    Ajuste Manual Temporário para Simulação
+                  </span>
+                  <p className="text-[11px] text-muted-foreground mb-2">
+                    Permite ao profissional testar valores para cálculo sem alterar o histórico de medições do aluno.
+                  </p>
+                  <div className="flex gap-3 items-center flex-wrap sm:flex-nowrap">
+                    <div className="flex-1 min-w-[120px]">
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="Peso simulado (kg)"
+                        value={calcWeightOverride}
+                        onChange={(e) => setCalcWeightOverride(e.target.value)}
+                        className="w-full text-xs rounded-lg border border-border/50 bg-background p-2 focus:outline-none focus:border-brand"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-[120px]">
+                      <input
+                        type="number"
+                        step="0.5"
+                        placeholder="Altura simulada (cm)"
+                        value={calcHeightOverride}
+                        onChange={(e) => setCalcHeightOverride(e.target.value)}
+                        className="w-full text-xs rounded-lg border border-border/50 bg-background p-2 focus:outline-none focus:border-brand"
+                      />
+                    </div>
+                    {(calcWeightOverride || calcHeightOverride) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setCalcWeightOverride("");
+                          setCalcHeightOverride("");
+                        }}
+                        className="text-xs shrink-0"
+                      >
+                        Limpar Ajuste
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Resultado do IMC */}
+              <div className="p-5 rounded-2xl bg-secondary/30 border border-border/50 text-center space-y-2">
+                <span className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
+                  Resultado do Cálculo
+                </span>
+                <div className="text-3xl font-extrabold text-foreground tracking-tight font-heading">
+                  {bmiResult.status === "SUCCESS"
+                    ? bmiResult.formattedResult
+                    : "—"}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {bmiResult.status === "SUCCESS"
+                    ? "Classificação diagnóstica não atribuída automaticamente."
+                    : bmiResult.formattedResult}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Estimativas Metabólicas (SPEC REQUIRED) */}
+          <div className="rounded-2xl border border-dashed border-border/60 bg-card p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-4">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading text-lg font-bold text-foreground">
+                    Estimativas Metabólicas (TMB, GET e Meta Calórica)
+                  </h3>
+                  <Badge variant="warning" size="sm">Especificação Pendente</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Cálculos de Taxa Metabólica Basal e Gasto Energético Total aguardam aprovação de especificação pelo nutricionista.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-foreground space-y-2">
+              <p className="font-medium text-amber-700 dark:text-amber-400">
+                Regra de Segurança Clínica: Nenhuma fórmula metabólica foi inferida automaticamente.
+              </p>
+              <p className="text-muted-foreground">
+                Em conformidade com as diretrizes do TREVO ONE, equações como Mifflin-St Jeor, Harris-Benedict, Cunningham ou FAO/OMS somente serão ativadas no Release I após validação formal dos coeficientes, tabela de fatores de atividade e limites de segurança calórica.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3: Ajustes Obstétricos e Lactação (SPEC REQUIRED) */}
+          <div className="rounded-2xl border border-dashed border-border/60 bg-card p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-4">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading text-lg font-bold text-foreground">
+                    Recomendações Energéticas na Gestação e Lactação
+                  </h3>
+                  <Badge variant="neutral" size="sm">Especificação Pendente</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Adicionais calóricos por trimestre gestacional ou fase de aleitamento requerem aprovação de diretriz obstétrica.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Os dados de acompanhamento gestacional e pós-parto coletados no Release H permanecem como histórico clínico seguro, sem recomendações numéricas automáticas não validadas.
+            </p>
           </div>
         </div>
       )}

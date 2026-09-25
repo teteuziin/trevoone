@@ -75,6 +75,20 @@ export function validateMediaMagicBytes(
     mediaType = "IMAGE";
     extension = ".webp";
   }
+  // 3b. GIF signature: 47 49 46 38 (37|39) 61 ("GIF87a" or "GIF89a")
+  else if (
+    buffer.length >= 6 &&
+    buffer[0] === 0x47 && // G
+    buffer[1] === 0x49 && // I
+    buffer[2] === 0x46 && // F
+    buffer[3] === 0x38 && // 8
+    (buffer[4] === 0x37 || buffer[4] === 0x39) && // 7 or 9
+    buffer[5] === 0x61 // a
+  ) {
+    detectedMime = "image/gif";
+    mediaType = "IMAGE";
+    extension = ".gif";
+  }
   // 4. MP4 container signature: bytes 4..7 must be 'ftyp'
   else if (
     buffer.length >= 8 &&
@@ -91,7 +105,7 @@ export function validateMediaMagicBytes(
   if (!detectedMime || !mediaType || !extension) {
     return {
       valid: false,
-      error: "Assinatura de arquivo não reconhecida ou formato não suportado. Envie vídeo em MP4 ou imagem em JPG, PNG ou WEBP.",
+      error: "Assinatura de arquivo não reconhecida ou formato não suportado. Formatos aceitos: vídeo em MP4, animação em GIF ou imagens em JPG, PNG e WEBP.",
     };
   }
 

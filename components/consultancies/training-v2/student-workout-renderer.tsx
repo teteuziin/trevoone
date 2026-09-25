@@ -1354,36 +1354,54 @@ function ItemCard({
       </div>
 
       {/* SECTION 2: VÍDEO / MÍDIA */}
-      {pinnedMedia.length > 0 && (
-        <div className="space-y-2">
-          {pinnedMedia.map((m) => (
-            <div
-              key={m.mediaAsset.publicId}
-              className="rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-center p-1 sm:p-2 shadow-xs"
-            >
-              {m.mediaAsset.mediaType === "VIDEO" ? (
-                <video
-                  controls
-                  playsInline
-                  preload="metadata"
-                  src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
-                  className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block"
-                />
-              ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
-                  alt={item.exerciseNameSnapshot}
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = "none";
-                  }}
-                  className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block"
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {pinnedMedia.length > 0 && (() => {
+        // Priority: 1. GIF animado, 2. MP4 de execução, 3. Frame estático/imagem fallback
+        const executionMedia = pinnedMedia.find((m) => m.role === "EXECUTION_VIDEO");
+        const fallbackMedia = pinnedMedia.find(
+          (m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER" || m.role === "ALTERNATE_IMAGE"
+        );
+        const displayMediaList = executionMedia ? [executionMedia] : fallbackMedia ? [fallbackMedia] : [pinnedMedia[0]];
+
+        return (
+          <div className="space-y-2">
+            {displayMediaList.map((m) => {
+              // isGif check handled by fallback to <img>
+              const isVideo =
+                m.mediaAsset.mediaType === "VIDEO" || m.mediaAsset.mimeType === "video/mp4";
+
+              return (
+                <div
+                  key={m.mediaAsset.publicId}
+                  className="rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-center p-1 sm:p-2 shadow-xs"
+                >
+                  {isVideo ? (
+                    <video
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      controls
+                      preload="metadata"
+                      src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
+                      className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block bg-black"
+                    />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
+                      alt={item.exerciseNameSnapshot}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
+                      className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block"
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* SECTION 3: PRESCRIÇÃO E SÉRIES */}
       <div className="space-y-2.5">

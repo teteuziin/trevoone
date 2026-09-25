@@ -45,15 +45,7 @@ function Video({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function ImageIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <polyline points="21 15 16 10 5 21" />
-    </svg>
-  );
-}
+// ImageIcon unused
 
 function Loader2({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -113,6 +105,7 @@ export function UnifiedExercisePicker({
   const [searchQuery, setSearchQuery] = useState("");
   const [exercises, setExercises] = useState<ExerciseItemDto[]>([]);
   const [selectingId, setSelectingId] = useState<string | null>(null);
+  const [previewingExerciseId, setPreviewingExerciseId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -257,82 +250,177 @@ export function UnifiedExercisePicker({
             </div>
           ) : (
             exercises.map((ex) => {
-              const isGlobal = ex.scope === "GLOBAL";
+                            const isGlobal = ex.scope === "GLOBAL";
               const isShared = ex.scope === "CONSULTANCY" && ex.visibility === "CONSULTANCY";
               const isPrivate = ex.scope === "CONSULTANCY" && ex.visibility === "CREATOR_ONLY";
-              const hasVideo = ex.media.some((m) => m.role === "EXECUTION_VIDEO");
-              const hasImage = ex.media.some((m) => m.role === "START_IMAGE" || m.role === "ALTERNATE_IMAGE");
               const isSelecting = selectingId === ex.publicId;
+
+              // Media resolution
+              const executionMedia = ex.media.find((m) => m.role === "EXECUTION_VIDEO");
+              const startImage = ex.media.find((m) => m.role === "START_IMAGE");
+              const videoPoster = ex.media.find((m) => m.role === "VIDEO_POSTER");
+              const alternateImage = ex.media.find((m) => m.role === "ALTERNATE_IMAGE");
+
+              const thumbnailAsset = startImage || videoPoster || alternateImage;
+              const thumbnailUrl = thumbnailAsset
+                ? `/api/training-v2/media/${thumbnailAsset.mediaAsset.publicId}`
+                : null;
+
+              const executionUrl = executionMedia
+                ? `/api/training-v2/media/${executionMedia.mediaAsset.publicId}`
+                : null;
+
+              const isGif = executionMedia?.mediaAsset.mimeType === "image/gif";
+              // isVideo
+              const hasExecution = Boolean(executionMedia && executionUrl);
+              const isPreviewing = previewingExerciseId === ex.publicId;
 
               return (
                 <div
                   key={ex.publicId}
-                  onClick={() => handleSelect(ex.publicId)}
-                  className="p-3.5 sm:p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-emerald-500/50 hover:bg-[var(--surface-subtle)] active:scale-[0.99] transition-all flex items-center justify-between gap-3 cursor-pointer shadow-2xs group"
+                  className="p-3.5 sm:p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-emerald-500/50 transition-all flex flex-col gap-2.5 shadow-2xs group"
                 >
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
-                        {ex.name}
-                      </h4>
-                      {isGlobal && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-                          <Globe className="w-2.5 h-2.5" />
-                          Trevo One
-                        </span>
-                      )}
-                      {isShared && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shrink-0">
-                          <Building2 className="w-2.5 h-2.5" />
-                          Consultoria
-                        </span>
-                      )}
-                      {isPrivate && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
-                          <Lock className="w-2.5 h-2.5" />
-                          Só para mim
-                        </span>
-                      )}
+                  <div className="flex items-center justify-between gap-3">
+                    {/* Left: Thumbnail & info */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Exercise Capa / Thumbnail */}
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] overflow-hidden shrink-0 flex items-center justify-center">
+                        {thumbnailUrl ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={thumbnailUrl}
+                            alt={ex.name}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <Dumbbell className="w-6 h-6 text-[var(--foreground-muted)] opacity-50" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                            {ex.name}
+                          </h4>
+                          {isGlobal && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                              <Globe className="w-2.5 h-2.5" />
+                              Trevo One
+                            </span>
+                          )}
+                          {isShared && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shrink-0">
+                              <Building2 className="w-2.5 h-2.5" />
+                              Consultoria
+                            </span>
+                          )}
+                          {isPrivate && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
+                              <Lock className="w-2.5 h-2.5" />
+                              Só para mim
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] flex-wrap">
+                          <span>{ex.muscleGroupPrimary}</span>
+                          {ex.equipment && (
+                            <>
+                              <span>•</span>
+                              <span>{ex.equipment}</span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Ver Execução Button */}
+                        {hasExecution && (
+                          <div className="pt-0.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewingExerciseId(isPreviewing ? null : ex.publicId);
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                isPreviewing
+                                  ? "bg-emerald-600 text-white shadow-2xs"
+                                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20"
+                              }`}
+                            >
+                              {isGif ? (
+                                <span className="text-[10px] font-black tracking-wider uppercase">GIF</span>
+                              ) : (
+                                <Video className="w-3.5 h-3.5" />
+                              )}
+                              <span>{isPreviewing ? "Ocultar execução" : "Ver execução"}</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
-                      <span>{ex.muscleGroupPrimary}</span>
-                      {ex.equipment && (
+                    {/* Right: Adicionar Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelect(ex.publicId);
+                      }}
+                      disabled={isSelecting}
+                      className="inline-flex items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-2xs shrink-0 min-h-[44px] min-w-[90px] cursor-pointer"
+                    >
+                      {isSelecting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
                         <>
-                          <span>•</span>
-                          <span>{ex.equipment}</span>
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Adicionar</span>
                         </>
                       )}
-                      {(hasVideo || hasImage) && (
-                        <>
-                          <span>•</span>
-                          <span className="flex items-center gap-1 text-[11px] text-[var(--foreground-muted)]">
-                            {hasVideo && <Video className="w-3 h-3 text-emerald-500" />}
-                            {hasImage && <ImageIcon className="w-3 h-3" />}
-                          </span>
-                        </>
-                      )}
-                    </div>
+                    </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelect(ex.publicId);
-                    }}
-                    disabled={isSelecting}
-                    className="inline-flex items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-2xs shrink-0 min-h-[44px] min-w-[90px] cursor-pointer"
-                  >
-                    {isSelecting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Adicionar</span>
-                      </>
-                    )}
-                  </button>
+                  {/* Inline execution player */}
+                  {isPreviewing && executionUrl && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1 p-2 sm:p-2.5 rounded-xl bg-black/95 border border-emerald-500/30 flex flex-col items-center justify-center relative overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                    >
+                      {isGif ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={executionUrl}
+                          alt={`Execução de ${ex.name}`}
+                          className="w-auto h-auto max-w-full max-h-[260px] object-contain rounded-lg"
+                        />
+                      ) : (
+                        <video
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          controls
+                          preload="metadata"
+                          src={executionUrl}
+                          className="w-auto h-auto max-w-full max-h-[260px] object-contain rounded-lg"
+                        />
+                      )}
+                      <div className="w-full flex items-center justify-between text-[11px] text-zinc-300 px-2 pt-2">
+                        <span>{isGif ? "Animação GIF em loop contínuo" : "Vídeo MP4 em loop (sem áudio)"}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewingExerciseId(null);
+                          }}
+                          className="text-white hover:underline cursor-pointer"
+                        >
+                          Fechar execução
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })

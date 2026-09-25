@@ -196,6 +196,61 @@ export async function listExercisesForProfessional(
       queryParams
     );
 
+    // Batch load attached media for all retrieved exercises
+    const exerciseIds = rows.map((r) => r.id);
+    const mediaByExerciseId = new Map<number, ExerciseMediaDto[]>();
+
+    if (exerciseIds.length > 0) {
+      const [mediaRows] = await connection.query<RowDataPacket[]>(
+        `SELECT
+          em.exercise_id,
+          em.role,
+          em.sort_order,
+          ma.public_id AS media_public_id,
+          ma.scope,
+          ma.visibility,
+          ma.media_type,
+          ma.storage_provider,
+          ma.mime_type,
+          ma.file_size_bytes,
+          ma.duration_seconds,
+          ma.width,
+          ma.height,
+          ma.created_at,
+          c.public_id AS consultancy_public_id
+        FROM exercise_media em
+        INNER JOIN media_assets ma ON ma.id = em.media_asset_id
+        LEFT JOIN consultancies c ON c.id = ma.consultancy_id
+        WHERE em.exercise_id IN (?) AND ma.deleted_at IS NULL
+        ORDER BY em.sort_order ASC;`,
+        [exerciseIds]
+      );
+
+      for (const m of mediaRows) {
+        const exId = Number(m.exercise_id);
+        const list = mediaByExerciseId.get(exId) || [];
+        list.push({
+          role: m.role as MediaRole,
+          sortOrder: Number(m.sort_order),
+          mediaAsset: {
+            publicId: String(m.media_public_id),
+            scope: m.scope,
+            visibility: m.visibility,
+            consultancyPublicId: m.consultancy_public_id ? String(m.consultancy_public_id) : null,
+            mediaType: m.media_type as MediaType,
+            storageProvider: m.storage_provider as StorageProvider,
+            mimeType: String(m.mime_type),
+            fileSizeBytes: Number(m.file_size_bytes),
+            durationSeconds: m.duration_seconds != null ? Number(m.duration_seconds) : null,
+            width: m.width != null ? Number(m.width) : null,
+            height: m.height != null ? Number(m.height) : null,
+            createdAt: new Date(m.created_at),
+          },
+        });
+        mediaByExerciseId.set(exId, list);
+      }
+    }
+
     const items: ExerciseItemDto[] = rows.map((r) => ({
       publicId: String(r.public_id),
       scope: r.scope as ExerciseScope,
@@ -220,7 +275,7 @@ export async function listExercisesForProfessional(
       regressions: r.regressions ? String(r.regressions) : null,
       rightsNotes: r.rights_notes ? String(r.rights_notes) : null,
       status: r.status as ExerciseStatus,
-      media: [], // Media is loaded lazily or on single item fetch
+      media: mediaByExerciseId.get(Number(r.id)) || [],
       createdAt: new Date(r.created_at),
       updatedAt: new Date(r.updated_at),
     }));

@@ -221,13 +221,7 @@ export async function publishGlobalExerciseAction(
       };
     }
 
-    const hasStartImage = current.media.some((m) => m.role === "START_IMAGE");
-    if (!hasStartImage) {
-      return {
-        ok: false,
-        error: "A foto da posição inicial (START_IMAGE) é obrigatória para publicar um exercício oficial Trevo One.",
-      };
-    }
+    // START_IMAGE is auto-generated or optional; manual frame upload is no longer mandatory
 
     const published = await updateExercise(ctx, publicId, { status: "PUBLISHED" });
 

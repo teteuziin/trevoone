@@ -425,7 +425,7 @@ export async function attachMediaToExercise(
 
     // 2. Fetch media
     const [maRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, scope, consultancy_id, visibility, media_type, created_by_membership_id FROM media_assets WHERE public_id = ? AND deleted_at IS NULL LIMIT 1;`,
+      `SELECT id, scope, consultancy_id, visibility, media_type, mime_type, created_by_membership_id FROM media_assets WHERE public_id = ? AND deleted_at IS NULL LIMIT 1;`,
       [mediaPublicId]
     );
     if (!maRows || maRows.length === 0) {
@@ -436,10 +436,10 @@ export async function attachMediaToExercise(
     // 3. Media type vs Role compatibility check
     if (
       (role === "START_IMAGE" || role === "VIDEO_POSTER" || role === "ALTERNATE_IMAGE") &&
-      ma.media_type !== "IMAGE"
+      (ma.media_type !== "IMAGE" || ma.mime_type === "image/gif")
     ) {
       throw new TrainingAuthorizationError(
-        "Apenas ativos de imagem podem ser vinculados para esta função de mídia.",
+        "A capa/frame inicial deve ser uma imagem estática (JPG, PNG ou WEBP).",
         "INCOMPATIBLE_MEDIA_ROLE_TYPE",
         400
       );
@@ -447,10 +447,11 @@ export async function attachMediaToExercise(
 
     if (
       (role === "EXECUTION_VIDEO" || role === "ALTERNATE_VIDEO") &&
-      ma.media_type !== "VIDEO"
+      ma.media_type !== "VIDEO" &&
+      ma.mime_type !== "image/gif"
     ) {
       throw new TrainingAuthorizationError(
-        "Apenas ativos de vídeo podem ser vinculados para esta função de mídia.",
+        "Apenas ativos de vídeo MP4 ou animações GIF podem ser vinculados para esta função de mídia.",
         "INCOMPATIBLE_MEDIA_ROLE_TYPE",
         400
       );

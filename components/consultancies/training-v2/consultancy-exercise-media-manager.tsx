@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import type { ExerciseMediaDto, MediaRole } from "@/lib/training-v2/types";
 import {
   attachConsultancyExerciseMediaAction,
@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
+import { captureExerciseMediaFirstFrame, frameBlobToFile } from "@/lib/training-v2/media-frame-capture";
 
 interface ConsultancyExerciseMediaManagerProps {
   slug: string;
@@ -34,8 +35,8 @@ type RoleConfig = {
 const ROLES: RoleConfig[] = [
   {
     role: "START_IMAGE",
-    title: "Foto da Posição Inicial (START_IMAGE)",
-    description: "Postura e empunhadura corretas antes do início do movimento.",
+    title: "Capa / Frame Inicial (START_IMAGE)",
+    description: "Frame estático gerado automaticamente do MP4/GIF ou foto personalizada.",
     mediaType: "IMAGE",
     accept: "image/jpeg,image/png,image/webp",
     maxSizeBytes: 5 * 1024 * 1024,
@@ -44,13 +45,13 @@ const ROLES: RoleConfig[] = [
   },
   {
     role: "EXECUTION_VIDEO",
-    title: "Vídeo de Execução Técnica (EXECUTION_VIDEO)",
-    description: "Vídeo MP4 com a execução técnica das repetições.",
+    title: "Vídeo ou GIF de Execução Técnica (EXECUTION_VIDEO)",
+    description: "Vídeo MP4 ou GIF animado demonstrando a execução das repetições.",
     mediaType: "VIDEO",
-    accept: "video/mp4",
+    accept: "video/mp4,image/gif",
     maxSizeBytes: 25 * 1024 * 1024,
     maxSizeLabel: "25 MiB",
-    isRequiredForPublish: true, // Obrigatório
+    isRequiredForPublish: false, // Obrigatório
   },
   {
     role: "VIDEO_POSTER",
@@ -76,6 +77,20 @@ export function ConsultancyExerciseMediaManager({
   const [activeUploadRole, setActiveUploadRole] = useState<MediaRole | null>(null);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "associating" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<{
+    role: MediaRole;
+    url: string;
+    isGif: boolean;
+    isVideo: boolean;
+    frameUrl?: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (localPreview?.url) URL.revokeObjectURL(localPreview.url);
+      if (localPreview?.frameUrl) URL.revokeObjectURL(localPreview.frameUrl);
+    };
+  }, [localPreview]);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const getMediaForRole = (role: MediaRole): ExerciseMediaDto | undefined => {
@@ -90,31 +105,74 @@ export function ConsultancyExerciseMediaManager({
     e.target.value = "";
     setErrorMessage(null);
 
-    if (file.size > config.maxSizeBytes) {
-      setErrorMessage(`O arquivo selecionado excede o limite máximo de ${config.maxSizeLabel}.`);
-      return;
+    const fileType = file.type.toLowerCase();
+    const fileName = file.name.toLowerCase();
+    const isExecutionRole = config.role === "EXECUTION_VIDEO";
+
+    // 1. Validation
+    if (isExecutionRole) {
+      const isAllowed = fileType === "video/mp4" || fileType === "image/gif" || fileName.endsWith(".mp4") || fileName.endsWith(".gif");
+      if (!isAllowed) {
+        setErrorMessage("Formato de mídia inválido. Envie vídeo MP4 (.mp4) ou animação GIF (.gif).");
+        return;
+      }
+      if (file.size > 25 * 1024 * 1024) {
+        setErrorMessage("O arquivo de execução excede o limite máximo permitido de 25 MiB.");
+        return;
+      }
+    } else {
+      const isStaticImage = ["image/jpeg", "image/png", "image/webp"].includes(fileType);
+      if (fileType === "image/gif") {
+        setErrorMessage("A capa/frame inicial deve ser uma imagem estática (JPG, PNG ou WEBP).");
+        return;
+      }
+      if (!isStaticImage) {
+        setErrorMessage("Formato de imagem inválido. Envie JPG, PNG ou WEBP.");
+        return;
+      }
+      if (file.size > config.maxSizeBytes) {
+        setErrorMessage(`O arquivo selecionado excede o limite máximo de ${config.maxSizeLabel}.`);
+        return;
+      }
     }
 
-    const fileType = file.type.toLowerCase();
-    if (config.mediaType === "IMAGE" && !["image/jpeg", "image/png", "image/webp"].includes(fileType)) {
-      setErrorMessage("Formato de imagem inválido. Envie JPG, PNG ou WEBP.");
-      return;
-    }
-    if (config.mediaType === "VIDEO" && fileType !== "video/mp4") {
-      setErrorMessage("Formato de vídeo inválido. Envie arquivo no formato MP4.");
-      return;
-    }
+    // 2. Setup local preview
+    const previewUrl = URL.createObjectURL(file);
+    const isGif = fileType === "image/gif" || fileName.endsWith(".gif");
+    const isVideo = fileType === "video/mp4" || fileName.endsWith(".mp4");
+    setLocalPreview({
+      role: config.role,
+      url: previewUrl,
+      isGif,
+      isVideo,
+      frameUrl: null,
+    });
 
     try {
       setActiveUploadRole(config.role);
       setUploadStatus("uploading");
 
-      // Upload follows exercise visibility (CREATOR_ONLY or CONSULTANCY)
-      const uploadUrl = `/api/training-v2/media?scope=CONSULTANCY&visibility=${exerciseVisibility}&consultancy=${consultancyPublicId}&mediaType=${config.mediaType}`;
+      // 3. Auto-capture initial static frame if execution role
+      let capturedFrameBlob: Blob | null = null;
+      if (isExecutionRole) {
+        try {
+          capturedFrameBlob = await captureExerciseMediaFirstFrame(file);
+          if (capturedFrameBlob) {
+            const framePreviewUrl = URL.createObjectURL(capturedFrameBlob);
+            setLocalPreview((prev) => (prev ? { ...prev, frameUrl: framePreviewUrl } : null));
+          }
+        } catch (frameErr) {
+          console.warn("[MediaManager] Auto-frame capture fallback:", frameErr);
+        }
+      }
+
+      // 4. Upload main media file
+      const uploadCategory = isGif ? "IMAGE" : isExecutionRole ? "VIDEO" : "IMAGE";
+      const uploadUrl = `/api/training-v2/media?scope=CONSULTANCY&visibility=${exerciseVisibility}&consultancy=${consultancyPublicId}&mediaType=${uploadCategory}`;
       const uploadRes = await fetch(uploadUrl, {
         method: "POST",
         headers: {
-          "Content-Type": file.type,
+          "Content-Type": file.type || (isGif ? "image/gif" : "video/mp4"),
         },
         body: file,
       });
@@ -145,12 +203,47 @@ export function ConsultancyExerciseMediaManager({
         throw new Error(attachRes.error || "Falha ao vincular a mídia ao exercício.");
       }
 
+      // 5. If static frame was generated, auto-upload and attach as START_IMAGE and VIDEO_POSTER
+      if (isExecutionRole && capturedFrameBlob) {
+        try {
+          const frameFile = frameBlobToFile(capturedFrameBlob, "frame-inicial");
+          const frameUploadUrl = `/api/training-v2/media?scope=CONSULTANCY&visibility=${exerciseVisibility}&consultancy=${consultancyPublicId}&mediaType=IMAGE`;
+          const frameRes = await fetch(frameUploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": "image/jpeg" },
+            body: frameFile,
+          });
+
+          if (frameRes.ok) {
+            const frameData = await frameRes.json();
+            await attachConsultancyExerciseMediaAction(
+              slug,
+              exercisePublicId,
+              frameData.publicId,
+              "START_IMAGE"
+            );
+
+            if (!getMediaForRole("VIDEO_POSTER")) {
+              await attachConsultancyExerciseMediaAction(
+                slug,
+                exercisePublicId,
+                frameData.publicId,
+                "VIDEO_POSTER"
+              ).catch(() => {});
+            }
+          }
+        } catch (frameAttachErr) {
+          console.warn("[MediaManager] Auto-frame upload/attach fallback:", frameAttachErr);
+        }
+      }
+
       setUploadStatus("success");
       if (onMediaChange) onMediaChange();
 
       setTimeout(() => {
         setUploadStatus("idle");
         setActiveUploadRole(null);
+        setLocalPreview(null);
       }, 1500);
     } catch (err: unknown) {
       setUploadStatus("error");
@@ -245,16 +338,35 @@ export function ConsultancyExerciseMediaManager({
 
               {/* Media Preview Box */}
               <div className="relative w-full aspect-video rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center overflow-hidden my-auto">
-                {currentMedia && mediaUrl ? (
-                  cfg.mediaType === "IMAGE" ? (
-                    // eslint-disable-next-line @next/next/no-img-element
+                {/* Selection preview or current media */}
+                {localPreview && localPreview.role === cfg.role ? (
+                  localPreview.isVideo ? (
+                    <video
+                      controls
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      src={localPreview.url}
+                      className="w-full h-full object-contain bg-black"
+                    />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={localPreview.url}
+                      alt={cfg.title}
+                      className="w-full h-full object-contain"
+                    />
+                  )
+                ) : currentMedia && mediaUrl ? (
+                  currentMedia.mediaAsset.mimeType === "image/gif" ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={mediaUrl}
                       alt={cfg.title}
                       className="w-full h-full object-contain"
-                      loading="lazy"
                     />
-                  ) : (
+                  ) : currentMedia.mediaAsset.mediaType === "VIDEO" || currentMedia.mediaAsset.mimeType === "video/mp4" ? (
                     <video
                       controls
                       playsInline
@@ -264,6 +376,14 @@ export function ConsultancyExerciseMediaManager({
                       <source src={mediaUrl} type="video/mp4" />
                       Seu navegador não suporta reprodução deste vídeo.
                     </video>
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={mediaUrl}
+                      alt={cfg.title}
+                      className="w-full h-full object-contain"
+                      loading="lazy"
+                    />
                   )
                 ) : (
                   <div className="flex flex-col items-center justify-center p-4 text-center text-[var(--text-tertiary)]">

@@ -14,6 +14,7 @@ export const SUPPORTED_IMAGE_MIMES = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/gif",
 ] as const;
 
 export type SupportedVideoMime = (typeof SUPPORTED_VIDEO_MIMES)[number];
@@ -36,8 +37,9 @@ export function isSupportedMediaMime(mime: string): mime is SupportedMediaMime {
  * Returns the provisional max upload size in bytes for a given media category.
  * Allows safe environment overrides (e.g. for testing) without altering production configs.
  */
-export function getMaxUploadSizeBytes(mediaType: "VIDEO" | "IMAGE"): number {
-  if (mediaType === "VIDEO") {
+export function getMaxUploadSizeBytes(mediaTypeOrMime: "VIDEO" | "IMAGE" | string): number {
+  const normalized = mediaTypeOrMime.toLowerCase().trim();
+  if (normalized === "video" || normalized === "image/gif" || normalized === "video/mp4") {
     const envLimit = process.env.TRAINING_MEDIA_MAX_VIDEO_BYTES;
     if (envLimit && !isNaN(Number(envLimit)) && Number(envLimit) > 0) {
       return Number(envLimit);

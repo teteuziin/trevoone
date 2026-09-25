@@ -90,13 +90,13 @@ export async function POST(request: Request) {
 
   if (!declaredMime || !isSupportedMediaMime(declaredMime)) {
     return NextResponse.json(
-      { error: "Formato de arquivo não suportado. Formatos aceitos: video/mp4, image/jpeg, image/png, image/webp." },
+      { error: "Formato de arquivo não suportado. Formatos aceitos: video/mp4, image/gif, image/jpeg, image/png, image/webp." },
       { status: 415 }
     );
   }
 
   const detectedCategory: "VIDEO" | "IMAGE" = isSupportedVideoMime(declaredMime) ? "VIDEO" : "IMAGE";
-  if (requestedMediaType && requestedMediaType !== detectedCategory) {
+  if (requestedMediaType && requestedMediaType !== detectedCategory && !(requestedMediaType === "VIDEO" && declaredMime === "image/gif")) {
     return NextResponse.json(
       { error: `Tipo de mídia solicitado ('${requestedMediaType}') não corresponde ao Content-Type ('${declaredMime}').` },
       { status: 400 }
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
   }
 
   // 7. Content-Length header pre-check
-  const maxLimit = getMaxUploadSizeBytes(detectedCategory);
+  const maxLimit = getMaxUploadSizeBytes(declaredMime);
   const contentLengthHeader = request.headers.get("content-length");
   if (contentLengthHeader) {
     const declaredLength = Number(contentLengthHeader);

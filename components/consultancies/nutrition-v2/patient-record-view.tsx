@@ -1368,50 +1368,10 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
             </div>
           </div>
 
-          {/* Card 2: Estimativas Metabólicas (SPEC REQUIRED) */}
-          <div className="rounded-2xl border border-dashed border-border/60 bg-card p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-4">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-heading text-lg font-bold text-foreground">
-                    Estimativas Metabólicas (TMB, GET e Meta Calórica)
-                  </h3>
-                  <Badge variant="warning" size="sm">Especificação Pendente</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Cálculos de Taxa Metabólica Basal e Gasto Energético Total aguardam aprovação de especificação pelo nutricionista.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-foreground space-y-2">
-              <p className="font-medium text-amber-700 dark:text-amber-400">
-                Regra de Segurança Clínica: Nenhuma fórmula metabólica foi inferida automaticamente.
-              </p>
-              <p className="text-muted-foreground">
-                Em conformidade com as diretrizes do TREVO ONE, equações como Mifflin-St Jeor, Harris-Benedict, Cunningham ou FAO/OMS somente serão ativadas no Release I após validação formal dos coeficientes, tabela de fatores de atividade e limites de segurança calórica.
-              </p>
-            </div>
-          </div>
-
-          {/* Card 3: Ajustes Obstétricos e Lactação (SPEC REQUIRED) */}
-          <div className="rounded-2xl border border-dashed border-border/60 bg-card p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-4">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-heading text-lg font-bold text-foreground">
-                    Recomendações Energéticas na Gestação e Lactação
-                  </h3>
-                  <Badge variant="neutral" size="sm">Especificação Pendente</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Adicionais calóricos por trimestre gestacional ou fase de aleitamento requerem aprovação de diretriz obstétrica.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Os dados de acompanhamento gestacional e pós-parto coletados no Release H permanecem como histórico clínico seguro, sem recomendações numéricas automáticas não validadas.
+          {/* Outros cálculos desativados até validação do protocolo clínico */}
+          <div className="rounded-2xl border border-border/50 bg-muted/20 p-5 text-xs text-muted-foreground">
+            <p>
+              Outros cálculos nutricionais serão disponibilizados após validação do protocolo clínico da plataforma.
             </p>
           </div>
         </div>

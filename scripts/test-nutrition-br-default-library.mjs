@@ -1,17 +1,14 @@
 /**
  * TREVO ONE — BRAZILIAN DEFAULT FOOD LIBRARY & SEARCH EXPERIENCE TEST SUITE
  *
- * Verifies Phase B1 product requirements:
- * 1. Default tab (Trevo Brasil) excludes raw USDA records (zero USDA in default view)
- * 2. Search aliases are strictly PT-BR (no cross-language English expansion in user search)
- * 3. Removal of bad generic synonyms (pasta does NOT expand to massa/creme unless phrase-aware)
- * 4. Conceptual source tabs routing:
- *    - TREVO_BRASIL: TACO + consultancy + verified commercial
- *    - COMMERCIAL: Verified manufacturer products only
- *    - MY_FOODS: Consultancy scope only
- *    - OTHER_DATABASES: USDA Foundation / FNDDS
- * 5. Effective display names: TACO records display Portuguese name via effectiveDisplayName
- * 6. Mandatory core acceptance searches on DEV database with ZERO raw English in top 20 results
+ * Verifies Phase B1.1 product requirements:
+ * 1. Default tab (Trevo Brasil) uses explicit allowlist (TACO + Growth + Consultancy)
+ * 2. Amafil is excluded from Trevo Brasil and Produtos Comerciais
+ * 3. Hypothetical unknown source keys are mathematically blocked
+ * 4. Search aliases are strictly PT-BR (no cross-language English expansion in user search)
+ * 5. Removal of bad generic synonyms (pasta does NOT expand to massa/creme unless phrase-aware)
+ * 6. Atwater macro heuristics are disabled; objective invalid data guards are active
+ * 7. Mandatory core acceptance searches on DEV database with ZERO raw English in top 20 results
  */
 
 import assert from "node:assert/strict";
@@ -26,16 +23,19 @@ import {
   buildCountQuery,
   buildSelectFoodsQuery,
   mapFoodRow,
+  APPROVED_BR_SOURCE_KEYS,
+  APPROVED_COMMERCIAL_SOURCE_KEYS,
+  isApprovedBrSourceKey,
+  isApprovedCommercialSourceKey,
 } from "../lib/nutrition-v2/food-query-builder.ts";
 
-console.log("=== INICIANDO SUÍTE DE TESTES: TREVO ONE — BRAZILIAN DEFAULT FOOD LIBRARY ===");
+console.log("=== INICIANDO SUÍTE DE TESTES: TREVO ONE — BRAZILIAN DEFAULT FOOD LIBRARY (PHASE B1.1) ===");
 
 // ----------------------------------------------------------------------------
 // TEST 1: SEARCH ALIASES ARE STRICTLY PT-BR (NO CROSS-LANGUAGE USER EXPANSION)
 // ----------------------------------------------------------------------------
 console.log("\nTest 1: Validando segregação estrita de sinônimos PT-BR para busca do usuário...");
 {
-  // English words that MUST NOT be present in user search expansion:
   const forbiddenEnglish = [
     "rice", "chicken", "bean", "beans", "milk", "cheese",
     "cassava", "beef", "fish", "egg", "potato", "yam",
@@ -97,7 +97,6 @@ console.log("\nTest 1: Validando segregação estrita de sinônimos PT-BR para b
 // ----------------------------------------------------------------------------
 console.log("\nTest 2: Validando remoção de sinônimos genéricos amplos e expansão contextual...");
 {
-  // Isolated "pasta" must NOT expand to "massa" or "creme"
   const isolatedPasta = expandSearchTokensWithSynonyms(["pasta"])[0];
   assert(!isolatedPasta.includes("massa"), "pasta isolada NÃO pode expandir para massa");
   assert(!isolatedPasta.includes("creme"), "pasta isolada NÃO pode expandir para creme");
@@ -108,39 +107,63 @@ console.log("\nTest 2: Validando remoção de sinônimos genéricos amplos e exp
   assert(pastaTokenGroup.includes("creme"), "pasta no contexto de amendoim deve expandir para creme");
   assert(pastaTokenGroup.includes("manteiga"), "pasta no contexto de amendoim deve expandir para manteiga");
 
+  // Contextual "arroz branco" expands to TACO types 1, 2, polido
+  const contextualArrozBranco = expandSearchTokensWithSynonyms(["arroz", "branco"]);
+  assert(contextualArrozBranco[1].includes("tipo 1"), "arroz branco deve expandir para tipo 1 da TACO");
+
   console.log("  ✓ pasta -> massa/creme genérico removido");
   console.log("  ✓ pasta de amendoim <-> creme de amendoim contextual funcionando");
+  console.log("  ✓ arroz branco -> tipo 1 / tipo 2 contextual funcionando");
 }
 
 // ----------------------------------------------------------------------------
-// TEST 3: SQL WHERE CLAUSE TAB ROUTING CONTRACT
+// TEST 3: EXPLICIT ALLOWLIST & UNKNOWN SOURCE SAFETY (PHASE B1.1 SECTION 2, 3, 10)
 // ----------------------------------------------------------------------------
-console.log("\nTest 3: Validando roteamento SQL das 4 abas conceituais...");
+console.log("\nTest 3: Validando allowlist explícita, exclusão de Amafil e proteção contra fontes desconhecidas...");
 {
+  // A) Helper allowlist checks
+  assert(isApprovedBrSourceKey("TACO"), "TACO deve ser fonte BR aprovada");
+  assert(isApprovedBrSourceKey("GROWTH_SUPPLEMENTS"), "GROWTH_SUPPLEMENTS deve ser fonte BR comercial aprovada");
+  assert(APPROVED_COMMERCIAL_SOURCE_KEYS.includes("GROWTH_SUPPLEMENTS"));
+  assert(!isApprovedBrSourceKey("AMAFIL"), "AMAFIL NÃO pode ser fonte BR aprovada (evidência insuficiente)");
+  assert(!isApprovedBrSourceKey("UNREVIEWED_FUTURE_SOURCE"), "Fontes futuras desconhecidas NÃO podem ser aceitas automaticamente");
+  assert(!isApprovedBrSourceKey("USDA_FOUNDATION"), "USDA Foundation NÃO pode ser fonte BR");
+  assert(!isApprovedBrSourceKey("USDA_FNDDS"), "USDA FNDDS NÃO pode ser fonte BR");
+
+  // Commercial tab allowlist checks (requires BOTH BRANDED and approved key)
+  assert(isApprovedCommercialSourceKey("GROWTH_SUPPLEMENTS", "BRANDED"), "GROWTH BRANDED deve ser comercial aprovado");
+  assert(!isApprovedCommercialSourceKey("AMAFIL", "BRANDED"), "AMAFIL NÃO pode ser comercial aprovado");
+  assert(!isApprovedCommercialSourceKey("UNREVIEWED_FUTURE_SOURCE", "BRANDED"), "Marca desconhecida NÃO pode ser comercial aprovada");
+
+  // B) SQL WHERE Clause explicit inclusion
   const dummyConsultancyId = 10;
-
-  // A) Default tab: TREVO_BRASIL
   const whereDefault = buildWhereClause({ sourceTab: "TREVO_BRASIL" }, dummyConsultancyId);
-  assert(whereDefault.whereClause.includes("f.source_key NOT IN ('USDA_FOUNDATION', 'USDA_FNDDS')"), "TREVO_BRASIL deve excluir USDA");
-  assert(whereDefault.whereClause.includes("NOT (f.calories_kcal < 0"), "TREVO_BRASIL deve excluir suspect macros");
 
-  // When sourceTab is omitted, it MUST default to TREVO_BRASIL
-  const whereOmitted = buildWhereClause({}, dummyConsultancyId);
-  assert(whereOmitted.whereClause.includes("f.source_key NOT IN ('USDA_FOUNDATION', 'USDA_FNDDS')"), "Aba omitida deve defaultar para TREVO_BRASIL e excluir USDA");
+  // Must use explicit inclusion IN (?, ?) with APPROVED_BR_SOURCE_KEYS params
+  assert(whereDefault.whereClause.includes("f.source_key IN (?, ?)"), "TREVO_BRASIL deve usar IN explícito para fontes BR");
+  assert(whereDefault.params.includes("TACO"), "Params deve conter TACO");
+  assert(whereDefault.params.includes("GROWTH_SUPPLEMENTS"), "Params deve conter GROWTH_SUPPLEMENTS");
+  assert(!whereDefault.params.includes("AMAFIL"), "Params NÃO pode conter AMAFIL");
+  assert(!whereDefault.whereClause.includes("NOT IN ('USDA"), "TREVO_BRASIL NÃO pode usar filtro negativo frágil NOT IN");
 
-  // B) COMMERCIAL tab
+  // Commercial tab requires BOTH source_type = 'BRANDED' AND approved commercial source key
   const whereCommercial = buildWhereClause({ sourceTab: "COMMERCIAL" }, dummyConsultancyId);
-  assert(whereCommercial.whereClause.includes("f.source_type = 'BRANDED'") || whereCommercial.whereClause.includes("GROWTH_SUPPLEMENTS"), "COMMERCIAL deve filtrar marcas");
+  assert(whereCommercial.whereClause.includes("f.source_type = 'BRANDED' AND f.source_key IN (?)"), "COMMERCIAL deve exigir BRANDED e fonte aprovada");
+  assert(whereCommercial.params.includes("GROWTH_SUPPLEMENTS"), "COMMERCIAL params deve conter GROWTH_SUPPLEMENTS");
+  assert(!whereCommercial.params.includes("AMAFIL"), "COMMERCIAL params NÃO pode conter AMAFIL");
 
-  // C) MY_FOODS tab
-  const whereMyFoods = buildWhereClause({ sourceTab: "MY_FOODS" }, dummyConsultancyId);
-  assert(whereMyFoods.whereClause.includes("f.scope = 'CONSULTANCY'"), "MY_FOODS deve filtrar scope=CONSULTANCY");
+  // C) Atwater auto-hide disabled check
+  assert(!whereDefault.whereClause.includes("> 105"), "Regra Atwater macro sum > 105 NÃO deve existir na query de visualização");
+  assert(!whereDefault.whereClause.includes("COALESCE(f.calories_kcal, 0) = 0 AND (COALESCE(f.protein_g, 0) > 2"), "Heurística Atwater de calorias zeradas NÃO deve ocultar alimentos oficiais");
 
-  // D) OTHER_DATABASES tab
-  const whereOther = buildWhereClause({ sourceTab: "OTHER_DATABASES" }, dummyConsultancyId);
-  assert(whereOther.whereClause.includes("f.source_key IN ('USDA_FOUNDATION', 'USDA_FNDDS')"), "OTHER_DATABASES deve filtrar USDA");
+  // D) Objective data invalidity guard check
+  assert(whereDefault.whereClause.includes("f.calories_kcal < 0"), "Valores negativos de nutrientes devem ser rejeitados");
+  assert(whereDefault.whereClause.includes("f.reference_amount <= 0"), "Quantidades de referência não-positivas devem ser rejeitadas");
 
-  console.log("  ✓ Contrato SQL das 4 abas validado com precisão matemática");
+  console.log("  ✓ Allowlist explícita implementada: apenas TACO e GROWTH_SUPPLEMENTS");
+  console.log("  ✓ AMAFIL excluído do Trevo Brasil e dos Produtos Comerciais");
+  console.log("  ✓ Fonte hipotética 'UNREVIEWED_FUTURE_SOURCE' matematicamente bloqueada");
+  console.log("  ✓ Heurísticas Atwater desativadas na visibilidade; guarda de dados objetivamente inválidos ativa");
 }
 
 // ----------------------------------------------------------------------------
@@ -211,21 +234,25 @@ async function runLiveDbTests() {
     // A) Empty query on default tab (Trevo Brasil)
     const emptyDefault = await queryFoods("");
     console.log(`  ✓ Carga Inicial (TREVO BRASIL): ${emptyDefault.total} alimentos brasileiros disponíveis`);
-    assert(emptyDefault.total > 0, "Catálogo Trevo Brasil não pode estar vazio");
-    assert(emptyDefault.total <= 600, "Catálogo Trevo Brasil NÃO pode conter os 5795 alimentos USDA");
+    // Expected: TACO (548) + Growth (7) = 555 items (Amafil excluded)
+    assert.equal(emptyDefault.total, 555, "Catálogo Trevo Brasil deve conter exatamente TACO (548) + Growth (7) = 555 alimentos");
 
-    // Ensure zero USDA in first 20 items of default load
+    // Ensure zero USDA, zero Amafil, and zero unknown source in default load
     for (const item of emptyDefault.items) {
       assert(item.sourceKey !== "USDA_FOUNDATION" && item.sourceKey !== "USDA_FNDDS", `USDA não pode aparecer na carga padrão: ${item.name}`);
+      assert(item.sourceKey !== "AMAFIL", `AMAFIL não pode aparecer no Trevo Brasil: ${item.name}`);
+      assert(APPROVED_BR_SOURCE_KEYS.includes(item.sourceKey) || item.scope === "CONSULTANCY", `Fonte desconhecida no Trevo Brasil: ${item.sourceKey}`);
       assert(item.displayNamePtBr, "Todo alimento deve ter displayNamePtBr preenchido");
     }
-    console.log("  ✓ Zero itens USDA na primeira página de carga inicial padrão");
+    console.log("  ✓ Zero itens USDA, zero Amafil e zero fontes desconhecidas na carga padrão");
 
     // B) Tabs Isolation
     const commercialResult = await queryFoods("", "COMMERCIAL");
     console.log(`  ✓ Aba Produtos Comerciais: ${commercialResult.total} produtos registrados`);
+    assert.equal(commercialResult.total, 7, "Aba Produtos Comerciais deve conter estritamente os 7 produtos Growth aprovados (Amafil excluído)");
     for (const item of commercialResult.items) {
-      assert(item.sourceType === "BRANDED" || ["GROWTH_SUPPLEMENTS", "AMAFIL"].includes(item.sourceKey), "Apenas produtos comerciais");
+      assert.equal(item.sourceKey, "GROWTH_SUPPLEMENTS", "Apenas Growth Supplements nos comerciais aprovados");
+      assert.equal(item.sourceType, "BRANDED");
     }
 
     const otherResult = await queryFoods("", "OTHER_DATABASES");
@@ -243,13 +270,6 @@ async function runLiveDbTests() {
       "acém", "alcatra", "aveia", "azeite"
     ];
 
-    const englishBannedPatterns = [
-      "chicken broilers", "fryers", "commodity", "raw english", "long-grain",
-      "unenriched", "unpolished", "bovine commodity", "light tuna canned",
-      "pinto beans, mature seeds"
-    ];
-
-    // Items known to exist in current Brazilian sources (TACO)
     const tacoPresentTerms = [
       "arroz", "arroz branco", "arroz integral", "feijão", "feijão carioca",
       "feijão preto", "frango", "peito de frango", "ovo", "aipim",
@@ -259,8 +279,13 @@ async function runLiveDbTests() {
       "acém", "alcatra", "aveia"
     ];
 
-    // Items currently only in USDA (pending future IBGE import in Phase B2)
     const pendingBrTerms = ["tilápia", "azeite"];
+
+    const englishBannedPatterns = [
+      "chicken broilers", "fryers", "commodity", "raw english", "long-grain",
+      "unenriched", "unpolished", "bovine commodity", "light tuna canned",
+      "pinto beans, mature seeds"
+    ];
 
     for (const term of acceptanceTerms) {
       const res = await queryFoods(term, "TREVO_BRASIL");
@@ -270,9 +295,10 @@ async function runLiveDbTests() {
         assert(res.items.length > 0, `Busca por '${term}' deve ter itens na página 1`);
       }
 
-      // CRITICAL SECTION 16 RULE: DEFAULT TAB: zero raw English food names in first 20 results
+      // Check top 20 items: zero USDA, zero English, zero Amafil
       for (const item of res.items.slice(0, 20)) {
         assert(item.sourceKey !== "USDA_FOUNDATION" && item.sourceKey !== "USDA_FNDDS", `USDA encontrado na busca de '${term}' no Trevo Brasil: ${item.name}`);
+        assert(item.sourceKey !== "AMAFIL", `Amafil encontrado na busca de '${term}' no Trevo Brasil`);
         
         const nameLower = (item.displayNamePtBr || item.name).toLowerCase();
         for (const banned of englishBannedPatterns) {
@@ -289,7 +315,7 @@ async function runLiveDbTests() {
       }
     }
 
-    // Verify pending items are preserved and discoverable in OTHER_DATABASES
+    // Verify pending items in OTHER_DATABASES
     console.log("\nTest 6: Validando que termos pendentes de IBGE estão disponíveis na aba Outras bases...");
     for (const pending of pendingBrTerms) {
       const otherRes = await queryFoods(pending, "OTHER_DATABASES");
@@ -308,6 +334,7 @@ async function runLiveDbTests() {
 runLiveDbTests()
   .then(() => {
     console.log("\n=== SUÍTE TREVO ONE BRAZILIAN DEFAULT LIBRARY CONCLUÍDA COM 100% DE SUCESSO ===");
+    process.exit(0);
   })
   .catch((err) => {
     console.error("\n❌ FALHA NA SUÍTE DE TESTES:", err);

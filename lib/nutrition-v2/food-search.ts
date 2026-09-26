@@ -365,11 +365,14 @@ export function buildFoodSearchOrderClause(
              OR f.normalized_name LIKE '%fruit%' OR f.normalized_name LIKE '%flavored%') THEN 3
       ELSE 1
     END ASC,
-    -- Prioritize analytical laboratory direct data & survey recipe data quality
+    -- Source priority ranking: TACO (Brazilian Curated) -> Consultancy -> Commercial -> USDA
     CASE
-      WHEN f.source_key = 'USDA_FOUNDATION' THEN 1
-      WHEN f.source_key = 'USDA_FNDDS' THEN 2
-      ELSE 3
+      WHEN f.source_key = 'TACO' THEN 1
+      WHEN f.scope = 'CONSULTANCY' THEN 2
+      WHEN f.source_type = 'BRANDED' AND f.source_key IN ('GROWTH_SUPPLEMENTS') THEN 3
+      WHEN f.source_key = 'USDA_FOUNDATION' THEN 4
+      WHEN f.source_key = 'USDA_FNDDS' THEN 5
+      ELSE 6
     END ASC,
     -- Shorter food names tend to be basic primary ingredients rather than complex derivatives
     CHAR_LENGTH(COALESCE(f.display_name_pt_br, f.name)) ASC,

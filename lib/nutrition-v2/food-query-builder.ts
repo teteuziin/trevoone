@@ -25,6 +25,63 @@ export interface ListFoodsResult {
 
 export type FoodSourceTab = "TREVO_BRASIL" | "COMMERCIAL" | "MY_FOODS" | "OTHER_DATABASES";
 
+// ============================================================================
+// PHASE B1.1 — CURATED BRAZILIAN SOURCE ALLOWLISTS & INTEGRITY GUARDS
+// ============================================================================
+
+export const APPROVED_BR_SOURCE_KEYS = Object.freeze(["TACO", "GROWTH_SUPPLEMENTS"] as const);
+export type ApprovedBrSourceKey = (typeof APPROVED_BR_SOURCE_KEYS)[number];
+
+export const APPROVED_COMMERCIAL_SOURCE_KEYS = Object.freeze(["GROWTH_SUPPLEMENTS"] as const);
+export type ApprovedCommercialSourceKey = (typeof APPROVED_COMMERCIAL_SOURCE_KEYS)[number];
+
+export const INTERNATIONAL_DATABASE_SOURCE_KEYS = Object.freeze([
+  "USDA_FOUNDATION",
+  "USDA_FNDDS",
+] as const);
+
+export function isApprovedBrSourceKey(sourceKey: string | null | undefined): boolean {
+  if (!sourceKey) return false;
+  return (APPROVED_BR_SOURCE_KEYS as readonly string[]).includes(sourceKey);
+}
+
+export function isApprovedCommercialSourceKey(
+  sourceKey: string | null | undefined,
+  sourceType?: string | null | undefined
+): boolean {
+  if (!sourceKey) return false;
+  const isApprovedKey = (APPROVED_COMMERCIAL_SOURCE_KEYS as readonly string[]).includes(sourceKey);
+  if (!isApprovedKey) return false;
+  if (sourceType !== undefined) {
+    return sourceType === "BRANDED";
+  }
+  return true;
+}
+
+/**
+ * Objective data invalidity guard:
+ * Only flags records that violate physical / structural data invariants:
+ * - negative nutrient values (< 0)
+ * - non-positive or missing reference amount (<= 0 or NULL)
+ * - missing reference unit code (NULL or empty)
+ * - missing or empty food name
+ *
+ * NOTE: Discrepancies between declared kcal and 4P+4C+9F (Atwater) are
+ * review signals only and MUST NOT automatically hide official source foods.
+ */
+export const OBJECTIVE_INVALID_DATA_SQL_CONDITION = `(
+  f.calories_kcal < 0
+  OR f.protein_g < 0
+  OR f.carbohydrate_g < 0
+  OR f.fat_g < 0
+  OR f.reference_amount <= 0
+  OR f.reference_amount IS NULL
+  OR f.reference_unit_code IS NULL
+  OR TRIM(f.reference_unit_code) = ''
+  OR f.name IS NULL
+  OR TRIM(f.name) = ''
+)`;
+
 export type ListFoodsFilter = FoodQueryFilter;
 export interface FoodQueryFilter {
   query?: string;
@@ -588,27 +645,41 @@ export function buildWhereClause(
   }
 
   if (effectiveTab === "TREVO_BRASIL") {
-    // Show: TACO + consultancy custom foods + verified Brazilian commercial products
-    // Strictly hide raw USDA records from default Brazilian experience
-    conditions.push("f.source_key NOT IN ('USDA_FOUNDATION', 'USDA_FNDDS')");
+    // Explicit allowlist: TACO + Approved Commercial Brands + Consultancy custom foods
+    // Strictly blocks unknown future sources, unverified brands (AMAFIL), and raw USDA
+    const brKeysSql = APPROVED_BR_SOURCE_KEYS.map(() => "?").join(", ");
+    if (consultancyId != null) {
+      conditions.push(
+        `(f.source_key IN (${brKeysSql}) OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ?))`
+      );
+      params.push(...APPROVED_BR_SOURCE_KEYS, consultancyId);
+    } else {
+      conditions.push(`f.source_key IN (${brKeysSql})`);
+      params.push(...APPROVED_BR_SOURCE_KEYS);
+    }
 
-    // Exclude suspect macro records from default view (preserve data in DB, hide from default)
-    conditions.push("NOT (f.calories_kcal < 0 OR f.protein_g < 0 OR f.carbohydrate_g < 0 OR f.fat_g < 0)");
-    conditions.push(
-      "NOT (f.reference_unit_code = 'g' AND f.reference_amount = 100 AND (COALESCE(f.protein_g, 0) + COALESCE(f.carbohydrate_g, 0) + COALESCE(f.fat_g, 0)) > 105)"
-    );
-    conditions.push(
-      "NOT (COALESCE(f.calories_kcal, 0) = 0 AND (COALESCE(f.protein_g, 0) > 2 OR COALESCE(f.carbohydrate_g, 0) > 2 OR COALESCE(f.fat_g, 0) > 2))"
-    );
+    // Objective data invalidity guard (physical / structural invariants only)
+    // NOTE: Atwater heuristic auto-hiding is strictly DISABLED per Phase B1.1 Section 4.
+    conditions.push(`NOT ${OBJECTIVE_INVALID_DATA_SQL_CONDITION}`);
   } else if (effectiveTab === "COMMERCIAL") {
-    // Verified manufacturer commercial products only
-    conditions.push("(f.source_type = 'BRANDED' OR f.source_key IN ('GROWTH_SUPPLEMENTS', 'AMAFIL'))");
+    // Verified commercial products only: requires BOTH source_type = 'BRANDED' AND approved commercial source_key
+    const commKeysSql = APPROVED_COMMERCIAL_SOURCE_KEYS.map(() => "?").join(", ");
+    conditions.push(`(f.source_type = 'BRANDED' AND f.source_key IN (${commKeysSql}))`);
+    params.push(...APPROVED_COMMERCIAL_SOURCE_KEYS);
+    conditions.push(`NOT ${OBJECTIVE_INVALID_DATA_SQL_CONDITION}`);
   } else if (effectiveTab === "MY_FOODS") {
     // Consultancy custom foods only
-    conditions.push("f.scope = 'CONSULTANCY'");
+    if (consultancyId != null) {
+      conditions.push("f.scope = 'CONSULTANCY' AND f.consultancy_id = ?");
+      params.push(consultancyId);
+    } else {
+      conditions.push("f.scope = 'CONSULTANCY' AND 1=0");
+    }
   } else if (effectiveTab === "OTHER_DATABASES") {
     // USDA and international databases
-    conditions.push("f.source_key IN ('USDA_FOUNDATION', 'USDA_FNDDS')");
+    const intlKeysSql = INTERNATIONAL_DATABASE_SOURCE_KEYS.map(() => "?").join(", ");
+    conditions.push(`f.source_key IN (${intlKeysSql})`);
+    params.push(...INTERNATIONAL_DATABASE_SOURCE_KEYS);
   }
 
   // Text search tokens

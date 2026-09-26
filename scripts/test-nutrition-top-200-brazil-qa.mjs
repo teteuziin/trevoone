@@ -1,41 +1,46 @@
 /**
- * TREVO ONE — TOP BRAZILIAN FOODS QA TEST SUITE
+ * TREVO ONE — TOP BRAZILIAN FOODS QA & REAL SEARCH TEST SUITE
  *
- * Validates the permanent professional QA dataset of 200+ Brazilian food concepts:
- * - Minimum count threshold >= 200 concepts
- * - All mandatory concepts from product decision are present
- * - Explicit cooking / preparation state for all concepts
- * - Strict PT-BR display names (no raw English laboratory terms)
- * - Source traceability (IBGE / TACO / Verified Manufacturer)
- * - Household measure realism
+ * Validates:
+ * 1. QA dataset integrity (275 concepts >= 200, mandatory concepts present, explicit preparation state)
+ * 2. REAL SEARCH ON DEV: executes live searches against DEV catalog for the core Brazilian acceptance subset
+ * 3. Verifies zero USDA source rows, zero raw English names, and allowed Brazilian sources
+ * 4. Transparently reports COVERAGE_GAP for concepts without current Brazilian source coverage
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
+import mysql from "mysql2/promise";
+import {
+  buildCountQuery,
+  buildSelectFoodsQuery,
+  mapFoodRow,
+  APPROVED_BR_SOURCE_KEYS,
+} from "../lib/nutrition-v2/food-query-builder.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const qaFilePath = path.resolve(__dirname, "../data/nutrition/top-200-brazilian-foods-qa.json");
 
-console.log("=== INICIANDO TESTE: TOP BRAZILIAN FOODS QA SET ===");
+console.log("=== INICIANDO TESTE: TOP BRAZILIAN FOODS QA & REAL SEARCH SET ===");
 
 assert(fs.existsSync(qaFilePath), "Arquivo top-200-brazilian-foods-qa.json deve existir");
 
 const raw = fs.readFileSync(qaFilePath, "utf8");
 const data = JSON.parse(raw);
 
-const { metadata, concepts } = data;
+const { concepts } = data;
 
 // Test 1: Minimum count
-console.log(`\nTest 1: Validando quantidade de conceitos (encontrados: ${concepts.length})...`);
+console.log(`\nTest 1: Validando quantidade de conceitos no QA dataset (encontrados: ${concepts.length})...`);
 assert(concepts.length >= 200, `Deve conter pelo menos 200 conceitos, encontrados ${concepts.length}`);
 console.log(`  ✓ ${concepts.length} conceitos registrados (>= 200)`);
 
 // Test 2: Mandatory concepts presence
-console.log("\nTest 2: Validando presença de conceitos obrigatórios do Brasil...");
+console.log("\nTest 2: Validando presença de conceitos obrigatórios do Brasil no QA dataset...");
 const mandatoryKeywords = [
   "arroz branco", "arroz integral", "feijão carioca", "feijão preto",
   "aipim", "macaxeira", "mandioca", "batata inglesa", "batata doce",
@@ -59,7 +64,7 @@ for (const kw of mandatoryKeywords) {
   });
   assert(found, `Conceito obrigatório não encontrado no QA set: ${kw}`);
 }
-console.log(`  ✓ Todos os ${mandatoryKeywords.length} conceitos obrigatórios confirmados presentes`);
+console.log(`  ✓ Todos os ${mandatoryKeywords.length} conceitos obrigatórios confirmados presentes no QA dataset`);
 
 // Test 3: Data completeness & explicit preparation state
 console.log("\nTest 3: Validando completude dos dados e estado de preparo explícito...");
@@ -115,4 +120,143 @@ for (const item of concepts) {
 }
 console.log(`  ✓ Todos os ${concepts.length} conceitos possuem estado de preparo e PT-BR válido`);
 
-console.log("\n=== SUÍTE DE TESTES TOP BRAZILIAN FOODS QA CONCLUÍDA COM SUCESSO ===");
+// ----------------------------------------------------------------------------
+// TEST 4: REAL SEARCHES ON DEV CATALOG (SECTION 7 REQUIREMENT)
+// ----------------------------------------------------------------------------
+console.log("\nTest 4: Executando buscas REAIS no catálogo DEV para os conceitos de aceitação clínica...");
+async function runRealSearchTests() {
+  function loadEnv() {
+    const content = fs.existsSync(".env.local") ? fs.readFileSync(".env.local", "utf8") : "";
+    const env = {};
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq !== -1) env[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+    }
+    return env;
+  }
+
+  const fileEnv = loadEnv();
+  const dbHost = process.env.DB_HOST || fileEnv.DB_HOST;
+  const dbPort = Number(process.env.DB_PORT || fileEnv.DB_PORT) || 3306;
+  const dbUser = process.env.DB_USER || fileEnv.DB_USER;
+  const dbPassword = process.env.DB_PASSWORD || fileEnv.DB_PASSWORD;
+  const dbName = process.env.DB_NAME || fileEnv.DB_NAME;
+
+  if (!dbHost || !dbUser || !dbName) {
+    console.log("  [PULADO] Configuração de banco de dados não detectada.");
+    return;
+  }
+
+  const pool = mysql.createPool({
+    host: dbHost,
+    port: dbPort,
+    user: dbUser,
+    password: dbPassword,
+    database: dbName,
+    waitForConnections: true,
+    connectionLimit: 2,
+  });
+
+  const conn = await pool.getConnection();
+
+  try {
+    const dummyConsultancyId = 1;
+
+    async function queryFoods(queryText) {
+      const filter = {
+        query: queryText || undefined,
+        scope: "ALL",
+        status: "ACTIVE",
+        sourceTab: "TREVO_BRASIL",
+        page: 1,
+        pageSize: 20,
+      };
+
+      const countQuery = buildCountQuery(filter, dummyConsultancyId);
+      const [countRows] = await conn.query(countQuery.sql, countQuery.params);
+      const total = Number(countRows[0]?.total || 0);
+
+      const selectQuery = buildSelectFoodsQuery(filter, dummyConsultancyId, { isUnified: true });
+      const [rows] = await conn.query(selectQuery.fullSql, selectQuery.selectParams);
+      const items = rows.map((r) => mapFoodRow(r));
+
+      return { total, items };
+    }
+
+    const coreAcceptanceSubset = [
+      "arroz", "arroz branco", "arroz integral", "feijão", "feijão preto",
+      "frango", "peito de frango", "ovo", "aipim", "mandioca",
+      "batata doce", "batata inglesa", "cuscuz", "tapioca", "pão francês",
+      "leite", "iogurte", "muçarela", "banana prata", "mamão",
+      "tilápia", "patinho", "acém", "alcatra", "aveia"
+    ];
+
+    let passedCount = 0;
+    const coverageGaps = [];
+
+    for (const term of coreAcceptanceSubset) {
+      const res = await queryFoods(term);
+
+      if (res.total === 0) {
+        coverageGaps.push(term);
+        console.log(`  ⚠️ COVERAGE_GAP: '${term}' (0 itens no Trevo Brasil — pendente de dados oficiais IBGE Fase B2; zero poluição USDA)`);
+        continue;
+      }
+
+      passedCount++;
+
+      // Verify each returned item:
+      for (const item of res.items.slice(0, 20)) {
+        // Zero USDA source rows
+        assert(
+          item.sourceKey !== "USDA_FOUNDATION" && item.sourceKey !== "USDA_FNDDS",
+          `USDA vazado na busca '${term}': ${item.name}`
+        );
+
+        // Zero Amafil
+        assert(
+          item.sourceKey !== "AMAFIL",
+          `AMAFIL vazado na busca '${term}': ${item.name}`
+        );
+
+        // Source is explicitly allowed
+        assert(
+          APPROVED_BR_SOURCE_KEYS.includes(item.sourceKey) || item.scope === "CONSULTANCY",
+          `Fonte não aprovada '${item.sourceKey}' na busca '${term}'`
+        );
+
+        // Zero raw English display names
+        const nameLower = (item.displayNamePtBr || item.name).toLowerCase();
+        for (const banned of bannedEnglishTokens) {
+          assert(
+            !nameLower.includes(banned),
+            `Termo em inglês '${banned}' no resultado de '${term}': ${item.displayNamePtBr}`
+          );
+        }
+      }
+
+      const topItem = res.items[0];
+      const topName = topItem.displayNamePtBr || topItem.name;
+      console.log(`  ✓ '${term}': ${res.total} itens encontrados — Top: "${topName}" [${topItem.sourceKey}]`);
+    }
+
+    console.log(`\n  ✓ ${passedCount}/${coreAcceptanceSubset.length} buscas reais validadas no banco DEV`);
+    console.log(`  ✓ Lacunas documentadas sem fabricar dados (COVERAGE_GAPS: ${coverageGaps.join(", ")})`);
+
+  } finally {
+    conn.release();
+    await pool.end();
+  }
+}
+
+runRealSearchTests()
+  .then(() => {
+    console.log("\n=== SUÍTE TOP BRAZILIAN FOODS QA & REAL SEARCH CONCLUÍDA COM SUCESSO ===");
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error("\n❌ FALHA NO TESTE DE BUSCA REAL:", err);
+    process.exit(1);
+  });

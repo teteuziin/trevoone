@@ -81,6 +81,14 @@ import {
   tokenizeSearchQuery,
   COMMON_FOOD_SYNONYMS,
   expandSearchTokensWithSynonyms,
+  APPROVED_BR_SOURCE_KEYS,
+  APPROVED_COMMERCIAL_SOURCE_KEYS,
+  INTERNATIONAL_DATABASE_SOURCE_KEYS,
+  isApprovedBrSourceKey,
+  isApprovedCommercialSourceKey,
+  OBJECTIVE_INVALID_DATA_SQL_CONDITION,
+  type ApprovedBrSourceKey,
+  type ApprovedCommercialSourceKey,
 } from "./food-query-builder";
 
 export {
@@ -113,6 +121,14 @@ export {
   tokenizeSearchQuery,
   COMMON_FOOD_SYNONYMS,
   expandSearchTokensWithSynonyms,
+  APPROVED_BR_SOURCE_KEYS,
+  APPROVED_COMMERCIAL_SOURCE_KEYS,
+  INTERNATIONAL_DATABASE_SOURCE_KEYS,
+  isApprovedBrSourceKey,
+  isApprovedCommercialSourceKey,
+  OBJECTIVE_INVALID_DATA_SQL_CONDITION,
+  type ApprovedBrSourceKey,
+  type ApprovedCommercialSourceKey,
 };
 
 export { getDataQualityBadgeInfo } from "./food-search";

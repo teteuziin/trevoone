@@ -72,6 +72,65 @@ export type CreatePortionInput = {
 
 export type UpdatePortionInput = Partial<CreatePortionInput>;
 
+// ============================================================================
+// DEFENSIVE MAPPING HELPERS & TYPED ERRORS
+// ============================================================================
+
+export function safeIsoString(val: unknown, fallback: string | null = null): string | null {
+  if (val == null || val === '' || val === '0000-00-00 00:00:00' || val === '0000-00-00') {
+    return fallback;
+  }
+  if (val instanceof Date) {
+    return Number.isNaN(val.getTime()) ? fallback : val.toISOString();
+  }
+  if (typeof val === 'string' || typeof val === 'number') {
+    try {
+      const d = new Date(val);
+      return Number.isNaN(d.getTime()) ? fallback : d.toISOString();
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+export function safeNullableNumber(val: unknown): number | null {
+  if (val == null || val === '') return null;
+  const n = Number(val);
+  return Number.isNaN(n) ? null : n;
+}
+
+export function safeNumber(val: unknown, fallback = 0): number {
+  if (val == null || val === '') return fallback;
+  const n = Number(val);
+  return Number.isNaN(n) ? fallback : n;
+}
+
+export function safeString(val: unknown, fallback = ''): string {
+  if (val == null) return fallback;
+  return String(val);
+}
+
+export function safeNullableString(val: unknown): string | null {
+  if (val == null) return null;
+  const s = String(val).trim();
+  return s.length === 0 ? null : s;
+}
+
+export class FoodLibraryQueryError extends Error {
+  constructor(message: string, public readonly cause?: unknown) {
+    super(message);
+    this.name = 'FoodLibraryQueryError';
+  }
+}
+
+export class FoodLibraryMappingError extends Error {
+  constructor(message: string, public readonly cause?: unknown) {
+    super(message);
+    this.name = 'FoodLibraryMappingError';
+  }
+}
+
 export {
   normalizeSearchText,
   SEARCH_STOP_WORDS,
@@ -179,11 +238,19 @@ export async function listUnifiedFoodsForNutritionist(
     connection = await getDbConnection();
 
     // 1. Count total
-    const [countRows] = await connection.query<RowDataPacket[]>(
-      `SELECT COUNT(*) as total FROM nutrition_v2_foods f WHERE ${whereClause}`,
-      params
-    );
-    const total = Number(countRows[0]?.total || 0);
+    let countRows: RowDataPacket[];
+    try {
+      [countRows] = await connection.query<RowDataPacket[]>(
+        `SELECT COUNT(*) as total FROM nutrition_v2_foods f WHERE ${whereClause}`,
+        params
+      );
+    } catch (queryErr) {
+      throw new FoodLibraryQueryError(
+        `Falha ao contar alimentos: ${queryErr instanceof Error ? queryErr.message : String(queryErr)}`,
+        queryErr
+      );
+    }
+    const total = safeNumber(countRows[0]?.total, 0);
     const totalPages = Math.ceil(total / pageSize) || 1;
 
     // 2. Fetch page with portions count and deterministic ranking
@@ -194,85 +261,101 @@ export async function listUnifiedFoodsForNutritionist(
     );
     const selectParams: (string | number)[] = [...params, ...orderParams, pageSize, offset];
 
-    const [rows] = await connection.query<RowDataPacket[]>(
-      `SELECT
-        f.public_id,
-        f.scope,
-        f.consultancy_id,
-        f.name,
-        f.display_name_pt_br,
-        f.normalized_display_name_pt_br,
-        f.normalized_name,
-        f.category,
-        f.reference_amount,
-        f.reference_unit_code,
-        f.calories_kcal,
-        f.protein_g,
-        f.carbohydrate_g,
-        f.fat_g,
-        f.fiber_g,
-        f.data_quality,
-        f.status,
-        f.source_type,
-        f.source_key,
-        f.source_external_code,
-        f.source_version,
-        f.source_reference,
-        f.source_imported_at,
-        f.last_verified_at,
-        f.source_uid,
-        f.created_by_user_id,
-        f.created_by_membership_id,
-        f.created_at,
-        f.updated_at,
-        f.deleted_at,
-        (
-          SELECT COUNT(*)
-          FROM nutrition_v2_food_portions fp
-          WHERE fp.food_id = f.id
-            AND fp.deleted_at IS NULL
-            AND fp.status = 'ACTIVE'
-        ) AS portions_count
-      FROM nutrition_v2_foods f
-      WHERE ${whereClause}
-      ${orderClause}
-      LIMIT ? OFFSET ?`,
-      selectParams
-    );
+    let rows: RowDataPacket[];
+    try {
+      [rows] = await connection.query<RowDataPacket[]>(
+        `SELECT
+          f.public_id,
+          f.scope,
+          f.consultancy_id,
+          f.name,
+          f.display_name_pt_br,
+          f.normalized_display_name_pt_br,
+          f.normalized_name,
+          f.category,
+          f.reference_amount,
+          f.reference_unit_code,
+          f.calories_kcal,
+          f.protein_g,
+          f.carbohydrate_g,
+          f.fat_g,
+          f.fiber_g,
+          f.data_quality,
+          f.status,
+          f.source_type,
+          f.source_key,
+          f.source_external_code,
+          f.source_version,
+          f.source_reference,
+          f.source_imported_at,
+          f.last_verified_at,
+          f.source_uid,
+          f.created_by_user_id,
+          f.created_by_membership_id,
+          f.created_at,
+          f.updated_at,
+          f.deleted_at,
+          (
+            SELECT COUNT(*)
+            FROM nutrition_v2_food_portions fp
+            WHERE fp.food_id = f.id
+              AND fp.deleted_at IS NULL
+              AND fp.status = 'ACTIVE'
+          ) AS portions_count
+        FROM nutrition_v2_foods f
+        WHERE ${whereClause}
+        ${orderClause}
+        LIMIT ? OFFSET ?`,
+        selectParams
+      );
+    } catch (queryErr) {
+      throw new FoodLibraryQueryError(
+        `Falha na consulta paginada de alimentos: ${queryErr instanceof Error ? queryErr.message : String(queryErr)}`,
+        queryErr
+      );
+    }
 
-    const items: FoodListItemDto[] = (rows as RowDataPacket[]).map((r) => ({
-      publicId: r.public_id,
-      scope: r.scope as NutritionV2FoodScope,
-      consultancyId: r.consultancy_id != null ? String(r.consultancy_id) : null,
-      name: r.name,
-      displayNamePtBr: r.display_name_pt_br != null ? String(r.display_name_pt_br) : null,
-      normalizedDisplayNamePtBr: r.normalized_display_name_pt_br != null ? String(r.normalized_display_name_pt_br) : null,
-      normalizedName: r.normalized_name,
-      category: r.category,
-      referenceAmount: Number(r.reference_amount),
-      referenceUnitCode: r.reference_unit_code,
-      caloriesKcal: r.calories_kcal != null ? Number(r.calories_kcal) : null,
-      proteinG: r.protein_g != null ? Number(r.protein_g) : null,
-      carbohydrateG: r.carbohydrate_g != null ? Number(r.carbohydrate_g) : null,
-      fatG: r.fat_g != null ? Number(r.fat_g) : null,
-      fiberG: r.fiber_g != null ? Number(r.fiber_g) : null,
-      dataQuality: r.data_quality != null ? String(r.data_quality) : "UNCLASSIFIED",
-      status: r.status as NutritionV2FoodStatus,
-      sourceType: r.source_type,
-      sourceKey: r.source_key,
-      sourceExternalCode: r.source_external_code,
-      sourceVersion: r.source_version,
-      sourceReference: r.source_reference,
-      sourceImportedAt: r.source_imported_at ? new Date(r.source_imported_at).toISOString() : null,
-      lastVerifiedAt: r.last_verified_at ? new Date(r.last_verified_at).toISOString() : null,
-      sourceUid: r.source_uid,
-      createdByUserId: r.created_by_user_id != null ? String(r.created_by_user_id) : null,
-      createdByMembershipId: r.created_by_membership_id != null ? String(r.created_by_membership_id) : null,
-      createdAt: new Date(r.created_at).toISOString(),
-      updatedAt: new Date(r.updated_at).toISOString(),
-      deletedAt: r.deleted_at ? new Date(r.deleted_at).toISOString() : null,
-      portionsCount: Number(r.portions_count || 0),
-    }));
+    let items: FoodListItemDto[];
+    try {
+      items = (rows as RowDataPacket[]).map((r) => ({
+        publicId: safeString(r.public_id),
+        scope: (r.scope === "CONSULTANCY" ? "CONSULTANCY" : "GLOBAL") as NutritionV2FoodScope,
+        consultancyId: r.consultancy_id != null ? String(r.consultancy_id) : null,
+        name: safeString(r.name, "Alimento sem nome"),
+        displayNamePtBr: safeNullableString(r.display_name_pt_br),
+        normalizedDisplayNamePtBr: safeNullableString(r.normalized_display_name_pt_br),
+        normalizedName: safeString(r.normalized_name, ""),
+        category: safeNullableString(r.category),
+        referenceAmount: safeNumber(r.reference_amount, 100),
+        referenceUnitCode: safeString(r.reference_unit_code, "G").toUpperCase(),
+        caloriesKcal: safeNullableNumber(r.calories_kcal),
+        proteinG: safeNullableNumber(r.protein_g),
+        carbohydrateG: safeNullableNumber(r.carbohydrate_g),
+        fatG: safeNullableNumber(r.fat_g),
+        fiberG: safeNullableNumber(r.fiber_g),
+        dataQuality: safeNullableString(r.data_quality) || "UNCLASSIFIED",
+        status: (r.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE") as NutritionV2FoodStatus,
+        sourceType: safeString(r.source_type, "MANUAL"),
+        sourceKey: safeNullableString(r.source_key),
+        sourceExternalCode: safeNullableString(r.source_external_code),
+        sourceVersion: safeNullableString(r.source_version),
+        sourceReference: safeNullableString(r.source_reference),
+        sourceImportedAt: safeIsoString(r.source_imported_at, null),
+        lastVerifiedAt: safeIsoString(r.last_verified_at, null),
+        sourceUid: safeNullableString(r.source_uid),
+        createdByUserId: r.created_by_user_id != null ? String(r.created_by_user_id) : null,
+        createdByMembershipId: r.created_by_membership_id != null ? String(r.created_by_membership_id) : null,
+        createdAt: safeIsoString(r.created_at, new Date(0).toISOString())!,
+        updatedAt: safeIsoString(r.updated_at, new Date(0).toISOString())!,
+        deletedAt: safeIsoString(r.deleted_at, null),
+        portionsCount: safeNumber(r.portions_count, 0),
+      }));
+    } catch (mappingErr) {
+      throw new FoodLibraryMappingError(
+        `Falha no mapeamento das linhas de alimentos: ${mappingErr instanceof Error ? mappingErr.message : String(mappingErr)}`,
+        mappingErr
+      );
+    }
 
     return {
       items,
@@ -398,37 +481,37 @@ export async function listGlobalFoodsForAdmin(
     );
 
     const items: FoodListItemDto[] = (rows as RowDataPacket[]).map((r) => ({
-      publicId: r.public_id,
-      scope: r.scope as NutritionV2FoodScope,
+      publicId: safeString(r.public_id),
+      scope: (r.scope === "CONSULTANCY" ? "CONSULTANCY" : "GLOBAL") as NutritionV2FoodScope,
       consultancyId: null,
-      name: r.name,
-      displayNamePtBr: r.display_name_pt_br != null ? String(r.display_name_pt_br) : null,
-      normalizedDisplayNamePtBr: r.normalized_display_name_pt_br != null ? String(r.normalized_display_name_pt_br) : null,
-      normalizedName: r.normalized_name,
-      category: r.category,
-      referenceAmount: Number(r.reference_amount),
-      referenceUnitCode: r.reference_unit_code,
-      caloriesKcal: r.calories_kcal != null ? Number(r.calories_kcal) : null,
-      proteinG: r.protein_g != null ? Number(r.protein_g) : null,
-      carbohydrateG: r.carbohydrate_g != null ? Number(r.carbohydrate_g) : null,
-      fatG: r.fat_g != null ? Number(r.fat_g) : null,
-      fiberG: r.fiber_g != null ? Number(r.fiber_g) : null,
-      dataQuality: r.data_quality != null ? String(r.data_quality) : "UNCLASSIFIED",
-      status: r.status as NutritionV2FoodStatus,
-      sourceType: r.source_type,
-      sourceKey: r.source_key,
-      sourceExternalCode: r.source_external_code,
-      sourceVersion: r.source_version,
-      sourceReference: r.source_reference,
-      sourceImportedAt: r.source_imported_at ? new Date(r.source_imported_at).toISOString() : null,
-      lastVerifiedAt: r.last_verified_at ? new Date(r.last_verified_at).toISOString() : null,
-      sourceUid: r.source_uid,
+      name: safeString(r.name, "Alimento sem nome"),
+      displayNamePtBr: safeNullableString(r.display_name_pt_br),
+      normalizedDisplayNamePtBr: safeNullableString(r.normalized_display_name_pt_br),
+      normalizedName: safeString(r.normalized_name, ""),
+      category: safeNullableString(r.category),
+      referenceAmount: safeNumber(r.reference_amount, 100),
+      referenceUnitCode: safeString(r.reference_unit_code, "G").toUpperCase(),
+      caloriesKcal: safeNullableNumber(r.calories_kcal),
+      proteinG: safeNullableNumber(r.protein_g),
+      carbohydrateG: safeNullableNumber(r.carbohydrate_g),
+      fatG: safeNullableNumber(r.fat_g),
+      fiberG: safeNullableNumber(r.fiber_g),
+      dataQuality: safeNullableString(r.data_quality) || "UNCLASSIFIED",
+      status: (r.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE") as NutritionV2FoodStatus,
+      sourceType: safeString(r.source_type, "MANUAL"),
+      sourceKey: safeNullableString(r.source_key),
+      sourceExternalCode: safeNullableString(r.source_external_code),
+      sourceVersion: safeNullableString(r.source_version),
+      sourceReference: safeNullableString(r.source_reference),
+      sourceImportedAt: safeIsoString(r.source_imported_at, null),
+      lastVerifiedAt: safeIsoString(r.last_verified_at, null),
+      sourceUid: safeNullableString(r.source_uid),
       createdByUserId: r.created_by_user_id != null ? String(r.created_by_user_id) : null,
       createdByMembershipId: null,
-      createdAt: new Date(r.created_at).toISOString(),
-      updatedAt: new Date(r.updated_at).toISOString(),
-      deletedAt: r.deleted_at ? new Date(r.deleted_at).toISOString() : null,
-      portionsCount: Number(r.portions_count || 0),
+      createdAt: safeIsoString(r.created_at, new Date(0).toISOString())!,
+      updatedAt: safeIsoString(r.updated_at, new Date(0).toISOString())!,
+      deletedAt: safeIsoString(r.deleted_at, null),
+      portionsCount: safeNumber(r.portions_count, 0),
     }));
 
     return {
@@ -483,45 +566,45 @@ export async function getFoodWithPortions(
     );
 
     return {
-      publicId: f.public_id,
-      scope: f.scope,
+      publicId: safeString(f.public_id),
+      scope: (f.scope === "CONSULTANCY" ? "CONSULTANCY" : "GLOBAL") as NutritionV2FoodScope,
       consultancyId: f.consultancy_id != null ? String(f.consultancy_id) : null,
-      name: f.name,
-      displayNamePtBr: f.display_name_pt_br != null ? String(f.display_name_pt_br) : null,
-      normalizedDisplayNamePtBr: f.normalized_display_name_pt_br != null ? String(f.normalized_display_name_pt_br) : null,
-      normalizedName: f.normalized_name,
-      category: f.category,
-      referenceAmount: Number(f.reference_amount),
-      referenceUnitCode: f.reference_unit_code,
-      caloriesKcal: f.calories_kcal != null ? Number(f.calories_kcal) : null,
-      proteinG: f.protein_g != null ? Number(f.protein_g) : null,
-      carbohydrateG: f.carbohydrate_g != null ? Number(f.carbohydrate_g) : null,
-      fatG: f.fat_g != null ? Number(f.fat_g) : null,
-      fiberG: f.fiber_g != null ? Number(f.fiber_g) : null,
-      dataQuality: f.data_quality != null ? String(f.data_quality) : "UNCLASSIFIED",
-      lastVerifiedAt: f.last_verified_at ? new Date(f.last_verified_at).toISOString() : null,
-      status: f.status,
-      sourceType: f.source_type,
-      sourceKey: f.source_key,
-      sourceExternalCode: f.source_external_code,
-      sourceVersion: f.source_version,
-      sourceReference: f.source_reference,
-      sourceImportedAt: f.source_imported_at ? new Date(f.source_imported_at).toISOString() : null,
-      sourceUid: f.source_uid,
+      name: safeString(f.name, "Alimento sem nome"),
+      displayNamePtBr: safeNullableString(f.display_name_pt_br),
+      normalizedDisplayNamePtBr: safeNullableString(f.normalized_display_name_pt_br),
+      normalizedName: safeString(f.normalized_name, ""),
+      category: safeNullableString(f.category),
+      referenceAmount: safeNumber(f.reference_amount, 100),
+      referenceUnitCode: safeString(f.reference_unit_code, "G").toUpperCase(),
+      caloriesKcal: safeNullableNumber(f.calories_kcal),
+      proteinG: safeNullableNumber(f.protein_g),
+      carbohydrateG: safeNullableNumber(f.carbohydrate_g),
+      fatG: safeNullableNumber(f.fat_g),
+      fiberG: safeNullableNumber(f.fiber_g),
+      dataQuality: safeNullableString(f.data_quality) || "UNCLASSIFIED",
+      lastVerifiedAt: safeIsoString(f.last_verified_at, null),
+      status: (f.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE") as NutritionV2FoodStatus,
+      sourceType: safeString(f.source_type, "MANUAL"),
+      sourceKey: safeNullableString(f.source_key),
+      sourceExternalCode: safeNullableString(f.source_external_code),
+      sourceVersion: safeNullableString(f.source_version),
+      sourceReference: safeNullableString(f.source_reference),
+      sourceImportedAt: safeIsoString(f.source_imported_at, null),
+      sourceUid: safeNullableString(f.source_uid),
       createdByUserId: f.created_by_user_id != null ? String(f.created_by_user_id) : null,
       createdByMembershipId: f.created_by_membership_id != null ? String(f.created_by_membership_id) : null,
-      createdAt: new Date(f.created_at).toISOString(),
-      updatedAt: new Date(f.updated_at).toISOString(),
-      deletedAt: f.deleted_at ? new Date(f.deleted_at).toISOString() : null,
-      portions: portions.map((p) => ({
-        publicId: p.public_id,
-        label: p.label,
-        equivalentReferenceAmount: Number(p.equivalent_reference_amount),
-        sortOrder: p.sort_order,
-        status: p.status,
-        createdAt: new Date(p.created_at).toISOString(),
-        updatedAt: new Date(p.updated_at).toISOString(),
-        deletedAt: p.deleted_at ? new Date(p.deleted_at).toISOString() : null,
+      createdAt: safeIsoString(f.created_at, new Date(0).toISOString())!,
+      updatedAt: safeIsoString(f.updated_at, new Date(0).toISOString())!,
+      deletedAt: safeIsoString(f.deleted_at, null),
+      portions: (portions as RowDataPacket[]).map((p) => ({
+        publicId: safeString(p.public_id),
+        label: safeString(p.label, "Porção"),
+        equivalentReferenceAmount: safeNumber(p.equivalent_reference_amount, 100),
+        sortOrder: safeNumber(p.sort_order, 0),
+        status: safeString(p.status, "ACTIVE"),
+        createdAt: safeIsoString(p.created_at, new Date(0).toISOString())!,
+        updatedAt: safeIsoString(p.updated_at, new Date(0).toISOString())!,
+        deletedAt: safeIsoString(p.deleted_at, null),
       })),
     };
   } finally {

@@ -185,6 +185,15 @@ export const COMMON_FOOD_SYNONYMS: Readonly<Record<string, readonly string[]>> =
   desnatada: ["desnatado"],
   defumado: ["defumada"],
   defumada: ["defumado"],
+  // Tubérculos e féculas brasileiras
+  inglesa: ["batata"],
+  goma: ["hidratada"],
+  hidratada: ["goma"],
+  // Pães e grãos
+  frances: ["francesa", "pao frances"],
+  francesa: ["frances", "pao frances"],
+  // Suplementos e marcas nacionais verificadas
+  growth: ["suplementos", "whey", "creatina"],
 });
 
 export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
@@ -262,6 +271,9 @@ export function buildFoodSearchOrderClause(
   );
 
   const isBreadQuery = queryTokens.some((t) => ["bread", "pao"].includes(t));
+  const isRiceQuery = queryTokens.some((t) => ["arroz", "rice"].includes(t));
+  const isSweetPotatoQuery = queryTokens.includes("batata") && queryTokens.includes("doce");
+  const isCouscousQuery = queryTokens.some((t) => ["cuscuz", "couscous"].includes(t));
   const isYogurtQuery = queryTokens.some((t) => ["yogurt", "iogurte"].includes(t));
 
   const orderClause = `ORDER BY
@@ -335,6 +347,31 @@ export function buildFoodSearchOrderClause(
              OR f.normalized_name LIKE '%fruit%' OR f.normalized_name LIKE '%flavored%') THEN 3
       ELSE 1
     END ASC,
+    -- Prioritize national Brazilian staple preparations when querying common staples
+    CASE
+      WHEN (${isRiceQuery ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE 'arroz, tipo 1%' OR ${targetCol} LIKE 'arroz, integral%' OR ${targetCol} LIKE 'arroz integral%' OR ${targetCol} LIKE 'arroz branco%') THEN 1
+      WHEN (${isRiceQuery ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE 'arroz%' AND (${targetCol} LIKE '%preto%' OR ${targetCol} LIKE '%vermelho%' OR ${targetCol} LIKE '%selvagem%')) THEN 3
+      ELSE 2
+    END ASC,
+    CASE
+      WHEN (${isSweetPotatoQuery ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE 'batata, doce%' OR ${targetCol} LIKE 'batata doce%') THEN 1
+      ELSE 2
+    END ASC,
+    CASE
+      WHEN (${isCouscousQuery ? "1=1" : "1=0"})
+        AND (${targetCol} LIKE 'cuscuz, de milho%' OR ${targetCol} LIKE 'cuscuz de milho%') THEN 1
+      ELSE 2
+    END ASC,
+    -- Prioritize Brazilian national sources (TACO, BRANDED, GROWTH, AMAFIL)
+    CASE
+      WHEN f.source_type IN ('TACO', 'BRANDED') OR f.source_key LIKE 'TACO%' OR f.source_key LIKE 'GROWTH%' OR f.source_key LIKE 'AMAFIL%' THEN 1
+      WHEN f.data_quality = 'ANALYTICAL_GOLD' THEN 2
+      WHEN f.data_quality = 'SURVEY_RECIPE' THEN 3
+      ELSE 4
+    END ASC,
     -- Prioritize analytical laboratory direct data & survey recipe data quality
     CASE
       WHEN f.data_quality = 'ANALYTICAL_GOLD' THEN 1
@@ -360,6 +397,13 @@ export interface DataQualityBadgeInfo {
  */
 export function getDataQualityBadgeInfo(dataQuality?: string | null): DataQualityBadgeInfo | null {
   if (!dataQuality) return null;
+  if (dataQuality === "MANUFACTURER_VERIFIED") {
+    return {
+      label: "Rótulo oficial",
+      title: "Valores obtidos diretamente da tabela nutricional oficial do fabricante",
+      variant: "analytical",
+    };
+  }
   if (dataQuality === "ANALYTICAL_GOLD") {
     return {
       label: "Dados analíticos",

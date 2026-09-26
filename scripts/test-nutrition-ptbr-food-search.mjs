@@ -134,6 +134,113 @@ async function runDatabaseTests() {
     );
     console.log(`  ✓ Alimentos soft-deleted no banco: ${deletedRows[0]?.total || 0} (ocultados em todas as queries com f.deleted_at IS NULL)`);
 
+    // 5. Permanent Regression Suite: Brazilian Staples & Preparation State Integrity (Part 9)
+    console.log("Test 5: Validando suíte de regressão permanente PT-BR (Part 9)...");
+
+    async function executeQuery(queryText) {
+      const tokens = tokenizeSearchQuery(queryText);
+      const tokenGroups = expandSearchTokensWithSynonyms(tokens);
+      const conditions = ["f.deleted_at IS NULL", "f.status = 'ACTIVE'", "f.scope = 'GLOBAL'"];
+      const params = [];
+      for (const group of tokenGroups) {
+        const orClauses = [];
+        for (const variant of group) {
+          orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ?");
+          params.push(`%${variant}%`, `%${variant}%`);
+        }
+        conditions.push(`(${orClauses.join(" OR ")})`);
+      }
+      const whereClause = conditions.join(" AND ");
+      const { orderClause, orderParams } = buildFoodSearchOrderClause(queryText, tokens, true);
+      const [rows] = await connection.query(
+        `SELECT f.id, f.name, f.display_name_pt_br, f.source_key
+         FROM nutrition_v2_foods f
+         WHERE ${whereClause}
+         ${orderClause}
+         LIMIT 10`,
+        [...params, ...orderParams]
+      );
+      return rows;
+    }
+
+    // A) Arroz, Frango, Ovo, Banana
+    const arrozRows = await executeQuery("arroz");
+    assert.ok(arrozRows.length > 0, "'arroz' deve retornar registros válidos");
+
+    const frangoRows = await executeQuery("frango");
+    assert.ok(frangoRows.length > 0, "'frango' deve retornar registros válidos");
+
+    const ovoRows = await executeQuery("ovo");
+    assert.ok(ovoRows.length > 0, "'ovo' deve retornar registros válidos");
+
+    const bananaRows = await executeQuery("banana");
+    assert.ok(bananaRows.length > 0, "'banana' deve retornar registros válidos");
+
+    // B) Feijão vs Feijao (accent insensitivity)
+    const feijaoAcc = await executeQuery("feijão");
+    const feijaoNoAcc = await executeQuery("feijao");
+    assert.ok(feijaoAcc.length > 0 && feijaoNoAcc.length > 0, "'feijão' e 'feijao' devem retornar resultados");
+    assert.equal(feijaoAcc.length, feijaoNoAcc.length, "'feijão' e 'feijao' devem retornar a mesma quantidade de resultados");
+
+    // C) Batata doce vs Batata-doce (hyphen/space normalization)
+    const batataDoceSpaced = await executeQuery("batata doce");
+    const batataDoceHyphen = await executeQuery("batata-doce");
+    assert.ok(batataDoceSpaced.length > 0 && batataDoceHyphen.length > 0, "'batata doce' e 'batata-doce' devem retornar resultados");
+    assert.equal(batataDoceSpaced.length, batataDoceHyphen.length, "'batata doce' e 'batata-doce' devem se comportar de forma idêntica");
+
+    // D) Aipim / Mandioca / Macaxeira regional discovery
+    const aipimRows = await executeQuery("aipim");
+    const mandiocaRows = await executeQuery("mandioca");
+    const macaxeiraRows = await executeQuery("macaxeira");
+    assert.ok(aipimRows.length > 0, "'aipim' deve descobrir os registros da mandioca");
+    assert.ok(mandiocaRows.length > 0, "'mandioca' deve retornar registros");
+    assert.ok(macaxeiraRows.length > 0, "'macaxeira' deve descobrir os registros da mandioca");
+
+    // E) Preparation state integrity (cozido vs cru)
+    const aipimCozidoRows = await executeQuery("aipim cozido");
+    assert.ok(aipimCozidoRows.length > 0, "'aipim cozido' deve encontrar mandioca cozida");
+    for (const r of aipimCozidoRows) {
+      const name = (r.display_name_pt_br || r.name).toLowerCase();
+      assert.ok(!name.includes("crua") && !name.includes("cru"), "'aipim cozido' NUNCA deve retornar alimento cru");
+    }
+
+    const aipimCruRows = await executeQuery("aipim cru");
+    assert.ok(aipimCruRows.length > 0, "'aipim cru' deve encontrar mandioca crua");
+    for (const r of aipimCruRows) {
+      const name = (r.display_name_pt_br || r.name).toLowerCase();
+      assert.ok(!name.includes("cozida") && !name.includes("cozido"), "'aipim cru' NUNCA deve virar mandioca cozida silenciosamente");
+    }
+
+    // F) Muçarela vs Mussarela
+    const mucarelaRows = await executeQuery("muçarela");
+    const mussarelaRows = await executeQuery("mussarela");
+    assert.ok(mucarelaRows.length > 0, "'muçarela' deve descobrir os queijos mozarela existentes");
+    assert.ok(mussarelaRows.length > 0, "'mussarela' deve descobrir os queijos mozarela existentes");
+    assert.equal(mucarelaRows.length, mussarelaRows.length, "'muçarela' e 'mussarela' devem se comportar de forma simétrica");
+
+    // G) Pasta de amendoim
+    const pastaAmendoimRows = await executeQuery("pasta de amendoim");
+    assert.ok(pastaAmendoimRows.length > 0, "'pasta de amendoim' deve descobrir 'Creme de amendoim'");
+
+    // H) Cuscuz e Tapioca
+    const cuscuzRows = await executeQuery("cuscuz");
+    assert.ok(cuscuzRows.length > 0, "'cuscuz' deve retornar registros válidos");
+
+    const tapiocaRows = await executeQuery("tapioca");
+    assert.ok(tapiocaRows.length > 0, "'tapioca' deve retornar registros válidos");
+
+    // I) Truly Absent Records Verification (Report as MISSING, no faked fixtures)
+    const growthRows = await executeQuery("whey Growth");
+    assert.equal(growthRows.length, 0, "Produtos Growth não cadastrados devem retornar 0 (TRULY_MISSING/BRANDED_PRODUCT_MISSING)");
+
+    const creatinaRows = await executeQuery("creatina");
+    assert.equal(creatinaRows.length, 0, "Creatina ausente no catálogo deve retornar 0 (TRULY_MISSING)");
+
+    const carneSolRows = await executeQuery("carne de sol");
+    assert.equal(carneSolRows.length, 0, "Carne de sol ausente deve retornar 0 (TRULY_MISSING)");
+
+    console.log("  ✓ Regressão permanente PT-BR aprovada: gramática, ortografia, estados de preparo e integridade do catálogo.");
+
   } finally {
     await connection.end();
   }

@@ -155,6 +155,36 @@ export const COMMON_FOOD_SYNONYMS: Readonly<Record<string, readonly string[]>> =
   cottage: ["cottage cheese"],
   manteiga: ["butter"],
   azeite: ["olive oil"],
+  mussarela: ["mucarela", "mozarela", "mozzarella"],
+  mucarela: ["mussarela", "mozarela", "mozzarella"],
+  mozarela: ["mussarela", "mucarela", "mozzarella"],
+  mozzarella: ["mussarela", "mucarela", "mozarela"],
+
+  // Pastas e cremes (descoberta segura de pasta de amendoim <-> creme de amendoim)
+  pasta: ["creme", "massa", "paste"],
+  creme: ["pasta", "cream"],
+
+  // Flexões culinárias e estados de preparo simétricos (preserva o estado exato: cozido <-> cozida, cru <-> crua, etc.)
+  cozido: ["cozida"],
+  cozida: ["cozido"],
+  assado: ["assada"],
+  assada: ["assado"],
+  grelhado: ["grelhada"],
+  grelhada: ["grelhado"],
+  frito: ["frita"],
+  frita: ["frito"],
+  cru: ["crua"],
+  crua: ["cru"],
+  moido: ["moida"],
+  moida: ["moido"],
+  torrado: ["torrada"],
+  torrada: ["torrado"],
+  tostado: ["tostada"],
+  tostada: ["tostado"],
+  desnatado: ["desnatada"],
+  desnatada: ["desnatado"],
+  defumado: ["defumada"],
+  defumada: ["defumado"],
 });
 
 export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {

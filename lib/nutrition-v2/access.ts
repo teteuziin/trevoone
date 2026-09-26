@@ -101,14 +101,30 @@ export async function resolveNutritionAccessContext(
     if (!Array.isArray(rows) || rows.length === 0) {
       // User is not an active member of this consultancy
       if (isPlatformAdmin) {
-        // Platform admin without direct membership gets global management capabilities
+        // Resolve target consultancy tenancy context if identifier was provided
+        const [cRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT id, public_id, slug
+           FROM consultancies
+           WHERE (slug = ? OR public_id = ?)
+             AND status = 'ACTIVE'
+             AND deleted_at IS NULL
+           LIMIT 1;`,
+          [normalizedIdentifier, normalizedIdentifier]
+        );
+
+        if (!Array.isArray(cRows) || cRows.length === 0) {
+          return null;
+        }
+
+        const cFirst = cRows[0];
+        // Platform admin without direct membership gets tenancy preview capabilities
         return {
           userId: session.userId,
           userPublicId: session.userPublicId,
           isPlatformAdmin: true,
-          consultancyId: null,
-          consultancyPublicId: null,
-          consultancySlug: null,
+          consultancyId: Number(cFirst.id),
+          consultancyPublicId: String(cFirst.public_id),
+          consultancySlug: String(cFirst.slug),
           membershipId: null,
           membershipPublicId: null,
           roles: [],
@@ -174,7 +190,21 @@ export function assertCanManageGlobal(ctx: NutritionAccessContext): void {
 }
 
 export function assertCanViewNutrition(ctx: NutritionAccessContext): void {
-  if (!ctx.consultancyId || !ctx.membershipId || !ctx.canViewNutrition) {
+  if (!ctx.canViewNutrition) {
+    throw new NutritionAuthorizationError(
+      "Acesso negado: visualização do workspace nutricional restrita a profissionais autorizados.",
+      "UNAUTHORIZED_NUTRITION_VIEW",
+      403
+    );
+  }
+  if (!ctx.consultancyId) {
+    throw new NutritionAuthorizationError(
+      "Operação requer contexto ativo de consultoria.",
+      "MISSING_CONSULTANCY_CONTEXT",
+      400
+    );
+  }
+  if (!ctx.isPlatformAdmin && !ctx.membershipId) {
     throw new NutritionAuthorizationError(
       "Acesso negado: visualização do workspace nutricional restrita a profissionais autorizados.",
       "UNAUTHORIZED_NUTRITION_VIEW",

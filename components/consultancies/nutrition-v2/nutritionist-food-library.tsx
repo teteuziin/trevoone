@@ -493,7 +493,7 @@ export function NutritionistFoodLibrary({
                       <ChevronRightIcon className="w-3.5 h-3.5" />
                     </button>
 
-                    {!isGlobal && (
+                    {!isGlobal && canAuthorNutrition && (
                       <div className="flex items-center gap-2">
                         <Button
                           type="button"
@@ -617,7 +617,7 @@ export function NutritionistFoodLibrary({
                               = {p.equivalentReferenceAmount} {selectedFood.referenceUnitCode}
                             </span>
                           </div>
-                          {selectedFood.scope === "CONSULTANCY" && (
+                          {selectedFood.scope === "CONSULTANCY" && canAuthorNutrition && (
                             <button
                               type="button"
                               onClick={() => handleArchivePortion(p.publicId)}
@@ -633,7 +633,7 @@ export function NutritionistFoodLibrary({
                 </div>
 
                 {/* Add portion form if consultancy */}
-                {selectedFood.scope === "CONSULTANCY" ? (
+                {selectedFood.scope === "CONSULTANCY" && canAuthorNutrition ? (
                   <form onSubmit={handleAddPortion} className="pt-3 border-t border-[var(--border-subtle)] space-y-3">
                     <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                       Adicionar Nova Porção

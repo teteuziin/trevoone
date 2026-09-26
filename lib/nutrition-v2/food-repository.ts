@@ -163,8 +163,8 @@ export async function listUnifiedFoodsForNutritionist(
     for (const group of tokenGroups) {
       const orClauses: string[] = [];
       for (const variant of group) {
-        orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ?");
-        params.push(`%${variant}%`, `%${variant}%`);
+        orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ? OR f.brand LIKE ?");
+        params.push(`%${variant}%`, `%${variant}%`, `%${variant}%`);
       }
       conditions.push(`(${orClauses.join(" OR ")})`);
     }
@@ -330,8 +330,8 @@ export async function listGlobalFoodsForAdmin(
     for (const group of tokenGroups) {
       const orClauses: string[] = [];
       for (const variant of group) {
-        orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ?");
-        params.push(`%${variant}%`, `%${variant}%`);
+        orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ? OR f.brand LIKE ?");
+        params.push(`%${variant}%`, `%${variant}%`, `%${variant}%`);
       }
       conditions.push(`(${orClauses.join(" OR ")})`);
     }

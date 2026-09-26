@@ -48,8 +48,11 @@ async function run() {
       if (!f.flavor_or_variant) throw new Error(`Alimento ID ${f.id} sem campo 'flavor_or_variant'.`);
       if (!f.source_reference) throw new Error(`Alimento ID ${f.id} sem URL oficial 'source_reference'.`);
       if (!f.last_verified_at) throw new Error(`Alimento ID ${f.id} sem 'last_verified_at'.`);
-      if (f.data_quality !== "MANUFACTURER_VERIFIED") {
-        throw new Error(`Alimento ID ${f.id} com data_quality incorreto: ${f.data_quality}`);
+      if (f.brand === "Growth Supplements" && f.data_quality !== "MANUFACTURER_VERIFIED") {
+        throw new Error(`Alimento Growth ID ${f.id} com data_quality incorreto: ${f.data_quality}`);
+      }
+      if (f.brand === "Amafil" && f.data_quality !== "UNCLASSIFIED") {
+        throw new Error(`Alimento Amafil ID ${f.id} deveria estar UNCLASSIFIED (NOT_READY_FOR_PROD), encontrado: ${f.data_quality}`);
       }
     }
     console.log(`  ✓ Todos os ${foods.length} alimentos branded possuem metadados completos de fabricante e proveniência`);

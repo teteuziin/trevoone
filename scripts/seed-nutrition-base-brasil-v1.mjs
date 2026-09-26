@@ -223,8 +223,8 @@ export const BASE_BRASIL_V1_MANIFEST = [
     sourceType: "BRANDED",
     sourceKey: "AMAFIL",
     sourceExternalCode: "AMAFIL-TAPIOCA-500G",
-    sourceReference: "https://amafil.com.br/receita/receita_categoria/tapiocas/",
-    dataQuality: "MANUFACTURER_VERIFIED",
+    sourceReference: "https://amafil.com.br/produtos/tapioca/",
+    dataQuality: "UNCLASSIFIED", // Insufficient online manufacturer nutrition facts label; marked NOT_READY_FOR_PROD
     portions: [
       { label: "1 colher de sopa", equivalentReferenceAmount: 20.0, sortOrder: 1 },
       { label: "5 colheres de sopa (1 porção)", equivalentReferenceAmount: 100.0, sortOrder: 2 },

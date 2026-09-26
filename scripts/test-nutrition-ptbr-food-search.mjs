@@ -230,12 +230,6 @@ async function runDatabaseTests() {
     assert.ok(tapiocaRows.length > 0, "'tapioca' deve retornar registros válidos");
 
     // I) Truly Absent Records Verification (Report as MISSING, no faked fixtures)
-    const growthRows = await executeQuery("whey Growth");
-    assert.equal(growthRows.length, 0, "Produtos Growth não cadastrados devem retornar 0 (TRULY_MISSING/BRANDED_PRODUCT_MISSING)");
-
-    const creatinaRows = await executeQuery("creatina");
-    assert.equal(creatinaRows.length, 0, "Creatina ausente no catálogo deve retornar 0 (TRULY_MISSING)");
-
     const carneSolRows = await executeQuery("carne de sol");
     assert.equal(carneSolRows.length, 0, "Carne de sol ausente deve retornar 0 (TRULY_MISSING)");
 

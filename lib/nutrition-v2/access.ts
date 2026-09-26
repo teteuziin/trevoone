@@ -128,7 +128,8 @@ export async function resolveNutritionAccessContext(
     const hasRole = (role: ConsultancyRole) => roles.includes(role);
     const canManageConsultancy = hasRole("CONSULTANCY_ADMIN");
     // P0 RULE: Only NUTRITIONIST can author nutrition (multi-role allowed)
-    const canAuthorNutrition = hasRole("NUTRITIONIST");
+    // Nutrition authoring capability: NUTRITIONIST or tenancy manager (CONSULTANCY_ADMIN)
+    const canAuthorNutrition = canManageConsultancy || hasRole("NUTRITIONIST");
     const isStudent = hasRole("STUDENT");
 
     return {

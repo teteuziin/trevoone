@@ -181,6 +181,13 @@ export function ConsultancyAppShell({
       iconName: "nutrition",
     });
     items.push({
+      id: "nutritionist-prontuario",
+      label: "Prontuários",
+      mobileLabel: "Prontuários",
+      href: `/consultoria/${consultancySlug}/planos-v2/prontuario`,
+      iconName: "progress",
+    });
+    items.push({
       id: "nutritionist-alimentos",
       label: "Alimentos",
       mobileLabel: "Alimentos",

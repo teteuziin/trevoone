@@ -173,7 +173,7 @@ export function DashboardNutritionistView({
       icon: FoodLibraryIcon,
     },
     {
-      href: `/consultoria/${consultancySlug}/progresso/alunos`,
+      href: `/consultoria/${consultancySlug}/planos-v2/prontuario`,
       title: "Pacientes",
       description: "Evolução e pesagens",
       badge: "Clínica",
@@ -217,7 +217,7 @@ export function DashboardNutritionistView({
       title: "Evolução dos Pacientes",
       description: "Monitore o histórico de pesagens corporais e registros de medidas dos seus pacientes.",
       ctaText: "Acompanhar evolução",
-      ctaHref: `/consultoria/${consultancySlug}/progresso/alunos`,
+      ctaHref: `/consultoria/${consultancySlug}/planos-v2/prontuario`,
       imageUrl: "/images/student/hero-athlete.webp",
     },
     {

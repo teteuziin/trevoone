@@ -103,7 +103,7 @@ export default async function AdminDashboardPage() {
       badgeVariant: "neutral" as const,
       description:
         "Base oficial de dados nutricionais de referência (TACO 4ª edição), catálogo de marcas e gestão de novos alimentos.",
-      href: "/admin/alimentos-v2",
+      href: "/admin/alimentos",
       cta: "Gerenciar alimentos",
       icon: <FoodsIcon className="w-6 h-6" />,
     },

@@ -14,6 +14,7 @@ import type {
   FoodListItemDto,
   FoodWithPortionsDto,
   ListFoodsResult,
+  FoodSourceTab,
   CreateFoodInput,
   UpdateFoodInput,
 } from "@/lib/nutrition-v2/food-repository";
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button";
 interface NutritionistFoodLibraryProps {
   slug: string;
   initialResult: ListFoodsResult;
+  initialSourceTab?: FoodSourceTab;
   canAuthorNutrition?: boolean;
 }
 
@@ -98,10 +100,12 @@ function CloseIcon({ className = "w-5 h-5" }: { className?: string }) {
 export function NutritionistFoodLibrary({
   slug,
   initialResult,
+  initialSourceTab = "TREVO_BRASIL",
   canAuthorNutrition = true,
 }: NutritionistFoodLibraryProps) {
   const [data, setData] = useState<ListFoodsResult>(initialResult);
   const [query, setQuery] = useState("");
+  const [sourceTab, setSourceTab] = useState<FoodSourceTab>(initialSourceTab);
   const [scopeFilter, setScopeFilter] = useState<"ALL" | "GLOBAL" | "CONSULTANCY">("ALL");
   const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "ARCHIVED" | "ALL">("ACTIVE");
   const [isPending, startTransition] = useTransition();
@@ -125,12 +129,19 @@ export function NutritionistFoodLibrary({
     setTimeout(() => setFeedbackMsg(null), 5000);
   }
 
-  function fetchFoods(targetPage = 1, currentQuery = query, currentScope = scopeFilter, currentStatus = statusFilter) {
+  function fetchFoods(
+    targetPage = 1,
+    currentQuery = query,
+    currentScope = scopeFilter,
+    currentStatus = statusFilter,
+    currentTab = sourceTab
+  ) {
     startTransition(async () => {
       const res = await listUnifiedFoodsAction(slug, {
         query: currentQuery,
         scope: currentScope,
         status: currentStatus,
+        sourceTab: currentTab,
         page: targetPage,
         pageSize: 20,
       });
@@ -335,6 +346,41 @@ export function NutritionistFoodLibrary({
         </div>
       )}
 
+      {/* Source Category Tabs (Nutrium-like Curated Experience) */}
+      <div className="flex border-b border-[var(--border-subtle)] space-x-1 sm:space-x-2 overflow-x-auto">
+        {[
+          { key: "TREVO_BRASIL", label: "Trevo Brasil", desc: "Tabela TACO e Alimentos Nacionais" },
+          { key: "COMMERCIAL", label: "Produtos comerciais", desc: "Marcas e suplementos com laudo" },
+          { key: "MY_FOODS", label: "Meus alimentos", desc: "Alimentos da consultoria" },
+          { key: "OTHER_DATABASES", label: "Outras bases", desc: "USDA e internacional" },
+        ].map((tab) => {
+          const isActive = sourceTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => {
+                const nextTab = tab.key as FoodSourceTab;
+                setSourceTab(nextTab);
+                fetchFoods(1, query, scopeFilter, statusFilter, nextTab);
+              }}
+              className={`px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-extrabold border-b-2 transition-all -mb-px flex items-center gap-2 whitespace-nowrap ${
+                isActive
+                  ? "border-[var(--brand)] text-[var(--brand)] bg-[var(--surface)] shadow-xs"
+                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)]"
+              }`}
+            >
+              <span>{tab.label}</span>
+              {tab.key === "TREVO_BRASIL" && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-bold border border-emerald-500/20">
+                  Padrão
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Search & Filters */}
       <div className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface">
         <div className="flex flex-col sm:flex-row gap-2.5">
@@ -449,20 +495,25 @@ export function NutritionistFoodLibrary({
                         )}
                       </div>
                       <div className="shrink-0">
-                        {isGlobal ? (
-                          <div className="flex items-center gap-1.5">
-                            <Badge variant="success" size="sm">
-                              Trevo One
-                            </Badge>
-                            {food.sourceKey && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-                                {food.sourceKey.startsWith("USDA") ? "USDA" : food.sourceKey === "TACO" ? "TACO" : food.sourceKey}
-                              </span>
-                            )}
-                          </div>
+                        {food.sourceKey === "TACO" ? (
+                          <Badge variant="brand" size="sm">
+                            TACO Brasil
+                          </Badge>
+                        ) : food.sourceType === "BRANDED" || food.sourceKey === "GROWTH_SUPPLEMENTS" || food.sourceKey === "AMAFIL" ? (
+                          <Badge variant="success" size="sm">
+                            Comercial Verificado
+                          </Badge>
+                        ) : food.scope === "CONSULTANCY" ? (
+                          <Badge variant="neutral" size="sm">
+                            Minha Consultoria
+                          </Badge>
+                        ) : food.sourceKey?.startsWith("USDA") ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                            Base Internacional (USDA)
+                          </span>
                         ) : (
                           <Badge variant="brand" size="sm">
-                            Minha Consultoria
+                            Trevo One
                           </Badge>
                         )}
                       </div>

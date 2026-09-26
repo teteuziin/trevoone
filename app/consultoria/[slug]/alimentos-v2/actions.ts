@@ -56,7 +56,10 @@ export async function listUnifiedFoodsAction(
       };
     }
 
-    const result = await listUnifiedFoodsForNutritionist(ctx, filter);
+    const result = await listUnifiedFoodsForNutritionist(ctx, {
+      ...filter,
+      sourceTab: filter.sourceTab || "TREVO_BRASIL",
+    });
     return { success: true, data: result };
   } catch (err: unknown) {
     return handleError(err, "Erro ao carregar alimentos.");

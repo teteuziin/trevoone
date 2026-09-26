@@ -1,0 +1,5923 @@
+{
+  "metadata": {
+    "qa_suite_name": "TREVO ONE — TOP BRAZILIAN FOODS QA SET",
+    "version": "1.0.0",
+    "description": "Permanent professional QA verification set of 200+ fundamental Brazilian nutrition concepts.",
+    "total_concepts": 275,
+    "generated_at": "2026-09-26T19:30:31.776Z",
+    "governance_rules": [
+      "Every concept MUST resolve to a recognized PT-BR food or verified branded product.",
+      "Cooking or preparation state must remain explicit (e.g. cozido, grelhado, assado, cru).",
+      "No raw English titles or laboratory USDA descriptions may appear in default BR top results.",
+      "No AI-hallucinated or synthetic macro foods permitted.",
+      "All nutrient values must be directly traceable to official tables (IBGE, TACO) or verified manufacturer labels."
+    ]
+  },
+  "concepts": [
+    {
+      "concept_id": "arroz-branco-cozido",
+      "search_query": "arroz branco",
+      "canonical_pt_br_name": "Arroz branco, tipo 1, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de servir cheia (50 g)",
+      "banned_in_default_top_results": [
+        "rice",
+        "broiler",
+        "usda",
+        "commodity"
+      ],
+      "regional_synonyms": [
+        "arroz branco",
+        "arroz agulhinha",
+        "arroz cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 110,
+        "kcal_max": 140,
+        "p_min": 2,
+        "c_min": 25,
+        "f_max": 1
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "arroz-integral-cozido",
+      "search_query": "arroz integral",
+      "canonical_pt_br_name": "Arroz integral, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de servir cheia (50 g)",
+      "banned_in_default_top_results": [
+        "rice, brown",
+        "unpolished",
+        "commodity"
+      ],
+      "regional_synonyms": [
+        "arroz integral",
+        "arroz cateto integral"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 110,
+        "kcal_max": 140,
+        "p_min": 2,
+        "c_min": 23,
+        "f_max": 1.5
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "arroz-parboilizado-cozido",
+      "search_query": "arroz parboilizado",
+      "canonical_pt_br_name": "Arroz parboilizado, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "IBGE/TACO",
+      "household_measure_example": "1 colher de servir cheia (50 g)",
+      "banned_in_default_top_results": [
+        "parboiled rice",
+        "converted rice"
+      ],
+      "regional_synonyms": [
+        "arroz parboilizado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 115,
+        "kcal_max": 140,
+        "p_min": 2,
+        "c_min": 25,
+        "f_max": 1
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "aveia-flocos",
+      "search_query": "aveia",
+      "canonical_pt_br_name": "Aveia em flocos",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (30 g)",
+      "banned_in_default_top_results": [
+        "oats",
+        "rolled oats",
+        "groats"
+      ],
+      "regional_synonyms": [
+        "aveia",
+        "flocos de aveia"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 360,
+        "kcal_max": 410,
+        "p_min": 12,
+        "c_min": 60,
+        "f_max": 10
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "farelo-de-aveia",
+      "search_query": "farelo de aveia",
+      "canonical_pt_br_name": "Farelo de aveia",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (15 g)",
+      "banned_in_default_top_results": [
+        "oat bran"
+      ],
+      "regional_synonyms": [
+        "farelo de aveia"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 320,
+        "kcal_max": 380,
+        "p_min": 15,
+        "c_min": 50,
+        "f_max": 10
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "farinha-de-aveia",
+      "search_query": "farinha de aveia",
+      "canonical_pt_br_name": "Farinha de aveia",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa cheia (20 g)",
+      "banned_in_default_top_results": [
+        "oat flour"
+      ],
+      "regional_synonyms": [
+        "farinha de aveia"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 360,
+        "kcal_max": 400,
+        "p_min": 13,
+        "c_min": 60,
+        "f_max": 9
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "milho-verde-cozido",
+      "search_query": "milho verde",
+      "canonical_pt_br_name": "Milho verde, espiga cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 espiga média (100 g)",
+      "banned_in_default_top_results": [
+        "corn, sweet, yellow",
+        "maize"
+      ],
+      "regional_synonyms": [
+        "milho",
+        "milho verde cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 90,
+        "kcal_max": 140,
+        "p_min": 3,
+        "c_min": 20,
+        "f_max": 3
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "milho-em-conserva",
+      "search_query": "milho lata",
+      "canonical_pt_br_name": "Milho verde em conserva, drenado",
+      "preparation_state": "drenado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (40 g)",
+      "banned_in_default_top_results": [
+        "canned corn"
+      ],
+      "regional_synonyms": [
+        "milho em conserva",
+        "milho em lata"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 75,
+        "kcal_max": 110,
+        "p_min": 2.5,
+        "c_min": 15,
+        "f_max": 2
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "cuscuz-de-milho-cozido",
+      "search_query": "cuscuz de milho",
+      "canonical_pt_br_name": "Cuscuz de milho (flocão), cozido no vapor",
+      "preparation_state": "cozido no vapor",
+      "source_authority": "IBGE/TACO",
+      "household_measure_example": "1 fatia média ou 1 porção (100 g)",
+      "banned_in_default_top_results": [
+        "couscous, cooked",
+        "semolina"
+      ],
+      "regional_synonyms": [
+        "cuscuz",
+        "cuscuz nordestino",
+        "flocao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 100,
+        "kcal_max": 150,
+        "p_min": 2,
+        "c_min": 25,
+        "f_max": 1.5
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "pipoca-com-oleo",
+      "search_query": "pipoca",
+      "canonical_pt_br_name": "Pipoca estourada com óleo e sal",
+      "preparation_state": "estourada",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 xícara de chá (25 g)",
+      "banned_in_default_top_results": [
+        "popcorn, oil-popped"
+      ],
+      "regional_synonyms": [
+        "pipoca"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 400,
+        "kcal_max": 510,
+        "p_min": 8,
+        "c_min": 55,
+        "f_max": 25
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "quinoa-cozida",
+      "search_query": "quinoa",
+      "canonical_pt_br_name": "Quinoa em grãos, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "IBGE/TACO",
+      "household_measure_example": "2 colheres de sopa cheias (45 g)",
+      "banned_in_default_top_results": [
+        "quinoa, cooked"
+      ],
+      "regional_synonyms": [
+        "quinoa cozida",
+        "quinua"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 105,
+        "kcal_max": 135,
+        "p_min": 3.5,
+        "c_min": 18,
+        "f_max": 2.5
+      },
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "feijao-carioca-cozido",
+      "search_query": "feijão carioca",
+      "canonical_pt_br_name": "Feijão carioca, cozido (50% grão / 50% caldo)",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média cheia (130 g)",
+      "banned_in_default_top_results": [
+        "beans, pinto",
+        "common bean",
+        "raw english"
+      ],
+      "regional_synonyms": [
+        "feijao carioca",
+        "feijao carioquinha",
+        "feijao cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 65,
+        "kcal_max": 95,
+        "p_min": 4,
+        "c_min": 12,
+        "f_max": 1
+      },
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "feijao-preto-cozido",
+      "search_query": "feijão preto",
+      "canonical_pt_br_name": "Feijão preto, cozido (50% grão / 50% caldo)",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média cheia (130 g)",
+      "banned_in_default_top_results": [
+        "black turtle beans",
+        "raw english"
+      ],
+      "regional_synonyms": [
+        "feijao preto",
+        "feijao de feijoada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 65,
+        "kcal_max": 95,
+        "p_min": 4,
+        "c_min": 12,
+        "f_max": 1
+      },
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "feijao-fradinho-cozido",
+      "search_query": "feijão fradinho",
+      "canonical_pt_br_name": "Feijão fradinho, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média (130 g)",
+      "banned_in_default_top_results": [
+        "cowpeas, catjang",
+        "blackeye pea"
+      ],
+      "regional_synonyms": [
+        "feijao de corda",
+        "feijao macassar"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 80,
+        "kcal_max": 120,
+        "p_min": 6,
+        "c_min": 16,
+        "f_max": 1.5
+      },
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "feijao-branco-cozido",
+      "search_query": "feijão branco",
+      "canonical_pt_br_name": "Feijão branco, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média (130 g)",
+      "banned_in_default_top_results": [
+        "white beans, navy"
+      ],
+      "regional_synonyms": [
+        "feijao branco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 80,
+        "kcal_max": 120,
+        "p_min": 6,
+        "c_min": 17,
+        "f_max": 1
+      },
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "grao-de-bico-cozido",
+      "search_query": "grão de bico",
+      "canonical_pt_br_name": "Grão-de-bico, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (50 g)",
+      "banned_in_default_top_results": [
+        "chickpeas, garbanzo"
+      ],
+      "regional_synonyms": [
+        "grao de bico",
+        "gravanco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 130,
+        "kcal_max": 175,
+        "p_min": 7,
+        "c_min": 22,
+        "f_max": 3.5
+      },
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "lentilha-cozida",
+      "search_query": "lentilha",
+      "canonical_pt_br_name": "Lentilha, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (50 g)",
+      "banned_in_default_top_results": [
+        "lentils, mature seeds, cooked"
+      ],
+      "regional_synonyms": [
+        "lentilha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 90,
+        "kcal_max": 130,
+        "p_min": 6.5,
+        "c_min": 15,
+        "f_max": 1
+      },
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "ervilha-fresca-cozida",
+      "search_query": "ervilha fresca",
+      "canonical_pt_br_name": "Ervilha verde fresca, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (40 g)",
+      "banned_in_default_top_results": [
+        "peas, green, cooked"
+      ],
+      "regional_synonyms": [
+        "ervilha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 65,
+        "kcal_max": 95,
+        "p_min": 4.5,
+        "c_min": 12,
+        "f_max": 1
+      },
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "ervilha-em-conserva",
+      "search_query": "ervilha em lata",
+      "canonical_pt_br_name": "Ervilha em conserva, drenada",
+      "preparation_state": "drenada",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (40 g)",
+      "banned_in_default_top_results": [
+        "canned green peas"
+      ],
+      "regional_synonyms": [
+        "ervilha em lata",
+        "ervilha em conserva"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 60,
+        "kcal_max": 85,
+        "p_min": 4,
+        "c_min": 10,
+        "f_max": 0.8
+      },
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "soja-em-graos-cozida",
+      "search_query": "soja em grão",
+      "canonical_pt_br_name": "Soja em grãos, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (50 g)",
+      "banned_in_default_top_results": [
+        "soybeans, mature cooked"
+      ],
+      "regional_synonyms": [
+        "soja cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 150,
+        "kcal_max": 190,
+        "p_min": 14,
+        "c_min": 8,
+        "f_max": 9
+      },
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "mandioca-cozida",
+      "search_query": "mandioca",
+      "canonical_pt_br_name": "Mandioca (aipim/macaxeira), cozida com sal",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pedaço médio (100 g)",
+      "banned_in_default_top_results": [
+        "cassava, cooked",
+        "yuca"
+      ],
+      "regional_synonyms": [
+        "aipim",
+        "macaxeira",
+        "mandioca cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 110,
+        "kcal_max": 160,
+        "p_min": 0.5,
+        "c_min": 27,
+        "f_max": 0.8
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "mandioca-crua",
+      "search_query": "mandioca crua",
+      "canonical_pt_br_name": "Mandioca (aipim/macaxeira), crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pedaço médio (100 g)",
+      "banned_in_default_top_results": [
+        "cassava, raw"
+      ],
+      "regional_synonyms": [
+        "aipim cru",
+        "macaxeira crua"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 130,
+        "kcal_max": 170,
+        "p_min": 0.8,
+        "c_min": 32,
+        "f_max": 0.6
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "batata-inglesa-cozida",
+      "search_query": "batata inglesa",
+      "canonical_pt_br_name": "Batata inglesa, cozida sem pele",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (140 g)",
+      "banned_in_default_top_results": [
+        "potatoes, boiled, cooked without skin"
+      ],
+      "regional_synonyms": [
+        "batata",
+        "batatinha",
+        "batata cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 50,
+        "kcal_max": 85,
+        "p_min": 1,
+        "c_min": 12,
+        "f_max": 0.5
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "batata-inglesa-assada",
+      "search_query": "batata assada",
+      "canonical_pt_br_name": "Batata inglesa, assada",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (140 g)",
+      "banned_in_default_top_results": [
+        "potatoes, baked"
+      ],
+      "regional_synonyms": [
+        "batata assada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 80,
+        "kcal_max": 110,
+        "p_min": 1.8,
+        "c_min": 18,
+        "f_max": 0.6
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "batata-doce-cozida",
+      "search_query": "batata doce",
+      "canonical_pt_br_name": "Batata doce, cozida sem casca",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (100 g)",
+      "banned_in_default_top_results": [
+        "sweet potato, cooked"
+      ],
+      "regional_synonyms": [
+        "batata doce cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 70,
+        "kcal_max": 100,
+        "p_min": 0.5,
+        "c_min": 17,
+        "f_max": 0.5
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "batata-doce-assada",
+      "search_query": "batata doce assada",
+      "canonical_pt_br_name": "Batata doce, assada",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade pequena (100 g)",
+      "banned_in_default_top_results": [
+        "sweet potato, baked"
+      ],
+      "regional_synonyms": [
+        "batata doce assada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 90,
+        "kcal_max": 130,
+        "p_min": 1,
+        "c_min": 23,
+        "f_max": 0.6
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "mandioquinha-cozida",
+      "search_query": "mandioquinha",
+      "canonical_pt_br_name": "Mandioquinha (batata-baroa), cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (60 g)",
+      "banned_in_default_top_results": [
+        "arracacia"
+      ],
+      "regional_synonyms": [
+        "batata baroa",
+        "batata salsa",
+        "mandioquinha salsa"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 75,
+        "kcal_max": 110,
+        "p_min": 0.8,
+        "c_min": 18,
+        "f_max": 0.6
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "inhame-cozido",
+      "search_query": "inhame",
+      "canonical_pt_br_name": "Inhame, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pedaço médio (100 g)",
+      "banned_in_default_top_results": [
+        "yam, cooked"
+      ],
+      "regional_synonyms": [
+        "inhame cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 90,
+        "kcal_max": 130,
+        "p_min": 1.3,
+        "c_min": 22,
+        "f_max": 0.5
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "cara-cozido",
+      "search_query": "cará",
+      "canonical_pt_br_name": "Cará, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pedaço médio (100 g)",
+      "banned_in_default_top_results": [
+        "dioscorea"
+      ],
+      "regional_synonyms": [
+        "cara cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 70,
+        "kcal_max": 105,
+        "p_min": 1.2,
+        "c_min": 17,
+        "f_max": 0.5
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "cenoura-cozida",
+      "search_query": "cenoura cozida",
+      "canonical_pt_br_name": "Cenoura, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (50 g)",
+      "banned_in_default_top_results": [
+        "carrots, cooked"
+      ],
+      "regional_synonyms": [
+        "cenoura cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 25,
+        "kcal_max": 45,
+        "p_min": 0.6,
+        "c_min": 6,
+        "f_max": 0.4
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "cenoura-crua",
+      "search_query": "cenoura crua",
+      "canonical_pt_br_name": "Cenoura, crua ralada",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (40 g)",
+      "banned_in_default_top_results": [
+        "carrots, raw"
+      ],
+      "regional_synonyms": [
+        "cenoura ralada",
+        "cenoura crua"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 30,
+        "kcal_max": 50,
+        "p_min": 0.8,
+        "c_min": 7,
+        "f_max": 0.4
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "beterraba-cozida",
+      "search_query": "beterraba cozida",
+      "canonical_pt_br_name": "Beterraba, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias médias (50 g)",
+      "banned_in_default_top_results": [
+        "beets, cooked"
+      ],
+      "regional_synonyms": [
+        "beterraba cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 30,
+        "kcal_max": 50,
+        "p_min": 1,
+        "c_min": 7,
+        "f_max": 0.4
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "beterraba-crua",
+      "search_query": "beterraba crua",
+      "canonical_pt_br_name": "Beterraba, crua ralada",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (40 g)",
+      "banned_in_default_top_results": [
+        "beets, raw"
+      ],
+      "regional_synonyms": [
+        "beterraba crua"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 35,
+        "kcal_max": 55,
+        "p_min": 1.2,
+        "c_min": 8.5,
+        "f_max": 0.4
+      },
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "pao-frances",
+      "search_query": "pão francês",
+      "canonical_pt_br_name": "Pão francês tradicional (de sal)",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade (50 g)",
+      "banned_in_default_top_results": [
+        "french bread",
+        "baguette"
+      ],
+      "regional_synonyms": [
+        "pao frances",
+        "pao de sal",
+        "cacetinho",
+        "pao d'agua"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 270,
+        "kcal_max": 320,
+        "p_min": 7,
+        "c_min": 52,
+        "f_max": 4
+      },
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "pao-integral-forma",
+      "search_query": "pão integral",
+      "canonical_pt_br_name": "Pão de forma integral",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias (50 g)",
+      "banned_in_default_top_results": [
+        "whole wheat bread"
+      ],
+      "regional_synonyms": [
+        "pao integral",
+        "pao de forma 100% integral"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 220,
+        "kcal_max": 270,
+        "p_min": 7.5,
+        "c_min": 40,
+        "f_max": 4.5
+      },
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "pao-de-queijo-assado",
+      "search_query": "pão de queijo",
+      "canonical_pt_br_name": "Pão de queijo mineiro, assado",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (30 g)",
+      "banned_in_default_top_results": [
+        "cheese bread"
+      ],
+      "regional_synonyms": [
+        "pao de queijo",
+        "paozinho de queijo"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 300,
+        "kcal_max": 390,
+        "p_min": 4.5,
+        "c_min": 30,
+        "f_max": 20
+      },
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "goma-de-tapioca-preparada",
+      "search_query": "goma de tapioca",
+      "canonical_pt_br_name": "Tapioca (goma hidratada), grelhada na frigideira",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE/VERIFIED_BR",
+      "household_measure_example": "1 unidade média (60 g de goma)",
+      "banned_in_default_top_results": [
+        "tapioca pearls",
+        "pudding"
+      ],
+      "regional_synonyms": [
+        "tapioca",
+        "beiju",
+        "massa de tapioca",
+        "goma fresca"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 220,
+        "kcal_max": 260,
+        "p_min": 0,
+        "c_min": 52,
+        "f_max": 0.5
+      },
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "farofa-de-mandioca",
+      "search_query": "farofa",
+      "canonical_pt_br_name": "Farofa pronta temperada de mandioca",
+      "preparation_state": "pronta",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa cheia (20 g)",
+      "banned_in_default_top_results": [
+        "toasted cassava meal with oil"
+      ],
+      "regional_synonyms": [
+        "farofa temperada",
+        "farofa de mandioca"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 380,
+        "kcal_max": 450,
+        "p_min": 1.5,
+        "c_min": 70,
+        "f_max": 15
+      },
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "farinha-de-mandioca-torrada",
+      "search_query": "farinha de mandioca",
+      "canonical_pt_br_name": "Farinha de mandioca, torrada",
+      "preparation_state": "torrada",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (15 g)",
+      "banned_in_default_top_results": [
+        "cassava flour"
+      ],
+      "regional_synonyms": [
+        "farinha torrada",
+        "farinha amarela",
+        "farinha branca"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 340,
+        "kcal_max": 380,
+        "p_min": 1,
+        "c_min": 80,
+        "f_max": 0.8
+      },
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "macarrao-cozido",
+      "search_query": "macarrão cozido",
+      "canonical_pt_br_name": "Macarrão de sêmola com ovos, cozido sem molho",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 prato raso ou 1 pegador (100 g)",
+      "banned_in_default_top_results": [
+        "pasta, cooked, unenriched",
+        "spaghetti cooked"
+      ],
+      "regional_synonyms": [
+        "macarrao",
+        "espaguete",
+        "massa cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 125,
+        "kcal_max": 160,
+        "p_min": 3.5,
+        "c_min": 27,
+        "f_max": 1.5
+      },
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "macarrao-integral-cozido",
+      "search_query": "macarrão integral",
+      "canonical_pt_br_name": "Macarrão 100% integral, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pegador (100 g)",
+      "banned_in_default_top_results": [
+        "whole wheat pasta, cooked"
+      ],
+      "regional_synonyms": [
+        "macarrao integral"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 120,
+        "kcal_max": 155,
+        "p_min": 4.5,
+        "c_min": 25,
+        "f_max": 1.2
+      },
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "torrada-tradicional",
+      "search_query": "torrada",
+      "canonical_pt_br_name": "Torrada de pão francês / tradicional",
+      "preparation_state": "torrado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 unidades (30 g)",
+      "banned_in_default_top_results": [
+        "rusk",
+        "toast, white"
+      ],
+      "regional_synonyms": [
+        "torrada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 360,
+        "kcal_max": 420,
+        "p_min": 9,
+        "c_min": 68,
+        "f_max": 7
+      },
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "biscoito-cream-cracker",
+      "search_query": "cream cracker",
+      "canonical_pt_br_name": "Biscoito água e sal / cream cracker",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 unidades (25 g)",
+      "banned_in_default_top_results": [
+        "crackers, saltines"
+      ],
+      "regional_synonyms": [
+        "bolacha de agua e sal",
+        "biscoito agua e sal"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 420,
+        "kcal_max": 460,
+        "p_min": 8,
+        "c_min": 65,
+        "f_max": 14
+      },
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "patinho-grelhado",
+      "search_query": "patinho grelhado",
+      "canonical_pt_br_name": "Patinho bovino, sem gordura, grelhado",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 bife médio (100 g)",
+      "banned_in_default_top_results": [
+        "beef, knuckle",
+        "round tip steak"
+      ],
+      "regional_synonyms": [
+        "patinho",
+        "bife de patinho"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 190,
+        "kcal_max": 230,
+        "p_min": 33,
+        "c_min": 0,
+        "f_max": 8
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "patinho-cru",
+      "search_query": "patinho cru",
+      "canonical_pt_br_name": "Patinho bovino, sem gordura, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 porção (100 g)",
+      "banned_in_default_top_results": [
+        "beef, knuckle, raw"
+      ],
+      "regional_synonyms": [
+        "patinho cru"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 120,
+        "kcal_max": 150,
+        "p_min": 21,
+        "c_min": 0,
+        "f_max": 5
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "carne-moida-refogada",
+      "search_query": "carne moída",
+      "canonical_pt_br_name": "Carne bovina moída (patinho), refogada",
+      "preparation_state": "cozido/refogado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 colheres de sopa cheias (75 g)",
+      "banned_in_default_top_results": [
+        "ground beef, 80% lean",
+        "raw english"
+      ],
+      "regional_synonyms": [
+        "carne moida",
+        "patinho moido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 180,
+        "kcal_max": 240,
+        "p_min": 26,
+        "c_min": 0,
+        "f_max": 12
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "alcatra-grelhada",
+      "search_query": "alcatra",
+      "canonical_pt_br_name": "Alcatra bovina, sem gordura, grelhada",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 bife médio (100 g)",
+      "banned_in_default_top_results": [
+        "top sirloin",
+        "beef broilers"
+      ],
+      "regional_synonyms": [
+        "alcatra grelhada",
+        "bife de alcatra"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 210,
+        "kcal_max": 250,
+        "p_min": 30,
+        "c_min": 0,
+        "f_max": 12
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "acem-cozido",
+      "search_query": "acém",
+      "canonical_pt_br_name": "Acém bovino, cozido na pressão",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 pedaços médios (100 g)",
+      "banned_in_default_top_results": [
+        "beef chuck",
+        "pot roast"
+      ],
+      "regional_synonyms": [
+        "acem cozido",
+        "carne de panela"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 200,
+        "kcal_max": 245,
+        "p_min": 26,
+        "c_min": 0,
+        "f_max": 13
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "contrafile-grelhado",
+      "search_query": "contrafilé",
+      "canonical_pt_br_name": "Contrafilé bovino, sem gordura aparente, grelhado",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 bife médio (100 g)",
+      "banned_in_default_top_results": [
+        "strip loin",
+        "new york strip"
+      ],
+      "regional_synonyms": [
+        "contrafile",
+        "bife de contrafile"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 210,
+        "kcal_max": 260,
+        "p_min": 30,
+        "c_min": 0,
+        "f_max": 13
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "file-mignon-grelhado",
+      "search_query": "filé mignon",
+      "canonical_pt_br_name": "Filé mignon bovino, sem gordura, grelhado",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 medalhão médio (100 g)",
+      "banned_in_default_top_results": [
+        "tenderloin, grilled"
+      ],
+      "regional_synonyms": [
+        "file mignon",
+        "medalhao de mignon"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 200,
+        "kcal_max": 240,
+        "p_min": 31,
+        "c_min": 0,
+        "f_max": 10
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "maminha-grelhada",
+      "search_query": "maminha",
+      "canonical_pt_br_name": "Maminha bovina, grelhada",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias finas (100 g)",
+      "banned_in_default_top_results": [
+        "tri-tip, grilled"
+      ],
+      "regional_synonyms": [
+        "maminha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 220,
+        "kcal_max": 265,
+        "p_min": 28,
+        "c_min": 0,
+        "f_max": 15
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "picanha-sem-gordura",
+      "search_query": "picanha",
+      "canonical_pt_br_name": "Picanha bovina, sem capa de gordura, grelhada",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (100 g)",
+      "banned_in_default_top_results": [
+        "sirloin cap"
+      ],
+      "regional_synonyms": [
+        "picanha grelhada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 220,
+        "kcal_max": 260,
+        "p_min": 30,
+        "c_min": 0,
+        "f_max": 14
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "costela-bovina-assada",
+      "search_query": "costela bovina",
+      "canonical_pt_br_name": "Costela bovina, assada no forno",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pedaço pequeno sem osso (100 g)",
+      "banned_in_default_top_results": [
+        "short ribs, cooked"
+      ],
+      "regional_synonyms": [
+        "costela",
+        "costela assada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 310,
+        "kcal_max": 390,
+        "p_min": 23,
+        "c_min": 0,
+        "f_max": 30
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "fraldinha-cozida",
+      "search_query": "fraldinha",
+      "canonical_pt_br_name": "Fraldinha bovina, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias (100 g)",
+      "banned_in_default_top_results": [
+        "flank steak, cooked"
+      ],
+      "regional_synonyms": [
+        "fraldinha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 200,
+        "kcal_max": 250,
+        "p_min": 27,
+        "c_min": 0,
+        "f_max": 14
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "musculo-bovino-cozido",
+      "search_query": "músculo bovino",
+      "canonical_pt_br_name": "Músculo bovino, cozido na água",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 pedaços médios (100 g)",
+      "banned_in_default_top_results": [
+        "beef shank, cooked"
+      ],
+      "regional_synonyms": [
+        "musculo",
+        "musculo cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 180,
+        "kcal_max": 220,
+        "p_min": 30,
+        "c_min": 0,
+        "f_max": 8
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "carne-de-sol-frita",
+      "search_query": "carne de sol",
+      "canonical_pt_br_name": "Carne de sol bovina (coxão mole/alcatra), frita/grelhada",
+      "preparation_state": "frito",
+      "source_authority": "IBGE/TACO",
+      "household_measure_example": "1 bife ou porção (100 g)",
+      "banned_in_default_top_results": [
+        "cured beef",
+        "jerky"
+      ],
+      "regional_synonyms": [
+        "carne de sol",
+        "carne de sertao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 210,
+        "kcal_max": 280,
+        "p_min": 28,
+        "c_min": 0,
+        "f_max": 15
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "charque-cozido",
+      "search_query": "charque",
+      "canonical_pt_br_name": "Charque bovino, dessalgado e cozido",
+      "preparation_state": "cozido",
+      "source_authority": "IBGE/TACO",
+      "household_measure_example": "1 porção desfiada (100 g)",
+      "banned_in_default_top_results": [
+        "chipped beef",
+        "dried beef"
+      ],
+      "regional_synonyms": [
+        "carne seca",
+        "jabá",
+        "charque dessalgado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 240,
+        "kcal_max": 300,
+        "p_min": 30,
+        "c_min": 0,
+        "f_max": 15
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "figado-bovino-grelhado",
+      "search_query": "fígado bovino",
+      "canonical_pt_br_name": "Fígado bovino, grelhado",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 bife médio (100 g)",
+      "banned_in_default_top_results": [
+        "beef liver, cooked"
+      ],
+      "regional_synonyms": [
+        "figado de boi",
+        "bife de figado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 190,
+        "kcal_max": 235,
+        "p_min": 28,
+        "c_min": 3.5,
+        "f_max": 8
+      },
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "peito-de-frango-grelhado",
+      "search_query": "peito de frango",
+      "canonical_pt_br_name": "Peito de frango, sem pele, filé grelhado",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 filé médio (100 g)",
+      "banned_in_default_top_results": [
+        "chicken broilers or fryers",
+        "meat only",
+        "commodity"
+      ],
+      "regional_synonyms": [
+        "file de frango",
+        "peito grelhado",
+        "peito de frango grelhado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 145,
+        "kcal_max": 175,
+        "p_min": 30,
+        "c_min": 0,
+        "f_max": 4
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "peito-de-frango-cozido",
+      "search_query": "peito de frango cozido",
+      "canonical_pt_br_name": "Peito de frango, sem pele, cozido e desfiado",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 colheres de sopa cheias (60 g)",
+      "banned_in_default_top_results": [
+        "chicken, broiler, meat only, stewed"
+      ],
+      "regional_synonyms": [
+        "frango desfiado",
+        "peito cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 140,
+        "kcal_max": 170,
+        "p_min": 30,
+        "c_min": 0,
+        "f_max": 3.5
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "peito-de-frango-cru",
+      "search_query": "peito de frango cru",
+      "canonical_pt_br_name": "Peito de frango, sem pele, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 filé cru (120 g)",
+      "banned_in_default_top_results": [
+        "chicken breast, raw"
+      ],
+      "regional_synonyms": [
+        "peito de frango cru"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 110,
+        "kcal_max": 130,
+        "p_min": 21,
+        "c_min": 0,
+        "f_max": 3
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "coxa-de-frango-assada",
+      "search_query": "coxa de frango",
+      "canonical_pt_br_name": "Coxa de frango, sem pele, assada",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (80 g de carne)",
+      "banned_in_default_top_results": [
+        "drumstick, meat only, roasted"
+      ],
+      "regional_synonyms": [
+        "coxa assada",
+        "coxinha de frango"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 160,
+        "kcal_max": 195,
+        "p_min": 26,
+        "c_min": 0,
+        "f_max": 8
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "sobrecoxa-de-frango-assada",
+      "search_query": "sobrecoxa",
+      "canonical_pt_br_name": "Sobrecoxa de frango, sem pele, assada",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (90 g de carne)",
+      "banned_in_default_top_results": [
+        "thigh, meat only, roasted"
+      ],
+      "regional_synonyms": [
+        "sobrecoxa assada",
+        "sobrecoxa sem pele"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 210,
+        "kcal_max": 250,
+        "p_min": 26,
+        "c_min": 0,
+        "f_max": 14
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "moela-de-frango-cozida",
+      "search_query": "moela de frango",
+      "canonical_pt_br_name": "Moela de frango, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 unidades médias (80 g)",
+      "banned_in_default_top_results": [
+        "gizzard, cooked"
+      ],
+      "regional_synonyms": [
+        "moela cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 130,
+        "kcal_max": 165,
+        "p_min": 25,
+        "c_min": 0,
+        "f_max": 4.5
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "figado-de-galinha-cozido",
+      "search_query": "fígado de galinha",
+      "canonical_pt_br_name": "Fígado de frango/galinha, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 unidades médias (60 g)",
+      "banned_in_default_top_results": [
+        "chicken liver, cooked"
+      ],
+      "regional_synonyms": [
+        "figado de frango"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 150,
+        "kcal_max": 190,
+        "p_min": 23,
+        "c_min": 1,
+        "f_max": 7
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "ovo-de-galinha-cozido",
+      "search_query": "ovo cozido",
+      "canonical_pt_br_name": "Ovo de galinha inteiro, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade grande (50 g)",
+      "banned_in_default_top_results": [
+        "egg, whole, hard-boiled"
+      ],
+      "regional_synonyms": [
+        "ovo",
+        "ovo cozido",
+        "ovo de galinha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 140,
+        "kcal_max": 165,
+        "p_min": 12,
+        "c_min": 0.5,
+        "f_max": 11.5
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "ovo-de-galinha-frito",
+      "search_query": "ovo frito",
+      "canonical_pt_br_name": "Ovo de galinha inteiro, frito com pouco óleo",
+      "preparation_state": "frito",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade (50 g)",
+      "banned_in_default_top_results": [
+        "egg, fried"
+      ],
+      "regional_synonyms": [
+        "ovo frito",
+        "ovo estrelado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 210,
+        "kcal_max": 250,
+        "p_min": 14,
+        "c_min": 0.5,
+        "f_max": 19
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "clara-de-ovo-cozida",
+      "search_query": "clara de ovo",
+      "canonical_pt_br_name": "Clara de ovo de galinha, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade (35 g)",
+      "banned_in_default_top_results": [
+        "egg white, cooked"
+      ],
+      "regional_synonyms": [
+        "clara de ovo",
+        "clara cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 45,
+        "kcal_max": 60,
+        "p_min": 11,
+        "c_min": 0.5,
+        "f_max": 0.3
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "gema-de-ovo-cozida",
+      "search_query": "gema de ovo",
+      "canonical_pt_br_name": "Gema de ovo de galinha, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade (15 g)",
+      "banned_in_default_top_results": [
+        "egg yolk, cooked"
+      ],
+      "regional_synonyms": [
+        "gema cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 320,
+        "kcal_max": 360,
+        "p_min": 15,
+        "c_min": 1,
+        "f_max": 30
+      },
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "tilapia-grelhada",
+      "search_query": "tilápia",
+      "canonical_pt_br_name": "Tilápia, filé grelhado",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 filé médio (100 g)",
+      "banned_in_default_top_results": [
+        "fish, tilapia, cooked"
+      ],
+      "regional_synonyms": [
+        "tilapia",
+        "file de tilapia",
+        "saint peter"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 110,
+        "kcal_max": 140,
+        "p_min": 24,
+        "c_min": 0,
+        "f_max": 3.5
+      },
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "sardinha-grelhada",
+      "search_query": "sardinha",
+      "canonical_pt_br_name": "Sardinha fresca, grelhada com sal",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média limpa (60 g)",
+      "banned_in_default_top_results": [
+        "fish, sardine, cooked"
+      ],
+      "regional_synonyms": [
+        "sardinha fresca"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 150,
+        "kcal_max": 190,
+        "p_min": 23,
+        "c_min": 0,
+        "f_max": 8.5
+      },
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "sardinha-em-conserva-oleo",
+      "search_query": "sardinha em lata",
+      "canonical_pt_br_name": "Sardinha em conserva em óleo, drenada",
+      "preparation_state": "drenada",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade (40 g)",
+      "banned_in_default_top_results": [
+        "sardine, canned in oil"
+      ],
+      "regional_synonyms": [
+        "sardinha em lata",
+        "sardinha em conserva"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 240,
+        "kcal_max": 300,
+        "p_min": 22,
+        "c_min": 0,
+        "f_max": 20
+      },
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "atum-em-conserva-agua",
+      "search_query": "atum natural",
+      "canonical_pt_br_name": "Atum em conserva ao natural (em água), drenado",
+      "preparation_state": "drenado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 colheres de sopa rasas (60 g)",
+      "banned_in_default_top_results": [
+        "tuna, light, canned in water"
+      ],
+      "regional_synonyms": [
+        "atum em agua",
+        "atum ralado ao natural",
+        "atum solido ao natural"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 105,
+        "kcal_max": 130,
+        "p_min": 24,
+        "c_min": 0,
+        "f_max": 1.5
+      },
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "atum-em-conserva-oleo",
+      "search_query": "atum em óleo",
+      "canonical_pt_br_name": "Atum em conserva em óleo, drenado",
+      "preparation_state": "drenado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 colheres de sopa rasas (60 g)",
+      "banned_in_default_top_results": [
+        "tuna, light, canned in oil"
+      ],
+      "regional_synonyms": [
+        "atum em oleo"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 180,
+        "kcal_max": 220,
+        "p_min": 25,
+        "c_min": 0,
+        "f_max": 10
+      },
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "salmao-grelhado",
+      "search_query": "salmão",
+      "canonical_pt_br_name": "Salmão, filé grelhado sem gordura extra",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 filé médio (120 g)",
+      "banned_in_default_top_results": [
+        "salmon, cooked"
+      ],
+      "regional_synonyms": [
+        "salmao",
+        "file de salmao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 200,
+        "kcal_max": 250,
+        "p_min": 22,
+        "c_min": 0,
+        "f_max": 15
+      },
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "merluza-cozida",
+      "search_query": "merluza",
+      "canonical_pt_br_name": "Merluza, filé cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 filé médio (100 g)",
+      "banned_in_default_top_results": [
+        "hake, cooked"
+      ],
+      "regional_synonyms": [
+        "file de merluza"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 80,
+        "kcal_max": 110,
+        "p_min": 18,
+        "c_min": 0,
+        "f_max": 2
+      },
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "camarao-cozido",
+      "search_query": "camarão",
+      "canonical_pt_br_name": "Camarão médio limpo, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "6 unidades médias (80 g)",
+      "banned_in_default_top_results": [
+        "crustaceans, shrimp, cooked"
+      ],
+      "regional_synonyms": [
+        "camarao cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 85,
+        "kcal_max": 115,
+        "p_min": 19,
+        "c_min": 0.5,
+        "f_max": 1.5
+      },
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "leite-de-vaca-integral",
+      "search_query": "leite integral",
+      "canonical_pt_br_name": "Leite de vaca integral pasteurizado / UHT",
+      "preparation_state": "fluido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 copo tipo americano (200 ml)",
+      "banned_in_default_top_results": [
+        "milk, whole, 3.25% milkfat"
+      ],
+      "regional_synonyms": [
+        "leite",
+        "leite tipo c",
+        "leite integral"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "expected_macro_range": {
+        "kcal_min": 55,
+        "kcal_max": 65,
+        "p_min": 3,
+        "c_min": 4.5,
+        "f_max": 3.5
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "leite-de-vaca-desnatado",
+      "search_query": "leite desnatado",
+      "canonical_pt_br_name": "Leite de vaca desnatado pasteurizado / UHT",
+      "preparation_state": "fluido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 copo tipo americano (200 ml)",
+      "banned_in_default_top_results": [
+        "milk, nonfat, skim"
+      ],
+      "regional_synonyms": [
+        "leite desnatado",
+        "leite magro"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "expected_macro_range": {
+        "kcal_min": 30,
+        "kcal_max": 40,
+        "p_min": 3,
+        "c_min": 4.5,
+        "f_max": 0.5
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "leite-de-vaca-semidesnatado",
+      "search_query": "leite semidesnatado",
+      "canonical_pt_br_name": "Leite de vaca semidesnatado pasteurizado / UHT",
+      "preparation_state": "fluido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 copo (200 ml)",
+      "banned_in_default_top_results": [
+        "milk, reduced fat, 2%"
+      ],
+      "regional_synonyms": [
+        "leite semidesnatado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "expected_macro_range": {
+        "kcal_min": 40,
+        "kcal_max": 50,
+        "p_min": 3,
+        "c_min": 4.5,
+        "f_max": 1.8
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "iogurte-natural-integral",
+      "search_query": "iogurte natural",
+      "canonical_pt_br_name": "Iogurte natural tradicional, sem sabor",
+      "preparation_state": "fermentado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pote individual (170 g)",
+      "banned_in_default_top_results": [
+        "yogurt, plain, whole milk"
+      ],
+      "regional_synonyms": [
+        "iogurte natural",
+        "iogurte simples"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 50,
+        "kcal_max": 70,
+        "p_min": 3.5,
+        "c_min": 4.5,
+        "f_max": 3.5
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "iogurte-natural-desnatado",
+      "search_query": "iogurte desnatado",
+      "canonical_pt_br_name": "Iogurte natural desnatado, sem açúcar",
+      "preparation_state": "fermentado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pote individual (160 g)",
+      "banned_in_default_top_results": [
+        "yogurt, plain, nonfat"
+      ],
+      "regional_synonyms": [
+        "iogurte natural desnatado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 35,
+        "kcal_max": 50,
+        "p_min": 4,
+        "c_min": 5.5,
+        "f_max": 0.5
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "queijo-minas-frescal",
+      "search_query": "queijo minas",
+      "canonical_pt_br_name": "Queijo minas frescal tradicional",
+      "preparation_state": "curado fresco",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (30 g)",
+      "banned_in_default_top_results": [
+        "fresh white cheese"
+      ],
+      "regional_synonyms": [
+        "queijo branco",
+        "minas frescal",
+        "queijo minas"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 220,
+        "kcal_max": 270,
+        "p_min": 15,
+        "c_min": 2,
+        "f_max": 21
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "queijo-mucarela",
+      "search_query": "muçarela",
+      "canonical_pt_br_name": "Queijo muçarela fatiado",
+      "preparation_state": "maturado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia (20 g)",
+      "banned_in_default_top_results": [
+        "cheese, mozzarella, whole milk"
+      ],
+      "regional_synonyms": [
+        "mussarela",
+        "mozarela",
+        "queijo mucarela"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 280,
+        "kcal_max": 330,
+        "p_min": 22,
+        "c_min": 2.5,
+        "f_max": 25
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "queijo-prato",
+      "search_query": "queijo prato",
+      "canonical_pt_br_name": "Queijo prato fatiado",
+      "preparation_state": "maturado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia (20 g)",
+      "banned_in_default_top_results": [
+        "prato cheese"
+      ],
+      "regional_synonyms": [
+        "queijo lanche",
+        "queijo prato"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 320,
+        "kcal_max": 370,
+        "p_min": 22,
+        "c_min": 2,
+        "f_max": 29
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "requeijao-cremoso",
+      "search_query": "requeijão",
+      "canonical_pt_br_name": "Requeijão cremoso tradicional de copo",
+      "preparation_state": "cremoso",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa cheia (30 g)",
+      "banned_in_default_top_results": [
+        "cream cheese",
+        "processed cheese"
+      ],
+      "regional_synonyms": [
+        "requeijao",
+        "requeijao de copo"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 230,
+        "kcal_max": 280,
+        "p_min": 8,
+        "c_min": 3.5,
+        "f_max": 25
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "requeijao-cremoso-light",
+      "search_query": "requeijão light",
+      "canonical_pt_br_name": "Requeijão cremoso light",
+      "preparation_state": "cremoso",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (30 g)",
+      "banned_in_default_top_results": [
+        "cream cheese, low fat"
+      ],
+      "regional_synonyms": [
+        "requeijao light"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 140,
+        "kcal_max": 180,
+        "p_min": 10,
+        "c_min": 4,
+        "f_max": 12
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "queijo-cottage",
+      "search_query": "queijo cottage",
+      "canonical_pt_br_name": "Queijo tipo cottage",
+      "preparation_state": "fresco",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (50 g)",
+      "banned_in_default_top_results": [
+        "cheese, cottage, creamed"
+      ],
+      "regional_synonyms": [
+        "cottage"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 85,
+        "kcal_max": 110,
+        "p_min": 11,
+        "c_min": 3.5,
+        "f_max": 4.5
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "ricota-fresca",
+      "search_query": "ricota",
+      "canonical_pt_br_name": "Queijo ricota fresca",
+      "preparation_state": "fresco",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (40 g)",
+      "banned_in_default_top_results": [
+        "cheese, ricotta, whole milk"
+      ],
+      "regional_synonyms": [
+        "ricota"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 130,
+        "kcal_max": 165,
+        "p_min": 11,
+        "c_min": 3.5,
+        "f_max": 10
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "creme-de-leite-leves",
+      "search_query": "creme de leite",
+      "canonical_pt_br_name": "Creme de leite de caixinha (17% a 20% gordura)",
+      "preparation_state": "fluido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (15 g)",
+      "banned_in_default_top_results": [
+        "cream, light",
+        "heavy whipping cream"
+      ],
+      "regional_synonyms": [
+        "creme de leite"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 180,
+        "kcal_max": 220,
+        "p_min": 2,
+        "c_min": 4,
+        "f_max": 21
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "leite-condensado",
+      "search_query": "leite condensado",
+      "canonical_pt_br_name": "Leite condensado tradicional",
+      "preparation_state": "concentrado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (20 g)",
+      "banned_in_default_top_results": [
+        "milk, condensed, sweetened"
+      ],
+      "regional_synonyms": [
+        "leite condensado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 300,
+        "kcal_max": 335,
+        "p_min": 7,
+        "c_min": 55,
+        "f_max": 8.5
+      },
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "banana-prata-crua",
+      "search_query": "banana prata",
+      "canonical_pt_br_name": "Banana prata, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (65 g descascada)",
+      "banned_in_default_top_results": [
+        "bananas, raw"
+      ],
+      "regional_synonyms": [
+        "banana prata"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 85,
+        "kcal_max": 105,
+        "p_min": 1,
+        "c_min": 22,
+        "f_max": 0.3
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "banana-nanica-crua",
+      "search_query": "banana nanica",
+      "canonical_pt_br_name": "Banana nanica (d'água), crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (85 g descascada)",
+      "banned_in_default_top_results": [
+        "bananas, cavendish"
+      ],
+      "regional_synonyms": [
+        "banana caturra",
+        "banana d'agua",
+        "banana nanica"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 85,
+        "kcal_max": 100,
+        "p_min": 1.2,
+        "c_min": 21,
+        "f_max": 0.3
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "banana-maca-crua",
+      "search_query": "banana maçã",
+      "canonical_pt_br_name": "Banana maçã, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (65 g descascada)",
+      "banned_in_default_top_results": [
+        "silk banana"
+      ],
+      "regional_synonyms": [
+        "banana maca"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 80,
+        "kcal_max": 105,
+        "p_min": 1.5,
+        "c_min": 23,
+        "f_max": 0.3
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "banana-da-terra-cozida",
+      "search_query": "banana da terra",
+      "canonical_pt_br_name": "Banana da terra, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia ou pedaço médio (80 g)",
+      "banned_in_default_top_results": [
+        "plantain, cooked"
+      ],
+      "regional_synonyms": [
+        "banana comprida",
+        "banana pacova",
+        "banana da terra cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 110,
+        "kcal_max": 140,
+        "p_min": 1.2,
+        "c_min": 28,
+        "f_max": 0.4
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "mamao-papaia-cru",
+      "search_query": "mamão papaia",
+      "canonical_pt_br_name": "Mamão papaia, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1/2 unidade pequena (140 g)",
+      "banned_in_default_top_results": [
+        "papayas, raw"
+      ],
+      "regional_synonyms": [
+        "mamao papaya",
+        "papaia"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 35,
+        "kcal_max": 50,
+        "p_min": 0.6,
+        "c_min": 9,
+        "f_max": 0.3
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "mamao-formosa-cru",
+      "search_query": "mamão formosa",
+      "canonical_pt_br_name": "Mamão formosa, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (160 g)",
+      "banned_in_default_top_results": [
+        "formosa papaya"
+      ],
+      "regional_synonyms": [
+        "mamao formosa",
+        "mamao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 40,
+        "kcal_max": 55,
+        "p_min": 0.7,
+        "c_min": 10.5,
+        "f_max": 0.2
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "maca-fuji-crua",
+      "search_query": "maçã",
+      "canonical_pt_br_name": "Maçã fuji / gala com casca, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (130 g)",
+      "banned_in_default_top_results": [
+        "apples, with skin, raw"
+      ],
+      "regional_synonyms": [
+        "maca",
+        "maca fuji",
+        "maca gala"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 50,
+        "kcal_max": 65,
+        "p_min": 0.3,
+        "c_min": 13,
+        "f_max": 0.4
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "laranja-pera-crua",
+      "search_query": "laranja pera",
+      "canonical_pt_br_name": "Laranja pera fresca, crua descascada",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (130 g)",
+      "banned_in_default_top_results": [
+        "oranges, raw, all commercial varieties"
+      ],
+      "regional_synonyms": [
+        "laranja",
+        "laranja pera"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 40,
+        "kcal_max": 50,
+        "p_min": 0.9,
+        "c_min": 10,
+        "f_max": 0.3
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "suco-de-laranja-natural",
+      "search_query": "suco de laranja",
+      "canonical_pt_br_name": "Suco de laranja natural integral, sem açúcar",
+      "preparation_state": "espremido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 copo (200 ml)",
+      "banned_in_default_top_results": [
+        "orange juice, raw"
+      ],
+      "regional_synonyms": [
+        "suco de laranja",
+        "suco de laranja natural"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "expected_macro_range": {
+        "kcal_min": 40,
+        "kcal_max": 50,
+        "p_min": 0.7,
+        "c_min": 10,
+        "f_max": 0.2
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "manga-palmer-crua",
+      "search_query": "manga",
+      "canonical_pt_br_name": "Manga palmer / tommy crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1/2 unidade ou 1 xícara picada (140 g)",
+      "banned_in_default_top_results": [
+        "mangos, raw"
+      ],
+      "regional_synonyms": [
+        "manga",
+        "manga palmer",
+        "manga tommy"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 60,
+        "kcal_max": 75,
+        "p_min": 0.6,
+        "c_min": 15,
+        "f_max": 0.4
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "abacaxi-perola-cru",
+      "search_query": "abacaxi",
+      "canonical_pt_br_name": "Abacaxi pérola, cru em fatias",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (80 g)",
+      "banned_in_default_top_results": [
+        "pineapple, raw, all varieties"
+      ],
+      "regional_synonyms": [
+        "ananas",
+        "abacaxi perola"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 45,
+        "kcal_max": 55,
+        "p_min": 0.5,
+        "c_min": 11.5,
+        "f_max": 0.2
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "melancia-crua",
+      "search_query": "melancia",
+      "canonical_pt_br_name": "Melancia, crua com sementes",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (200 g)",
+      "banned_in_default_top_results": [
+        "watermelon, raw"
+      ],
+      "regional_synonyms": [
+        "melancia"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 28,
+        "kcal_max": 35,
+        "p_min": 0.6,
+        "c_min": 7,
+        "f_max": 0.2
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "acai-polpa-pura",
+      "search_query": "açaí",
+      "canonical_pt_br_name": "Açaí, polpa pura congelada (sem xarope)",
+      "preparation_state": "polpa",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 porção (100 g)",
+      "banned_in_default_top_results": [
+        "acai berry pulp"
+      ],
+      "regional_synonyms": [
+        "acai puro",
+        "polpa de acai",
+        "acai sem xarope"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 55,
+        "kcal_max": 75,
+        "p_min": 0.8,
+        "c_min": 5.5,
+        "f_max": 4.5
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "abacate-cru",
+      "search_query": "abacate",
+      "canonical_pt_br_name": "Abacate manteiga, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (50 g)",
+      "banned_in_default_top_results": [
+        "avocados, raw, all commercial"
+      ],
+      "regional_synonyms": [
+        "abacate"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 90,
+        "kcal_max": 130,
+        "p_min": 1.2,
+        "c_min": 5.5,
+        "f_max": 10
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "mexerica-rio-crua",
+      "search_query": "mexerica",
+      "canonical_pt_br_name": "Tangerina / Mexerica / Bergamota, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (100 g)",
+      "banned_in_default_top_results": [
+        "tangerines, mandarin oranges"
+      ],
+      "regional_synonyms": [
+        "tangerina",
+        "bergamota",
+        "mandarina",
+        "vergamota"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 35,
+        "kcal_max": 48,
+        "p_min": 0.8,
+        "c_min": 9.5,
+        "f_max": 0.3
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "morango-fresco-cru",
+      "search_query": "morango",
+      "canonical_pt_br_name": "Morango fresco, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "8 unidades médias (100 g)",
+      "banned_in_default_top_results": [
+        "strawberries, raw"
+      ],
+      "regional_synonyms": [
+        "morango"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 28,
+        "kcal_max": 35,
+        "p_min": 0.8,
+        "c_min": 6.5,
+        "f_max": 0.3
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "uva-italia-crua",
+      "search_query": "uva",
+      "canonical_pt_br_name": "Uva itália / niágara, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 cacho pequeno (100 g)",
+      "banned_in_default_top_results": [
+        "grapes, red or green"
+      ],
+      "regional_synonyms": [
+        "uva italia",
+        "uva verde",
+        "uva roxa"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 50,
+        "kcal_max": 65,
+        "p_min": 0.7,
+        "c_min": 13.5,
+        "f_max": 0.3
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "limao-taiti-cru",
+      "search_query": "limão",
+      "canonical_pt_br_name": "Limão taiti, cru (suco espremido)",
+      "preparation_state": "suco fresco",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa ou 1 unidade (30 ml)",
+      "banned_in_default_top_results": [
+        "lemon juice, raw"
+      ],
+      "regional_synonyms": [
+        "limao",
+        "limao taiti"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "expected_macro_range": {
+        "kcal_min": 25,
+        "kcal_max": 35,
+        "p_min": 0.8,
+        "c_min": 7.5,
+        "f_max": 0.2
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "goiaba-vermelha-crua",
+      "search_query": "goiaba",
+      "canonical_pt_br_name": "Goiaba vermelha com casca, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (100 g)",
+      "banned_in_default_top_results": [
+        "guavas, common, raw"
+      ],
+      "regional_synonyms": [
+        "goiaba",
+        "goiaba vermelha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 45,
+        "kcal_max": 60,
+        "p_min": 1,
+        "c_min": 11.5,
+        "f_max": 0.5
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "melao-amarelo-cru",
+      "search_query": "melão",
+      "canonical_pt_br_name": "Melão amarelo, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (115 g)",
+      "banned_in_default_top_results": [
+        "melons, honeydew, raw"
+      ],
+      "regional_synonyms": [
+        "melao",
+        "melao amarelo"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 25,
+        "kcal_max": 35,
+        "p_min": 0.7,
+        "c_min": 6.5,
+        "f_max": 0.2
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "maracuja-polpa",
+      "search_query": "maracujá",
+      "canonical_pt_br_name": "Maracujá azedo, polpa com sementes",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (50 g de polpa)",
+      "banned_in_default_top_results": [
+        "passion fruit juice"
+      ],
+      "regional_synonyms": [
+        "maracuja",
+        "polpa de maracuja"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 60,
+        "kcal_max": 80,
+        "p_min": 1.8,
+        "c_min": 12,
+        "f_max": 1.8
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "caju-cru",
+      "search_query": "caju",
+      "canonical_pt_br_name": "Caju amarelo/vermelho (pseudofruto), cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (100 g)",
+      "banned_in_default_top_results": [
+        "cashew apple, raw"
+      ],
+      "regional_synonyms": [
+        "caju"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 40,
+        "kcal_max": 55,
+        "p_min": 0.9,
+        "c_min": 10,
+        "f_max": 0.3
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "jabuticaba-crua",
+      "search_query": "jabuticaba",
+      "canonical_pt_br_name": "Jabuticaba, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pires ou 15 unidades (100 g)",
+      "banned_in_default_top_results": [
+        "jaboticaba"
+      ],
+      "regional_synonyms": [
+        "jabuticaba"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 50,
+        "kcal_max": 65,
+        "p_min": 0.5,
+        "c_min": 14,
+        "f_max": 0.3
+      },
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "alface-crespa-crua",
+      "search_query": "alface",
+      "canonical_pt_br_name": "Alface crespa / lisa, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "5 folhas médias (50 g)",
+      "banned_in_default_top_results": [
+        "lettuce, green leaf, raw"
+      ],
+      "regional_synonyms": [
+        "alface crespa",
+        "alface lisa",
+        "alface"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 10,
+        "kcal_max": 18,
+        "p_min": 1,
+        "c_min": 1.5,
+        "f_max": 0.3
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "alface-americana-crua",
+      "search_query": "alface americana",
+      "canonical_pt_br_name": "Alface americana, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "5 folhas médias (50 g)",
+      "banned_in_default_top_results": [
+        "lettuce, iceberg"
+      ],
+      "regional_synonyms": [
+        "alface americana"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 10,
+        "kcal_max": 16,
+        "p_min": 0.8,
+        "c_min": 1.5,
+        "f_max": 0.2
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "rucula-crua",
+      "search_query": "rúcula",
+      "canonical_pt_br_name": "Rúcula, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 prato de sobremesa cheia (40 g)",
+      "banned_in_default_top_results": [
+        "arugula, raw"
+      ],
+      "regional_synonyms": [
+        "rucula"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 12,
+        "kcal_max": 20,
+        "p_min": 1.8,
+        "c_min": 2,
+        "f_max": 0.4
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "couve-manteiga-refogada",
+      "search_query": "couve refogada",
+      "canonical_pt_br_name": "Couve-manteiga, refogada com óleo e alho",
+      "preparation_state": "refogado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (40 g)",
+      "banned_in_default_top_results": [
+        "collards, cooked, boiled"
+      ],
+      "regional_synonyms": [
+        "couve refogada",
+        "couve mineira"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 80,
+        "kcal_max": 110,
+        "p_min": 2,
+        "c_min": 8,
+        "f_max": 6
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "couve-manteiga-crua",
+      "search_query": "couve crua",
+      "canonical_pt_br_name": "Couve-manteiga picada, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pires ou 1 xícara picada (30 g)",
+      "banned_in_default_top_results": [
+        "kale, raw",
+        "collards, raw"
+      ],
+      "regional_synonyms": [
+        "couve crua",
+        "couve picadinha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 25,
+        "kcal_max": 35,
+        "p_min": 2.5,
+        "c_min": 4.5,
+        "f_max": 0.5
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "espinafre-cozido",
+      "search_query": "espinafre",
+      "canonical_pt_br_name": "Espinafre, cozido ou refogado",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (45 g)",
+      "banned_in_default_top_results": [
+        "spinach, cooked, boiled"
+      ],
+      "regional_synonyms": [
+        "espinafre cozido",
+        "espinafre refogado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 20,
+        "kcal_max": 45,
+        "p_min": 2.5,
+        "c_min": 3.5,
+        "f_max": 1.5
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "agriao-cru",
+      "search_query": "agrião",
+      "canonical_pt_br_name": "Agrião, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 prato de sobremesa (35 g)",
+      "banned_in_default_top_results": [
+        "watercress, raw"
+      ],
+      "regional_synonyms": [
+        "agriao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 10,
+        "kcal_max": 18,
+        "p_min": 2,
+        "c_min": 1.8,
+        "f_max": 0.3
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "brocolis-cozido",
+      "search_query": "brócolis",
+      "canonical_pt_br_name": "Brócolis ninja/comum, cozido no vapor com sal",
+      "preparation_state": "cozido no vapor",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "4 ramos médios (80 g)",
+      "banned_in_default_top_results": [
+        "broccoli, cooked, boiled"
+      ],
+      "regional_synonyms": [
+        "brocolis",
+        "brocolis cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 20,
+        "kcal_max": 35,
+        "p_min": 2,
+        "c_min": 4,
+        "f_max": 0.5
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "couve-flor-cozida",
+      "search_query": "couve-flor",
+      "canonical_pt_br_name": "Couve-flor, cozida no vapor",
+      "preparation_state": "cozido no vapor",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 ramos médios (80 g)",
+      "banned_in_default_top_results": [
+        "cauliflower, cooked"
+      ],
+      "regional_synonyms": [
+        "couve flor",
+        "couve flor cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 18,
+        "kcal_max": 28,
+        "p_min": 1.5,
+        "c_min": 3.5,
+        "f_max": 0.3
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "abobrinha-italiana-cozida",
+      "search_query": "abobrinha",
+      "canonical_pt_br_name": "Abobrinha italiana, cozida ou refogada",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 colheres de sopa cheias (60 g)",
+      "banned_in_default_top_results": [
+        "squash, summer, zucchini"
+      ],
+      "regional_synonyms": [
+        "abobrinha italiana",
+        "abobrinha refogada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 15,
+        "kcal_max": 25,
+        "p_min": 1,
+        "c_min": 3,
+        "f_max": 0.4
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "chuchu-cozido",
+      "search_query": "chuchu",
+      "canonical_pt_br_name": "Chuchu, cozido sem casca",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (60 g)",
+      "banned_in_default_top_results": [
+        "chayote, fruit, cooked"
+      ],
+      "regional_synonyms": [
+        "chuchu cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 15,
+        "kcal_max": 25,
+        "p_min": 0.5,
+        "c_min": 3.5,
+        "f_max": 0.2
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "berinjela-cozida",
+      "search_query": "berinjela",
+      "canonical_pt_br_name": "Berinjela, cozida ou assada",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (50 g)",
+      "banned_in_default_top_results": [
+        "eggplant, cooked"
+      ],
+      "regional_synonyms": [
+        "berinjela",
+        "beringela"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 18,
+        "kcal_max": 30,
+        "p_min": 0.8,
+        "c_min": 4.5,
+        "f_max": 0.3
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "tomate-maduro-cru",
+      "search_query": "tomate",
+      "canonical_pt_br_name": "Tomate maduro tradicional, cru com pele e sementes",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "4 fatias médias (70 g)",
+      "banned_in_default_top_results": [
+        "tomatoes, red, ripe, raw"
+      ],
+      "regional_synonyms": [
+        "tomate",
+        "tomate salada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 14,
+        "kcal_max": 20,
+        "p_min": 1,
+        "c_min": 3,
+        "f_max": 0.3
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "pepino-com-casca-cru",
+      "search_query": "pepino",
+      "canonical_pt_br_name": "Pepino japonês / comum com casca, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1/2 unidade média ou fatias (80 g)",
+      "banned_in_default_top_results": [
+        "cucumber, with peel, raw"
+      ],
+      "regional_synonyms": [
+        "pepino japones",
+        "pepino"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 10,
+        "kcal_max": 16,
+        "p_min": 0.8,
+        "c_min": 2.5,
+        "f_max": 0.2
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "pimentao-verde-cru",
+      "search_query": "pimentão",
+      "canonical_pt_br_name": "Pimentão verde / vermelho / amarelo, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "4 fatias médias (40 g)",
+      "banned_in_default_top_results": [
+        "peppers, sweet, green, raw"
+      ],
+      "regional_synonyms": [
+        "pimentao verde",
+        "pimentao vermelho",
+        "pimentao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 18,
+        "kcal_max": 28,
+        "p_min": 1,
+        "c_min": 4.5,
+        "f_max": 0.3
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "repolho-branco-cru",
+      "search_query": "repolho",
+      "canonical_pt_br_name": "Repolho branco picado, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 prato de sobremesa (60 g)",
+      "banned_in_default_top_results": [
+        "cabbage, raw"
+      ],
+      "regional_synonyms": [
+        "repolho",
+        "repolho branco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 15,
+        "kcal_max": 25,
+        "p_min": 1,
+        "c_min": 3.5,
+        "f_max": 0.2
+      },
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "azeite-de-oliva-extravirgem",
+      "search_query": "azeite",
+      "canonical_pt_br_name": "Azeite de oliva extravirgem",
+      "preparation_state": "puro",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (13 ml)",
+      "banned_in_default_top_results": [
+        "oil, olive, extra virgin"
+      ],
+      "regional_synonyms": [
+        "azeite de oliva",
+        "azeite doce",
+        "azeite virgem"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "expected_macro_range": {
+        "kcal_min": 850,
+        "kcal_max": 900,
+        "p_min": 0,
+        "c_min": 0,
+        "f_max": 100
+      },
+      "broad_group": "Gorduras e Óleos"
+    },
+    {
+      "concept_id": "manteiga-com-sal",
+      "search_query": "manteiga",
+      "canonical_pt_br_name": "Manteiga de leite de vaca tradicional, com sal",
+      "preparation_state": "pura",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de chá ou ponta de faca (10 g)",
+      "banned_in_default_top_results": [
+        "butter, salted"
+      ],
+      "regional_synonyms": [
+        "manteiga com sal",
+        "manteiga comum"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 710,
+        "kcal_max": 760,
+        "p_min": 0.5,
+        "c_min": 0.5,
+        "f_max": 84
+      },
+      "broad_group": "Gorduras e Óleos"
+    },
+    {
+      "concept_id": "oleo-de-soja",
+      "search_query": "óleo de soja",
+      "canonical_pt_br_name": "Óleo vegetal de soja refinado",
+      "preparation_state": "refinado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (13 ml)",
+      "banned_in_default_top_results": [
+        "oil, soybean, salad or cooking"
+      ],
+      "regional_synonyms": [
+        "oleo de soja",
+        "oleo vegetal"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "expected_macro_range": {
+        "kcal_min": 880,
+        "kcal_max": 900,
+        "p_min": 0,
+        "c_min": 0,
+        "f_max": 100
+      },
+      "broad_group": "Gorduras e Óleos"
+    },
+    {
+      "concept_id": "castanha-do-para-crua",
+      "search_query": "castanha do pará",
+      "canonical_pt_br_name": "Castanha-do-pará (castanha-do-brasil), crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 unidades médias (8 g)",
+      "banned_in_default_top_results": [
+        "nuts, brazilnuts, dried"
+      ],
+      "regional_synonyms": [
+        "castanha do brasil",
+        "castanha do para"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 640,
+        "kcal_max": 690,
+        "p_min": 14,
+        "c_min": 12,
+        "f_max": 67
+      },
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "castanha-de-caju-torrada",
+      "search_query": "castanha de caju",
+      "canonical_pt_br_name": "Castanha de caju torrada, sem sal",
+      "preparation_state": "torrado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 punhado ou colher de sopa (15 g)",
+      "banned_in_default_top_results": [
+        "nuts, cashew nuts, dry roasted"
+      ],
+      "regional_synonyms": [
+        "castanha de caju"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 560,
+        "kcal_max": 600,
+        "p_min": 17,
+        "c_min": 28,
+        "f_max": 48
+      },
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "pasta-de-amendoim-integral",
+      "search_query": "pasta de amendoim",
+      "canonical_pt_br_name": "Pasta / creme de amendoim 100% integral (sem açúcar)",
+      "preparation_state": "pasta pura",
+      "source_authority": "TACO/IBGE/VERIFIED_BR",
+      "household_measure_example": "1 colher de sopa (20 g)",
+      "banned_in_default_top_results": [
+        "peanut butter, smooth style"
+      ],
+      "regional_synonyms": [
+        "pasta de amendoim",
+        "manteiga de amendoim",
+        "creme de amendoim"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 580,
+        "kcal_max": 640,
+        "p_min": 25,
+        "c_min": 18,
+        "f_max": 52
+      },
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "amendoim-torrado",
+      "search_query": "amendoim",
+      "canonical_pt_br_name": "Amendoim torrado sem casca, sem sal",
+      "preparation_state": "torrado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa cheia (20 g)",
+      "banned_in_default_top_results": [
+        "peanuts, all types, dry-roasted"
+      ],
+      "regional_synonyms": [
+        "amendoim torrado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 560,
+        "kcal_max": 610,
+        "p_min": 24,
+        "c_min": 18,
+        "f_max": 50
+      },
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "chia-sementes",
+      "search_query": "chia",
+      "canonical_pt_br_name": "Chia, sementes",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (15 g)",
+      "banned_in_default_top_results": [
+        "seeds, chia seeds, dried"
+      ],
+      "regional_synonyms": [
+        "semente de chia"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 460,
+        "kcal_max": 510,
+        "p_min": 15,
+        "c_min": 38,
+        "f_max": 33
+      },
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "linhaca-dourada-farinha",
+      "search_query": "linhaça",
+      "canonical_pt_br_name": "Linhaça dourada / marrom, farinha ou semente",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (15 g)",
+      "banned_in_default_top_results": [
+        "seeds, flaxseed"
+      ],
+      "regional_synonyms": [
+        "semente de linhaca",
+        "farinha de linhaca"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 480,
+        "kcal_max": 540,
+        "p_min": 18,
+        "c_min": 30,
+        "f_max": 35
+      },
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "whey-protein-concentrado",
+      "search_query": "whey protein",
+      "canonical_pt_br_name": "Whey Protein Concentrado 80% (Proteína do soro do leite)",
+      "preparation_state": "pó",
+      "source_authority": "VERIFIED_MANUFACTURER/ANVISA",
+      "household_measure_example": "1 dosador / scoop (30 g)",
+      "banned_in_default_top_results": [
+        "whey protein generic unknown",
+        "raw usda"
+      ],
+      "regional_synonyms": [
+        "whey",
+        "whey concentrado",
+        "proteina do soro do leite"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 380,
+        "kcal_max": 430,
+        "p_min": 75,
+        "c_min": 5,
+        "f_max": 8
+      },
+      "broad_group": "Suplementos e Produtos Esportivos"
+    },
+    {
+      "concept_id": "whey-protein-isolado",
+      "search_query": "whey isolado",
+      "canonical_pt_br_name": "Whey Protein Isolado 90%",
+      "preparation_state": "pó",
+      "source_authority": "VERIFIED_MANUFACTURER/ANVISA",
+      "household_measure_example": "1 dosador / scoop (30 g)",
+      "banned_in_default_top_results": [
+        "whey isolate unknown"
+      ],
+      "regional_synonyms": [
+        "whey isolado",
+        "wpi"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 360,
+        "kcal_max": 400,
+        "p_min": 88,
+        "c_min": 2,
+        "f_max": 2.5
+      },
+      "broad_group": "Suplementos e Produtos Esportivos"
+    },
+    {
+      "concept_id": "creatina-monohidratada-pura",
+      "search_query": "creatina",
+      "canonical_pt_br_name": "Creatina Monohidratada 100% Pura",
+      "preparation_state": "pó",
+      "source_authority": "VERIFIED_MANUFACTURER/ANVISA",
+      "household_measure_example": "1 dosador raso (3 g)",
+      "banned_in_default_top_results": [
+        "creatine generic unknown"
+      ],
+      "regional_synonyms": [
+        "creatina",
+        "creatina pura",
+        "creatina monohidratada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "expected_macro_range": {
+        "kcal_min": 0,
+        "kcal_max": 0,
+        "p_min": 0,
+        "c_min": 0,
+        "f_max": 0
+      },
+      "broad_group": "Suplementos e Produtos Esportivos"
+    },
+    {
+      "concept_id": "arroz-negro-cozido",
+      "search_query": "arroz negro",
+      "canonical_pt_br_name": "Arroz negro, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de servir (50 g)",
+      "banned_in_default_top_results": [
+        "black rice"
+      ],
+      "regional_synonyms": [
+        "arroz negro",
+        "arroz preto"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "arroz-vermelho-cozido",
+      "search_query": "arroz vermelho",
+      "canonical_pt_br_name": "Arroz vermelho, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de servir (50 g)",
+      "banned_in_default_top_results": [
+        "red rice"
+      ],
+      "regional_synonyms": [
+        "arroz vermelho"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "trigo-para-quibe-cru",
+      "search_query": "trigo para quibe",
+      "canonical_pt_br_name": "Trigo para quibe (triguilho)",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (40 g)",
+      "banned_in_default_top_results": [
+        "bulgur, dry"
+      ],
+      "regional_synonyms": [
+        "trigo de quibe",
+        "triguilho",
+        "bulgur"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "canjica-de-milho-cozida",
+      "search_query": "canjica",
+      "canonical_pt_br_name": "Canjica de milho branca, cozida sem leite",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média (120 g)",
+      "banned_in_default_top_results": [
+        "hominy"
+      ],
+      "regional_synonyms": [
+        "canjica branca",
+        "mugunza"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "polenta-cozida",
+      "search_query": "polenta",
+      "canonical_pt_br_name": "Polenta simples cozida (sem molho)",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (100 g)",
+      "banned_in_default_top_results": [
+        "cornmeal mush"
+      ],
+      "regional_synonyms": [
+        "polenta",
+        "angu"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "cevadinha-cozida",
+      "search_query": "cevadinha",
+      "canonical_pt_br_name": "Cevadinha em grãos, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (50 g)",
+      "banned_in_default_top_results": [
+        "barley, cooked"
+      ],
+      "regional_synonyms": [
+        "cevadinha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "centeio-em-flocos",
+      "search_query": "centeio",
+      "canonical_pt_br_name": "Centeio em flocos",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (30 g)",
+      "banned_in_default_top_results": [
+        "rye flakes"
+      ],
+      "regional_synonyms": [
+        "flocos de centeio"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Cereais e Grãos"
+    },
+    {
+      "concept_id": "feijao-vermelho-cozido",
+      "search_query": "feijão vermelho",
+      "canonical_pt_br_name": "Feijão vermelho, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média (130 g)",
+      "banned_in_default_top_results": [
+        "kidney beans"
+      ],
+      "regional_synonyms": [
+        "feijao vermelho"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "feijao-rajado-cozido",
+      "search_query": "feijão rajado",
+      "canonical_pt_br_name": "Feijão rajado, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média (130 g)",
+      "banned_in_default_top_results": [
+        "pinto beans"
+      ],
+      "regional_synonyms": [
+        "feijao rajado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "feijao-manteiga-cozido",
+      "search_query": "feijão manteiga",
+      "canonical_pt_br_name": "Feijão manteiga, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média (130 g)",
+      "banned_in_default_top_results": [
+        "butter beans"
+      ],
+      "regional_synonyms": [
+        "feijao manteiga"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "feijao-azuki-cozido",
+      "search_query": "feijão azuki",
+      "canonical_pt_br_name": "Feijão azuki, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média (130 g)",
+      "banned_in_default_top_results": [
+        "adzuki beans"
+      ],
+      "regional_synonyms": [
+        "feijao azuki"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "edamame-cozido",
+      "search_query": "edamame",
+      "canonical_pt_br_name": "Soja verde fresca (edamame), cozida no vapor",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 xícara (100 g)",
+      "banned_in_default_top_results": [
+        "edamame, cooked"
+      ],
+      "regional_synonyms": [
+        "edamame",
+        "soja verde"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "tremoço-em-conserva",
+      "search_query": "tremoço",
+      "canonical_pt_br_name": "Tremoço em conserva, drenado",
+      "preparation_state": "drenado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (30 g)",
+      "banned_in_default_top_results": [
+        "lupins"
+      ],
+      "regional_synonyms": [
+        "tremoco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "fava-cozida",
+      "search_query": "fava",
+      "canonical_pt_br_name": "Fava em grãos, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média (120 g)",
+      "banned_in_default_top_results": [
+        "broadbeans"
+      ],
+      "regional_synonyms": [
+        "fava cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Leguminosas"
+    },
+    {
+      "concept_id": "nhoque-de-batata-cozido",
+      "search_query": "nhoque",
+      "canonical_pt_br_name": "Nhoque de batata simples, cozido sem molho",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 prato raso (150 g)",
+      "banned_in_default_top_results": [
+        "gnocchi"
+      ],
+      "regional_synonyms": [
+        "nhoque"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "pure-de-batata",
+      "search_query": "purê de batata",
+      "canonical_pt_br_name": "Purê de batata com leite e manteiga",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de servir (100 g)",
+      "banned_in_default_top_results": [
+        "mashed potatoes"
+      ],
+      "regional_synonyms": [
+        "pure de batata",
+        "pure"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "pure-de-mandioquinha",
+      "search_query": "purê de mandioquinha",
+      "canonical_pt_br_name": "Purê de mandioquinha (batata-baroa)",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de servir (100 g)",
+      "banned_in_default_top_results": [
+        "arracacia puree"
+      ],
+      "regional_synonyms": [
+        "pure de mandioquinha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "nabo-cru",
+      "search_query": "nabo",
+      "canonical_pt_br_name": "Nabo branco, cru fatiado",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 fatias médias (50 g)",
+      "banned_in_default_top_results": [
+        "turnips, raw"
+      ],
+      "regional_synonyms": [
+        "nabo"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "rabanete-cru",
+      "search_query": "rabanete",
+      "canonical_pt_br_name": "Rabanete vermelho, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 unidades pequenas (40 g)",
+      "banned_in_default_top_results": [
+        "radishes, raw"
+      ],
+      "regional_synonyms": [
+        "rabanete"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "gengibre-cru",
+      "search_query": "gengibre",
+      "canonical_pt_br_name": "Gengibre raiz, cru ralado",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de chá (5 g)",
+      "banned_in_default_top_results": [
+        "ginger root"
+      ],
+      "regional_synonyms": [
+        "gengibre"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "palmito-em-conserva",
+      "search_query": "palmito",
+      "canonical_pt_br_name": "Palmito em conserva (pupunha/açaí), drenado",
+      "preparation_state": "drenado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 toletes médios (80 g)",
+      "banned_in_default_top_results": [
+        "hearts of palm"
+      ],
+      "regional_synonyms": [
+        "palmito em conserva",
+        "pupunha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Tubérculos e Raízes"
+    },
+    {
+      "concept_id": "lagarto-bovino-cozido",
+      "search_query": "lagarto",
+      "canonical_pt_br_name": "Lagarto bovino magro, cozido em fatias",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias finas (80 g)",
+      "banned_in_default_top_results": [
+        "beef eye of round"
+      ],
+      "regional_synonyms": [
+        "lagarto cozido",
+        "carne louca"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "coxao-mole-grelhado",
+      "search_query": "coxão mole",
+      "canonical_pt_br_name": "Coxão mole bovino, grelhado",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 bife médio (100 g)",
+      "banned_in_default_top_results": [
+        "top round steak"
+      ],
+      "regional_synonyms": [
+        "coxao mole",
+        "cha de dentro"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "coxao-duro-cozido",
+      "search_query": "coxão duro",
+      "canonical_pt_br_name": "Coxão duro bovino, cozido na pressão",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 pedaços médios (100 g)",
+      "banned_in_default_top_results": [
+        "bottom round"
+      ],
+      "regional_synonyms": [
+        "coxao duro",
+        "cha de fora"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "cupim-assado",
+      "search_query": "cupim",
+      "canonical_pt_br_name": "Cupim bovino, assado",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias médias (100 g)",
+      "banned_in_default_top_results": [
+        "zebu hump"
+      ],
+      "regional_synonyms": [
+        "cupim assado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "rabada-bovina-cozida",
+      "search_query": "rabada",
+      "canonical_pt_br_name": "Rabada bovina, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pedaço com osso (120 g)",
+      "banned_in_default_top_results": [
+        "oxtail"
+      ],
+      "regional_synonyms": [
+        "rabo de boi",
+        "rabada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "lingua-bovina-cozida",
+      "search_query": "língua bovina",
+      "canonical_pt_br_name": "Língua bovina, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias médias (80 g)",
+      "banned_in_default_top_results": [
+        "beef tongue"
+      ],
+      "regional_synonyms": [
+        "lingua de boi",
+        "lingua bovina"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "coracao-bovino-cozido",
+      "search_query": "coração bovino",
+      "canonical_pt_br_name": "Coração bovino, cozido/grelhado",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias (80 g)",
+      "banned_in_default_top_results": [
+        "beef heart"
+      ],
+      "regional_synonyms": [
+        "coracao de boi"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "dobradinha-cozida",
+      "search_query": "dobradinha",
+      "canonical_pt_br_name": "Dobradinha bovina (bucho), cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 concha média (100 g)",
+      "banned_in_default_top_results": [
+        "beef tripe"
+      ],
+      "regional_synonyms": [
+        "bucho de boi",
+        "dobradinha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Carnes Bovinas"
+    },
+    {
+      "concept_id": "peru-peito-defumado",
+      "search_query": "peito de peru",
+      "canonical_pt_br_name": "Peito de peru defumado fatiado",
+      "preparation_state": "fatiado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias (40 g)",
+      "banned_in_default_top_results": [
+        "smoked turkey breast"
+      ],
+      "regional_synonyms": [
+        "peito de peru"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "lombo-suino-assado",
+      "search_query": "lombo suíno",
+      "canonical_pt_br_name": "Lombo suíno magro, assado",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias médias (100 g)",
+      "banned_in_default_top_results": [
+        "pork loin, roasted"
+      ],
+      "regional_synonyms": [
+        "lombo assado",
+        "lombo de porco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Outras Carnes"
+    },
+    {
+      "concept_id": "pernil-suino-assado",
+      "search_query": "pernil",
+      "canonical_pt_br_name": "Pernil suíno, assado",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 fatias médias (100 g)",
+      "banned_in_default_top_results": [
+        "pork leg, roasted"
+      ],
+      "regional_synonyms": [
+        "pernil assado",
+        "pernil de porco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Outras Carnes"
+    },
+    {
+      "concept_id": "costelinha-suina-assada",
+      "search_query": "costelinha de porco",
+      "canonical_pt_br_name": "Costelinha suína, assada",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 ripas (100 g)",
+      "banned_in_default_top_results": [
+        "pork ribs"
+      ],
+      "regional_synonyms": [
+        "costelinha de porco",
+        "costela suina"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Outras Carnes"
+    },
+    {
+      "concept_id": "bisteca-suina-grelhada",
+      "search_query": "bisteca de porco",
+      "canonical_pt_br_name": "Bisteca suína, grelhada com osso",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade (120 g)",
+      "banned_in_default_top_results": [
+        "pork chop"
+      ],
+      "regional_synonyms": [
+        "bisteca suina",
+        "carre suino"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Outras Carnes"
+    },
+    {
+      "concept_id": "linguica-toscana-assada",
+      "search_query": "linguiça toscana",
+      "canonical_pt_br_name": "Linguiça toscana de porco, assada na grelha",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 gomo (60 g)",
+      "banned_in_default_top_results": [
+        "sausage, pork"
+      ],
+      "regional_synonyms": [
+        "linguica de churrasco",
+        "linguica toscana"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Outras Carnes"
+    },
+    {
+      "concept_id": "bacon-frito",
+      "search_query": "bacon",
+      "canonical_pt_br_name": "Bacon suíno em cubos / tiras, frito",
+      "preparation_state": "frito",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa ou 1 fatia (15 g)",
+      "banned_in_default_top_results": [
+        "bacon, pork"
+      ],
+      "regional_synonyms": [
+        "bacon frito",
+        "toucinho defumado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Outras Carnes"
+    },
+    {
+      "concept_id": "coracao-de-galinha-grelhado",
+      "search_query": "coração de galinha",
+      "canonical_pt_br_name": "Coração de galinha/frango, grelhado no espeto",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "5 unidades (50 g)",
+      "banned_in_default_top_results": [
+        "chicken heart"
+      ],
+      "regional_synonyms": [
+        "coracao de frango",
+        "espetinho de coracao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "asa-de-frango-assada",
+      "search_query": "asa de frango",
+      "canonical_pt_br_name": "Asa de frango inteira, assada com pele",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade (50 g)",
+      "banned_in_default_top_results": [
+        "chicken wing"
+      ],
+      "regional_synonyms": [
+        "asa de frango",
+        "asinha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "frango-a-passarinho-frito",
+      "search_query": "frango a passarinho",
+      "canonical_pt_br_name": "Frango a passarinho, frito",
+      "preparation_state": "frito",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 pedaços médios (100 g)",
+      "banned_in_default_top_results": [
+        "fried chicken"
+      ],
+      "regional_synonyms": [
+        "frango frito",
+        "passarinho"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Aves e Ovos"
+    },
+    {
+      "concept_id": "bacalhau-cozido",
+      "search_query": "bacalhau",
+      "canonical_pt_br_name": "Bacalhau do Porto, dessalgado e cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 posta média (120 g)",
+      "banned_in_default_top_results": [
+        "cod, atlantic"
+      ],
+      "regional_synonyms": [
+        "bacalhau dessalgado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "pescada-branca-grelhada",
+      "search_query": "pescada",
+      "canonical_pt_br_name": "Pescada branca, filé grelhado",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 filé médio (100 g)",
+      "banned_in_default_top_results": [
+        "whiting, cooked"
+      ],
+      "regional_synonyms": [
+        "file de pescada",
+        "pescadinha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "cacao-cozido",
+      "search_query": "cação",
+      "canonical_pt_br_name": "Cação em postas, cozido ao molho",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 posta média (120 g)",
+      "banned_in_default_top_results": [
+        "shark, cooked"
+      ],
+      "regional_synonyms": [
+        "posta de cacao",
+        "tubarao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "polvo-cozido",
+      "search_query": "polvo",
+      "canonical_pt_br_name": "Polvo, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 tentáculo ou porção (100 g)",
+      "banned_in_default_top_results": [
+        "octopus, cooked"
+      ],
+      "regional_synonyms": [
+        "polvo cozido"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "lula-cozida",
+      "search_query": "lula",
+      "canonical_pt_br_name": "Lula em anéis, cozida no vapor ou grelhada",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 porção (100 g)",
+      "banned_in_default_top_results": [
+        "squid, cooked"
+      ],
+      "regional_synonyms": [
+        "aneis de lula",
+        "lula cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "mexilhao-cozido",
+      "search_query": "mexilhão",
+      "canonical_pt_br_name": "Mexilhão sem concha, cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 porção (80 g)",
+      "banned_in_default_top_results": [
+        "mussels, cooked"
+      ],
+      "regional_synonyms": [
+        "marisco",
+        "mexilhao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "caranguejo-cozido",
+      "search_query": "caranguejo",
+      "canonical_pt_br_name": "Caranguejo (carne de caranguejo desfiada), cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 porção (100 g)",
+      "banned_in_default_top_results": [
+        "crab, cooked"
+      ],
+      "regional_synonyms": [
+        "carne de caranguejo"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "ostra-crua",
+      "search_query": "ostra",
+      "canonical_pt_br_name": "Ostra fresca, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "4 unidades médias (60 g)",
+      "banned_in_default_top_results": [
+        "oysters, raw"
+      ],
+      "regional_synonyms": [
+        "ostras frescas"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pescados e Frutos do Mar"
+    },
+    {
+      "concept_id": "leite-em-po-integral",
+      "search_query": "leite em pó",
+      "canonical_pt_br_name": "Leite de vaca integral em pó",
+      "preparation_state": "pó",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (26 g)",
+      "banned_in_default_top_results": [
+        "dry whole milk"
+      ],
+      "regional_synonyms": [
+        "leite em po",
+        "leite ninho"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "leite-em-po-desnatado",
+      "search_query": "leite em pó desnatado",
+      "canonical_pt_br_name": "Leite de vaca desnatado em pó",
+      "preparation_state": "pó",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa cheias (20 g)",
+      "banned_in_default_top_results": [
+        "nonfat dry milk"
+      ],
+      "regional_synonyms": [
+        "leite em po desnatado",
+        "molico"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "queijo-parmesao-ralado",
+      "search_query": "parmesão ralado",
+      "canonical_pt_br_name": "Queijo parmesão ralado",
+      "preparation_state": "ralado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (10 g)",
+      "banned_in_default_top_results": [
+        "parmesan cheese"
+      ],
+      "regional_synonyms": [
+        "queijo ralado",
+        "parmesao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "queijo-provolone",
+      "search_query": "provolone",
+      "canonical_pt_br_name": "Queijo provolone fatiado",
+      "preparation_state": "maturado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (25 g)",
+      "banned_in_default_top_results": [
+        "provolone cheese"
+      ],
+      "regional_synonyms": [
+        "provolone"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "queijo-gorgonzola",
+      "search_query": "gorgonzola",
+      "canonical_pt_br_name": "Queijo gorgonzola / azul",
+      "preparation_state": "maturado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pedaço pequeno (30 g)",
+      "banned_in_default_top_results": [
+        "blue cheese"
+      ],
+      "regional_synonyms": [
+        "gorgonzola",
+        "queijo azul"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "queijo-brie",
+      "search_query": "queijo brie",
+      "canonical_pt_br_name": "Queijo tipo brie / camembert",
+      "preparation_state": "maturado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia pequena (30 g)",
+      "banned_in_default_top_results": [
+        "brie cheese"
+      ],
+      "regional_synonyms": [
+        "brie",
+        "camembert"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "iogurte-grego-natural",
+      "search_query": "iogurte grego",
+      "canonical_pt_br_name": "Iogurte tipo grego tradicional, sem sabor",
+      "preparation_state": "fermentado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pote individual (100 g)",
+      "banned_in_default_top_results": [
+        "greek yogurt, plain"
+      ],
+      "regional_synonyms": [
+        "iogurte grego"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "coalhada-fresca",
+      "search_query": "coalhada",
+      "canonical_pt_br_name": "Coalhada fresca tradicional",
+      "preparation_state": "fermentado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 xícara de chá (150 g)",
+      "banned_in_default_top_results": [
+        "curd"
+      ],
+      "regional_synonyms": [
+        "coalhada",
+        "coalhada seca"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "doce-de-leite-pastoso",
+      "search_query": "doce de leite",
+      "canonical_pt_br_name": "Doce de leite pastoso tradicional",
+      "preparation_state": "doce",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (20 g)",
+      "banned_in_default_top_results": [
+        "dulce de leche"
+      ],
+      "regional_synonyms": [
+        "doce de leite"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Laticínios e Derivados"
+    },
+    {
+      "concept_id": "maracuja-doce-cru",
+      "search_query": "maracujá doce",
+      "canonical_pt_br_name": "Maracujá doce, polpa crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade (60 g)",
+      "banned_in_default_top_results": [
+        "sweet passionfruit"
+      ],
+      "regional_synonyms": [
+        "maracuja doce"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "pitanga-crua",
+      "search_query": "pitanga",
+      "canonical_pt_br_name": "Pitanga vermelha fresca, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pires ou 15 unidades (100 g)",
+      "banned_in_default_top_results": [
+        "surinam cherry"
+      ],
+      "regional_synonyms": [
+        "pitanga"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "acerola-fresca-crua",
+      "search_query": "acerola",
+      "canonical_pt_br_name": "Acerola fresca, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "10 unidades médias (100 g)",
+      "banned_in_default_top_results": [
+        "acerola, raw"
+      ],
+      "regional_synonyms": [
+        "acerola"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "graviola-crua",
+      "search_query": "graviola",
+      "canonical_pt_br_name": "Graviola, polpa fresca crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 porção (100 g)",
+      "banned_in_default_top_results": [
+        "soursop, raw"
+      ],
+      "regional_synonyms": [
+        "graviola"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "cupuacu-polpa",
+      "search_query": "cupuaçu",
+      "canonical_pt_br_name": "Cupuaçu, polpa pura congelada",
+      "preparation_state": "polpa",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 porção (100 g)",
+      "banned_in_default_top_results": [
+        "cupuassu"
+      ],
+      "regional_synonyms": [
+        "cupuacu"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "ameixa-preta-seca",
+      "search_query": "ameixa seca",
+      "canonical_pt_br_name": "Ameixa preta desidratada (seca) sem caroço",
+      "preparation_state": "desidratado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 unidades médias (25 g)",
+      "banned_in_default_top_results": [
+        "plums, dried, prunes"
+      ],
+      "regional_synonyms": [
+        "ameixa preta",
+        "ameixa seca"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "ameixa-vermelha-fresca",
+      "search_query": "ameixa vermelha",
+      "canonical_pt_br_name": "Ameixa vermelha fresca, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 unidades médias (80 g)",
+      "banned_in_default_top_results": [
+        "plums, raw"
+      ],
+      "regional_synonyms": [
+        "ameixa fresca",
+        "ameixa vermelha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "pera-williams-crua",
+      "search_query": "pera",
+      "canonical_pt_br_name": "Pera d'água / williams fresca com casca, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (130 g)",
+      "banned_in_default_top_results": [
+        "pears, raw"
+      ],
+      "regional_synonyms": [
+        "pera",
+        "pera williams"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "pessego-fresco-cru",
+      "search_query": "pêssego",
+      "canonical_pt_br_name": "Pêssego amarelo fresco com casca, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (100 g)",
+      "banned_in_default_top_results": [
+        "peaches, raw"
+      ],
+      "regional_synonyms": [
+        "pessego",
+        "pessego fresco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "figo-fresco-cru",
+      "search_query": "figo",
+      "canonical_pt_br_name": "Figo roxo fresco, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (60 g)",
+      "banned_in_default_top_results": [
+        "figs, raw"
+      ],
+      "regional_synonyms": [
+        "figo fresco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "kiwi-cru",
+      "search_query": "kiwi",
+      "canonical_pt_br_name": "Kiwi verde descascado, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (75 g)",
+      "banned_in_default_top_results": [
+        "kiwifruit, raw"
+      ],
+      "regional_synonyms": [
+        "kiwi"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "carambola-crua",
+      "search_query": "carambola",
+      "canonical_pt_br_name": "Carambola fresca em fatias, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (100 g)",
+      "banned_in_default_top_results": [
+        "starfruit, raw"
+      ],
+      "regional_synonyms": [
+        "carambola"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "pinha-fruta-do-conde",
+      "search_query": "fruta do conde",
+      "canonical_pt_br_name": "Fruta-do-conde (pinha/ata), polpa crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1/2 unidade (100 g)",
+      "banned_in_default_top_results": [
+        "sugar-apple"
+      ],
+      "regional_synonyms": [
+        "pinha",
+        "ata",
+        "fruta do conde"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "tamarindo-polpa",
+      "search_query": "tamarindo",
+      "canonical_pt_br_name": "Tamarindo, polpa fresca",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (40 g)",
+      "banned_in_default_top_results": [
+        "tamarinds"
+      ],
+      "regional_synonyms": [
+        "tamarindo"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "uva-passa-escura",
+      "search_query": "uva passa",
+      "canonical_pt_br_name": "Uva passa sem sementes (seca)",
+      "preparation_state": "desidratado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa cheia (20 g)",
+      "banned_in_default_top_results": [
+        "raisins, seedless"
+      ],
+      "regional_synonyms": [
+        "uva passa",
+        "passas"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "damasco-seco",
+      "search_query": "damasco seco",
+      "canonical_pt_br_name": "Damasco seco desidratado",
+      "preparation_state": "desidratado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 unidades médias (30 g)",
+      "banned_in_default_top_results": [
+        "apricots, dried"
+      ],
+      "regional_synonyms": [
+        "damasco",
+        "damasco seco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "coco-seco-ralado",
+      "search_query": "coco ralado",
+      "canonical_pt_br_name": "Coco seco ralado, sem açúcar",
+      "preparation_state": "ralado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (15 g)",
+      "banned_in_default_top_results": [
+        "coconut, desiccated"
+      ],
+      "regional_synonyms": [
+        "coco ralado",
+        "coco seco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "coco-fresco-polpa",
+      "search_query": "coco fresco",
+      "canonical_pt_br_name": "Coco verde / maduro, polpa fresca",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pedaço pequeno (30 g)",
+      "banned_in_default_top_results": [
+        "coconut meat, raw"
+      ],
+      "regional_synonyms": [
+        "polpa de coco",
+        "coco fresco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Frutas Brasileiras"
+    },
+    {
+      "concept_id": "agua-de-coco-verde",
+      "search_query": "água de coco",
+      "canonical_pt_br_name": "Água de coco verde natural",
+      "preparation_state": "natural",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 copo (200 ml)",
+      "banned_in_default_top_results": [
+        "coconut water"
+      ],
+      "regional_synonyms": [
+        "agua de coco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "broad_group": "Bebidas e Preparações"
+    },
+    {
+      "concept_id": "quiabo-cozido",
+      "search_query": "quiabo",
+      "canonical_pt_br_name": "Quiabo refogado ou cozido",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 colheres de sopa (60 g)",
+      "banned_in_default_top_results": [
+        "okra, cooked"
+      ],
+      "regional_synonyms": [
+        "quiabo",
+        "quiabo refogado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "jilo-cozido",
+      "search_query": "jiló",
+      "canonical_pt_br_name": "Jiló fatiado, cozido ou refogado",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (50 g)",
+      "banned_in_default_top_results": [
+        "scarlet eggplant"
+      ],
+      "regional_synonyms": [
+        "jilo",
+        "jilo refogado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "repolho-roxo-cru",
+      "search_query": "repolho roxo",
+      "canonical_pt_br_name": "Repolho roxo picado, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 prato de sobremesa (60 g)",
+      "banned_in_default_top_results": [
+        "red cabbage, raw"
+      ],
+      "regional_synonyms": [
+        "repolho roxo"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "chicoria-crua",
+      "search_query": "chicória",
+      "canonical_pt_br_name": "Chicória / Escarola crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 prato de sobremesa (40 g)",
+      "banned_in_default_top_results": [
+        "chicory greens"
+      ],
+      "regional_synonyms": [
+        "chicoria",
+        "escarola"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "escarola-refogada",
+      "search_query": "escarola refogada",
+      "canonical_pt_br_name": "Escarola refogada no azeite e alho",
+      "preparation_state": "refogado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (40 g)",
+      "banned_in_default_top_results": [
+        "escarole, cooked"
+      ],
+      "regional_synonyms": [
+        "escarola refogada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "radite-cru",
+      "search_query": "radicchio",
+      "canonical_pt_br_name": "Radicchio (almeirão roxo), cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 prato de sobremesa (40 g)",
+      "banned_in_default_top_results": [
+        "radicchio, raw"
+      ],
+      "regional_synonyms": [
+        "radite",
+        "radicchio"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "almeirao-cru",
+      "search_query": "almeirão",
+      "canonical_pt_br_name": "Almeirão fatiado, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 prato de sobremesa (40 g)",
+      "banned_in_default_top_results": [
+        "dandelion greens"
+      ],
+      "regional_synonyms": [
+        "almeirao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "taioba-refogada",
+      "search_query": "taioba",
+      "canonical_pt_br_name": "Taioba folhas, refogada",
+      "preparation_state": "refogado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (40 g)",
+      "banned_in_default_top_results": [
+        "xanthosoma"
+      ],
+      "regional_synonyms": [
+        "taioba",
+        "taioba refogada"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "ora-pro-nobis-crua",
+      "search_query": "ora-pro-nóbis",
+      "canonical_pt_br_name": "Ora-pro-nóbis folhas frescas, cruas ou refogadas",
+      "preparation_state": "fresco",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 pires ou 1 xícara (40 g)",
+      "banned_in_default_top_results": [
+        "pereskia aculeata"
+      ],
+      "regional_synonyms": [
+        "ora pro nobis",
+        "orapronobis"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "alho-poro-cru",
+      "search_query": "alho-poró",
+      "canonical_pt_br_name": "Alho-poró em rodelas, cru ou refogado",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (30 g)",
+      "banned_in_default_top_results": [
+        "leeks, raw"
+      ],
+      "regional_synonyms": [
+        "alho poro"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "cebola-branca-crua",
+      "search_query": "cebola",
+      "canonical_pt_br_name": "Cebola branca/amarela, crua picada",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa picada (20 g)",
+      "banned_in_default_top_results": [
+        "onions, raw"
+      ],
+      "regional_synonyms": [
+        "cebola",
+        "cebola crua"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "alho-cru-dente",
+      "search_query": "alho",
+      "canonical_pt_br_name": "Alho fresco, dente cru amassado",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 dente médio (4 g)",
+      "banned_in_default_top_results": [
+        "garlic, raw"
+      ],
+      "regional_synonyms": [
+        "alho",
+        "dente de alho"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "cheiro-verde-cru",
+      "search_query": "cheiro verde",
+      "canonical_pt_br_name": "Cheiro-verde (salsinha e cebolinha picadas), cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (10 g)",
+      "banned_in_default_top_results": [
+        "parsley and scallions"
+      ],
+      "regional_synonyms": [
+        "salsinha",
+        "cebolinha",
+        "cheiro verde"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "coentro-cru",
+      "search_query": "coentro",
+      "canonical_pt_br_name": "Coentro fresco picado, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (10 g)",
+      "banned_in_default_top_results": [
+        "coriander leaves, raw"
+      ],
+      "regional_synonyms": [
+        "coentro fresco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "manjericao-cru",
+      "search_query": "manjericão",
+      "canonical_pt_br_name": "Manjericão fresco folhas, cru",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa de folhas (5 g)",
+      "banned_in_default_top_results": [
+        "basil, fresh"
+      ],
+      "regional_synonyms": [
+        "manjericao"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "hortela-fresca",
+      "search_query": "hortelã",
+      "canonical_pt_br_name": "Hortelã fresca folhas, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 ramo pequeno (5 g)",
+      "banned_in_default_top_results": [
+        "peppermint, fresh"
+      ],
+      "regional_synonyms": [
+        "hortela",
+        "menta"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "mostarda-folhas-refogada",
+      "search_query": "folha de mostarda",
+      "canonical_pt_br_name": "Mostarda folhas, refogada",
+      "preparation_state": "refogado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (40 g)",
+      "banned_in_default_top_results": [
+        "mustard greens"
+      ],
+      "regional_synonyms": [
+        "mostarda folhas"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "aspargo-cozido",
+      "search_query": "aspargo",
+      "canonical_pt_br_name": "Aspargo fresco verde, cozido no vapor",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "4 talos médios (60 g)",
+      "banned_in_default_top_results": [
+        "asparagus, cooked"
+      ],
+      "regional_synonyms": [
+        "aspargos"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "alcachofra-cozida",
+      "search_query": "alcachofra",
+      "canonical_pt_br_name": "Alcachofra inteira, cozida na água",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (120 g)",
+      "banned_in_default_top_results": [
+        "artichoke, cooked"
+      ],
+      "regional_synonyms": [
+        "alcachofra cozida"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "abobora-cabotia-cozida",
+      "search_query": "abóbora cabotiá",
+      "canonical_pt_br_name": "Abóbora japonesa (cabotiá), cozida com casca",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de servir (100 g)",
+      "banned_in_default_top_results": [
+        "kabocha squash"
+      ],
+      "regional_synonyms": [
+        "abobora cabotia",
+        "abobora japonesa"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "abobora-moranga-cozida",
+      "search_query": "abóbora moranga",
+      "canonical_pt_br_name": "Abóbora moranga, cozida",
+      "preparation_state": "cozido",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de servir (100 g)",
+      "banned_in_default_top_results": [
+        "pumpkin, cooked"
+      ],
+      "regional_synonyms": [
+        "abobora moranga",
+        "moranga"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "cogumelo-champignon-cozido",
+      "search_query": "champignon",
+      "canonical_pt_br_name": "Cogumelo champignon fresco, refogado",
+      "preparation_state": "refogado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "2 colheres de sopa (50 g)",
+      "banned_in_default_top_results": [
+        "mushrooms, white, cooked"
+      ],
+      "regional_synonyms": [
+        "champignon",
+        "cogumelo paris"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "cogumelo-shimeji-refogado",
+      "search_query": "shimeji",
+      "canonical_pt_br_name": "Cogumelo shimeji, refogado na manteiga e shoyu",
+      "preparation_state": "refogado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 colheres de sopa (60 g)",
+      "banned_in_default_top_results": [
+        "shimeji mushrooms"
+      ],
+      "regional_synonyms": [
+        "shimeji"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "cogumelo-shitake-refogado",
+      "search_query": "shitake",
+      "canonical_pt_br_name": "Cogumelo shitake, refogado",
+      "preparation_state": "refogado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 colheres de sopa (60 g)",
+      "banned_in_default_top_results": [
+        "shiitake mushrooms"
+      ],
+      "regional_synonyms": [
+        "shitake"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Hortaliças e Folhosos"
+    },
+    {
+      "concept_id": "banha-de-porco",
+      "search_query": "banha de porco",
+      "canonical_pt_br_name": "Banha de porco refinada",
+      "preparation_state": "pura",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (13 g)",
+      "banned_in_default_top_results": [
+        "lard, pork"
+      ],
+      "regional_synonyms": [
+        "banha de porco",
+        "banha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Gorduras e Óleos"
+    },
+    {
+      "concept_id": "oleo-de-girassol",
+      "search_query": "óleo de girassol",
+      "canonical_pt_br_name": "Óleo vegetal de girassol refinado",
+      "preparation_state": "refinado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (13 ml)",
+      "banned_in_default_top_results": [
+        "sunflower oil"
+      ],
+      "regional_synonyms": [
+        "oleo de girassol"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "broad_group": "Gorduras e Óleos"
+    },
+    {
+      "concept_id": "oleo-de-canola",
+      "search_query": "óleo de canola",
+      "canonical_pt_br_name": "Óleo vegetal de canola refinado",
+      "preparation_state": "refinado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (13 ml)",
+      "banned_in_default_top_results": [
+        "canola oil"
+      ],
+      "regional_synonyms": [
+        "oleo de canola"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "broad_group": "Gorduras e Óleos"
+    },
+    {
+      "concept_id": "oleo-de-coco-extravirgem",
+      "search_query": "óleo de coco",
+      "canonical_pt_br_name": "Óleo de coco extravirgem",
+      "preparation_state": "puro",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (13 ml)",
+      "banned_in_default_top_results": [
+        "coconut oil"
+      ],
+      "regional_synonyms": [
+        "oleo de coco"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "broad_group": "Gorduras e Óleos"
+    },
+    {
+      "concept_id": "azeite-de-dende",
+      "search_query": "azeite de dendê",
+      "canonical_pt_br_name": "Azeite de dendê bruto",
+      "preparation_state": "puro",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (13 ml)",
+      "banned_in_default_top_results": [
+        "palm oil"
+      ],
+      "regional_synonyms": [
+        "dende",
+        "azeite de dende"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "broad_group": "Gorduras e Óleos"
+    },
+    {
+      "concept_id": "margarina-com-sal",
+      "search_query": "margarina",
+      "canonical_pt_br_name": "Margarina vegetal cremosa com sal (60% lipídios)",
+      "preparation_state": "cremosa",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 ponta de faca (10 g)",
+      "banned_in_default_top_results": [
+        "margarine"
+      ],
+      "regional_synonyms": [
+        "margarina"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Gorduras e Óleos"
+    },
+    {
+      "concept_id": "maionese-tradicional",
+      "search_query": "maionese",
+      "canonical_pt_br_name": "Maionese tradicional comercial",
+      "preparation_state": "cremosa",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (15 g)",
+      "banned_in_default_top_results": [
+        "mayonnaise"
+      ],
+      "regional_synonyms": [
+        "maionese"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Gorduras e Óleos"
+    },
+    {
+      "concept_id": "noz-chilena-sem-casca",
+      "search_query": "noz",
+      "canonical_pt_br_name": "Noz chilena (nozes), sem casca crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "3 metades (15 g)",
+      "banned_in_default_top_results": [
+        "nuts, walnuts, english"
+      ],
+      "regional_synonyms": [
+        "nozes",
+        "noz"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "amendoa-crua",
+      "search_query": "amêndoa",
+      "canonical_pt_br_name": "Amêndoa sem casca, crua ou torrada",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "10 unidades (15 g)",
+      "banned_in_default_top_results": [
+        "nuts, almonds"
+      ],
+      "regional_synonyms": [
+        "amendoas",
+        "amendoa"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "avelã-crua",
+      "search_query": "avelã",
+      "canonical_pt_br_name": "Avelã sem casca, crua",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "8 unidades (15 g)",
+      "banned_in_default_top_results": [
+        "nuts, hazelnuts"
+      ],
+      "regional_synonyms": [
+        "avela",
+        "avelas"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "pistache-torrado",
+      "search_query": "pistache",
+      "canonical_pt_br_name": "Pistache torrado e salgado com casca",
+      "preparation_state": "torrado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 punhado pequeno (20 g)",
+      "banned_in_default_top_results": [
+        "nuts, pistachio nuts"
+      ],
+      "regional_synonyms": [
+        "pistache"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "macadamia-crua",
+      "search_query": "macadâmia",
+      "canonical_pt_br_name": "Macadâmia crua sem casca",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "4 unidades (15 g)",
+      "banned_in_default_top_results": [
+        "nuts, macadamia"
+      ],
+      "regional_synonyms": [
+        "macadamia"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "semente-de-abobora-torrada",
+      "search_query": "semente de abóbora",
+      "canonical_pt_br_name": "Semente de abóbora tostada sem sal",
+      "preparation_state": "tostado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (15 g)",
+      "banned_in_default_top_results": [
+        "pumpkin seeds"
+      ],
+      "regional_synonyms": [
+        "semente de abobora"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "semente-de-girassol-tostada",
+      "search_query": "semente de girassol",
+      "canonical_pt_br_name": "Semente de girassol sem casca, tostada",
+      "preparation_state": "tostado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (15 g)",
+      "banned_in_default_top_results": [
+        "sunflower seed kernels"
+      ],
+      "regional_synonyms": [
+        "semente de girassol"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "gergelim-branco-sementes",
+      "search_query": "gergelim",
+      "canonical_pt_br_name": "Gergelim branco/preto, sementes cruas",
+      "preparation_state": "cru",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sopa (10 g)",
+      "banned_in_default_top_results": [
+        "sesame seeds"
+      ],
+      "regional_synonyms": [
+        "gergelim",
+        "sesamo"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "tahine-pasta-de-gergelim",
+      "search_query": "tahine",
+      "canonical_pt_br_name": "Tahine (pasta integral de gergelim)",
+      "preparation_state": "pasta",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 colher de sobremesa (10 g)",
+      "banned_in_default_top_results": [
+        "tahini"
+      ],
+      "regional_synonyms": [
+        "tahine",
+        "pasta de gergelim"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Sementes e Oleaginosas"
+    },
+    {
+      "concept_id": "pao-sirio-pita",
+      "search_query": "pão sírio",
+      "canonical_pt_br_name": "Pão sírio (pão pita) tradicional",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (50 g)",
+      "banned_in_default_top_results": [
+        "pita bread"
+      ],
+      "regional_synonyms": [
+        "pao sirio",
+        "pao pita"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "pao-de-batata-assado",
+      "search_query": "pão de batata",
+      "canonical_pt_br_name": "Pão de batata fofo, assado sem recheio",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade pequena (50 g)",
+      "banned_in_default_top_results": [
+        "potato bread"
+      ],
+      "regional_synonyms": [
+        "pao de batata"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "pao-australiano",
+      "search_query": "pão australiano",
+      "canonical_pt_br_name": "Pão australiano (escuro com mel e centeio)",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (40 g)",
+      "banned_in_default_top_results": [
+        "australian sweet bread"
+      ],
+      "regional_synonyms": [
+        "pao australiano"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "rap10-tortilha-trigo",
+      "search_query": "rap 10",
+      "canonical_pt_br_name": "Tortilha fina de trigo (estilo Rap10 / pão folha)",
+      "preparation_state": "grelhado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 folha / unidade (40 g)",
+      "banned_in_default_top_results": [
+        "tortilla, wheat"
+      ],
+      "regional_synonyms": [
+        "rap 10",
+        "tortilha de trigo",
+        "pao folha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "bolo-simples-caseiro",
+      "search_query": "bolo simples",
+      "canonical_pt_br_name": "Bolo de trigo caseiro simples (sem cobertura)",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (60 g)",
+      "banned_in_default_top_results": [
+        "yellow cake"
+      ],
+      "regional_synonyms": [
+        "bolo caseiro",
+        "bolo de dona benta"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "bolo-de-cenoura-com-chocolate",
+      "search_query": "bolo de cenoura",
+      "canonical_pt_br_name": "Bolo de cenoura com calda de chocolate",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (70 g)",
+      "banned_in_default_top_results": [
+        "carrot cake with frosting"
+      ],
+      "regional_synonyms": [
+        "bolo de cenoura"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "bolo-de-fuba-caseiro",
+      "search_query": "bolo de fubá",
+      "canonical_pt_br_name": "Bolo de fubá cremoso/simples, caseiro",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 fatia média (60 g)",
+      "banned_in_default_top_results": [
+        "cornbread cake"
+      ],
+      "regional_synonyms": [
+        "bolo de fuba"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "croissant-tradicional",
+      "search_query": "croissant",
+      "canonical_pt_br_name": "Croissant tradicional de manteiga",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (60 g)",
+      "banned_in_default_top_results": [
+        "croissant, butter"
+      ],
+      "regional_synonyms": [
+        "croissant"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "pastel-de-carne-frito",
+      "search_query": "pastel de carne",
+      "canonical_pt_br_name": "Pastel de feira de carne, frito",
+      "preparation_state": "frito",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (100 g)",
+      "banned_in_default_top_results": [
+        "fried turnover, meat"
+      ],
+      "regional_synonyms": [
+        "pastel de feira",
+        "pastel de carne"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "coxinha-de-frango-frita",
+      "search_query": "coxinha de frango",
+      "canonical_pt_br_name": "Coxinha de frango tradicional, frita",
+      "preparation_state": "frito",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (100 g)",
+      "banned_in_default_top_results": [
+        "chicken croquette"
+      ],
+      "regional_synonyms": [
+        "coxinha",
+        "coxinha com catupiry"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "esfiha-de-carne-assada",
+      "search_query": "esfiha de carne",
+      "canonical_pt_br_name": "Esfiha aberta/fechada de carne, assada",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (80 g)",
+      "banned_in_default_top_results": [
+        "sfiha"
+      ],
+      "regional_synonyms": [
+        "esfiha de carne",
+        "esfirra"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "empada-de-palmito-assada",
+      "search_query": "empada",
+      "canonical_pt_br_name": "Empadinha de palmito/frango, assada",
+      "preparation_state": "assado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (70 g)",
+      "banned_in_default_top_results": [
+        "pot pie, small"
+      ],
+      "regional_synonyms": [
+        "empada",
+        "empadinha"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "quibe-frito",
+      "search_query": "quibe",
+      "canonical_pt_br_name": "Quibe tradicional de carne, frito",
+      "preparation_state": "frito",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 unidade média (80 g)",
+      "banned_in_default_top_results": [
+        "kibbeh, fried"
+      ],
+      "regional_synonyms": [
+        "kibe",
+        "quibe frito"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "g",
+      "broad_group": "Pães, Massas e Farinhas"
+    },
+    {
+      "concept_id": "cafe-coado-sem-acucar",
+      "search_query": "café",
+      "canonical_pt_br_name": "Café coado tradicional, sem açúcar",
+      "preparation_state": "infusão",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 xícara de café (50 ml)",
+      "banned_in_default_top_results": [
+        "coffee, brewed, espresso"
+      ],
+      "regional_synonyms": [
+        "cafe",
+        "cafezinho",
+        "cafe coado"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "broad_group": "Bebidas e Preparações"
+    },
+    {
+      "concept_id": "cha-mate-infuso",
+      "search_query": "chá mate",
+      "canonical_pt_br_name": "Chá mate tostado infuso, sem açúcar",
+      "preparation_state": "infusão",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 copo (200 ml)",
+      "banned_in_default_top_results": [
+        "mate tea"
+      ],
+      "regional_synonyms": [
+        "cha mate",
+        "mate"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "broad_group": "Bebidas e Preparações"
+    },
+    {
+      "concept_id": "chimarrao-gaucho",
+      "search_query": "chimarrão",
+      "canonical_pt_br_name": "Chimarrão tradicional de erva-mate, infuso",
+      "preparation_state": "infusão",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 cuia (200 ml)",
+      "banned_in_default_top_results": [
+        "yerba mate"
+      ],
+      "regional_synonyms": [
+        "chimarrao",
+        "erva mate"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "broad_group": "Bebidas e Preparações"
+    },
+    {
+      "concept_id": "caldo-de-cana-garapa",
+      "search_query": "caldo de cana",
+      "canonical_pt_br_name": "Caldo de cana (garapa) fresco natural",
+      "preparation_state": "natural",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 copo (200 ml)",
+      "banned_in_default_top_results": [
+        "sugar cane juice"
+      ],
+      "regional_synonyms": [
+        "garapa",
+        "caldo de cana"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "broad_group": "Bebidas e Preparações"
+    },
+    {
+      "concept_id": "suco-de-uva-integral",
+      "search_query": "suco de uva integral",
+      "canonical_pt_br_name": "Suco de uva tinto 100% integral (sem adição de açúcar)",
+      "preparation_state": "engarrafado",
+      "source_authority": "TACO/IBGE",
+      "household_measure_example": "1 copo (200 ml)",
+      "banned_in_default_top_results": [
+        "grape juice, purple"
+      ],
+      "regional_synonyms": [
+        "suco de uva integral",
+        "suco de uva"
+      ],
+      "reference_amount": 100,
+      "reference_unit": "ml",
+      "broad_group": "Bebidas e Preparações"
+    }
+  ]
+}

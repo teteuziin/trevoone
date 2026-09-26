@@ -93,76 +93,35 @@ function getWordStem(word: string): string {
  * Curated Brazilian Food Synonyms & Regional Equivalents.
  * Expands search vocabulary without risky automated database merges.
  */
-export const COMMON_FOOD_SYNONYMS: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  // Tubérculos e Raízes (variações regionais inequívocas e tradução direta)
-  aipim: ["mandioca", "macaxeira", "cassava"],
-  macaxeira: ["mandioca", "aipim", "cassava"],
-  mandioca: ["aipim", "macaxeira", "cassava"],
-  inhame: ["yam"],
-  batata: ["potato"],
+/**
+ * Curated Brazilian Food Synonyms & Regional Equivalents for user search.
+ * STRICTLY Portuguese regional equivalents, culinary preparation states,
+ * and unambiguous Brazilian synonyms.
+ * NO English cross-language tokens allowed in user search queries.
+ */
+export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  // Tubérculos e Raízes (variações regionais inequívocas em PT-BR)
+  aipim: ["mandioca", "macaxeira"],
+  macaxeira: ["mandioca", "aipim"],
+  mandioca: ["aipim", "macaxeira"],
 
-  // Frutas com variações regionais inequívocas e tradução direta
+  // Frutas com variações regionais brasileiras
   mexerica: ["tangerina", "bergamota", "mandarina"],
   bergamota: ["tangerina", "mexerica", "mandarina"],
   tangerina: ["mexerica", "bergamota", "mandarina"],
-  abacaxi: ["ananas", "pineapple"],
-  morango: ["strawberry"],
-  abacate: ["avocado"],
-  melancia: ["watermelon"],
-  melao: ["melon"],
-  mamao: ["papaya"],
-  maracuja: ["passion fruit"],
+  abacaxi: ["ananas"],
 
-  // Carnes bovinas e cortes específicos (apenas nomes equivalentes do mesmo corte exato)
-  alcatra: ["top sirloin"],
-  mignon: ["file mignon", "tenderloin"],
-  acem: ["chuck"],
-  contrafile: ["strip steak"],
-  picanha: ["sirloin cap"],
-  fraldinha: ["flank steak"],
-  costela: ["rib", "ribs"],
-
-  // Aves e Ovos
-  frango: ["chicken"],
-  sobrecoxa: ["thigh"],
-  coxa: ["drumstick"],
-  ovo: ["egg"],
-  clara: ["egg white"],
-  gema: ["egg yolk"],
-
-  // Peixes e Frutos do Mar
-  peixe: ["fish"],
-  salmao: ["salmon"],
-  atum: ["tuna"],
-  bacalhau: ["cod"],
-  camarao: ["shrimp", "prawn"],
-
-  // Suplementos, Grãos e Cereais
-  whey: ["soro de leite", "whey protein"],
-  creatina: ["creatine"],
-  aveia: ["oat", "oats"],
-  arroz: ["rice"],
-  feijao: ["bean", "beans"],
-  lentilha: ["lentil"],
-  chia: ["chia seed"],
-  linhaca: ["flaxseed"],
-
-  // Laticínios e Derivados
-  leite: ["milk"],
-  iogurte: ["yogurt"],
-  queijo: ["cheese"],
-  ricota: ["ricotta"],
-  cottage: ["cottage cheese"],
-  manteiga: ["butter"],
-  azeite: ["olive oil"],
-  mussarela: ["mucarela", "mozarela", "mozzarella"],
-  mucarela: ["mussarela", "mozarela", "mozzarella"],
-  mozarela: ["mussarela", "mucarela", "mozzarella"],
+  // Queijos e grafias em PT-BR
+  mussarela: ["mucarela", "mozarela"],
+  mucarela: ["mussarela", "mozarela"],
+  mozarela: ["mussarela", "mucarela"],
   mozzarella: ["mussarela", "mucarela", "mozarela"],
 
-  // Pastas e cremes (descoberta segura de pasta de amendoim <-> creme de amendoim)
-  pasta: ["creme", "massa", "paste"],
-  creme: ["pasta", "cream"],
+  // Carnes
+  mignon: ["file mignon"],
+
+  // Suplementos e derivados lácteos em PT-BR
+  whey: ["whey protein", "soro de leite"],
 
   // Flexões culinárias e estados de preparo simétricos (preserva o estado exato: cozido <-> cozida, cru <-> crua, etc.)
   cozido: ["cozida"],
@@ -187,10 +146,81 @@ export const COMMON_FOOD_SYNONYMS: Readonly<Record<string, readonly string[]>> =
   defumada: ["defumado"],
 });
 
+/**
+ * Aliased to USER_SEARCH_ALIASES for backward compatibility with user-facing code.
+ */
+export const COMMON_FOOD_SYNONYMS: Readonly<Record<string, readonly string[]>> = USER_SEARCH_ALIASES;
+
+/**
+ * Internal cross-language discovery aliases reserved EXCLUSIVELY for ingestion / curation scripts.
+ * Must NEVER be exposed to or used in user nutritionist search queries.
+ */
+export const DISCOVERY_ALIASES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  aipim: ["cassava"],
+  macaxeira: ["cassava"],
+  mandioca: ["cassava"],
+  inhame: ["yam"],
+  batata: ["potato"],
+  abacaxi: ["pineapple"],
+  morango: ["strawberry"],
+  abacate: ["avocado"],
+  melancia: ["watermelon"],
+  melao: ["melon"],
+  mamao: ["papaya"],
+  maracuja: ["passion fruit"],
+  alcatra: ["top sirloin"],
+  mignon: ["tenderloin"],
+  acem: ["chuck"],
+  contrafile: ["strip steak"],
+  picanha: ["sirloin cap"],
+  fraldinha: ["flank steak"],
+  costela: ["rib", "ribs"],
+  frango: ["chicken"],
+  sobrecoxa: ["thigh"],
+  coxa: ["drumstick"],
+  ovo: ["egg"],
+  clara: ["egg white"],
+  gema: ["egg yolk"],
+  peixe: ["fish"],
+  salmao: ["salmon"],
+  atum: ["tuna"],
+  bacalhau: ["cod"],
+  camarao: ["shrimp", "prawn"],
+  whey: ["whey protein"],
+  creatina: ["creatine"],
+  aveia: ["oat", "oats"],
+  arroz: ["rice"],
+  feijao: ["bean", "beans"],
+  lentilha: ["lentil"],
+  chia: ["chia seed"],
+  linhaca: ["flaxseed"],
+  leite: ["milk"],
+  iogurte: ["yogurt"],
+  queijo: ["cheese"],
+  ricota: ["ricotta"],
+  cottage: ["cottage cheese"],
+  manteiga: ["butter"],
+  azeite: ["olive oil"],
+});
+
 export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
+  const hasAmendoim = tokens.some((t) => normalizeSearchText(t) === "amendoim");
+
   return tokens.map((token) => {
     const normalized = normalizeSearchText(token);
-    const synonyms = COMMON_FOOD_SYNONYMS[normalized];
+
+    // Phrase-aware handling: pasta / creme / manteiga de amendoim
+    if (hasAmendoim && (normalized === "pasta" || normalized === "creme" || normalized === "manteiga")) {
+      return [token, "pasta", "creme", "manteiga"];
+    }
+
+    // Phrase-aware handling: arroz branco -> TACO arroz tipo 1 / tipo 2 / polido
+    const hasArroz = tokens.some((t) => normalizeSearchText(t) === "arroz");
+    if (hasArroz && (normalized === "branco" || normalized === "polido" || normalized === "tipo 1")) {
+      return [token, "tipo 1", "tipo 2", "polido", "branco"];
+    }
+
+    const synonyms = USER_SEARCH_ALIASES[normalized];
     if (synonyms && synonyms.length > 0) {
       return [token, ...synonyms];
     }

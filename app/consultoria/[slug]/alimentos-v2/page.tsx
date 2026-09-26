@@ -14,6 +14,7 @@ import {
   FoodLibraryQueryUnknownError,
   FoodLibraryMappingError,
   type ListFoodsResult,
+  type FoodSourceTab,
 } from "@/lib/nutrition-v2/food-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { NutritionistFoodLibrary } from "@/components/consultancies/nutrition-v2/nutritionist-food-library";
@@ -184,6 +185,7 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
   // STAGE C: DATA QUERY & ROW MAPPING (listUnifiedFoodsForNutritionist)
   // ------------------------------------------------------------------------
   let initialResult: ListFoodsResult | null = null;
+  let currentSourceTab: FoodSourceTab = "TREVO_BRASIL";
   if (!diagnostic && ctx) {
     let resolvedSearchParams: { [key: string]: string | string[] | undefined } = {};
     try {
@@ -208,11 +210,22 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
     const rawPage = typeof resolvedSearchParams.page === "string" ? parseInt(resolvedSearchParams.page, 10) : 1;
     const page = !Number.isNaN(rawPage) && rawPage >= 1 ? rawPage : 1;
 
-        try {
+    const rawTab = typeof resolvedSearchParams.tab === "string"
+      ? resolvedSearchParams.tab
+      : typeof resolvedSearchParams.sourceTab === "string"
+      ? resolvedSearchParams.sourceTab
+      : "TREVO_BRASIL";
+    const sourceTab: FoodSourceTab = ["TREVO_BRASIL", "COMMERCIAL", "MY_FOODS", "OTHER_DATABASES"].includes(rawTab)
+      ? (rawTab as FoodSourceTab)
+      : "TREVO_BRASIL";
+    currentSourceTab = sourceTab;
+
+    try {
       initialResult = await listUnifiedFoodsForNutritionist(ctx, {
         query,
         scope,
         status,
+        sourceTab,
         page,
         pageSize: 20,
       });
@@ -335,6 +348,7 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
         <NutritionistFoodLibrary
           slug={slug}
           initialResult={initialResult}
+          initialSourceTab={currentSourceTab}
           canAuthorNutrition={ctx.canAuthorNutrition}
         />
       </div>

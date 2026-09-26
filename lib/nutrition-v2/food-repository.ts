@@ -51,7 +51,7 @@ export type CreatePortionInput = {
 export type UpdatePortionInput = Partial<CreatePortionInput>;
 
 
-export {
+import {
   FoodLibraryQueryError,
   FoodLibraryQueryUnknownError,
   FoodLibraryQueryCountError,
@@ -65,6 +65,7 @@ export {
   buildCountQuery,
   buildSelectFoodsQuery,
   buildFoodSearchOrderClause,
+  type FoodSourceTab,
   type ListFoodsFilter,
   type FoodListItemDto,
   type ListFoodsResult,
@@ -82,9 +83,9 @@ export {
   expandSearchTokensWithSynonyms,
 } from "./food-query-builder";
 
-export { getDataQualityBadgeInfo } from "./food-search";
-
-import {
+export {
+  FoodLibraryQueryError,
+  FoodLibraryQueryUnknownError,
   FoodLibraryQueryCountError,
   FoodLibraryQuerySelectError,
   FoodLibraryQueryOrderError,
@@ -92,19 +93,29 @@ import {
   FoodLibraryMappingError,
   extractSafeMysqlError,
   mapFoodRow,
+  buildWhereClause,
   buildCountQuery,
   buildSelectFoodsQuery,
+  buildFoodSearchOrderClause,
+  type FoodSourceTab,
   type ListFoodsFilter,
   type FoodListItemDto,
   type ListFoodsResult,
+  type FoodLibraryQuerySubstage,
+  type SafeMysqlErrorInfo,
+  safeIsoString,
+  safeNullableNumber,
   safeNumber,
   safeString,
   safeNullableString,
-  safeIsoString,
-  safeNullableNumber,
   normalizeSearchText,
-} from "./food-query-builder";
+  SEARCH_STOP_WORDS,
+  tokenizeSearchQuery,
+  COMMON_FOOD_SYNONYMS,
+  expandSearchTokensWithSynonyms,
+};
 
+export { getDataQualityBadgeInfo } from "./food-search";
 
 export async function listUnifiedFoodsForNutritionist(
   ctx: NutritionAccessContext,
@@ -293,7 +304,7 @@ export async function getFoodWithPortions(
       scope: (f.scope === "CONSULTANCY" ? "CONSULTANCY" : "GLOBAL") as NutritionV2FoodScope,
       consultancyId: f.consultancy_id != null ? String(f.consultancy_id) : null,
       name: safeString(f.name, "Alimento sem nome"),
-      displayNamePtBr: safeNullableString(f.display_name_pt_br),
+      displayNamePtBr: safeNullableString(f.display_name_pt_br) || safeString(f.name),
       normalizedDisplayNamePtBr: safeNullableString(f.normalized_display_name_pt_br),
       normalizedName: safeString(f.normalized_name, ""),
       category: safeNullableString(f.category),

@@ -61,7 +61,7 @@ console.log("=== INICIANDO SUÍTE DE TESTES: RELEASE B — AUDITORIA ADVERSARIAL
   assert(mandiocaExpanded.includes("mandioca"));
   assert(mandiocaExpanded.includes("aipim"));
   assert(mandiocaExpanded.includes("macaxeira"));
-  assert(mandiocaExpanded.includes("cassava"));
+  assert(!mandiocaExpanded.includes("cassava"), "User search must not include English cassava");
 
   // B) query: aipim deve encontrar mandioca
   const aipimExpanded = expandSearchTokensWithSynonyms(["aipim"])[0];
@@ -72,7 +72,7 @@ console.log("=== INICIANDO SUÍTE DE TESTES: RELEASE B — AUDITORIA ADVERSARIAL
   // D) query: abacaxi pode encontrar pineapple se for alias exato
   const abacaxiExpanded = expandSearchTokensWithSynonyms(["abacaxi"])[0];
   assert(abacaxiExpanded.includes("abacaxi"));
-  assert(abacaxiExpanded.includes("pineapple"));
+  assert(!abacaxiExpanded.includes("pineapple"), "User search must not include English pineapple");
   assert(abacaxiExpanded.includes("ananas"));
 
   // Outros sinônimos regionais auditados
@@ -154,7 +154,7 @@ console.log("=== INICIANDO SUÍTE DE TESTES: RELEASE B — AUDITORIA ADVERSARIAL
 
   // Group 1: arroz / rice
   assert(tokenGroups[0].includes("arroz"));
-  assert(tokenGroups[0].includes("rice"));
+  assert(!tokenGroups[0].includes("rice"), "User search must not include English rice");
   // Group 2: integral
   assert.deepEqual(tokenGroups[1], ["integral"]);
 

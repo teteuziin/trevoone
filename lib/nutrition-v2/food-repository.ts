@@ -49,10 +49,6 @@ export interface FoodWithPortionsDto extends Omit<NutritionV2FoodDto, "id"> {
 export type CreateFoodInput = {
   name: string;
   category?: string | null;
-  brand?: string | null;
-  productLine?: string | null;
-  flavorOrVariant?: string | null;
-  manufacturer?: string | null;
   referenceAmount?: number;
   referenceUnitCode?: string;
   caloriesKcal?: number | null;
@@ -163,8 +159,8 @@ export async function listUnifiedFoodsForNutritionist(
     for (const group of tokenGroups) {
       const orClauses: string[] = [];
       for (const variant of group) {
-        orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ? OR f.brand LIKE ?");
-        params.push(`%${variant}%`, `%${variant}%`, `%${variant}%`);
+        orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ?");
+        params.push(`%${variant}%`, `%${variant}%`);
       }
       conditions.push(`(${orClauses.join(" OR ")})`);
     }
@@ -208,10 +204,6 @@ export async function listUnifiedFoodsForNutritionist(
         f.normalized_display_name_pt_br,
         f.normalized_name,
         f.category,
-        f.brand,
-        f.product_line,
-        f.flavor_or_variant,
-        f.manufacturer,
         f.reference_amount,
         f.reference_unit_code,
         f.calories_kcal,
@@ -257,10 +249,6 @@ export async function listUnifiedFoodsForNutritionist(
       normalizedDisplayNamePtBr: r.normalized_display_name_pt_br != null ? String(r.normalized_display_name_pt_br) : null,
       normalizedName: r.normalized_name,
       category: r.category,
-      brand: r.brand != null ? String(r.brand) : null,
-      productLine: r.product_line != null ? String(r.product_line) : null,
-      flavorOrVariant: r.flavor_or_variant != null ? String(r.flavor_or_variant) : null,
-      manufacturer: r.manufacturer != null ? String(r.manufacturer) : null,
       referenceAmount: Number(r.reference_amount),
       referenceUnitCode: r.reference_unit_code,
       caloriesKcal: r.calories_kcal != null ? Number(r.calories_kcal) : null,
@@ -330,8 +318,8 @@ export async function listGlobalFoodsForAdmin(
     for (const group of tokenGroups) {
       const orClauses: string[] = [];
       for (const variant of group) {
-        orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ? OR f.brand LIKE ?");
-        params.push(`%${variant}%`, `%${variant}%`, `%${variant}%`);
+        orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ?");
+        params.push(`%${variant}%`, `%${variant}%`);
       }
       conditions.push(`(${orClauses.join(" OR ")})`);
     }
@@ -373,10 +361,6 @@ export async function listGlobalFoodsForAdmin(
         f.normalized_display_name_pt_br,
         f.normalized_name,
         f.category,
-        f.brand,
-        f.product_line,
-        f.flavor_or_variant,
-        f.manufacturer,
         f.reference_amount,
         f.reference_unit_code,
         f.calories_kcal,
@@ -422,10 +406,6 @@ export async function listGlobalFoodsForAdmin(
       normalizedDisplayNamePtBr: r.normalized_display_name_pt_br != null ? String(r.normalized_display_name_pt_br) : null,
       normalizedName: r.normalized_name,
       category: r.category,
-      brand: r.brand != null ? String(r.brand) : null,
-      productLine: r.product_line != null ? String(r.product_line) : null,
-      flavorOrVariant: r.flavor_or_variant != null ? String(r.flavor_or_variant) : null,
-      manufacturer: r.manufacturer != null ? String(r.manufacturer) : null,
       referenceAmount: Number(r.reference_amount),
       referenceUnitCode: r.reference_unit_code,
       caloriesKcal: r.calories_kcal != null ? Number(r.calories_kcal) : null,
@@ -511,10 +491,6 @@ export async function getFoodWithPortions(
       normalizedDisplayNamePtBr: f.normalized_display_name_pt_br != null ? String(f.normalized_display_name_pt_br) : null,
       normalizedName: f.normalized_name,
       category: f.category,
-      brand: f.brand != null ? String(f.brand) : null,
-      productLine: f.product_line != null ? String(f.product_line) : null,
-      flavorOrVariant: f.flavor_or_variant != null ? String(f.flavor_or_variant) : null,
-      manufacturer: f.manufacturer != null ? String(f.manufacturer) : null,
       referenceAmount: Number(f.reference_amount),
       referenceUnitCode: f.reference_unit_code,
       caloriesKcal: f.calories_kcal != null ? Number(f.calories_kcal) : null,

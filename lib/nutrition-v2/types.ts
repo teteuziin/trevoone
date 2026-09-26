@@ -80,10 +80,6 @@ export interface NutritionV2FoodDto {
   normalizedDisplayNamePtBr?: string | null;
   normalizedName: string;
   category: string | null;
-  brand?: string | null;
-  productLine?: string | null;
-  flavorOrVariant?: string | null;
-  manufacturer?: string | null;
   referenceAmount: number;
   referenceUnitCode: string;
   caloriesKcal: number | null;

@@ -185,11 +185,6 @@ export const COMMON_FOOD_SYNONYMS: Readonly<Record<string, readonly string[]>> =
   desnatada: ["desnatado"],
   defumado: ["defumada"],
   defumada: ["defumado"],
-  // Tubérculos e féculas brasileiras (mapeamento específico sem contaminação categórica)
-  inglesa: ["russet"],
-  // Pães e grãos
-  frances: ["francesa", "pao frances"],
-  francesa: ["frances", "pao frances"],
 });
 
 export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
@@ -267,12 +262,6 @@ export function buildFoodSearchOrderClause(
   );
 
   const isBreadQuery = queryTokens.some((t) => ["bread", "pao"].includes(t));
-  const isRiceQuery = queryTokens.some((t) => ["arroz", "rice"].includes(t));
-  const isSweetPotatoQuery = queryTokens.includes("batata") && queryTokens.includes("doce");
-  const isBatataInglesaQuery = queryTokens.includes("batata") && queryTokens.includes("inglesa");
-  const isGomaTapiocaQuery = queryTokens.includes("goma") && queryTokens.includes("tapioca");
-  const hasGrowthQuery = queryTokens.includes("growth");
-  const isCouscousQuery = queryTokens.some((t) => ["cuscuz", "couscous"].includes(t));
   const isYogurtQuery = queryTokens.some((t) => ["yogurt", "iogurte"].includes(t));
 
   const orderClause = `ORDER BY
@@ -346,57 +335,6 @@ export function buildFoodSearchOrderClause(
              OR f.normalized_name LIKE '%fruit%' OR f.normalized_name LIKE '%flavored%') THEN 3
       ELSE 1
     END ASC,
-    -- Prioritize national Brazilian staple preparations when querying common staples
-    CASE
-      WHEN (${isRiceQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE 'arroz, tipo 1%' OR ${targetCol} LIKE 'arroz, integral%' OR ${targetCol} LIKE 'arroz integral%' OR ${targetCol} LIKE 'arroz branco%') THEN 1
-      WHEN (${isRiceQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE 'arroz%' AND (${targetCol} LIKE '%preto%' OR ${targetCol} LIKE '%vermelho%' OR ${targetCol} LIKE '%selvagem%')) THEN 3
-      ELSE 2
-    END ASC,
-    -- Prioritize verified branded manufacturer products when branded term is queried
-    CASE
-      WHEN (${hasGrowthQuery ? "1=1" : "1=0"})
-        AND (f.brand = 'Growth Supplements' OR ${targetCol} LIKE 'growth%' OR f.normalized_name LIKE 'growth%') THEN 1
-      ELSE 2
-    END ASC,
-    -- Prioritize hydrated tapioca gum over buttered/dessert preparations
-    CASE
-      WHEN (${isGomaTapiocaQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE '%hidratada%' OR ${targetCol} LIKE '%massa para tapioca%') THEN 1
-      WHEN (${isGomaTapiocaQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE '%manteiga%' OR ${targetCol} LIKE '%bala de goma%' OR ${targetCol} LIKE '%pudim%') THEN 9
-      ELSE 2
-    END ASC,
-    -- Specific potato rankings
-    CASE
-      WHEN (${isSweetPotatoQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE 'batata, doce%' OR ${targetCol} LIKE 'batata doce%') THEN 1
-      WHEN (${isSweetPotatoQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE '%inglesa%') THEN 9
-      ELSE 2
-    END ASC,
-    CASE
-      WHEN (${isBatataInglesaQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE '%inglesa%' OR f.normalized_name LIKE '%inglesa%') THEN 1
-      WHEN (${isBatataInglesaQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE '%russet%' OR f.normalized_name LIKE '%russet%') THEN 2
-      WHEN (${isBatataInglesaQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE '%doce%' OR f.normalized_name LIKE '%sweet%' OR ${targetCol} LIKE '%baroa%') THEN 9
-      ELSE 3
-    END ASC,
-    CASE
-      WHEN (${isCouscousQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE 'cuscuz, de milho%' OR ${targetCol} LIKE 'cuscuz de milho%') THEN 1
-      ELSE 2
-    END ASC,
-    -- Prioritize Brazilian national sources (TACO, BRANDED, GROWTH, AMAFIL)
-    CASE
-      WHEN f.source_type IN ('TACO', 'BRANDED') OR f.source_key LIKE 'TACO%' OR f.source_key LIKE 'GROWTH%' OR f.source_key LIKE 'AMAFIL%' THEN 1
-      WHEN f.data_quality = 'ANALYTICAL_GOLD' THEN 2
-      WHEN f.data_quality = 'SURVEY_RECIPE' THEN 3
-      ELSE 4
-    END ASC,
     -- Prioritize analytical laboratory direct data & survey recipe data quality
     CASE
       WHEN f.data_quality = 'ANALYTICAL_GOLD' THEN 1
@@ -422,13 +360,6 @@ export interface DataQualityBadgeInfo {
  */
 export function getDataQualityBadgeInfo(dataQuality?: string | null): DataQualityBadgeInfo | null {
   if (!dataQuality) return null;
-  if (dataQuality === "MANUFACTURER_VERIFIED") {
-    return {
-      label: "Rótulo oficial",
-      title: "Valores obtidos diretamente da tabela nutricional oficial do fabricante",
-      variant: "analytical",
-    };
-  }
   if (dataQuality === "ANALYTICAL_GOLD") {
     return {
       label: "Dados analíticos",

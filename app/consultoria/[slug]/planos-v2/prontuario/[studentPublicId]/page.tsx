@@ -20,7 +20,7 @@ export default async function PatientRecordPage({ params }: PatientRecordPagePro
 
   const context = await resolveConsultancyContext(session.userId, slug);
   const ctx = await resolveNutritionAccessContext(slug);
-  if (!ctx || !ctx.canAuthorNutrition) {
+  if (!ctx || !ctx.canViewNutrition) {
     notFound();
   }
 

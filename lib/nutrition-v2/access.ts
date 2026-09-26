@@ -21,6 +21,7 @@ export type NutritionAccessContext = {
   roles: ConsultancyRole[];
   hasRole: (role: ConsultancyRole) => boolean;
   canAuthorNutrition: boolean;
+  canViewNutrition: boolean;
   canManageConsultancy: boolean;
   canManageGlobal: boolean;
   isStudent: boolean;
@@ -66,6 +67,7 @@ export async function resolveNutritionAccessContext(
       roles: [],
       hasRole: () => false,
       canAuthorNutrition: false,
+      canViewNutrition: isPlatformAdmin,
       canManageConsultancy: false,
       canManageGlobal: isPlatformAdmin,
       isStudent: false,
@@ -112,6 +114,7 @@ export async function resolveNutritionAccessContext(
           roles: [],
           hasRole: () => false,
           canAuthorNutrition: false,
+          canViewNutrition: true,
           canManageConsultancy: false,
           canManageGlobal: true,
           isStudent: false,
@@ -127,9 +130,9 @@ export async function resolveNutritionAccessContext(
 
     const hasRole = (role: ConsultancyRole) => roles.includes(role);
     const canManageConsultancy = hasRole("CONSULTANCY_ADMIN");
-    // P0 RULE: Only NUTRITIONIST can author nutrition (multi-role allowed)
-    // Nutrition authoring capability: NUTRITIONIST or tenancy manager (CONSULTANCY_ADMIN)
-    const canAuthorNutrition = canManageConsultancy || hasRole("NUTRITIONIST");
+    // P0 RULE: Only NUTRITIONIST can author nutrition (multi-role allowed). Consultancy Admin preview is read-only.
+    const canAuthorNutrition = hasRole("NUTRITIONIST");
+    const canViewNutrition = canAuthorNutrition || canManageConsultancy || isPlatformAdmin;
     const isStudent = hasRole("STUDENT");
 
     return {
@@ -144,6 +147,7 @@ export async function resolveNutritionAccessContext(
       roles,
       hasRole,
       canAuthorNutrition,
+      canViewNutrition,
       canManageConsultancy,
       canManageGlobal: isPlatformAdmin,
       isStudent,
@@ -164,6 +168,16 @@ export function assertCanManageGlobal(ctx: NutritionAccessContext): void {
     throw new NutritionAuthorizationError(
       "Acesso restrito ao Administrador da Plataforma.",
       "UNAUTHORIZED_GLOBAL_MANAGEMENT",
+      403
+    );
+  }
+}
+
+export function assertCanViewNutrition(ctx: NutritionAccessContext): void {
+  if (!ctx.consultancyId || !ctx.membershipId || !ctx.canViewNutrition) {
+    throw new NutritionAuthorizationError(
+      "Acesso negado: visualização do workspace nutricional restrita a profissionais autorizados.",
+      "UNAUTHORIZED_NUTRITION_VIEW",
       403
     );
   }

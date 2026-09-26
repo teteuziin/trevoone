@@ -82,7 +82,7 @@ export default async function ProntuarioIndexPage({
 
   const context = await resolveConsultancyContext(session.userId, slug);
   const ctx = await resolveNutritionAccessContext(slug);
-  if (!ctx || !ctx.canAuthorNutrition || !ctx.consultancyId) {
+  if (!ctx || !ctx.canViewNutrition || !ctx.consultancyId) {
     notFound();
   }
 

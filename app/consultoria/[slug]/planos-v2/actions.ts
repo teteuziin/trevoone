@@ -13,7 +13,7 @@ import type {
 } from "@/lib/nutrition-v2/types";
 
 import { revalidatePath } from "next/cache";
-import { resolveNutritionAccessContext, assertCanAuthorNutrition } from "@/lib/nutrition-v2/access";
+import { resolveNutritionAccessContext, assertCanAuthorNutrition, assertCanViewNutrition } from "@/lib/nutrition-v2/access";
 import {
   createPlanWithDraftVersion,
   updatePlanVersionMetadata,
@@ -401,7 +401,7 @@ export async function searchFoodsForPickerAction(
   try {
     const ctx = await resolveNutritionAccessContext(slug);
     if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada." };
-    assertCanAuthorNutrition(ctx);
+    assertCanViewNutrition(ctx);
 
     const res = await listUnifiedFoodsForNutritionist(ctx, {
       query,
@@ -426,7 +426,7 @@ export async function getFoodPortionsForPickerAction(
   try {
     const ctx = await resolveNutritionAccessContext(slug);
     if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada." };
-    assertCanAuthorNutrition(ctx);
+    assertCanViewNutrition(ctx);
 
     const food = await getFoodWithPortions(foodPublicId, ctx);
     if (!food) return { success: false, error: "Alimento não encontrado." };

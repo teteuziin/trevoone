@@ -48,7 +48,7 @@ export async function listUnifiedFoodsAction(
 ): Promise<ActionResult> {
   try {
     const ctx = await resolveNutritionAccessContext(slug);
-    if (!ctx || !ctx.canAuthorNutrition) {
+    if (!ctx || !ctx.canViewNutrition) {
       return {
         success: false,
         error: "Acesso não autorizado.",
@@ -69,7 +69,7 @@ export async function getFoodDetailsAction(
 ): Promise<ActionResult> {
   try {
     const ctx = await resolveNutritionAccessContext(slug);
-    if (!ctx || !ctx.canAuthorNutrition) {
+    if (!ctx || !ctx.canViewNutrition) {
       return { success: false, error: "Acesso não autorizado.", code: "UNAUTHORIZED" };
     }
 

@@ -10,6 +10,7 @@ import {
   NutritionAuthorizationError,
   type NutritionAccessContext,
   assertCanAuthorNutrition,
+  assertCanViewNutrition,
   assertCanManageGlobal,
 } from "./access";
 import type {
@@ -96,7 +97,7 @@ export async function listUnifiedFoodsForNutritionist(
   ctx: NutritionAccessContext,
   filter: ListFoodsFilter = {}
 ): Promise<ListFoodsResult> {
-  assertCanAuthorNutrition(ctx);
+  assertCanViewNutrition(ctx);
 
   const page = Math.max(1, Number(filter.page) || 1);
   const pageSize = Math.min(50, Math.max(1, Number(filter.pageSize) || 20));

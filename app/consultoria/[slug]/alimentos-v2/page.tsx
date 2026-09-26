@@ -24,7 +24,7 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
 
   const context = await resolveConsultancyContext(session.userId, slug);
   const ctx = await resolveNutritionAccessContext(slug);
-  if (!ctx || !ctx.canAuthorNutrition) {
+  if (!ctx || !ctx.canViewNutrition) {
     // Only Nutritionists have access to this professional library
     notFound();
   }
@@ -59,7 +59,7 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
     >
       <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
         <NutritionWorkspaceNav slug={slug} activeTab="alimentos" />
-        <NutritionistFoodLibrary slug={slug} initialResult={initialResult} />
+        <NutritionistFoodLibrary slug={slug} initialResult={initialResult} canAuthorNutrition={ctx.canAuthorNutrition} />
       </div>
     </ConsultancyAppShell>
   );

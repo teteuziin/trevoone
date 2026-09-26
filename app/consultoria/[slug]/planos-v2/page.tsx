@@ -98,7 +98,7 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
 
   const context = await resolveConsultancyContext(session.userId, slug);
   const ctx = await resolveNutritionAccessContext(slug);
-  if (!ctx || !ctx.canAuthorNutrition) {
+  if (!ctx || !ctx.canViewNutrition) {
     notFound();
   }
 
@@ -139,14 +139,20 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
-            <Link href={`/consultoria/${slug}/planos-v2/novo`} className="shrink-0">
-              <Button variant="primary" size="md" className="font-bold min-h-[44px] shadow-sm">
-                <PlusIcon className="w-4 h-4 mr-1.5" />
-                <span>Novo Plano</span>
-              </Button>
-            </Link>
-          </div>
+          {ctx.canAuthorNutrition ? (
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
+              <Link href={`/consultoria/${slug}/planos-v2/novo`} className="shrink-0">
+                <Button variant="primary" size="md" className="font-bold min-h-[44px] shadow-sm">
+                  <PlusIcon className="w-4 h-4 mr-1.5" />
+                  <span>Novo Plano</span>
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <Badge variant="neutral" size="sm" className="font-bold">
+              Modo Visualização (Administrador)
+            </Badge>
+          )}
         </div>
 
         {/* Search Bar */}

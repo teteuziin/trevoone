@@ -20,14 +20,22 @@ import type {
   PatientRecordDetail,
 } from "@/lib/nutrition-v2/patient-record-types";
 
-async function resolveProfessionalStudentContext(slug: string, studentPublicId: string) {
+async function resolveProfessionalStudentContext(
+  slug: string,
+  studentPublicId: string,
+  requireAuthor = false
+) {
   const ctx = await resolveNutritionAccessContext(slug);
   if (!ctx || !ctx.consultancyId || !ctx.membershipId) {
     throw new Error("Não autorizado ou sessão inválida.");
   }
 
-  const isProfessional = ctx.canAuthorNutrition || ctx.canManageConsultancy || ctx.isPlatformAdmin;
-  if (!isProfessional) {
+  if (requireAuthor && !ctx.canAuthorNutrition) {
+    throw new Error("Acesso negado: apenas Nutricionistas da consultoria podem editar prontuários clínicos.");
+  }
+
+  const canAccess = ctx.canViewNutrition;
+  if (!canAccess) {
     throw new Error("Acesso restrito aos profissionais de nutrição e administradores.");
   }
 
@@ -60,7 +68,7 @@ export async function getPatientRecordDetailAction(
   studentPublicId: string
 ): Promise<{ success: boolean; error?: string; detail?: PatientRecordDetail }> {
   try {
-    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId);
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, false);
     const detail = await getPatientRecordDetail(ctx.consultancyId!, studentMembershipId, ctx.membershipId!);
     return { success: true, detail };
   } catch (err: unknown) {
@@ -75,7 +83,7 @@ export async function updatePatientRecordAction(
   input: UpdatePatientRecordInput
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId);
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
     await updatePatientRecord(ctx.consultancyId!, studentMembershipId, ctx.membershipId!, input);
     revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
     return { success: true };
@@ -91,7 +99,7 @@ export async function addAnthropometricEntryAction(
   input: AddAnthropometricEntryInput
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId);
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
     await addAnthropometricEntry(ctx.consultancyId!, studentMembershipId, ctx.membershipId!, input);
     revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
     return { success: true };
@@ -107,7 +115,7 @@ export async function deleteAnthropometricEntryAction(
   anthropometricPublicId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId);
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
     await deleteAnthropometricEntry(ctx.consultancyId!, studentMembershipId, ctx.membershipId!, anthropometricPublicId);
     revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
     return { success: true };
@@ -123,7 +131,7 @@ export async function updatePregnancyAction(
   input: UpdatePregnancyInput
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId);
+    const { ctx, studentMembershipId } = await resolveProfessionalStudentContext(slug, studentPublicId, true);
     await upsertPregnancyRecord(ctx.consultancyId!, studentMembershipId, ctx.membershipId!, input);
     revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
     return { success: true };

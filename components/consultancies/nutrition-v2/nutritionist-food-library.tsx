@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 interface NutritionistFoodLibraryProps {
   slug: string;
   initialResult: ListFoodsResult;
+  canAuthorNutrition?: boolean;
 }
 
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -97,6 +98,7 @@ function CloseIcon({ className = "w-5 h-5" }: { className?: string }) {
 export function NutritionistFoodLibrary({
   slug,
   initialResult,
+  canAuthorNutrition = true,
 }: NutritionistFoodLibraryProps) {
   const [data, setData] = useState<ListFoodsResult>(initialResult);
   const [query, setQuery] = useState("");
@@ -302,16 +304,22 @@ export function NutritionistFoodLibrary({
           </p>
         </div>
 
-        <Button
-          type="button"
-          variant="primary"
-          size="md"
-          onClick={() => setIsCreateOpen(true)}
-          className="font-bold min-h-[44px] shadow-sm shrink-0"
-        >
-          <PlusIcon className="w-4 h-4 mr-1.5" />
-          <span>Novo Alimento</span>
-        </Button>
+        {canAuthorNutrition ? (
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            onClick={() => setIsCreateOpen(true)}
+            className="font-bold min-h-[44px] shadow-sm shrink-0"
+          >
+            <PlusIcon className="w-4 h-4 mr-1.5" />
+            <span>Novo Alimento</span>
+          </Button>
+        ) : (
+          <Badge variant="neutral" size="sm" className="font-bold shrink-0">
+            Modo Visualização (Administrador)
+          </Badge>
+        )}
       </div>
 
       {/* Feedback Alert */}

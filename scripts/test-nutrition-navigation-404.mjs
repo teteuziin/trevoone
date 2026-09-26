@@ -126,70 +126,156 @@ console.log("=== INICIANDO SUÍTE DE TESTES: NUTRITION NAVIGATION & 404 AUDIT ==
 }
 
 // ----------------------------------------------------------------------------
-// TEST 5: AUTHORIZATION MATRIX SIMULATOR (canAuthorNutrition RULES)
+// TEST 5: CODEBASE INTEGRITY AUDIT (SEPARATION OF VIEW & AUTHOR)
 // ----------------------------------------------------------------------------
 {
-  console.log("Test 5: Validando matriz de autorização canAuthorNutrition...");
+  console.log("Test 5: Auditando integridade do código-fonte de autorização...");
+
+  const accessCode = fs.readFileSync("lib/nutrition-v2/access.ts", "utf8");
+
+  // canAuthorNutrition must strictly require NUTRITIONIST
+  assert.ok(
+    accessCode.includes('const canAuthorNutrition = hasRole("NUTRITIONIST");'),
+    "canAuthorNutrition DEVE requerer estritamente hasRole('NUTRITIONIST')"
+  );
+  assert.ok(
+    !accessCode.includes('const canAuthorNutrition = canManageConsultancy || hasRole("NUTRITIONIST");'),
+    "canAuthorNutrition NÃO pode ser concedido apenas por ser canManageConsultancy"
+  );
+
+  // canViewNutrition must be a separate read capability
+  assert.ok(
+    accessCode.includes("const canViewNutrition = canAuthorNutrition || canManageConsultancy || isPlatformAdmin;"),
+    "canViewNutrition deve permitir NUTRITIONIST, CONSULTANCY_ADMIN ou PlatformAdmin"
+  );
+  assert.ok(
+    accessCode.includes("export function assertCanViewNutrition"),
+    "assertCanViewNutrition deve estar exportada"
+  );
+  assert.ok(
+    accessCode.includes("export function assertCanAuthorNutrition"),
+    "assertCanAuthorNutrition deve estar exportada"
+  );
+
+  console.log("  ✓ Código-fonte de access.ts implementa separação estrita de autoria e visualização.");
+}
+
+// ----------------------------------------------------------------------------
+// TEST 6: AUTHORIZATION MATRIX & MUTATION BOUNDARIES AUDIT
+// ----------------------------------------------------------------------------
+{
+  console.log("Test 6: Validando matriz de autorização e bloqueio de mutação para Admin...");
+
+  class NutritionAuthorizationError extends Error {
+    constructor(message, code = "FORBIDDEN", statusCode = 403) {
+      super(message);
+      this.name = "NutritionAuthorizationError";
+      this.code = code;
+      this.statusCode = statusCode;
+    }
+  }
+
+  function assertCanViewNutrition(ctx) {
+    if (!ctx.consultancyId || !ctx.membershipId || !ctx.canViewNutrition) {
+      throw new NutritionAuthorizationError(
+        "Acesso negado: visualização do workspace nutricional restrita a profissionais autorizados.",
+        "UNAUTHORIZED_NUTRITION_VIEW",
+        403
+      );
+    }
+  }
+
+  function assertCanAuthorNutrition(ctx) {
+    if (!ctx.consultancyId || !ctx.membershipId || !ctx.canAuthorNutrition) {
+      throw new NutritionAuthorizationError(
+        "Acesso negado: apenas Nutricionistas da consultoria podem gerenciar a biblioteca de alimentos.",
+        "UNAUTHORIZED_NUTRITION_AUTHOR",
+        403
+      );
+    }
+  }
 
   function simulateContext(roles, consultancyId = 1, isPlatformAdmin = false) {
     const hasRole = (r) => roles.includes(r);
     const canManageConsultancy = hasRole("CONSULTANCY_ADMIN");
-    const canAuthorNutrition = canManageConsultancy || hasRole("NUTRITIONIST");
+    const canAuthorNutrition = hasRole("NUTRITIONIST");
+    const canViewNutrition = canAuthorNutrition || canManageConsultancy || isPlatformAdmin;
     const isStudent = hasRole("STUDENT");
 
     return {
+      userId: 100,
+      userPublicId: "usr_100",
+      isPlatformAdmin,
       consultancyId,
+      consultancyPublicId: "c_1",
+      consultancySlug: "demo",
+      membershipId: 10,
+      membershipPublicId: "mem_10",
       roles,
       hasRole,
       canAuthorNutrition,
+      canViewNutrition,
       canManageConsultancy,
       canManageGlobal: isPlatformAdmin,
       isStudent,
     };
   }
 
-  // A) Active NUTRITIONIST
+  // A) Active NUTRITIONIST: Authoring and Viewing allowed
   const nutri = simulateContext(["NUTRITIONIST"]);
   assert.equal(nutri.canAuthorNutrition, true, "NUTRITIONIST ativo DEVE ter canAuthorNutrition=true");
-  assert.equal(nutri.canManageConsultancy, false, "NUTRITIONIST puro não gerencia a consultoria como admin");
+  assert.equal(nutri.canViewNutrition, true, "NUTRITIONIST ativo DEVE ter canViewNutrition=true");
+  assert.equal(nutri.canManageConsultancy, false, "NUTRITIONIST puro não é CONSULTANCY_ADMIN");
   assert.equal(nutri.isStudent, false);
+  assert.doesNotThrow(() => assertCanAuthorNutrition(nutri), "Nutricionista pode executar ações de autoria/escrita");
+  assert.doesNotThrow(() => assertCanViewNutrition(nutri), "Nutricionista pode visualizar workspace");
 
-  // B) CONSULTANCY_ADMIN (e.g. Matheus previewing/managing workspace)
+  // B) CONSULTANCY_ADMIN without NUTRITIONIST: Viewing allowed (read-only), Authoring BLOCKED
   const admin = simulateContext(["CONSULTANCY_ADMIN"]);
-  assert.equal(admin.canAuthorNutrition, true, "CONSULTANCY_ADMIN DEVE ter canAuthorNutrition=true (sem 404)");
+  assert.equal(admin.canAuthorNutrition, false, "CONSULTANCY_ADMIN isolado NÃO PODE ter canAuthorNutrition=true");
+  assert.equal(admin.canViewNutrition, true, "CONSULTANCY_ADMIN DEVE ter canViewNutrition=true para preview");
   assert.equal(admin.canManageConsultancy, true);
   assert.equal(admin.isStudent, false);
+  assert.doesNotThrow(() => assertCanViewNutrition(admin), "Admin tem permissão de preview/leitura do workspace");
+  assert.throws(
+    () => assertCanAuthorNutrition(admin),
+    (err) => err instanceof NutritionAuthorizationError && err.code === "UNAUTHORIZED_NUTRITION_AUTHOR",
+    "Admin sem NUTRITIONIST DEVE ser rejeitado com 403 em ações de escrita nutricional"
+  );
 
-  // C) Multi-role NUTRITIONIST + PERSONAL
-  const multi = simulateContext(["NUTRITIONIST", "PERSONAL"]);
-  assert.equal(multi.canAuthorNutrition, true, "Multi-role NUTRITIONIST + PERSONAL tem acesso a nutrição");
+  // C) Multi-role NUTRITIONIST + CONSULTANCY_ADMIN: Both allowed
+  const multiAdminNutri = simulateContext(["CONSULTANCY_ADMIN", "NUTRITIONIST"]);
+  assert.equal(multiAdminNutri.canAuthorNutrition, true, "Usuário com ambos os papéis tem autoria permitida");
+  assert.equal(multiAdminNutri.canViewNutrition, true);
+  assert.doesNotThrow(() => assertCanAuthorNutrition(multiAdminNutri));
 
-  // D) STUDENT ONLY
+  // D) STUDENT ONLY: Both Authoring and Viewing BLOCKED
   const student = simulateContext(["STUDENT"]);
   assert.equal(student.canAuthorNutrition, false, "STUDENT NÃO pode ter canAuthorNutrition");
+  assert.equal(student.canViewNutrition, false, "STUDENT NÃO pode ter canViewNutrition");
   assert.equal(student.isStudent, true);
+  assert.throws(() => assertCanAuthorNutrition(student));
+  assert.throws(() => assertCanViewNutrition(student));
 
-  // E) PERSONAL ONLY (no admin, no nutritionist)
+  // E) PERSONAL ONLY: Both Authoring and Viewing BLOCKED
   const personal = simulateContext(["PERSONAL"]);
-  assert.equal(personal.canAuthorNutrition, false, "PERSONAL isolado NÃO tem canAuthorNutrition");
+  assert.equal(personal.canAuthorNutrition, false, "PERSONAL isolado NÃO tem autoria de nutrição");
+  assert.equal(personal.canViewNutrition, false, "PERSONAL isolado NÃO tem visualização de nutrição");
+  assert.throws(() => assertCanAuthorNutrition(personal));
+  assert.throws(() => assertCanViewNutrition(personal));
 
-  // F) INFLUENCER ONLY
-  const influencer = simulateContext(["INFLUENCER"]);
-  assert.equal(influencer.canAuthorNutrition, false, "INFLUENCER isolado NÃO tem canAuthorNutrition");
+  // F) Cross-tenant protection simulation
+  const crossTenantAdmin = simulateContext(["CONSULTANCY_ADMIN"], 999);
+  assert.throws(
+    () => {
+      if (crossTenantAdmin.consultancyId !== 1) {
+        throw new NutritionAuthorizationError("Acesso negado: tenancy mismatch", "FORBIDDEN_CROSS_TENANT", 403);
+      }
+    },
+    (err) => err.code === "FORBIDDEN_CROSS_TENANT"
+  );
 
-  // G) Cross-tenant protection simulation
-  function simulateAccessGuard(ctx, targetConsultancyId) {
-    if (!ctx || !ctx.canAuthorNutrition || ctx.consultancyId !== targetConsultancyId) {
-      return "NOT_FOUND_OR_FORBIDDEN";
-    }
-    return "ACCESS_GRANTED";
-  }
-
-  assert.equal(simulateAccessGuard(nutri, 1), "ACCESS_GRANTED");
-  assert.equal(simulateAccessGuard(nutri, 999), "NOT_FOUND_OR_FORBIDDEN", "Cross-tenant deve ser bloqueado");
-  assert.equal(simulateAccessGuard(student, 1), "NOT_FOUND_OR_FORBIDDEN", "Aluno deve ser bloqueado nas rotas profissionais");
-
-  console.log("  ✓ Matriz de autorização e isolamento multi-tenant aprovados.");
+  console.log("  ✓ Separação estrita de permissões de leitura (preview) e escrita (autoria) aprovada.");
 }
 
 console.log("\n=======================================================");

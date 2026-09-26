@@ -1,97 +1,179 @@
 ﻿/**
- * TREVO ONE — NUTRITION FOOD LIBRARY PAGE LOAD REGRESSION TEST
+ * TREVO ONE - NUTRITION FOOD LIBRARY PAGE LOAD REGRESSION TEST
  * Validates:
- * 1. Role-based authorization boundaries (Nutritionist, Admin, Student, Personal)
- * 2. Pre-033 schema compatibility (no brand, product_line, flavor_or_variant, manufacturer)
- * 3. Defensive row mapping integrity (null/malformed dates & numbers)
- * 4. Real DB page query execution on DEV (empty, arroz, feijao, aipim)
+ * 1. Initial Load Query Contract (query=undefined, scope=ALL, status=ACTIVE, page=1, pageSize=20)
+ * 2. Pre-033 & Pre-029 schema compatibility (zero unconfirmed columns in initial query)
+ * 3. Exact Initial COUNT query dependencies (only 024 guaranteed columns)
+ * 4. Defensive mapping integrity & removal of fake semantic defaults (Section 10)
+ * 5. Role-based authorization boundaries (Nutritionist, Admin, Student, Personal)
+ * 6. Real DB page query execution on DEV (empty, arroz, feijao, aipim)
  */
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import mysql from "mysql2/promise";
 import {
-  tokenizeSearchQuery,
-  expandSearchTokensWithSynonyms,
-  buildFoodSearchOrderClause,
-} from "../lib/nutrition-v2/food-search.ts";
+  buildCountQuery,
+  buildSelectFoodsQuery,
+  mapFoodRow,
+  FoodLibraryMappingError,
+} from "../lib/nutrition-v2/food-query-builder.ts";
 
 console.log("=== INICIANDO SUÍTE DE TESTES: FOOD LIBRARY PAGE LOAD & RUNTIME INTEGRITY ===\n");
 
 // ----------------------------------------------------------------------------
-// 1. PRE-033 SCHEMA AUDIT
+// 1. INITIAL LOAD QUERY CONTRACT & SCHEMA DEPENDENCY AUDIT
 // ----------------------------------------------------------------------------
-console.log("Test 1: Auditando consultas SQL da Food Library para compatibilidade pré-033...");
+console.log("Test 1: Validando contrato exato de carga inicial (INITIAL LOAD CONTRACT)...");
 {
-  const repoContent = fs.readFileSync("lib/nutrition-v2/food-repository.ts", "utf8");
-  const forbiddenColumns = ["f.brand", "f.product_line", "f.flavor_or_variant", "f.manufacturer"];
-  for (const col of forbiddenColumns) {
-    assert(
-      !repoContent.includes(col),
-      `A consulta em food-repository.ts NÃO pode conter a coluna '${col}' (dependente da migração 033)`
-    );
+  const initialFilter = {
+    query: undefined,
+    scope: "ALL",
+    status: "ACTIVE",
+    page: 1,
+    pageSize: 20,
+  };
+  const dummyConsultancyId = 42;
+
+  // A) Initial COUNT query
+  const countQuery = buildCountQuery(initialFilter, dummyConsultancyId);
+  console.log("  Initial COUNT SQL:", countQuery.sql);
+  assert(countQuery.sql.startsWith("SELECT COUNT(*) as total FROM nutrition_v2_foods f WHERE"), "COUNT query inválida");
+  assert(countQuery.params.includes(dummyConsultancyId), "COUNT deve conter tenancy param");
+
+  // Verify COUNT query contains ONLY guaranteed 024 columns
+  const forbiddenInCount = [
+    "display_name_pt_br", "normalized_display_name_pt_br",
+    "fiber_g", "data_quality", "last_verified_at",
+    "brand", "product_line", "flavor_or_variant", "manufacturer"
+  ];
+  for (const col of forbiddenInCount) {
+    assert(!countQuery.sql.includes(col), `COUNT não pode referenciar ${col}`);
   }
-  console.log("  ✓ Consulta em food-repository.ts não depende de colunas da migração 033.");
+  console.log("  ✓ Initial COUNT query validada: depende exclusivamente de colunas 024.");
+
+  // B) Initial SELECT query
+  const selectQuery = buildSelectFoodsQuery(initialFilter, dummyConsultancyId, { isUnified: true });
+  console.log("  Initial SELECT fields guaranteed by 024 schema foundation.");
+
+  // Assert empty query order clause uses only 024 columns (f.scope, f.name)
+  assert.equal(
+    selectQuery.orderClause.trim(),
+    "ORDER BY CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC, f.name ASC",
+    "Empty query ORDER BY deve usar f.name ASC sem colunas posteriores a 024"
+  );
+  console.log("  ✓ Initial ORDER BY clause validada: ORDER BY f.scope, f.name ASC.");
+
+  // Assert fullSql has portions count and no post-024 columns in list SELECT
+  assert(selectQuery.fullSql.includes("portions_count"), "SELECT deve incluir portions_count");
+  assert(!selectQuery.fullSql.includes("fiber_g"), "SELECT inicial não deve requerer fiber_g (029)");
+  assert(!selectQuery.fullSql.includes("data_quality"), "SELECT inicial não deve requerer data_quality (029)");
+  assert(!selectQuery.fullSql.includes("last_verified_at"), "SELECT inicial não deve requerer last_verified_at (029)");
+  assert(!selectQuery.fullSql.includes("brand"), "SELECT não pode conter brand (033)");
+  assert(!selectQuery.fullSql.includes("product_line"), "SELECT não pode conter product_line (033)");
+  assert(!selectQuery.fullSql.includes("flavor_or_variant"), "SELECT não pode conter flavor_or_variant (033)");
+  assert(!selectQuery.fullSql.includes("manufacturer"), "SELECT não pode conter manufacturer (033)");
+  console.log("  ✓ Initial SELECT query validada: 100% compatível com schema 024.");
 }
 
 // ----------------------------------------------------------------------------
-// 2. DEFENSIVE ROW MAPPING HELPERS
+// 2. DEFENSIVE MAPPING INTEGRITY & NO FAKE SEMANTIC DEFAULTS (SECTION 10)
 // ----------------------------------------------------------------------------
-console.log("Test 2: Validando helpers de mapeamento defensivo contra campos nulos e malformados...");
+console.log("Test 2: Validando mapeamento estrito e remoção de falsos defaults semânticos...");
 {
-  function safeIsoString(val, fallback = null) {
-    if (val == null || val === "" || val === "0000-00-00 00:00:00" || val === "0000-00-00") {
-      return fallback;
-    }
-    if (val instanceof Date) {
-      return Number.isNaN(val.getTime()) ? fallback : val.toISOString();
-    }
-    if (typeof val === "string" || typeof val === "number") {
-      try {
-        const d = new Date(val);
-        return Number.isNaN(d.getTime()) ? fallback : d.toISOString();
-      } catch {
-        return fallback;
-      }
-    }
-    return fallback;
-  }
+  const validBaseRow = {
+    public_id: "food-1234-abcd-5678",
+    scope: "GLOBAL",
+    consultancy_id: null,
+    name: "Arroz cozido",
+    category: "Cereais",
+    reference_amount: "100.00",
+    reference_unit_code: "G",
+    calories_kcal: "128.50",
+    protein_g: "2.50",
+    carbohydrate_g: "28.10",
+    fat_g: "0.20",
+    status: "ACTIVE",
+    source_type: "TACO",
+    source_key: "TACO",
+    portions_count: 3,
+  };
 
-  function safeNullableNumber(val) {
-    if (val == null || val === "") return null;
-    const n = Number(val);
-    return Number.isNaN(n) ? null : n;
-  }
+  // Valid row mapping
+  const mapped = mapFoodRow(validBaseRow);
+  assert.equal(mapped.publicId, "food-1234-abcd-5678");
+  assert.equal(mapped.referenceAmount, 100);
+  assert.equal(mapped.caloriesKcal, 128.5);
+  assert.equal(mapped.portionsCount, 3);
 
-  function safeNumber(val, fallback = 0) {
-    if (val == null || val === "") return fallback;
-    const n = Number(val);
-    return Number.isNaN(n) ? fallback : n;
-  }
+  // A) Missing reference_amount: MUST NOT fallback silently to 100
+  assert.throws(
+    () => mapFoodRow({ ...validBaseRow, reference_amount: null }),
+    FoodLibraryMappingError,
+    "reference_amount nulo deve lançar FoodLibraryMappingError (não usar default fake 100)"
+  );
+  assert.throws(
+    () => mapFoodRow({ ...validBaseRow, reference_amount: 0 }),
+    FoodLibraryMappingError,
+    "reference_amount zero deve lançar FoodLibraryMappingError"
+  );
+  assert.throws(
+    () => mapFoodRow({ ...validBaseRow, reference_amount: -50 }),
+    FoodLibraryMappingError,
+    "reference_amount negativo deve lançar FoodLibraryMappingError"
+  );
+  console.log("  ✓ Proteção contra fake default referenceAmount=100 comprovada.");
 
-  // Adversarial edge cases that previously threw RangeError: Invalid time value
-  assert.equal(safeIsoString(null), null);
-  assert.equal(safeIsoString(undefined), null);
-  assert.equal(safeIsoString("0000-00-00 00:00:00"), null);
-  assert.equal(safeIsoString("0000-00-00"), null);
-  assert.equal(safeIsoString(new Date(NaN)), null);
-  assert.equal(safeIsoString("data-invalida-xyz"), null);
-  assert.equal(safeIsoString(new Date("2026-09-26T12:00:00.000Z")), "2026-09-26T12:00:00.000Z");
+  // B) Missing sourceType: MUST NOT fallback silently to 'MANUAL'
+  assert.throws(
+    () => mapFoodRow({ ...validBaseRow, source_type: null }),
+    FoodLibraryMappingError,
+    "source_type nulo deve lançar FoodLibraryMappingError (não usar default fake MANUAL)"
+  );
+  assert.throws(
+    () => mapFoodRow({ ...validBaseRow, source_type: "" }),
+    FoodLibraryMappingError,
+    "source_type vazio deve lançar FoodLibraryMappingError"
+  );
+  console.log("  ✓ Proteção contra fake default sourceType='MANUAL' comprovada.");
 
-  assert.equal(safeNullableNumber(null), null);
-  assert.equal(safeNullableNumber(""), null);
-  assert.equal(safeNullableNumber("NaN"), null);
-  assert.equal(safeNullableNumber("12.5"), 12.5);
+  // C) Invalid status: MUST NOT fallback silently to 'ACTIVE'
+  assert.throws(
+    () => mapFoodRow({ ...validBaseRow, status: "INVALID_STATUS" }),
+    FoodLibraryMappingError,
+    "status inválido deve lançar FoodLibraryMappingError"
+  );
+  assert.throws(
+    () => mapFoodRow({ ...validBaseRow, status: null }),
+    FoodLibraryMappingError,
+    "status nulo deve lançar FoodLibraryMappingError"
+  );
+  console.log("  ✓ Proteção contra fake default status='ACTIVE' comprovada.");
 
-  assert.equal(safeNumber(null, 100), 100);
-  assert.equal(safeNumber("invalid", 100), 100);
-  assert.equal(safeNumber("50", 100), 50);
+  // D) Missing mandatory public_id / name / reference_unit_code
+  assert.throws(() => mapFoodRow({ ...validBaseRow, public_id: "" }), FoodLibraryMappingError);
+  assert.throws(() => mapFoodRow({ ...validBaseRow, name: "" }), FoodLibraryMappingError);
+  assert.throws(() => mapFoodRow({ ...validBaseRow, reference_unit_code: "" }), FoodLibraryMappingError);
+  console.log("  ✓ Validação estrita de campos obrigatórios comprovada.");
 
-  console.log("  ✓ Mapeamento defensivo protege contra valores corrompidos ou zerados.");
+  // E) Nutrition values null: UNKNOWN != ZERO, NULL != DEFAULT
+  const nullMacrosRow = {
+    ...validBaseRow,
+    calories_kcal: null,
+    protein_g: null,
+    carbohydrate_g: null,
+    fat_g: null,
+  };
+  const mappedNulls = mapFoodRow(nullMacrosRow);
+  assert.equal(mappedNulls.caloriesKcal, null, "Calorias ausentes devem ser null (não 0)");
+  assert.equal(mappedNulls.proteinG, null, "Proteína ausente deve ser null (não 0)");
+  assert.equal(mappedNulls.carbohydrateG, null, "Carboidrato ausente deve ser null (não 0)");
+  assert.equal(mappedNulls.fatG, null, "Gordura ausente deve ser null (não 0)");
+  console.log("  ✓ Preservação de valores desconhecidos (null != 0) comprovada.");
 }
 
 // ----------------------------------------------------------------------------
-// 3. ROLE-BASED ACCESS CONTROL AUDIT
+// 3. ROLE-BASED AUTHORIZATION VALIDATION
 // ----------------------------------------------------------------------------
 console.log("Test 3: Validando matriz de autorização para Food Library...");
 {
@@ -176,115 +258,38 @@ async function runDbTests() {
     password: dbPassword,
     database: dbName,
     waitForConnections: true,
-    connectionLimit: 3,
+    connectionLimit: 2,
   });
 
   const conn = await pool.getConnection();
   try {
     async function executeFoodSearch(queryText) {
       const dummyConsultancyId = 1;
-      const pageSize = 20;
-      const offset = 0;
+      const filter = {
+        query: queryText || undefined,
+        scope: "ALL",
+        status: "ACTIVE",
+        page: 1,
+        pageSize: 20,
+      };
 
-      const conditions = ["f.deleted_at IS NULL"];
-      const params = [];
-
-      conditions.push(
-        "((f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status = 'ACTIVE'))"
-      );
-      params.push(dummyConsultancyId);
-
-      const queryTokens = queryText ? tokenizeSearchQuery(queryText) : [];
-      if (queryTokens.length > 0) {
-        const tokenGroups = expandSearchTokensWithSynonyms(queryTokens);
-        for (const group of tokenGroups) {
-          const orClauses = [];
-          for (const variant of group) {
-            orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ?");
-            params.push(`%${variant}%`, `%${variant}%`);
-          }
-          conditions.push(`(${orClauses.join(" OR ")})`);
-        }
-      }
-
-      const whereClause = conditions.join(" AND ");
-
-      const [countRows] = await conn.query(
-        `SELECT COUNT(*) as total FROM nutrition_v2_foods f WHERE ${whereClause}`,
-        params
-      );
+      const countQuery = buildCountQuery(filter, dummyConsultancyId);
+      const [countRows] = await conn.query(countQuery.sql, countQuery.params);
       const total = Number(countRows[0]?.total || 0);
 
-      const { orderClause, orderParams } = buildFoodSearchOrderClause(
-        queryText || "",
-        queryTokens,
-        true
-      );
-      const selectParams = [...params, ...orderParams, pageSize, offset];
+      const selectQuery = buildSelectFoodsQuery(filter, dummyConsultancyId, { isUnified: true });
+      const [rows] = await conn.query(selectQuery.fullSql, selectQuery.selectParams);
 
-      const [rows] = await conn.query(
-        `SELECT
-          f.public_id,
-          f.scope,
-          f.consultancy_id,
-          f.name,
-          f.display_name_pt_br,
-          f.normalized_display_name_pt_br,
-          f.normalized_name,
-          f.category,
-          f.reference_amount,
-          f.reference_unit_code,
-          f.calories_kcal,
-          f.protein_g,
-          f.carbohydrate_g,
-          f.fat_g,
-          f.fiber_g,
-          f.data_quality,
-          f.status,
-          f.source_type,
-          f.source_key,
-          f.source_external_code,
-          f.source_version,
-          f.source_reference,
-          f.source_imported_at,
-          f.last_verified_at,
-          f.source_uid,
-          f.created_by_user_id,
-          f.created_by_membership_id,
-          f.created_at,
-          f.updated_at,
-          f.deleted_at,
-          (
-            SELECT COUNT(*)
-            FROM nutrition_v2_food_portions fp
-            WHERE fp.food_id = f.id
-              AND fp.deleted_at IS NULL
-              AND fp.status = 'ACTIVE'
-          ) AS portions_count
-        FROM nutrition_v2_foods f
-        WHERE ${whereClause}
-        ${orderClause}
-        LIMIT ? OFFSET ?`,
-        selectParams
-      );
-
-      // Verify mapping against rows
-      const items = rows.map((r) => ({
-        publicId: String(r.public_id || ""),
-        name: String(r.name || ""),
-        displayNamePtBr: r.display_name_pt_br != null ? String(r.display_name_pt_br) : null,
-        referenceAmount: Number(r.reference_amount) || 100,
-        portionsCount: Number(r.portions_count || 0),
-      }));
-
+      const items = rows.map((r) => mapFoodRow(r));
       return { total, items };
     }
 
-    // A) Empty query
+    // A) Empty query (Initial Load contract)
     const resEmpty = await executeFoodSearch("");
     assert(resEmpty.total > 0, "Catálogo não pode estar vazio");
     assert(resEmpty.items.length > 0, "Primeira página deve conter alimentos");
-    console.log(`  ✓ Consulta VAZIA: ${resEmpty.total} alimentos no total (${resEmpty.items.length} na página 1).`);
+    assert(resEmpty.items[0].referenceAmount > 0, "Alimento deve ter referenceAmount válido");
+    console.log(`  ✓ Consulta VAZIA (INITIAL LOAD): ${resEmpty.total} alimentos no total (${resEmpty.items.length} na página 1).`);
 
     // B) Arroz
     const resArroz = await executeFoodSearch("arroz");

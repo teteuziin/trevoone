@@ -20,28 +20,6 @@ import type {
   NutritionV2FoodStatus,
 } from "./types";
 
-export type ListFoodsFilter = {
-  query?: string;
-  scope?: "ALL" | "GLOBAL" | "CONSULTANCY";
-  status?: "ACTIVE" | "ARCHIVED" | "ALL";
-  source?: "ALL" | "TACO" | "USDA" | "CONSULTANCY";
-  category?: string;
-  page?: number;
-  pageSize?: number;
-};
-
-export interface FoodListItemDto extends Omit<NutritionV2FoodDto, "id"> {
-  portionsCount: number;
-}
-
-export interface ListFoodsResult {
-  items: FoodListItemDto[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
 export interface FoodWithPortionsDto extends Omit<NutritionV2FoodDto, "id"> {
   portions: Omit<NutritionV2FoodPortionDto, "id" | "foodId">[];
 }
@@ -72,85 +50,61 @@ export type CreatePortionInput = {
 
 export type UpdatePortionInput = Partial<CreatePortionInput>;
 
-// ============================================================================
-// DEFENSIVE MAPPING HELPERS & TYPED ERRORS
-// ============================================================================
-
-export function safeIsoString(val: unknown, fallback: string | null = null): string | null {
-  if (val == null || val === '' || val === '0000-00-00 00:00:00' || val === '0000-00-00') {
-    return fallback;
-  }
-  if (val instanceof Date) {
-    return Number.isNaN(val.getTime()) ? fallback : val.toISOString();
-  }
-  if (typeof val === 'string' || typeof val === 'number') {
-    try {
-      const d = new Date(val);
-      return Number.isNaN(d.getTime()) ? fallback : d.toISOString();
-    } catch {
-      return fallback;
-    }
-  }
-  return fallback;
-}
-
-export function safeNullableNumber(val: unknown): number | null {
-  if (val == null || val === '') return null;
-  const n = Number(val);
-  return Number.isNaN(n) ? null : n;
-}
-
-export function safeNumber(val: unknown, fallback = 0): number {
-  if (val == null || val === '') return fallback;
-  const n = Number(val);
-  return Number.isNaN(n) ? fallback : n;
-}
-
-export function safeString(val: unknown, fallback = ''): string {
-  if (val == null) return fallback;
-  return String(val);
-}
-
-export function safeNullableString(val: unknown): string | null {
-  if (val == null) return null;
-  const s = String(val).trim();
-  return s.length === 0 ? null : s;
-}
-
-export class FoodLibraryQueryError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
-    super(message);
-    this.name = 'FoodLibraryQueryError';
-  }
-}
-
-export class FoodLibraryMappingError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
-    super(message);
-    this.name = 'FoodLibraryMappingError';
-  }
-}
 
 export {
+  FoodLibraryQueryError,
+  FoodLibraryQueryUnknownError,
+  FoodLibraryQueryCountError,
+  FoodLibraryQuerySelectError,
+  FoodLibraryQueryOrderError,
+  FoodLibraryQueryPortionsError,
+  FoodLibraryMappingError,
+  extractSafeMysqlError,
+  mapFoodRow,
+  buildWhereClause,
+  buildCountQuery,
+  buildSelectFoodsQuery,
+  buildFoodSearchOrderClause,
+  type ListFoodsFilter,
+  type FoodListItemDto,
+  type ListFoodsResult,
+  type FoodLibraryQuerySubstage,
+  type SafeMysqlErrorInfo,
+  safeIsoString,
+  safeNullableNumber,
+  safeNumber,
+  safeString,
+  safeNullableString,
   normalizeSearchText,
   SEARCH_STOP_WORDS,
   tokenizeSearchQuery,
-  getFirstRelevantToken,
   COMMON_FOOD_SYNONYMS,
   expandSearchTokensWithSynonyms,
-  buildFoodSearchOrderClause,
-  getDataQualityBadgeInfo,
-} from "./food-search";
-import {
-  normalizeSearchText,
-  tokenizeSearchQuery,
-  expandSearchTokensWithSynonyms,
-  buildFoodSearchOrderClause,
-} from "./food-search";
+} from "./food-query-builder";
 
-// ============================================================================
-// PROFESSIONAL UNIFIED SEARCH (NUTRITIONIST CONTEXT)
-// ============================================================================
+export { getDataQualityBadgeInfo } from "./food-search";
+
+import {
+  FoodLibraryQueryCountError,
+  FoodLibraryQuerySelectError,
+  FoodLibraryQueryOrderError,
+  FoodLibraryQueryPortionsError,
+  FoodLibraryMappingError,
+  extractSafeMysqlError,
+  mapFoodRow,
+  buildCountQuery,
+  buildSelectFoodsQuery,
+  type ListFoodsFilter,
+  type FoodListItemDto,
+  type ListFoodsResult,
+  safeNumber,
+  safeString,
+  safeNullableString,
+  safeIsoString,
+  safeNullableNumber,
+  normalizeSearchText,
+} from "./food-query-builder";
+
 
 export async function listUnifiedFoodsForNutritionist(
   ctx: NutritionAccessContext,
@@ -158,199 +112,88 @@ export async function listUnifiedFoodsForNutritionist(
 ): Promise<ListFoodsResult> {
   assertCanViewNutrition(ctx);
 
-  const page = Math.max(1, Number(filter.page) || 1);
-  const pageSize = Math.min(50, Math.max(1, Number(filter.pageSize) || 20));
-  const offset = (page - 1) * pageSize;
-
-  const targetScope = filter.scope || "ALL";
-  const targetStatus = filter.status || "ACTIVE";
-
-  const conditions: string[] = ["f.deleted_at IS NULL"];
-  const params: (string | number)[] = [];
-
-  // Tenancy isolation filter
-  if (targetScope === "GLOBAL") {
-    conditions.push("f.scope = 'GLOBAL' AND f.status = 'ACTIVE'");
-  } else if (targetScope === "CONSULTANCY") {
-    conditions.push("f.scope = 'CONSULTANCY' AND f.consultancy_id = ?");
-    params.push(ctx.consultancyId!);
-    if (targetStatus === "ACTIVE") {
-      conditions.push("f.status = 'ACTIVE'");
-    } else if (targetStatus === "ARCHIVED") {
-      conditions.push("f.status = 'ARCHIVED'");
-    } else {
-      conditions.push("f.status IN ('ACTIVE', 'ARCHIVED')");
-    }
-  } else {
-    // ALL: GLOBAL ACTIVE + Current Consultancy
-    if (targetStatus === "ACTIVE") {
-      conditions.push(
-        "((f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status = 'ACTIVE'))"
-      );
-      params.push(ctx.consultancyId!);
-    } else if (targetStatus === "ARCHIVED") {
-      // Archived only applies to tenancy custom foods
-      conditions.push("f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status = 'ARCHIVED'");
-      params.push(ctx.consultancyId!);
-    } else {
-      conditions.push(
-        "((f.scope = 'GLOBAL' AND f.status = 'ACTIVE') OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ? AND f.status IN ('ACTIVE', 'ARCHIVED')))"
-      );
-      params.push(ctx.consultancyId!);
-    }
-  }
-
-  // Source filter
-  if (filter.source && filter.source !== "ALL") {
-    if (filter.source === "TACO") {
-      conditions.push("f.source_key = 'TACO'");
-    } else if (filter.source === "USDA") {
-      conditions.push("f.source_key IN ('USDA_FOUNDATION', 'USDA_FNDDS')");
-    } else if (filter.source === "CONSULTANCY") {
-      conditions.push("f.scope = 'CONSULTANCY'");
-    }
-  }
-
-  // Text search & tokenization with synonym expansion
-  const queryTokens = filter.query ? tokenizeSearchQuery(filter.query) : [];
-  if (queryTokens.length > 0) {
-    const tokenGroups = expandSearchTokensWithSynonyms(queryTokens);
-    for (const group of tokenGroups) {
-      const orClauses: string[] = [];
-      for (const variant of group) {
-        orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ?");
-        params.push(`%${variant}%`, `%${variant}%`);
-      }
-      conditions.push(`(${orClauses.join(" OR ")})`);
-    }
-  }
-
-  // Category filter
-  if (filter.category && filter.category.trim()) {
-    conditions.push("f.category = ?");
-    params.push(filter.category.trim());
-  }
-
-  const whereClause = conditions.join(" AND ");
-
   let connection;
   try {
     connection = await getDbConnection();
 
-    // 1. Count total
+    // 1. Isolated COUNT stage
+    const countQuery = buildCountQuery(filter, ctx.consultancyId);
     let countRows: RowDataPacket[];
     try {
-      [countRows] = await connection.query<RowDataPacket[]>(
-        `SELECT COUNT(*) as total FROM nutrition_v2_foods f WHERE ${whereClause}`,
-        params
-      );
-    } catch (queryErr) {
-      throw new FoodLibraryQueryError(
-        `Falha ao contar alimentos: ${queryErr instanceof Error ? queryErr.message : String(queryErr)}`,
-        queryErr
+      [countRows] = await connection.query<RowDataPacket[]>(countQuery.sql, countQuery.params);
+    } catch (countErr) {
+      const mysqlErr = extractSafeMysqlError(countErr);
+      console.error(`[Food Library] stage=COUNT mysql_code=${mysqlErr.code || "UNKNOWN"}`);
+      throw new FoodLibraryQueryCountError(
+        `Falha na contagem de alimentos: ${mysqlErr.code || "Erro"}`,
+        countErr
       );
     }
-    const total = safeNumber(countRows[0]?.total, 0);
-    const totalPages = Math.ceil(total / pageSize) || 1;
+    const total = Number(countRows[0]?.total) || 0;
 
-    // 2. Fetch page with portions count and deterministic ranking
-    const { orderClause, orderParams } = buildFoodSearchOrderClause(
-      filter.query || "",
-      queryTokens,
-      true
-    );
-    const selectParams: (string | number)[] = [...params, ...orderParams, pageSize, offset];
+    // 2. Isolated SELECT stage with sub-stage probes
+    const builtQuery = buildSelectFoodsQuery(filter, ctx.consultancyId, { isUnified: true });
+    const totalPages = Math.ceil(total / builtQuery.pageSize) || 1;
 
     let rows: RowDataPacket[];
     try {
-      [rows] = await connection.query<RowDataPacket[]>(
-        `SELECT
-          f.public_id,
-          f.scope,
-          f.consultancy_id,
-          f.name,
-          f.display_name_pt_br,
-          f.normalized_display_name_pt_br,
-          f.normalized_name,
-          f.category,
-          f.reference_amount,
-          f.reference_unit_code,
-          f.calories_kcal,
-          f.protein_g,
-          f.carbohydrate_g,
-          f.fat_g,
-          f.fiber_g,
-          f.data_quality,
-          f.status,
-          f.source_type,
-          f.source_key,
-          f.source_external_code,
-          f.source_version,
-          f.source_reference,
-          f.source_imported_at,
-          f.last_verified_at,
-          f.source_uid,
-          f.created_by_user_id,
-          f.created_by_membership_id,
-          f.created_at,
-          f.updated_at,
-          f.deleted_at,
-          (
-            SELECT COUNT(*)
-            FROM nutrition_v2_food_portions fp
-            WHERE fp.food_id = f.id
-              AND fp.deleted_at IS NULL
-              AND fp.status = 'ACTIVE'
-          ) AS portions_count
-        FROM nutrition_v2_foods f
-        WHERE ${whereClause}
-        ${orderClause}
-        LIMIT ? OFFSET ?`,
-        selectParams
-      );
+      [rows] = await connection.query<RowDataPacket[]>(builtQuery.fullSql, builtQuery.selectParams);
     } catch (queryErr) {
-      throw new FoodLibraryQueryError(
-        `Falha na consulta paginada de alimentos: ${queryErr instanceof Error ? queryErr.message : String(queryErr)}`,
+      const mysqlErr = extractSafeMysqlError(queryErr);
+
+      // Probe 1: Subconsulta de porções
+      let portionsFailed = false;
+      try {
+        await connection.query<RowDataPacket[]>(builtQuery.noPortionsSql, builtQuery.selectParams);
+        portionsFailed = true;
+      } catch {
+        // portions was not the only failing element
+      }
+
+      if (portionsFailed) {
+        console.error(`[Food Library] stage=PORTIONS mysql_code=${mysqlErr.code || "UNKNOWN"}`);
+        throw new FoodLibraryQueryPortionsError(
+          `Falha na subconsulta de porções: ${mysqlErr.code || "Erro"}`,
+          queryErr
+        );
+      }
+
+      // Probe 2: Cláusula ORDER BY
+      let orderFailed = false;
+      try {
+        await connection.query<RowDataPacket[]>(builtQuery.noOrderSql, builtQuery.noOrderParams);
+        orderFailed = true;
+      } catch {
+        // order was not the only failing element
+      }
+
+      if (orderFailed) {
+        console.error(`[Food Library] stage=ORDER mysql_code=${mysqlErr.code || "UNKNOWN"}`);
+        throw new FoodLibraryQueryOrderError(
+          `Falha na ordenação da consulta: ${mysqlErr.code || "Erro"}`,
+          queryErr
+        );
+      }
+
+      // Falha residual é atribuída ao SELECT base (colunas / tabela)
+      console.error(`[Food Library] stage=SELECT mysql_code=${mysqlErr.code || "UNKNOWN"}`);
+      throw new FoodLibraryQuerySelectError(
+        `Falha na seleção de alimentos: ${mysqlErr.code || "Erro"}`,
         queryErr
       );
     }
 
+    // 3. Mapeamento defensivo estrito sem falsos defaults semânticos
     let items: FoodListItemDto[];
     try {
-      items = (rows as RowDataPacket[]).map((r) => ({
-        publicId: safeString(r.public_id),
-        scope: (r.scope === "CONSULTANCY" ? "CONSULTANCY" : "GLOBAL") as NutritionV2FoodScope,
-        consultancyId: r.consultancy_id != null ? String(r.consultancy_id) : null,
-        name: safeString(r.name, "Alimento sem nome"),
-        displayNamePtBr: safeNullableString(r.display_name_pt_br),
-        normalizedDisplayNamePtBr: safeNullableString(r.normalized_display_name_pt_br),
-        normalizedName: safeString(r.normalized_name, ""),
-        category: safeNullableString(r.category),
-        referenceAmount: safeNumber(r.reference_amount, 100),
-        referenceUnitCode: safeString(r.reference_unit_code, "G").toUpperCase(),
-        caloriesKcal: safeNullableNumber(r.calories_kcal),
-        proteinG: safeNullableNumber(r.protein_g),
-        carbohydrateG: safeNullableNumber(r.carbohydrate_g),
-        fatG: safeNullableNumber(r.fat_g),
-        fiberG: safeNullableNumber(r.fiber_g),
-        dataQuality: safeNullableString(r.data_quality) || "UNCLASSIFIED",
-        status: (r.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE") as NutritionV2FoodStatus,
-        sourceType: safeString(r.source_type, "MANUAL"),
-        sourceKey: safeNullableString(r.source_key),
-        sourceExternalCode: safeNullableString(r.source_external_code),
-        sourceVersion: safeNullableString(r.source_version),
-        sourceReference: safeNullableString(r.source_reference),
-        sourceImportedAt: safeIsoString(r.source_imported_at, null),
-        lastVerifiedAt: safeIsoString(r.last_verified_at, null),
-        sourceUid: safeNullableString(r.source_uid),
-        createdByUserId: r.created_by_user_id != null ? String(r.created_by_user_id) : null,
-        createdByMembershipId: r.created_by_membership_id != null ? String(r.created_by_membership_id) : null,
-        createdAt: safeIsoString(r.created_at, new Date(0).toISOString())!,
-        updatedAt: safeIsoString(r.updated_at, new Date(0).toISOString())!,
-        deletedAt: safeIsoString(r.deleted_at, null),
-        portionsCount: safeNumber(r.portions_count, 0),
-      }));
+      items = (rows as RowDataPacket[]).map((r) => mapFoodRow(r as Record<string, unknown>));
     } catch (mappingErr) {
+      console.error(
+        `[Food Library] stage=MAPPING error=${mappingErr instanceof Error ? mappingErr.message : String(mappingErr)}`
+      );
+      if (mappingErr instanceof FoodLibraryMappingError) {
+        throw mappingErr;
+      }
       throw new FoodLibraryMappingError(
         `Falha no mapeamento das linhas de alimentos: ${mappingErr instanceof Error ? mappingErr.message : String(mappingErr)}`,
         mappingErr
@@ -360,8 +203,8 @@ export async function listUnifiedFoodsForNutritionist(
     return {
       items,
       total,
-      page,
-      pageSize,
+      page: Math.floor(builtQuery.offset / builtQuery.pageSize) + 1,
+      pageSize: builtQuery.pageSize,
       totalPages,
     };
   } finally {
@@ -369,156 +212,36 @@ export async function listUnifiedFoodsForNutritionist(
   }
 }
 
-// ============================================================================
-// GLOBAL FOOD LIBRARY SEARCH (PLATFORM ADMIN CONTEXT)
-// ============================================================================
-
 export async function listGlobalFoodsForAdmin(
   ctx: NutritionAccessContext,
   filter: ListFoodsFilter = {}
 ): Promise<ListFoodsResult> {
   assertCanManageGlobal(ctx);
 
-  const page = Math.max(1, Number(filter.page) || 1);
-  const pageSize = Math.min(50, Math.max(1, Number(filter.pageSize) || 20));
-  const offset = (page - 1) * pageSize;
-
-  const targetStatus = filter.status || "ALL";
-
-  const conditions: string[] = ["f.deleted_at IS NULL", "f.scope = 'GLOBAL'"];
-  const params: (string | number)[] = [];
-
-  if (targetStatus === "ACTIVE") {
-    conditions.push("f.status = 'ACTIVE'");
-  } else if (targetStatus === "ARCHIVED") {
-    conditions.push("f.status = 'ARCHIVED'");
-  }
-
-  // Text search & tokenization with synonym expansion
-  const queryTokens = filter.query ? tokenizeSearchQuery(filter.query) : [];
-  if (queryTokens.length > 0) {
-    const tokenGroups = expandSearchTokensWithSynonyms(queryTokens);
-    for (const group of tokenGroups) {
-      const orClauses: string[] = [];
-      for (const variant of group) {
-        orClauses.push("f.normalized_display_name_pt_br LIKE ? OR f.normalized_name LIKE ?");
-        params.push(`%${variant}%`, `%${variant}%`);
-      }
-      conditions.push(`(${orClauses.join(" OR ")})`);
-    }
-  }
-
-  if (filter.category && filter.category.trim()) {
-    conditions.push("f.category = ?");
-    params.push(filter.category.trim());
-  }
-
-  const whereClause = conditions.join(" AND ");
-
   let connection;
   try {
     connection = await getDbConnection();
 
-    const [countRows] = await connection.query<RowDataPacket[]>(
-      `SELECT COUNT(*) as total FROM nutrition_v2_foods f WHERE ${whereClause}`,
-      params
-    );
+    // 1. COUNT
+    const countQuery = buildCountQuery({ ...filter, scope: "GLOBAL" }, null);
+    const [countRows] = await connection.query<RowDataPacket[]>(countQuery.sql, countQuery.params);
     const total = Number(countRows[0]?.total || 0);
-    const totalPages = Math.ceil(total / pageSize) || 1;
 
-    // Fetch page with deterministic ranking
-    const { orderClause, orderParams } = buildFoodSearchOrderClause(
-      filter.query || "",
-      queryTokens,
-      false
+    // 2. SELECT
+    const builtQuery = buildSelectFoodsQuery({ ...filter, scope: "GLOBAL" }, null, { isUnified: false });
+    const totalPages = Math.ceil(total / builtQuery.pageSize) || 1;
+
+    const [rows] = await connection.query<RowDataPacket[]>(builtQuery.fullSql, builtQuery.selectParams);
+
+    const items: FoodListItemDto[] = (rows as RowDataPacket[]).map((r) =>
+      mapFoodRow(r as Record<string, unknown>)
     );
-    const selectParams: (string | number)[] = [...params, ...orderParams, pageSize, offset];
-
-    const [rows] = await connection.query<RowDataPacket[]>(
-      `SELECT
-        f.public_id,
-        f.scope,
-        f.consultancy_id,
-        f.name,
-        f.display_name_pt_br,
-        f.normalized_display_name_pt_br,
-        f.normalized_name,
-        f.category,
-        f.reference_amount,
-        f.reference_unit_code,
-        f.calories_kcal,
-        f.protein_g,
-        f.carbohydrate_g,
-        f.fat_g,
-        f.fiber_g,
-        f.data_quality,
-        f.status,
-        f.source_type,
-        f.source_key,
-        f.source_external_code,
-        f.source_version,
-        f.source_reference,
-        f.source_imported_at,
-        f.last_verified_at,
-        f.source_uid,
-        f.created_by_user_id,
-        f.created_by_membership_id,
-        f.created_at,
-        f.updated_at,
-        f.deleted_at,
-        (
-          SELECT COUNT(*)
-          FROM nutrition_v2_food_portions fp
-          WHERE fp.food_id = f.id
-            AND fp.deleted_at IS NULL
-            AND fp.status = 'ACTIVE'
-        ) AS portions_count
-      FROM nutrition_v2_foods f
-      WHERE ${whereClause}
-      ${orderClause}
-      LIMIT ? OFFSET ?`,
-      selectParams
-    );
-
-    const items: FoodListItemDto[] = (rows as RowDataPacket[]).map((r) => ({
-      publicId: safeString(r.public_id),
-      scope: (r.scope === "CONSULTANCY" ? "CONSULTANCY" : "GLOBAL") as NutritionV2FoodScope,
-      consultancyId: null,
-      name: safeString(r.name, "Alimento sem nome"),
-      displayNamePtBr: safeNullableString(r.display_name_pt_br),
-      normalizedDisplayNamePtBr: safeNullableString(r.normalized_display_name_pt_br),
-      normalizedName: safeString(r.normalized_name, ""),
-      category: safeNullableString(r.category),
-      referenceAmount: safeNumber(r.reference_amount, 100),
-      referenceUnitCode: safeString(r.reference_unit_code, "G").toUpperCase(),
-      caloriesKcal: safeNullableNumber(r.calories_kcal),
-      proteinG: safeNullableNumber(r.protein_g),
-      carbohydrateG: safeNullableNumber(r.carbohydrate_g),
-      fatG: safeNullableNumber(r.fat_g),
-      fiberG: safeNullableNumber(r.fiber_g),
-      dataQuality: safeNullableString(r.data_quality) || "UNCLASSIFIED",
-      status: (r.status === "ARCHIVED" ? "ARCHIVED" : "ACTIVE") as NutritionV2FoodStatus,
-      sourceType: safeString(r.source_type, "MANUAL"),
-      sourceKey: safeNullableString(r.source_key),
-      sourceExternalCode: safeNullableString(r.source_external_code),
-      sourceVersion: safeNullableString(r.source_version),
-      sourceReference: safeNullableString(r.source_reference),
-      sourceImportedAt: safeIsoString(r.source_imported_at, null),
-      lastVerifiedAt: safeIsoString(r.last_verified_at, null),
-      sourceUid: safeNullableString(r.source_uid),
-      createdByUserId: r.created_by_user_id != null ? String(r.created_by_user_id) : null,
-      createdByMembershipId: null,
-      createdAt: safeIsoString(r.created_at, new Date(0).toISOString())!,
-      updatedAt: safeIsoString(r.updated_at, new Date(0).toISOString())!,
-      deletedAt: safeIsoString(r.deleted_at, null),
-      portionsCount: safeNumber(r.portions_count, 0),
-    }));
 
     return {
       items,
       total,
-      page,
-      pageSize,
+      page: Math.floor(builtQuery.offset / builtQuery.pageSize) + 1,
+      pageSize: builtQuery.pageSize,
       totalPages,
     };
   } finally {

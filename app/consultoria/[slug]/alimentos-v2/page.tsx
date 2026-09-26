@@ -7,6 +7,11 @@ import { resolveNutritionAccessContext, type NutritionAccessContext } from "@/li
 import {
   listUnifiedFoodsForNutritionist,
   FoodLibraryQueryError,
+  FoodLibraryQueryCountError,
+  FoodLibraryQuerySelectError,
+  FoodLibraryQueryOrderError,
+  FoodLibraryQueryPortionsError,
+  FoodLibraryQueryUnknownError,
   FoodLibraryMappingError,
   type ListFoodsResult,
 } from "@/lib/nutrition-v2/food-repository";
@@ -24,6 +29,11 @@ type SafeDiagnosticCode =
   | "FOOD_LIB_CONTEXT"
   | "FOOD_LIB_AUTH"
   | "FOOD_LIB_QUERY"
+  | "FOOD_LIB_QUERY_COUNT"
+  | "FOOD_LIB_QUERY_SELECT"
+  | "FOOD_LIB_QUERY_ORDER"
+  | "FOOD_LIB_QUERY_PORTIONS"
+  | "FOOD_LIB_QUERY_UNKNOWN"
   | "FOOD_LIB_MAPPING"
   | "FOOD_LIB_RENDER"
   | "FOOD_LIB_UNKNOWN";
@@ -198,7 +208,7 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
     const rawPage = typeof resolvedSearchParams.page === "string" ? parseInt(resolvedSearchParams.page, 10) : 1;
     const page = !Number.isNaN(rawPage) && rawPage >= 1 ? rawPage : 1;
 
-    try {
+        try {
       initialResult = await listUnifiedFoodsForNutritionist(ctx, {
         query,
         scope,
@@ -207,23 +217,43 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
         pageSize: 20,
       });
     } catch (queryOrMappingErr: unknown) {
-      const isMapping = queryOrMappingErr instanceof FoodLibraryMappingError;
-      const isQuery = queryOrMappingErr instanceof FoodLibraryQueryError;
-      const diagnosticCode: SafeDiagnosticCode = isMapping
-        ? "FOOD_LIB_MAPPING"
-        : isQuery
-        ? "FOOD_LIB_QUERY"
-        : "FOOD_LIB_QUERY";
+      let diagnosticCode: SafeDiagnosticCode = "FOOD_LIB_QUERY_UNKNOWN";
+      let title = "Erro ao consultar alimentos";
+      let description = "Ocorreu uma instabilidade na consulta ao catálogo de alimentos.";
+
+      if (queryOrMappingErr instanceof FoodLibraryMappingError) {
+        diagnosticCode = "FOOD_LIB_MAPPING";
+        title = "Erro no processamento dos alimentos";
+        description = "Ocorreu uma inconsistência no processamento dos dados nutricionais retornados.";
+      } else if (queryOrMappingErr instanceof FoodLibraryQueryCountError) {
+        diagnosticCode = "FOOD_LIB_QUERY_COUNT";
+        title = "Erro na contagem de alimentos";
+        description = "Ocorreu uma falha ao determinar a contagem total de itens do catálogo.";
+      } else if (queryOrMappingErr instanceof FoodLibraryQueryPortionsError) {
+        diagnosticCode = "FOOD_LIB_QUERY_PORTIONS";
+        title = "Erro na consulta de porções";
+        description = "Ocorreu uma falha ao contabilizar as porções dos alimentos.";
+      } else if (queryOrMappingErr instanceof FoodLibraryQueryOrderError) {
+        diagnosticCode = "FOOD_LIB_QUERY_ORDER";
+        title = "Erro na ordenação dos alimentos";
+        description = "Ocorreu uma falha ao ordenar os itens do catálogo.";
+      } else if (queryOrMappingErr instanceof FoodLibraryQuerySelectError) {
+        diagnosticCode = "FOOD_LIB_QUERY_SELECT";
+        title = "Erro na seleção de alimentos";
+        description = "Ocorreu uma falha na consulta aos campos do catálogo de alimentos.";
+      } else if (queryOrMappingErr instanceof FoodLibraryQueryUnknownError || queryOrMappingErr instanceof FoodLibraryQueryError) {
+        diagnosticCode = "FOOD_LIB_QUERY_UNKNOWN";
+        title = "Erro na consulta de alimentos";
+        description = "Ocorreu uma instabilidade na execução da consulta de alimentos.";
+      }
 
       console.error(`[Food Library] Failed at ${diagnosticCode} stage:`, queryOrMappingErr instanceof Error ? queryOrMappingErr.message : String(queryOrMappingErr));
 
       diagnostic = {
         slug,
         code: diagnosticCode,
-        title: isMapping ? "Erro no processamento dos alimentos" : "Erro ao consultar alimentos",
-        description: isMapping
-          ? "Ocorreu uma inconsistência no processamento dos alimentos retornados."
-          : "Ocorreu uma instabilidade na consulta ao catálogo de alimentos.",
+        title,
+        description,
       };
     }
   }

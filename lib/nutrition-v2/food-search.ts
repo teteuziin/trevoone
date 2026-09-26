@@ -205,8 +205,8 @@ export function buildFoodSearchOrderClause(
 ): { orderClause: string; orderParams: (string | number)[] } {
   if (!queryTokens || queryTokens.length === 0) {
     const defaultOrder = isUnified
-      ? `ORDER BY CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC, COALESCE(f.display_name_pt_br, f.name) ASC`
-      : `ORDER BY COALESCE(f.display_name_pt_br, f.name) ASC`;
+      ? `ORDER BY CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC, f.name ASC`
+      : `ORDER BY f.name ASC`;
     return { orderClause: defaultOrder, orderParams: [] };
   }
 
@@ -216,7 +216,7 @@ export function buildFoodSearchOrderClause(
   const firstStem = getWordStem(firstToken);
   const orderParams: (string | number)[] = [];
 
-  const targetCol = "COALESCE(f.normalized_display_name_pt_br, f.normalized_name)";
+  const targetCol = "f.normalized_name";
 
   // Tier 1: Exact match normalized (PT-BR first, then EN alias)
   orderParams.push(normalizedQuery, cleanQuery);
@@ -337,8 +337,8 @@ export function buildFoodSearchOrderClause(
     END ASC,
     -- Prioritize analytical laboratory direct data & survey recipe data quality
     CASE
-      WHEN f.data_quality = 'ANALYTICAL_GOLD' THEN 1
-      WHEN f.data_quality = 'SURVEY_RECIPE' THEN 2
+      WHEN f.source_key = 'USDA_FOUNDATION' THEN 1
+      WHEN f.source_key = 'USDA_FNDDS' THEN 2
       ELSE 3
     END ASC,
     -- Shorter food names tend to be basic primary ingredients rather than complex derivatives

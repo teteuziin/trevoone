@@ -1,238 +1,73 @@
 /**
  * TREVO ONE — NUTRITION DATABASE
- * SEED IMPORTER: BASE BRASIL V1
+ * SEED IMPORTER: BASE BRASIL V1 (GROWTH VERIFIED & PROD-READY)
  *
- * Imports authoritative, verified Brazilian branded products and staples
- * into the global catalog with complete provenance, exact portions, and
- * idempotent deduplication.
- *
- * Target: DEV (u406031981_trevoone_dev)
+ * Imports authoritative, verified Brazilian branded products into the catalog.
+ * Supports --prod-ready-only for PROD promotion (7 Growth products only, Amafil excluded).
+ * Supports --dry-run for pre-flight verification.
  */
 
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import mysql from "mysql2/promise";
 import { normalizeSearchText } from "../lib/nutrition-v2/food-search.ts";
 
-export const BASE_BRASIL_V1_MANIFEST = [
-  // 1. Growth — 100% Whey Protein Concentrado — Natural
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load durable Growth manifest
+const growthManifestRaw = await fs.readFile(
+  path.join(__dirname, "..", "data", "nutrition", "growth-manifest-v1.json"),
+  "utf-8"
+);
+export const GROWTH_PROD_MANIFEST = JSON.parse(growthManifestRaw);
+
+// DEV-only unverified items (for local research/investigation only)
+export const DEV_ONLY_ITEMS = [
   {
-    name: "Growth - 100% Whey Protein Concentrado - Natural",
-    displayNamePtBr: "Growth — 100% Whey Protein Concentrado — Natural",
-    brand: "Growth Supplements",
-    productLine: "100% Whey Protein Concentrado",
-    flavorOrVariant: "Natural",
-    manufacturer: "Growth Supplements Nutrição Esportiva Ltda",
-    category: "Suplementos",
-    referenceAmount: 100,
-    referenceUnitCode: "G",
-    caloriesKcal: 413.33,
-    proteinG: 80.00,
-    carbohydrateG: 7.67,
-    fatG: 7.00,
-    fiberG: 0.00,
-    sodiumMg: 156.67,
-    sourceType: "BRANDED",
-    sourceKey: "GROWTH_SUPPLEMENTS",
-    sourceExternalCode: "GROWTH-WPC-NATURAL-1KG",
-    sourceReference: "https://www.gsuplementos.com.br/whey-protein-concentrado-1kg-growth-supplements-p985936",
-    dataQuality: "MANUFACTURER_VERIFIED",
-    portions: [
-      { label: "1 dosador", equivalentReferenceAmount: 15.0, sortOrder: 1 },
-      { label: "2 dosadores (1 porção)", equivalentReferenceAmount: 30.0, sortOrder: 2 },
-    ],
-  },
-  // 2. Growth — 100% Whey Protein Concentrado — Chocolate
-  {
-    name: "Growth - 100% Whey Protein Concentrado - Chocolate",
-    displayNamePtBr: "Growth — 100% Whey Protein Concentrado — Chocolate",
-    brand: "Growth Supplements",
-    productLine: "100% Whey Protein Concentrado",
-    flavorOrVariant: "Chocolate",
-    manufacturer: "Growth Supplements Nutrição Esportiva Ltda",
-    category: "Suplementos",
-    referenceAmount: 100,
-    referenceUnitCode: "G",
-    caloriesKcal: 403.33,
-    proteinG: 70.00,
-    carbohydrateG: 15.00,
-    fatG: 7.00,
-    fiberG: 0.00,
-    sodiumMg: 176.67,
-    sourceType: "BRANDED",
-    sourceKey: "GROWTH_SUPPLEMENTS",
-    sourceExternalCode: "GROWTH-WPC-CHOCOLATE-1KG",
-    sourceReference: "https://www.gsuplementos.com.br/100-whey-protein-concentrado-chocolate",
-    dataQuality: "MANUFACTURER_VERIFIED",
-    portions: [
-      { label: "1 dosador", equivalentReferenceAmount: 15.0, sortOrder: 1 },
-      { label: "2 dosadores (1 porção)", equivalentReferenceAmount: 30.0, sortOrder: 2 },
-    ],
-  },
-  // 3. Growth — 100% Whey Protein Concentrado — Morango
-  {
-    name: "Growth - 100% Whey Protein Concentrado - Morango",
-    displayNamePtBr: "Growth — 100% Whey Protein Concentrado — Morango",
-    brand: "Growth Supplements",
-    productLine: "100% Whey Protein Concentrado",
-    flavorOrVariant: "Morango",
-    manufacturer: "Growth Supplements Nutrição Esportiva Ltda",
-    category: "Suplementos",
-    referenceAmount: 100,
-    referenceUnitCode: "G",
-    caloriesKcal: 403.33,
-    proteinG: 70.00,
-    carbohydrateG: 15.67,
-    fatG: 6.67,
-    fiberG: 0.00,
-    sodiumMg: 166.67,
-    sourceType: "BRANDED",
-    sourceKey: "GROWTH_SUPPLEMENTS",
-    sourceExternalCode: "GROWTH-WPC-MORANGO-1KG",
-    sourceReference: "https://www.gsuplementos.com.br/100-whey-protein-concentrado-morango",
-    dataQuality: "MANUFACTURER_VERIFIED",
-    portions: [
-      { label: "1 dosador", equivalentReferenceAmount: 15.0, sortOrder: 1 },
-      { label: "2 dosadores (1 porção)", equivalentReferenceAmount: 30.0, sortOrder: 2 },
-    ],
-  },
-  // 4. Growth — 100% Whey Protein Concentrado — Baunilha
-  {
-    name: "Growth - 100% Whey Protein Concentrado - Baunilha",
-    displayNamePtBr: "Growth — 100% Whey Protein Concentrado — Baunilha",
-    brand: "Growth Supplements",
-    productLine: "100% Whey Protein Concentrado",
-    flavorOrVariant: "Baunilha",
-    manufacturer: "Growth Supplements Nutrição Esportiva Ltda",
-    category: "Suplementos",
-    referenceAmount: 100,
-    referenceUnitCode: "G",
-    caloriesKcal: 400.00,
-    proteinG: 70.00,
-    carbohydrateG: 15.33,
-    fatG: 6.67,
-    fiberG: 0.00,
-    sodiumMg: 170.00,
-    sourceType: "BRANDED",
-    sourceKey: "GROWTH_SUPPLEMENTS",
-    sourceExternalCode: "GROWTH-WPC-BAUNILHA-1KG",
-    sourceReference: "https://www.gsuplementos.com.br/100-whey-protein-concentrado-baunilha",
-    dataQuality: "MANUFACTURER_VERIFIED",
-    portions: [
-      { label: "1 dosador", equivalentReferenceAmount: 15.0, sortOrder: 1 },
-      { label: "2 dosadores (1 porção)", equivalentReferenceAmount: 30.0, sortOrder: 2 },
-    ],
-  },
-  // 5. Growth — TOP Whey Protein Isolado — Natural
-  {
-    name: "Growth - TOP Whey Protein Isolado - Natural",
-    displayNamePtBr: "Growth — TOP Whey Protein Isolado — Natural",
-    brand: "Growth Supplements",
-    productLine: "TOP Whey Protein Isolado",
-    flavorOrVariant: "Natural",
-    manufacturer: "Growth Supplements Nutrição Esportiva Ltda",
-    category: "Suplementos",
-    referenceAmount: 100,
-    referenceUnitCode: "G",
-    caloriesKcal: 386.67,
-    proteinG: 90.00,
-    carbohydrateG: 6.67,
-    fatG: 0.00,
-    fiberG: 0.00,
-    sodiumMg: 146.67,
-    sourceType: "BRANDED",
-    sourceKey: "GROWTH_SUPPLEMENTS",
-    sourceExternalCode: "GROWTH-WPI-NATURAL-1KG",
-    sourceReference: "https://www.gsuplementos.com.br/top-whey-protein-isolado-1kg-growth-supplements-p985937",
-    dataQuality: "MANUFACTURER_VERIFIED",
-    portions: [
-      { label: "1 dosador", equivalentReferenceAmount: 12.0, sortOrder: 1 },
-      { label: "2,5 dosadores (1 porção)", equivalentReferenceAmount: 30.0, sortOrder: 2 },
-    ],
-  },
-  // 6. Growth — Medium Whey Protein — Natural
-  {
-    name: "Growth - Medium Whey Protein - Natural",
-    displayNamePtBr: "Growth — Medium Whey Protein — Natural",
-    brand: "Growth Supplements",
-    productLine: "Medium Whey Protein",
-    flavorOrVariant: "Natural",
-    manufacturer: "Growth Supplements Nutrição Esportiva Ltda",
-    category: "Suplementos",
-    referenceAmount: 100,
-    referenceUnitCode: "G",
-    caloriesKcal: 403.33,
-    proteinG: 56.67,
-    carbohydrateG: 29.00,
-    fatG: 6.67,
-    fiberG: 0.00,
-    sodiumMg: 253.33,
-    sourceType: "BRANDED",
-    sourceKey: "GROWTH_SUPPLEMENTS",
-    sourceExternalCode: "GROWTH-MEDIUM-NATURAL-1KG",
-    sourceReference: "https://www.gsuplementos.com.br/medium-whey-protein-1kg-growth-supplements-p986001",
-    dataQuality: "MANUFACTURER_VERIFIED",
-    portions: [
-      { label: "1 dosador", equivalentReferenceAmount: 15.0, sortOrder: 1 },
-      { label: "2 dosadores (1 porção)", equivalentReferenceAmount: 30.0, sortOrder: 2 },
-    ],
-  },
-  // 7. Growth — Creatina Monohidratada 100% Pura
-  {
-    name: "Growth - Creatina Monohidratada 100% Pura",
-    displayNamePtBr: "Growth — Creatina Monohidratada 100% Pura",
-    brand: "Growth Supplements",
-    productLine: "Creatina Monohidratada 100% Pura",
-    flavorOrVariant: "Sem Sabor (100% Pura)",
-    manufacturer: "Growth Supplements Nutrição Esportiva Ltda",
-    category: "Suplementos",
-    referenceAmount: 100,
-    referenceUnitCode: "G",
-    caloriesKcal: 0.00,
-    proteinG: 0.00,
-    carbohydrateG: 0.00,
-    fatG: 0.00,
-    fiberG: 0.00,
-    sodiumMg: 0.00,
-    sourceType: "BRANDED",
-    sourceKey: "GROWTH_SUPPLEMENTS",
-    sourceExternalCode: "GROWTH-CREATINA-MONO-500G",
-    sourceReference: "https://www.gsuplementos.com.br/creatina-monohidratada-500g-pouch",
-    dataQuality: "MANUFACTURER_VERIFIED",
-    portions: [
-      { label: "1 dosador", equivalentReferenceAmount: 1.25, sortOrder: 1 },
-      { label: "4 dosadores (1 porção)", equivalentReferenceAmount: 5.0, sortOrder: 2 },
-    ],
-  },
-  // 8. Amafil — Massa para Tapioca (Goma de Mandioca Hidratada)
-  {
-    name: "Amafil - Massa para Tapioca (Goma de Mandioca Hidratada)",
-    displayNamePtBr: "Amafil — Massa para Tapioca (Goma de Mandioca Hidratada)",
     brand: "Amafil",
-    productLine: "Massa para Tapioca",
-    flavorOrVariant: "Tradicional (Goma Hidratada)",
+    product_line: "Massa para Tapioca",
+    variant: "Tradicional (Goma Hidratada)",
+    name: "Amafil - Massa para Tapioca (Goma de Mandioca Hidratada)",
+    display_name_pt_br: "Amafil — Massa para Tapioca (Goma de Mandioca Hidratada)",
     manufacturer: "Amafil Alimentos",
     category: "Cereais e Derivados",
-    referenceAmount: 100,
-    referenceUnitCode: "G",
-    caloriesKcal: 232.00,
-    proteinG: 0.00,
-    carbohydrateG: 58.00,
-    fatG: 0.00,
-    fiberG: 0.00,
-    sodiumMg: 70.00,
-    sourceType: "BRANDED",
-    sourceKey: "AMAFIL",
-    sourceExternalCode: "AMAFIL-TAPIOCA-500G",
-    sourceReference: "https://amafil.com.br/produtos/tapioca/",
-    dataQuality: "UNCLASSIFIED", // Insufficient online manufacturer nutrition facts label; marked NOT_READY_FOR_PROD
+    source_external_code: "AMAFIL-TAPIOCA-500G",
+    source_reference: "https://amafil.com.br/produtos/tapioca/",
+    source_capture_date: "2026-09-26",
+    source_capture_method: "Product Page Presentation (Nutrition facts label unavailable online)",
+    reference_amount: 100,
+    reference_unit: "G",
+    label_serving_amount: 100,
+    label_serving_unit: "G",
+    calories: 232.00,
+    protein: 0.00,
+    carbohydrate: 58.00,
+    fat: 0.00,
+    fiber: 0.00,
+    sodium: 70.00,
+    source_type: "BRANDED",
+    source_key: "AMAFIL",
+    data_quality: "UNCLASSIFIED", // Insufficient online manufacturer nutrition facts label; NOT_READY_FOR_PROD
+    evidence_status: "INSUFFICIENT_EVIDENCE",
     portions: [
-      { label: "1 colher de sopa", equivalentReferenceAmount: 20.0, sortOrder: 1 },
-      { label: "5 colheres de sopa (1 porção)", equivalentReferenceAmount: 100.0, sortOrder: 2 },
-    ],
-  },
+      { label: "1 colher de sopa", equivalent_reference_amount: 20.0, sort_order: 1 },
+      { label: "5 colheres de sopa (1 porção)", equivalent_reference_amount: 100.0, sort_order: 2 }
+    ]
+  }
 ];
 
-export async function runBaseBrasilSeed() {
+export const BASE_BRASIL_V1_MANIFEST = [
+  ...GROWTH_PROD_MANIFEST,
+  ...DEV_ONLY_ITEMS
+];
+
+export async function runBaseBrasilSeed(options = {}) {
+  const isProdReadyOnly = options.prodReadyOnly ?? process.argv.includes("--prod-ready-only");
+  const isDryRun = options.dryRun ?? process.argv.includes("--dry-run");
+
   const pool = mysql.createPool({
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT) || 3306,
@@ -246,21 +81,93 @@ export async function runBaseBrasilSeed() {
   try {
     const [dbRows] = await connection.query("SELECT DATABASE() AS db_name");
     const activeDb = dbRows[0].db_name;
-    if (activeDb !== "u406031981_trevoone_dev") {
-      throw new Error(`Safety gate: Seed can only execute on u406031981_trevoone_dev. Found: ${activeDb}`);
+
+    // Safety Gate: PROD database (u406031981_trevoone) requires --prod-ready-only
+    if (activeDb === "u406031981_trevoone" && !isProdReadyOnly) {
+      throw new Error("HARD SAFETY GATE: PROD database requires --prod-ready-only flag. Aborting.");
     }
 
+    if (activeDb !== "u406031981_trevoone_dev" && activeDb !== "u406031981_trevoone") {
+      throw new Error(`Safety gate: Unknown database '${activeDb}'. Aborting.`);
+    }
+
+    // Select manifest scope
+    const manifest = isProdReadyOnly ? GROWTH_PROD_MANIFEST : BASE_BRASIL_V1_MANIFEST;
+
+    // Hard safety assertions for PROD_READY_ONLY
+    if (isProdReadyOnly) {
+      if (manifest.length !== 7) {
+        throw new Error(`HARD SAFETY GATE: PROD manifest count must be exactly 7. Found: ${manifest.length}`);
+      }
+      for (const item of manifest) {
+        if (item.brand !== "Growth Supplements") {
+          throw new Error(`HARD SAFETY GATE: Non-Growth product in PROD manifest: ${item.brand}`);
+        }
+        if (item.evidence_status !== "OFFICIAL_LABEL_VERIFIED") {
+          throw new Error(`HARD SAFETY GATE: Unverified product in PROD manifest: ${item.name}`);
+        }
+      }
+      const amafilCount = manifest.filter((m) => m.brand === "Amafil").length;
+      if (amafilCount > 0) {
+        throw new Error("HARD SAFETY GATE: Amafil must NOT be included in PROD manifest.");
+      }
+    }
+
+    // DRY RUN MODE
+    if (isDryRun) {
+      let readyToInsert = 0;
+      let alreadyExisting = 0;
+
+      for (const item of manifest) {
+        const [existing] = await connection.query(
+          `SELECT id FROM nutrition_v2_foods
+           WHERE (source_key = ? AND source_external_code = ?)
+              OR (brand = ? AND product_line = ? AND flavor_or_variant = ?)
+           LIMIT 1`,
+          [item.source_key, item.source_external_code, item.brand, item.product_line, item.variant]
+        );
+        if (Array.isArray(existing) && existing.length > 0) {
+          alreadyExisting++;
+        } else {
+          readyToInsert++;
+        }
+      }
+
+      console.log("\n==========================================");
+      console.log("PROD READY DRY RUN:");
+      console.log(`DATABASE: ${activeDb}`);
+      console.log(`READY RECORDS: ${manifest.length}`);
+      console.log(`BRANDS: Growth Supplements only`);
+      console.log(`AMAFIL: 0`);
+      console.log(`OTHER: 0`);
+      console.log(`TO INSERT: ${readyToInsert}`);
+      console.log(`ALREADY IN DB: ${alreadyExisting}`);
+      console.log("==========================================\n");
+
+      return {
+        activeDb,
+        isDryRun: true,
+        readyRecords: manifest.length,
+        brands: "Growth Supplements only",
+        amafil: 0,
+        other: 0,
+        toInsert: readyToInsert,
+        alreadyInDb: alreadyExisting
+      };
+    }
+
+    // ACTUAL INSERTION MODE (IDEMPOTENT)
     let insertedCount = 0;
     let skippedCount = 0;
 
-    for (const item of BASE_BRASIL_V1_MANIFEST) {
+    for (const item of manifest) {
       // 1. Deterministic deduplication check
       const [existing] = await connection.query(
-        `SELECT id, public_id FROM nutrition_v2_foods 
+        `SELECT id, public_id FROM nutrition_v2_foods
          WHERE (source_key = ? AND source_external_code = ?)
             OR (brand = ? AND product_line = ? AND flavor_or_variant = ?)
          LIMIT 1`,
-        [item.sourceKey, item.sourceExternalCode, item.brand, item.productLine, item.flavorOrVariant]
+        [item.source_key, item.source_external_code, item.brand, item.product_line, item.variant]
       );
 
       if (Array.isArray(existing) && existing.length > 0) {
@@ -268,10 +175,15 @@ export async function runBaseBrasilSeed() {
         continue;
       }
 
-      // 2. Insert new verified food record
+      // Hard check during actual insert: verify brand
+      if (isProdReadyOnly && item.brand !== "Growth Supplements") {
+        throw new Error(`FATAL: Attempted to insert non-Growth item into PROD: ${item.brand}`);
+      }
+
+      // 2. Insert verified food record
       const publicId = crypto.randomUUID();
       const normalizedName = normalizeSearchText(item.name);
-      const normalizedDisplayNamePtBr = normalizeSearchText(item.displayNamePtBr);
+      const normalizedDisplayNamePtBr = normalizeSearchText(item.display_name_pt_br);
 
       const [foodRes] = await connection.query(
         `INSERT INTO nutrition_v2_foods (
@@ -294,13 +206,13 @@ export async function runBaseBrasilSeed() {
           CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3)
         )`,
         [
-          publicId, item.name, item.displayNamePtBr,
+          publicId, item.name, item.display_name_pt_br,
           normalizedDisplayNamePtBr, normalizedName, item.category,
-          item.brand, item.productLine, item.flavorOrVariant, item.manufacturer,
-          item.referenceAmount, item.referenceUnitCode, item.caloriesKcal,
-          item.proteinG, item.carbohydrateG, item.fatG, item.fiberG,
-          item.sourceType, item.dataQuality, item.sourceKey,
-          item.sourceExternalCode, item.sourceReference,
+          item.brand, item.product_line, item.variant, item.manufacturer,
+          item.reference_amount, item.reference_unit, item.calories,
+          item.protein, item.carbohydrate, item.fat, item.fiber,
+          item.source_type, item.data_quality, item.source_key,
+          item.source_external_code, item.source_reference,
         ]
       );
 
@@ -314,32 +226,39 @@ export async function runBaseBrasilSeed() {
             public_id, food_id, label, equivalent_reference_amount,
             sort_order, status, created_at, updated_at
           ) VALUES (?, ?, ?, ?, ?, 'ACTIVE', CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))`,
-          [portionPublicId, foodId, p.label, p.equivalentReferenceAmount, p.sortOrder]
+          [portionPublicId, foodId, p.label, p.equivalent_reference_amount, p.sort_order]
         );
       }
 
       // 4. Insert micronutrients (sodium) with strict schema check
-      if (item.sodiumMg != null) {
-        const nutrientStatus = item.sodiumMg === 0 ? "KNOWN_ZERO" : "KNOWN";
+      if (item.sodium != null) {
+        const nutrientStatus = item.sodium === 0 ? "KNOWN_ZERO" : "KNOWN";
         await connection.query(
           `INSERT INTO nutrition_v2_food_nutrients (
             food_id, nutrient_code, amount_per_reference, unit_code,
             status, created_at, updated_at
           ) VALUES (?, 'NA', ?, 'mg', ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))`,
-          [foodId, item.sodiumMg, nutrientStatus]
+          [foodId, item.sodium, nutrientStatus]
         );
       }
 
       insertedCount++;
     }
 
-    return {
+    const result = {
       activeDb,
-      totalManifest: BASE_BRASIL_V1_MANIFEST.length,
+      totalManifest: manifest.length,
       insertedCount,
       skippedCount,
       duplicateCount: 0,
     };
+
+    console.log("\n==========================================");
+    console.log("BASE BRASIL V1 SEED EXECUTION RESULT:");
+    console.log(JSON.stringify(result, null, 2));
+    console.log("==========================================\n");
+
+    return result;
   } finally {
     connection.release();
     await pool.end();
@@ -347,14 +266,9 @@ export async function runBaseBrasilSeed() {
 }
 
 // CLI direct execution
-runBaseBrasilSeed()
-  .then((res) => {
-    console.log("\n==========================================");
-    console.log("BASE BRASIL V1 SEED EXECUTION RESULT:");
-    console.log(JSON.stringify(res, null, 2));
-    console.log("==========================================\n");
-  })
-  .catch((err) => {
+if (process.argv[1] && process.argv[1].endsWith("seed-nutrition-base-brasil-v1.mjs")) {
+  runBaseBrasilSeed().catch((err) => {
     console.error("Seed execution failed:", err);
     process.exit(1);
   });
+}

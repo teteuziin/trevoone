@@ -1,0 +1,275 @@
+[
+  {
+    "brand": "Growth Supplements",
+    "product_line": "100% Whey Protein Concentrado",
+    "variant": "Natural",
+    "name": "Growth - 100% Whey Protein Concentrado - Natural",
+    "display_name_pt_br": "Growth — 100% Whey Protein Concentrado — Natural",
+    "manufacturer": "Growth Supplements Nutrição Esportiva Ltda",
+    "category": "Suplementos",
+    "source_external_code": "GROWTH-WPC-NATURAL-1KG",
+    "source_reference": "https://www.gsuplementos.com.br/whey-protein-concentrado-1kg-growth-supplements-p985936",
+    "source_capture_date": "2026-09-26",
+    "source_capture_method": "Official Manufacturer Label Direct Capture",
+    "reference_amount": 100,
+    "reference_unit": "G",
+    "label_serving_amount": 30,
+    "label_serving_unit": "G",
+    "calories": 413.33,
+    "protein": 80,
+    "carbohydrate": 7.67,
+    "fat": 7,
+    "fiber": 0,
+    "sodium": 156.67,
+    "source_type": "BRANDED",
+    "source_key": "GROWTH_SUPPLEMENTS",
+    "data_quality": "MANUFACTURER_VERIFIED",
+    "evidence_status": "OFFICIAL_LABEL_VERIFIED",
+    "portions": [
+      {
+        "label": "1 dosador",
+        "equivalent_reference_amount": 15,
+        "sort_order": 1
+      },
+      {
+        "label": "2 dosadores (1 porção)",
+        "equivalent_reference_amount": 30,
+        "sort_order": 2
+      }
+    ]
+  },
+  {
+    "brand": "Growth Supplements",
+    "product_line": "100% Whey Protein Concentrado",
+    "variant": "Chocolate",
+    "name": "Growth - 100% Whey Protein Concentrado - Chocolate",
+    "display_name_pt_br": "Growth — 100% Whey Protein Concentrado — Chocolate",
+    "manufacturer": "Growth Supplements Nutrição Esportiva Ltda",
+    "category": "Suplementos",
+    "source_external_code": "GROWTH-WPC-CHOCOLATE-1KG",
+    "source_reference": "https://www.gsuplementos.com.br/100-whey-protein-concentrado-chocolate",
+    "source_capture_date": "2026-09-26",
+    "source_capture_method": "Official Manufacturer Label Direct Capture",
+    "reference_amount": 100,
+    "reference_unit": "G",
+    "label_serving_amount": 30,
+    "label_serving_unit": "G",
+    "calories": 403.33,
+    "protein": 70,
+    "carbohydrate": 15,
+    "fat": 7,
+    "fiber": 0,
+    "sodium": 176.67,
+    "source_type": "BRANDED",
+    "source_key": "GROWTH_SUPPLEMENTS",
+    "data_quality": "MANUFACTURER_VERIFIED",
+    "evidence_status": "OFFICIAL_LABEL_VERIFIED",
+    "portions": [
+      {
+        "label": "1 dosador",
+        "equivalent_reference_amount": 15,
+        "sort_order": 1
+      },
+      {
+        "label": "2 dosadores (1 porção)",
+        "equivalent_reference_amount": 30,
+        "sort_order": 2
+      }
+    ]
+  },
+  {
+    "brand": "Growth Supplements",
+    "product_line": "100% Whey Protein Concentrado",
+    "variant": "Morango",
+    "name": "Growth - 100% Whey Protein Concentrado - Morango",
+    "display_name_pt_br": "Growth — 100% Whey Protein Concentrado — Morango",
+    "manufacturer": "Growth Supplements Nutrição Esportiva Ltda",
+    "category": "Suplementos",
+    "source_external_code": "GROWTH-WPC-MORANGO-1KG",
+    "source_reference": "https://www.gsuplementos.com.br/100-whey-protein-concentrado-morango",
+    "source_capture_date": "2026-09-26",
+    "source_capture_method": "Official Manufacturer Label Direct Capture",
+    "reference_amount": 100,
+    "reference_unit": "G",
+    "label_serving_amount": 30,
+    "label_serving_unit": "G",
+    "calories": 403.33,
+    "protein": 70,
+    "carbohydrate": 15.67,
+    "fat": 6.67,
+    "fiber": 0,
+    "sodium": 166.67,
+    "source_type": "BRANDED",
+    "source_key": "GROWTH_SUPPLEMENTS",
+    "data_quality": "MANUFACTURER_VERIFIED",
+    "evidence_status": "OFFICIAL_LABEL_VERIFIED",
+    "portions": [
+      {
+        "label": "1 dosador",
+        "equivalent_reference_amount": 15,
+        "sort_order": 1
+      },
+      {
+        "label": "2 dosadores (1 porção)",
+        "equivalent_reference_amount": 30,
+        "sort_order": 2
+      }
+    ]
+  },
+  {
+    "brand": "Growth Supplements",
+    "product_line": "100% Whey Protein Concentrado",
+    "variant": "Baunilha",
+    "name": "Growth - 100% Whey Protein Concentrado - Baunilha",
+    "display_name_pt_br": "Growth — 100% Whey Protein Concentrado — Baunilha",
+    "manufacturer": "Growth Supplements Nutrição Esportiva Ltda",
+    "category": "Suplementos",
+    "source_external_code": "GROWTH-WPC-BAUNILHA-1KG",
+    "source_reference": "https://www.gsuplementos.com.br/100-whey-protein-concentrado-baunilha",
+    "source_capture_date": "2026-09-26",
+    "source_capture_method": "Official Manufacturer Label Direct Capture",
+    "reference_amount": 100,
+    "reference_unit": "G",
+    "label_serving_amount": 30,
+    "label_serving_unit": "G",
+    "calories": 400,
+    "protein": 70,
+    "carbohydrate": 15.33,
+    "fat": 6.67,
+    "fiber": 0,
+    "sodium": 170,
+    "source_type": "BRANDED",
+    "source_key": "GROWTH_SUPPLEMENTS",
+    "data_quality": "MANUFACTURER_VERIFIED",
+    "evidence_status": "OFFICIAL_LABEL_VERIFIED",
+    "portions": [
+      {
+        "label": "1 dosador",
+        "equivalent_reference_amount": 15,
+        "sort_order": 1
+      },
+      {
+        "label": "2 dosadores (1 porção)",
+        "equivalent_reference_amount": 30,
+        "sort_order": 2
+      }
+    ]
+  },
+  {
+    "brand": "Growth Supplements",
+    "product_line": "TOP Whey Protein Isolado",
+    "variant": "Natural",
+    "name": "Growth - TOP Whey Protein Isolado - Natural",
+    "display_name_pt_br": "Growth — TOP Whey Protein Isolado — Natural",
+    "manufacturer": "Growth Supplements Nutrição Esportiva Ltda",
+    "category": "Suplementos",
+    "source_external_code": "GROWTH-WPI-NATURAL-1KG",
+    "source_reference": "https://www.gsuplementos.com.br/top-whey-protein-isolado-1kg-growth-supplements-p985937",
+    "source_capture_date": "2026-09-26",
+    "source_capture_method": "Official Manufacturer Label Direct Capture",
+    "reference_amount": 100,
+    "reference_unit": "G",
+    "label_serving_amount": 30,
+    "label_serving_unit": "G",
+    "calories": 386.67,
+    "protein": 90,
+    "carbohydrate": 6.67,
+    "fat": 0,
+    "fiber": 0,
+    "sodium": 146.67,
+    "source_type": "BRANDED",
+    "source_key": "GROWTH_SUPPLEMENTS",
+    "data_quality": "MANUFACTURER_VERIFIED",
+    "evidence_status": "OFFICIAL_LABEL_VERIFIED",
+    "portions": [
+      {
+        "label": "1 dosador",
+        "equivalent_reference_amount": 12,
+        "sort_order": 1
+      },
+      {
+        "label": "2,5 dosadores (1 porção)",
+        "equivalent_reference_amount": 30,
+        "sort_order": 2
+      }
+    ]
+  },
+  {
+    "brand": "Growth Supplements",
+    "product_line": "Medium Whey Protein",
+    "variant": "Natural",
+    "name": "Growth - Medium Whey Protein - Natural",
+    "display_name_pt_br": "Growth — Medium Whey Protein — Natural",
+    "manufacturer": "Growth Supplements Nutrição Esportiva Ltda",
+    "category": "Suplementos",
+    "source_external_code": "GROWTH-MEDIUM-NATURAL-1KG",
+    "source_reference": "https://www.gsuplementos.com.br/medium-whey-protein-1kg-growth-supplements-p986001",
+    "source_capture_date": "2026-09-26",
+    "source_capture_method": "Official Manufacturer Label Direct Capture",
+    "reference_amount": 100,
+    "reference_unit": "G",
+    "label_serving_amount": 30,
+    "label_serving_unit": "G",
+    "calories": 403.33,
+    "protein": 56.67,
+    "carbohydrate": 29,
+    "fat": 6.67,
+    "fiber": 0,
+    "sodium": 253.33,
+    "source_type": "BRANDED",
+    "source_key": "GROWTH_SUPPLEMENTS",
+    "data_quality": "MANUFACTURER_VERIFIED",
+    "evidence_status": "OFFICIAL_LABEL_VERIFIED",
+    "portions": [
+      {
+        "label": "1 dosador",
+        "equivalent_reference_amount": 15,
+        "sort_order": 1
+      },
+      {
+        "label": "2 dosadores (1 porção)",
+        "equivalent_reference_amount": 30,
+        "sort_order": 2
+      }
+    ]
+  },
+  {
+    "brand": "Growth Supplements",
+    "product_line": "Creatina Monohidratada 100% Pura",
+    "variant": "Sem Sabor (100% Pura)",
+    "name": "Growth - Creatina Monohidratada 100% Pura",
+    "display_name_pt_br": "Growth — Creatina Monohidratada 100% Pura",
+    "manufacturer": "Growth Supplements Nutrição Esportiva Ltda",
+    "category": "Suplementos",
+    "source_external_code": "GROWTH-CREATINA-MONO-500G",
+    "source_reference": "https://www.gsuplementos.com.br/creatina-monohidratada-500g-pouch",
+    "source_capture_date": "2026-09-26",
+    "source_capture_method": "Official Manufacturer Label Direct Capture",
+    "reference_amount": 100,
+    "reference_unit": "G",
+    "label_serving_amount": 5,
+    "label_serving_unit": "G",
+    "calories": 0,
+    "protein": 0,
+    "carbohydrate": 0,
+    "fat": 0,
+    "fiber": 0,
+    "sodium": 0,
+    "source_type": "BRANDED",
+    "source_key": "GROWTH_SUPPLEMENTS",
+    "data_quality": "MANUFACTURER_VERIFIED",
+    "evidence_status": "OFFICIAL_LABEL_VERIFIED",
+    "portions": [
+      {
+        "label": "1 dosador",
+        "equivalent_reference_amount": 1.25,
+        "sort_order": 1
+      },
+      {
+        "label": "4 dosadores (1 porção)",
+        "equivalent_reference_amount": 5,
+        "sort_order": 2
+      }
+    ]
+  }
+]

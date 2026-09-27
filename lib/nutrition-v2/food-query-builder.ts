@@ -208,6 +208,9 @@ function getWordStem(word: string): string {
  * NO English cross-language tokens allowed in user search queries.
  */
 export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  // Pães e variações regionais brasileiras
+  cacetinho: ["pao frances", "frances"],
+  careca: ["frances", "pao frances"],
   // Tubérculos e Raízes (variações regionais inequívocas em PT-BR)
   aipim: ["mandioca", "macaxeira"],
   macaxeira: ["mandioca", "aipim"],
@@ -322,6 +325,18 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
       return [token, "pasta", "creme", "manteiga"];
     }
 
+    // Phrase-aware handling: pão francês / cacetinho / pão de sal / pão careca
+    const hasPao = tokens.some((t) => normalizeSearchText(t) === "pao");
+    if (hasPao && (normalized === "sal" || normalized === "careca")) {
+      return [token, "frances", "sal", "careca"];
+    }
+    if (hasPao && normalized === "frances") {
+      return [token, "frances", "cacetinho", "sal"];
+    }
+    if (normalized === "cacetinho") {
+      return [token, "cacetinho", "frances"];
+    }
+
     // Phrase-aware handling: arroz branco -> TACO arroz tipo 1 / tipo 2 / polido
     const hasArroz = tokens.some((t) => normalizeSearchText(t) === "arroz");
     if (hasArroz && (normalized === "branco" || normalized === "polido" || normalized === "tipo 1")) {
@@ -334,6 +349,159 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
     }
     return [token];
   });
+}
+
+// ============================================================================
+// CLEAN PROFESSIONAL PT-BR FOOD DISPLAY NAME STANDARDIZATION
+// ============================================================================
+
+export const EXACT_CANONICAL_NAME_OVERRIDES: Readonly<Record<string, string>> = Object.freeze({
+  // Pães e Farináceos
+  "Pão, trigo, francês": "Pão francês",
+  "Pão, trigo, forma, integral": "Pão de forma integral",
+  "Pão, trigo, sovado": "Pão sovado",
+  "Pao de Sal": "Pão francês",
+  "Pão francês, cacetinho": "Pão francês",
+  "Pao frances, cacetinho": "Pão francês",
+
+  // Queijos e Laticínios
+  "Queijo, mozarela": "Muçarela",
+  "Queijo, minas, frescal": "Queijo minas frescal",
+  "Queijo, minas, meia cura": "Queijo minas meia cura",
+  "Queijo, prato": "Queijo prato",
+  "Queijo, parmesão": "Queijo parmesão",
+  "Queijo, ricota": "Ricota",
+  "Queijo, requeijão, cremoso": "Requeijão cremoso",
+  "Queijo, pasteurizado": "Queijo pasteurizado",
+  "Queijo, petit suisse, morango": "Queijo petit suisse morango",
+  "Mussarela": "Muçarela",
+  "Muçarela, mussarela, mozarela": "Muçarela",
+  "Soja, queijo (tofu)": "Tofu",
+
+  // Frutas e Tubérculos canônicos
+  "Bergamota": "Tangerina",
+  "Mexerica": "Tangerina",
+  "Tangerina": "Tangerina",
+  "Tangerina, mexerica, bergamota": "Tangerina",
+  "Aipim": "Mandioca",
+  "Macaxeira": "Mandioca",
+  "Mandioca": "Mandioca",
+  "Mandioca, aipim, macaxeira": "Mandioca",
+});
+
+const ANIMAL_CUTS = [
+  "filé",
+  "file",
+  "peito",
+  "coxa",
+  "sobrecoxa",
+  "asa",
+  "coração",
+  "coracao",
+  "fígado",
+  "figado",
+  "bisteca",
+  "costela",
+  "lombo",
+  "pernil",
+  "posta",
+  "moela",
+];
+
+const ANIMALS_FOR_CUTS = [
+  "frango",
+  "abadejo",
+  "porco",
+  "peru",
+  "merluza",
+  "pescada",
+  "salmão",
+  "salmao",
+  "bacalhau",
+  "cação",
+  "cacao",
+  "lambari",
+  "corvina",
+  "peixe",
+];
+
+export function cleanTacoDisplayName(name: string): string {
+  let s = name.trim();
+  if (EXACT_CANONICAL_NAME_OVERRIDES[s]) {
+    return EXACT_CANONICAL_NAME_OVERRIDES[s];
+  }
+
+  // Botanical canonical renames
+  if (s.startsWith("Mexerica,")) {
+    s = s.replace(/^Mexerica,/, "Tangerina,");
+  }
+
+  // Strip comma-separated alias lists if present in input
+  s = s.replace(/,\s*(?:cacetinho|pão de sal|pao de sal|aipim|macaxeira|mexerica|bergamota|mandarina|mussarela|mozarela)\b/gi, "");
+
+  // Lab duration annotations (e.g. /10minutos in UNICAMP egg protocols)
+  s = s.replace(/\/10minutos/gi, "");
+
+  // Slashes and noise cleanup
+  s = s.replace(/\//g, " ");
+
+  // Animal Cut Reordering (e.g. "Frango, peito, sem pele, grelhado" -> "Peito de frango sem pele grelhado")
+  const parts = s.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const p0 = parts[0].toLowerCase();
+    const p1 = parts[1].toLowerCase();
+
+    if (ANIMALS_FOR_CUTS.includes(p0)) {
+      if (ANIMAL_CUTS.some((c) => p1 === c || p1.startsWith(c + " "))) {
+        const cutName = parts[1];
+        const animalName = parts[0].toLowerCase();
+        const rest = parts.slice(2).join(" ");
+        s = cutName + " de " + animalName + (rest ? " " + rest : "");
+        s = s.charAt(0).toUpperCase() + s.slice(1);
+        return s.replace(/,/g, "").replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+      }
+    }
+
+    // Bovine Meat Reordering
+    if (p0 === "carne" && p1 === "bovina" && parts.length >= 3) {
+      const cutOrName = parts[2];
+      const rest = parts.slice(3).join(" ");
+      const cutLower = cutOrName.toLowerCase();
+      if (cutLower === "seca") {
+        s = "Carne seca " + (rest ? " " + rest : "");
+      } else if (cutLower === "charque") {
+        s = "Charque " + (rest ? " " + rest : "");
+      } else if (["costela", "fígado", "figado", "língua", "lingua", "bucho", "músculo", "musculo"].includes(cutLower)) {
+        const adj = ["costela", "língua", "lingua"].includes(cutLower) ? "bovina" : "bovino";
+        s = cutOrName + " " + adj + (rest ? " " + rest : "");
+      } else {
+        s = cutOrName + (rest ? " " + rest : "");
+      }
+      s = s.charAt(0).toUpperCase() + s.slice(1);
+      return s.replace(/,/g, "").replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+    }
+  }
+
+  // Remove commas, parens, and normalize spaces
+  s = s.replace(/,\s*/g, " ").replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+  return s;
+}
+
+/**
+ * Master food display name cleaner.
+ * Strictly preserves source name for non-curated databases (USDA, branded products)
+ * while providing pristine, comma-free, alias-separated names for TACO.
+ */
+export function cleanFoodDisplayName(name: string, sourceKey?: string | null): string {
+  if (!name || typeof name !== "string") return "";
+
+  if (sourceKey === "TACO" || !sourceKey) {
+    return cleanTacoDisplayName(name);
+  }
+
+  // For USDA, branded products, or consultancy custom foods:
+  // preserve existing name without inventing semantics
+  return name.trim();
 }
 
 export function buildFoodSearchOrderClause(
@@ -475,9 +643,10 @@ export function buildFoodSearchOrderClause(
     END ASC,
     -- Prioritize analytical laboratory direct data & survey recipe data quality
     CASE
-      WHEN f.source_key = 'USDA_FOUNDATION' THEN 1
-      WHEN f.source_key = 'USDA_FNDDS' THEN 2
-      ELSE 3
+      WHEN f.source_key = 'TACO' THEN 1
+      WHEN f.source_key = 'USDA_FOUNDATION' THEN 2
+      WHEN f.source_key = 'USDA_FNDDS' THEN 3
+      ELSE 4
     END ASC,
     -- Shorter food names tend to be basic primary ingredients rather than complex derivatives
     CHAR_LENGTH(COALESCE(f.display_name_pt_br, f.name)) ASC,
@@ -746,6 +915,8 @@ export function buildSelectFoodsQuery(
     f.scope,
     f.consultancy_id,
     f.name,
+    f.display_name_pt_br,
+    f.normalized_display_name_pt_br,
     f.category,
     f.reference_amount,
     f.reference_unit_code,
@@ -927,7 +1098,9 @@ export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
   const deletedAt = safeIsoString(r.deleted_at, null);
   const portionsCount = Math.max(0, safeNumber(r.portions_count, 0));
 
-  const effectiveDisplayName = safeNullableString(r.display_name_pt_br) || name;
+  const rawDisplayName = safeNullableString(r.display_name_pt_br);
+  const cleanedDisplay = cleanFoodDisplayName(rawDisplayName || name, sourceKey);
+  const effectiveDisplayName = cleanedDisplay || name;
 
   return {
     publicId,
@@ -935,7 +1108,7 @@ export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
     consultancyId,
     name,
     displayNamePtBr: effectiveDisplayName,
-    normalizedDisplayNamePtBr: safeNullableString(r.normalized_display_name_pt_br),
+    normalizedDisplayNamePtBr: normalizeSearchText(effectiveDisplayName),
     normalizedName: safeString(r.normalized_name, ""),
     category,
     referenceAmount: refAmount,

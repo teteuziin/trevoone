@@ -1,15 +1,18 @@
 ﻿/**
- * TREVO ONE - SEED IBGE POF GLOBAL NUTRITION V2
+ * TREVO ONE - SEED IBGE POF GLOBAL NUTRITION V2 (B2A.1 HARDENED)
  *
  * Imports official IBGE POF 2008-2009 (Tabelas de Composição Nutricional e Medidas Referidas)
  * into nutrition_v2_foods, nutrition_v2_food_nutrients, and nutrition_v2_food_portions
  * for Brazilian default library expansion (Phase B2).
  *
- * Safety Guards:
+ * Safety & Quality Hardening:
  * - NO PROD DB WRITE allowed.
  * - Dry-run by default (requires explicit --apply for DEV DB).
- * - Deduplication against TACO: skips TACO-derived entries (ref_code 2)
- *   and existing items by source_uid.
+ * - Per-food atomic transaction (food + nutrients + portions in single transaction).
+ * - Deterministic idempotency for food and portions.
+ * - Zero semantic fallbacks (no || 100 or || "G").
+ * - Pure generic deduplication without hardcoded food exceptions.
+ * - Explicit versioned source key: IBGE_POF_2008_2009.
  */
 
 import mysql from "mysql2/promise";
@@ -21,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const SOURCE_KEY = "IBGE";
+export const SOURCE_KEY = "IBGE_POF_2008_2009";
 export const SOURCE_VERSION = "POF 2008-2009 (2011)";
 export const EXPECTED_HISTORICAL_SHA256 = "e75487405593196fe551d58e934e415e840f33f78acd0af08ed61bedb957c7ac";
 export const SOURCE_REFERENCE = `IBGE - Pesquisa de Orçamentos Familiares 2008-2009 [SHA-256: ${EXPECTED_HISTORICAL_SHA256}]`;
@@ -60,20 +63,22 @@ export function normalizeSearchText(text) {
     .trim();
 }
 
+export function generateDeterministicUuid(namespace, seed) {
+  const hash = crypto.createHash("sha256").update(`${namespace}:${seed}`).digest("hex");
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
+}
+
 export function parseArgs(argv) {
   let isApply = false;
-  let isAllowProduction = false;
   for (const arg of argv) {
     if (arg === "--apply") {
       isApply = true;
-    } else if (arg === "--allow-production") {
-      isAllowProduction = true;
     } else {
       console.error(`ERRO: Argumento desconhecido ou inválido: '${arg}'`);
       process.exit(1);
     }
   }
-  return { isApply, isAllowProduction };
+  return { isApply };
 }
 
 export function loadFileEnv(filePath = ".env.local") {
@@ -142,7 +147,7 @@ export function validateTargetGuards({ dbName, dbHost }) {
     throw new Error(`ERRO DE SEGURANÇA: Host inesperado: '${dbHost}'. Esperado: '${EXPECTED_HOST}'.`);
   }
 
-  const { isProd, isDev, isValid } = classifyDatabase(dbName);
+  const { isProd, isValid } = classifyDatabase(dbName);
   if (!isValid) {
     throw new Error(`ERRO DE SEGURANÇA: Banco de dados não autorizado: '${dbName}'.`);
   }
@@ -155,23 +160,231 @@ export function validateTargetGuards({ dbName, dbHost }) {
     );
   }
 
-  return { isProd, isDev };
+  return { isProd };
+}
+
+/**
+ * Validates mandatory food properties without any arbitrary defaults.
+ * Throws SOURCE_ERROR if invalid.
+ */
+export function validateFoodSourceRecord(food) {
+  if (!food.food_code || typeof food.food_code !== "string" || !food.food_code.trim()) {
+    throw new Error(`SOURCE_ERROR: Missing mandatory food_code: '${food.food_code}'`);
+  }
+  if (!food.prep_code || typeof food.prep_code !== "string" || !food.prep_code.trim()) {
+    throw new Error(`SOURCE_ERROR: Missing mandatory prep_code: '${food.prep_code}'`);
+  }
+  if (!food.name || typeof food.name !== "string" || !food.name.trim()) {
+    throw new Error(`SOURCE_ERROR: Missing mandatory food name for code ${food.food_code}`);
+  }
+
+  // Strict referenceAmount validation: NO FAKE 100 DEFAULT
+  if (food.reference_amount == null || typeof food.reference_amount !== "number" || Number.isNaN(food.reference_amount) || food.reference_amount <= 0) {
+    throw new Error(`SOURCE_ERROR: Missing or invalid reference_amount for food ${food.name}: ${food.reference_amount}`);
+  }
+
+  // Strict referenceUnitCode validation: NO FAKE 'G' DEFAULT
+  if (!food.reference_unit_code || typeof food.reference_unit_code !== "string" || !food.reference_unit_code.trim()) {
+    throw new Error(`SOURCE_ERROR: Missing or invalid reference_unit_code for food ${food.name}: ${food.reference_unit_code}`);
+  }
+
+  // Strict macro validation: no negative values allowed
+  const checkMacro = (val, name) => {
+    if (val !== null && val !== undefined) {
+      if (typeof val !== "number" || Number.isNaN(val) || val < 0) {
+        throw new Error(`SOURCE_ERROR: Negative or invalid macro ${name} for ${food.name}: ${val}`);
+      }
+    }
+  };
+  checkMacro(food.calories_kcal, "calories_kcal");
+  checkMacro(food.protein_g, "protein_g");
+  checkMacro(food.carbohydrate_g, "carbohydrate_g");
+  checkMacro(food.fat_g, "fat_g");
+  checkMacro(food.fiber_g, "fiber_g");
+}
+
+/**
+ * Imports single food atomically inside a managed transaction.
+ * Rolls back completely on ANY failure (food + portions + nutrients).
+ */
+export async function importSingleFoodAtomic(conn, food, measuresList, options = {}) {
+  validateFoodSourceRecord(food);
+
+  await conn.beginTransaction();
+  try {
+    const normName = normalizeSearchText(food.name);
+    const normDisplayName = normalizeSearchText(food.display_name_pt_br || food.name);
+    const sourceUid = food.source_uid || `${SOURCE_KEY}:${food.food_code}:${food.prep_code}`;
+
+    // 1. Check existing food by source_uid
+    const [existing] = await conn.query(
+      "SELECT id FROM nutrition_v2_foods WHERE source_uid = ? FOR UPDATE",
+      [sourceUid]
+    );
+
+    let foodId;
+    if (existing.length > 0) {
+      foodId = existing[0].id;
+      await conn.query(
+        `UPDATE nutrition_v2_foods SET
+          name = ?,
+          display_name_pt_br = ?,
+          normalized_name = ?,
+          normalized_display_name_pt_br = ?,
+          category = ?,
+          reference_amount = ?,
+          reference_unit_code = ?,
+          calories_kcal = ?,
+          protein_g = ?,
+          carbohydrate_g = ?,
+          fat_g = ?,
+          fiber_g = ?,
+          data_quality = 'SURVEY_RECIPE',
+          source_key = ?,
+          source_external_code = ?,
+          source_version = ?,
+          source_reference = ?
+        WHERE id = ?`,
+        [
+          food.name.trim(),
+          (food.display_name_pt_br || food.name).trim(),
+          normName,
+          normDisplayName,
+          food.category ? food.category.trim() : null,
+          food.reference_amount,
+          food.reference_unit_code.trim(),
+          food.calories_kcal,
+          food.protein_g,
+          food.carbohydrate_g,
+          food.fat_g,
+          food.fiber_g,
+          SOURCE_KEY,
+          String(food.source_external_code),
+          food.source_version || SOURCE_VERSION,
+          food.source_reference || SOURCE_REFERENCE,
+          foodId
+        ]
+      );
+    } else {
+      const publicId = generateDeterministicUuid("food", sourceUid);
+      const [insertRes] = await conn.query(
+        `INSERT INTO nutrition_v2_foods (
+          public_id, scope, consultancy_id, name, display_name_pt_br,
+          normalized_name, normalized_display_name_pt_br, category,
+          reference_amount, reference_unit_code, calories_kcal,
+          protein_g, carbohydrate_g, fat_g, fiber_g, status,
+          source_type, data_quality, source_key, source_external_code,
+          source_version, source_reference, source_uid
+        ) VALUES (?, 'GLOBAL', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'EXTERNAL', 'SURVEY_RECIPE', ?, ?, ?, ?, ?)`,
+        [
+          publicId,
+          food.name.trim(),
+          (food.display_name_pt_br || food.name).trim(),
+          normName,
+          normDisplayName,
+          food.category ? food.category.trim() : null,
+          food.reference_amount,
+          food.reference_unit_code.trim(),
+          food.calories_kcal,
+          food.protein_g,
+          food.carbohydrate_g,
+          food.fat_g,
+          food.fiber_g,
+          SOURCE_KEY,
+          String(food.source_external_code),
+          food.source_version || SOURCE_VERSION,
+          food.source_reference || SOURCE_REFERENCE,
+          sourceUid
+        ]
+      );
+      foodId = insertRes.insertId;
+    }
+
+    // 2. Insert micronutrients (exact zero semantics: only KNOWN_ZERO if officially zero)
+    let expectedNutrients = 0;
+    if (food.micronutrients) {
+      for (const [key, mapping] of Object.entries(NUTR_MAP)) {
+        const val = food.micronutrients[key];
+        if (val !== null && val !== undefined) {
+          const num = Number(val);
+          const status = num > 0 ? "KNOWN" : "KNOWN_ZERO";
+          await conn.query(
+            `INSERT INTO nutrition_v2_food_nutrients (food_id, nutrient_code, amount_per_reference, unit_code, status)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE amount_per_reference = VALUES(amount_per_reference), status = VALUES(status)`,
+            [foodId, mapping.code, num, mapping.unit, status]
+          );
+          expectedNutrients++;
+        }
+      }
+    }
+
+    // 3. Upsert household measures with deterministic per-portion identity & label matching
+    const [existingPortions] = await conn.query(
+      "SELECT id, public_id, label FROM nutrition_v2_food_portions WHERE food_id = ?",
+      [foodId]
+    );
+    const existingPortionMap = new Map();
+    existingPortions.forEach(p => existingPortionMap.set(p.label, p));
+
+    const portions = measuresList || [];
+    for (let idx = 0; idx < portions.length; idx++) {
+      const p = portions[idx];
+      const pLabel = p.label.slice(0, 100);
+      const existingMatch = existingPortionMap.get(pLabel);
+
+      const portionPublicId = existingMatch
+        ? existingMatch.public_id
+        : generateDeterministicUuid("portion", `${sourceUid}:${p.measure_code || p.measure_name || idx}`);
+
+      if (existingMatch) {
+        await conn.query(
+          `UPDATE nutrition_v2_food_portions SET
+            equivalent_reference_amount = ?,
+            sort_order = ?,
+            status = 'ACTIVE'
+          WHERE id = ?`,
+          [p.grams, idx + 1, existingMatch.id]
+        );
+      } else {
+        await conn.query(
+          `INSERT INTO nutrition_v2_food_portions (public_id, food_id, label, equivalent_reference_amount, sort_order, status)
+           VALUES (?, ?, ?, ?, ?, 'ACTIVE')
+           ON DUPLICATE KEY UPDATE equivalent_reference_amount = VALUES(equivalent_reference_amount), sort_order = VALUES(sort_order), status = 'ACTIVE'`,
+          [portionPublicId, foodId, pLabel, p.grams, idx + 1]
+        );
+      }
+    }
+
+    // 4. Invariant check inside transaction
+    const [nCheck] = await conn.query("SELECT COUNT(*) as c FROM nutrition_v2_food_nutrients WHERE food_id = ?", [foodId]);
+    const [pCheck] = await conn.query("SELECT COUNT(*) as c FROM nutrition_v2_food_portions WHERE food_id = ? AND deleted_at IS NULL", [foodId]);
+    if (nCheck[0].c < expectedNutrients || pCheck[0].c < portions.length) {
+      throw new Error(`INTEGRITY_CHECK_FAILED: child rows count mismatch for foodId ${foodId}`);
+    }
+
+    // Hook for automated rollback simulation tests
+    if (options.simulateErrorDuringTransaction) {
+      throw new Error("SIMULATED_TEST_ERROR_FOR_ROLLBACK");
+    }
+
+    await conn.commit();
+    return { foodId, nutrientCount: nCheck[0].c, portionCount: pCheck[0].c };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  }
 }
 
 async function run() {
-  const { isApply, isAllowProduction } = parseArgs(process.argv.slice(2));
+  const { isApply } = parseArgs(process.argv.slice(2));
   const fileEnv = loadFileEnv(".env.local");
   const dbConfig = resolveDatabaseConfig(process.env, fileEnv);
 
-  try {
-    validateTargetGuards({
-      dbName: dbConfig.database,
-      dbHost: dbConfig.host,
-    });
-  } catch (err) {
-    console.error(err.message);
-    process.exit(1);
-  }
+  validateTargetGuards({
+    dbName: dbConfig.database,
+    dbHost: dbConfig.host,
+  });
 
   const datasetPath = path.resolve(__dirname, "../data/nutrition/ibge-pof-2008-2009.json");
   if (!fs.existsSync(datasetPath)) {
@@ -186,26 +399,15 @@ async function run() {
   }
 
   const rawBytes = fs.readFileSync(datasetPath);
-  let dataset;
-  try {
-    dataset = JSON.parse(rawBytes.toString("utf8"));
-  } catch (err) {
-    console.error(`ERRO: Falha ao interpretar JSON do dataset: ${err.message}`);
-    process.exit(1);
-  }
+  const dataset = JSON.parse(rawBytes.toString("utf8"));
+  const { foods } = dataset;
 
-  const { metadata, foods } = dataset;
-  if (!metadata || !Array.isArray(foods) || foods.length === 0) {
-    console.error(`ERRO: Dataset inválido. Esperados alimentos válidos, encontrados: ${foods?.length}`);
-    process.exit(1);
-  }
-
-  console.log("=== TREVO ONE - SEED IBGE POF GLOBAL NUTRITION V2 ===");
+  console.log("=== TREVO ONE - SEED IBGE POF GLOBAL NUTRITION V2 (B2A.1 HARDENED) ===");
   console.log("Fonte de dados:", `Dataset oficial IBGE POF (${foods.length} alimentos brutos)`);
   console.log("Banco de dados alvo:", dbConfig.database);
   console.log("Ambiente:", dbConfig.database === PROD_DB_NAME ? "PRODUÇÃO" : "DEV");
   console.log("Modo de execução:", isApply ? "APPLY (Escrita no banco DEV)" : "DRY RUN (Simulação / Sem escrita)");
-  console.log("Versão IBGE:", metadata.source_version || SOURCE_VERSION);
+  console.log("Versão e Fonte:", SOURCE_KEY);
 
   const pool = mysql.createPool({
     host: dbConfig.host,
@@ -218,17 +420,15 @@ async function run() {
   });
 
   try {
-    // 1. Check existing IBGE foods by source_uid
+    // 1. Check existing IBGE foods by source_key
     const [existingIbge] = await pool.query(
       "SELECT id, source_uid, source_external_code FROM nutrition_v2_foods WHERE source_key = ?",
       [SOURCE_KEY]
     );
     const existingUidSet = new Set(existingIbge.map((r) => r.source_uid));
-    const existingMap = new Map();
-    existingIbge.forEach((r) => existingMap.set(r.source_external_code, r.id));
-    console.log(`Alimentos IBGE já existentes em Nutrition V2: ${existingUidSet.size}`);
+    console.log(`Alimentos já existentes com chave '${SOURCE_KEY}': ${existingUidSet.size}`);
 
-    // 2. Load TACO foods to prevent redundant duplicates where TACO is already the primary authority
+    // 2. Load TACO foods for pure generic deduplication
     const [tacoFoods] = await pool.query(
       "SELECT normalized_name FROM nutrition_v2_foods WHERE source_key = 'TACO'"
     );
@@ -236,16 +436,11 @@ async function run() {
     console.log(`Alimentos TACO existentes para deduplicação: ${tacoNormSet.size}`);
 
     // 3. Prepare planned inserts
-    const plannedInserts = [];
+    const plannedFoods = [];
     let skippedTacoDerived = 0;
     let skippedExactTacoDuplicate = 0;
 
     for (const food of foods) {
-      const sourceUid = food.source_uid;
-      if (existingUidSet.has(sourceUid)) {
-        continue;
-      }
-
       // Deduplication Rule 1: Skip foods where IBGE explicitly cites TACO (Ref 2)
       if (food.ibge_meta?.is_taco_derived) {
         skippedTacoDerived++;
@@ -253,47 +448,19 @@ async function run() {
       }
 
       const normName = normalizeSearchText(food.name);
-      const normDisplayName = normalizeSearchText(food.display_name_pt_br || food.name);
 
-      // Deduplication Rule 2: If food has exact normalized match in TACO and is not a specific staple gap
-      const isSpecificStaple = food.food_code === "7400101" || food.food_code === "8400101"; // Tilápia e Azeite
-      if (!isSpecificStaple && tacoNormSet.has(normName)) {
+      // Deduplication Rule 2: Pure generic deduplication against TACO without hardcoded food exceptions
+      if (tacoNormSet.has(normName)) {
         skippedExactTacoDuplicate++;
         continue;
       }
 
-      plannedInserts.push({
-        publicId: crypto.randomUUID(),
-        scope: "GLOBAL",
-        consultancyId: null,
-        name: food.name.trim(),
-        displayNamePtBr: (food.display_name_pt_br || food.name).trim(),
-        normalizedName: normName,
-        normalizedDisplayNamePtBr: normDisplayName,
-        category: food.category ? food.category.trim() : null,
-        referenceAmount: Number(food.reference_amount) || 100.0,
-        referenceUnitCode: food.reference_unit_code ? food.reference_unit_code.trim() : "G",
-        caloriesKcal: food.calories_kcal != null ? Number(food.calories_kcal) : null,
-        proteinG: food.protein_g != null ? Number(food.protein_g) : null,
-        carbohydrateG: food.carbohydrate_g != null ? Number(food.carbohydrate_g) : null,
-        fatG: food.fat_g != null ? Number(food.fat_g) : null,
-        fiberG: food.fiber_g != null ? Number(food.fiber_g) : null,
-        status: "ACTIVE",
-        sourceType: "EXTERNAL",
-        dataQuality: "SURVEY_RECIPE",
-        sourceKey: SOURCE_KEY,
-        sourceExternalCode: String(food.source_external_code),
-        sourceVersion: metadata.source_version || SOURCE_VERSION,
-        sourceReference: metadata.source_reference || SOURCE_REFERENCE,
-        sourceImportedAt: metadata.source_imported_at || new Date().toISOString(),
-        sourceUid,
-        foodObj: food,
-      });
+      plannedFoods.push(food);
     }
 
     console.log(`Deduplicação: ${skippedTacoDerived} alimentos ignorados por serem derivados de TACO na origem.`);
-    console.log(`Deduplicação: ${skippedExactTacoDuplicate} alimentos ignorados por já existirem em TACO.`);
-    console.log(`Novos alimentos IBGE a inserir: ${plannedInserts.length}`);
+    console.log(`Deduplicação: ${skippedExactTacoDuplicate} alimentos ignorados por match genérico exato em TACO.`);
+    console.log(`Total de alimentos IBGE válidos para catálogo: ${plannedFoods.length}`);
 
     if (!isApply) {
       console.log("\nSimulação (DRY RUN) concluída com sucesso.");
@@ -302,165 +469,33 @@ async function run() {
       return;
     }
 
-    if (plannedInserts.length > 0) {
-      console.log(`\nIniciando inserção em lote de ${plannedInserts.length} alimentos no banco DEV...`);
-      const batchSize = 100;
-      let inserted = 0;
-
-      for (let i = 0; i < plannedInserts.length; i += batchSize) {
-        const batch = plannedInserts.slice(i, i + batchSize);
-        const values = [];
-        const placeholders = [];
-
-        for (const item of batch) {
-          placeholders.push("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-          values.push(
-            item.publicId,
-            item.scope,
-            item.consultancyId,
-            item.name,
-            item.displayNamePtBr,
-            item.normalizedDisplayNamePtBr,
-            item.normalizedName,
-            item.category,
-            item.referenceAmount,
-            item.referenceUnitCode,
-            item.caloriesKcal,
-            item.proteinG,
-            item.carbohydrateG,
-            item.fatG,
-            item.fiberG,
-            item.status,
-            item.sourceType,
-            item.dataQuality,
-            item.sourceKey,
-            item.sourceExternalCode,
-            item.sourceVersion,
-            item.sourceReference,
-            item.sourceUid
-          );
-        }
-
-        const sql = `
-          INSERT INTO nutrition_v2_foods (
-            public_id,
-            scope,
-            consultancy_id,
-            name,
-            display_name_pt_br,
-            normalized_display_name_pt_br,
-            normalized_name,
-            category,
-            reference_amount,
-            reference_unit_code,
-            calories_kcal,
-            protein_g,
-            carbohydrate_g,
-            fat_g,
-            fiber_g,
-            status,
-            source_type,
-            data_quality,
-            source_key,
-            source_external_code,
-            source_version,
-            source_reference,
-            source_uid
-          ) VALUES ${placeholders.join(", ")}
-        `;
-
-        await pool.query(sql, values);
-        inserted += batch.length;
-        process.stdout.write(`  Progresso: ${inserted}/${plannedInserts.length} (${Math.round((inserted / plannedInserts.length) * 100)}%)\r`);
-      }
-      console.log(`\n✓ Inserção concluída: ${inserted} alimentos IBGE importados com sucesso no banco DEV!`);
-    }
-
-    // Refresh existingMap with IDs
-    const [allIbge] = await pool.query(
-      "SELECT id, source_external_code FROM nutrition_v2_foods WHERE source_key = ?",
-      [SOURCE_KEY]
-    );
-    const idMap = new Map();
-    allIbge.forEach((r) => idMap.set(r.source_external_code, r.id));
-
-    // Nutrients and Portions enrichment
-    const nutrientRows = [];
-    const portionRows = [];
-
-    for (const food of foods) {
-      const foodId = idMap.get(food.source_external_code);
-      if (!foodId) continue;
-
-      if (food.micronutrients) {
-        for (const [key, mapping] of Object.entries(NUTR_MAP)) {
-          const val = food.micronutrients[key];
-          if (val !== null && val !== undefined) {
-            const num = Number(val);
-            const status = num > 0 ? "KNOWN" : "KNOWN_ZERO";
-            nutrientRows.push([foodId, mapping.code, num, mapping.unit, status]);
-          }
+    // Atomic per-food import execution
+    console.log(`\nIniciando importação atômica por alimento (${plannedFoods.length} alimentos)...`);
+    const conn = await pool.getConnection();
+    let imported = 0;
+    try {
+      for (const food of plannedFoods) {
+        const portions = measuresData.measures[food.source_external_code] || [];
+        await importSingleFoodAtomic(conn, food, portions);
+        imported++;
+        if (imported % 100 === 0 || imported === plannedFoods.length) {
+          process.stdout.write(`  Progresso atômico: ${imported}/${plannedFoods.length} (${Math.round((imported / plannedFoods.length) * 100)}%)\r`);
         }
       }
-
-      const portions = measuresData.measures[food.source_external_code];
-      if (portions && portions.length > 0) {
-        portions.forEach((p, idx) => {
-          portionRows.push([
-            crypto.randomUUID(),
-            foodId,
-            p.label.slice(0, 100),
-            p.grams,
-            idx + 1,
-            "ACTIVE"
-          ]);
-        });
-      }
+      console.log(`\n✓ Importação atômica concluída com sucesso: ${imported} alimentos processados!`);
+    } finally {
+      conn.release();
     }
 
-    if (nutrientRows.length > 0) {
-      console.log(`\nInserindo/Atualizando ${nutrientRows.length} nutrientes...`);
-      const batchSize = 500;
-      for (let i = 0; i < nutrientRows.length; i += batchSize) {
-        const chunk = nutrientRows.slice(i, i + batchSize);
-        const placeholders = chunk.map(() => "(?, ?, ?, ?, ?)").join(", ");
-        await pool.query(
-          `INSERT INTO nutrition_v2_food_nutrients (food_id, nutrient_code, amount_per_reference, unit_code, status)
-           VALUES ${placeholders}
-           ON DUPLICATE KEY UPDATE amount_per_reference = VALUES(amount_per_reference), status = VALUES(status)`,
-          chunk.flat()
-        );
-      }
-      console.log(`✓ ${nutrientRows.length} nutrientes processados com sucesso.`);
-    }
-
-    // Check if portions already exist
-    const [existingPortions] = await pool.query(
-      "SELECT COUNT(*) as count FROM nutrition_v2_food_portions fp JOIN nutrition_v2_foods f ON f.id = fp.food_id WHERE f.source_key = ?",
-      [SOURCE_KEY]
-    );
-    if (existingPortions[0].count === 0 && portionRows.length > 0) {
-      console.log(`\nInserindo ${portionRows.length} porções de medidas caseiras...`);
-      const batchSize = 500;
-      for (let i = 0; i < portionRows.length; i += batchSize) {
-        const chunk = portionRows.slice(i, i + batchSize);
-        const placeholders = chunk.map(() => "(?, ?, ?, ?, ?, ?)").join(", ");
-        await pool.query(
-          `INSERT INTO nutrition_v2_food_portions (public_id, food_id, label, equivalent_reference_amount, sort_order, status)
-           VALUES ${placeholders}`,
-          chunk.flat()
-        );
-      }
-      console.log(`✓ ${portionRows.length} porções inseridas.`);
-    }
-
-    console.log("\n=== IMPORTAÇÃO E ENRIQUECIMENTO CONCLUÍDOS COM SUCESSO ===");
   } finally {
     await pool.end();
   }
 }
 
-run().catch((err) => {
-  console.error("ERRO FATAL:", err);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  run().catch((err) => {
+    console.error("ERRO FATAL:", err);
+    process.exit(1);
+  });
+}
+

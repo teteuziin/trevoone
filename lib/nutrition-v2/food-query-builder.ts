@@ -29,7 +29,7 @@ export type FoodSourceTab = "TREVO_BRASIL" | "COMMERCIAL" | "MY_FOODS" | "OTHER_
 // PHASE B1.1 — CURATED BRAZILIAN SOURCE ALLOWLISTS & INTEGRITY GUARDS
 // ============================================================================
 
-export const APPROVED_BR_SOURCE_KEYS = Object.freeze(["TACO", "IBGE", "GROWTH_SUPPLEMENTS"] as const);
+export const APPROVED_BR_SOURCE_KEYS = Object.freeze(["TACO", "IBGE_POF_2008_2009", "GROWTH_SUPPLEMENTS"] as const);
 export type ApprovedBrSourceKey = (typeof APPROVED_BR_SOURCE_KEYS)[number];
 
 export const APPROVED_COMMERCIAL_SOURCE_KEYS = Object.freeze(["GROWTH_SUPPLEMENTS"] as const);
@@ -480,6 +480,7 @@ export function buildFoodSearchOrderClause(
     -- Prioritize analytical laboratory direct data & survey recipe data quality
     CASE
       WHEN f.source_key = 'TACO' THEN 1
+      WHEN f.source_key = 'IBGE_POF_2008_2009' THEN 2
       WHEN f.source_key = 'IBGE' THEN 2
       WHEN f.source_key = 'USDA_FOUNDATION' THEN 3
       WHEN f.source_key = 'USDA_FNDDS' THEN 4

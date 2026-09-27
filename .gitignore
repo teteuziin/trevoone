@@ -48,3 +48,5 @@ next-env.d.ts
 # local agent files
 /AGENTS.md
 /CLAUDE.md
+
+data/nutrition/*.zip

@@ -23,7 +23,7 @@ console.log("  ✓ Todos os 7 arquivos de dados e metadados oficiais confirmados
 // 2. Checksums & Manifest
 console.log("Test 2: Validando integridade criptográfica e manifest...");
 const manifest = JSON.parse(fs.readFileSync("data/nutrition/ibge-pof-manifest.json", "utf8"));
-assert.equal(manifest.source_key, "IBGE");
+assert.equal(manifest.source_key, "IBGE_POF_2008_2009");
 assert.equal(manifest.dataset_version, "POF 2008-2009 (2011)");
 assert.equal(manifest.reference_basis, "100g of edible portion");
 assert.equal(manifest.reuse_status, "NOT_EXPLICITLY_CONFIRMED");

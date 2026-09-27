@@ -33,10 +33,10 @@ const pool = mysql.createPool({
 
 try {
   const [portCount] = await pool.query(`
-    SELECT COUNT(*) as count 
+    SELECT COUNT(*) as count
     FROM nutrition_v2_food_portions fp
     JOIN nutrition_v2_foods f ON f.id = fp.food_id
-    WHERE f.source_key = 'IBGE'
+    WHERE f.source_key = 'IBGE_POF_2008_2009'
   `);
   console.log(`  ✓ Total de porções IBGE no banco DEV: ${portCount[0].count}`);
   assert.equal(portCount[0].count, 7069, "Banco DEV deve conter exatamente 7069 porções associadas aos 1820 alimentos IBGE");
@@ -49,7 +49,7 @@ try {
       SELECT fp.label, fp.equivalent_reference_amount, fp.sort_order
       FROM nutrition_v2_food_portions fp
       JOIN nutrition_v2_foods f ON f.id = fp.food_id
-      WHERE f.source_key = 'IBGE' AND f.source_external_code LIKE ?
+      WHERE f.source_key = 'IBGE_POF_2008_2009' AND f.source_external_code LIKE ?
       ORDER BY fp.sort_order ASC
     `, [`${foodCode}:%`]);
     return rows;

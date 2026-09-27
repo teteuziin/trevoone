@@ -37,10 +37,9 @@ for (const food of dataset.foods) {
   }
 
   const normName = normalizeSearchText(food.name);
-  const isSpecificStaple = (food.food_code === "7400101" || food.food_code === "8400101");
 
-  // Rule 2: Skip exact duplicates unless protected staple gap
-  if (!isSpecificStaple && tacoNormSet.has(normName)) {
+  // Rule 2: Skip exact duplicates using generic name matching (no hardcoded food code exceptions)
+  if (tacoNormSet.has(normName)) {
     skippedExactTacoDuplicate++;
     continue;
   }

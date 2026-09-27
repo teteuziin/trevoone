@@ -28,7 +28,7 @@ try {
   const [foods] = await pool.query(`
     SELECT id, public_id, name, display_name_pt_br, reference_amount, reference_unit_code, status, data_quality
     FROM nutrition_v2_foods
-    WHERE source_key = 'IBGE'
+    WHERE source_key = 'IBGE_POF_2008_2009'
   `);
   assert.equal(foods.length, 1820, "Deve haver exatamente 1820 alimentos IBGE");
   for (const f of foods) {
@@ -45,9 +45,9 @@ try {
   // 2. Orphan portions check
   console.log("Test 2: Validando ausência de porções órfãs...");
   const [orphanPort] = await pool.query(`
-    SELECT COUNT(*) as count 
-    FROM nutrition_v2_food_portions fp 
-    LEFT JOIN nutrition_v2_foods f ON f.id = fp.food_id 
+    SELECT COUNT(*) as count
+    FROM nutrition_v2_food_portions fp
+    LEFT JOIN nutrition_v2_foods f ON f.id = fp.food_id
     WHERE f.id IS NULL
   `);
   assert.equal(orphanPort[0].count, 0, "NÃO deve haver nenhuma porção órfã");
@@ -56,9 +56,9 @@ try {
   // 3. Orphan nutrients check
   console.log("Test 3: Validando ausência de nutrientes órfãos...");
   const [orphanNutr] = await pool.query(`
-    SELECT COUNT(*) as count 
-    FROM nutrition_v2_food_nutrients fn 
-    LEFT JOIN nutrition_v2_foods f ON f.id = fn.food_id 
+    SELECT COUNT(*) as count
+    FROM nutrition_v2_food_nutrients fn
+    LEFT JOIN nutrition_v2_foods f ON f.id = fn.food_id
     WHERE f.id IS NULL
   `);
   assert.equal(orphanNutr[0].count, 0, "NÃO deve haver nenhum nutriente órfão");
@@ -67,16 +67,16 @@ try {
   // 4. Quantidades totais inseridas
   console.log("Test 4: Validando quantidades totais inseridas e consistência relacional...");
   const [portCount] = await pool.query(`
-    SELECT COUNT(*) as count 
+    SELECT COUNT(*) as count
     FROM nutrition_v2_food_portions fp
     JOIN nutrition_v2_foods f ON f.id = fp.food_id
-    WHERE f.source_key = 'IBGE'
+    WHERE f.source_key = 'IBGE_POF_2008_2009'
   `);
   const [nutrCount] = await pool.query(`
-    SELECT COUNT(*) as count 
+    SELECT COUNT(*) as count
     FROM nutrition_v2_food_nutrients fn
     JOIN nutrition_v2_foods f ON f.id = fn.food_id
-    WHERE f.source_key = 'IBGE'
+    WHERE f.source_key = 'IBGE_POF_2008_2009'
   `);
   assert.equal(portCount[0].count, 7069, "Deve haver exatamente 7069 porções IBGE");
   assert.equal(nutrCount[0].count, 26942, "Deve haver exatamente 26942 nutrientes IBGE");
@@ -84,10 +84,10 @@ try {
 
   // 5. Foods with zero portions
   const [foodsNoPortions] = await pool.query(`
-    SELECT COUNT(*) as count 
+    SELECT COUNT(*) as count
     FROM nutrition_v2_foods f
     LEFT JOIN nutrition_v2_food_portions fp ON fp.food_id = f.id
-    WHERE f.source_key = 'IBGE' AND fp.id IS NULL
+    WHERE f.source_key = 'IBGE_POF_2008_2009' AND fp.id IS NULL
   `);
   assert(foodsNoPortions[0].count <= 10, "Apenas uma minoria ínfima (< 10) de alimentos sem porção declarada na pesquisa");
   console.log(`  ✓ Alimentos IBGE sem porção declarada na pesquisa oficial: ${foodsNoPortions[0].count} (99.8% de cobertura)`);

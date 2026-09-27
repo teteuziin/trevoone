@@ -122,7 +122,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
         <Link
           href={
             preselectedStudent
-              ? `/consultoria/${slug}/alunos/${preselectedStudent.student.membershipPublicId}`
+              ? `/consultoria/${slug}/progresso/alunos/${preselectedStudent.student.membershipPublicId}`
               : `/consultoria/${slug}/rotinas`
           }
           className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"
@@ -273,7 +273,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
               <Link
                 href={
                   preselectedStudent
-                    ? `/consultoria/${slug}/alunos/${preselectedStudent.student.membershipPublicId}`
+                    ? `/consultoria/${slug}/progresso/alunos/${preselectedStudent.student.membershipPublicId}`
                     : `/consultoria/${slug}/rotinas`
                 }
               >

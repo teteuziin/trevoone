@@ -119,7 +119,7 @@ export function PersonalStudentDetailView({
       {/* Top Breadcrumb */}
       <div>
         <Link
-          href={`/consultoria/${consultancySlug}/alunos`}
+          href={`/consultoria/${consultancySlug}/progresso/alunos`}
           className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"
         >
           <ArrowLeftIcon className="w-4 h-4" />

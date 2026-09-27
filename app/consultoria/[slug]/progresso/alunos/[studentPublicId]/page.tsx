@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
+import { getPersonalStudentDetail } from "@/lib/consultancies/personal-student-hub";
 import {
   getStudentEvolutionHubData,
   getEvolutionComparisonBetweenDates,
@@ -9,6 +10,7 @@ import {
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { Evolution360Hub } from "@/components/consultancies/evolution/evolution-360-hub";
+import { PersonalStudentDetailView } from "@/components/consultancies/personal-student-hub/personal-student-detail-view";
 
 interface PageProps {
   params: Promise<{
@@ -50,7 +52,39 @@ export default async function ProfessionalStudentProgressDetailPage({
     redirect(`/consultoria/${slug}`);
   }
 
-  // 1. Fetch unified 360 data under canonical operational relationship verification
+  // Load complete student hub detail for Personal and Consultancy Admin
+  if (isPersonal || isConsultancyAdmin) {
+    const detail = await getPersonalStudentDetail({
+      consultancyId: context.consultancyId,
+      consultancySlug: slug,
+      studentPublicId,
+    });
+
+    if (!detail) {
+      notFound();
+    }
+
+    return (
+      <ConsultancyAppShell
+        consultancyName={context.consultancyName}
+        consultancySlug={slug}
+        consultancyLogoUrl={context.consultancyLogoUrl}
+        roles={context.roles}
+        userName={session.fullName}
+        userEmail={session.email}
+        userPublicId={session.userPublicId}
+        consultancyPublicId={context.consultancyPublicId}
+        viewModeState={effectiveState}
+      >
+        <PersonalStudentDetailView
+          consultancySlug={slug}
+          detail={detail}
+        />
+      </ConsultancyAppShell>
+    );
+  }
+
+  // Nutritionist-only fallback: unified 360 evolution hub
   const hubData = await getStudentEvolutionHubData({
     userId: session.userId,
     consultancySlug: slug,
@@ -62,7 +96,6 @@ export default async function ProfessionalStudentProgressDetailPage({
     notFound();
   }
 
-  // 2. Compute initial comparison deltas in memory from pre-loaded hub data (0 extra DB queries)
   const initialComparisonData = await getEvolutionComparisonBetweenDates({
     userId: session.userId,
     consultancySlug: slug,
@@ -84,16 +117,14 @@ export default async function ProfessionalStudentProgressDetailPage({
       viewModeState={effectiveState}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
-        {/* Page Header */}
         <PageHeader
-          eyebrow="Acompanhamento 360°"
-          title={`Evolução de ${hubData.student.fullName}`}
+          eyebrow="Acompanhamento 360�"
+          title={`Evolu��o de ${hubData.student.fullName}`}
           description={hubData.student.email}
           backHref={`/consultoria/${slug}/progresso/alunos`}
           backLabel="Voltar para lista de alunos"
         />
 
-        {/* Unified 360 Hub */}
         <Evolution360Hub
           consultancySlug={slug}
           hubData={hubData}

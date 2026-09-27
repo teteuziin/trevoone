@@ -148,7 +148,7 @@ export function PersonalStudentList({
                     </div>
                     <div className="min-w-0 space-y-0.5">
                       <Link
-                        href={`/consultoria/${consultancySlug}/alunos/${student.membershipPublicId}`}
+                        href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
                         className="font-heading text-sm sm:text-base font-bold text-[var(--text-primary)] hover:text-[var(--brand)] transition-colors block truncate"
                       >
                         {student.name}
@@ -204,7 +204,7 @@ export function PersonalStudentList({
                 {/* Actions: Ver aluno & Criar treino */}
                 <div className="flex items-center gap-2 pt-1">
                   <Link
-                    href={`/consultoria/${consultancySlug}/alunos/${student.membershipPublicId}`}
+                    href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
                     className="flex-1 inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[44px] depth-interactive cursor-pointer"
                   >
                     <span>Ver aluno</span>

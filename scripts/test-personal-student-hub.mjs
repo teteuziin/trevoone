@@ -1,17 +1,22 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import fs from "node:fs";
 
-console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB & CRIAÇÃO DE TREINO ===\n");
+console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB (FINAL UX CORRECTION) ===\n");
 
 // ----------------------------------------------------------------------------
-// TEST 1: FILESYSTEM ROUTE & COMPONENT INTEGRITY AUDIT
+// TEST 1: CONFIRM REUSED EXISTING ROUTE AND ABSENCE OF DUPLICATE MODULE
 // ----------------------------------------------------------------------------
 {
-  console.log("Test 1: Verificando existência dos arquivos e rotas...");
+  console.log("Test 1: Verificando reuso da rota existente e ausência de rota duplicada...");
 
+  // Must NOT exist:
+  const duplicateRouteExists = fs.existsSync("app/consultoria/[slug]/alunos");
+  assert.equal(duplicateRouteExists, false, "Rota duplicada /consultoria/[slug]/alunos NÃO deve existir!");
+
+  // Must exist:
   const requiredFiles = [
-    "app/consultoria/[slug]/alunos/page.tsx",
-    "app/consultoria/[slug]/alunos/[studentPublicId]/page.tsx",
+    "app/consultoria/[slug]/progresso/alunos/page.tsx",
+    "app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx",
     "lib/consultancies/personal-student-hub.ts",
     "components/consultancies/personal-student-hub/personal-student-list.tsx",
     "components/consultancies/personal-student-hub/personal-student-detail-view.tsx",
@@ -24,20 +29,20 @@ console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB & CRIAÇÃO DE
     assert.ok(exists, `Arquivo obrigatório ausente: ${file}`);
   }
 
-  console.log("  ✓ Todas as rotas e componentes obrigatórios existem fisicamente.");
+  console.log("  ✓ Rota existente /progresso/alunos reutilizada e rota duplicada /alunos eliminada.");
 }
 
 // ----------------------------------------------------------------------------
-// TEST 2: PERSONAL DASHBOARD ENTRY POINT AUDIT
+// TEST 2: PERSONAL DASHBOARD ENTRY POINT (HOME)
 // ----------------------------------------------------------------------------
 {
-  console.log("Test 2: Verificando card Alunos no Dashboard do Personal...");
+  console.log("Test 2: Verificando card Alunos no Dashboard do Personal (Home)...");
 
   const dashboardCode = fs.readFileSync("components/dashboard/dashboard-personal-view.tsx", "utf8");
 
   assert.ok(
-    dashboardCode.includes("href: `/consultoria/${consultancySlug}/alunos`"),
-    "Dashboard deve possuir link para /consultoria/${consultancySlug}/alunos"
+    dashboardCode.includes("href: `/consultoria/${consultancySlug}/progresso/alunos`"),
+    "Dashboard deve possuir link apontando para /consultoria/${consultancySlug}/progresso/alunos"
   );
   assert.ok(
     dashboardCode.includes('title: "Alunos"'),
@@ -52,42 +57,35 @@ console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB & CRIAÇÃO DE
     "Card deve utilizar o ícone UsersIcon (users / people)"
   );
 
-  console.log("  ✓ Dashboard Personal possui atalho proeminente 'Alunos' com especificações exatas.");
+  console.log("  ✓ Dashboard Personal possui atalho 'Alunos' apontando para /progresso/alunos.");
 }
 
 // ----------------------------------------------------------------------------
-// TEST 3: NAVIGATION & MENU 'MAIS' AUDIT
+// TEST 3: MENU 'MAIS' AUDIT (SINGLE ENTRY FOR ALUNOS)
 // ----------------------------------------------------------------------------
 {
-  console.log("Test 3: Verificando integridade da navegação e menu 'Mais' do Personal...");
+  console.log("Test 3: Verificando menu 'Mais' do Personal com única entrada 'Alunos'...");
 
   const shellCode = fs.readFileSync("components/consultancies/consultancy-app-shell.tsx", "utf8");
 
-  // In items: Personal must have single student entry 'personal-alunos'
+  // In items: Personal must have single student entry 'personal-alunos' pointing to /progresso/alunos
   assert.ok(
     shellCode.includes('id: "personal-alunos"') &&
-    shellCode.includes('href: `/consultoria/${consultancySlug}/alunos`'),
-    "Navegação do Personal deve conter 'personal-alunos' direcionando para /alunos"
+    shellCode.includes('href: `/consultoria/${consultancySlug}/progresso/alunos`'),
+    "Navegação do Personal deve conter 'personal-alunos' apontando para /progresso/alunos"
   );
 
   // Must NOT contain separate student sub-modules in Mais menu for personal
   assert.ok(
     !shellCode.includes('id: "personal-progresso"'),
-    "Navegação do Personal não pode conter atalho paralelo de progresso/alunos solto"
+    "Navegação do Personal não pode conter entrada duplicada de progresso"
   );
   assert.ok(
     !shellCode.includes('id: "personal-formularios"'),
-    "Navegação do Personal não pode conter atalho paralelo de formulários solto"
+    "Navegação do Personal não pode conter entrada paralela de formulários solta"
   );
 
-  // Mobile primary items for personal includes 'personal-alunos'
-  assert.ok(
-    shellCode.includes('id: "personal-alunos"') &&
-    shellCode.includes('mobilePrimaryItems.push('),
-    "Barra móvel primária do Personal deve conter 'Alunos'"
-  );
-
-  console.log("  ✓ Navegação e menu 'Mais' unificados em única entrada 'Alunos' sem módulos duplicados.");
+  console.log("  ✓ Menu 'Mais' possui apenas 'Alunos' como entrada de gestão de alunos.");
 }
 
 // ----------------------------------------------------------------------------
@@ -132,13 +130,13 @@ console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB & CRIAÇÃO DE
 }
 
 // ----------------------------------------------------------------------------
-// TEST 5: DIRECT URL ROUTE PROTECTION
+// TEST 5: DIRECT URL ROUTE PROTECTION (EXISTING REUSED ROUTES)
 // ----------------------------------------------------------------------------
 {
   console.log("Test 5: Verificando proteção e revalidação de rota direta...");
 
-  const listPageCode = fs.readFileSync("app/consultoria/[slug]/alunos/page.tsx", "utf8");
-  const detailPageCode = fs.readFileSync("app/consultoria/[slug]/alunos/[studentPublicId]/page.tsx", "utf8");
+  const listPageCode = fs.readFileSync("app/consultoria/[slug]/progresso/alunos/page.tsx", "utf8");
+  const detailPageCode = fs.readFileSync("app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx", "utf8");
 
   assert.ok(
     listPageCode.includes("resolveConsultancyContext") &&
@@ -157,10 +155,10 @@ console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB & CRIAÇÃO DE
   );
   assert.ok(
     detailPageCode.includes("getPersonalStudentDetail"),
-    "Detalhe do aluno deve carregar dados via getPersonalStudentDetail server-side"
+    "Detalhe do aluno deve carregar dados via getPersonalStudentDetail server-side para Personal"
   );
 
-  console.log("  ✓ Rotas diretas /alunos e /alunos/[studentPublicId] revalidam permissão e tenant.");
+  console.log("  ✓ Rotas /progresso/alunos e /progresso/alunos/[studentPublicId] revalidam permissão e tenant.");
 }
 
 // ----------------------------------------------------------------------------

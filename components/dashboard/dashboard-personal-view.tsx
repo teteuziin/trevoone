@@ -124,7 +124,7 @@ export function DashboardPersonalView({
 }: DashboardPersonalViewProps) {
   const quickActions = [
     {
-      href: `/consultoria/${consultancySlug}/alunos`,
+      href: `/consultoria/${consultancySlug}/progresso/alunos`,
       title: "Alunos",
       description: "Veja seus alunos, informações, avaliações e monte treinos.",
       badge: "Central",

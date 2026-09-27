@@ -132,7 +132,7 @@ export function ConsultancyAppShell({
       id: "personal-alunos",
       label: "Alunos",
       mobileLabel: "Alunos",
-      href: `/consultoria/${consultancySlug}/alunos`,
+      href: `/consultoria/${consultancySlug}/progresso/alunos`,
       iconName: "members",
     });
     items.push({
@@ -312,11 +312,11 @@ export function ConsultancyAppShell({
     mobilePrimaryItems.push(
       overviewItem,
       {
-        id: "personal-alunos",
-        label: "Alunos",
-        mobileLabel: "Alunos",
-        href: `/consultoria/${consultancySlug}/alunos`,
-        iconName: "members",
+        id: "personal-consultas",
+        label: "Consultas",
+        mobileLabel: "Consultas",
+        href: `/consultoria/${consultancySlug}/consultas`,
+        iconName: "consultations",
       },
       {
         id: "personal-rotinas",
@@ -337,11 +337,11 @@ export function ConsultancyAppShell({
     mobilePrimaryItems.push(
       overviewItem,
       {
-        id: "personal-alunos",
-        label: "Alunos",
-        mobileLabel: "Alunos",
-        href: `/consultoria/${consultancySlug}/alunos`,
-        iconName: "members",
+        id: "personal-consultas",
+        label: "Consultas",
+        mobileLabel: "Consultas",
+        href: `/consultoria/${consultancySlug}/consultas`,
+        iconName: "consultations",
       },
       {
         id: "personal-rotinas",

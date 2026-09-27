@@ -80,7 +80,7 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
           <Link
             href={
               student
-                ? `/consultoria/${slug}/alunos/${student}`
+                ? `/consultoria/${slug}/progresso/alunos/${student}`
                 : `/consultoria/${slug}/rotinas${workout.isTemplate ? "?tab=templates" : ""}`
             }
             className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"

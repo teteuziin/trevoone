@@ -11,7 +11,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import mysql from "mysql2/promise";
 
-const { resolveDatabaseConfig } = await import("./import-nutrition-v2-ibge.mjs");
 const { CANONICAL_NUTRIENTS } = await import("../lib/nutrition-v2/micronutrients.ts");
 const { captureMicronutrientsSnapshotForFood } = await import("../lib/nutrition-v2/plan-repository.ts");
 
@@ -20,9 +19,20 @@ console.log("=== PHASE 20: REGRESSION TEST FOR MIGRATION 030 MICRONUTRIENT SCHEM
 const fileEnv = {};
 if (fs.existsSync(".env.local")) {
   fs.readFileSync(".env.local", "utf8").split("\n").forEach((l) => {
-    const [k, ...rest] = l.trim().split("=");
-    if (k && rest.length > 0) fileEnv[k.trim()] = rest.join("=").trim();
+    const parts = l.trim().split("=");
+    const k = parts[0];
+    const v = parts.slice(1).join("=");
+    if (k && v) fileEnv[k.trim()] = v.trim();
   });
+}
+
+function resolveDatabaseConfig(procEnv = process.env, fEnv = {}) {
+  const host = procEnv.DB_HOST || fEnv.DB_HOST;
+  const portStr = procEnv.DB_PORT || fEnv.DB_PORT;
+  const database = procEnv.DB_NAME || fEnv.DB_NAME;
+  const user = procEnv.DB_USER || fEnv.DB_USER;
+  const password = procEnv.DB_PASSWORD !== undefined ? procEnv.DB_PASSWORD : fEnv.DB_PASSWORD;
+  return { host, port: Number(portStr || 3306), database, user, password };
 }
 
 const dbConfig = resolveDatabaseConfig(process.env, fileEnv);

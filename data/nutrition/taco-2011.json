@@ -5769,7 +5769,7 @@
       "protein_g": 13.4,
       "carbohydrate_g": 0,
       "fat_g": 0.1,
-      "display_name_pt_br": "Ovo de galinha clara cozida/10minutos"
+      "display_name_pt_br": "Ovo de galinha clara cozida"
     },
     {
       "source_external_code": "487",
@@ -5782,7 +5782,7 @@
       "protein_g": 15.9,
       "carbohydrate_g": 1.6,
       "fat_g": 30.8,
-      "display_name_pt_br": "Ovo de galinha gema cozida/10minutos"
+      "display_name_pt_br": "Ovo de galinha gema cozida"
     },
     {
       "source_external_code": "488",
@@ -5795,7 +5795,7 @@
       "protein_g": 13.3,
       "carbohydrate_g": 0.6,
       "fat_g": 9.5,
-      "display_name_pt_br": "Ovo de galinha inteiro cozido/10minutos"
+      "display_name_pt_br": "Ovo de galinha inteiro cozido"
     },
     {
       "source_external_code": "489",
@@ -6978,7 +6978,7 @@
       "protein_g": 6.6,
       "carbohydrate_g": 2.1,
       "fat_g": 4,
-      "display_name_pt_br": "Soja queijo (tofu)"
+      "display_name_pt_br": "Tofu"
     },
     {
       "source_external_code": "585",

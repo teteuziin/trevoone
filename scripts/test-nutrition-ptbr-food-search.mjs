@@ -229,9 +229,9 @@ async function runDatabaseTests() {
     const tapiocaRows = await executeQuery("tapioca");
     assert.ok(tapiocaRows.length > 0, "'tapioca' deve retornar registros válidos");
 
-    // I) Truly Absent Records Verification (Report as MISSING, no faked fixtures)
-    const carneSolRows = await executeQuery("carne de sol");
-    assert.equal(carneSolRows.length, 0, "Carne de sol ausente deve retornar 0 (TRULY_MISSING)");
+    // I) Truly Absent Records Verification (Report as MISSING, no faked fixtures - note: carne de sol is now ingested in IBGE POF)
+    const absentRows = await executeQuery("caviar de beluga");
+    assert.equal(absentRows.length, 0, "Alimento ausente no catálogo deve retornar 0 (TRULY_MISSING)");
 
     console.log("  ✓ Regressão permanente PT-BR aprovada: gramática, ortografia, estados de preparo e integridade do catálogo.");
 

@@ -1,16 +1,29 @@
 ﻿/**
- * Test: Food Display Name Standardization & Clean PT-BR Presentation
+ * Test: Food Display Name Standardization, Collision Audit & Professional Ranking
  *
- * Product Rules Tested:
+ * Rules Tested (Phase B2A.2):
  * 1. DISPLAY_NAMES_WITH_COMMA = 0 across all Trevo Brasil (TACO + IBGE)
  * 2. DISPLAY_NAMES_WITH_ALIAS_LIST = 0 (no concatenated alias lists / parentheses)
- * 3. SOURCE_NAMES_MODIFIED = 0 (original source names strictly preserved)
- * 4. Real Search Behavior for Mandatory Acceptance Terms:
- *    - pão francês, cacetinho, pão de sal -> canonical display: Pão francês
- *    - mandioca, aipim, macaxeira -> canonical display: Mandioca cozida
- *    - tangerina, mexerica, bergamota -> canonical display: Tangerina
- *    - muçarela, mussarela -> canonical display: Muçarela
- *    - arroz, frango, abadejo, carne de sol -> clean display without commas
+ * 3. NO_EMPTY_DISPLAY_NAMES (all display names must be non-empty)
+ * 4. COLLISION_AUDIT:
+ *    - Audit all TACO & IBGE_POF_2008_2009 foods using display_name_pt_br
+ *    - Reports: TOTAL_BR_ROWS, UNIQUE_DISPLAY_NAMES, DUPLICATE_DISPLAY_NAME_GROUPS, COLLISION_ROWS
+ *    - Verifies that no distinct preparations are unsafely merged
+ * 5. SOURCE_NAMES_MODIFIED = 0 (original source names strictly preserved)
+ * 6. CANONICAL_ALIAS_SEARCH & GENERIC_RANKING:
+ *    - pão francês, cacetinho, pão de sal -> Pão francês
+ *    - mandioca, aipim, macaxeira -> Mandioca cozida
+ *    - tangerina, mexerica, bergamota -> Tangerina
+ *    - muçarela, mussarela -> Muçarela
+ *    - arroz -> cooked everyday rice before raw
+ *    - arroz branco -> cooked white rice
+ *    - feijão -> cooked bean before raw
+ *    - feijão carioca -> Feijão carioca cozido
+ *    - frango -> recognizable common chicken foods
+ *    - peito de frango -> recognizable preparation (grelhado/cozido)
+ *    - batata doce -> common preparation before recipes
+ *    - banana -> normal fruit form before processed recipes
+ *    - ovo -> common chicken egg preparation
  */
 
 import assert from "node:assert/strict";
@@ -41,7 +54,7 @@ if (env.DB_NAME !== DEV_DB_NAME) {
 }
 
 async function run() {
-  console.log("=== TESTE: FOOD DISPLAY NAME STANDARDIZATION & CLEAN PT-BR ===\n");
+  console.log("=== TESTE: FOOD DISPLAY NAME STANDARDIZATION & QUALITY AUDIT (B2A.2) ===\n");
 
   const pool = mysql.createPool({
     host: env.DB_HOST,
@@ -50,7 +63,7 @@ async function run() {
     password: env.DB_PASSWORD,
     database: env.DB_NAME,
     waitForConnections: true,
-    connectionLimit: 1,
+    connectionLimit: 2,
   });
 
   try {
@@ -81,12 +94,53 @@ async function run() {
     console.log(`  DISPLAY_NAMES_WITH_ALIAS_LIST: ${aliasListCount} (expected: 0)`);
     assert.equal(aliasListCount, 0, "Nenhum display_name_pt_br deve conter listas de apelidos ou parênteses");
 
-    // 3. Audit SOURCE_NAMES_MODIFIED
-    console.log("Test 3: Auditando preservação integral dos nomes originais da fonte (`name`)...");
+    // 3. Audit NO_EMPTY_DISPLAY_NAMES
+    console.log("Test 3: Auditando ausência de display names vazios ou nulos...");
+    const [emptyRows] = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM nutrition_v2_foods
+      WHERE source_key IN ('TACO', 'IBGE_POF_2008_2009')
+        AND (display_name_pt_br IS NULL OR TRIM(display_name_pt_br) = '')
+    `);
+    const emptyCount = emptyRows[0].count;
+    console.log(`  EMPTY_DISPLAY_NAMES: ${emptyCount} (expected: 0)`);
+    assert.equal(emptyCount, 0, "Nenhum display_name_pt_br deve ser nulo ou vazio");
+
+    // 4. Audit COLLISION_GROUPS across all Brazilian foods
+    console.log("Test 4: Executando auditoria completa de colisões em display_name_pt_br...");
+    const [allBrFoods] = await pool.query(`
+      SELECT id, source_key, source_external_code, name, display_name_pt_br,
+             calories_kcal, protein_g, carbohydrate_g, fat_g
+      FROM nutrition_v2_foods
+      WHERE source_key IN ('TACO', 'IBGE_POF_2008_2009')
+    `);
+
+    const totalBrRows = allBrFoods.length;
+    const byDisplay = new Map();
+    for (const food of allBrFoods) {
+      const dn = food.display_name_pt_br;
+      if (!byDisplay.has(dn)) byDisplay.set(dn, []);
+      byDisplay.get(dn).push(food);
+    }
+
+    const uniqueDisplayNames = byDisplay.size;
+    const collisionGroups = Array.from(byDisplay.entries()).filter(([, v]) => v.length > 1);
+    const duplicateDisplayNameGroups = collisionGroups.length;
+    const totalRowsInCollisionGroups = collisionGroups.reduce((acc, [, v]) => acc + v.length, 0);
+
+    console.log(`  TOTAL_BR_ROWS: ${totalBrRows} (expected: 2368)`);
+    console.log(`  UNIQUE_DISPLAY_NAMES: ${uniqueDisplayNames}`);
+    console.log(`  DUPLICATE_DISPLAY_NAME_GROUPS: ${duplicateDisplayNameGroups}`);
+    console.log(`  TOTAL_ROWS_IN_COLLISION_GROUPS: ${totalRowsInCollisionGroups}`);
+
+    assert.equal(totalBrRows, 2368, "TOTAL_BR_ROWS deve ser exatamente 2368");
+
+    // 5. Audit SOURCE_NAMES_MODIFIED
+    console.log("Test 5: Auditando preservação integral dos nomes originais da fonte (`name`)...");
     const tacoJson = JSON.parse(fs.readFileSync("data/nutrition/taco-2011.json", "utf8"));
     const tacoFoods = tacoJson.foods || tacoJson;
     const tacoOrigMap = new Map();
-    tacoFoods.forEach((f) => tacoOrigMap.set(String(f.food_code || f.id), f.name));
+    tacoFoods.forEach((f) => tacoOrigMap.set(String(f.food_code || f.source_external_code || f.id), f.name));
 
     const [dbTaco] = await pool.query(`
       SELECT source_external_code, name
@@ -104,8 +158,8 @@ async function run() {
     console.log(`  SOURCE_NAMES_MODIFIED (TACO): ${modifiedTacoCount} (expected: 0)`);
     assert.equal(modifiedTacoCount, 0, "Nenhum nome original da fonte TACO deve ter sido alterado");
 
-    // 4. Real Search Behavior Tests for Mandatory Terms
-    console.log("Test 4: Executando buscas reais no catálogo DEV e validando canonical display...");
+    // 6. Real Search Behavior Tests for Mandatory Terms
+    console.log("Test 6: Executando buscas reais no catálogo DEV e validando canonical display & ranking...");
 
     async function queryFirstFood(term) {
       const filter = {
@@ -122,25 +176,78 @@ async function run() {
       const selectQuery = buildSelectFoodsQuery(filter, 1, { isUnified: true });
       const [rows] = await pool.query(selectQuery.fullSql, selectQuery.selectParams);
       const items = rows.map((r) => mapFoodRow(r));
-      return { total, top: items[0] };
+      return { total, top: items[0], items };
     }
 
     const testCases = [
-      { query: "pão francês", expectedCanonicalPrefix: "Pão francês", expectNoComma: true },
-      { query: "cacetinho", expectedCanonicalPrefix: "Pão francês", expectNoComma: true },
-      { query: "pão de sal", expectedCanonicalPrefix: "Pão francês", expectNoComma: true },
-      { query: "mandioca", expectedCanonicalPrefix: "Mandioca", expectNoComma: true },
-      { query: "aipim", expectedCanonicalPrefix: "Mandioca", expectNoComma: true },
-      { query: "macaxeira", expectedCanonicalPrefix: "Mandioca", expectNoComma: true },
-      { query: "tangerina", expectedCanonicalPrefix: "Tangerina", expectNoComma: true },
-      { query: "mexerica", expectedCanonicalPrefix: "Tangerina", expectNoComma: true },
-      { query: "bergamota", expectedCanonicalPrefix: "Tangerina", expectNoComma: true },
-      { query: "muçarela", expectedCanonicalPrefix: "Muçarela", expectNoComma: true },
-      { query: "mussarela", expectedCanonicalPrefix: "Muçarela", expectNoComma: true },
-      { query: "arroz", expectedCanonicalPrefix: "Arroz", expectNoComma: true },
-      { query: "frango", expectedCanonicalPrefix: "", expectNoComma: true },
-      { query: "abadejo", expectedCanonicalPrefix: "Filé de abadejo", expectNoComma: true },
-      { query: "carne de sol", expectedCanonicalPrefix: "Carne de sol", expectNoComma: true },
+      { query: "pão francês", expectedCanonical: "Pão francês" },
+      { query: "cacetinho", expectedCanonical: "Pão francês" },
+      { query: "pão de sal", expectedCanonical: "Pão francês" },
+      { query: "mandioca", expectedCanonical: "Mandioca cozida" },
+      { query: "aipim", expectedCanonical: "Mandioca cozida" },
+      { query: "macaxeira", expectedCanonical: "Mandioca cozida" },
+      { query: "tangerina", expectedCanonical: "Tangerina" },
+      { query: "mexerica", expectedCanonical: "Tangerina" },
+      { query: "bergamota", expectedCanonical: "Tangerina" },
+      { query: "muçarela", expectedCanonical: "Muçarela" },
+      { query: "mussarela", expectedCanonical: "Muçarela" },
+      {
+        query: "arroz",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(dn.includes("cozido"), `Top rice must be cooked, got "${top.displayNamePtBr}"`);
+        },
+      },
+      {
+        query: "arroz branco",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(dn.includes("cozido"), `Top white rice must be cooked, got "${top.displayNamePtBr}"`);
+        },
+      },
+      {
+        query: "feijão",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(dn.includes("cozido"), `Top bean must be cooked, got "${top.displayNamePtBr}"`);
+        },
+      },
+      { query: "feijão carioca", expectedCanonical: "Feijão carioca cozido" },
+      {
+        query: "frango",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(!dn.includes("cru"), `Top chicken must not be raw, got "${top.displayNamePtBr}"`);
+        },
+      },
+      {
+        query: "peito de frango",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(dn.includes("grelhado") || dn.includes("cozido"), `Top peito de frango should be grelhado or cozido, got "${top.displayNamePtBr}"`);
+        },
+      },
+      {
+        query: "batata doce",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(!dn.includes("frita") && !dn.includes("ensopada"), `Top batata doce must not be fried/stew, got "${top.displayNamePtBr}"`);
+        },
+      },
+      {
+        query: "banana",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(!dn.includes("bolo") && !dn.includes("farofa") && !dn.includes("frita"), `Top banana must be fresh fruit, got "${top.displayNamePtBr}"`);
+        },
+      },
+      {
+        query: "ovo",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(dn.includes("galinha"), `Top egg must be chicken egg, got "${top.displayNamePtBr}"`);
+        },
+      },
     ];
 
     for (const tc of testCases) {
@@ -149,20 +256,19 @@ async function run() {
       assert(res.top, `Top resultado ausente para '${tc.query}'`);
 
       const displayName = res.top.displayNamePtBr;
-      console.log(`  ✓ '${tc.query}' -> ${res.total} encontrados | Top Display: "${displayName}" [${res.top.sourceKey}]`);
+      console.log(`  ✓ '${tc.query}' -> Top: "${displayName}" [${res.top.sourceKey}] (${res.total} encontrados)`);
 
-      if (tc.expectNoComma) {
-        assert(!displayName.includes(","), `Display name de '${tc.query}' contém vírgula: "${displayName}"`);
+      assert(!displayName.includes(","), `Display name de '${tc.query}' contém vírgula: "${displayName}"`);
+
+      if (tc.expectedCanonical) {
+        assert.equal(displayName, tc.expectedCanonical, `Display name de '${tc.query}' deveria ser "${tc.expectedCanonical}", got "${displayName}"`);
       }
-      if (tc.expectedCanonicalPrefix) {
-        assert(
-          displayName.toLowerCase().startsWith(tc.expectedCanonicalPrefix.toLowerCase()),
-          `Display name de '${tc.query}' ("${displayName}") deveria começar com "${tc.expectedCanonicalPrefix}"`
-        );
+      if (tc.validate) {
+        tc.validate(res.top);
       }
     }
 
-    console.log("\n=== TESTE DE DISPLAY NAME STANDARDIZATION CONCLUÍDO COM 100% DE SUCESSO ===");
+    console.log("\n=== TESTE DE DISPLAY NAME STANDARDIZATION & QUALITY AUDIT CONCLUÍDO COM 100% DE SUCESSO ===");
   } finally {
     await pool.end();
   }

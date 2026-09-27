@@ -391,8 +391,16 @@ export const EXACT_CANONICAL_NAME_OVERRIDES: Readonly<Record<string, string>> = 
   "Aipim": "Mandioca",
   "Macaxeira": "Mandioca",
   "Mandioca": "Mandioca",
-  "Arroz (polido, Parboilizado, Agulha, Agulhinha, Etc)": "Arroz",
-  "Feijao (preto, Mulatinho, Roxo, Rosinha, Etc)": "Feijão",
+  // Arroz e Feijão canônicos (preserva especificidade de preparo e variedade culinária)
+  "Arroz (polido, Parboilizado, Agulha, Agulhinha, Etc)": "Arroz branco cozido",
+  "Arroz Integral": "Arroz integral cozido",
+  "Arroz Organico": "Arroz orgânico cozido",
+  "Arroz Integral Organico": "Arroz integral orgânico cozido",
+  "Feijao (preto, Mulatinho, Roxo, Rosinha, Etc)": "Feijão cozido",
+  "Feijao Organico": "Feijão orgânico cozido",
+  "Feijao de Corda": "Feijão de corda cozido",
+  "Feijao Verde": "Feijão verde cozido",
+  "Feijao Verde Organico": "Feijão verde orgânico cozido",
   "Banana (ouro, Prata, D´água, da Terra, Etc)": "Banana",
   "Laranja (pera, Seleta, Lima, da Terra, Etc)": "Laranja",
   "Limao (comum, Galego, Etc)": "Limão",
@@ -487,6 +495,9 @@ export function cleanTacoDisplayName(name: string): string {
   if (s.startsWith("Mexerica,")) {
     s = s.replace(/^Mexerica,/, "Tangerina,");
   }
+
+  // Lab duration annotations (e.g. /10minutos in UNICAMP egg protocols)
+  s = s.replace(/\/10minutos/gi, "");
 
   // Slashes and noise cleanup
   s = s.replace(/\//g, " ");
@@ -662,126 +673,222 @@ export function buildFoodSearchOrderClause(
   const normalizedQuery = normalizeSearchText(query);
   const cleanQuery = queryTokens.join(" ");
   const firstToken = queryTokens[0] || "";
-  const firstStem = getWordStem(firstToken);
   const orderParams: (string | number)[] = [];
 
-  const targetCol = "f.normalized_name";
+  // Collect canonical search tokens for first token (e.g. aipim -> [aipim, mandioca, macaxeira])
+  const primarySearchTokens = [firstToken];
+  const synonyms = USER_SEARCH_ALIASES[firstToken] || [];
+  for (const syn of synonyms) {
+    const norm = normalizeSearchText(syn);
+    if (norm && !primarySearchTokens.includes(norm)) {
+      primarySearchTokens.push(norm);
+    }
+  }
 
-  // Tier 1: Exact match normalized (PT-BR first, then EN alias)
-  orderParams.push(normalizedQuery, cleanQuery);
-  orderParams.push(normalizedQuery, cleanQuery);
+  // Tier 1: Exact match normalized PT-BR or canonical alias
+  const t1Conditions: string[] = [
+    "f.normalized_name = ?",
+    "f.normalized_name = ?",
+    "COALESCE(f.normalized_display_name_pt_br, '') = ?",
+    "COALESCE(f.normalized_display_name_pt_br, '') = ?"
+  ];
+  orderParams.push(normalizedQuery, cleanQuery, normalizedQuery, cleanQuery);
 
-  // Tier 2: Sequence starts with first token as distinct word or phrase
-  const tier2Pt: string[] = [];
-  const tier2En: string[] = [];
+  for (const tok of primarySearchTokens.slice(1)) {
+    t1Conditions.push("COALESCE(f.normalized_display_name_pt_br, '') = ?");
+    orderParams.push(tok);
+  }
+
+  // Tier 2: Sequence starts with first token or canonical alias as distinct word or phrase
+  const tier2Conditions: string[] = [];
   if (queryTokens.length >= 2) {
     const t0 = queryTokens[0];
     const t1 = queryTokens[1];
     const s0 = getWordStem(t0);
-    tier2Pt.push(`${t0}, %${t1}%`, `${t0} %${t1}%`, `${s0}, %${t1}%`, `${s0}s, %${t1}%`, `${t1}, %${t0}%`, `${t1} %${t0}%`);
-    tier2En.push(`${t0}, %${t1}%`, `${t0} %${t1}%`, `${s0}, %${t1}%`, `${s0}s, %${t1}%`, `${t1}, %${t0}%`, `${t1} %${t0}%`);
+    tier2Conditions.push(
+      "f.normalized_name LIKE ?", "f.normalized_name LIKE ?",
+      "f.normalized_name LIKE ?", "f.normalized_name LIKE ?",
+      "f.normalized_name LIKE ?", "f.normalized_name LIKE ?",
+      "COALESCE(f.normalized_display_name_pt_br, '') LIKE ?",
+      "COALESCE(f.normalized_display_name_pt_br, '') LIKE ?"
+    );
+    orderParams.push(
+      `${t0}, %${t1}%`, `${t0} %${t1}%`,
+      `${s0}, %${t1}%`, `${s0}s, %${t1}%`,
+      `${t1}, %${t0}%`, `${t1} %${t0}%`,
+      `${t0} %${t1}%`, `${t1} %${t0}%`
+    );
   } else {
-    tier2Pt.push(`${firstToken},%`, `${firstStem},%`, `${firstStem}s,%`, `peixe, ${firstToken},%`, `peixe, ${firstStem},%`, `${firstToken} %`);
-    tier2En.push(`${firstToken},%`, `${firstStem},%`, `${firstStem}s,%`, `fish, ${firstToken},%`, `fish, ${firstStem},%`, `${firstToken} %`);
+    for (const tok of primarySearchTokens) {
+      const stem = getWordStem(tok);
+      tier2Conditions.push(
+        "f.normalized_name LIKE ?", "f.normalized_name LIKE ?", "f.normalized_name LIKE ?",
+        "COALESCE(f.normalized_display_name_pt_br, '') LIKE ?", "COALESCE(f.normalized_display_name_pt_br, '') LIKE ?"
+      );
+      orderParams.push(`${tok},%`, `${stem},%`, `${tok} %`, `${tok},%`, `${tok} %`);
+    }
   }
-  orderParams.push(...tier2Pt, ...tier2En);
 
-  // Tier 3: Primary noun followed by comma
-  orderParams.push(`${firstToken},%`, `${firstStem},%`, `${firstStem}s,%`, `peixe, ${firstToken},%`, `peixe, ${firstStem},%`);
-  orderParams.push(`${firstToken},%`, `${firstStem},%`, `${firstStem}s,%`, `fish, ${firstToken},%`, `fish, ${firstStem},%`);
-
-  // Tier 4: Starts with first token as full word (space)
-  orderParams.push(`${firstToken} %`, `${firstStem} %`);
-  orderParams.push(`${firstToken} %`, `${firstStem} %`);
-
-  // Tier 5: Starts with first token prefix
-  orderParams.push(`${firstToken}%`);
-  orderParams.push(`${firstToken}%`);
+  // Tier 3: Primary noun prefix matching
+  const tier3Conditions: string[] = [];
+  for (const tok of primarySearchTokens) {
+    tier3Conditions.push(
+      "f.normalized_name LIKE ?",
+      "COALESCE(f.normalized_display_name_pt_br, '') LIKE ?"
+    );
+    orderParams.push(`${tok}%`, `${tok}%`);
+  }
 
   const tenancyOrder = isUnified ? `CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC,` : "";
 
-  const hasCookingKeyword = queryTokens.some((t) =>
-    ["cozido", "cozida", "assado", "assada", "grelhado", "grelhada", "frito", "frita",
-     "cooked", "boiled", "baked", "roasted", "grilled", "fried", "broiled", "poached"].includes(t)
+  // Category detection for contextual culinary preparation ranking
+  const isGrainQuery = queryTokens.some((t) =>
+    ["arroz", "aveia", "milho", "quinoa", "cevada", "trigo", "centeio"].includes(t)
   );
-
+  const isLegumeQuery = queryTokens.some((t) =>
+    ["feijao", "feijão", "lentilha", "grao", "grão", "ervilha", "fava", "soja"].includes(t)
+  );
+  const isTuberQuery = queryTokens.some((t) =>
+    ["mandioca", "aipim", "macaxeira", "batata", "inhame", "cara", "cará"].includes(t)
+  );
+  const isFruitQuery = queryTokens.some((t) =>
+    [
+      "banana", "maca", "maçã", "laranja", "abacaxi", "manga", "mamao", "mamão",
+      "uva", "melancia", "melao", "melão", "morango", "pera", "pêra", "tangerina",
+      "mexerica", "bergamota", "goiaba", "abacate", "limao", "limão", "maracuja", "maracujá"
+    ].includes(t)
+  );
+  const isMeatOrPoultryQuery = queryTokens.some((t) =>
+    [
+      "frango", "galinha", "carne", "bife", "alcatra", "patinho", "maminha", "picanha",
+      "peixe", "tilapia", "tilápia", "salmao", "salmão", "atum", "bacalhau", "pescada",
+      "merluza", "porco", "lombo", "pernil", "costela"
+    ].includes(t)
+  );
+  const isEggQuery = queryTokens.some((t) =>
+    ["ovo", "ovos"].includes(t)
+  );
   const isMilkQuery = queryTokens.some((t) => ["milk", "leite"].includes(t));
   const hasCheeseOrYogurtQuery = queryTokens.some((t) =>
     ["cheese", "queijo", "yogurt", "iogurte", "ricota", "ricotta"].includes(t)
   );
-
-  const isBreadQuery = queryTokens.some((t) => ["bread", "pao"].includes(t));
+  const isBreadQuery = queryTokens.some((t) => ["bread", "pao", "pão"].includes(t));
   const isYogurtQuery = queryTokens.some((t) => ["yogurt", "iogurte"].includes(t));
+
+  const hasCookingKeyword = queryTokens.some((t) =>
+    [
+      "cozido", "cozida", "assado", "assada", "grelhado", "grelhada", "frito", "frita",
+      "cru", "crua", "refogado", "refogada", "ensopado", "ensopada", "empanado", "empanada",
+      "cooked", "boiled", "baked", "roasted", "grilled", "fried", "raw"
+    ].includes(t)
+  );
 
   const orderClause = `ORDER BY
     ${tenancyOrder}
     CASE
-      -- Tier 1: Exact match normalized PT-BR
-      WHEN ${targetCol} = ? OR ${targetCol} = ? THEN 1
-      -- Tier 1b: Exact match normalized EN alias
-      WHEN f.normalized_name = ? OR f.normalized_name = ? THEN 2
-      -- Tier 2: Query phrase or structured sequence at start with word boundaries (PT-BR)
-      ${queryTokens.length >= 2 ? `
-      WHEN ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ?
-        OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? THEN 3
-      WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ?
-        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 4
-      ` : `
-      WHEN ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ?
-        OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? THEN 3
-      WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ?
-        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 4
-      `}
-      -- Tier 3: Primary noun followed by comma (base food indicator)
-      WHEN ${targetCol} LIKE ? OR ${targetCol} LIKE ? OR ${targetCol} LIKE ?
-        OR ${targetCol} LIKE ? OR ${targetCol} LIKE ? THEN 5
-      WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? OR f.normalized_name LIKE ?
-        OR f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 6
-      -- Tier 4: Starts with first token as full word
-      WHEN ${targetCol} LIKE ? OR ${targetCol} LIKE ? THEN 7
-      WHEN f.normalized_name LIKE ? OR f.normalized_name LIKE ? THEN 8
-      -- Tier 5: Starts with first token prefix
-      WHEN ${targetCol} LIKE ? THEN 9
-      WHEN f.normalized_name LIKE ? THEN 10
-      ELSE 11
-    END ASC,
-    -- Prioritize direct milk foods over dairy derivatives (yogurt, cheese) when querying milk / leite
-    CASE
-      WHEN (${isMilkQuery && !hasCheeseOrYogurtQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE 'leite%' OR f.normalized_name LIKE 'milk%') THEN 1
-      WHEN (${isMilkQuery && !hasCheeseOrYogurtQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE 'queijo%' OR ${targetCol} LIKE 'iogurte%' OR f.normalized_name LIKE 'cheese%' OR f.normalized_name LIKE 'yogurt%') THEN 3
-      ELSE 2
-    END ASC,
-    -- Prioritize clean, lean base cuts (sem osso / sem pele / boneless / skinless)
-    CASE
-      WHEN (${targetCol} LIKE '%sem osso%' AND ${targetCol} LIKE '%sem pele%')
-        OR (f.normalized_name LIKE '%boneless%' AND f.normalized_name LIKE '%skinless%') THEN 1
-      WHEN ${targetCol} LIKE '%sem pele%' OR f.normalized_name LIKE '%skinless%' THEN 2
-      WHEN ${targetCol} LIKE '%sem osso%' OR f.normalized_name LIKE '%boneless%' THEN 3
-      WHEN ${targetCol} LIKE '%carne e pele%' OR ${targetCol} LIKE '%com pele%'
-        OR f.normalized_name LIKE '%meat and skin%' OR f.normalized_name LIKE '%skin eaten%' OR f.normalized_name LIKE '%skin on%' THEN 5
+      -- Tier 1: Exact match normalized PT-BR or canonical alias
+      WHEN ${t1Conditions.join(" OR ")} THEN 1
+      -- Tier 2: Sequence starts with first token or canonical alias
+      WHEN ${tier2Conditions.join(" OR ")} THEN 2
+      -- Tier 3: Prefix matching on primary noun
+      WHEN ${tier3Conditions.join(" OR ")} THEN 3
       ELSE 4
     END ASC,
-    -- Prefer raw / cru base food when cooking method is not specified in query
+    -- Category-aware culinary preparation ranking
     CASE
-      WHEN (${!hasCookingKeyword ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE '% cru%' OR ${targetCol} LIKE '%, cru%' OR ${targetCol} LIKE 'cru,%' OR ${targetCol} = 'cru'
-             OR f.normalized_name LIKE '% raw%' OR f.normalized_name LIKE '%, raw%' OR f.normalized_name LIKE 'raw,%' OR f.normalized_name = 'raw') THEN 1
-      ELSE 2
-    END ASC,
-    -- Prefer plain / white / whole wheat bread over nut / fruit bread when querying bread
-    CASE
-      WHEN (${isBreadQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE '%castanha%' OR ${targetCol} LIKE '%nozes%' OR ${targetCol} LIKE '%passas%'
-             OR f.normalized_name LIKE '%nut%' OR f.normalized_name LIKE '%raisin%') THEN 3
+      -- Grains (arroz, etc.): cooked everyday form ranks before raw or recipes
+      WHEN (${isGrainQuery && !hasCookingKeyword ? "1=1" : "1=0"}) THEN
+        CASE
+          WHEN f.normalized_name LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%' THEN 1
+          WHEN f.normalized_name LIKE '%cru%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cru%' THEN 2
+          ELSE 3
+        END
+      -- Legumes (feijão, etc.): cooked everyday bean ranks before raw or recipes
+      WHEN (${isLegumeQuery && !hasCookingKeyword ? "1=1" : "1=0"}) THEN
+        CASE
+          WHEN f.normalized_name LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%' THEN 1
+          WHEN f.normalized_name LIKE '%cru%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cru%' THEN 2
+          ELSE 3
+        END
+      -- Tubers & Roots (mandioca, aipim, macaxeira, batata): plain cooked/baked ranks before fried or recipes/soups
+      WHEN (${isTuberQuery && !hasCookingKeyword ? "1=1" : "1=0"}) THEN
+        CASE
+          WHEN f.normalized_name LIKE '%cozida%' OR f.normalized_name LIKE '%cozido%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozida%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%' THEN 1
+          WHEN f.normalized_name LIKE '%assada%' OR f.normalized_name LIKE '%assado%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%assada%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%assado%' THEN 2
+          WHEN f.normalized_name LIKE '%crua%' OR f.normalized_name LIKE '%cru%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%crua%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cru%' THEN 3
+          WHEN f.normalized_name LIKE '%frita%' OR f.normalized_name LIKE '%frito%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%frita%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%frito%' THEN 4
+          ELSE 5
+        END
+      -- Fruits: fresh/raw in natura fruit ranks before cooked/processed recipes/sweets
+      WHEN (${isFruitQuery && !hasCookingKeyword ? "1=1" : "1=0"}) THEN
+        CASE
+          WHEN f.normalized_name LIKE '%crua%' OR f.normalized_name LIKE '%cru%' OR f.normalized_name LIKE '%in natura%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%crua%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cru%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%in natura%' THEN 1
+          WHEN f.normalized_name LIKE '%cozida%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozida%' THEN 2
+          WHEN f.normalized_name LIKE '%doce%' OR f.normalized_name LIKE '%bolo%' OR f.normalized_name LIKE '%farofa%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%doce%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%bolo%' THEN 4
+          ELSE 3
+        END
+      -- Meats & Poultry: plain cooked/grilled/roasted ranks before raw or complex recipes
+      WHEN (${isMeatOrPoultryQuery && !hasCookingKeyword ? "1=1" : "1=0"}) THEN
+        CASE
+          WHEN (f.normalized_name LIKE '%grelhado%' OR f.normalized_name LIKE '%grelhada%'
+            OR f.normalized_name LIKE '%cozido%' OR f.normalized_name LIKE '%cozida%'
+            OR f.normalized_name LIKE '%assado%' OR f.normalized_name LIKE '%assada%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%grelhado%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%grelhada%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozida%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%assado%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%assada%')
+            AND (f.normalized_name LIKE '%sem pele%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%sem pele%') THEN 1
+          WHEN f.normalized_name LIKE '%grelhado%' OR f.normalized_name LIKE '%grelhada%'
+            OR f.normalized_name LIKE '%cozido%' OR f.normalized_name LIKE '%cozida%'
+            OR f.normalized_name LIKE '%assado%' OR f.normalized_name LIKE '%assada%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%grelhado%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%grelhada%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozida%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%assado%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%assada%' THEN 2
+          WHEN f.normalized_name LIKE '%cru%' OR f.normalized_name LIKE '%crua%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cru%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%crua%' THEN 3
+          WHEN f.normalized_name LIKE '%frito%' OR f.normalized_name LIKE '%frita%' OR f.normalized_name LIKE '%milanesa%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%frito%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%frita%' THEN 4
+          ELSE 5
+        END
+      -- Eggs: chicken eggs rank before quail eggs or candies
+      WHEN (${isEggQuery && !hasCookingKeyword ? "1=1" : "1=0"}) THEN
+        CASE
+          WHEN (f.normalized_name LIKE '%galinha%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%galinha%')
+            AND (f.normalized_name LIKE '%cozido%' OR f.normalized_name LIKE '%inteiro%'
+                 OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%inteiro%') THEN 1
+          WHEN f.normalized_name LIKE '%galinha%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%galinha%' THEN 2
+          WHEN f.normalized_name LIKE '%codorna%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%codorna%' THEN 3
+          ELSE 4
+        END
       ELSE 1
     END ASC,
-    -- Prefer plain whole / skim yogurt over sugary / fruit-flavored yogurt
+    -- Prioritize direct milk foods over dairy derivatives when querying milk / leite
+    CASE
+      WHEN (${isMilkQuery && !hasCheeseOrYogurtQuery ? "1=1" : "1=0"})
+        AND (f.normalized_name LIKE 'leite%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE 'leite%') THEN 1
+      WHEN (${isMilkQuery && !hasCheeseOrYogurtQuery ? "1=1" : "1=0"})
+        AND (f.normalized_name LIKE 'queijo%' OR f.normalized_name LIKE 'iogurte%'
+             OR COALESCE(f.normalized_display_name_pt_br, '') LIKE 'queijo%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE 'iogurte%') THEN 3
+      ELSE 2
+    END ASC,
+    -- Prioritize plain / white / whole wheat bread over nut / fruit bread when querying bread
+    CASE
+      WHEN (${isBreadQuery ? "1=1" : "1=0"})
+        AND (f.normalized_name LIKE '%castanha%' OR f.normalized_name LIKE '%nozes%' OR f.normalized_name LIKE '%passas%'
+             OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%castanha%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%nozes%') THEN 3
+      ELSE 1
+    END ASC,
+    -- Prioritize plain yogurt over sugary / fruit-flavored yogurt
     CASE
       WHEN (${isYogurtQuery ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE '%morango%' OR ${targetCol} LIKE '%coco%' OR ${targetCol} LIKE '%mel%'
-             OR f.normalized_name LIKE '%fruit%' OR f.normalized_name LIKE '%flavored%') THEN 3
+        AND (f.normalized_name LIKE '%morango%' OR f.normalized_name LIKE '%coco%' OR f.normalized_name LIKE '%mel%'
+             OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%morango%') THEN 3
       ELSE 1
     END ASC,
     -- Prioritize analytical laboratory direct data & survey recipe data quality
@@ -793,7 +900,6 @@ export function buildFoodSearchOrderClause(
       WHEN f.source_key = 'USDA_FNDDS' THEN 4
       ELSE 5
     END ASC,
-    -- Shorter food names tend to be basic primary ingredients rather than complex derivatives
     CHAR_LENGTH(COALESCE(f.display_name_pt_br, f.name)) ASC,
     COALESCE(f.display_name_pt_br, f.name) ASC`;
 
@@ -1060,6 +1166,8 @@ export function buildSelectFoodsQuery(
     f.scope,
     f.consultancy_id,
     f.name,
+    f.display_name_pt_br,
+    f.normalized_display_name_pt_br,
     f.category,
     f.reference_amount,
     f.reference_unit_code,

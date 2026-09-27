@@ -129,11 +129,11 @@ export function ConsultancyAppShell({
 
   if (presentationRoles.includes("PERSONAL")) {
     items.push({
-      id: "personal-consultas",
-      label: "Consultas",
-      mobileLabel: "Consultas",
-      href: `/consultoria/${consultancySlug}/consultas`,
-      iconName: "consultations",
+      id: "personal-alunos",
+      label: "Alunos",
+      mobileLabel: "Alunos",
+      href: `/consultoria/${consultancySlug}/alunos`,
+      iconName: "members",
     });
     items.push({
       id: "personal-rotinas",
@@ -150,18 +150,11 @@ export function ConsultancyAppShell({
       iconName: "exercises",
     });
     items.push({
-      id: "personal-progresso",
-      label: "Evolução dos Alunos",
-      mobileLabel: "Alunos",
-      href: `/consultoria/${consultancySlug}/progresso/alunos`,
-      iconName: "progress",
-    });
-    items.push({
-      id: "personal-formularios",
-      label: "Formulários",
-      mobileLabel: "Formulários",
-      href: `/consultoria/${consultancySlug}/formularios`,
-      iconName: "missions",
+      id: "personal-consultas",
+      label: "Consultas",
+      mobileLabel: "Consultas",
+      href: `/consultoria/${consultancySlug}/consultas`,
+      iconName: "consultations",
     });
   }
 
@@ -319,6 +312,13 @@ export function ConsultancyAppShell({
     mobilePrimaryItems.push(
       overviewItem,
       {
+        id: "personal-alunos",
+        label: "Alunos",
+        mobileLabel: "Alunos",
+        href: `/consultoria/${consultancySlug}/alunos`,
+        iconName: "members",
+      },
+      {
         id: "personal-rotinas",
         label: "Treinos",
         mobileLabel: "Treinos",
@@ -331,18 +331,18 @@ export function ConsultancyAppShell({
         mobileLabel: "Dietas",
         href: `/consultoria/${consultancySlug}/planos-v2`,
         iconName: "prescriptions",
-      },
-      {
-        id: "personal-progresso",
-        label: "Evolução dos Alunos",
-        mobileLabel: "Alunos",
-        href: `/consultoria/${consultancySlug}/progresso/alunos`,
-        iconName: "prescriptions",
       }
     );
   } else if (presentationRoles.includes("PERSONAL")) {
     mobilePrimaryItems.push(
       overviewItem,
+      {
+        id: "personal-alunos",
+        label: "Alunos",
+        mobileLabel: "Alunos",
+        href: `/consultoria/${consultancySlug}/alunos`,
+        iconName: "members",
+      },
       {
         id: "personal-rotinas",
         label: "Treinos",
@@ -356,13 +356,6 @@ export function ConsultancyAppShell({
         mobileLabel: "Exercícios",
         href: `/consultoria/${consultancySlug}/exercicios`,
         iconName: "exercises",
-      },
-      {
-        id: "personal-progresso",
-        label: "Evolução dos Alunos",
-        mobileLabel: "Alunos",
-        href: `/consultoria/${consultancySlug}/progresso/alunos`,
-        iconName: "prescriptions",
       }
     );
   } else if (presentationRoles.includes("NUTRITIONIST")) {

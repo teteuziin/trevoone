@@ -51,6 +51,7 @@ type WorkoutAssignModalProps = {
   workoutTitle: string;
   versionPublicId: string;
   versionNumber: number;
+  initialStudentPublicId?: string;
   onAssigned?: (assignmentPublicId: string) => void;
 };
 
@@ -62,6 +63,7 @@ export function WorkoutAssignModal({
   workoutTitle,
   versionPublicId,
   versionNumber,
+  initialStudentPublicId,
   onAssigned,
 }: WorkoutAssignModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,6 +91,22 @@ export function WorkoutAssignModal({
         setIsLoadingStudents(false);
         if (res.ok && res.data) {
           setStudents(res.data);
+          if (initialStudentPublicId && !selectedStudent) {
+            const matched = res.data.find(
+              (s) =>
+                s.membershipPublicId === initialStudentPublicId ||
+                s.userPublicId === initialStudentPublicId
+            );
+            if (matched) {
+              setSelectedStudent(matched);
+            } else {
+              searchActiveStudentsAction(slug, initialStudentPublicId).then((directRes) => {
+                if (!cancelled && directRes.ok && directRes.data && directRes.data.length > 0) {
+                  setSelectedStudent(directRes.data[0]);
+                }
+              });
+            }
+          }
         } else {
           setErrorMessage(res.error || "Erro ao buscar alunos.");
         }
@@ -99,7 +117,7 @@ export function WorkoutAssignModal({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isOpen, slug, searchQuery]);
+  }, [isOpen, slug, searchQuery, initialStudentPublicId, selectedStudent]);
 
   if (!isOpen) return null;
 

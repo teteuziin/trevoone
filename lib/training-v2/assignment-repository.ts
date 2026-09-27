@@ -314,9 +314,10 @@ export async function searchActiveStudents(
     const params: (string | number)[] = [ctx.consultancyId!];
 
     if (query && query.trim()) {
-      const q = `%${query.trim()}%`;
-      conditions.push("(u.full_name LIKE ? OR u.email LIKE ?)");
-      params.push(q, q);
+      const trimmed = query.trim();
+      const q = `%${trimmed}%`;
+      conditions.push("(u.full_name LIKE ? OR u.email LIKE ? OR cm.public_id = ? OR u.public_id = ?)");
+      params.push(q, q, trimmed, trimmed);
     }
 
     params.push(boundedLimit);

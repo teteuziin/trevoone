@@ -23,12 +23,13 @@ type PageProps = {
   }>;
   searchParams: Promise<{
     version?: string;
+    student?: string;
   }>;
 };
 
 export default async function WorkoutEditorPage({ params, searchParams }: PageProps) {
   const { slug, publicId } = await params;
-  const { version: requestedVersionPublicId } = await searchParams;
+  const { version: requestedVersionPublicId, student } = await searchParams;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -77,11 +78,21 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
       <div className="w-full max-w-6xl mx-auto space-y-6 pb-20">
         <div className="flex items-center justify-between gap-4">
           <Link
-            href={`/consultoria/${slug}/rotinas${workout.isTemplate ? "?tab=templates" : ""}`}
+            href={
+              student
+                ? `/consultoria/${slug}/alunos/${student}`
+                : `/consultoria/${slug}/rotinas${workout.isTemplate ? "?tab=templates" : ""}`
+            }
             className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"
           >
             <ArrowLeftIcon className="w-4 h-4" />
-            <span>{workout.isTemplate ? "Voltar para Modelos de Treino" : "Voltar para Treinos"}</span>
+            <span>
+              {student
+                ? "Voltar para Central do Aluno"
+                : workout.isTemplate
+                ? "Voltar para Modelos de Treino"
+                : "Voltar para Treinos"}
+            </span>
           </Link>
         </div>
 
@@ -92,6 +103,7 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
           isDraft={isDraft}
           allVersions={allVersions}
           isConsultancyAdmin={ctx.canManageConsultancy}
+          initialStudentPublicId={student}
         />
       </div>
     </ConsultancyAppShell>

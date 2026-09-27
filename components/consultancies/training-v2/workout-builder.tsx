@@ -145,6 +145,7 @@ type WorkoutBuilderProps = {
   isDraft?: boolean;
   allVersions?: WorkoutVersionSummaryDto[];
   isConsultancyAdmin?: boolean;
+  initialStudentPublicId?: string;
 };
 
 const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
@@ -160,6 +161,7 @@ export function WorkoutBuilder({
   initialDraftVersion,
   isDraft: propIsDraft,
   allVersions = [],
+  initialStudentPublicId,
 }: WorkoutBuilderProps) {
   const router = useRouter();
   const baseVersion = (initialVersion || initialDraftVersion)!;
@@ -830,6 +832,23 @@ export function WorkoutBuilder({
         </div>
       )}
 
+      {/* Preselected Student Banner */}
+      {initialStudentPublicId && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-semibold">
+            <UserCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>Montando rotina do zero para aluno vinculado. Ao finalizar, prescreva o treino diretamente.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsAssignModalOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shrink-0 self-start sm:self-auto cursor-pointer"
+          >
+            Prescrever agora
+          </button>
+        </div>
+      )}
+
       {/* Routine Metadata Header Card — Limpo e Confortável */}
       <section className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-6 lg:p-7 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -1297,6 +1316,7 @@ export function WorkoutBuilder({
         workoutTitle={workout.title}
         versionPublicId={draft.publicId}
         versionNumber={draft.versionNumber}
+        initialStudentPublicId={initialStudentPublicId}
         onAssigned={() => {
           showNotification("success", "Treino prescrito para o aluno com sucesso!");
           router.refresh();

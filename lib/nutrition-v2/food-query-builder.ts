@@ -118,6 +118,8 @@ export interface BuiltCountQuery {
 
 export interface BuiltSelectQuery {
   fullSql: string;
+  candidateSql: string;
+  candidateParams: (string | number)[];
   selectParams: (string | number)[];
   noPortionsSql: string;
   noOrderSql: string;
@@ -1297,8 +1299,18 @@ export function buildSelectFoodsQuery(
   ORDER BY f.id ASC
   LIMIT ? OFFSET ?`;
 
+  const candidateSql = `SELECT
+    ${coreFields},
+    ${portionsSubquery}
+  FROM nutrition_v2_foods f
+  WHERE ${whereClause}
+  ${orderClause}`;
+  const candidateParams: (string | number)[] = [...params, ...orderParams];
+
   return {
     fullSql,
+    candidateSql,
+    candidateParams,
     selectParams,
     noPortionsSql,
     noOrderSql,
@@ -1465,7 +1477,7 @@ export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
 // CANONICAL RESULT GROUPING & MULTI-SOURCE CONSOLIDATION (PHASE B2A.3)
 // ============================================================================
 
-export function getCanonicalFoodKey(item: {
+export function getBaseCanonicalIdentity(item: {
   name: string;
   displayNamePtBr?: string | null;
   sourceKey?: string | null;
@@ -1489,6 +1501,20 @@ export function getCanonicalFoodKey(item: {
   return `${normalizedDisplay}::${prep}`;
 }
 
+export function getCanonicalFoodKey(item: {
+  name: string;
+  displayNamePtBr?: string | null;
+  sourceKey?: string | null;
+  scope?: string | null;
+  consultancyId?: string | number | null;
+}): string {
+  const baseKey = getBaseCanonicalIdentity(item);
+  if (item.scope === "CONSULTANCY" && item.consultancyId != null) {
+    return `tenant:${item.consultancyId}::${baseKey}`;
+  }
+  return baseKey;
+}
+
 export function getCanonicalSourcePriority(item: { scope?: string; sourceKey?: string | null }): number {
   if (item.scope === "CONSULTANCY") return 1;
   if (item.sourceKey === "TACO") return 2;
@@ -1500,26 +1526,66 @@ export function getCanonicalSourcePriority(item: { scope?: string; sourceKey?: s
 export function groupCanonicalFoods(items: FoodListItemDto[]): FoodListItemDto[] {
   if (!items || items.length === 0) return [];
 
-  const groupMap = new Map<string, { primary: FoodListItemDto; alts: AlternateFoodSourceProvenance[] }>();
-  const order: string[] = [];
+  interface CanonicalGroup {
+    primary: FoodListItemDto;
+    alts: AlternateFoodSourceProvenance[];
+    tenantId: string | null;
+    baseKey: string;
+  }
+
+  const groups: CanonicalGroup[] = [];
 
   for (const item of items) {
-    const key = getCanonicalFoodKey(item);
-    if (!groupMap.has(key)) {
-      groupMap.set(key, {
+    const baseKey = getBaseCanonicalIdentity(item);
+    const itemTenant =
+      item.scope === "CONSULTANCY" && item.consultancyId != null
+        ? String(item.consultancyId)
+        : null;
+
+    let targetGroup: CanonicalGroup | undefined;
+
+    // Find compatible canonical group
+    for (const g of groups) {
+      if (g.baseKey === baseKey) {
+        if (itemTenant == null) {
+          // Global food: joins existing group matching baseKey (prefer exact global group)
+          if (g.tenantId == null || !targetGroup) {
+            targetGroup = g;
+            if (g.tenantId == null) break;
+          }
+        } else {
+          // Consultancy food: must match same tenant, or merge with a purely global group
+          if (g.tenantId === itemTenant) {
+            targetGroup = g;
+            break;
+          } else if (g.tenantId == null && !targetGroup) {
+            targetGroup = g;
+          }
+        }
+      }
+    }
+
+    if (!targetGroup) {
+      const canonicalId = itemTenant ? `tenant:${itemTenant}::${baseKey}` : baseKey;
+      const newGroup: CanonicalGroup = {
         primary: {
           ...item,
-          canonicalId: key,
+          canonicalId,
           isCanonicalPrimary: true,
           totalAvailableSources: 1,
           alternativeSources: [],
         },
         alts: [],
-      });
-      order.push(key);
+        tenantId: itemTenant,
+        baseKey,
+      };
+      groups.push(newGroup);
     } else {
-      const entry = groupMap.get(key)!;
-      const currentPriority = getCanonicalSourcePriority(entry.primary);
+      if (itemTenant != null && targetGroup.tenantId == null) {
+        targetGroup.tenantId = itemTenant;
+      }
+
+      const currentPriority = getCanonicalSourcePriority(targetGroup.primary);
       const newPriority = getCanonicalSourcePriority(item);
 
       const altRecord: AlternateFoodSourceProvenance = {
@@ -1536,34 +1602,34 @@ export function groupCanonicalFoods(items: FoodListItemDto[]): FoodListItemDto[]
       };
 
       if (newPriority < currentPriority) {
-        // Demote existing primary to alternative
         const oldPrimaryAlt: AlternateFoodSourceProvenance = {
-          publicId: entry.primary.publicId,
-          sourceKey: entry.primary.sourceKey,
-          sourceExternalCode: entry.primary.sourceExternalCode,
-          name: entry.primary.name,
-          displayNamePtBr: entry.primary.displayNamePtBr,
-          caloriesKcal: entry.primary.caloriesKcal,
-          proteinG: entry.primary.proteinG,
-          carbohydrateG: entry.primary.carbohydrateG,
-          fatG: entry.primary.fatG,
-          fiberG: entry.primary.fiberG,
+          publicId: targetGroup.primary.publicId,
+          sourceKey: targetGroup.primary.sourceKey,
+          sourceExternalCode: targetGroup.primary.sourceExternalCode,
+          name: targetGroup.primary.name,
+          displayNamePtBr: targetGroup.primary.displayNamePtBr,
+          caloriesKcal: targetGroup.primary.caloriesKcal,
+          proteinG: targetGroup.primary.proteinG,
+          carbohydrateG: targetGroup.primary.carbohydrateG,
+          fatG: targetGroup.primary.fatG,
+          fiberG: targetGroup.primary.fiberG,
         };
-        entry.alts.push(oldPrimaryAlt);
-        entry.primary = {
+        targetGroup.alts.push(oldPrimaryAlt);
+        const canonicalId = targetGroup.tenantId ? `tenant:${targetGroup.tenantId}::${baseKey}` : baseKey;
+        targetGroup.primary = {
           ...item,
-          canonicalId: key,
+          canonicalId,
           isCanonicalPrimary: true,
-          totalAvailableSources: entry.alts.length + 1,
-          alternativeSources: [...entry.alts],
+          totalAvailableSources: targetGroup.alts.length + 1,
+          alternativeSources: [...targetGroup.alts],
         };
       } else {
-        entry.alts.push(altRecord);
-        entry.primary.totalAvailableSources = entry.alts.length + 1;
-        entry.primary.alternativeSources = [...entry.alts];
+        targetGroup.alts.push(altRecord);
+        targetGroup.primary.totalAvailableSources = targetGroup.alts.length + 1;
+        targetGroup.primary.alternativeSources = [...targetGroup.alts];
       }
     }
   }
 
-  return order.map((k) => groupMap.get(k)!.primary);
+  return groups.map((g) => g.primary);
 }

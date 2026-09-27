@@ -68,6 +68,7 @@ import {
   buildFoodSearchOrderClause,
   groupCanonicalFoods,
   getCanonicalFoodKey,
+  getBaseCanonicalIdentity,
   getCanonicalSourcePriority,
   type AlternateFoodSourceProvenance,
   type FoodSourceTab,
@@ -154,28 +155,12 @@ export async function listUnifiedFoodsForNutritionist(
   try {
     connection = await getDbConnection();
 
-    // 1. Isolated COUNT stage
-    const countQuery = buildCountQuery(filter, ctx.consultancyId);
-    let countRows: RowDataPacket[];
-    try {
-      [countRows] = await connection.query<RowDataPacket[]>(countQuery.sql, countQuery.params);
-    } catch (countErr) {
-      const mysqlErr = extractSafeMysqlError(countErr);
-      console.error(`[Food Library] stage=COUNT mysql_code=${mysqlErr.code || "UNKNOWN"}`);
-      throw new FoodLibraryQueryCountError(
-        `Falha na contagem de alimentos: ${mysqlErr.code || "Erro"}`,
-        countErr
-      );
-    }
-    const total = Number(countRows[0]?.total) || 0;
-
-    // 2. Isolated SELECT stage with sub-stage probes
+    // 1. Query candidate records without SQL LIMIT/OFFSET (Canonical Pagination B2A.4)
     const builtQuery = buildSelectFoodsQuery(filter, ctx.consultancyId, { isUnified: true });
-    const totalPages = Math.ceil(total / builtQuery.pageSize) || 1;
 
     let rows: RowDataPacket[];
     try {
-      [rows] = await connection.query<RowDataPacket[]>(builtQuery.fullSql, builtQuery.selectParams);
+      [rows] = await connection.query<RowDataPacket[]>(builtQuery.candidateSql, builtQuery.candidateParams);
     } catch (queryErr) {
       const mysqlErr = extractSafeMysqlError(queryErr);
 
@@ -221,10 +206,10 @@ export async function listUnifiedFoodsForNutritionist(
       );
     }
 
-    // 3. Mapeamento defensivo estrito sem falsos defaults semânticos
-    let items: FoodListItemDto[];
+    // 2. Mapeamento defensivo estrito sem falsos defaults semânticos
+    let rawItems: FoodListItemDto[];
     try {
-      items = (rows as RowDataPacket[]).map((r) => mapFoodRow(r as Record<string, unknown>));
+      rawItems = (rows as RowDataPacket[]).map((r) => mapFoodRow(r as Record<string, unknown>));
     } catch (mappingErr) {
       console.error(
         `[Food Library] stage=MAPPING error=${mappingErr instanceof Error ? mappingErr.message : String(mappingErr)}`
@@ -238,11 +223,21 @@ export async function listUnifiedFoodsForNutritionist(
       );
     }
 
+    // 3. Agrupamento canônico antes da paginação (B2A.4)
+    const canonicalItems = groupCanonicalFoods(rawItems);
+    const total = canonicalItems.length;
+
+    const pageSize = builtQuery.pageSize;
+    const page = Math.max(1, Number(filter.page) || 1);
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const offset = (page - 1) * pageSize;
+    const items = canonicalItems.slice(offset, offset + pageSize);
+
     return {
       items,
       total,
-      page: Math.floor(builtQuery.offset / builtQuery.pageSize) + 1,
-      pageSize: builtQuery.pageSize,
+      page,
+      pageSize,
       totalPages,
     };
   } finally {
@@ -974,25 +969,57 @@ export async function getFoodSourceAlternatives(
     const [targetRows] = await connection.query<RowDataPacket[]>(
       `SELECT f.*,
         (SELECT COUNT(*) FROM nutrition_v2_food_portions fp WHERE fp.food_id = f.id AND fp.deleted_at IS NULL AND fp.status = 'ACTIVE') AS portions_count
-       FROM nutrition_v2_foods f WHERE f.public_id = ? LIMIT 1`,
+       FROM nutrition_v2_foods f WHERE f.public_id = ? AND f.deleted_at IS NULL LIMIT 1`,
       [foodPublicId]
     );
     if (!targetRows || targetRows.length === 0) return null;
-    const targetItem = mapFoodRow(targetRows[0]);
-    const targetKey = getCanonicalFoodKey(targetItem);
+    const targetRow = targetRows[0];
 
-    // Find siblings by same normalized display name
+    // Tenancy check on target food (B2A.4 Section 5):
+    // GLOBAL: allowed according to existing nutrition permissions (assertCanViewNutrition verified).
+    // CONSULTANCY: allowed only when f.consultancy_id = ctx.consultancyId, unless platform admin.
+    if (targetRow.scope === "CONSULTANCY") {
+      if (!ctx.isPlatformAdmin && (!ctx.consultancyId || Number(targetRow.consultancy_id) !== ctx.consultancyId)) {
+        throw new NutritionAuthorizationError(
+          "Acesso negado a este alimento da consultoria.",
+          "FORBIDDEN_TENANT_FOOD",
+          403
+        );
+      }
+    }
+
+    const targetItem = mapFoodRow(targetRow);
+    const targetBaseKey = getBaseCanonicalIdentity(targetItem);
+
+    // Sibling lookup (B2A.4 Section 6):
+    // GLOBAL foods PLUS CONSULTANCY foods belonging to current authorized consultancy only.
+    // Never f.scope IN ('GLOBAL', 'CONSULTANCY') without tenancy restriction.
+    const tenancyClause = ctx.consultancyId
+      ? `AND (f.scope = 'GLOBAL' OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ?))`
+      : `AND f.scope = 'GLOBAL'`;
+    const params: (string | number)[] = [
+      targetRow.normalized_display_name_pt_br || "",
+      targetRow.name || "",
+    ];
+    if (ctx.consultancyId) {
+      params.push(ctx.consultancyId);
+    }
+
     const [siblingRows] = await connection.query<RowDataPacket[]>(
       `SELECT f.*,
         (SELECT COUNT(*) FROM nutrition_v2_food_portions fp WHERE fp.food_id = f.id AND fp.deleted_at IS NULL AND fp.status = 'ACTIVE') AS portions_count
        FROM nutrition_v2_foods f
        WHERE f.status = 'ACTIVE'
+         AND f.deleted_at IS NULL
          AND (f.normalized_display_name_pt_br = ? OR f.name = ?)
-         AND f.scope IN ('GLOBAL', 'CONSULTANCY')`,
-      [targetRows[0].normalized_display_name_pt_br, targetRows[0].name]
+         ${tenancyClause}`,
+      params
     );
 
-    const mapped = siblingRows.map((r) => mapFoodRow(r)).filter((it) => getCanonicalFoodKey(it) === targetKey);
+    const mapped = siblingRows
+      .map((r) => mapFoodRow(r))
+      .filter((it) => getBaseCanonicalIdentity(it) === targetBaseKey);
+
     const consolidated = groupCanonicalFoods(mapped);
     const primary = consolidated[0] || targetItem;
     return {

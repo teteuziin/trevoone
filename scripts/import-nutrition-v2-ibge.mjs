@@ -16,6 +16,7 @@
  */
 
 import mysql from "mysql2/promise";
+import { cleanFoodDisplayName } from "../lib/nutrition-v2/food-query-builder.ts";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -212,8 +213,9 @@ export async function importSingleFoodAtomic(conn, food, measuresList, options =
 
   await conn.beginTransaction();
   try {
+    const cleanDisplay = cleanFoodDisplayName(food.name, SOURCE_KEY);
     const normName = normalizeSearchText(food.name);
-    const normDisplayName = normalizeSearchText(food.display_name_pt_br || food.name);
+    const normDisplayName = normalizeSearchText(cleanDisplay);
     const sourceUid = food.source_uid || `${SOURCE_KEY}:${food.food_code}:${food.prep_code}`;
 
     // 1. Check existing food by source_uid
@@ -247,7 +249,7 @@ export async function importSingleFoodAtomic(conn, food, measuresList, options =
         WHERE id = ?`,
         [
           food.name.trim(),
-          (food.display_name_pt_br || food.name).trim(),
+          cleanDisplay,
           normName,
           normDisplayName,
           food.category ? food.category.trim() : null,
@@ -279,7 +281,7 @@ export async function importSingleFoodAtomic(conn, food, measuresList, options =
         [
           publicId,
           food.name.trim(),
-          (food.display_name_pt_br || food.name).trim(),
+          cleanDisplay,
           normName,
           normDisplayName,
           food.category ? food.category.trim() : null,

@@ -208,6 +208,10 @@ function getWordStem(word: string): string {
  * NO English cross-language tokens allowed in user search queries.
  */
 export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  // Pães e variações regionais brasileiras
+  cacetinho: ["pao frances", "frances"],
+  careca: ["frances", "pao frances"],
+
   // Tubérculos e Raízes (variações regionais inequívocas em PT-BR)
   aipim: ["mandioca", "macaxeira"],
   macaxeira: ["mandioca", "aipim"],
@@ -326,6 +330,18 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
       return [token, "pasta", "creme", "manteiga"];
     }
 
+    // Phrase-aware handling: pão francês / cacetinho / pão de sal / pão careca
+    const hasPao = tokens.some((t) => normalizeSearchText(t) === "pao");
+    if (hasPao && (normalized === "sal" || normalized === "careca")) {
+      return [token, "frances", "sal", "careca"];
+    }
+    if (hasPao && normalized === "frances") {
+      return [token, "frances", "cacetinho", "sal"];
+    }
+    if (normalized === "cacetinho") {
+      return [token, "cacetinho", "frances"];
+    }
+
     // Phrase-aware handling: arroz branco -> TACO arroz tipo 1 / tipo 2 / polido
     const hasArroz = tokens.some((t) => normalizeSearchText(t) === "arroz");
     if (hasArroz && (normalized === "branco" || normalized === "polido" || normalized === "tipo 1")) {
@@ -338,6 +354,297 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
     }
     return [token];
   });
+}
+
+
+// ============================================================================
+// CLEAN PROFESSIONAL PT-BR FOOD DISPLAY NAME STANDARDIZATION
+// ============================================================================
+
+export const EXACT_CANONICAL_NAME_OVERRIDES: Readonly<Record<string, string>> = Object.freeze({
+  // Pães e Farináceos
+  "Pão, trigo, francês": "Pão francês",
+  "Pão, trigo, forma, integral": "Pão de forma integral",
+  "Pão, trigo, sovado": "Pão sovado",
+  "Pao de Sal": "Pão francês",
+
+  // Queijos e Laticínios
+  "Queijo, mozarela": "Muçarela",
+  "Queijo, minas, frescal": "Queijo minas frescal",
+  "Queijo, minas, meia cura": "Queijo minas meia cura",
+  "Queijo, prato": "Queijo prato",
+  "Queijo, parmesão": "Queijo parmesão",
+  "Queijo, ricota": "Ricota",
+  "Queijo, requeijão, cremoso": "Requeijão cremoso",
+  "Queijo, pasteurizado": "Queijo pasteurizado",
+  "Queijo, petit suisse, morango": "Queijo petit suisse morango",
+  "Mussarela": "Muçarela",
+  "Mussarela de Bufala": "Muçarela de búfala",
+  "Mussarela Light": "Muçarela light",
+  "Queijo Mussarela Light": "Queijo muçarela light",
+  "Soja, queijo (tofu)": "Tofu",
+
+  // Frutas e Tubérculos canônicos
+  "Bergamota": "Tangerina",
+  "Mexerica": "Tangerina",
+  "Tangerina": "Tangerina",
+  "Aipim": "Mandioca",
+  "Macaxeira": "Mandioca",
+  "Mandioca": "Mandioca",
+  "Arroz (polido, Parboilizado, Agulha, Agulhinha, Etc)": "Arroz",
+  "Feijao (preto, Mulatinho, Roxo, Rosinha, Etc)": "Feijão",
+  "Banana (ouro, Prata, D´água, da Terra, Etc)": "Banana",
+  "Laranja (pera, Seleta, Lima, da Terra, Etc)": "Laranja",
+  "Limao (comum, Galego, Etc)": "Limão",
+  "Cha (preto, Camomila, Erva Cidreira, Capim Limao, Etc)": "Chá",
+  "Linguica (suína, Bovina, Mista, Etc)": "Linguiça",
+});
+
+const ANIMAL_CUTS = [
+  "filé",
+  "file",
+  "peito",
+  "coxa",
+  "sobrecoxa",
+  "asa",
+  "coração",
+  "coracao",
+  "fígado",
+  "figado",
+  "bisteca",
+  "costela",
+  "lombo",
+  "pernil",
+  "posta",
+  "moela",
+];
+
+const ANIMALS_FOR_CUTS = [
+  "frango",
+  "abadejo",
+  "porco",
+  "peru",
+  "merluza",
+  "pescada",
+  "salmão",
+  "salmao",
+  "bacalhau",
+  "cação",
+  "cacao",
+  "lambari",
+  "corvina",
+];
+
+const FEMININE_NOUN_ROOTS = [
+  "mandioca",
+  "batata",
+  "tilápia",
+  "tilapia",
+  "carne",
+  "abóbora",
+  "abobora",
+  "abobrinha",
+  "cenoura",
+  "couve",
+  "berinjela",
+  "beterraba",
+  "cebola",
+  "banana",
+  "maçã",
+  "maca",
+  "sardinha",
+  "pescada",
+  "merluza",
+  "costela",
+  "bisteca",
+  "linguiça",
+  "linguica",
+  "salsicha",
+  "coxa",
+  "sobrecoxa",
+  "asa",
+  "moela",
+  "fava",
+  "ervilha",
+  "lentilha",
+  "aveia",
+  "farinha",
+  "tapioca",
+  "margarina",
+  "manteiga",
+  "polpa",
+  "geléia",
+  "geleia",
+];
+
+export function cleanTacoDisplayName(name: string): string {
+  let s = name.trim();
+  if (EXACT_CANONICAL_NAME_OVERRIDES[s]) {
+    return EXACT_CANONICAL_NAME_OVERRIDES[s];
+  }
+
+  // Botanical canonical renames
+  if (s.startsWith("Mexerica,")) {
+    s = s.replace(/^Mexerica,/, "Tangerina,");
+  }
+
+  // Slashes and noise cleanup
+  s = s.replace(/\//g, " ");
+
+  // Animal Cut Reordering (e.g. "Frango, peito, sem pele, grelhado" -> "Peito de frango sem pele grelhado")
+  const parts = s.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const p0 = parts[0].toLowerCase();
+    const p1 = parts[1].toLowerCase();
+
+    if (ANIMALS_FOR_CUTS.includes(p0)) {
+      if (ANIMAL_CUTS.some((c) => p1 === c || p1.startsWith(c + " "))) {
+        const cutName = parts[1];
+        const animalName = parts[0].toLowerCase();
+        const rest = parts.slice(2).join(" ");
+        s = `${cutName} de ${animalName}${rest ? " " + rest : ""}`;
+        s = s.charAt(0).toUpperCase() + s.slice(1);
+        return s.replace(/,/g, "").replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+      }
+    }
+
+    // Bovine Meat Reordering
+    if (p0 === "carne" && p1 === "bovina" && parts.length >= 3) {
+      const cutOrName = parts[2];
+      const rest = parts.slice(3).join(" ");
+      const cutLower = cutOrName.toLowerCase();
+      if (cutLower === "seca") {
+        s = `Carne seca ${rest}`;
+      } else if (cutLower === "charque") {
+        s = `Charque ${rest}`;
+      } else if (["costela", "fígado", "figado", "língua", "lingua", "bucho", "músculo", "musculo"].includes(cutLower)) {
+        s = `${cutOrName} bovina ${rest}`;
+      } else {
+        s = `${cutOrName}${rest ? " " + rest : ""}`;
+      }
+      s = s.charAt(0).toUpperCase() + s.slice(1);
+      return s.replace(/,/g, "").replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+    }
+  }
+
+  // Remove commas, parens, and normalize spaces
+  s = s.replace(/,\s*/g, " ").replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+  return s;
+}
+
+export function cleanIbgeDisplayName(name: string): string {
+  let s = name.trim();
+  if (EXACT_CANONICAL_NAME_OVERRIDES[s]) {
+    return EXACT_CANONICAL_NAME_OVERRIDES[s];
+  }
+
+  // 1. Tilápia canonicalization
+  if (
+    s.includes("(Tilápia, Saint Peter)") ||
+    s.includes("Peixe de água doce (Tilápia") ||
+    s.includes("Tilápia / Peixe")
+  ) {
+    s = s.replace(/Peixe de água doce\s*\(Tilápia,\s*Saint Peter\)/gi, "Tilápia");
+    s = s.replace(/Tilápia\s*\/\s*Peixe de água doce/gi, "Tilápia");
+  }
+
+  // 2. Canonical bread / cheese / fruit / cassava names
+  if (/^Pao de Sal\b/i.test(s)) {
+    s = s.replace(/^Pao de Sal\b/i, "Pão francês");
+  }
+  if (/^Mussarela\b/i.test(s)) {
+    s = s.replace(/^Mussarela\b/i, "Muçarela");
+  }
+  if (/^Queijo Mussarela\b/i.test(s)) {
+    s = s.replace(/^Queijo Mussarela\b/i, "Queijo muçarela");
+  }
+  if (/^(Bergamota|Mexerica)\b/i.test(s)) {
+    s = s.replace(/^(Bergamota|Mexerica)\b/i, "Tangerina");
+  }
+  if (/^Aipim\b/i.test(s)) {
+    s = s.replace(/^Aipim\b/i, "Mandioca");
+  }
+  if (/^Macaxeira\b/i.test(s)) {
+    s = s.replace(/^Macaxeira\b/i, "Mandioca");
+  }
+  if (/^Bolo de (Aipim|Macaxeira)/i.test(s)) {
+    s = s.replace(/^Bolo de (Aipim|Macaxeira)/i, "Bolo de mandioca");
+  }
+  if (/^Bolinho de Aipim/i.test(s)) {
+    s = s.replace(/^Bolinho de Aipim/i, "Bolinho de mandioca");
+  }
+  if (/^Folha de (Aipim|Macaxeira)/i.test(s)) {
+    s = s.replace(/^Folha de (Aipim|Macaxeira)/i, "Folha de mandioca");
+  }
+
+  // 3. Remove parentheses containing alias lists or variant enumerations
+  s = s.replace(
+    /\s*\([^)]*(?:etc|galego|agulhinha|seleta|mista|camarao|palmito|batata baroa|não especificada|nao especificada|qualquer especie)[^)]*\)/gi,
+    ""
+  );
+  s = s.replace(/\s*\([^)]*,[^)]*\)/g, "");
+  s = s.replace(/\s*\((?:não especificada|nao especificada|qualquer especie)\)/gi, "");
+  s = s.replace(/\s*\(in natura\)/gi, " in natura");
+  s = s.replace(/\s*\(em grao\)/gi, " em grão");
+
+  // Strip remaining single parentheses, retaining inner descriptor text
+  s = s.replace(/\s*\(([^)]+)\)/g, " $1");
+
+  // 4. Handle prep state feminine grammatical agreement
+  const sLower = s.toLowerCase();
+  const isFeminine = FEMININE_NOUN_ROOTS.some((n) => sLower.startsWith(n));
+
+  if (isFeminine) {
+    s = s.replace(/,\s*cru$/i, " crua");
+    s = s.replace(/,\s*cozido$/i, " cozida");
+    s = s.replace(/,\s*assado$/i, " assada");
+    s = s.replace(/,\s*grelhado$/i, " grelhada");
+    s = s.replace(/,\s*frito$/i, " frita");
+    s = s.replace(/,\s*refogado$/i, " refogada");
+    s = s.replace(/,\s*ensopado$/i, " ensopada");
+    s = s.replace(/,\s*moído$/i, " moída");
+    s = s.replace(/,\s*moido$/i, " moída");
+  } else {
+    s = s.replace(/,\s*cru$/i, " cru");
+    s = s.replace(/,\s*cozido$/i, " cozido");
+    s = s.replace(/,\s*assado$/i, " assado");
+    s = s.replace(/,\s*grelhado$/i, " grelhado");
+    s = s.replace(/,\s*frito$/i, " frito");
+    s = s.replace(/,\s*refogado$/i, " refogado");
+    s = s.replace(/,\s*ensopado$/i, " ensopado");
+  }
+
+  // 5. Replace remaining commas, hyphens in batata-inglesa, and slashes
+  s = s.replace(/Batata-inglesa/gi, "Batata inglesa");
+  s = s.replace(/\//g, " e ");
+  s = s.replace(/,\s*/g, " ");
+  s = s.replace(/[()]/g, "");
+  s = s.replace(/\s+/g, " ").trim();
+
+  // Clean casing: ensure sentence case
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s;
+}
+
+/**
+ * Master food display name cleaner.
+ * Strictly preserves source name for non-curated databases (USDA, branded products)
+ * while providing pristine, comma-free, alias-separated names for TACO and IBGE.
+ */
+export function cleanFoodDisplayName(name: string, sourceKey?: string | null): string {
+  if (!name || typeof name !== "string") return "";
+
+  if (sourceKey === "TACO") {
+    return cleanTacoDisplayName(name);
+  }
+
+  if (sourceKey === "IBGE_POF_2008_2009" || sourceKey === "IBGE") {
+    return cleanIbgeDisplayName(name);
+  }
+
+  // For USDA, branded products, or consultancy custom foods:
+  // preserve existing name without inventing semantics
+  return name.trim();
 }
 
 export function buildFoodSearchOrderClause(
@@ -934,7 +1241,8 @@ export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
   const deletedAt = safeIsoString(r.deleted_at, null);
   const portionsCount = Math.max(0, safeNumber(r.portions_count, 0));
 
-  const effectiveDisplayName = safeNullableString(r.display_name_pt_br) || name;
+  const cleanedDisplay = cleanFoodDisplayName(name, sourceKey);
+  const effectiveDisplayName = safeNullableString(r.display_name_pt_br) || cleanedDisplay || name;
 
   return {
     publicId,

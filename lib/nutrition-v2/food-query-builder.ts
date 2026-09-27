@@ -29,7 +29,7 @@ export type FoodSourceTab = "TREVO_BRASIL" | "COMMERCIAL" | "MY_FOODS" | "OTHER_
 // PHASE B1.1 — CURATED BRAZILIAN SOURCE ALLOWLISTS & INTEGRITY GUARDS
 // ============================================================================
 
-export const APPROVED_BR_SOURCE_KEYS = Object.freeze(["TACO", "GROWTH_SUPPLEMENTS"] as const);
+export const APPROVED_BR_SOURCE_KEYS = Object.freeze(["TACO", "IBGE", "GROWTH_SUPPLEMENTS"] as const);
 export type ApprovedBrSourceKey = (typeof APPROVED_BR_SOURCE_KEYS)[number];
 
 export const APPROVED_COMMERCIAL_SOURCE_KEYS = Object.freeze(["GROWTH_SUPPLEMENTS"] as const);
@@ -70,10 +70,10 @@ export function isApprovedCommercialSourceKey(
  * review signals only and MUST NOT automatically hide official source foods.
  */
 export const OBJECTIVE_INVALID_DATA_SQL_CONDITION = `(
-  f.calories_kcal < 0
-  OR f.protein_g < 0
-  OR f.carbohydrate_g < 0
-  OR f.fat_g < 0
+  COALESCE(f.calories_kcal, 0) < 0
+  OR COALESCE(f.protein_g, 0) < 0
+  OR COALESCE(f.carbohydrate_g, 0) < 0
+  OR COALESCE(f.fat_g, 0) < 0
   OR f.reference_amount <= 0
   OR f.reference_amount IS NULL
   OR f.reference_unit_code IS NULL
@@ -218,6 +218,10 @@ export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = 
   bergamota: ["tangerina", "mexerica", "mandarina"],
   tangerina: ["mexerica", "bergamota", "mandarina"],
   abacaxi: ["ananas"],
+
+  // Pescados e Óleos em PT-BR
+  tilapia: ["peixe de agua doce", "saint peter"],
+  azeite: ["azeite de oliva"],
 
   // Queijos e grafias em PT-BR
   mussarela: ["mucarela", "mozarela"],
@@ -475,9 +479,11 @@ export function buildFoodSearchOrderClause(
     END ASC,
     -- Prioritize analytical laboratory direct data & survey recipe data quality
     CASE
-      WHEN f.source_key = 'USDA_FOUNDATION' THEN 1
-      WHEN f.source_key = 'USDA_FNDDS' THEN 2
-      ELSE 3
+      WHEN f.source_key = 'TACO' THEN 1
+      WHEN f.source_key = 'IBGE' THEN 2
+      WHEN f.source_key = 'USDA_FOUNDATION' THEN 3
+      WHEN f.source_key = 'USDA_FNDDS' THEN 4
+      ELSE 5
     END ASC,
     -- Shorter food names tend to be basic primary ingredients rather than complex derivatives
     CHAR_LENGTH(COALESCE(f.display_name_pt_br, f.name)) ASC,

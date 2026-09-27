@@ -1,0 +1,71 @@
+{
+  "source_name": "Tabelas de Composição Nutricional e Medidas Referidas para os Alimentos Consumidos no Brasil",
+  "source_key": "IBGE",
+  "dataset_version": "POF 2008-2009 (2011)",
+  "official_reference": "IBGE - Pesquisa de Orçamentos Familiares 2008-2009 / Ministério da Saúde / Unicamp",
+  "official_files": [
+    {
+      "name": "tabelacompleta.xls",
+      "archive": "tabelacompleta.zip",
+      "url": "https://ftp.ibge.gov.br/Orcamentos_Familiares/Pesquisa_de_Orcamentos_Familiares_2008_2009/Tabelas_de_Composicao_Nutricional_dos_Alimentos_Consumidos_no_Brasil/tabelacompleta.zip",
+      "sha256": "e75487405593196fe551d58e934e415e840f33f78acd0af08ed61bedb957c7ac",
+      "type": "nutritional_composition",
+      "records": 1971
+    },
+    {
+      "name": "tab01.xls",
+      "archive": "tab01.zip",
+      "url": "https://ftp.ibge.gov.br/Orcamentos_Familiares/Pesquisa_de_Orcamentos_Familiares_2008_2009/Tabelas_de_Composicao_Nutricional_dos_Alimentos_Consumidos_no_Brasil/tab01.zip",
+      "sha256": "c6a638779bc79ec5674504fdf7bfd812e92ccce827cdc7b85a1d56831df30105",
+      "type": "food_classification_categories",
+      "records": 1121
+    },
+    {
+      "name": "tabelamedidas_bd.xls",
+      "archive": "tabelamedidas_bd.zip",
+      "url": "https://ftp.ibge.gov.br/Orcamentos_Familiares/Pesquisa_de_Orcamentos_Familiares_2008_2009/Tabela_de_Medidas_Referidas_para_os_Alimentos_Consumidos_no_Brasil/tabelamedidas_bd.zip",
+      "sha256": "e01bdc0c2945bbe701a59176a2ac0e3278d52ca2b12da52545d16c6fe990eefc",
+      "type": "household_measures_database",
+      "records": 11801
+    },
+    {
+      "name": "tabelamedidas.xls",
+      "archive": "tabelamedidas.zip",
+      "url": "https://ftp.ibge.gov.br/Orcamentos_Familiares/Pesquisa_de_Orcamentos_Familiares_2008_2009/Tabela_de_Medidas_Referidas_para_os_Alimentos_Consumidos_no_Brasil/tabelamedidas.zip",
+      "sha256": "b934351c68e1c53ec0e3dbff7a7178c25ab3763518ecfa8c346c1c84aec7a75a",
+      "type": "household_measures_formatted",
+      "records": 11801
+    }
+  ],
+  "download_date": "2026-09-27T12:05:00Z",
+  "reference_basis": "100g of edible portion",
+  "nutrient_units": {
+    "energy": "kcal",
+    "protein": "g",
+    "carbohydrate": "g",
+    "fat": "g",
+    "fiber": "g",
+    "calcium": "mg",
+    "iron": "mg",
+    "magnesium": "mg",
+    "phosphorus": "mg",
+    "potassium": "mg",
+    "sodium": "mg",
+    "zinc": "mg",
+    "vitamin_a": "mcg",
+    "vitamin_b1": "mg",
+    "vitamin_b2": "mg",
+    "vitamin_b3": "mg",
+    "vitamin_b6": "mg",
+    "vitamin_b12": "mcg",
+    "folate": "mcg",
+    "vitamin_d": "mcg",
+    "vitamin_e": "mg",
+    "vitamin_c": "mg",
+    "cholesterol": "mg"
+  },
+  "reuse_status": "NOT_EXPLICITLY_CONFIRMED",
+  "reuse_status_details": "Official IBGE website portal content is licensed under Creative Commons Atribuição-SemDerivações 3.0 Não Adaptada (CC BY-ND 3.0). Government open data policy (Decreto nº 8.777/2016) provides open data reuse with attribution, but POF 2008-2009 historical publication (2011) does not embed an explicit commercial database license grant.",
+  "experimental_status": "OFFICIAL_SURVEY_STATISTICS",
+  "experimental_status_details": "POF 2008-2009 nutritional composition tables are consolidated official statistical results from the 1st national individual food intake survey (1ª edição, 2011), not flagged as experimental in the original publication."
+}

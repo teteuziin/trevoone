@@ -11,8 +11,25 @@ import type {
   NutritionV2FoodStatus,
 } from "./types";
 
+export interface AlternateFoodSourceProvenance {
+  publicId: string;
+  sourceKey?: string | null;
+  sourceExternalCode?: string | null;
+  name: string;
+  displayNamePtBr?: string | null;
+  caloriesKcal?: number | null;
+  proteinG?: number | null;
+  carbohydrateG?: number | null;
+  fatG?: number | null;
+  fiberG?: number | null;
+}
+
 export interface FoodListItemDto extends Omit<NutritionV2FoodDto, "id"> {
   portionsCount: number;
+  canonicalId?: string;
+  isCanonicalPrimary?: boolean;
+  totalAvailableSources?: number;
+  alternativeSources?: AlternateFoodSourceProvenance[];
 }
 
 export interface ListFoodsResult {
@@ -391,16 +408,16 @@ export const EXACT_CANONICAL_NAME_OVERRIDES: Readonly<Record<string, string>> = 
   "Aipim": "Mandioca",
   "Macaxeira": "Mandioca",
   "Mandioca": "Mandioca",
-  // Arroz e Feijão canônicos (preserva especificidade de preparo e variedade culinária)
-  "Arroz (polido, Parboilizado, Agulha, Agulhinha, Etc)": "Arroz branco cozido",
-  "Arroz Integral": "Arroz integral cozido",
-  "Arroz Organico": "Arroz orgânico cozido",
-  "Arroz Integral Organico": "Arroz integral orgânico cozido",
-  "Feijao (preto, Mulatinho, Roxo, Rosinha, Etc)": "Feijão cozido",
-  "Feijao Organico": "Feijão orgânico cozido",
-  "Feijao de Corda": "Feijão de corda cozido",
-  "Feijao Verde": "Feijão verde cozido",
-  "Feijao Verde Organico": "Feijão verde orgânico cozido",
+  // Arroz e Feijão canônicos (preserva neutralidade oficial sem inferir cozido em prep 99)
+  "Arroz (polido, Parboilizado, Agulha, Agulhinha, Etc)": "Arroz branco",
+  "Arroz Integral": "Arroz integral",
+  "Arroz Organico": "Arroz orgânico",
+  "Arroz Integral Organico": "Arroz integral orgânico",
+  "Feijao (preto, Mulatinho, Roxo, Rosinha, Etc)": "Feijão",
+  "Feijao Organico": "Feijão orgânico",
+  "Feijao de Corda": "Feijão de corda",
+  "Feijao Verde": "Feijão verde",
+  "Feijao Verde Organico": "Feijão verde orgânico",
   "Banana (ouro, Prata, D´água, da Terra, Etc)": "Banana",
   "Laranja (pera, Seleta, Lima, da Terra, Etc)": "Laranja",
   "Limao (comum, Galego, Etc)": "Limão",
@@ -803,12 +820,16 @@ export function buildFoodSearchOrderClause(
           WHEN f.normalized_name LIKE '%cru%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cru%' THEN 2
           ELSE 3
         END
-      -- Legumes (feijão, etc.): cooked everyday bean ranks before raw or recipes
+      -- Legumes (feijão, etc.): cooked everyday bean ranks before raw or recipes; staple carioca/preto first
       WHEN (${isLegumeQuery && !hasCookingKeyword ? "1=1" : "1=0"}) THEN
         CASE
-          WHEN f.normalized_name LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%' THEN 1
-          WHEN f.normalized_name LIKE '%cru%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cru%' THEN 2
-          ELSE 3
+          WHEN (f.normalized_name LIKE '%carioca%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%carioca%')
+            AND (f.normalized_name LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%') THEN 1
+          WHEN (f.normalized_name LIKE '%preto%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%preto%')
+            AND (f.normalized_name LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%') THEN 2
+          WHEN f.normalized_name LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%' THEN 3
+          WHEN f.normalized_name LIKE '%cru%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cru%' THEN 4
+          ELSE 5
         END
       -- Tubers & Roots (mandioca, aipim, macaxeira, batata): plain cooked/baked ranks before fried or recipes/soups
       WHEN (${isTuberQuery && !hasCookingKeyword ? "1=1" : "1=0"}) THEN
@@ -856,15 +877,58 @@ export function buildFoodSearchOrderClause(
             OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%frito%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%frita%' THEN 4
           ELSE 5
         END
-      -- Eggs: chicken eggs rank before quail eggs or candies
+      -- Eggs: prepared whole chicken eggs rank before raw, and before quail eggs
       WHEN (${isEggQuery && !hasCookingKeyword ? "1=1" : "1=0"}) THEN
         CASE
           WHEN (f.normalized_name LIKE '%galinha%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%galinha%')
-            AND (f.normalized_name LIKE '%cozido%' OR f.normalized_name LIKE '%inteiro%'
-                 OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%inteiro%') THEN 1
-          WHEN f.normalized_name LIKE '%galinha%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%galinha%' THEN 2
-          WHEN f.normalized_name LIKE '%codorna%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%codorna%' THEN 3
-          ELSE 4
+            AND (f.normalized_name LIKE '%cozido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cozido%') THEN 1
+          WHEN (f.normalized_name LIKE '%galinha%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%galinha%')
+            AND (f.normalized_name LIKE '%frito%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%frito%'
+                 OR f.normalized_name LIKE '%mexido%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%mexido%'
+                 OR f.normalized_name LIKE '%poch%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%poch%') THEN 2
+          WHEN (f.normalized_name LIKE '%galinha%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%galinha%')
+            AND (f.normalized_name LIKE '%cru%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cru%') THEN 3
+          WHEN f.normalized_name LIKE '%galinha%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%galinha%' THEN 4
+          WHEN f.normalized_name LIKE '%codorna%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%codorna%' THEN 5
+          ELSE 6
+        END
+      ELSE 1
+    END ASC,
+    -- Cultivar priority for legumes when no specific cultivar is queried
+    CASE
+      WHEN (${isLegumeQuery && !queryTokens.some((t) => ["jalo", "fradinho", "rajado", "branco", "corda", "verde", "soja"].includes(t)) ? "1=1" : "1=0"}) THEN
+        CASE
+          WHEN f.normalized_name LIKE '%carioca%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%carioca%' THEN 1
+          WHEN f.normalized_name LIKE '%preto%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%preto%' THEN 2
+          ELSE 3
+        END
+      ELSE 1
+    END ASC,
+    -- Meats & Poultry: main muscle cuts rank before offal/viscera (unless specifically queried)
+    CASE
+      WHEN (${isMeatOrPoultryQuery && !queryTokens.some((t) => ["figado", "fígado", "coracao", "coração", "moela", "bucho", "lingua", "língua"].includes(t)) ? "1=1" : "1=0"}) THEN
+        CASE
+          WHEN f.normalized_name LIKE '%peito%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%peito%'
+            OR f.normalized_name LIKE '%file%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%file%'
+            OR f.normalized_name LIKE '%filé%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%filé%' THEN 1
+          WHEN f.normalized_name LIKE '%coxa%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%coxa%'
+            OR f.normalized_name LIKE '%sobrecoxa%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%sobrecoxa%'
+            OR f.normalized_name LIKE '%carne%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%carne%'
+            OR f.normalized_name LIKE '%inteiro%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%inteiro%' THEN 2
+          WHEN f.normalized_name LIKE '%figado%' OR f.normalized_name LIKE '%coracao%' OR f.normalized_name LIKE '%moela%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%figado%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%cora%'
+            OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%moela%' THEN 4
+          ELSE 3
+        END
+      ELSE 1
+    END ASC,
+    -- Chicken egg priority over quail egg even when preparation keyword is present
+    CASE
+      WHEN (${isEggQuery ? "1=1" : "1=0"}) THEN
+        CASE
+          WHEN (f.normalized_name LIKE '%galinha%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%galinha%') THEN 1
+          WHEN (f.normalized_name LIKE '%codorna%' OR COALESCE(f.normalized_display_name_pt_br, '') LIKE '%codorna%') THEN 2
+          ELSE 3
         END
       ELSE 1
     END ASC,
@@ -1385,4 +1449,111 @@ export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
     deletedAt,
     portionsCount,
   };
+}
+
+// ============================================================================
+// CANONICAL RESULT GROUPING & MULTI-SOURCE CONSOLIDATION (PHASE B2A.3)
+// ============================================================================
+
+export function getCanonicalFoodKey(item: {
+  name: string;
+  displayNamePtBr?: string | null;
+  sourceKey?: string | null;
+}): string {
+  const display = (item.displayNamePtBr || item.name || "").trim().toLowerCase();
+  const normalizedDisplay = normalizeSearchText(display);
+
+  let prep = "default";
+  if (/\b(?:frit[ao]|frito)\b/i.test(normalizedDisplay)) prep = "frita";
+  else if (/\b(?:cozid[ao]|cozido)\b/i.test(normalizedDisplay)) prep = "cozida";
+  else if (/\b(?:assad[ao]|assado)\b/i.test(normalizedDisplay)) prep = "assada";
+  else if (/\b(?:grelhad[ao]|grelhado)\b/i.test(normalizedDisplay)) prep = "grelhada";
+  else if (/\b(?:refogad[ao]|refogado)\b/i.test(normalizedDisplay)) prep = "refogada";
+  else if (/\b(?:ensopad[ao]|ensopado)\b/i.test(normalizedDisplay)) prep = "ensopada";
+  else if (/\b(?:cru[a]?)\b/i.test(normalizedDisplay)) prep = "crua";
+  else if (/\b(?:ao molho vermelho)\b/i.test(normalizedDisplay)) prep = "ao_molho_vermelho";
+  else if (/\b(?:ao molho branco)\b/i.test(normalizedDisplay)) prep = "ao_molho_branco";
+  else if (/\b(?:com manteiga e oleo|com manteiga\/oleo)\b/i.test(normalizedDisplay)) prep = "com_manteiga_oleo";
+  else if (/\b(?:sopa)\b/i.test(normalizedDisplay)) prep = "sopa";
+
+  return `${normalizedDisplay}::${prep}`;
+}
+
+export function getCanonicalSourcePriority(item: { scope?: string; sourceKey?: string | null }): number {
+  if (item.scope === "CONSULTANCY") return 1;
+  if (item.sourceKey === "TACO") return 2;
+  if (item.sourceKey === "IBGE_POF_2008_2009" || item.sourceKey === "IBGE") return 3;
+  if (item.sourceKey === "GROWTH_SUPPLEMENTS") return 4;
+  return 5;
+}
+
+export function groupCanonicalFoods(items: FoodListItemDto[]): FoodListItemDto[] {
+  if (!items || items.length === 0) return [];
+
+  const groupMap = new Map<string, { primary: FoodListItemDto; alts: AlternateFoodSourceProvenance[] }>();
+  const order: string[] = [];
+
+  for (const item of items) {
+    const key = getCanonicalFoodKey(item);
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        primary: {
+          ...item,
+          canonicalId: key,
+          isCanonicalPrimary: true,
+          totalAvailableSources: 1,
+          alternativeSources: [],
+        },
+        alts: [],
+      });
+      order.push(key);
+    } else {
+      const entry = groupMap.get(key)!;
+      const currentPriority = getCanonicalSourcePriority(entry.primary);
+      const newPriority = getCanonicalSourcePriority(item);
+
+      const altRecord: AlternateFoodSourceProvenance = {
+        publicId: item.publicId,
+        sourceKey: item.sourceKey,
+        sourceExternalCode: item.sourceExternalCode,
+        name: item.name,
+        displayNamePtBr: item.displayNamePtBr,
+        caloriesKcal: item.caloriesKcal,
+        proteinG: item.proteinG,
+        carbohydrateG: item.carbohydrateG,
+        fatG: item.fatG,
+        fiberG: item.fiberG,
+      };
+
+      if (newPriority < currentPriority) {
+        // Demote existing primary to alternative
+        const oldPrimaryAlt: AlternateFoodSourceProvenance = {
+          publicId: entry.primary.publicId,
+          sourceKey: entry.primary.sourceKey,
+          sourceExternalCode: entry.primary.sourceExternalCode,
+          name: entry.primary.name,
+          displayNamePtBr: entry.primary.displayNamePtBr,
+          caloriesKcal: entry.primary.caloriesKcal,
+          proteinG: entry.primary.proteinG,
+          carbohydrateG: entry.primary.carbohydrateG,
+          fatG: entry.primary.fatG,
+          fiberG: entry.primary.fiberG,
+        };
+        entry.alts.push(oldPrimaryAlt);
+        entry.primary = {
+          ...item,
+          canonicalId: key,
+          isCanonicalPrimary: true,
+          totalAvailableSources: entry.alts.length + 1,
+          alternativeSources: [...entry.alts],
+        };
+      } else {
+        entry.alts.push(altRecord);
+        entry.primary.totalAvailableSources = entry.alts.length + 1;
+        entry.primary.alternativeSources = [...entry.alts];
+      }
+    }
+  }
+
+  return order.map((k) => groupMap.get(k)!.primary);
 }

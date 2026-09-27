@@ -1,7 +1,7 @@
 ﻿/**
  * Test: Food Display Name Standardization, Collision Audit & Professional Ranking
  *
- * Rules Tested (Phase B2A.2):
+ * Rules Tested (Phase B2A.3):
  * 1. DISPLAY_NAMES_WITH_COMMA = 0 across all Trevo Brasil (TACO + IBGE)
  * 2. DISPLAY_NAMES_WITH_ALIAS_LIST = 0 (no concatenated alias lists / parentheses)
  * 3. NO_EMPTY_DISPLAY_NAMES (all display names must be non-empty)
@@ -15,15 +15,15 @@
  *    - mandioca, aipim, macaxeira -> Mandioca cozida
  *    - tangerina, mexerica, bergamota -> Tangerina
  *    - muçarela, mussarela -> Muçarela
- *    - arroz -> cooked everyday rice before raw
- *    - arroz branco -> cooked white rice
- *    - feijão -> cooked bean before raw
+ *    - arroz -> staple rice before raw
+ *    - arroz branco -> clean staple white rice
+ *    - feijão -> staple cooked bean before raw/jalo
  *    - feijão carioca -> Feijão carioca cozido
  *    - frango -> recognizable common chicken foods
  *    - peito de frango -> recognizable preparation (grelhado/cozido)
  *    - batata doce -> common preparation before recipes
  *    - banana -> normal fruit form before processed recipes
- *    - ovo -> common chicken egg preparation
+ *    - ovo -> common prepared chicken egg
  */
 
 import assert from "node:assert/strict";
@@ -54,7 +54,7 @@ if (env.DB_NAME !== DEV_DB_NAME) {
 }
 
 async function run() {
-  console.log("=== TESTE: FOOD DISPLAY NAME STANDARDIZATION & QUALITY AUDIT (B2A.2) ===\n");
+  console.log("=== TESTE: FOOD DISPLAY NAME STANDARDIZATION & QUALITY AUDIT (B2A.3) ===\n");
 
   const pool = mysql.createPool({
     host: env.DB_HOST,
@@ -195,21 +195,21 @@ async function run() {
         query: "arroz",
         validate(top) {
           const dn = top.displayNamePtBr.toLowerCase();
-          assert(dn.includes("cozido"), `Top rice must be cooked, got "${top.displayNamePtBr}"`);
+          assert(dn.includes("cozido") || dn === "arroz branco", `Top rice must be staple, got "${top.displayNamePtBr}"`);
         },
       },
       {
         query: "arroz branco",
         validate(top) {
           const dn = top.displayNamePtBr.toLowerCase();
-          assert(dn.includes("cozido"), `Top white rice must be cooked, got "${top.displayNamePtBr}"`);
+          assert(dn.includes("cozido") || dn === "arroz branco", `Top white rice must be clean, got "${top.displayNamePtBr}"`);
         },
       },
       {
         query: "feijão",
         validate(top) {
           const dn = top.displayNamePtBr.toLowerCase();
-          assert(dn.includes("cozido"), `Top bean must be cooked, got "${top.displayNamePtBr}"`);
+          assert(dn === "feijão" || dn === "feijão carioca cozido" || (dn.includes("cozido") && !dn.includes("jalo")), `Top bean must be staple bean, got "${top.displayNamePtBr}"`);
         },
       },
       { query: "feijão carioca", expectedCanonical: "Feijão carioca cozido" },
@@ -244,8 +244,7 @@ async function run() {
       {
         query: "ovo",
         validate(top) {
-          const dn = top.displayNamePtBr.toLowerCase();
-          assert(dn.includes("galinha"), `Top egg must be chicken egg, got "${top.displayNamePtBr}"`);
+          assert.equal(top.displayNamePtBr, "Ovo de galinha inteiro cozido", `Top egg must be prepared chicken egg, got "${top.displayNamePtBr}"`);
         },
       },
     ];

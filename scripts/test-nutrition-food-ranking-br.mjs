@@ -1,5 +1,5 @@
 ﻿/**
- * Test: Brazilian Food Library Professional Search Ranking (Phase B2A.2)
+ * Test: Brazilian Food Library Professional Search Ranking & Preparation Semantics (B2A.3)
  *
  * Validates real DEV catalog searches against food/category-aware ranking:
  * 1. pão francês: top = Pão francês
@@ -8,15 +8,26 @@
  * 4. aipim: top = Mandioca cozida
  * 5. macaxeira: top = Mandioca cozida
  * 6. mandioca: top = Mandioca cozida (plain cooked before recipes/fried)
- * 7. arroz: cooked everyday rice before raw/source-lab variants
- * 8. arroz branco: cooked white rice highly ranked
- * 9. feijão: cooked bean highly ranked before raw
- * 10. feijão carioca: top = Feijão carioca cozido
- * 11. frango: recognizable common chicken food
- * 12. peito de frango: recognizable preparation (grelhado/cozido)
- * 13. batata doce: common preparation before recipes
- * 14. banana: normal fresh fruit form before processed recipes
- * 15. ovo: common chicken egg preparation
+ * 7. arroz: cooked everyday staple rice before raw/source-lab variants
+ * 8. arroz cru: raw rice prioritized when "cru" explicitly queried
+ * 9. arroz cozido: cooked rice prioritized when "cozido" explicitly queried
+ * 10. arroz branco: clean staple white rice
+ * 11. feijão: cooked everyday staple bean (carioca) before raw or jalo
+ * 12. feijão cru: raw bean prioritized when "cru" explicitly queried
+ * 13. feijão cozido: cooked bean prioritized when "cozido" explicitly queried
+ * 14. feijão carioca: top = Feijão carioca cozido
+ * 15. feijão jalo: top = Feijão jalo cozido (explicit cultivar overrides generic)
+ * 16. mandioca cozida: top = Mandioca cozida
+ * 17. mandioca frita: top = Mandioca frita
+ * 18. ovo: common prepared chicken egg (Ovo de galinha inteiro cozido) before raw egg
+ * 19. ovo cru: raw chicken egg (Ovo de galinha inteiro cru) before quail egg
+ * 20. ovo cozido: cooked chicken egg (Ovo de galinha inteiro cozido)
+ * 21. frango: recognizable cooked/prepared common chicken food (not raw, not offal)
+ * 22. frango cru: raw chicken food (contains "cru") before offal
+ * 23. frango grelhado: Peito de frango sem pele grelhado
+ * 24. peito de frango: recognizable preparation (grelhado/cozido)
+ * 25. batata doce: common preparation before recipes/fried
+ * 26. banana: normal fresh fruit form before processed recipes/sweets
  */
 
 import assert from "node:assert/strict";
@@ -47,7 +58,7 @@ if (env.DB_NAME !== DEV_DB_NAME) {
 }
 
 async function run() {
-  console.log("=== TESTE: BRAZILIAN FOOD SEARCH RANKING & CANONICAL RESOLUTION (B2A.2) ===\n");
+  console.log("=== TESTE: BRAZILIAN FOOD SEARCH RANKING & PREPARATION SEMANTICS (B2A.3) ===\n");
 
   const pool = mysql.createPool({
     host: env.DB_HOST,
@@ -125,12 +136,44 @@ async function run() {
         },
       },
       {
-        id: "ARROZ",
+        id: "MANDIOCA_COZIDA",
+        query: "mandioca cozida",
+        validate(top) {
+          assert.equal(top.displayNamePtBr, "Mandioca cozida", `Expected 'Mandioca cozida', got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "MANDIOCA_FRITA",
+        query: "mandioca frita",
+        validate(top) {
+          assert.equal(top.displayNamePtBr, "Mandioca frita", `Expected 'Mandioca frita', got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "ARROZ_GENERIC",
         query: "arroz",
         validate(top) {
           const dn = top.displayNamePtBr.toLowerCase();
-          assert(dn.includes("cozido"), `Top rice must be cooked, got '${top.displayNamePtBr}'`);
-          assert(!dn.includes("cru"), `Top rice must not be raw, got '${top.displayNamePtBr}'`);
+          assert(dn.includes("cozido") || dn === "arroz branco", `Top rice must be everyday staple, got '${top.displayNamePtBr}'`);
+          assert(!dn.includes("cru"), `Top generic rice must not be raw, got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "ARROZ_CRU",
+        query: "arroz cru",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(dn.includes("cru"), `Explicit 'arroz cru' must return raw rice, got '${top.displayNamePtBr}'`);
+          assert(!dn.includes("cozido"), `Raw rice must not be cooked, got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "ARROZ_COZIDO",
+        query: "arroz cozido",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(dn.includes("cozido"), `Explicit 'arroz cozido' must return cooked rice, got '${top.displayNamePtBr}'`);
+          assert(!dn.includes("cru"), `Cooked rice must not be raw, got '${top.displayNamePtBr}'`);
         },
       },
       {
@@ -138,17 +181,36 @@ async function run() {
         query: "arroz branco",
         validate(top) {
           const dn = top.displayNamePtBr.toLowerCase();
-          assert(dn.includes("cozido"), `Top white rice must be cooked, got '${top.displayNamePtBr}'`);
+          assert(dn.includes("cozido") || dn === "arroz branco", `Top white rice must be clean staple, got '${top.displayNamePtBr}'`);
           assert(!dn.includes("integral"), `White rice should not be brown rice, got '${top.displayNamePtBr}'`);
         },
       },
       {
-        id: "FEIJAO",
+        id: "FEIJAO_GENERIC",
         query: "feijão",
         validate(top) {
           const dn = top.displayNamePtBr.toLowerCase();
-          assert(dn.includes("cozido"), `Top bean must be cooked, got '${top.displayNamePtBr}'`);
-          assert(!dn.includes("cru"), `Top bean must not be raw, got '${top.displayNamePtBr}'`);
+          assert(dn === "feijão" || dn === "feijão carioca cozido" || (dn.includes("cozido") && !dn.includes("jalo")), `Top generic bean must be staple generic bean or carioca, got '${top.displayNamePtBr}'`);
+          assert(!dn.includes("cru"), `Generic bean must not be raw, got '${top.displayNamePtBr}'`);
+          assert(!dn.includes("jalo"), `Generic bean must prefer national staple carioca before specialty jalo, got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "FEIJAO_CRU",
+        query: "feijão cru",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(dn.includes("cru"), `Explicit 'feijão cru' must return raw bean, got '${top.displayNamePtBr}'`);
+          assert(!dn.includes("cozido"), `Raw bean must not be cooked, got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "FEIJAO_COZIDO",
+        query: "feijão cozido",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(dn.includes("cozido"), `Explicit 'feijão cozido' must return cooked bean, got '${top.displayNamePtBr}'`);
+          assert(!dn.includes("cru"), `Cooked bean must not be raw, got '${top.displayNamePtBr}'`);
         },
       },
       {
@@ -159,7 +221,35 @@ async function run() {
         },
       },
       {
-        id: "FRANGO",
+        id: "FEIJAO_JALO",
+        query: "feijão jalo",
+        validate(top) {
+          assert.equal(top.displayNamePtBr, "Feijão jalo cozido", `Explicit 'feijão jalo' must return 'Feijão jalo cozido', got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "OVO_GENERIC",
+        query: "ovo",
+        validate(top) {
+          assert.equal(top.displayNamePtBr, "Ovo de galinha inteiro cozido", `Generic 'ovo' must prefer common prepared chicken egg, got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "OVO_CRU",
+        query: "ovo cru",
+        validate(top) {
+          assert.equal(top.displayNamePtBr, "Ovo de galinha inteiro cru", `Explicit 'ovo cru' must prioritize raw chicken egg before quail egg, got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "OVO_COZIDO",
+        query: "ovo cozido",
+        validate(top) {
+          assert.equal(top.displayNamePtBr, "Ovo de galinha inteiro cozido", `Explicit 'ovo cozido' must return cooked chicken egg, got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "FRANGO_GENERIC",
         query: "frango",
         validate(top) {
           const dn = top.displayNamePtBr.toLowerCase();
@@ -167,7 +257,26 @@ async function run() {
             dn.includes("cozido") || dn.includes("cozida") || dn.includes("assado") || dn.includes("assada") || dn.includes("grelhado") || dn.includes("grelhada"),
             `Top chicken must be cooked/assado/grelhado, got '${top.displayNamePtBr}'`
           );
-          assert(!dn.includes("cru"), `Top chicken must not be raw, got '${top.displayNamePtBr}'`);
+          assert(!dn.includes("cru"), `Top generic chicken must not be raw, got '${top.displayNamePtBr}'`);
+          assert(!dn.includes("coração") && !dn.includes("coracao") && !dn.includes("fígado") && !dn.includes("figado") && !dn.includes("moela"),
+            `Top chicken must be main cut before offal/viscera, got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "FRANGO_CRU",
+        query: "frango cru",
+        validate(top) {
+          const dn = top.displayNamePtBr.toLowerCase();
+          assert(dn.includes("cru"), `Explicit 'frango cru' must return raw chicken, got '${top.displayNamePtBr}'`);
+          assert(!dn.includes("coração") && !dn.includes("coracao") && !dn.includes("fígado") && !dn.includes("figado") && !dn.includes("moela"),
+            `Raw chicken must be main meat cut before offal/viscera, got '${top.displayNamePtBr}'`);
+        },
+      },
+      {
+        id: "FRANGO_GRELHADO",
+        query: "frango grelhado",
+        validate(top) {
+          assert.equal(top.displayNamePtBr, "Peito de frango sem pele grelhado", `Explicit 'frango grelhado' must return 'Peito de frango sem pele grelhado', got '${top.displayNamePtBr}'`);
         },
       },
       {
@@ -202,18 +311,9 @@ async function run() {
           assert(!dn.includes("doce"), `Top banana must not be sweet/jam, got '${top.displayNamePtBr}'`);
         },
       },
-      {
-        id: "OVO",
-        query: "ovo",
-        validate(top) {
-          const dn = top.displayNamePtBr.toLowerCase();
-          assert(dn.includes("galinha"), `Top egg must be chicken egg, got '${top.displayNamePtBr}'`);
-          assert(!dn.includes("codorna"), `Top egg must not be quail egg, got '${top.displayNamePtBr}'`);
-        },
-      },
     ];
 
-    console.log("Executando validações dos 15 termos de busca obrigatórios:\n");
+    console.log(`Executando validações dos ${testSpecs.length} termos de busca e preparo obrigatórios:\n`);
     for (const spec of testSpecs) {
       const res = await queryFoods(spec.query);
       assert(res.total > 0, `Query '${spec.query}' should return results`);
@@ -222,7 +322,7 @@ async function run() {
       console.log(`  ✓ [${spec.id}] '${spec.query}' -> Top: "${res.top.displayNamePtBr}" [${res.top.sourceKey}] (${res.total} rows)`);
     }
 
-    console.log("\n=== TODAS AS 15 BUSCAS ESSENCIAIS PASSARAM COM SUCESSO (100%) ===");
+    console.log(`\n=== TODAS AS ${testSpecs.length} BUSCAS ESSENCIAIS PASSARAM COM SUCESSO (100%) ===`);
   } finally {
     await pool.end();
   }

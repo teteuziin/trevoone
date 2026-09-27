@@ -65,6 +65,10 @@ import {
   buildCountQuery,
   buildSelectFoodsQuery,
   buildFoodSearchOrderClause,
+  groupCanonicalFoods,
+  getCanonicalFoodKey,
+  getCanonicalSourcePriority,
+  type AlternateFoodSourceProvenance,
   type FoodSourceTab,
   type ListFoodsFilter,
   type FoodListItemDto,
@@ -132,6 +136,12 @@ export {
 };
 
 export { getDataQualityBadgeInfo } from "./food-search";
+export {
+  groupCanonicalFoods,
+  getCanonicalFoodKey,
+  getCanonicalSourcePriority,
+  type AlternateFoodSourceProvenance,
+};
 
 export async function listUnifiedFoodsForNutritionist(
   ctx: NutritionAccessContext,
@@ -950,5 +960,45 @@ export async function archiveFoodPortion(
     return { success: true };
   } finally {
     if (connection) connection.release();
+  }
+}
+
+export async function getFoodSourceAlternatives(
+  ctx: NutritionAccessContext,
+  foodPublicId: string
+): Promise<{ primary: FoodListItemDto; alternatives: AlternateFoodSourceProvenance[] } | null> {
+  assertCanViewNutrition(ctx);
+  const connection = await getDbConnection();
+  try {
+    const [targetRows] = await connection.query<RowDataPacket[]>(
+      `SELECT f.*,
+        (SELECT COUNT(*) FROM nutrition_v2_food_portions fp WHERE fp.food_id = f.id AND fp.deleted_at IS NULL AND fp.status = 'ACTIVE') AS portions_count
+       FROM nutrition_v2_foods f WHERE f.public_id = ? LIMIT 1`,
+      [foodPublicId]
+    );
+    if (!targetRows || targetRows.length === 0) return null;
+    const targetItem = mapFoodRow(targetRows[0]);
+    const targetKey = getCanonicalFoodKey(targetItem);
+
+    // Find siblings by same normalized display name
+    const [siblingRows] = await connection.query<RowDataPacket[]>(
+      `SELECT f.*,
+        (SELECT COUNT(*) FROM nutrition_v2_food_portions fp WHERE fp.food_id = f.id AND fp.deleted_at IS NULL AND fp.status = 'ACTIVE') AS portions_count
+       FROM nutrition_v2_foods f
+       WHERE f.status = 'ACTIVE'
+         AND (f.normalized_display_name_pt_br = ? OR f.name = ?)
+         AND f.scope IN ('GLOBAL', 'CONSULTANCY')`,
+      [targetRows[0].normalized_display_name_pt_br, targetRows[0].name]
+    );
+
+    const mapped = siblingRows.map((r) => mapFoodRow(r)).filter((it) => getCanonicalFoodKey(it) === targetKey);
+    const consolidated = groupCanonicalFoods(mapped);
+    const primary = consolidated[0] || targetItem;
+    return {
+      primary,
+      alternatives: primary.alternativeSources || [],
+    };
+  } finally {
+    connection.release();
   }
 }

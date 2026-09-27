@@ -615,7 +615,7 @@ export function NutritionistFoodLibrary({
               <>
                 <div className="flex items-start justify-between border-b border-[var(--border-subtle)] pb-3">
                   <div className="space-y-0.5 min-w-0">
-                    <h2 className="text-lg font-bold text-[var(--text-primary)] truncate">{selectedFood.name}</h2>
+                    <h2 className="text-lg font-bold text-[var(--text-primary)] truncate">{selectedFood.displayNamePtBr || selectedFood.name}</h2>
                     <p className="text-xs text-[var(--text-secondary)] font-medium">{selectedFood.category || "Sem categoria"}</p>
                   </div>
                   <button

@@ -228,7 +228,6 @@ export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = 
   // Pães e variações regionais brasileiras
   cacetinho: ["pao frances", "frances"],
   careca: ["frances", "pao frances"],
-
   // Tubérculos e Raízes (variações regionais inequívocas em PT-BR)
   aipim: ["mandioca", "macaxeira"],
   macaxeira: ["mandioca", "aipim"],
@@ -384,6 +383,8 @@ export const EXACT_CANONICAL_NAME_OVERRIDES: Readonly<Record<string, string>> = 
   "Pão, trigo, forma, integral": "Pão de forma integral",
   "Pão, trigo, sovado": "Pão sovado",
   "Pao de Sal": "Pão francês",
+  "Pão francês, cacetinho": "Pão francês",
+  "Pao frances, cacetinho": "Pão francês",
 
   // Queijos e Laticínios
   "Queijo, mozarela": "Muçarela",
@@ -399,15 +400,18 @@ export const EXACT_CANONICAL_NAME_OVERRIDES: Readonly<Record<string, string>> = 
   "Mussarela de Bufala": "Muçarela de búfala",
   "Mussarela Light": "Muçarela light",
   "Queijo Mussarela Light": "Queijo muçarela light",
+  "Muçarela, mussarela, mozarela": "Muçarela",
   "Soja, queijo (tofu)": "Tofu",
 
   // Frutas e Tubérculos canônicos
   "Bergamota": "Tangerina",
   "Mexerica": "Tangerina",
   "Tangerina": "Tangerina",
+  "Tangerina, mexerica, bergamota": "Tangerina",
   "Aipim": "Mandioca",
   "Macaxeira": "Mandioca",
   "Mandioca": "Mandioca",
+  "Mandioca, aipim, macaxeira": "Mandioca",
   // Arroz e Feijão canônicos (preserva neutralidade oficial sem inferir cozido em prep 99)
   "Arroz (polido, Parboilizado, Agulha, Agulhinha, Etc)": "Arroz branco",
   "Arroz Integral": "Arroz integral",
@@ -458,6 +462,7 @@ const ANIMALS_FOR_CUTS = [
   "cacao",
   "lambari",
   "corvina",
+  "peixe",
 ];
 
 const FEMININE_NOUN_ROOTS = [
@@ -513,6 +518,9 @@ export function cleanTacoDisplayName(name: string): string {
     s = s.replace(/^Mexerica,/, "Tangerina,");
   }
 
+  // Strip comma-separated alias lists if present in input
+  s = s.replace(/,\s*(?:cacetinho|pão de sal|pao de sal|aipim|macaxeira|mexerica|bergamota|mandarina|mussarela|mozarela)\b/gi, "");
+
   // Lab duration annotations (e.g. /10minutos in UNICAMP egg protocols)
   s = s.replace(/\/10minutos/gi, "");
 
@@ -542,11 +550,12 @@ export function cleanTacoDisplayName(name: string): string {
       const rest = parts.slice(3).join(" ");
       const cutLower = cutOrName.toLowerCase();
       if (cutLower === "seca") {
-        s = `Carne seca ${rest}`;
+        s = `Carne seca ${rest ? " " + rest : ""}`;
       } else if (cutLower === "charque") {
-        s = `Charque ${rest}`;
+        s = `Charque ${rest ? " " + rest : ""}`;
       } else if (["costela", "fígado", "figado", "língua", "lingua", "bucho", "músculo", "musculo"].includes(cutLower)) {
-        s = `${cutOrName} bovina ${rest}`;
+        const adj = ["costela", "língua", "lingua"].includes(cutLower) ? "bovina" : "bovino";
+        s = `${cutOrName} ${adj}${rest ? " " + rest : ""}`;
       } else {
         s = `${cutOrName}${rest ? " " + rest : ""}`;
       }
@@ -658,18 +667,18 @@ export function cleanIbgeDisplayName(name: string): string {
  * Master food display name cleaner.
  * Strictly preserves source name for non-curated databases (USDA, branded products)
  * while providing pristine, comma-free, alias-separated names for TACO and IBGE.
+
  */
 export function cleanFoodDisplayName(name: string, sourceKey?: string | null): string {
   if (!name || typeof name !== "string") return "";
 
-  if (sourceKey === "TACO") {
+  if (sourceKey === "TACO" || !sourceKey) {
     return cleanTacoDisplayName(name);
   }
 
   if (sourceKey === "IBGE_POF_2008_2009" || sourceKey === "IBGE") {
     return cleanIbgeDisplayName(name);
   }
-
   // For USDA, branded products, or consultancy custom foods:
   // preserve existing name without inventing semantics
   return name.trim();
@@ -1413,8 +1422,9 @@ export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
   const deletedAt = safeIsoString(r.deleted_at, null);
   const portionsCount = Math.max(0, safeNumber(r.portions_count, 0));
 
-  const cleanedDisplay = cleanFoodDisplayName(name, sourceKey);
-  const effectiveDisplayName = safeNullableString(r.display_name_pt_br) || cleanedDisplay || name;
+  const rawDisplayName = safeNullableString(r.display_name_pt_br);
+  const cleanedDisplay = cleanFoodDisplayName(rawDisplayName || name, sourceKey);
+  const effectiveDisplayName = cleanedDisplay || name;
 
   return {
     publicId,
@@ -1422,7 +1432,7 @@ export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
     consultancyId,
     name,
     displayNamePtBr: effectiveDisplayName,
-    normalizedDisplayNamePtBr: safeNullableString(r.normalized_display_name_pt_br),
+    normalizedDisplayNamePtBr: normalizeSearchText(effectiveDisplayName),
     normalizedName: safeString(r.normalized_name, ""),
     category,
     referenceAmount: refAmount,

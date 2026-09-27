@@ -100,6 +100,9 @@ function getWordStem(word: string): string {
  * NO English cross-language tokens allowed in user search queries.
  */
 export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  // Pães e variações regionais brasileiras
+  cacetinho: ["pao frances", "frances"],
+  careca: ["frances", "pao frances"],
   // Tubérculos e Raízes (variações regionais inequívocas em PT-BR)
   aipim: ["mandioca", "macaxeira"],
   macaxeira: ["mandioca", "aipim"],
@@ -212,6 +215,18 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
     // Phrase-aware handling: pasta / creme / manteiga de amendoim
     if (hasAmendoim && (normalized === "pasta" || normalized === "creme" || normalized === "manteiga")) {
       return [token, "pasta", "creme", "manteiga"];
+    }
+
+    // Phrase-aware handling: pão francês / cacetinho / pão de sal / pão careca
+    const hasPao = tokens.some((t) => normalizeSearchText(t) === "pao");
+    if (hasPao && (normalized === "sal" || normalized === "careca")) {
+      return [token, "frances", "sal", "careca"];
+    }
+    if (hasPao && normalized === "frances") {
+      return [token, "frances", "cacetinho", "sal"];
+    }
+    if (normalized === "cacetinho") {
+      return [token, "cacetinho", "frances"];
     }
 
     // Phrase-aware handling: arroz branco -> TACO arroz tipo 1 / tipo 2 / polido

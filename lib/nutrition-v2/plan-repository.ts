@@ -1,3 +1,16 @@
+
+function isMissingSnapshotColumnError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (("code" in err && (err as { code?: unknown }).code === "ER_BAD_FIELD_ERROR") ||
+      ("errno" in err && (err as { errno?: unknown }).errno === 1054)) &&
+    "message" in err &&
+    typeof (err as { message?: unknown }).message === "string" &&
+    (err as { message: string }).message.includes("micronutrients_snapshot_json")
+  );
+}
+
 /**
  * TREVO ONE — NUTRITION V2 PLAN REPOSITORY
  * Core repository for Plan Root, Version, Meals, Items, and Substitutions.
@@ -178,12 +191,46 @@ export async function captureMicronutrientsSnapshotForFood(
     });
   }
 
-  const [nutrientRows] = await conn.query<RowDataPacket[]>(
-    `SELECT nutrient_code, amount_per_reference, unit_code, status
-     FROM nutrition_v2_food_nutrients
-     WHERE food_id = ?`,
-    [foodId]
-  );
+  let nutrientRows: RowDataPacket[] = [];
+  try {
+    const [rows] = await conn.query<RowDataPacket[]>(
+      `SELECT nutrient_code, amount_per_reference, unit_code, status
+       FROM nutrition_v2_food_nutrients
+       WHERE food_id = ?`,
+      [foodId]
+    );
+    nutrientRows = rows as RowDataPacket[];
+  } catch (err: unknown) {
+    const isNoSuchTable =
+      typeof err === "object" &&
+      err !== null &&
+      (("code" in err && (err as { code?: unknown }).code === "ER_NO_SUCH_TABLE") ||
+        ("errno" in err && (err as { errno?: unknown }).errno === 1146)) &&
+      "message" in err &&
+      typeof (err as { message?: unknown }).message === "string" &&
+      (err as { message: string }).message.includes("nutrition_v2_food_nutrients");
+
+    if (isNoSuchTable) {
+      console.warn(
+        `[NutritionV2] Graceful degradation: 'nutrition_v2_food_nutrients' table does not exist. Returning UNKNOWN snapshot for foodId ${foodId}.`
+      );
+      return buildMicronutrientsSnapshotEnvelope(new Map(), {
+        sourceType: foodRow.source_type ? String(foodRow.source_type) : "EXTERNAL",
+        sourceUid: foodRow.source_uid
+          ? String(foodRow.source_uid)
+          : foodRow.public_id
+          ? String(foodRow.public_id)
+          : null,
+        sourceKey: foodRow.source_key ? String(foodRow.source_key) : null,
+        sourceVersion: foodRow.source_version ? String(foodRow.source_version) : null,
+        dataQuality: foodRow.data_quality ? String(foodRow.data_quality) : null,
+        capturedAt,
+      });
+    }
+
+    // Do NOT swallow arbitrary DB errors.
+    throw err;
+  }
 
   const nutrientDensities: FoodNutrientDensityItem[] = (nutrientRows as RowDataPacket[]).map((r) => ({
     nutrientCode: String(r.nutrient_code),
@@ -1217,42 +1264,83 @@ export async function addMealItem(
     const itemPublicId = crypto.randomUUID();
     const notes = input.notes ? input.notes.trim() : null;
 
-    await connection.query(
-      `INSERT INTO nutrition_v2_meal_items (
-        public_id,
-        meal_id,
-        food_id,
-        sort_order,
-        food_name_snapshot,
-        category_snapshot,
-        prescribed_quantity,
-        prescribed_unit_code,
-        prescribed_unit_label,
-        calories_kcal_snapshot,
-        protein_g_snapshot,
-        carbohydrate_g_snapshot,
-        fat_g_snapshot,
-        micronutrients_snapshot_json,
-        notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        itemPublicId,
-        meal.id,
-        foodId,
-        nextSort,
-        foodNameSnapshot,
-        categorySnapshot,
-        prescribedQuantity,
-        prescribedUnitCode,
-        prescribedUnitLabel,
-        caloriesSnapshot,
-        proteinSnapshot,
-        carbsSnapshot,
-        fatSnapshot,
-        JSON.stringify(micronutrientsSnapshot),
-        notes,
-      ]
-    );
+    try {
+      await connection.query(
+        `INSERT INTO nutrition_v2_meal_items (
+          public_id,
+          meal_id,
+          food_id,
+          sort_order,
+          food_name_snapshot,
+          category_snapshot,
+          prescribed_quantity,
+          prescribed_unit_code,
+          prescribed_unit_label,
+          calories_kcal_snapshot,
+          protein_g_snapshot,
+          carbohydrate_g_snapshot,
+          fat_g_snapshot,
+          micronutrients_snapshot_json,
+          notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          itemPublicId,
+          meal.id,
+          foodId,
+          nextSort,
+          foodNameSnapshot,
+          categorySnapshot,
+          prescribedQuantity,
+          prescribedUnitCode,
+          prescribedUnitLabel,
+          caloriesSnapshot,
+          proteinSnapshot,
+          carbsSnapshot,
+          fatSnapshot,
+          JSON.stringify(micronutrientsSnapshot),
+          notes,
+        ]
+      );
+    } catch (insertErr: unknown) {
+      if (isMissingSnapshotColumnError(insertErr)) {
+        await connection.query(
+          `INSERT INTO nutrition_v2_meal_items (
+            public_id,
+            meal_id,
+            food_id,
+            sort_order,
+            food_name_snapshot,
+            category_snapshot,
+            prescribed_quantity,
+            prescribed_unit_code,
+            prescribed_unit_label,
+            calories_kcal_snapshot,
+            protein_g_snapshot,
+            carbohydrate_g_snapshot,
+            fat_g_snapshot,
+            notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            itemPublicId,
+            meal.id,
+            foodId,
+            nextSort,
+            foodNameSnapshot,
+            categorySnapshot,
+            prescribedQuantity,
+            prescribedUnitCode,
+            prescribedUnitLabel,
+            caloriesSnapshot,
+            proteinSnapshot,
+            carbsSnapshot,
+            fatSnapshot,
+            notes,
+          ]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
 
     await connection.commit();
     return { itemPublicId };
@@ -1528,10 +1616,26 @@ export async function updateMealItem(
     }
 
     params.push(item.id);
-    await connection.query(
-      `UPDATE nutrition_v2_meal_items SET ${updates.join(", ")} WHERE id = ?`,
-      params
-    );
+    try {
+      await connection.query(
+        `UPDATE nutrition_v2_meal_items SET ${updates.join(", ")} WHERE id = ?`,
+        params
+      );
+    } catch (updateErr: unknown) {
+      if (isMissingSnapshotColumnError(updateErr)) {
+        const microIdx = updates.indexOf("micronutrients_snapshot_json = ?");
+        if (microIdx !== -1) {
+          updates.splice(microIdx, 1);
+          params.splice(microIdx, 1);
+        }
+        await connection.query(
+          `UPDATE nutrition_v2_meal_items SET ${updates.join(", ")} WHERE id = ?`,
+          params
+        );
+      } else {
+        throw updateErr;
+      }
+    }
 
     await connection.commit();
     return { success: true };
@@ -1846,40 +1950,79 @@ export async function addSubstitution(
     const substitutionPublicId = crypto.randomUUID();
     const notes = input.notes ? input.notes.trim() : null;
 
-    await connection.query(
-      `INSERT INTO nutrition_v2_item_substitutions (
-        public_id,
-        meal_item_id,
-        food_id,
-        sort_order,
-        food_name_snapshot,
-        prescribed_quantity,
-        prescribed_unit_code,
-        prescribed_unit_label,
-        calories_kcal_snapshot,
-        protein_g_snapshot,
-        carbohydrate_g_snapshot,
-        fat_g_snapshot,
-        micronutrients_snapshot_json,
-        notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        substitutionPublicId,
-        item.id,
-        foodId,
-        nextSort,
-        foodNameSnapshot,
-        prescribedQuantity,
-        prescribedUnitCode,
-        prescribedUnitLabel,
-        caloriesSnapshot,
-        proteinSnapshot,
-        carbsSnapshot,
-        fatSnapshot,
-        JSON.stringify(micronutrientsSnapshot),
-        notes,
-      ]
-    );
+    try {
+      await connection.query(
+        `INSERT INTO nutrition_v2_item_substitutions (
+          public_id,
+          meal_item_id,
+          food_id,
+          sort_order,
+          food_name_snapshot,
+          prescribed_quantity,
+          prescribed_unit_code,
+          prescribed_unit_label,
+          calories_kcal_snapshot,
+          protein_g_snapshot,
+          carbohydrate_g_snapshot,
+          fat_g_snapshot,
+          micronutrients_snapshot_json,
+          notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          substitutionPublicId,
+          item.id,
+          foodId,
+          nextSort,
+          foodNameSnapshot,
+          prescribedQuantity,
+          prescribedUnitCode,
+          prescribedUnitLabel,
+          caloriesSnapshot,
+          proteinSnapshot,
+          carbsSnapshot,
+          fatSnapshot,
+          JSON.stringify(micronutrientsSnapshot),
+          notes,
+        ]
+      );
+    } catch (insertErr: unknown) {
+      if (isMissingSnapshotColumnError(insertErr)) {
+        await connection.query(
+          `INSERT INTO nutrition_v2_item_substitutions (
+            public_id,
+            meal_item_id,
+            food_id,
+            sort_order,
+            food_name_snapshot,
+            prescribed_quantity,
+            prescribed_unit_code,
+            prescribed_unit_label,
+            calories_kcal_snapshot,
+            protein_g_snapshot,
+            carbohydrate_g_snapshot,
+            fat_g_snapshot,
+            notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            substitutionPublicId,
+            item.id,
+            foodId,
+            nextSort,
+            foodNameSnapshot,
+            prescribedQuantity,
+            prescribedUnitCode,
+            prescribedUnitLabel,
+            caloriesSnapshot,
+            proteinSnapshot,
+            carbsSnapshot,
+            fatSnapshot,
+            notes,
+          ]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
 
     await connection.commit();
     return { substitutionPublicId };
@@ -2159,10 +2302,26 @@ export async function updateSubstitution(
     }
 
     params.push(sub.id);
-    await connection.query(
-      `UPDATE nutrition_v2_item_substitutions SET ${updates.join(", ")} WHERE id = ?`,
-      params
-    );
+    try {
+      await connection.query(
+        `UPDATE nutrition_v2_item_substitutions SET ${updates.join(", ")} WHERE id = ?`,
+        params
+      );
+    } catch (updateErr: unknown) {
+      if (isMissingSnapshotColumnError(updateErr)) {
+        const microIdx = updates.indexOf("micronutrients_snapshot_json = ?");
+        if (microIdx !== -1) {
+          updates.splice(microIdx, 1);
+          params.splice(microIdx, 1);
+        }
+        await connection.query(
+          `UPDATE nutrition_v2_item_substitutions SET ${updates.join(", ")} WHERE id = ?`,
+          params
+        );
+      } else {
+        throw updateErr;
+      }
+    }
 
     await connection.commit();
     return { success: true };

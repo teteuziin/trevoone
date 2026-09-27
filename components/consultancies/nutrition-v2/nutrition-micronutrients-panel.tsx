@@ -183,6 +183,14 @@ export function NutritionMicronutrientsPanel({
     }
   }
 
+  const isAllUnavailable =
+    !empty &&
+    nutrients != null &&
+    CANONICAL_NUTRIENTS.every((defn) => {
+      const d = nutrients[defn.code];
+      return !d || (d.quantifiedItemCount === 0 && !d.hasTrace);
+    });
+
   return (
     <div
       className={`rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-4 sm:p-5 shadow-xs space-y-4 depth-surface ${className}`}
@@ -205,9 +213,15 @@ export function NutritionMicronutrientsPanel({
             {title}
           </h3>
           {!empty ? (
-            <p className="text-xs text-[var(--text-secondary)] font-medium">
-              Cobertura de dados: {fullyQuantifiedCount} de {totalNutrientCount} micronutrientes totalmente quantificados no plano.
-            </p>
+            isAllUnavailable ? (
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                Micronutrientes temporariamente indisponíveis.
+              </p>
+            ) : (
+              <p className="text-xs text-[var(--text-secondary)] font-medium">
+                Cobertura de dados: {fullyQuantifiedCount} de {totalNutrientCount} micronutrientes totalmente quantificados no plano.
+              </p>
+            )
           ) : (
             <p className="text-xs text-[var(--text-tertiary)]">Nenhum alimento adicionado.</p>
           )}
@@ -268,6 +282,12 @@ export function NutritionMicronutrientsPanel({
                   </button>
                 ))}
               </div>
+
+              {isAllUnavailable && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 font-medium">
+                  Micronutrientes temporariamente indisponíveis.
+                </div>
+              )}
 
               {/* Informative Disclaimer on Data Completeness */}
               <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-[11px] text-[var(--text-secondary)] flex items-start gap-2">

@@ -5,6 +5,7 @@ import { ViewModeBanner } from "./view-mode-banner";
 import type { EffectiveViewModeState } from "@/lib/consultancies/view-mode";
 import { SessionScopeGuard } from "@/components/auth/session-scope-guard";
 import { StudentOfflinePrimer } from "@/components/offline/student-offline-primer";
+import { ActivityHeartbeat } from "./activity-heartbeat";
 
 export interface ConsultancyAppShellProps {
   consultancyName: string;
@@ -551,6 +552,7 @@ export function ConsultancyAppShell({
       )}
 
       {/* Main Content Area */}
+      <ActivityHeartbeat slug={consultancySlug} />
       <main
         className={`flex-1 w-full mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 lg:pb-10 print:p-0 print:max-w-full ${effectiveMaxWidthClass} ${className}`.trim()}
       >

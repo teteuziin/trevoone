@@ -6,6 +6,7 @@
  */
 
 import { getCurrentSession } from "@/lib/auth/session";
+import { evaluateStudentMonitoring } from "@/lib/monitoring/evaluator";
 import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import {
   startOrResumeWorkoutExecution,
@@ -187,6 +188,11 @@ export async function completeWorkoutExecutionAction(
 
   try {
     const completedSession = await completeWorkoutExecution(ctx, sessionPublicId);
+    if (ctx.consultancyId && ctx.membershipId) {
+      evaluateStudentMonitoring(ctx.consultancyId, ctx.membershipId).catch((evalErr) => {
+        console.warn("[Monitoring] Opportunistic evaluation after workout completion failed:", evalErr);
+      });
+    }
     return {
       success: true,
       session: completedSession,
@@ -223,6 +229,11 @@ export async function syncOfflineWorkoutExecutionAction(
 
   try {
     const res = await syncOfflineWorkoutExecution(ctx, input);
+    if (ctx.consultancyId && ctx.membershipId) {
+      evaluateStudentMonitoring(ctx.consultancyId, ctx.membershipId).catch((evalErr) => {
+        console.warn("[Monitoring] Opportunistic evaluation after offline workout sync failed:", evalErr);
+      });
+    }
     return {
       success: true,
       sessionPublicId: res.sessionPublicId,

@@ -3,6 +3,9 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getPersonalStudentDetail } from "@/lib/consultancies/personal-student-hub";
+import { evaluateStudentMonitoring } from "@/lib/monitoring/evaluator";
+import { getDbConnection } from "@/lib/db/mysql";
+import type { RowDataPacket } from "mysql2/promise";
 import {
   getStudentEvolutionHubData,
   getEvolutionComparisonBetweenDates,
@@ -54,6 +57,41 @@ export default async function ProfessionalStudentProgressDetailPage({
 
   // Load complete student hub detail for Personal and Consultancy Admin
   if (isPersonal || isConsultancyAdmin) {
+    const connection = await getDbConnection();
+    let studentMemberId: number;
+    try {
+      const [mRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id FROM consultancy_members WHERE public_id = ? AND consultancy_id = ? LIMIT 1;`,
+        [studentPublicId, context.consultancyId]
+      );
+      if (!Array.isArray(mRows) || mRows.length === 0) {
+        notFound();
+      }
+      studentMemberId = Number(mRows[0].id);
+
+      // Verify assignment: Personal cannot see unassigned students. Consultancy Admin retains global visibility.
+      if (isPersonal && !isConsultancyAdmin) {
+        const [assignRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT 1 FROM (
+             SELECT student_membership_id FROM workout_assignments
+             WHERE consultancy_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+             UNION
+             SELECT student_membership_id FROM nutrition_v2_assignments
+             WHERE consultancy_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE'
+           ) t
+           WHERE student_membership_id = ?
+           LIMIT 1;`,
+          [context.consultancyId, context.membershipId, context.consultancyId, context.membershipId, studentMemberId]
+        );
+
+        if (!Array.isArray(assignRows) || assignRows.length === 0) {
+          notFound();
+        }
+      }
+    } finally {
+      connection.release();
+    }
+
     const detail = await getPersonalStudentDetail({
       consultancyId: context.consultancyId,
       consultancySlug: slug,
@@ -63,6 +101,8 @@ export default async function ProfessionalStudentProgressDetailPage({
     if (!detail) {
       notFound();
     }
+
+    const studentMonitoring = await evaluateStudentMonitoring(context.consultancyId, studentMemberId).catch(() => null);
 
     return (
       <ConsultancyAppShell
@@ -79,6 +119,7 @@ export default async function ProfessionalStudentProgressDetailPage({
         <PersonalStudentDetailView
           consultancySlug={slug}
           detail={detail}
+          studentMonitoring={studentMonitoring}
         />
       </ConsultancyAppShell>
     );

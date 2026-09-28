@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateReferralCode } from "@/lib/referrals/service";
+import { createAnonymousReferralAttribution } from "@/lib/referrals/service";
 
 export const dynamic = "force-dynamic";
 
@@ -18,42 +18,30 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.redirect(fallbackUrl);
   }
 
-  const validation = await validateReferralCode(code);
+  // Check if visitor already has an existing opaque attribution token
+  const existingToken = request.cookies.get("trevo_ref_token")?.value;
 
-  if (!validation.valid || !validation.consultancySlug || !validation.consultancyId) {
+  // Server-side validation and anonymous first-touch attribution creation
+  // FIRST VALID REFERRAL WINS: existing valid token is preserved
+  const result = await createAnonymousReferralAttribution(code, existingToken);
+
+  if (!result.valid || !result.consultancySlug || !result.token) {
     const fallbackUrl = new URL("/login", request.url);
     fallbackUrl.searchParams.set("error", "referral_unavailable");
     return NextResponse.redirect(fallbackUrl);
   }
 
-  const consultancySlug = validation.consultancySlug;
-  const consultancyId = validation.consultancyId;
-  const cookieName = `trevo_ref_${consultancyId}`;
-
-  // First-touch attribution rule: check if user already has a valid attribution cookie for this consultancy
-  const existingCookie = request.cookies.get(cookieName)?.value;
-
-  const targetUrl = new URL(`/consultoria/${consultancySlug}`, request.url);
+  const targetUrl = new URL(`/consultoria/${result.consultancySlug}`, request.url);
   const response = NextResponse.redirect(targetUrl);
 
-  if (!existingCookie) {
-    const payload = JSON.stringify({
-      code: validation.code,
-      codeId: validation.codeId,
-      referrerMemberId: validation.referrerMemberId,
-      consultancyId,
-      timestamp: Date.now(),
-    });
-
-    const isProd = process.env.NODE_ENV === "production";
-    response.cookies.set(cookieName, payload, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60, // 30-day attribution window
-    });
-  }
+  const isProd = process.env.NODE_ENV === "production";
+  response.cookies.set("trevo_ref_token", result.token, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 30 * 24 * 60 * 60, // 30-day attribution window
+  });
 
   return response;
 }

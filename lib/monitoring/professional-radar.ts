@@ -41,7 +41,7 @@ export async function getProfessionalRadarData(
   let professionalRows: RowDataPacket[] = [];
   try {
     const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT cm.id AS member_id, u.public_id AS user_public_id, u.full_name, cmr.role
+      `SELECT cm.id AS member_id, cm.user_id, u.public_id AS user_public_id, u.full_name, cmr.role
        FROM consultancy_members cm
        JOIN users u ON u.id = cm.user_id
        JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
@@ -59,6 +59,7 @@ export async function getProfessionalRadarData(
 
   for (const prof of professionalRows) {
     const profMemberId = Number(prof.member_id);
+    const profUserId = Number(prof.user_id);
 
     // 1. Fetch assigned active students
     const conn = await getDbConnection();
@@ -125,13 +126,13 @@ export async function getProfessionalRadarData(
                AND student_membership_id IN (${placeholders})
              UNION
              SELECT student_membership_id FROM student_photo_evaluation_requests
-             WHERE consultancy_id = ? AND reviewed_by_membership_id = ? AND reviewed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+             WHERE consultancy_id = ? AND (reviewed_by_user_id = ? OR requested_by_user_id = ?) AND (reviewed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) OR updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY))
                AND student_membership_id IN (${placeholders})
            ) active_students;`,
           [
             consultancyId, profMemberId, ...assignedStudentIds,
             consultancyId, profMemberId, ...assignedStudentIds,
-            consultancyId, profMemberId, ...assignedStudentIds,
+            consultancyId, profUserId, profUserId, ...assignedStudentIds,
           ]
         );
         const interactedStudentCount = recentInteractions.length;

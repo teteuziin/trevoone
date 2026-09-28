@@ -44,7 +44,8 @@ export async function savePixProfileAction(
 
 export async function approveCommissionAction(
   slug: string,
-  commissionId: number
+  commissionId: number,
+  baseAmountCents?: number
 ): Promise<{ success: boolean; error?: string }> {
   const session = await getCurrentSession();
   if (!session) return { success: false, error: "Usuário não autenticado." };
@@ -58,7 +59,8 @@ export async function approveCommissionAction(
     context.consultancyId,
     commissionId,
     context.membershipId,
-    session.userId
+    session.userId,
+    baseAmountCents !== undefined && baseAmountCents !== null ? BigInt(baseAmountCents) : undefined
   );
 
   if (result.success) {

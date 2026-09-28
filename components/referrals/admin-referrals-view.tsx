@@ -46,7 +46,10 @@ interface AdminReferralsViewProps {
     referrerName: string;
     referrerRole: string;
     studentName: string;
-    amount: number;
+    commissionType: CommissionType;
+    rateBasisPoints: number | null;
+    baseAmount: number | null;
+    amount: number | null;
     status: CommissionStatus;
     pixMasked: string;
     createdAt: Date;
@@ -79,6 +82,7 @@ export function AdminReferralsView({
   const [actionType, setActionType] = useState<"approve" | "cancel" | "pay" | "reveal_pix" | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [paymentNote, setPaymentNote] = useState("");
+  const [baseAmountInput, setBaseAmountInput] = useState("");
   const [isProcessingAction, setIsProcessingAction] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -111,16 +115,17 @@ export function AdminReferralsView({
     }
   }
 
-  async function handleApprove(commissionId: number) {
+  async function handleApprove(commissionId: number, baseAmountCents?: number) {
     setIsProcessingAction(true);
     setActionError(null);
-    const res = await approveCommissionAction(consultancySlug, commissionId);
+    const res = await approveCommissionAction(consultancySlug, commissionId, baseAmountCents);
     setIsProcessingAction(false);
     if (!res.success) {
       setActionError(res.error || "Erro ao aprovar comissão.");
     } else {
       setActionType(null);
       setSelectedCommission(null);
+      setBaseAmountInput("");
     }
   }
 
@@ -352,7 +357,18 @@ export function AdminReferralsView({
                         {c.studentName}
                       </td>
                       <td className="py-3 font-bold text-[var(--text-primary)]">
-                        R$ {c.amount.toFixed(2)}
+                        {c.amount !== null ? (
+                          <span>R$ {c.amount.toFixed(2)}</span>
+                        ) : (
+                          <span className="text-[var(--warning-foreground)]">
+                            {c.rateBasisPoints ? (c.rateBasisPoints / 100).toFixed(2) : 10}% (Base pendente)
+                          </span>
+                        )}
+                        {c.baseAmount !== null && (
+                          <span className="text-[10px] text-[var(--text-tertiary)] block font-normal">
+                            Base: R$ {c.baseAmount.toFixed(2)}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 font-mono text-[11px] text-[var(--text-secondary)]">
                         {c.pixMasked}
@@ -582,8 +598,40 @@ export function AdminReferralsView({
                   Aprovar Comissão
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  Confirmar a aprovação da comissão de <strong className="text-[var(--text-primary)]">R$ {selectedCommission.amount.toFixed(2)}</strong> para <strong className="text-[var(--text-primary)]">{selectedCommission.referrerName}</strong> referente à adesão de {selectedCommission.studentName}?
+                  {selectedCommission.commissionType === "PERCENTAGE" ? (
+                    <>
+                      Comissão percentual de <strong>{selectedCommission.rateBasisPoints ? (selectedCommission.rateBasisPoints / 100).toFixed(2) : 10}%</strong> para <strong>{selectedCommission.referrerName}</strong> referente à adesão de {selectedCommission.studentName}.
+                    </>
+                  ) : (
+                    <>
+                      Confirmar a aprovação da comissão de <strong className="text-[var(--text-primary)]">R$ {selectedCommission.amount !== null ? selectedCommission.amount.toFixed(2) : "0.00"}</strong> para <strong className="text-[var(--text-primary)]">{selectedCommission.referrerName}</strong> referente à adesão de {selectedCommission.studentName}?
+                    </>
+                  )}
                 </p>
+
+                {selectedCommission.commissionType === "PERCENTAGE" && (
+                  <div className="space-y-2 pt-1">
+                    <label className="text-xs font-semibold text-[var(--text-primary)] block">
+                      Valor base da comissão (R$)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 250,00"
+                      value={baseAmountInput}
+                      onChange={(e) => setBaseAmountInput(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-2 focus:outline-[var(--brand)]"
+                    />
+                    {baseAmountInput && !isNaN(parseFloat(baseAmountInput.replace(',', '.'))) && (
+                      <p className="text-[11px] text-[var(--brand)] font-medium">
+                        Comissão projetada: R$ {(
+                          (parseFloat(baseAmountInput.replace(',', '.')) *
+                            (selectedCommission.rateBasisPoints ? selectedCommission.rateBasisPoints / 10000 : 0.1))
+                        ).toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {actionError && (
                   <div className="p-3 text-xs rounded-xl bg-[var(--danger-soft)] text-[var(--danger-foreground)] border border-[var(--danger-border)]">
                     {actionError}
@@ -592,7 +640,10 @@ export function AdminReferralsView({
                 <div className="flex items-center justify-end gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setActionType(null)}
+                    onClick={() => {
+                      setActionType(null);
+                      setBaseAmountInput("");
+                    }}
                     className="px-4 py-2 text-xs rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] cursor-pointer"
                   >
                     Voltar
@@ -600,7 +651,19 @@ export function AdminReferralsView({
                   <button
                     type="button"
                     disabled={isProcessingAction}
-                    onClick={() => handleApprove(selectedCommission.id)}
+                    onClick={() => {
+                      if (selectedCommission.commissionType === "PERCENTAGE") {
+                        const parsed = parseFloat(baseAmountInput.replace(',', '.'));
+                        if (isNaN(parsed) || parsed <= 0) {
+                          setActionError("Informe um valor base legítimo e positivo.");
+                          return;
+                        }
+                        const cents = Math.round(parsed * 100);
+                        handleApprove(selectedCommission.id, cents);
+                      } else {
+                        handleApprove(selectedCommission.id);
+                      }
+                    }}
                     className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--brand)] text-white hover:brightness-110 cursor-pointer disabled:opacity-50"
                   >
                     {isProcessingAction ? "Aprovando..." : "Confirmar Aprovação"}
@@ -615,7 +678,7 @@ export function AdminReferralsView({
                   Cancelar Comissão
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  Informe o motivo do cancelamento da comissão de R$ {selectedCommission.amount.toFixed(2)}:
+                  Informe o motivo do cancelamento da comissão de R$ {selectedCommission.amount !== null ? selectedCommission.amount.toFixed(2) : "0.00"}:
                 </p>
                 <textarea
                   value={cancelReason}
@@ -655,7 +718,7 @@ export function AdminReferralsView({
                   Liquidar Comissão (Marcar como Paga)
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  Confirma que a transferência externa no valor de <strong className="text-[var(--text-primary)]">R$ {selectedCommission.amount.toFixed(2)}</strong> foi realizada via PIX para {selectedCommission.referrerName}?
+                  Confirma que a transferência externa no valor de <strong className="text-[var(--text-primary)]">R$ {selectedCommission.amount !== null ? selectedCommission.amount.toFixed(2) : "0.00"}</strong> foi realizada via PIX para {selectedCommission.referrerName}?
                 </p>
                 <input
                   type="text"

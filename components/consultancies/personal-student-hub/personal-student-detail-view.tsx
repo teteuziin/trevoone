@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { PersonalRequestModal, type RequestModalType } from "./personal-request-modal";
+import type { StudentEvaluationResult } from "@/lib/monitoring/evaluator";
 import type {
   PersonalStudentDetail,
   StudentFormAnswer,
@@ -14,9 +15,10 @@ import type {
 interface PersonalStudentDetailViewProps {
   consultancySlug: string;
   detail: PersonalStudentDetail;
+  studentMonitoring?: StudentEvaluationResult | null;
 }
 
-type TabKey = "visao-geral" | "fotos" | "anamnese" | "formularios" | "treinos" | "avaliacoes";
+type TabKey = "visao-geral" | "radar" | "fotos" | "anamnese" | "formularios" | "treinos" | "avaliacoes";
 
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -85,6 +87,7 @@ function XIcon({ className = "w-5 h-5" }: { className?: string }) {
 export function PersonalStudentDetailView({
   consultancySlug,
   detail,
+  studentMonitoring,
 }: PersonalStudentDetailViewProps) {
   const {
     student,
@@ -218,6 +221,137 @@ export function PersonalStudentDetailView({
           ========================================================================= */}
       {activeTab === "visao-geral" && (
         <div className="space-y-6">
+                    {/* RADAR DO ALUNO: Objective monitoring signals */}
+          {studentMonitoring && (
+            <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                      Monitoramento &amp; Aderência
+                    </span>
+                    <Badge
+                      variant={
+                        studentMonitoring.state === "CRITICAL"
+                          ? "danger"
+                          : studentMonitoring.state === "ATTENTION"
+                          ? "warning"
+                          : "success"
+                      }
+                      size="sm"
+                    >
+                      {studentMonitoring.state === "CRITICAL"
+                        ? "Estado Crítico"
+                        : studentMonitoring.state === "ATTENTION"
+                        ? "Requer Atenção"
+                        : "Em Dia"}
+                    </Badge>
+                  </div>
+                  <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
+                    Radar do Aluno
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("radar")}
+                  className="text-xs font-semibold text-[var(--brand)] hover:underline cursor-pointer"
+                >
+                  Ver relatório completo &rarr;
+                </button>
+              </div>
+
+              {/* Objective Metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                    Último Uso no Trevo
+                  </span>
+                  <p className="text-xs font-bold text-[var(--text-primary)]">
+                    {studentMonitoring.metrics.lastActiveAt
+                      ? new Date(studentMonitoring.metrics.lastActiveAt).toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "Sem registro"}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                    Treinos (7d)
+                  </span>
+                  <p className="text-xs font-bold text-[var(--text-primary)]">
+                    {studentMonitoring.metrics.completedWorkoutsLast7d} concluído(s)
+                  </p>
+                  {studentMonitoring.metrics.lastWorkoutDate && (
+                    <span className="text-[10px] text-[var(--text-tertiary)] block">
+                      Último: {studentMonitoring.metrics.lastWorkoutDate}
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                    Check-ins (7d)
+                  </span>
+                  <p className="text-xs font-bold text-[var(--text-primary)]">
+                    {studentMonitoring.metrics.recentCheckinsCount} registrado(s)
+                  </p>
+                  {studentMonitoring.metrics.painReportedCount > 0 && (
+                    <span className="text-[10px] text-[var(--danger-foreground)] font-semibold block">
+                      {studentMonitoring.metrics.painReportedCount} com dor
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
+                    Nutrição (7d)
+                  </span>
+                  <p className="text-xs font-bold text-[var(--text-primary)]">
+                    {studentMonitoring.metrics.offPlanDietCount > 0
+                      ? `${studentMonitoring.metrics.offPlanDietCount} fora do plano`
+                      : "No plano ou sem desvios"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Open Alerts (if any) */}
+              {studentMonitoring.alerts.filter((a) => a.status === "OPEN").length > 0 && (
+                <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
+                  <span className="text-[11px] font-bold text-[var(--text-primary)] block">
+                    Alertas em Aberto
+                  </span>
+                  <div className="space-y-1.5">
+                    {studentMonitoring.alerts
+                      .filter((a) => a.status === "OPEN")
+                      .map((alert) => (
+                        <div
+                          key={alert.id}
+                          className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-start gap-2.5 text-xs"
+                        >
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md mt-0.5 shrink-0 ${
+                              alert.severity === "CRITICAL"
+                                ? "bg-[var(--danger-soft)] text-[var(--danger-foreground)] border border-[var(--danger-border)]"
+                                : "bg-[var(--warning-soft)] text-[var(--warning-foreground)] border border-[var(--warning-border)]"
+                            }`}
+                          >
+                            {alert.severity === "CRITICAL" ? "Crítico" : "Atenção"}
+                          </span>
+                          <span className="text-[var(--text-primary)] font-medium">
+                            {alert.statement}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Key Objective Banner */}
           <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="space-y-1">

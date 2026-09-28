@@ -214,7 +214,7 @@ export async function getProfessionalActionsHistory(
               JOIN users u_admin ON u_admin.id = cm_admin.user_id
               WHERE paa.consultancy_id = ?`;
 
-    const params: any[] = [consultancyId];
+    const params: (number | string)[] = [consultancyId];
     if (professionalMemberId) {
       sql += ` AND paa.professional_member_id = ?`;
       params.push(professionalMemberId);

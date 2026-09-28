@@ -1,6 +1,9 @@
 "use server";
 
 import crypto from "node:crypto";
+import { cookies } from "next/headers";
+import type { ResultSetHeader } from "mysql2/promise";
+import { bindReferralAttributionToUser } from "../../lib/referrals/service";
 import { getDbConnection } from "../../lib/db/mysql";
 import { hashPassword } from "../../lib/auth/password";
 import { consumeAuthRateLimit } from "../../lib/security/auth-rate-limit";
@@ -115,11 +118,22 @@ export async function registerAccount(
 
     connection = await getDbConnection();
 
-    await connection.execute(
+    const [insertResult] = await connection.execute<ResultSetHeader>(
       `INSERT INTO users (public_id, full_name, email, password_hash, status)
        VALUES (?, ?, ?, ?, ?);`,
       [publicId, fullName, email, passwordHash, "ACTIVE"]
     );
+    const newUserId = Number(insertResult.insertId);
+
+    try {
+      const cookieStore = await cookies();
+      const referralToken = cookieStore.get("trevo_ref_token")?.value;
+      if (referralToken && newUserId > 0) {
+        await bindReferralAttributionToUser(referralToken, newUserId);
+      }
+    } catch {
+      // Non-blocking referral binding
+    }
 
     return {
       success: true,

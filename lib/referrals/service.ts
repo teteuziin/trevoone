@@ -12,6 +12,9 @@ export interface ConsultancyReferralSettings {
   consultancyId: number;
   isEnabled: boolean;
   commissionType: CommissionType;
+  commissionAmountCents: bigint;
+  commissionRateBasisPoints: number;
+  // Preserved for backwards compatibility / UI display
   commissionValue: number;
   createdAt: Date;
   updatedAt: Date;
@@ -38,6 +41,57 @@ export interface MemberPayoutProfile {
   receiverName: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Monetary safety helpers: Zero JavaScript floating-point arithmetic.
+ * All monetary amounts are handled as integer cents (BigInt).
+ * All percentage rates are handled as integer basis points (1% = 100 bp, 10.5% = 1050 bp).
+ */
+export function brlToCents(amount: number | string): bigint {
+  if (typeof amount === "number") {
+    const fixed = amount.toFixed(2);
+    const [intPart, decPart = "00"] = fixed.split(".");
+    return BigInt(intPart) * BigInt(100) + BigInt(decPart.padEnd(2, "0").slice(0, 2));
+  }
+  const clean = amount.replace(/[^0-9,.-]/g, "").replace(",", ".");
+  const [intPart = "0", decPart = "00"] = clean.split(".");
+  const sign = intPart.startsWith("-") ? BigInt(-1) : BigInt(1);
+  const absInt = intPart.replace("-", "");
+  return sign * (BigInt(absInt || "0") * BigInt(100) + BigInt(decPart.padEnd(2, "0").slice(0, 2)));
+}
+
+export function centsToBrl(cents: bigint | number | null | undefined): string {
+  if (cents === null || cents === undefined) return "0.00";
+  const c = BigInt(cents);
+  const sign = c < BigInt(0) ? "-" : "";
+  const absC = c < BigInt(0) ? (-c) : c;
+  const intPart = absC / BigInt(100);
+  const decPart = (absC % BigInt(100)).toString().padStart(2, "0");
+  return `${sign}${intPart}.${decPart}`;
+}
+
+export function percentToBasisPoints(percent: number | string): number {
+  if (typeof percent === "number") {
+    const fixed = percent.toFixed(2);
+    const [intPart, decPart = "00"] = fixed.split(".");
+    return Number(intPart) * 100 + Number(decPart.padEnd(2, "0").slice(0, 2));
+  }
+  const clean = percent.replace(/[^0-9,.-]/g, "").replace(",", ".");
+  const [intPart = "0", decPart = "00"] = clean.split(".");
+  return Number(intPart) * 100 + Number(decPart.padEnd(2, "0").slice(0, 2));
+}
+
+export function basisPointsToPercent(bp: number): number {
+  return bp / 100;
+}
+
+export function calculatePercentageCommissionExact(
+  baseAmountCents: bigint,
+  rateBasisPoints: number
+): bigint {
+  if (baseAmountCents <= BigInt(0) || rateBasisPoints <= 0) return BigInt(0);
+  return (baseAmountCents * BigInt(rateBasisPoints) + BigInt(5000)) / BigInt(10000);
 }
 
 export function maskPixKey(type: PixKeyType | string, rawKey: string): string {
@@ -70,26 +124,26 @@ export function maskPixKey(type: PixKeyType | string, rawKey: string): string {
     case "PHONE": {
       const digits = clean.replace(/\D/g, "");
       if (digits.length >= 4) {
-        return `***-****-${digits.slice(-4)}`;
+        return `(**) *****-${digits.slice(-4)}`;
       }
       return "***";
     }
     case "RANDOM_KEY":
     default: {
       if (clean.length > 8) {
-        return `***${clean.slice(-6)}`;
+        return `${clean.slice(0, 4)}...-...${clean.slice(-4)}`;
       }
-      return "***";
+      return "****";
     }
   }
 }
 
 export function generateReferralCodeString(): string {
-  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let result = "";
-  const bytes = crypto.randomBytes(6);
+  const randomBytes = crypto.randomBytes(6);
   for (let i = 0; i < 6; i++) {
-    result += chars[bytes[i] % chars.length];
+    result += chars[randomBytes[i] % chars.length];
   }
   return result;
 }
@@ -100,7 +154,9 @@ export async function getConsultancyReferralSettings(
   const connection = await getDbConnection();
   try {
     const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, consultancy_id, is_enabled, commission_type, commission_value, created_at, updated_at
+      `SELECT id, consultancy_id, is_enabled, commission_type, commission_value,
+              commission_amount_cents, commission_rate_basis_points,
+              created_at, updated_at
        FROM consultancy_referral_settings
        WHERE consultancy_id = ?
        LIMIT 1;`,
@@ -109,23 +165,38 @@ export async function getConsultancyReferralSettings(
 
     if (Array.isArray(rows) && rows.length > 0) {
       const r = rows[0];
+      const commType = r.commission_type as CommissionType;
+      const amountCents = r.commission_amount_cents != null
+        ? BigInt(r.commission_amount_cents)
+        : brlToCents(Number(r.commission_value || 50));
+      const rateBp = r.commission_rate_basis_points != null
+        ? Number(r.commission_rate_basis_points)
+        : percentToBasisPoints(Number(r.commission_value || 10));
+
       return {
         id: Number(r.id),
         consultancyId: Number(r.consultancy_id),
         isEnabled: Boolean(r.is_enabled),
-        commissionType: r.commission_type as CommissionType,
-        commissionValue: Number(r.commission_value),
+        commissionType: commType,
+        commissionAmountCents: amountCents,
+        commissionRateBasisPoints: rateBp,
+        commissionValue: commType === "FIXED_AMOUNT"
+          ? Number(amountCents) / 100
+          : rateBp / 100,
         createdAt: new Date(r.created_at),
         updatedAt: new Date(r.updated_at),
       };
     }
 
-    // Default configuration if not yet initialized
+    // SAFE DEFAULT: isEnabled is FALSE when no settings row exists.
+    // No consultancy accidentally owes referral commissions merely because the feature is deployed.
     return {
       id: 0,
       consultancyId,
-      isEnabled: true,
+      isEnabled: false,
       commissionType: "FIXED_AMOUNT",
+      commissionAmountCents: BigInt(5000), // R$ 50,00
+      commissionRateBasisPoints: 1000, // 10.00%
       commissionValue: 50.0,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -153,20 +224,38 @@ export async function updateConsultancyReferralSettings(
     return { success: false, error: "A comissão percentual não pode exceder 100%." };
   }
 
-  // Safe rounding to 2 decimal places (cents)
-  const safeCommissionValue = Math.round(commissionValue * 100) / 100;
+  const commissionAmountCents = commissionType === "FIXED_AMOUNT"
+    ? brlToCents(commissionValue)
+    : BigInt(5000);
+  const commissionRateBasisPoints = commissionType === "PERCENTAGE"
+    ? percentToBasisPoints(commissionValue)
+    : 1000;
+  const safeCommissionValue = commissionType === "FIXED_AMOUNT"
+    ? Number(commissionAmountCents) / 100
+    : commissionRateBasisPoints / 100;
 
   const connection = await getDbConnection();
   try {
     await connection.execute(
-      `INSERT INTO consultancy_referral_settings (consultancy_id, is_enabled, commission_type, commission_value)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO consultancy_referral_settings (
+         consultancy_id, is_enabled, commission_type, commission_value,
+         commission_amount_cents, commission_rate_basis_points
+       ) VALUES (?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          is_enabled = VALUES(is_enabled),
          commission_type = VALUES(commission_type),
          commission_value = VALUES(commission_value),
+         commission_amount_cents = VALUES(commission_amount_cents),
+         commission_rate_basis_points = VALUES(commission_rate_basis_points),
          updated_at = UTC_TIMESTAMP(3);`,
-      [consultancyId, isEnabled ? 1 : 0, commissionType, safeCommissionValue]
+      [
+        consultancyId,
+        isEnabled ? 1 : 0,
+        commissionType,
+        safeCommissionValue,
+        commissionAmountCents.toString(),
+        commissionRateBasisPoints,
+      ]
     );
 
     await recordConsultancyActivity({
@@ -178,7 +267,7 @@ export async function updateConsultancyReferralSettings(
       module: "ADMIN",
       resourceType: "consultancy_referral_settings",
       summary: `Configurações do programa de indicações atualizadas: ${isEnabled ? "Ativo" : "Pausado"}, tipo: ${commissionType}, valor: ${safeCommissionValue}`,
-      metadata: { isEnabled, commissionType, safeCommissionValue },
+      metadata: { isEnabled, commissionType, safeCommissionValue, commissionAmountCents: commissionAmountCents.toString(), commissionRateBasisPoints },
     });
 
     return { success: true };
@@ -187,19 +276,24 @@ export async function updateConsultancyReferralSettings(
   }
 }
 
+/**
+ * VIP Eligibility:
+ * In TREVO ONE, 'INFLUENCER' is the canonical member role representing Influencer/VIP (role label: "Influenciador / VIP").
+ * We also accept 'VIP' as a string if defined.
+ */
 export async function getOrCreateReferralCode(
   consultancyId: number,
   memberId: number
 ): Promise<{ success: boolean; code?: string; publicId?: string; error?: string }> {
   const connection = await getDbConnection();
   try {
-    // 1. Verify membership is ACTIVE and has role STUDENT or INFLUENCER
+    // 1. Verify membership is ACTIVE and has role STUDENT, INFLUENCER, or VIP
     const [memberRows] = await connection.execute<RowDataPacket[]>(
       `SELECT cm.id, cm.status, cm.user_id
        FROM consultancy_members cm
        JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
        WHERE cm.id = ? AND cm.consultancy_id = ? AND cm.status = 'ACTIVE'
-         AND cmr.role IN ('STUDENT', 'INFLUENCER')
+         AND cmr.role IN ('STUDENT', 'INFLUENCER', 'VIP')
        LIMIT 1;`,
       [memberId, consultancyId]
     );
@@ -321,7 +415,8 @@ export async function validateReferralCode(code: string): Promise<{
       return { valid: false, error: "Indicador não está mais ativo nesta consultoria." };
     }
 
-    if (row.program_is_enabled === 0) {
+    // If no row exists in crs, program_is_enabled is null => default is FALSE
+    if (!row.program_is_enabled || Number(row.program_is_enabled) === 0) {
       return { valid: false, error: "Programa de indicações atualmente suspenso." };
     }
 
@@ -339,6 +434,111 @@ export async function validateReferralCode(code: string): Promise<{
   }
 }
 
+/**
+ * Anonymous first-touch attribution:
+ * Server validates referral code, generates cryptographically random token,
+ * stores ONLY token SHA-256 hash in DB with 30-day expiration.
+ * FIRST VALID REFERRAL WINS: opening another link does not overwrite existing valid attribution.
+ */
+export async function createAnonymousReferralAttribution(
+  code: string,
+  existingToken?: string
+): Promise<{
+  valid: boolean;
+  token?: string;
+  consultancyId?: number;
+  consultancySlug?: string;
+  error?: string;
+}> {
+  const validation = await validateReferralCode(code);
+  if (!validation.valid || !validation.consultancyId || !validation.codeId || !validation.referrerMemberId) {
+    return { valid: false, error: validation.error || "Código de indicação inválido." };
+  }
+
+  const connection = await getDbConnection();
+  try {
+    // 1. Check if existing visitor token is already valid for this consultancy (First-Touch wins)
+    if (existingToken && typeof existingToken === "string" && existingToken.length === 64) {
+      const existingHash = crypto.createHash("sha256").update(existingToken).digest("hex");
+      const [existingRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, expires_at FROM referral_attributions
+         WHERE consultancy_id = ? AND visitor_token_hash = ?
+           AND (expires_at IS NULL OR expires_at > UTC_TIMESTAMP(3))
+         LIMIT 1;`,
+        [validation.consultancyId, existingHash]
+      );
+
+      if (Array.isArray(existingRows) && existingRows.length > 0) {
+        // First valid referral attribution preserved
+        return {
+          valid: true,
+          token: existingToken,
+          consultancyId: validation.consultancyId,
+          consultancySlug: validation.consultancySlug,
+        };
+      }
+    }
+
+    // 2. Generate new opaque token (32 bytes = 64 hex chars)
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const publicId = crypto.randomUUID();
+
+    await connection.execute(
+      `INSERT INTO referral_attributions (
+         public_id, consultancy_id, referral_code_id, referrer_member_id,
+         visitor_token_hash, first_click_at, expires_at, status
+       ) VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP(3), DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 30 DAY), 'PENDING');`,
+      [publicId, validation.consultancyId, validation.codeId, validation.referrerMemberId, tokenHash]
+    );
+
+    return {
+      valid: true,
+      token: rawToken,
+      consultancyId: validation.consultancyId,
+      consultancySlug: validation.consultancySlug,
+    };
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Binds an anonymous visitor attribution token to a registered user ID.
+ */
+export async function bindReferralAttributionToUser(
+  token: string,
+  userId: number
+): Promise<{ success: boolean; boundCount?: number }> {
+  if (!token || typeof token !== "string" || !userId) {
+    return { success: false, boundCount: 0 };
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(token.trim()).digest("hex");
+  const connection = await getDbConnection();
+  try {
+    const [result] = await connection.execute<ResultSetHeader>(
+      `UPDATE referral_attributions
+       SET referred_user_id = ?,
+           registered_at = UTC_TIMESTAMP(3),
+           status = 'REGISTERED',
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE visitor_token_hash = ?
+         AND status = 'PENDING'
+         AND (expires_at IS NULL OR expires_at > UTC_TIMESTAMP(3));`,
+      [userId, tokenHash]
+    );
+
+    return { success: true, boundCount: result.affectedRows };
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Record referral conversion upon becoming an ACTIVE STUDENT member in the SAME consultancy.
+ * Idempotent, handles FIXED_AMOUNT (immediate cents) and PERCENTAGE (rate basis points snapshot, final amount pending admin base approval).
+ */
 export async function recordReferralConversion(
   consultancyId: number,
   studentMemberId: number,
@@ -347,7 +547,7 @@ export async function recordReferralConversion(
 ): Promise<{ success: boolean; commissionCreated?: boolean; error?: string }> {
   const connection = await getDbConnection();
   try {
-    // 1. Revalidate student membership in this consultancy
+    // 1. Verify student membership in this consultancy
     const [studentRows] = await connection.execute<RowDataPacket[]>(
       `SELECT cm.id, cm.user_id, cm.status
        FROM consultancy_members cm
@@ -358,25 +558,26 @@ export async function recordReferralConversion(
     );
 
     if (!Array.isArray(studentRows) || studentRows.length === 0) {
-      return { success: false, error: "Membro indicado não é um aluno ativo na consultoria." };
+      return { success: false, error: "Aluno não elegível ou inativo na consultoria." };
     }
 
-    // 2. Check if student already has a conversion in this consultancy (idempotency)
-    const [existingConversion] = await connection.execute<RowDataPacket[]>(
-      `SELECT id FROM referral_attributions
-       WHERE consultancy_id = ? AND referred_member_id = ? AND status = 'CONVERTED'
+    // 2. Check if a commission already exists for this student member (Idempotency)
+    const [existingComm] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status, final_amount, final_amount_cents
+       FROM referral_commissions
+       WHERE consultancy_id = ? AND referred_member_id = ?
        LIMIT 1;`,
       [consultancyId, studentMemberId]
     );
 
-    if (Array.isArray(existingConversion) && existingConversion.length > 0) {
+    if (Array.isArray(existingComm) && existingComm.length > 0) {
       return { success: true, commissionCreated: false };
     }
 
-    // 3. Find attribution
+    // 3. Locate attribution row
     let attributionRow: RowDataPacket | null = null;
 
-    if (referralCode) {
+    if (referralCode && typeof referralCode === "string" && referralCode.trim().length > 0) {
       const [attrByCode] = await connection.execute<RowDataPacket[]>(
         `SELECT ra.id, rc.consultancy_id, rc.referrer_member_id,
                 cm.user_id AS referrer_user_id, cm.status AS referrer_status,
@@ -396,11 +597,13 @@ export async function recordReferralConversion(
     if (!attributionRow || !attributionRow.id) {
       const [attrByUser] = await connection.execute<RowDataPacket[]>(
         `SELECT ra.id, ra.consultancy_id, ra.referrer_member_id,
-                cm.user_id AS referrer_user_id, cm.status AS referrer_status
+                cm.user_id AS referrer_user_id, cm.status AS referrer_status,
+                ra.referral_code_id
          FROM referral_attributions ra
          JOIN consultancy_members cm ON cm.id = ra.referrer_member_id
          WHERE ra.consultancy_id = ? AND (ra.referred_user_id = ? OR ra.referred_member_id = ?)
            AND ra.status IN ('PENDING', 'REGISTERED')
+           AND (ra.expires_at IS NULL OR ra.expires_at > UTC_TIMESTAMP(3))
          ORDER BY ra.first_click_at ASC
          LIMIT 1;`,
         [consultancyId, studentUserId, studentMemberId]
@@ -410,7 +613,6 @@ export async function recordReferralConversion(
       }
     }
 
-    // If still no attribution row, but referral code was valid: create attribution row
     if (!attributionRow) {
       return { success: false, error: "Nenhuma atribuição válida de indicação encontrada." };
     }
@@ -431,7 +633,7 @@ export async function recordReferralConversion(
       return { success: false, error: "Indicador não está ativo." };
     }
 
-    // 6. Check consultancy referral program settings
+    // 6. Check consultancy referral program settings (must be explicitly enabled)
     const settings = await getConsultancyReferralSettings(consultancyId);
     if (!settings.isEnabled) {
       return { success: false, error: "Programa de indicações desativado nesta consultoria." };
@@ -464,31 +666,462 @@ export async function recordReferralConversion(
       );
     }
 
-    // 7. Snapshot rule and create commission proposal
-    const commissionRateSnapshot = settings.commissionValue;
-    const commissionTypeSnapshot = settings.commissionType;
-    const finalAmount = Math.round(commissionRateSnapshot * 100) / 100;
+    // 7. Snapshot rule & create commission
     const commissionPublicId = crypto.randomUUID();
 
-    await connection.execute(
-      `INSERT INTO referral_commissions (
-         public_id, consultancy_id, attribution_id, referrer_member_id, referred_member_id,
-         commission_type_snapshot, commission_rate_snapshot, final_amount, currency, status
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'BRL', 'PENDING')
-       ON DUPLICATE KEY UPDATE updated_at = UTC_TIMESTAMP(3);`,
+    if (settings.commissionType === "PERCENTAGE") {
+      // Percentage Commission: rate basis points is snapshotted.
+      // Final monetary amount remains unset until admin approves with legitimate base amount.
+      await connection.execute(
+        `INSERT INTO referral_commissions (
+           public_id, consultancy_id, attribution_id, referrer_member_id, referred_member_id,
+           commission_type_snapshot, commission_rate_snapshot, rate_basis_points,
+           base_amount_cents, final_amount_cents, final_amount, currency, status
+         ) VALUES (?, ?, ?, ?, ?, 'PERCENTAGE', ?, ?, NULL, NULL, NULL, 'BRL', 'PENDING')
+         ON DUPLICATE KEY UPDATE updated_at = UTC_TIMESTAMP(3);`,
+        [
+          commissionPublicId,
+          consultancyId,
+          attributionId,
+          referrerMemberId,
+          studentMemberId,
+          settings.commissionValue,
+          settings.commissionRateBasisPoints,
+        ]
+      );
+    } else {
+      // Fixed Amount: exact cents snapshotted
+      const finalAmountCents = settings.commissionAmountCents;
+      const finalAmountFormatted = centsToBrl(finalAmountCents);
+
+      await connection.execute(
+        `INSERT INTO referral_commissions (
+           public_id, consultancy_id, attribution_id, referrer_member_id, referred_member_id,
+           commission_type_snapshot, commission_rate_snapshot, rate_basis_points,
+           base_amount_cents, final_amount_cents, final_amount, currency, status
+         ) VALUES (?, ?, ?, ?, ?, 'FIXED_AMOUNT', ?, NULL, NULL, ?, ?, 'BRL', 'PENDING')
+         ON DUPLICATE KEY UPDATE updated_at = UTC_TIMESTAMP(3);`,
+        [
+          commissionPublicId,
+          consultancyId,
+          attributionId,
+          referrerMemberId,
+          studentMemberId,
+          settings.commissionValue,
+          finalAmountCents.toString(),
+          finalAmountFormatted,
+        ]
+      );
+    }
+
+    return { success: true, commissionCreated: true };
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * State Machine Transition: PENDING -> APPROVED
+ * For PERCENTAGE commissions: baseAmountCents is required to compute exact final amount.
+ */
+export async function approveCommission(
+  consultancyId: number,
+  commissionId: number,
+  adminMemberId: number,
+  adminUserId: number,
+  baseAmountCents?: bigint | number
+): Promise<{ success: boolean; error?: string }> {
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status, commission_type_snapshot, rate_basis_points,
+              base_amount_cents, final_amount_cents, final_amount, referrer_member_id
+       FROM referral_commissions
+       WHERE id = ? AND consultancy_id = ?
+       LIMIT 1;`,
+      [commissionId, consultancyId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { success: false, error: "Comissão não encontrada." };
+    }
+
+    const comm = rows[0];
+
+    // State machine check: only PENDING can transition to APPROVED
+    if (comm.status === "APPROVED") {
+      return { success: false, error: "Comissão já foi aprovada." };
+    }
+    if (comm.status === "PAID") {
+      return { success: false, error: "Comissões pagas não podem ser modificadas." };
+    }
+    if (comm.status === "CANCELLED") {
+      return { success: false, error: "Comissões canceladas não podem ser aprovadas." };
+    }
+    if (comm.status !== "PENDING") {
+      return { success: false, error: "Status inválido para aprovação." };
+    }
+
+    let finalCents: bigint;
+    let finalAmountStr: string;
+    let baseCentsToRecord: bigint | null = null;
+
+    if (comm.commission_type_snapshot === "PERCENTAGE") {
+      if (baseAmountCents === undefined || baseAmountCents === null || BigInt(baseAmountCents) <= BigInt(0)) {
+        return {
+          success: false,
+          error: "Para comissões percentuais, é obrigatório informar o valor base legítimo da comissão.",
+        };
+      }
+      baseCentsToRecord = BigInt(baseAmountCents);
+      const rateBp = Number(comm.rate_basis_points || 1000);
+      finalCents = calculatePercentageCommissionExact(baseCentsToRecord, rateBp);
+      finalAmountStr = centsToBrl(finalCents);
+    } else {
+      finalCents = comm.final_amount_cents != null
+        ? BigInt(comm.final_amount_cents)
+        : brlToCents(Number(comm.final_amount || 50));
+      finalAmountStr = centsToBrl(finalCents);
+    }
+
+    // Conditional atomic update
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      `UPDATE referral_commissions
+       SET status = 'APPROVED',
+           approved_at = UTC_TIMESTAMP(3),
+           approved_by_member_id = ?,
+           base_amount_cents = ?,
+           final_amount_cents = ?,
+           final_amount = ?,
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ? AND consultancy_id = ? AND status = 'PENDING';`,
       [
-        commissionPublicId,
+        adminMemberId,
+        baseCentsToRecord != null ? baseCentsToRecord.toString() : null,
+        finalCents.toString(),
+        finalAmountStr,
+        commissionId,
         consultancyId,
-        attributionId,
-        referrerMemberId,
-        studentMemberId,
-        commissionTypeSnapshot,
-        commissionRateSnapshot,
-        finalAmount,
       ]
     );
 
-    return { success: true, commissionCreated: true };
+    if (updateResult.affectedRows !== 1) {
+      return { success: false, error: "Não foi possível aprovar a comissão (concorrência ou status alterado)." };
+    }
+
+    await recordConsultancyActivity({
+      consultancyId,
+      actorUserId: adminUserId,
+      actorMembershipId: adminMemberId,
+      actorRole: "CONSULTANCY_ADMIN",
+      action: "APPROVE_REFERRAL_COMMISSION",
+      module: "ADMIN",
+      resourceType: "referral_commissions",
+      resourcePublicId: String(commissionId),
+      subjectMembershipId: comm.referrer_member_id,
+      summary: `Comissão de indicação no valor de R$ ${finalAmountStr} aprovada pelo administrador.`,
+      metadata: { commissionId, amount: finalAmountStr, amountCents: finalCents.toString() },
+    });
+
+    return { success: true };
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * State Machine Transition: PENDING/APPROVED -> CANCELLED
+ * Terminal state: CANCELLED cannot transition to anything.
+ * PAID commissions cannot be cancelled.
+ */
+export async function cancelCommission(
+  consultancyId: number,
+  commissionId: number,
+  adminMemberId: number,
+  adminUserId: number,
+  cancellationReason: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!cancellationReason || !cancellationReason.trim()) {
+    return { success: false, error: "É obrigatório informar o motivo do cancelamento." };
+  }
+
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status, final_amount, referrer_member_id
+       FROM referral_commissions
+       WHERE id = ? AND consultancy_id = ?
+       LIMIT 1;`,
+      [commissionId, consultancyId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { success: false, error: "Comissão não encontrada." };
+    }
+
+    const comm = rows[0];
+    if (comm.status === "PAID") {
+      return { success: false, error: "Comissões já pagas não podem ser canceladas." };
+    }
+    if (comm.status === "CANCELLED") {
+      return { success: false, error: "Comissão já está cancelada." };
+    }
+
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      `UPDATE referral_commissions
+       SET status = 'CANCELLED',
+           cancelled_at = UTC_TIMESTAMP(3),
+           cancelled_by_member_id = ?,
+           cancellation_reason = ?,
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ? AND consultancy_id = ? AND status IN ('PENDING', 'APPROVED');`,
+      [adminMemberId, cancellationReason.trim(), commissionId, consultancyId]
+    );
+
+    if (updateResult.affectedRows !== 1) {
+      return { success: false, error: "Não foi possível cancelar a comissão." };
+    }
+
+    await recordConsultancyActivity({
+      consultancyId,
+      actorUserId: adminUserId,
+      actorMembershipId: adminMemberId,
+      actorRole: "CONSULTANCY_ADMIN",
+      action: "CANCEL_REFERRAL_COMMISSION",
+      module: "ADMIN",
+      resourceType: "referral_commissions",
+      resourcePublicId: String(commissionId),
+      subjectMembershipId: comm.referrer_member_id,
+      summary: `Comissão de indicação cancelada. Motivo: ${cancellationReason.trim()}`,
+      metadata: { commissionId, reason: cancellationReason.trim() },
+    });
+
+    return { success: true };
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * State Machine Transition: APPROVED -> PAID
+ * STRICT: markCommissionPaid MUST reject PENDING.
+ * Terminal state: PAID cannot transition to anything.
+ */
+export async function markCommissionPaid(
+  consultancyId: number,
+  commissionId: number,
+  adminMemberId: number,
+  adminUserId: number,
+  paymentNote?: string
+): Promise<{ success: boolean; error?: string }> {
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status, final_amount, referrer_member_id
+       FROM referral_commissions
+       WHERE id = ? AND consultancy_id = ?
+       LIMIT 1;`,
+      [commissionId, consultancyId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { success: false, error: "Comissão não encontrada." };
+    }
+
+    const comm = rows[0];
+
+    // STRICT: reject PENDING
+    if (comm.status === "PENDING") {
+      return {
+        success: false,
+        error: "Apenas comissões aprovadas podem ser marcadas como pagas.",
+      };
+    }
+    if (comm.status === "PAID") {
+      return { success: false, error: "Comissão já foi marcada como paga." };
+    }
+    if (comm.status === "CANCELLED") {
+      return { success: false, error: "Comissões canceladas não podem ser pagas." };
+    }
+    if (comm.status !== "APPROVED") {
+      return { success: false, error: "Status inválido para pagamento." };
+    }
+
+    // Atomic conditional update
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      `UPDATE referral_commissions
+       SET status = 'PAID',
+           paid_at = UTC_TIMESTAMP(3),
+           paid_by_member_id = ?,
+           payment_note = ?,
+           updated_at = UTC_TIMESTAMP(3)
+       WHERE id = ? AND consultancy_id = ? AND status = 'APPROVED';`,
+      [adminMemberId, paymentNote?.trim() || null, commissionId, consultancyId]
+    );
+
+    if (updateResult.affectedRows !== 1) {
+      return { success: false, error: "Não foi possível liquidar o pagamento da comissão." };
+    }
+
+    await recordConsultancyActivity({
+      consultancyId,
+      actorUserId: adminUserId,
+      actorMembershipId: adminMemberId,
+      actorRole: "CONSULTANCY_ADMIN",
+      action: "PAY_REFERRAL_COMMISSION",
+      module: "ADMIN",
+      resourceType: "referral_commissions",
+      resourcePublicId: String(commissionId),
+      subjectMembershipId: comm.referrer_member_id,
+      summary: `Comissão de indicação de R$ ${comm.final_amount} marcada como paga.`,
+      metadata: { commissionId, amount: comm.final_amount, note: paymentNote },
+    });
+
+    return { success: true };
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * PIX Payout Profiles:
+ * No homemade encryption: storage isolated behind payout service.
+ * Owner can retrieve full PIX key for edit/display.
+ * Admin lists receive ONLY masked PIX.
+ * Full key reveal requires explicit operation by authorized admin with audit logging.
+ */
+export async function saveMemberPayoutProfile(
+  consultancyId: number,
+  memberId: number,
+  pixKeyType: PixKeyType,
+  pixKey: string,
+  receiverName?: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!pixKey || !pixKey.trim()) {
+    return { success: false, error: "Informe a chave PIX." };
+  }
+  const cleanKey = pixKey.trim();
+  const validTypes = ["CPF", "CNPJ", "EMAIL", "PHONE", "RANDOM_KEY"];
+  if (!validTypes.includes(pixKeyType)) {
+    return { success: false, error: "Tipo de chave PIX inválido." };
+  }
+
+  const connection = await getDbConnection();
+  try {
+    const publicId = crypto.randomUUID();
+    await connection.execute(
+      `INSERT INTO member_payout_profiles (public_id, consultancy_id, member_id, pix_key_type, pix_key, receiver_name)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         pix_key_type = VALUES(pix_key_type),
+         pix_key = VALUES(pix_key),
+         receiver_name = VALUES(receiver_name),
+         updated_at = UTC_TIMESTAMP(3);`,
+      [publicId, consultancyId, memberId, pixKeyType, cleanKey, receiverName?.trim() || null]
+    );
+
+    return { success: true };
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Returns payout profile for the OWNER (member themselves).
+ */
+export async function getMemberPayoutProfile(
+  consultancyId: number,
+  memberId: number
+): Promise<MemberPayoutProfile | null> {
+  const connection = await getDbConnection();
+  try {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, consultancy_id, member_id, pix_key_type, pix_key, receiver_name, created_at, updated_at
+       FROM member_payout_profiles
+       WHERE consultancy_id = ? AND member_id = ?
+       LIMIT 1;`,
+      [consultancyId, memberId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return null;
+    }
+
+    const r = rows[0];
+    return {
+      id: Number(r.id),
+      publicId: r.public_id,
+      consultancyId: Number(r.consultancy_id),
+      memberId: Number(r.member_id),
+      pixKeyType: r.pix_key_type as PixKeyType,
+      pixKey: r.pix_key,
+      pixKeyMasked: maskPixKey(r.pix_key_type, r.pix_key),
+      receiverName: r.receiver_name,
+      createdAt: new Date(r.created_at),
+      updatedAt: new Date(r.updated_at),
+    };
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Explicit reveal for authorized Admin with mandatory audit logging.
+ * NEVER leaks raw PIX in logs or error messages.
+ */
+export async function getRevealedPayoutProfileForAdmin(
+  consultancyId: number,
+  targetMemberId: number,
+  adminMemberId: number,
+  adminUserId: number
+): Promise<{ success: boolean; pixKey?: string; pixKeyType?: PixKeyType; receiverName?: string | null; error?: string }> {
+  const connection = await getDbConnection();
+  try {
+    // Verify target member belongs to the same consultancy
+    const [memberRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM consultancy_members WHERE id = ? AND consultancy_id = ? LIMIT 1;`,
+      [targetMemberId, consultancyId]
+    );
+
+    if (!Array.isArray(memberRows) || memberRows.length === 0) {
+      return { success: false, error: "Membro não encontrado nesta consultoria." };
+    }
+
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, pix_key_type, pix_key, receiver_name
+       FROM member_payout_profiles
+       WHERE consultancy_id = ? AND member_id = ?
+       LIMIT 1;`,
+      [consultancyId, targetMemberId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { success: false, error: "Perfil PIX não encontrado para este membro." };
+    }
+
+    const row = rows[0];
+
+    // Audit log without raw PIX key in metadata
+    await recordConsultancyActivity({
+      consultancyId,
+      actorUserId: adminUserId,
+      actorMembershipId: adminMemberId,
+      actorRole: "CONSULTANCY_ADMIN",
+      action: "REVEAL_PIX_PAYOUT_KEY",
+      module: "ADMIN",
+      resourceType: "member_payout_profiles",
+      resourcePublicId: row.public_id,
+      subjectMembershipId: targetMemberId,
+      summary: "Chave PIX completa consultada pelo administrador para fins de pagamento.",
+      metadata: { targetMemberId, pixKeyType: row.pix_key_type },
+    });
+
+    return {
+      success: true,
+      pixKey: row.pix_key,
+      pixKeyType: row.pix_key_type as PixKeyType,
+      receiverName: row.receiver_name,
+    };
   } finally {
     connection.release();
   }
@@ -537,28 +1170,32 @@ export async function getReferrerDashboardData(
     const conversionsCount = Number(convRows[0]?.total || 0);
 
     const [commAmounts] = await connection.execute<RowDataPacket[]>(
-      `SELECT status, SUM(final_amount) AS total
+      `SELECT status,
+              SUM(COALESCE(final_amount_cents, 0)) AS total_cents,
+              SUM(COALESCE(final_amount, 0)) AS total_dec
        FROM referral_commissions
        WHERE consultancy_id = ? AND referrer_member_id = ?
        GROUP BY status;`,
       [consultancyId, memberId]
     );
 
-    let pendingAmount = 0;
-    let approvedAmount = 0;
-    let paidAmount = 0;
+    let pendingCents = BigInt(0);
+    let approvedCents = BigInt(0);
+    let paidCents = BigInt(0);
 
     for (const r of commAmounts) {
-      const amt = Number(r.total || 0);
-      if (r.status === "PENDING") pendingAmount = amt;
-      else if (r.status === "APPROVED") approvedAmount = amt;
-      else if (r.status === "PAID") paidAmount = amt;
+      const cents = r.total_cents != null
+        ? BigInt(r.total_cents)
+        : brlToCents(Number(r.total_dec || 0));
+      if (r.status === "PENDING") pendingCents = cents;
+      else if (r.status === "APPROVED") approvedCents = cents;
+      else if (r.status === "PAID") paidCents = cents;
     }
 
     const pixProfile = await getMemberPayoutProfile(consultancyId, memberId);
 
     const [commList] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, public_id, final_amount, status, created_at, paid_at
+      `SELECT id, public_id, final_amount, final_amount_cents, status, created_at, paid_at
        FROM referral_commissions
        WHERE consultancy_id = ? AND referrer_member_id = ?
        ORDER BY created_at DESC
@@ -566,14 +1203,19 @@ export async function getReferrerDashboardData(
       [consultancyId, memberId]
     );
 
-    const commissions = commList.map((c) => ({
-      id: Number(c.id),
-      publicId: c.public_id,
-      amount: Number(c.final_amount),
-      status: c.status as CommissionStatus,
-      createdAt: new Date(c.created_at),
-      paidAt: c.paid_at ? new Date(c.paid_at) : null,
-    }));
+    const commissions = commList.map((c) => {
+      const cents = c.final_amount_cents != null
+        ? BigInt(c.final_amount_cents)
+        : (c.final_amount != null ? brlToCents(Number(c.final_amount)) : BigInt(0));
+      return {
+        id: Number(c.id),
+        publicId: c.public_id,
+        amount: Number(cents) / 100,
+        status: c.status as CommissionStatus,
+        createdAt: new Date(c.created_at),
+        paidAt: c.paid_at ? new Date(c.paid_at) : null,
+      };
+    });
 
     return {
       code,
@@ -581,9 +1223,9 @@ export async function getReferrerDashboardData(
       referralUrl: `/r/${code}`,
       registrationsCount,
       conversionsCount,
-      pendingAmount: Math.round(pendingAmount * 100) / 100,
-      approvedAmount: Math.round(approvedAmount * 100) / 100,
-      paidAmount: Math.round(paidAmount * 100) / 100,
+      pendingAmount: Number(pendingCents) / 100,
+      approvedAmount: Number(approvedCents) / 100,
+      paidAmount: Number(paidCents) / 100,
       pixProfile,
       commissions,
     };
@@ -592,6 +1234,10 @@ export async function getReferrerDashboardData(
   }
 }
 
+/**
+ * Returns Admin dashboard data:
+ * Masked PIX keys ONLY. Raw PIX keys are strictly excluded from serialization.
+ */
 export async function getAdminReferralsData(consultancyId: number): Promise<{
   settings: ConsultancyReferralSettings;
   kpis: {
@@ -621,7 +1267,10 @@ export async function getAdminReferralsData(consultancyId: number): Promise<{
     referrerName: string;
     referrerRole: string;
     studentName: string;
-    amount: number;
+    commissionType: CommissionType;
+    rateBasisPoints: number | null;
+    baseAmount: number | null;
+    amount: number | null;
     status: CommissionStatus;
     pixMasked: string;
     createdAt: Date;
@@ -637,9 +1286,9 @@ export async function getAdminReferralsData(consultancyId: number): Promise<{
          (SELECT COUNT(DISTINCT referrer_member_id) FROM referral_codes WHERE consultancy_id = ?) AS total_referrers,
          (SELECT COUNT(*) FROM referral_attributions WHERE consultancy_id = ? AND referred_user_id IS NOT NULL) AS total_registrations,
          (SELECT COUNT(*) FROM referral_attributions WHERE consultancy_id = ? AND status = 'CONVERTED') AS total_conversions,
-         COALESCE((SELECT SUM(final_amount) FROM referral_commissions WHERE consultancy_id = ? AND status = 'PENDING'), 0) AS pending_amount,
-         COALESCE((SELECT SUM(final_amount) FROM referral_commissions WHERE consultancy_id = ? AND status = 'APPROVED'), 0) AS approved_amount,
-         COALESCE((SELECT SUM(final_amount) FROM referral_commissions WHERE consultancy_id = ? AND status = 'PAID'), 0) AS paid_amount;`,
+         COALESCE((SELECT SUM(COALESCE(final_amount_cents, 0)) FROM referral_commissions WHERE consultancy_id = ? AND status = 'PENDING'), 0) AS pending_cents,
+         COALESCE((SELECT SUM(COALESCE(final_amount_cents, 0)) FROM referral_commissions WHERE consultancy_id = ? AND status = 'APPROVED'), 0) AS approved_cents,
+         COALESCE((SELECT SUM(COALESCE(final_amount_cents, 0)) FROM referral_commissions WHERE consultancy_id = ? AND status = 'PAID'), 0) AS paid_cents;`,
       [consultancyId, consultancyId, consultancyId, consultancyId, consultancyId, consultancyId]
     );
     const kpi = kpiRows[0];
@@ -653,8 +1302,8 @@ export async function getAdminReferralsData(consultancyId: number): Promise<{
          rc.code,
          (SELECT COUNT(*) FROM referral_attributions ra WHERE ra.consultancy_id = ? AND ra.referrer_member_id = cm.id AND ra.referred_user_id IS NOT NULL) AS registrations,
          (SELECT COUNT(*) FROM referral_attributions ra WHERE ra.consultancy_id = ? AND ra.referrer_member_id = cm.id AND ra.status = 'CONVERTED') AS conversions,
-         COALESCE((SELECT SUM(final_amount) FROM referral_commissions rcm WHERE rcm.consultancy_id = ? AND rcm.referrer_member_id = cm.id AND rcm.status IN ('PENDING', 'APPROVED')), 0) AS pending_amount,
-         COALESCE((SELECT SUM(final_amount) FROM referral_commissions rcm WHERE rcm.consultancy_id = ? AND rcm.referrer_member_id = cm.id AND rcm.status = 'PAID'), 0) AS paid_amount,
+         COALESCE((SELECT SUM(COALESCE(rcm.final_amount_cents, 0)) FROM referral_commissions rcm WHERE rcm.consultancy_id = ? AND rcm.referrer_member_id = cm.id AND rcm.status IN ('PENDING', 'APPROVED')), 0) AS pending_cents,
+         COALESCE((SELECT SUM(COALESCE(rcm.final_amount_cents, 0)) FROM referral_commissions rcm WHERE rcm.consultancy_id = ? AND rcm.referrer_member_id = cm.id AND rcm.status = 'PAID'), 0) AS paid_cents,
          mpp.id IS NOT NULL AS has_pix
        FROM referral_codes rc
        JOIN consultancy_members cm ON cm.id = rc.referrer_member_id
@@ -676,11 +1325,12 @@ export async function getAdminReferralsData(consultancyId: number): Promise<{
       code: r.code,
       registrations: Number(r.registrations || 0),
       conversions: Number(r.conversions || 0),
-      pendingAmount: Number(r.pending_amount || 0),
-      paidAmount: Number(r.paid_amount || 0),
+      pendingAmount: Number(BigInt(r.pending_cents || 0)) / 100,
+      paidAmount: Number(BigInt(r.paid_cents || 0)) / 100,
       hasPix: Boolean(r.has_pix),
     }));
 
+    // Query for commissions: Note that we select mpp.pix_key_type and masked representation, NEVER exposing raw pix_key in the returned structure!
     const [commissionRows] = await connection.execute<RowDataPacket[]>(
       `SELECT
          rcm.id,
@@ -689,6 +1339,10 @@ export async function getAdminReferralsData(consultancyId: number): Promise<{
          u_ref.full_name AS referrer_name,
          cmr_ref.role AS referrer_role,
          u_stud.full_name AS student_name,
+         rcm.commission_type_snapshot,
+         rcm.rate_basis_points,
+         rcm.base_amount_cents,
+         rcm.final_amount_cents,
          rcm.final_amount,
          rcm.status,
          rcm.created_at,
@@ -709,20 +1363,32 @@ export async function getAdminReferralsData(consultancyId: number): Promise<{
       [consultancyId, consultancyId]
     );
 
-    const commissions = commissionRows.map((c) => ({
-      id: Number(c.id),
-      publicId: c.public_id,
-      referrerMemberId: Number(c.referrer_member_id),
-      referrerName: c.referrer_name,
-      referrerRole: c.referrer_role,
-      studentName: c.student_name,
-      amount: Number(c.final_amount),
-      status: c.status as CommissionStatus,
-      pixMasked: c.pix_key ? maskPixKey(c.pix_key_type, c.pix_key) : "Sem PIX cadastrado",
-      createdAt: new Date(c.created_at),
-      approvedAt: c.approved_at ? new Date(c.approved_at) : null,
-      paidAt: c.paid_at ? new Date(c.paid_at) : null,
-    }));
+    const commissions = commissionRows.map((c) => {
+      // Calculate masked PIX immediately and drop raw key
+      const masked = c.pix_key ? maskPixKey(c.pix_key_type, c.pix_key) : "Não cadastrado";
+      const finalCents = c.final_amount_cents != null
+        ? BigInt(c.final_amount_cents)
+        : (c.final_amount != null ? brlToCents(Number(c.final_amount)) : null);
+      const baseCents = c.base_amount_cents != null ? BigInt(c.base_amount_cents) : null;
+
+      return {
+        id: Number(c.id),
+        publicId: c.public_id,
+        referrerMemberId: Number(c.referrer_member_id),
+        referrerName: c.referrer_name,
+        referrerRole: c.referrer_role,
+        studentName: c.student_name,
+        commissionType: c.commission_type_snapshot as CommissionType,
+        rateBasisPoints: c.rate_basis_points != null ? Number(c.rate_basis_points) : null,
+        baseAmount: baseCents != null ? Number(baseCents) / 100 : null,
+        amount: finalCents != null ? Number(finalCents) / 100 : null,
+        status: c.status as CommissionStatus,
+        pixMasked: masked,
+        createdAt: new Date(c.created_at),
+        approvedAt: c.approved_at ? new Date(c.approved_at) : null,
+        paidAt: c.paid_at ? new Date(c.paid_at) : null,
+      };
+    });
 
     return {
       settings,
@@ -730,307 +1396,12 @@ export async function getAdminReferralsData(consultancyId: number): Promise<{
         totalReferrers: Number(kpi?.total_referrers || 0),
         totalRegistrations: Number(kpi?.total_registrations || 0),
         totalConversions: Number(kpi?.total_conversions || 0),
-        pendingAmount: Number(kpi?.pending_amount || 0),
-        approvedAmount: Number(kpi?.approved_amount || 0),
-        paidAmount: Number(kpi?.paid_amount || 0),
+        pendingAmount: Number(BigInt(kpi?.pending_cents || 0)) / 100,
+        approvedAmount: Number(BigInt(kpi?.approved_cents || 0)) / 100,
+        paidAmount: Number(BigInt(kpi?.paid_cents || 0)) / 100,
       },
       referrers,
       commissions,
-    };
-  } finally {
-    connection.release();
-  }
-}
-
-export async function approveCommission(
-  consultancyId: number,
-  commissionId: number,
-  adminMemberId: number,
-  adminUserId: number
-): Promise<{ success: boolean; error?: string }> {
-  const connection = await getDbConnection();
-  try {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, status, final_amount, referrer_member_id
-       FROM referral_commissions
-       WHERE id = ? AND consultancy_id = ?
-       LIMIT 1;`,
-      [commissionId, consultancyId]
-    );
-
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return { success: false, error: "Comissão não encontrada." };
-    }
-
-    const comm = rows[0];
-    if (comm.status !== "PENDING") {
-      return { success: false, error: `Comissão não está pendente (status atual: ${comm.status}).` };
-    }
-
-    await connection.execute(
-      `UPDATE referral_commissions
-       SET status = 'APPROVED',
-           approved_at = UTC_TIMESTAMP(3),
-           approved_by_member_id = ?,
-           updated_at = UTC_TIMESTAMP(3)
-       WHERE id = ? AND consultancy_id = ?;`,
-      [adminMemberId, commissionId, consultancyId]
-    );
-
-    await recordConsultancyActivity({
-      consultancyId,
-      actorUserId: adminUserId,
-      actorMembershipId: adminMemberId,
-      actorRole: "CONSULTANCY_ADMIN",
-      action: "APPROVE_REFERRAL_COMMISSION",
-      module: "ADMIN",
-      resourceType: "referral_commissions",
-      resourcePublicId: String(commissionId),
-      subjectMembershipId: comm.referrer_member_id,
-      summary: `Comissão de indicação no valor de R$ ${comm.final_amount} aprovada pelo administrador.`,
-      metadata: { commissionId, amount: comm.final_amount },
-    });
-
-    return { success: true };
-  } finally {
-    connection.release();
-  }
-}
-
-export async function cancelCommission(
-  consultancyId: number,
-  commissionId: number,
-  adminMemberId: number,
-  adminUserId: number,
-  cancellationReason: string
-): Promise<{ success: boolean; error?: string }> {
-  if (!cancellationReason || !cancellationReason.trim()) {
-    return { success: false, error: "É obrigatório informar o motivo do cancelamento." };
-  }
-
-  const connection = await getDbConnection();
-  try {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, status, final_amount, referrer_member_id
-       FROM referral_commissions
-       WHERE id = ? AND consultancy_id = ?
-       LIMIT 1;`,
-      [commissionId, consultancyId]
-    );
-
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return { success: false, error: "Comissão não encontrada." };
-    }
-
-    const comm = rows[0];
-    if (comm.status === "PAID") {
-      return { success: false, error: "Comissões já pagas não podem ser canceladas." };
-    }
-
-    await connection.execute(
-      `UPDATE referral_commissions
-       SET status = 'CANCELLED',
-           cancelled_at = UTC_TIMESTAMP(3),
-           cancelled_by_member_id = ?,
-           cancellation_reason = ?,
-           updated_at = UTC_TIMESTAMP(3)
-       WHERE id = ? AND consultancy_id = ?;`,
-      [adminMemberId, cancellationReason.trim(), commissionId, consultancyId]
-    );
-
-    await recordConsultancyActivity({
-      consultancyId,
-      actorUserId: adminUserId,
-      actorMembershipId: adminMemberId,
-      actorRole: "CONSULTANCY_ADMIN",
-      action: "CANCEL_REFERRAL_COMMISSION",
-      module: "ADMIN",
-      resourceType: "referral_commissions",
-      resourcePublicId: String(commissionId),
-      subjectMembershipId: comm.referrer_member_id,
-      summary: `Comissão de indicação de R$ ${comm.final_amount} cancelada. Motivo: ${cancellationReason.trim()}`,
-      metadata: { commissionId, amount: comm.final_amount, reason: cancellationReason.trim() },
-    });
-
-    return { success: true };
-  } finally {
-    connection.release();
-  }
-}
-
-export async function markCommissionPaid(
-  consultancyId: number,
-  commissionId: number,
-  adminMemberId: number,
-  adminUserId: number,
-  paymentNote?: string
-): Promise<{ success: boolean; error?: string }> {
-  const connection = await getDbConnection();
-  try {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, status, final_amount, referrer_member_id
-       FROM referral_commissions
-       WHERE id = ? AND consultancy_id = ?
-       LIMIT 1;`,
-      [commissionId, consultancyId]
-    );
-
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return { success: false, error: "Comissão não encontrada." };
-    }
-
-    const comm = rows[0];
-    if (comm.status === "PAID") {
-      return { success: false, error: "Comissão já foi marcada como paga." };
-    }
-    if (comm.status === "CANCELLED") {
-      return { success: false, error: "Comissão cancelada não pode ser paga." };
-    }
-
-    await connection.execute(
-      `UPDATE referral_commissions
-       SET status = 'PAID',
-           paid_at = UTC_TIMESTAMP(3),
-           paid_by_member_id = ?,
-           payment_note = ?,
-           updated_at = UTC_TIMESTAMP(3)
-       WHERE id = ? AND consultancy_id = ?;`,
-      [adminMemberId, paymentNote?.trim() || null, commissionId, consultancyId]
-    );
-
-    await recordConsultancyActivity({
-      consultancyId,
-      actorUserId: adminUserId,
-      actorMembershipId: adminMemberId,
-      actorRole: "CONSULTANCY_ADMIN",
-      action: "PAY_REFERRAL_COMMISSION",
-      module: "ADMIN",
-      resourceType: "referral_commissions",
-      resourcePublicId: String(commissionId),
-      subjectMembershipId: comm.referrer_member_id,
-      summary: `Comissão de indicação de R$ ${comm.final_amount} marcada como paga.`,
-      metadata: { commissionId, amount: comm.final_amount, note: paymentNote },
-    });
-
-    return { success: true };
-  } finally {
-    connection.release();
-  }
-}
-
-export async function saveMemberPayoutProfile(
-  consultancyId: number,
-  memberId: number,
-  pixKeyType: PixKeyType,
-  pixKey: string,
-  receiverName?: string
-): Promise<{ success: boolean; error?: string }> {
-  if (!pixKey || !pixKey.trim()) {
-    return { success: false, error: "Informe a chave PIX." };
-  }
-  const cleanKey = pixKey.trim();
-  const validTypes = ["CPF", "CNPJ", "EMAIL", "PHONE", "RANDOM_KEY"];
-  if (!validTypes.includes(pixKeyType)) {
-    return { success: false, error: "Tipo de chave PIX inválido." };
-  }
-
-  const connection = await getDbConnection();
-  try {
-    const publicId = crypto.randomUUID();
-    await connection.execute(
-      `INSERT INTO member_payout_profiles (public_id, consultancy_id, member_id, pix_key_type, pix_key, receiver_name)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         pix_key_type = VALUES(pix_key_type),
-         pix_key = VALUES(pix_key),
-         receiver_name = VALUES(receiver_name),
-         updated_at = UTC_TIMESTAMP(3);`,
-      [publicId, consultancyId, memberId, pixKeyType, cleanKey, receiverName?.trim() || null]
-    );
-
-    return { success: true };
-  } finally {
-    connection.release();
-  }
-}
-
-export async function getMemberPayoutProfile(
-  consultancyId: number,
-  memberId: number
-): Promise<MemberPayoutProfile | null> {
-  const connection = await getDbConnection();
-  try {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, public_id, consultancy_id, member_id, pix_key_type, pix_key, receiver_name, created_at, updated_at
-       FROM member_payout_profiles
-       WHERE consultancy_id = ? AND member_id = ?
-       LIMIT 1;`,
-      [consultancyId, memberId]
-    );
-
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return null;
-    }
-
-    const r = rows[0];
-    return {
-      id: Number(r.id),
-      publicId: r.public_id,
-      consultancyId: Number(r.consultancy_id),
-      memberId: Number(r.member_id),
-      pixKeyType: r.pix_key_type as PixKeyType,
-      pixKey: r.pix_key,
-      pixKeyMasked: maskPixKey(r.pix_key_type, r.pix_key),
-      receiverName: r.receiver_name,
-      createdAt: new Date(r.created_at),
-      updatedAt: new Date(r.updated_at),
-    };
-  } finally {
-    connection.release();
-  }
-}
-
-export async function getRevealedPayoutProfileForAdmin(
-  consultancyId: number,
-  targetMemberId: number,
-  adminMemberId: number,
-  adminUserId: number
-): Promise<{ success: boolean; pixKey?: string; pixKeyType?: PixKeyType; receiverName?: string | null; error?: string }> {
-  const connection = await getDbConnection();
-  try {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, public_id, pix_key_type, pix_key, receiver_name
-       FROM member_payout_profiles
-       WHERE consultancy_id = ? AND member_id = ?
-       LIMIT 1;`,
-      [consultancyId, targetMemberId]
-    );
-
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return { success: false, error: "Perfil PIX não encontrado para este membro." };
-    }
-
-    const row = rows[0];
-
-    await recordConsultancyActivity({
-      consultancyId,
-      actorUserId: adminUserId,
-      actorMembershipId: adminMemberId,
-      actorRole: "CONSULTANCY_ADMIN",
-      action: "REVEAL_PIX_PAYOUT_KEY",
-      module: "ADMIN",
-      resourceType: "member_payout_profiles",
-      resourcePublicId: row.public_id,
-      subjectMembershipId: targetMemberId,
-      summary: "Chave PIX completa consultada pelo administrador para fins de pagamento.",
-      metadata: { targetMemberId, pixKeyType: row.pix_key_type },
-    });
-
-    return {
-      success: true,
-      pixKey: row.pix_key,
-      pixKeyType: row.pix_key_type as PixKeyType,
-      receiverName: row.receiver_name,
     };
   } finally {
     connection.release();

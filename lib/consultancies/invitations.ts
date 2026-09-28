@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { recordConsultancyActivity } from "./activity-log";
+import { recordReferralConversion } from "../referrals/service";
 import { VALID_ROLES, type ConsultancyRole } from "./context";
 
 export type InvitationStatus = "PENDING" | "ACCEPTED" | "EXPIRED" | "REVOKED";
@@ -879,6 +880,15 @@ export async function acceptConsultancyInvitation(params: {
     }).catch(() => {});
 
     await connection.commit();
+
+    // Opportunistically record referral conversion if new member has role STUDENT
+    if (validatedRoles.includes("STUDENT")) {
+      try {
+        await recordReferralConversion(consultancyId, memberId, userId);
+      } catch (refErr) {
+        console.warn("[Referrals] Opportunistic conversion on invitation acceptance failed:", refErr);
+      }
+    }
 
     return {
       success: true,

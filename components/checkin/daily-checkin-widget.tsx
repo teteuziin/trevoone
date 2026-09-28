@@ -113,7 +113,6 @@ export function DailyCheckinWidget({
       NOT_APPLICABLE: "Não se aplica",
     };
 
-    const c = effectiveInitialCheckin;
     return (
       <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 shadow-xs depth-base space-y-3 transition-colors">
         <div className="flex items-center justify-between">

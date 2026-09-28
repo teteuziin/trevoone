@@ -176,7 +176,7 @@ export async function evaluateStudentMonitoring(
     }
 
     // ATTENTION: Low workout adherence (0 completed in last 5 days with active assignment)
-    if (hasActiveAssignment && daysSinceLastWorkout >= 5 && daysSinceLastWorkout < 7) {
+    if (hasActiveAssignment && daysSinceLastWorkout >= 5 && !(daysSinceLastWorkout >= 7 && daysSinceLastCheckin >= 7)) {
       triggeredSignals.push({
         alertType: "LOW_WORKOUT_ADHERENCE",
         severity: "ATTENTION",

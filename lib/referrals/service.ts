@@ -542,9 +542,9 @@ export async function bindReferralAttributionToUser(
 export async function recordReferralConversion(
   consultancyId: number,
   studentMemberId: number,
-  studentUserId: number,
+  studentUserId?: number,
   referralCode?: string
-): Promise<{ success: boolean; commissionCreated?: boolean; error?: string }> {
+): Promise<{ success: boolean; commissionCreated?: boolean; commissionId?: number; error?: string }> {
   const connection = await getDbConnection();
   try {
     // 1. Verify student membership in this consultancy
@@ -561,6 +561,8 @@ export async function recordReferralConversion(
       return { success: false, error: "Aluno não elegível ou inativo na consultoria." };
     }
 
+    const resolvedStudentUserId = studentUserId ? Number(studentUserId) : Number(studentRows[0].user_id);
+
     // 2. Check if a commission already exists for this student member (Idempotency)
     const [existingComm] = await connection.execute<RowDataPacket[]>(
       `SELECT id, status, final_amount, final_amount_cents
@@ -571,7 +573,7 @@ export async function recordReferralConversion(
     );
 
     if (Array.isArray(existingComm) && existingComm.length > 0) {
-      return { success: true, commissionCreated: false };
+      return { success: true, commissionCreated: false, commissionId: Number(existingComm[0].id) };
     }
 
     // 3. Locate attribution row
@@ -587,7 +589,7 @@ export async function recordReferralConversion(
          LEFT JOIN referral_attributions ra ON ra.referral_code_id = rc.id AND (ra.referred_user_id = ? OR ra.referred_member_id = ?)
          WHERE rc.code = ? AND rc.consultancy_id = ? AND rc.is_active = 1
          LIMIT 1;`,
-        [studentUserId, studentMemberId, referralCode.trim().toUpperCase(), consultancyId]
+        [resolvedStudentUserId, studentMemberId, referralCode.trim().toUpperCase(), consultancyId]
       );
       if (Array.isArray(attrByCode) && attrByCode.length > 0) {
         attributionRow = attrByCode[0];
@@ -606,7 +608,7 @@ export async function recordReferralConversion(
            AND (ra.expires_at IS NULL OR ra.expires_at > UTC_TIMESTAMP(3))
          ORDER BY ra.first_click_at ASC
          LIMIT 1;`,
-        [consultancyId, studentUserId, studentMemberId]
+        [consultancyId, resolvedStudentUserId, studentMemberId]
       );
       if (Array.isArray(attrByUser) && attrByUser.length > 0) {
         attributionRow = attrByUser[0];
@@ -620,7 +622,7 @@ export async function recordReferralConversion(
     // 4. Validate self-referral
     if (
       Number(attributionRow.referrer_member_id) === studentMemberId ||
-      Number(attributionRow.referrer_user_id) === studentUserId
+      Number(attributionRow.referrer_user_id) === resolvedStudentUserId
     ) {
       return { success: false, error: "Auto-indicação não é permitida." };
     }
@@ -650,7 +652,7 @@ export async function recordReferralConversion(
           public_id, consultancy_id, referral_code_id, referrer_member_id,
           referred_user_id, referred_member_id, first_click_at, registered_at, converted_at, status
         ) VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), 'CONVERTED');`,
-        [publicId, consultancyId, attributionRow.referral_code_id, referrerMemberId, studentUserId, studentMemberId]
+        [publicId, consultancyId, attributionRow.referral_code_id, referrerMemberId, resolvedStudentUserId, studentMemberId]
       );
       attributionId = insertRes.insertId;
     } else {
@@ -662,7 +664,7 @@ export async function recordReferralConversion(
              converted_at = UTC_TIMESTAMP(3),
              updated_at = UTC_TIMESTAMP(3)
          WHERE id = ?;`,
-        [studentMemberId, studentUserId, attributionId]
+        [studentMemberId, resolvedStudentUserId, attributionId]
       );
     }
 
@@ -714,7 +716,13 @@ export async function recordReferralConversion(
       );
     }
 
-    return { success: true, commissionCreated: true };
+    const [newCommRows] = await connection.execute<RowDataPacket[]>(
+      "SELECT id FROM referral_commissions WHERE consultancy_id = ? AND referred_member_id = ? ORDER BY id DESC LIMIT 1;",
+      [consultancyId, studentMemberId]
+    );
+    const commissionId = newCommRows[0]?.id ? Number(newCommRows[0].id) : undefined;
+
+    return { success: true, commissionCreated: true, commissionId };
   } finally {
     connection.release();
   }

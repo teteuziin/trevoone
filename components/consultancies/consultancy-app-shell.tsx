@@ -89,7 +89,7 @@ export function ConsultancyAppShell({
     });
   }
 
-  const isLearner = presentationRoles.includes("STUDENT") || presentationRoles.includes("INFLUENCER");
+  const isLearner = presentationRoles.includes("STUDENT");
   if (isLearner) {
     items.push({
       id: "learner-treinos",

@@ -6,17 +6,18 @@ interface DashboardContextProps {
   consultancyName?: string;
   roles: ConsultancyRole[];
   subtitle?: string;
+  activeMode?: string;
 }
 
 function getDefaultSubtitle(roles: ConsultancyRole[]): string {
+  if (roles.includes("INFLUENCER")) {
+    return "Bem-vindo ao seu painel de influenciador. Acompanhe suas missões, resultados e comissões.";
+  }
   if (roles.includes("PERSONAL")) {
     return "Acompanhe alunos e organize suas prescrições de treino.";
   }
   if (roles.includes("NUTRITIONIST")) {
     return "Acompanhe alunos e organize suas prescrições alimentares.";
-  }
-  if (roles.includes("INFLUENCER")) {
-    return "Acompanhe suas missões e mantenha sua rotina em dia.";
   }
   if (roles.includes("CONSULTANCY_ADMIN")) {
     return "Gestão da consultoria, equipe e operação.";
@@ -31,9 +32,9 @@ export function DashboardContext({
 }: DashboardContextProps) {
   const firstName = userName ? userName.trim().split(" ")[0] : "";
   const displaySubtitle = subtitle || getDefaultSubtitle(roles);
-  const displayRoles = roles.includes("INFLUENCER")
-    ? (roles.includes("STUDENT") ? (["INFLUENCER", "STUDENT"] as ConsultancyRole[]) : (["INFLUENCER"] as ConsultancyRole[]))
-    : roles.filter((r) => r !== "STUDENT");
+
+  const isInfluencer = roles.includes("INFLUENCER");
+  const isStudent = roles.includes("STUDENT");
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
@@ -46,15 +47,31 @@ export function DashboardContext({
         </p>
       </div>
 
-      {displayRoles.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-          {displayRoles.map((role) => (
-            <Badge key={role} variant="brand" size="sm">
-              {ROLE_LABELS[role] || role}
+      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+        {isInfluencer ? (
+          <>
+            <Badge variant="brand" size="sm">
+              Influenciador
             </Badge>
-          ))}
-        </div>
-      )}
+            <Badge variant="brand" size="sm">
+              VIP
+            </Badge>
+            {isStudent && (
+              <Badge variant="neutral" size="sm">
+                Aluno
+              </Badge>
+            )}
+          </>
+        ) : (
+          roles
+            .filter((r) => r !== "STUDENT")
+            .map((role) => (
+              <Badge key={role} variant="brand" size="sm">
+                {ROLE_LABELS[role] || role}
+              </Badge>
+            ))
+        )}
+      </div>
     </div>
   );
 }

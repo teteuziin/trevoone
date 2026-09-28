@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { DailyCheckinWidget } from "@/components/checkin/daily-checkin-widget";
 import { NetflixFeatureCarousel, type CarouselSlide } from "./netflix-feature-carousel";
 import type { DailyCheckinRecord } from "@/lib/checkins/service";
@@ -118,8 +119,6 @@ function NutritionIcon({ className = "w-5 h-5" }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 2a9 9 0 0 0-9 9c0 4.97 4.03 9 9 9s9-4.03 9-9" />
       <path d="M12 2c2.5 2.5 3 6 1 8.5" />
-      <path d="M18 11c0 3.31-2.69 6-6 6s-6-2.69-6-6" />
-      <path d="M12 2v4" />
     </svg>
   );
 }
@@ -129,6 +128,15 @@ function ProgressIcon({ className = "w-5 h-5" }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M3 3v18h18" />
       <path d="m19 9-5 5-4-4-3 3" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }
@@ -163,22 +171,25 @@ function UsersGroupIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function UserCheckIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <polyline points="16 11 18 13 22 9" />
-    </svg>
-  );
-}
-
 function DollarWalletIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect width="20" height="14" x="2" y="5" rx="3" />
       <line x1="2" x2="22" y1="10" y2="10" />
       <circle cx="12" cy="15" r="2" />
+    </svg>
+  );
+}
+
+function QrPixIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect width="6" height="6" x="3" y="3" rx="1" />
+      <rect width="6" height="6" x="15" y="3" rx="1" />
+      <rect width="6" height="6" x="3" y="15" rx="1" />
+      <path d="M15 15h2v2h-2z" />
+      <path d="M19 15h2v6h-2z" />
+      <path d="M15 19h2v2h-2z" />
     </svg>
   );
 }
@@ -288,11 +299,7 @@ export function DashboardCombinedStudentVipView({
     (m) => m.status === "PENDING" || m.status === "IN_PROGRESS"
   ).length;
 
-  const conversionRate =
-    registrationsCount > 0
-      ? Math.round((conversionsCount / registrationsCount) * 100)
-      : 0;
-
+  const activeMissionsPreview = missions.slice(0, 3);
 
   async function handleCopyLink(e?: React.MouseEvent) {
     if (e) e.preventDefault();
@@ -306,7 +313,7 @@ export function DashboardCombinedStudentVipView({
     }
   }
 
-  // Student Feature Carousel Slides
+  // 4. Student Feature Carousel Slides (100% Student-focused Hero)
   const studentSlides: CarouselSlide[] = [
     {
       id: "student-training",
@@ -395,15 +402,16 @@ export function DashboardCombinedStudentVipView({
         </div>
       )}
 
+      {/* Avaliação física pendente badge */}
       {pendingPhotoEvaluation && (
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20 self-start">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
           <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-          <span>Avaliação física pendente</span>
+          <span>Avaliação física pendente enviada para o seu treinador</span>
         </div>
       )}
 
       {/* ==================================================================== */}
-      {/* 1. CHECK-IN DIÁRIO (VISÍVEL LOGO NO TOPO - STUDENT FIRST)             */}
+      {/* 2. CHECK-IN DE HOJE (VISÍVEL LOGO NO TOPO - STUDENT FIRST)            */}
       {/* ==================================================================== */}
       <section aria-label="Check-in Diário" className="space-y-2">
         <DailyCheckinWidget
@@ -413,7 +421,7 @@ export function DashboardCombinedStudentVipView({
       </section>
 
       {/* ==================================================================== */}
-      {/* 2. RESUMO PRINCIPAL DO ALUNO (3 CARDS COM MÁXIMO DESTAQUE)           */}
+      {/* 3. RESUMO DO ALUNO (3 CARDS COM MÁXIMO DESTAQUE VISUAL)              */}
       {/* [ TREINOS ] [ NUTRIÇÃO ] [ EVOLUÇÃO ]                                */}
       {/* ==================================================================== */}
       <section aria-label="Resumo do Aluno" className="space-y-2.5">
@@ -525,7 +533,7 @@ export function DashboardCombinedStudentVipView({
       </section>
 
       {/* ==================================================================== */}
-      {/* 3. HERO / DESTAQUE PRINCIPAL (DO ALUNO, NÃO VIP!)                     */}
+      {/* 4. DESTAQUE / HERO DO ACOMPANHAMENTO DO ALUNO                        */}
       {/* ==================================================================== */}
       <section aria-label="Destaques do Aluno">
         <NetflixFeatureCarousel
@@ -536,7 +544,7 @@ export function DashboardCombinedStudentVipView({
       </section>
 
       {/* ==================================================================== */}
-      {/* 4. CONTEÚDO OPERACIONAL DO ALUNO (TREINOS, REFEIÇÕES, EVOLUÇÃO)       */}
+      {/* 5. TREINO ATUAL / PRÓXIMA ATIVIDADE                                  */}
       {/* ==================================================================== */}
       <section aria-label="Rotinas do Aluno" className="space-y-3.5">
         <div className="flex items-center justify-between px-1">
@@ -615,11 +623,205 @@ export function DashboardCombinedStudentVipView({
       </section>
 
       {/* ==================================================================== */}
-      {/* 5. ÁREA VIP / PARCERIA (SECUNDÁRIA, COMPACTA, SEM HERO GIGANTE)       */}
+      {/* 6. PLANO ALIMENTAR / ACOMPANHAMENTO                                   */}
+      {/* ==================================================================== */}
+      <section aria-label="Plano Alimentar Prescrito" className="space-y-3.5">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
+              Plano Alimentar Prescrito
+            </h2>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Refeições prescritas e acompanhamento nutricional personalizado
+            </p>
+          </div>
+          {hasNutrition && (
+            <Link
+              href={`/consultoria/${consultancySlug}/nutricao`}
+              className="text-xs font-semibold text-[var(--brand)] hover:underline flex items-center gap-1 shrink-0"
+            >
+              <span>Ver cardápio</span>
+              <ArrowRightIcon className="w-3.5 h-3.5" />
+            </Link>
+          )}
+        </div>
+
+        {hasNutrition ? (
+          <div className="p-4 sm:p-5 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[var(--border-subtle)]">
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] font-heading">
+                  {activeNutritionPlan.title}
+                </h3>
+                {activeNutritionPlan.subtitle && (
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    {activeNutritionPlan.subtitle}
+                  </p>
+                )}
+              </div>
+              <Badge variant="brand" size="sm" className="self-start sm:self-auto">
+                {mealCount} {mealCount === 1 ? "refeição" : "refeições"}
+              </Badge>
+            </div>
+
+            {activeNutritionPlan.meals && activeNutritionPlan.meals.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {activeNutritionPlan.meals.map((meal, idx) => (
+                  <Link
+                    key={meal.publicId || idx}
+                    href={`/consultoria/${consultancySlug}/nutricao`}
+                    className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-all group"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">
+                        Refeição {idx + 1}
+                      </span>
+                      {meal.scheduledTime && (
+                        <span className="text-[10px] text-[var(--text-tertiary)] flex items-center gap-1 font-mono">
+                          <ClockIcon className="w-3 h-3" />
+                          {meal.scheduledTime}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                      {meal.title}
+                    </h4>
+                    {meal.itemsCount !== undefined && meal.itemsCount > 0 && (
+                      <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                        {meal.itemsCount} {meal.itemsCount === 1 ? "alimento" : "alimentos"}
+                      </p>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] flex items-center justify-center shrink-0">
+                <NutritionIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
+                  Seu plano alimentar ainda está sendo preparado.
+                </p>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Suas refeições e metas de nutrientes estarão disponíveis em breve.
+                </p>
+              </div>
+            </div>
+            <span className="self-start sm:self-auto inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+              Aguardando
+            </span>
+          </div>
+        )}
+      </section>
+
+      {/* ==================================================================== */}
+      {/* 7. EVOLUÇÃO                                                          */}
+      {/* ==================================================================== */}
+      <section aria-label="Sua Evolução" className="space-y-3.5">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
+              Sua Evolução
+            </h2>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Acompanhamento de peso, medidas corporais e consistência
+            </p>
+          </div>
+          <Link
+            href={`/consultoria/${consultancySlug}/progresso`}
+            className="text-xs font-semibold text-[var(--brand)] hover:underline flex items-center gap-1 shrink-0"
+          >
+            <span>Ver histórico</span>
+            <ArrowRightIcon className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {latestProgress?.weightKg ? (
+          <div className="p-4 sm:p-5 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                  Peso atual registrado
+                </span>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-heading tabular-nums">
+                    {latestProgress.weightKg} <span className="text-sm font-normal text-[var(--text-secondary)]">kg</span>
+                  </span>
+                  {weightDelta !== null && (
+                    <Badge variant={weightDelta <= 0 ? "success" : "warning"} size="sm">
+                      {weightDelta > 0 ? `+${weightDelta}` : weightDelta} kg
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <span className="text-xs text-[var(--text-tertiary)]">
+                Última medição: {formatDate(latestProgress.recordedOn)}
+              </span>
+            </div>
+
+            {/* Medidas corporais se disponíveis */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {latestProgress.waistCm !== null && latestProgress.waistCm !== undefined && (
+                <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Cintura</span>
+                  <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">{latestProgress.waistCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span></p>
+                </div>
+              )}
+              {latestProgress.abdomenCm !== null && latestProgress.abdomenCm !== undefined && (
+                <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Abdômen</span>
+                  <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">{latestProgress.abdomenCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span></p>
+                </div>
+              )}
+              {latestProgress.hipCm !== null && latestProgress.hipCm !== undefined && (
+                <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Quadril</span>
+                  <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">{latestProgress.hipCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span></p>
+                </div>
+              )}
+              {latestProgress.armCm !== null && latestProgress.armCm !== undefined && (
+                <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Braço</span>
+                  <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">{latestProgress.armCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span></p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] flex items-center justify-center shrink-0">
+                <ProgressIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
+                  Você ainda não registrou medições de peso.
+                </p>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Registre seu peso para acompanhar seu progresso no painel.
+                </p>
+              </div>
+            </div>
+            <Link href={`/consultoria/${consultancySlug}/progresso`} className="self-start sm:self-auto">
+              <Button variant="secondary" size="sm" className="text-xs font-semibold px-3 py-1.5 min-h-[36px]">
+                Registrar peso →
+              </Button>
+            </Link>
+          </div>
+        )}
+      </section>
+
+      {/* ==================================================================== */}
+      {/* 8. ÁREA VIP / PARCERIA (SECUNDÁRIA: MENOR PESO VISUAL, CARDS MENORES) */}
+      {/* DENTRO: 9. Missões, 10. Indicações, 11. Comissões, 12. PIX           */}
       {/* ==================================================================== */}
       <section
         aria-label="Benefícios VIP e Parceria"
-        className="pt-4 border-t border-[var(--border-subtle)] space-y-4"
+        className="pt-6 border-t border-[var(--border-subtle)] space-y-4"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
           <div className="space-y-0.5">
@@ -627,13 +829,13 @@ export function DashboardCombinedStudentVipView({
               <h2 className="text-sm sm:text-base font-bold text-[var(--text-primary)] font-heading">
                 Benefícios VIP & Parceria
               </h2>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <SparklesIcon className="w-3 h-3" />
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)]">
+                <SparklesIcon className="w-3 h-3 text-[var(--brand)]" />
                 VIP Ativo
               </span>
             </div>
             <p className="text-xs text-[var(--text-secondary)]">
-              Acompanhe suas missões, comissões e link de indicação da consultoria.
+              Como aluno do TREVO ONE, você também possui acesso a benefícios, missões e comissões de parceiro.
             </p>
           </div>
 
@@ -651,9 +853,9 @@ export function DashboardCombinedStudentVipView({
           </div>
         </div>
 
-        {/* KPIs VIP Compactos */}
+        {/* 9, 10, 11, 12: KPIs VIP Compactos */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-          {/* Missões */}
+          {/* 9. Missões */}
           <Link
             href={`/consultoria/${consultancySlug}/missoes`}
             className="p-3 sm:p-3.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-all shadow-xs group"
@@ -672,7 +874,7 @@ export function DashboardCombinedStudentVipView({
             </p>
           </Link>
 
-          {/* Indicações */}
+          {/* 10. Indicações */}
           <Link
             href={`/consultoria/${consultancySlug}/indicacoes`}
             className="p-3 sm:p-3.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-all shadow-xs group"
@@ -687,32 +889,13 @@ export function DashboardCombinedStudentVipView({
               {registrationsCount}
             </div>
             <p className="text-[11px] text-[var(--text-secondary)] truncate">
-              Cadastros iniciados
+              {conversionsCount} confirmações
             </p>
           </Link>
 
-          {/* Conversões */}
+          {/* 11. Comissões */}
           <Link
-            href={`/consultoria/${consultancySlug}/indicacoes`}
-            className="p-3 sm:p-3.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-all shadow-xs group"
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                Conversões
-              </span>
-              <UserCheckIcon className="w-3.5 h-3.5 text-emerald-500" />
-            </div>
-            <div className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-heading tabular-nums">
-              {conversionsCount}
-            </div>
-            <p className="text-[11px] text-[var(--text-secondary)] truncate">
-              {conversionRate}% conversão
-            </p>
-          </Link>
-
-          {/* Comissões Aprovadas */}
-          <Link
-            href={`/consultoria/${consultancySlug}/indicacoes`}
+            href={`/consultoria/${consultancySlug}/indicacoes#comissoes`}
             className="p-3 sm:p-3.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-all shadow-xs group"
           >
             <div className="flex items-center justify-between mb-1">
@@ -726,6 +909,25 @@ export function DashboardCombinedStudentVipView({
             </div>
             <p className="text-[11px] text-[var(--text-secondary)] truncate">
               Aprovada para saque
+            </p>
+          </Link>
+
+          {/* 12. PIX */}
+          <Link
+            href={`/consultoria/${consultancySlug}/indicacoes#pix`}
+            className="p-3 sm:p-3.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-all shadow-xs group"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                PIX
+              </span>
+              <QrPixIcon className="w-3.5 h-3.5 text-violet-500" />
+            </div>
+            <div className="text-sm font-bold text-[var(--text-primary)] font-heading truncate">
+              {referrerData?.pixProfile ? referrerData.pixProfile.pixKeyType : "Não cadastrado"}
+            </div>
+            <p className="text-[11px] text-[var(--text-secondary)] truncate">
+              {referrerData?.pixProfile ? "Pronto para receber" : "Configurar chave"}
             </p>
           </Link>
         </div>
@@ -770,23 +972,70 @@ export function DashboardCombinedStudentVipView({
               </h3>
               <p className="text-xs text-[var(--text-primary)] font-medium truncate">
                 {referrerData?.pixProfile ? (
-                  `${referrerData.pixProfile.pixKeyType}: ${referrerData.pixProfile.pixKey}`
+                  `${referrerData.pixProfile.pixKeyType}: ${referrerData.pixProfile.pixKeyMasked || referrerData.pixProfile.pixKey}`
                 ) : (
                   "Nenhuma chave cadastrada"
                 )}
               </p>
               <p className="text-[11px] text-[var(--text-secondary)]">
-                Total já pago: R$ {paidAmount.toFixed(2)}
+                Total já recebido: R$ {paidAmount.toFixed(2)}
               </p>
             </div>
 
-            <Link href={`/consultoria/${consultancySlug}/indicacoes`} className="shrink-0">
+            <Link href={`/consultoria/${consultancySlug}/indicacoes#pix`} className="shrink-0">
               <Button variant="secondary" size="sm" className="text-xs font-semibold min-h-[36px]">
                 {referrerData?.pixProfile ? "Alterar PIX" : "Cadastrar PIX"}
               </Button>
             </Link>
           </div>
         </div>
+
+        {/* Missões Ativas Compactas (se houver) */}
+        {activeMissionsPreview.length > 0 && (
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-heading">
+                Missões em Destaque
+              </h3>
+              <Link
+                href={`/consultoria/${consultancySlug}/missoes`}
+                className="text-xs font-semibold text-[var(--brand)] hover:underline"
+              >
+                Ver todas ({missions.length})
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {activeMissionsPreview.map((mission) => (
+                <div
+                  key={mission.publicId}
+                  className="p-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-2"
+                >
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
+                      Prioridade: {mission.priority || "Normal"}
+                    </span>
+                    <h4 className="text-xs font-bold text-[var(--text-primary)] line-clamp-1">
+                      {mission.title}
+                    </h4>
+                    {mission.formattedDueAt && (
+                      <p className="text-[11px] text-[var(--text-secondary)]">
+                        Prazo: {mission.formattedDueAt}
+                      </p>
+                    )}
+                  </div>
+                  <Link
+                    href={`/consultoria/${consultancySlug}/missoes`}
+                    className="text-xs font-semibold text-[var(--brand)] hover:underline flex items-center gap-1 pt-1 border-t border-[var(--border-subtle)]"
+                  >
+                    <span>Ver detalhes</span>
+                    <ArrowRightIcon className="w-3 h-3" />
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

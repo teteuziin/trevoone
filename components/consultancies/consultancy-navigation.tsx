@@ -375,7 +375,8 @@ export function ConsultancyNavigation({
     if (itemHref === baseSlugHref) {
       return pathname === baseSlugHref;
     }
-    return pathname === itemHref || pathname.startsWith(itemHref + "/");
+    const cleanItemHref = itemHref.split("#")[0];
+    return pathname === cleanItemHref || pathname.startsWith(cleanItemHref + "/");
   }
 
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -497,9 +498,10 @@ export function ConsultancyNavigation({
       desktopSections.push({ title: "BIBLIOTECA", items: libraryItems });
     }
 
-    // 6. PARCERIA VIP (Secundário para quem é Aluno)
+    // 6. PARCERIA VIP (Secundário para quem é Aluno: Missões, Indicações, Comissões)
     if (partnershipItems.length > 0) {
-      desktopSections.push({ title: "PARCERIA VIP", items: partnershipItems });
+      const sidebarPartnershipItems = partnershipItems.filter((i) => i.id !== "influencer-pix");
+      desktopSections.push({ title: "PARCERIA VIP", items: sidebarPartnershipItems });
     }
   } else {
     // 1. PARCERIA (Influenciador puro)
@@ -1008,37 +1010,115 @@ export function ConsultancyNavigation({
             </div>
 
             {/* Section 1: All / Secondary Navigation Links */}
-            <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
-                Navegação completa
-              </p>
-              <nav aria-label="Todos os módulos" className="grid grid-cols-2 gap-2">
-                {items.map((item) => {
-                  const active = isItemActive(item.href);
-                  return (
-                    <Link
-                      key={item.id}
-                      href={item.href}
-                      prefetch={false}
-                      onClick={() => setMobileMenuOpen(false)}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
-                        active
-                          ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <NavIcon name={item.iconName} />
-                        <span className="truncate">{item.label}</span>
-                      </div>
-                      {active && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
-                      )}
-                    </Link>
-                  );
-                })}
-              </nav>
+            <div className="space-y-4">
+              {isStudentNavigation ? (
+                <>
+                  {/* Seção 1: Parceria VIP no Drawer */}
+                  {partnershipItems.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+                        Benefícios VIP & Parceria
+                      </p>
+                      <nav aria-label="Benefícios VIP" className="grid grid-cols-2 gap-2">
+                        {partnershipItems.map((item) => {
+                          const active = isItemActive(item.href);
+                          return (
+                            <Link
+                              key={item.id}
+                              href={item.href}
+                              prefetch={false}
+                              onClick={() => setMobileMenuOpen(false)}
+                              aria-current={active ? "page" : undefined}
+                              className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
+                                active
+                                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <NavIcon name={item.iconName} />
+                                <span className="truncate">{item.label}</span>
+                              </div>
+                              {active && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </nav>
+                    </div>
+                  )}
+
+                  {/* Seção 2: Serviços do Aluno no Drawer */}
+                  {servicesItems.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+                        Serviços do Aluno
+                      </p>
+                      <nav aria-label="Serviços do Aluno" className="grid grid-cols-2 gap-2">
+                        {servicesItems.map((item) => {
+                          const active = isItemActive(item.href);
+                          return (
+                            <Link
+                              key={item.id}
+                              href={item.href}
+                              prefetch={false}
+                              onClick={() => setMobileMenuOpen(false)}
+                              aria-current={active ? "page" : undefined}
+                              className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
+                                active
+                                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <NavIcon name={item.iconName} />
+                                <span className="truncate">{item.label}</span>
+                              </div>
+                              {active && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </nav>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+                    Navegação completa
+                  </p>
+                  <nav aria-label="Todos os módulos" className="grid grid-cols-2 gap-2">
+                    {items.map((item) => {
+                      const active = isItemActive(item.href);
+                      return (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          prefetch={false}
+                          onClick={() => setMobileMenuOpen(false)}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
+                            active
+                              ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                              : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <NavIcon name={item.iconName} />
+                            <span className="truncate">{item.label}</span>
+                          </div>
+                          {active && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                </div>
+              )}
             </div>
 
             {/* Section 2: Appearance & Theme */}

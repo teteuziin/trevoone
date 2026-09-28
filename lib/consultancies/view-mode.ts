@@ -48,6 +48,10 @@ export function resolveDefaultPresentationMode(
   if (realRoles.includes("CONSULTANCY_ADMIN")) return "ADMIN";
   if (realRoles.includes("PERSONAL")) return "PERSONAL";
   if (realRoles.includes("NUTRITIONIST")) return "NUTRITIONIST";
+  // STUDENT-FIRST: Se o usuário possui STUDENT + INFLUENCER/VIP, STUDENT é a experiência principal
+  if (realRoles.includes("STUDENT") && realRoles.includes("INFLUENCER")) {
+    return "STUDENT";
+  }
   if (realRoles.includes("INFLUENCER")) return "INFLUENCER";
   if (realRoles.includes("STUDENT")) return "STUDENT";
   return "STUDENT";
@@ -158,18 +162,25 @@ export function getAllowedViewModeOptions(
 
   // 4. INFLUENCER options
   if (isInfluencer) {
-    options.push({
-      mode: "INFLUENCER",
-      label: PRESENTATION_MODE_LABELS.INFLUENCER,
-      isRealRole: true,
-    });
     if (isStudent) {
+      // STUDENT-FIRST: Exibir STUDENT primeiro nas opções
       options.push({
         mode: "STUDENT",
         label: PRESENTATION_MODE_LABELS.STUDENT,
         isRealRole: true,
       });
+      options.push({
+        mode: "INFLUENCER",
+        label: PRESENTATION_MODE_LABELS.INFLUENCER,
+        isRealRole: true,
+      });
+      return options;
     }
+    options.push({
+      mode: "INFLUENCER",
+      label: PRESENTATION_MODE_LABELS.INFLUENCER,
+      isRealRole: true,
+    });
     return options;
   }
 

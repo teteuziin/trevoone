@@ -34,7 +34,7 @@ async function run() {
   assert(influencerOnlyMode === "INFLUENCER", "Influencer only resolves to INFLUENCER default mode");
 
   const vipStudentMode = resolveDefaultPresentationMode(["INFLUENCER", "STUDENT"]);
-  assert(vipStudentMode === "INFLUENCER", "VIP + STUDENT preserves INFLUENCER priority default mode");
+  assert(vipStudentMode === "STUDENT", "VIP + STUDENT prioritizes STUDENT default mode (STUDENT-first experience)");
 
   const personalMode = resolveDefaultPresentationMode(["PERSONAL"]);
   assert(personalMode === "PERSONAL", "PERSONAL default mode remains unchanged");
@@ -48,6 +48,7 @@ async function run() {
   assert(!influencerOptions.some((o) => o.mode === "STUDENT"), "Pure INFLUENCER does NOT have STUDENT option");
 
   const vipStudentOptions = getAllowedViewModeOptions(["INFLUENCER", "STUDENT"]);
+  assert(vipStudentOptions[0].mode === "STUDENT", "VIP + STUDENT has STUDENT as first option");
   assert(vipStudentOptions.some((o) => o.mode === "INFLUENCER"), "VIP + STUDENT has INFLUENCER option");
   assert(vipStudentOptions.some((o) => o.mode === "STUDENT"), "VIP + STUDENT has STUDENT option for switching");
 

@@ -67,9 +67,48 @@ export function ConsultancyAppShell({
     iconName: "overview",
   };
 
-  const rawItems: NavItemConfig[] = [overviewItem];
+    const rawItems: NavItemConfig[] = [overviewItem];
 
-  // 1. PARCERIA (Influencer / VIP)
+  // 1. MEU ACOMPANHAMENTO (Aluno - STUDENT FIRST)
+  if (isStudent && !isPersonal && !isNutritionist && !isAdmin) {
+    rawItems.push({
+      id: "learner-treinos",
+      label: "Treinos",
+      mobileLabel: "Treinos",
+      href: `/consultoria/${consultancySlug}/treinos`,
+      iconName: "training",
+    });
+    rawItems.push({
+      id: "learner-nutricao",
+      label: "Nutrição",
+      mobileLabel: "Nutrição",
+      href: `/consultoria/${consultancySlug}/nutricao`,
+      iconName: "nutrition",
+    });
+    rawItems.push({
+      id: "learner-progresso",
+      label: "Evolução",
+      mobileLabel: "Evolução",
+      href: `/consultoria/${consultancySlug}/progresso`,
+      iconName: "progress",
+    });
+    rawItems.push({
+      id: "student-consultas",
+      label: "Consultas",
+      mobileLabel: "Consultas",
+      href: `/consultoria/${consultancySlug}/consultas`,
+      iconName: "consultations",
+    });
+    rawItems.push({
+      id: "student-pagamentos",
+      label: "Pagamentos",
+      mobileLabel: "Pagamentos",
+      href: `/consultoria/${consultancySlug}/pagamentos`,
+      iconName: "finance",
+    });
+  }
+
+  // 2. PARCERIA (Influencer / VIP - Secundário quando há STUDENT)
   if (isInfluencer) {
     rawItems.push({
       id: "influencer-missoes",
@@ -89,7 +128,14 @@ export function ConsultancyAppShell({
       id: "influencer-comissoes",
       label: "Comissões",
       mobileLabel: "Comissões",
-      href: `/consultoria/${consultancySlug}/indicacoes`,
+      href: `/consultoria/${consultancySlug}/indicacoes#comissoes`,
+      iconName: "finance",
+    });
+    rawItems.push({
+      id: "influencer-pix",
+      label: "PIX",
+      mobileLabel: "PIX",
+      href: `/consultoria/${consultancySlug}/indicacoes#pix`,
       iconName: "finance",
     });
   }
@@ -208,45 +254,6 @@ export function ConsultancyAppShell({
     });
   }
 
-  // 5. MEU ACOMPANHAMENTO (Aluno - para Aluno puro ou Aluno + Influenciador)
-  if (isStudent && !isPersonal && !isNutritionist && !isAdmin) {
-    rawItems.push({
-      id: "learner-treinos",
-      label: "Treinos",
-      mobileLabel: "Treinos",
-      href: `/consultoria/${consultancySlug}/treinos`,
-      iconName: "training",
-    });
-    rawItems.push({
-      id: "learner-nutricao",
-      label: "Nutrição",
-      mobileLabel: "Nutrição",
-      href: `/consultoria/${consultancySlug}/nutricao`,
-      iconName: "nutrition",
-    });
-    rawItems.push({
-      id: "learner-progresso",
-      label: "Evolução",
-      mobileLabel: "Evolução",
-      href: `/consultoria/${consultancySlug}/progresso`,
-      iconName: "progress",
-    });
-    rawItems.push({
-      id: "student-consultas",
-      label: "Consultas",
-      mobileLabel: "Consultas",
-      href: `/consultoria/${consultancySlug}/consultas`,
-      iconName: "consultations",
-    });
-    rawItems.push({
-      id: "student-pagamentos",
-      label: "Pagamentos",
-      mobileLabel: "Pagamentos",
-      href: `/consultoria/${consultancySlug}/pagamentos`,
-      iconName: "finance",
-    });
-  }
-
   // INTELLIGENT DEDUPLICATION BY ID AND HREF
   const seenHrefs = new Set<string>();
   const seenIds = new Set<string>();
@@ -263,7 +270,32 @@ export function ConsultancyAppShell({
   // DERIVE EXACT MOBILE PRIMARY ITEMS (Max 4 items + "Mais" button = 5 items)
   const mobilePrimaryItems: NavItemConfig[] = [overviewItem];
 
-  if (isPersonal && isAdmin) {
+  if (isStudent && (isInfluencer || (!isPersonal && !isNutritionist && !isAdmin))) {
+    // STUDENT FIRST: Always Início, Treinos, Nutrição, Evolução for anyone who is STUDENT
+    mobilePrimaryItems.push(
+      {
+        id: "learner-treinos",
+        label: "Treinos",
+        mobileLabel: "Treinos",
+        href: `/consultoria/${consultancySlug}/treinos`,
+        iconName: "training",
+      },
+      {
+        id: "learner-nutricao",
+        label: "Nutrição",
+        mobileLabel: "Nutrição",
+        href: `/consultoria/${consultancySlug}/nutricao`,
+        iconName: "nutrition",
+      },
+      {
+        id: "learner-progresso",
+        label: "Evolução",
+        mobileLabel: "Evolução",
+        href: `/consultoria/${consultancySlug}/progresso`,
+        iconName: "progress",
+      }
+    );
+  } else if (isPersonal && isAdmin) {
     mobilePrimaryItems.push(
       {
         id: "atendimento-alunos",
@@ -470,7 +502,14 @@ export function ConsultancyAppShell({
     if (b === "STUDENT") return 1;
     return 0;
   });
-  const roleLabels = sortedRolesForLabels.map((r) => ROLE_LABELS[r] || r);
+  const roleLabels: string[] = [];
+  for (const r of sortedRolesForLabels) {
+    if (r === "INFLUENCER") {
+      roleLabels.push("Influenciador", "VIP");
+    } else {
+      roleLabels.push(ROLE_LABELS[r] || r);
+    }
+  }
 
   const hasExplicitMaxWidth = className.includes("max-w-");
   const effectiveMaxWidthClass = hasExplicitMaxWidth

@@ -133,7 +133,7 @@ export function ReferrerStudentView({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div id="comissoes" className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
           <span className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
             Cadastros
@@ -196,7 +196,7 @@ export function ReferrerStudentView({
       </div>
 
       {/* PIX Profile Card */}
-      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-xs depth-base space-y-4">
+      <div id="pix" className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-xs depth-base space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-[var(--text-primary)]">

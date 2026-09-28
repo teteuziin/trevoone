@@ -59,7 +59,6 @@ export function DashboardContext({
           {displaySubtitle}
         </p>
       </div>
-
       <div className="flex flex-wrap items-center gap-1.5 shrink-0">
         {/* STUDENT FIRST: Aluno é o papel prioritário */}
         {isStudent && (
@@ -68,26 +67,26 @@ export function DashboardContext({
           </Badge>
         )}
         {isPersonal && (
-          <Badge variant="brand" size="sm">
+          <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
             Personal Trainer
           </Badge>
         )}
         {isNutritionist && (
-          <Badge variant="brand" size="sm">
+          <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
             Nutricionista
           </Badge>
         )}
         {isAdmin && (
-          <Badge variant="brand" size="sm">
+          <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
             Administrador da consultoria
           </Badge>
         )}
         {isInfluencer && (
           <>
-            <Badge variant="brand" size="sm">
+            <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
               Influenciador
             </Badge>
-            <Badge variant="brand" size="sm">
+            <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
               VIP
             </Badge>
           </>

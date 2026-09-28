@@ -192,8 +192,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
     todayCheckin,
     referrerData,
   ] = await Promise.all([
-    needStudentData && effectiveMode === "STUDENT" ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
-    needStudentData && effectiveMode === "STUDENT"
+    needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
+    needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer)
       ? getStudentFinancialAccessState({
           consultancyId: context.consultancyId,
           studentMembershipId: context.membershipId,
@@ -204,7 +204,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     needStudentData
       ? getStudentOwnProgressHistory({ userId: session.userId, consultancySlug: slug, page: 1 })
       : Promise.resolve(null),
-    needStudentData && effectiveMode === "STUDENT"
+    needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer)
       ? getStudentPhotoEvaluationsData({ userId: session.userId, consultancySlug: slug })
       : Promise.resolve(null),
     personalWorkoutsPromise,

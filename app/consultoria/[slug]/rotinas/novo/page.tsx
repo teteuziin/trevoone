@@ -47,7 +47,7 @@ interface PageProps {
 
 export default async function NewWorkoutPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
-  const { student: studentPublicId } = await searchParams;
+  const { student: studentMembershipPublicId } = await searchParams;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -72,12 +72,12 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
 
   // If a student publicId is provided, safely fetch the student's detail to confirm tenancy and pre-fill context
   let preselectedStudent = null;
-  if (studentPublicId && studentPublicId.trim()) {
+  if (studentMembershipPublicId && studentMembershipPublicId.trim()) {
     try {
       preselectedStudent = await getPersonalStudentDetail({
         consultancyId: context.consultancyId,
         consultancySlug: slug,
-        studentPublicId: studentPublicId.trim(),
+        studentMembershipPublicId: studentMembershipPublicId.trim(),
       });
     } catch {
       preselectedStudent = null;
@@ -91,7 +91,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
     const difficultyLevel = String(formData.get("difficultyLevel") || "INTERMEDIATE");
     const estimatedDuration = formData.get("estimatedDurationMinutes");
     const notes = String(formData.get("notes") || "").trim() || undefined;
-    const targetStudent = String(formData.get("targetStudent") || "").trim() || studentPublicId;
+    const targetStudentMembershipPublicId = String(formData.get("targetStudentMembershipPublicId") || "").trim() || studentMembershipPublicId;
 
     const res = await createWorkoutDraftAction(slug, {
       title,
@@ -102,8 +102,8 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
     });
 
     if (res.ok && res.data) {
-      const redirectUrl = targetStudent
-        ? `/consultoria/${slug}/rotinas/${res.data.workoutPublicId}?student=${encodeURIComponent(targetStudent)}`
+      const redirectUrl = targetStudentMembershipPublicId
+        ? `/consultoria/${slug}/rotinas/${res.data.workoutPublicId}?student=${encodeURIComponent(targetStudentMembershipPublicId)}`
         : `/consultoria/${slug}/rotinas/${res.data.workoutPublicId}`;
       redirect(redirectUrl);
     }
@@ -185,7 +185,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
             {preselectedStudent && (
               <input
                 type="hidden"
-                name="targetStudent"
+                name="targetStudentMembershipPublicId"
                 value={preselectedStudent.student.membershipPublicId}
               />
             )}

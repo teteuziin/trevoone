@@ -214,15 +214,15 @@ export async function listPersonalStudents(params: {
 export async function getPersonalStudentDetail(params: {
   consultancyId: number;
   consultancySlug: string;
-  studentPublicId: string;
+  studentMembershipPublicId: string;
 }): Promise<PersonalStudentDetail | null> {
-  const { consultancyId, consultancySlug, studentPublicId } = params;
+  const { consultancyId, consultancySlug, studentMembershipPublicId } = params;
   let connection: PoolConnection | null = null;
 
   try {
     connection = await getDbConnection();
 
-    // 1. Authenticate student membership in this consultancy
+    // 1. Authenticate student membership strictly by consultancy_members.public_id (no user_public_id fallback)
     const [members] = await connection.execute<RowDataPacket[]>(
       `SELECT
         cm.id AS membership_id,
@@ -238,11 +238,11 @@ export async function getPersonalStudentDetail(params: {
        INNER JOIN users u ON u.id = cm.user_id
        INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
        WHERE cm.consultancy_id = ?
-         AND (cm.public_id = ? OR u.public_id = ?)
+         AND cm.public_id = ?
          AND cm.status = 'ACTIVE'
          AND u.deleted_at IS NULL
        LIMIT 1;`,
-      [consultancyId, studentPublicId, studentPublicId]
+      [consultancyId, studentMembershipPublicId]
     );
 
     if (!Array.isArray(members) || members.length === 0) {
@@ -316,18 +316,27 @@ export async function getPersonalStudentDetail(params: {
           }
         }
 
-        const isAnamnesis = String(row.form_key).includes("anamnesis");
-        const title = isAnamnesis ? "Anamnese Inicial" : "Avaliação Física / Questionário";
+        const isAnamnesis =
+          String(row.form_key).toLowerCase().includes("anamnesis") ||
+          String(row.form_key).toLowerCase().includes("anamnese");
 
-        forms.push({
-          id: String(row.id),
-          publicId: String(row.public_id),
-          title,
-          formType: "INTAKE",
-          status: "Preenchido",
-          submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
-          questions,
-        });
+        // Anamnesis belongs exclusively to the ANAMNESE tab (detail.anamnesis).
+        // It must NOT appear as a duplicate card in FORMULÁRIOS.
+        if (!isAnamnesis) {
+          const title = String(row.form_key).toLowerCase().includes("physical")
+            ? "Questionário de Avaliação Física"
+            : `Questionário / ${String(row.form_key).replace(/_/g, " ")}`;
+
+          forms.push({
+            id: String(row.id),
+            publicId: String(row.public_id),
+            title,
+            formType: "INTAKE",
+            status: "Preenchido",
+            submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
+            questions,
+          });
+        }
       }
     }
 

@@ -57,7 +57,7 @@ export default async function ProfessionalStudentProgressDetailPage({
     const detail = await getPersonalStudentDetail({
       consultancyId: context.consultancyId,
       consultancySlug: slug,
-      studentPublicId,
+      studentMembershipPublicId: studentPublicId,
     });
 
     if (!detail) {

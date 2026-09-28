@@ -316,8 +316,8 @@ export async function searchActiveStudents(
     if (query && query.trim()) {
       const trimmed = query.trim();
       const q = `%${trimmed}%`;
-      conditions.push("(u.full_name LIKE ? OR u.email LIKE ? OR cm.public_id = ? OR u.public_id = ?)");
-      params.push(q, q, trimmed, trimmed);
+      conditions.push("(u.full_name LIKE ? OR u.email LIKE ? OR cm.public_id = ?)");
+      params.push(q, q, trimmed);
     }
 
     params.push(boundedLimit);

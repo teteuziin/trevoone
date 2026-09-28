@@ -436,19 +436,79 @@ export function ConsultancyNavigation({
 
   const isMoreActive = !isAnyPrimaryActive && isAnySecondaryActive;
 
-  // Categorize items for desktop sidebar
-  const mainNavItems = items.filter(
-    (item) =>
-      !item.id.startsWith("admin-") &&
-      item.id !== "personal-exercicios" &&
-      item.id !== "nutritionist-alimentos"
-  );
-  const managementNavItems = items.filter(
-    (item) =>
-      item.id.startsWith("admin-") ||
-      item.id === "personal-exercicios" ||
-      item.id === "nutritionist-alimentos"
-  );
+  // Categorize items for desktop sidebar with distinct semantic sections
+  const hasInfluencerItems = items.some((item) => item.id.startsWith("influencer-"));
+
+  type NavSection = {
+    title?: string;
+    items: NavItemConfig[];
+  };
+
+  const desktopSections: NavSection[] = [];
+
+  if (hasInfluencerItems) {
+    const partnershipItems = items.filter(
+      (item) => item.id === "overview" || item.id.startsWith("influencer-")
+    );
+    const studentItems = items.filter((item) => item.id.startsWith("learner-"));
+    const servicesItems = items.filter(
+      (item) =>
+        item.id === "student-consultas" ||
+        item.id === "student-pagamentos" ||
+        item.id === "student-formularios"
+    );
+
+    if (partnershipItems.length > 0) {
+      desktopSections.push({ title: "PARCERIA", items: partnershipItems });
+    }
+    if (studentItems.length > 0) {
+      desktopSections.push({ title: "ALUNO", items: studentItems });
+    }
+    if (servicesItems.length > 0) {
+      desktopSections.push({ title: "SERVIÇOS", items: servicesItems });
+    }
+  } else {
+    // Non-influencer views
+    const managementNavItems = items.filter(
+      (item) =>
+        item.id.startsWith("admin-") ||
+        item.id === "personal-exercicios" ||
+        item.id === "nutritionist-alimentos"
+    );
+    const mainNavItems = items.filter(
+      (item) =>
+        !item.id.startsWith("admin-") &&
+        item.id !== "personal-exercicios" &&
+        item.id !== "nutritionist-alimentos"
+    );
+
+    const studentServices = mainNavItems.filter(
+      (item) =>
+        item.id === "student-consultas" ||
+        item.id === "student-pagamentos" ||
+        item.id === "student-formularios"
+    );
+    const studentMain = mainNavItems.filter(
+      (item) =>
+        item.id !== "student-consultas" &&
+        item.id !== "student-pagamentos" &&
+        item.id !== "student-formularios"
+    );
+
+    if (studentServices.length > 0 && studentMain.length > 1) {
+      desktopSections.push({ title: "PRINCIPAL", items: studentMain });
+      desktopSections.push({ title: "SERVIÇOS", items: studentServices });
+    } else {
+      desktopSections.push({
+        title: managementNavItems.length > 0 ? "PRINCIPAL" : undefined,
+        items: mainNavItems,
+      });
+    }
+
+    if (managementNavItems.length > 0) {
+      desktopSections.push({ title: "GESTÃO & CLÍNICA", items: managementNavItems });
+    }
+  }
 
   return (
     <>
@@ -498,46 +558,17 @@ export function ConsultancyNavigation({
 
           {/* Navigation Links */}
           <nav aria-label="Navegação desktop" className="space-y-4 pt-1">
-            {/* Main Section */}
-            <div className="space-y-1">
-              {managementNavItems.length > 0 && (
-                <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-3 mb-1.5">
-                  Principal
-                </p>
-              )}
-              {mainNavItems.map((item) => {
-                const active = isItemActive(item.href);
-                return (
-                  <Link
-                    key={item.id}
-                    href={item.href}
-                    prefetch={false}
-                    aria-current={active ? "page" : undefined}
-                    className={`flex items-center justify-between px-3 py-2 text-xs rounded-xl border transition-all depth-interactive ${
-                      active
-                        ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <NavIcon name={item.iconName} />
-                      <span className="truncate">{item.label}</span>
-                    </div>
-                    {active && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0 shadow-2xs" />
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* Management Section (if any) */}
-            {managementNavItems.length > 0 && (
-              <div className="space-y-1 pt-2 border-t border-[var(--border-subtle)]">
-                <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-3 mb-1.5">
-                  Gestão &amp; Clínica
-                </p>
-                {managementNavItems.map((item) => {
+            {desktopSections.map((section, sIdx) => (
+              <div
+                key={section.title || sIdx}
+                className={`space-y-1 ${sIdx > 0 ? "pt-2 border-t border-[var(--border-subtle)]" : ""}`}
+              >
+                {section.title && (
+                  <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-3 mb-1.5 font-heading">
+                    {section.title}
+                  </p>
+                )}
+                {section.items.map((item) => {
                   const active = isItemActive(item.href);
                   return (
                     <Link
@@ -562,7 +593,7 @@ export function ConsultancyNavigation({
                   );
                 })}
               </div>
-            )}
+            ))}
           </nav>
         </div>
 

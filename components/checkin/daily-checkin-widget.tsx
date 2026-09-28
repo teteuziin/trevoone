@@ -8,6 +8,7 @@ interface DailyCheckinWidgetProps {
   consultancySlug: string;
   initialCheckin?: DailyCheckinRecord | null;
   todayCheckin?: DailyCheckinRecord | null;
+  defaultOpen?: boolean;
 }
 
 const DIFFICULTY_REASON_OPTIONS = [
@@ -37,13 +38,31 @@ function CheckIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function ClockIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function ChevronUpIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="18 15 12 9 6 15" />
+    </svg>
+  );
+}
+
 export function DailyCheckinWidget({
   consultancySlug,
   initialCheckin,
   todayCheckin,
+  defaultOpen = false,
 }: DailyCheckinWidgetProps) {
   const effectiveInitialCheckin = todayCheckin ?? initialCheckin ?? null;
-  const [isEditing, setIsEditing] = useState(!effectiveInitialCheckin);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [currentCheckin, setCurrentCheckin] = useState<DailyCheckinRecord | null>(effectiveInitialCheckin);
 
   const [trainingStatus, setTrainingStatus] = useState<TrainingCheckinStatus>(
@@ -112,118 +131,154 @@ export function DailyCheckinWidget({
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      setIsEditing(false);
+      setIsOpen(false);
     }
   }
 
-  // Visual completed summary card
-  if (!isEditing && currentCheckin) {
-    const trainingLabels: Record<TrainingCheckinStatus, string> = {
-      TRAINED: "Treinei hoje",
-      NOT_TRAINED: "Não treinei",
-      REST_DAY: "Descanso planejado",
-    };
-    const dietLabels: Record<DietCheckinStatus, string> = {
-      FOLLOWED: "Segui o plano 100%",
-      PARTIAL: "Parcialmente",
-      OFF_PLAN: "Saí do plano",
-      NOT_APPLICABLE: "Sem plano alimentar",
-    };
+  const trainingLabels: Record<TrainingCheckinStatus, string> = {
+    TRAINED: "Treinei",
+    NOT_TRAINED: "Não treinei",
+    REST_DAY: "Descanso",
+  };
+  const dietLabels: Record<DietCheckinStatus, string> = {
+    FOLLOWED: "100% no plano",
+    PARTIAL: "Parcial",
+    OFF_PLAN: "Fora do plano",
+    NOT_APPLICABLE: "Sem plano",
+  };
 
-    return (
-      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-6 shadow-xs space-y-4 transition-all">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-[var(--border-subtle)]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
-              <CheckIcon className="w-5 h-5" />
+  // =========================================================================
+  // 1. ESTADO FECHADO (COMPACTO POR PADRÃO)
+  // =========================================================================
+  if (!isOpen) {
+    if (currentCheckin) {
+      // Completed state: compact card with status and chips
+      return (
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-4.5 shadow-xs transition-all hover:border-[var(--border-strong)]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
+                <CheckIcon className="w-5 h-5" />
+              </div>
+              <div className="space-y-0.5 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-[var(--text-primary)] font-heading">
+                    Check-in de hoje
+                  </h3>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-wider">
+                    Concluído
+                  </span>
+                </div>
+                {/* Visual summary indicators: Treino, Alimentação, Energia */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                    Treino: <strong className="text-[var(--text-primary)] font-semibold">{trainingLabels[currentCheckin.trainingStatus]}</strong>
+                  </span>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                    Dieta: <strong className="text-[var(--text-primary)] font-semibold">{dietLabels[currentCheckin.dietStatus]}</strong>
+                  </span>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                    Energia: <strong className="text-[var(--brand)] font-bold">{currentCheckin.energyLevel}/5</strong>
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="space-y-0.5">
-              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] font-heading">
-                Check-in de hoje concluído
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] font-medium">
-                Suas respostas foram compartilhadas com sua consultoria em tempo real.
+
+            <button
+              type="button"
+              onClick={() => setIsOpen(true)}
+              className="self-stretch sm:self-auto text-xs font-semibold px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer min-h-[38px] flex items-center justify-center"
+            >
+              Editar
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Pending state: compact card with prompt and CTA
+    return (
+      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-4.5 shadow-xs transition-all hover:border-[var(--border-strong)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+              <ClockIcon className="w-4.5 h-4.5" />
+            </div>
+            <div className="space-y-0.5 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-[var(--text-primary)] font-heading">
+                  Check-in de hoje
+                </h3>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase tracking-wider">
+                  Pendente
+                </span>
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
+                Compartilhe seu treino, dieta e disposição de hoje em 30 segundos.
               </p>
             </div>
           </div>
+
           <button
             type="button"
-            onClick={() => setIsEditing(true)}
-            className="self-start sm:self-auto text-xs font-semibold px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] transition-all cursor-pointer min-h-[38px]"
+            onClick={() => setIsOpen(true)}
+            className="self-stretch sm:self-auto text-xs font-bold px-4 py-2 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white shadow-xs transition-all cursor-pointer min-h-[38px] flex items-center justify-center"
           >
-            Editar respostas
+            Responder agora
           </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
-          <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider block">Treino</span>
-            <span className="font-bold text-[var(--text-primary)] line-clamp-1">{trainingLabels[currentCheckin.trainingStatus]}</span>
-          </div>
-          <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider block">Alimentação</span>
-            <span className="font-bold text-[var(--text-primary)] line-clamp-1">{dietLabels[currentCheckin.dietStatus]}</span>
-          </div>
-          <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider block">Disposição</span>
-            <span className="font-bold text-[var(--text-primary)]">⚡ {currentCheckin.energyLevel} de 5</span>
-          </div>
-          <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold tracking-wider block">Dor / Articular</span>
-            <span className={`font-bold ${currentCheckin.hasPain ? "text-amber-500 dark:text-amber-400" : "text-emerald-500"}`}>
-              {currentCheckin.hasPain ? "Relatou incômodo" : "Sem dor"}
-            </span>
-          </div>
         </div>
       </div>
     );
   }
 
-  // Interactive Form
+  // =========================================================================
+  // 2. ESTADO ABERTO (FORMULÁRIO COMPLETO EXPANSÍVEL)
+  // =========================================================================
   return (
-    <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-7 shadow-xs space-y-5 transition-all">
-      <div className="flex items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
-            <SparkleIcon className="w-4 h-4" />
+    <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 transition-all animate-in fade-in duration-150">
+      <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center shrink-0">
+            <SparkleIcon className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)] block">
-              Acompanhamento Diário • 10 segundos
-            </span>
-            <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading leading-tight mt-0.5">
-              Como foi sua rotina hoje?
+            <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] font-heading">
+              {currentCheckin ? "Editar Check-in de Hoje" : "Check-in Diário de Acompanhamento"}
             </h3>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Suas respostas são sincronizadas com sua equipe técnica.
+            </p>
           </div>
         </div>
-        {effectiveInitialCheckin && (
-          <button
-            type="button"
-            onClick={() => setIsEditing(false)}
-            className="text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer py-1 px-2"
-          >
-            Cancelar
-          </button>
-        )}
+
+        <button
+          type="button"
+          onClick={() => setIsOpen(false)}
+          className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 transition-all cursor-pointer"
+          title="Recolher formulário"
+        >
+          <span>Recolher</span>
+          <ChevronUpIcon className="w-3.5 h-3.5" />
+        </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* 1. Treino */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 1. Status de Treino */}
         <div className="space-y-2">
           <label className="text-xs font-bold text-[var(--text-primary)] block">
             1. Você treinou hoje?
           </label>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { id: "TRAINED", label: "Treinei" },
+              { id: "TRAINED", label: "Sim, treinei" },
               { id: "NOT_TRAINED", label: "Não treinei" },
-              { id: "REST_DAY", label: "Descanso" },
+              { id: "REST_DAY", label: "Descanso planejado" },
             ].map((opt) => (
               <button
                 key={opt.id}
                 type="button"
                 onClick={() => setTrainingStatus(opt.id as TrainingCheckinStatus)}
-                className={`py-2.5 px-3 text-xs sm:text-sm rounded-xl border font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
+                className={`py-2.5 px-2 text-xs sm:text-sm rounded-xl border font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                   trainingStatus === opt.id
                     ? "bg-[var(--brand)] text-[var(--text-inverse)] border-[var(--brand)] shadow-xs"
                     : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-default)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -235,14 +290,14 @@ export function DailyCheckinWidget({
           </div>
         </div>
 
-        {/* 2. Alimentação */}
+        {/* 2. Status de Dieta */}
         <div className="space-y-2">
           <label className="text-xs font-bold text-[var(--text-primary)] block">
-            2. Como foi sua alimentação?
+            2. Como foi sua alimentação em relação ao plano?
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
-              { id: "FOLLOWED", label: "Segui o plano" },
+              { id: "FOLLOWED", label: "Segui 100%" },
               { id: "PARTIAL", label: "Parcialmente" },
               { id: "OFF_PLAN", label: "Saí do plano" },
               { id: "NOT_APPLICABLE", label: "Sem plano" },
@@ -251,7 +306,7 @@ export function DailyCheckinWidget({
                 key={opt.id}
                 type="button"
                 onClick={() => setDietStatus(opt.id as DietCheckinStatus)}
-                className={`py-2.5 px-3 text-xs sm:text-sm rounded-xl border font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center text-center ${
+                className={`py-2.5 px-2 text-xs sm:text-sm rounded-xl border font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                   dietStatus === opt.id
                     ? "bg-[var(--brand)] text-[var(--text-inverse)] border-[var(--brand)] shadow-xs"
                     : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-default)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -382,7 +437,7 @@ export function DailyCheckinWidget({
         {/* Observação opcional */}
         <div className="space-y-1.5">
           <label htmlFor="checkin-notes" className="text-xs font-semibold text-[var(--text-secondary)] block">
-            Alguma observação para seu treinador ou nutricionista? (opcional)
+            Alguma observação para sua consultoria? (opcional)
           </label>
           <textarea
             id="checkin-notes"
@@ -414,13 +469,22 @@ export function DailyCheckinWidget({
             <span>Avisos diários notificam sua equipe técnica sobre sua evolução.</span>
           </p>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full sm:w-auto px-7 py-3 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs sm:text-sm font-bold active:scale-98 transition-all disabled:opacity-50 cursor-pointer shadow-sm min-h-[46px]"
-          >
-            {isSubmitting ? "Salvando..." : "Concluir Check-in"}
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="w-1/2 sm:w-auto px-4 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer min-h-[44px]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-1/2 sm:w-auto px-6 py-2.5 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs sm:text-sm font-bold active:scale-98 transition-all disabled:opacity-50 cursor-pointer shadow-sm min-h-[44px]"
+            >
+              {isSubmitting ? "Salvando..." : "Concluir Check-in"}
+            </button>
+          </div>
         </div>
       </form>
     </div>

@@ -1,11 +1,12 @@
-import { DailyCheckinWidget } from "@/components/checkin/daily-checkin-widget";
-import type { DailyCheckinRecord } from "@/lib/checkins/service";
+"use client";
+
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DailyCheckinWidget } from "@/components/checkin/daily-checkin-widget";
 import { NetflixFeatureCarousel, type CarouselSlide } from "./netflix-feature-carousel";
+import type { DailyCheckinRecord } from "@/lib/checkins/service";
 
 export interface StudentWorkoutRoutineSummary {
   publicId?: string;
@@ -71,7 +72,7 @@ interface DashboardStudentViewProps {
 }
 
 // ============================================================================
-// ICONS (Trevo One Art Direction — Clean, tactile, zero static duplicate IDs)
+// ICONS
 // ============================================================================
 
 function WorkoutIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -174,7 +175,7 @@ export function DashboardStudentView({
   const hasIncompleteOnboarding =
     onboarding && onboarding.applicable && !onboarding.isComplete;
 
-  // Real derived metrics from authoritative payload
+  // Real derived metrics
   const workoutCount = activeTrainingPlan?.workoutCount || 0;
   const blockCount = activeTrainingPlan?.blockCount;
   const totalExercises = activeTrainingPlan?.totalExercises;
@@ -190,7 +191,6 @@ export function DashboardStudentView({
   const hasNutrition = !!activeNutritionPlan;
   const firstName = getFirstName(userName);
 
-  // Weight delta calculation: strictly from baseline if 2 real entries exist
   const hasTwoWeightEntries =
     latestProgress?.weightKg !== null &&
     latestProgress?.weightKg !== undefined &&
@@ -201,7 +201,6 @@ export function DashboardStudentView({
     ? Number((latestProgress!.weightKg! - previousProgress!.weightKg!).toFixed(1))
     : null;
 
-  // Real workouts array (if provided) or fallback to single workout card
   const routineList: StudentWorkoutRoutineSummary[] =
     activeTrainingPlan?.workouts && activeTrainingPlan.workouts.length > 0
       ? activeTrainingPlan.workouts
@@ -247,687 +246,547 @@ export function DashboardStudentView({
       ctaText: "Ver plano alimentar",
       ctaHref: `/consultoria/${consultancySlug}/nutricao`,
       imageUrl: "/images/student/nutrition-editorial.webp",
-      meta: hasNutrition && mealCount > 0 ? `${mealCount} refeições diárias` : undefined,
+      meta: hasNutrition && mealCount > 0 ? `${mealCount} refeições` : undefined,
     },
     {
       id: "student-progress",
       tag: "EVOLUÇÃO",
       tagColor: "neutral",
-      title: "Registro de Evolução e Medições",
-      description: "Acompanhe seu histórico de peso corporal, medições físicas e evolução contínua.",
-      ctaText: "Acessar evolução",
+      title: latestProgress?.weightKg
+        ? `Peso atual: ${latestProgress.weightKg} kg`
+        : "Acompanhe sua Evolução",
+      description: latestProgress
+        ? `Última medição registrada em ${formatDate(latestProgress.recordedOn)}. Mantenha seus registros atualizados.`
+        : "Acompanhe seu peso, medidas e fotos de evolução corporal para monitorar seus resultados reais.",
+      ctaText: "Ver evolução",
       ctaHref: `/consultoria/${consultancySlug}/progresso`,
       imageUrl: "/images/student/hero-athlete.webp",
-      meta: latestProgress?.weightKg ? `Último registro: ${latestProgress.weightKg} kg` : "Medições corporais",
-    },
-    {
-      id: "student-appointments",
-      tag: "CONSULTAS",
-      tagColor: "blue",
-      title: "Consultas e Acompanhamento",
-      description: "Verifique suas datas agendadas, horários e orientações de atendimento com sua equipe.",
-      ctaText: "Ver consultas",
-      ctaHref: `/consultoria/${consultancySlug}/consultas`,
-      imageUrl: "/images/personal/coach-cockpit.jpg",
+      meta:
+        weightDelta !== null
+          ? `${weightDelta > 0 ? "+" : ""}${weightDelta} kg desde a última medição`
+          : undefined,
     },
   ];
 
   return (
-    <div className="space-y-6 sm:space-y-8 overflow-x-clip">
-      {/* 0. CHECK-IN DIÁRIO (10 Segundos) */}
-      <DailyCheckinWidget
-        consultancySlug={consultancySlug}
-        todayCheckin={todayCheckin || null}
-      />
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
       {/* ==================================================================== */}
-      {/* 1. ONBOARDING MANDATÓRIO (Se aplicável e incompleto)                  */}
+      {/* 1. HEADER                                                            */}
       {/* ==================================================================== */}
-      {hasIncompleteOnboarding && (
-        <div className="p-4.5 sm:p-5 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] shadow-xs depth-base">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Badge variant="warning" size="sm">
-                  Etapa Obrigatória
-                </Badge>
-                <span className="text-xs font-semibold text-[var(--warning-foreground)]">
-                  {onboarding.confirmedRequirements} de {onboarding.totalRequirements} etapas confirmadas
-                </span>
-              </div>
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
-                Complete seu cadastro inicial
-              </h2>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                Conclua os formulários obrigatórios para liberar o acesso aos módulos da sua consultoria.
-              </p>
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1 border-b border-[var(--border-subtle)]">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] font-heading tracking-tight">
+            {firstName ? `Olá, ${firstName}` : "Visão Geral do Aluno"}
+          </h1>
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+            {consultancyName ? `${consultancyName} • Acompanhamento Pessoal` : "Painel de acompanhamento pessoal"}
+          </p>
+        </div>
 
-            <div className="shrink-0 pt-1 sm:pt-0">
-              <Link href={`/consultoria/${consultancySlug}/onboarding`}>
-                <Button variant="primary" size="sm" className="font-semibold min-h-[44px]">
-                  Continuar cadastro →
-                </Button>
-              </Link>
-            </div>
+        {pendingPhotoEvaluation && (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20 self-start sm:self-auto">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span>Avaliação física pendente</span>
           </div>
+        )}
+      </div>
+
+      {/* Onboarding Notice */}
+      {hasIncompleteOnboarding && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-sm font-bold text-amber-500 font-heading">
+              Complete sua ficha de anamnese
+            </p>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Você preencheu {onboarding?.confirmedRequirements || 0} de {onboarding?.totalRequirements || 0} etapas necessárias.
+            </p>
+          </div>
+          <Link href={`/consultoria/${consultancySlug}/onboarding`}>
+            <Button variant="primary" size="sm" className="font-bold whitespace-nowrap min-h-[40px]">
+              Completar anamnese →
+            </Button>
+          </Link>
         </div>
       )}
 
       {/* ==================================================================== */}
-      {/* 2. CARROSSEL INTERATIVO ESTILO NETFLIX (Treinos, Nutrição, Progresso) */}
+      {/* 2. CHECK-IN COMPACTO                                                 */}
+      {/* Requirement 5: Fechado por padrão, compacto, no topo do dashboard    */}
       {/* ==================================================================== */}
-      <NetflixFeatureCarousel
-        slides={studentSlides}
-        consultancySlug={consultancySlug}
-      />
+      <section aria-label="Check-in Diário" className="space-y-2">
+        <DailyCheckinWidget
+          consultancySlug={consultancySlug}
+          todayCheckin={todayCheckin || null}
+        />
+      </section>
 
       {/* ==================================================================== */}
-      {/* 2.5 BARRA DE JORNADA NATIVA (Live Status Briefing)                   */}
+      {/* 3. RESUMO DO DIA (3 CARDS PRINCIPAIS)                                */}
+      {/* Requirement 5: [ Treino ] [ Nutrição ] [ Evolução ]                  */}
       {/* ==================================================================== */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Pilar 1: Treino */}
-        <Link
-          href={`/consultoria/${consultancySlug}/treinos`}
-          className="group flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] shadow-xs transition-all depth-surface active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[var(--brand)] shrink-0 shadow-2xs">
-              <WorkoutIcon className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
-                Prescrição
-              </span>
-              <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-heading">
-                {hasTraining ? (routineList[0]?.title || activeTrainingPlan.title) : "Sem treino ativo"}
-              </p>
-            </div>
-          </div>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)] shrink-0 ml-2">
-            {hasTraining ? `${workoutCount} ${workoutCount === 1 ? "rotina" : "rotinas"}` : "Aguardando"}
+      <section aria-label="Resumo do Dia" className="space-y-2">
+        <div className="px-1 flex items-center justify-between">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-heading">
+            Resumo do Dia
+          </h2>
+          <span className="text-[11px] text-[var(--text-tertiary)]">
+            {new Date().toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}
           </span>
-        </Link>
-
-        {/* Pilar 2: Nutrição */}
-        <Link
-          href={`/consultoria/${consultancySlug}/nutricao`}
-          className="group flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] shadow-xs transition-all depth-surface active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0 shadow-2xs">
-              <NutritionIcon className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
-                Alimentação
-              </span>
-              <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-heading">
-                {hasNutrition ? activeNutritionPlan.title : "Sem plano ativo"}
-              </p>
-            </div>
-          </div>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)] shrink-0 ml-2">
-            {hasNutrition ? (firstMealTime ? `1ª às ${firstMealTime}` : `${mealCount} ref.`) : "Aguardando"}
-          </span>
-        </Link>
-
-        {/* Pilar 3: Evolução */}
-        <Link
-          href={`/consultoria/${consultancySlug}/progresso`}
-          className="group flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] shadow-xs transition-all depth-surface active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-neutral-500/10 border border-neutral-500/20 flex items-center justify-center text-[var(--text-secondary)] shrink-0 shadow-2xs">
-              <ProgressIcon className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
-                Biometria
-              </span>
-              <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-heading">
-                {latestProgress?.weightKg ? `${latestProgress.weightKg} kg` : "Sem peso recente"}
-              </p>
-            </div>
-          </div>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)] shrink-0 ml-2 tabular-nums">
-            {weightDelta !== null ? `${weightDelta > 0 ? `+${weightDelta}` : weightDelta} kg` : latestProgress ? "Atualizado" : "Pendente"}
-          </span>
-        </Link>
-      </div>
-
-      {/* ==================================================================== */}
-      {/* 3. TRILHO DE TREINO (Netflix-like horizontal rail)                    */}
-      {/* Strictly Rule 2: "Seu Treino Prescrito" — NEVER "Treino de hoje"     */}
-      {/* ==================================================================== */}
-      <section aria-label="Seu Treino Prescrito" className="space-y-3.5">
-        <div className="flex items-center justify-between px-1">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-heading">
-              Seu Treino Prescrito
-            </h2>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
-              Rotinas estruturadas pelo seu personal trainer
-            </p>
-          </div>
-          {hasTraining && (
-            <Link
-              href={`/consultoria/${consultancySlug}/treinos`}
-              className="text-xs sm:text-sm font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1 shrink-0"
-            >
-              Ver todos <ArrowRightIcon className="w-3.5 h-3.5" />
-            </Link>
-          )}
         </div>
 
-        {hasTraining && routineList.length > 0 ? (
-          <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex gap-4 overflow-x-auto pb-3 pt-1 snap-x snap-mandatory scrollbar-none">
-            {routineList.map((routine, idx) => (
-              <div
-                key={routine.publicId || idx}
-                className="w-[84vw] sm:w-[320px] md:w-[360px] shrink-0 snap-start p-5 sm:p-6 rounded-3xl border border-[var(--border-strong)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4 border-specular-t depth-surface hover:border-[var(--brand)] transition-all"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="inline-flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-primary)] shadow-2xs">
-                        <WorkoutIcon className="w-4 h-4" />
-                      </div>
-                      <span className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+          {/* Card 1: Treino do Dia */}
+          <Link
+            href={`/consultoria/${consultancySlug}/treinos`}
+            className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-all shadow-xs group flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                Treino
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
+                <WorkoutIcon className="w-4.5 h-4.5" />
+              </div>
+            </div>
+
+            <div className="space-y-0.5">
+              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                {hasTraining ? activeTrainingPlan.title : "Treino Prescrito"}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
+                {hasTraining && workoutCount > 0
+                  ? `${workoutCount} rotinas ativas`
+                  : "Aguardando publicação"}
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs font-semibold text-[var(--brand)]">
+              <span>{hasTraining ? "Acessar treino" : "Ver treinos"}</span>
+              <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Card 2: Nutrição de Hoje */}
+          <Link
+            href={`/consultoria/${consultancySlug}/nutricao`}
+            className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-all shadow-xs group flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                Nutrição
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                <NutritionIcon className="w-4.5 h-4.5" />
+              </div>
+            </div>
+
+            <div className="space-y-0.5">
+              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                {hasNutrition ? activeNutritionPlan.title : "Plano Alimentar"}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
+                {hasNutrition && mealCount > 0
+                  ? firstMealTime
+                    ? `${mealCount} refeições • 1ª às ${firstMealTime}`
+                    : `${mealCount} refeições diárias`
+                  : "Aguardando plano"}
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs font-semibold text-[var(--brand)]">
+              <span>{hasNutrition ? "Ver cardápio" : "Ver nutrição"}</span>
+              <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Card 3: Última Medição */}
+          <Link
+            href={`/consultoria/${consultancySlug}/progresso`}
+            className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-all shadow-xs group flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                Evolução
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center">
+                <ProgressIcon className="w-4.5 h-4.5" />
+              </div>
+            </div>
+
+            <div className="space-y-0.5">
+              <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors tabular-nums">
+                {latestProgress?.weightKg ? `${latestProgress.weightKg} kg` : "Sem medições"}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
+                {latestProgress
+                  ? `Registrado em ${formatDate(latestProgress.recordedOn)}`
+                  : "Nenhum registro ainda"}
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs font-semibold text-[var(--brand)]">
+              <span>{latestProgress ? "Ver progresso" : "Registrar peso"}</span>
+              <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </Link>
+        </div>
+      </section>
+
+      {/* ==================================================================== */}
+      {/* 4. HERO / DESTAQUE (FEATURE CAROUSEL)                                */}
+      {/* ==================================================================== */}
+      <section aria-label="Destaques">
+        <NetflixFeatureCarousel
+          slides={studentSlides}
+          consultancySlug={consultancySlug}
+          autoSlideIntervalMs={7000}
+        />
+      </section>
+
+      {/* ==================================================================== */}
+      {/* 5. CONTEÚDO DETALHADO (COM EMPTY STATES COMPACTOS)                   */}
+      {/* Requirement 6: Quando não houver conteúdo, usar cards compactos      */}
+      {/* ==================================================================== */}
+
+      {/* 5.1 SEU TREINO PRESCRITO */}
+      <section aria-label="Treino Prescrito" className="space-y-3.5">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
+              Seu Treino Prescrito
+            </h2>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Rotinas e divisão de exercícios montados pela consultoria
+            </p>
+          </div>
+          <Link
+            href={`/consultoria/${consultancySlug}/treinos`}
+            className="text-xs font-bold text-[var(--brand)] hover:underline flex items-center gap-1"
+          >
+            <span>Ver treinos</span>
+            <ArrowRightIcon className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {hasTraining ? (
+          <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[var(--border-subtle)]">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
+                  {activeTrainingPlan.title}
+                </h3>
+                {activeTrainingPlan.subtitle && (
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                    {activeTrainingPlan.subtitle}
+                  </p>
+                )}
+              </div>
+              <Badge variant="brand" size="sm" className="self-start sm:self-auto">
+                {workoutCount} {workoutCount === 1 ? "rotina" : "rotinas"}
+              </Badge>
+            </div>
+
+            {routineList.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {routineList.map((routine, idx) => (
+                  <Link
+                    key={routine.publicId || idx}
+                    href={`/consultoria/${consultancySlug}/treinos`}
+                    className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-all group"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
                         Rotina {idx + 1}
                       </span>
+                      {routine.estimatedDurationMinutes && (
+                        <span className="text-[10px] text-[var(--text-tertiary)] flex items-center gap-1">
+                          <ClockIcon className="w-3 h-3" />
+                          {routine.estimatedDurationMinutes} min
+                        </span>
+                      )}
                     </div>
-                    <Badge variant="success" size="sm">
-                      Ativo
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-1">
-                    <h3 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight font-heading break-words">
+                    <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
                       {routine.title}
-                    </h3>
+                    </h4>
                     {routine.subtitle && (
-                      <p className="text-xs sm:text-sm text-[var(--text-secondary)] line-clamp-2">
+                      <p className="text-[11px] text-[var(--text-secondary)] truncate mt-0.5">
                         {routine.subtitle}
                       </p>
                     )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    {routine.blockCount !== undefined && routine.blockCount > 0 && (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)]">
-                        {routine.blockCount} {routine.blockCount === 1 ? "bloco" : "blocos"}
-                      </span>
-                    )}
-                    {routine.estimatedDurationMinutes && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-secondary)] tabular-nums">
-                        <ClockIcon className="w-3 h-3 text-[var(--text-tertiary)]" />
-                        {routine.estimatedDurationMinutes} min
-                      </span>
-                    )}
-                    {routine.difficultyLevel && (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-secondary)]">
-                        {routine.difficultyLevel}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-[var(--border-subtle)]">
-                  <Link href={`/consultoria/${consultancySlug}/treinos`} className="block w-full">
-                    <Button variant="primary" fullWidth size="md" className="font-semibold min-h-[44px]">
-                      Acessar treino →
-                    </Button>
                   </Link>
-                </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         ) : (
-          <div className="p-8 sm:p-10 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs text-center space-y-3 max-w-lg mx-auto depth-base">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-secondary)] mx-auto flex items-center justify-center shadow-2xs">
-              <WorkoutIcon className="w-6 h-6" />
+          /* Requirement 6: Compact empty state */
+          <div className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] flex items-center justify-center shrink-0">
+                <WorkoutIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
+                  Seu personal ainda não publicou um treino.
+                </p>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Assim que sua rotina for prescrita, ela aparecerá aqui.
+                </p>
+              </div>
             </div>
-            <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
-              Aguardando prescrição de treino
-            </h3>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-              Seu personal trainer está estruturando sua rotina personalizada de treinos. Assim que publicada, ela aparecerá aqui.
-            </p>
+            <span className="self-start sm:self-auto inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+              Aguardando
+            </span>
           </div>
         )}
       </section>
 
-      {/* ==================================================================== */}
-      {/* 4. TRILHO DE NUTRIÇÃO (Editorial & Food Lifestyle Rail)               */}
-      {/* ==================================================================== */}
-      <section aria-label="Seu Plano Alimentar" className="space-y-3.5">
+      {/* 5.2 SEU PLANO ALIMENTAR */}
+      <section aria-label="Plano Alimentar" className="space-y-3.5">
         <div className="flex items-center justify-between px-1">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-heading">
+            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
               Seu Plano Alimentar
             </h2>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
-              {hasNutrition
-                ? `${mealCount} ${mealCount === 1 ? "refeição estruturada" : "refeições estruturadas"} no plano ativo`
-                : "Acompanhamento e orientações do nutricionista"}
+            <p className="text-xs text-[var(--text-secondary)]">
+              Horários de refeições e diretrizes nutricionais
             </p>
           </div>
-          {hasNutrition && (
-            <Link
-              href={`/consultoria/${consultancySlug}/nutricao`}
-              className="text-xs sm:text-sm font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1 shrink-0"
-            >
-              Ver cardápio <ArrowRightIcon className="w-3.5 h-3.5" />
-            </Link>
-          )}
+          <Link
+            href={`/consultoria/${consultancySlug}/nutricao`}
+            className="text-xs font-bold text-[var(--brand)] hover:underline flex items-center gap-1"
+          >
+            <span>Ver plano</span>
+            <ArrowRightIcon className="w-3.5 h-3.5" />
+          </Link>
         </div>
 
         {hasNutrition ? (
-          <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex gap-4 overflow-x-auto pb-3 pt-1 snap-x snap-mandatory scrollbar-none">
-            {/* Spotlight Editorial Card (Rule 7: Section editorial image, not meal-specific plate) */}
-            <div className="relative w-[84vw] sm:w-[320px] md:w-[340px] shrink-0 snap-start rounded-3xl overflow-hidden border border-neutral-800 shadow-xs flex flex-col justify-between p-5 sm:p-6 bg-neutral-950 min-h-[260px]">
-              <div className="absolute inset-0 z-0">
-                <Image
-                  src="/images/student/nutrition-editorial.webp"
-                  alt=""
-                  aria-hidden="true"
-                  unoptimized
-                  fill
-                  sizes="(max-width: 768px) 80vw, 340px"
-                  className="object-cover opacity-80"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/70 to-neutral-950/30" />
-              </div>
-
-              <div className="relative z-10 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/60">
-                    Plano Ativo
-                  </span>
-                  {firstMealTime && (
-                    <span className="text-[10px] font-semibold text-neutral-300 bg-neutral-900/80 px-2 py-0.5 rounded-full tabular-nums">
-                      1ª às {firstMealTime}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight font-heading break-words">
+          <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[var(--border-subtle)]">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
                   {activeNutritionPlan.title}
                 </h3>
                 {activeNutritionPlan.subtitle && (
-                  <p className="text-xs sm:text-sm text-neutral-300 line-clamp-2">
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
                     {activeNutritionPlan.subtitle}
                   </p>
                 )}
               </div>
-
-              <div className="relative z-10 pt-3">
-                <Link href={`/consultoria/${consultancySlug}/nutricao`} className="block w-full">
-                  <button
-                    type="button"
-                    className="w-full inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded-xl bg-white text-neutral-900 text-xs sm:text-sm font-semibold hover:bg-neutral-100 transition-colors shadow-sm cursor-pointer"
-                  >
-                    Ver cardápio completo →
-                  </button>
-                </Link>
-              </div>
+              <Badge variant="brand" size="sm" className="self-start sm:self-auto">
+                {mealCount} {mealCount === 1 ? "refeição" : "refeições"}
+              </Badge>
             </div>
 
-            {/* Prescribed Meals Cards */}
-            {activeNutritionPlan.meals && activeNutritionPlan.meals.length > 0 &&
-              activeNutritionPlan.meals.map((meal, index) => (
-                <div
-                  key={meal.publicId || index}
-                  className="w-[72vw] sm:w-[240px] md:w-[260px] shrink-0 snap-start p-5 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4 depth-surface hover:border-[var(--border-strong)] transition-all"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                        Refeição {index + 1}
+            {activeNutritionPlan.meals && activeNutritionPlan.meals.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {activeNutritionPlan.meals.map((meal, idx) => (
+                  <Link
+                    key={meal.publicId || idx}
+                    href={`/consultoria/${consultancySlug}/nutricao`}
+                    className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-all group"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">
+                        Refeição {idx + 1}
                       </span>
                       {meal.scheduledTime && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--text-secondary)] bg-[var(--surface-subtle)] border border-[var(--border-default)] px-2 py-0.5 rounded-lg tabular-nums">
-                          <ClockIcon className="w-3 h-3 text-[var(--text-tertiary)]" />
+                        <span className="text-[10px] text-[var(--text-tertiary)] flex items-center gap-1 font-mono">
+                          <ClockIcon className="w-3 h-3" />
                           {meal.scheduledTime}
                         </span>
                       )}
                     </div>
-
-                    <div className="space-y-1">
-                      <h4 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight font-heading break-words">
-                        {meal.title}
-                      </h4>
-                      {meal.itemsCount !== undefined && meal.itemsCount > 0 && (
-                        <p className="text-xs text-[var(--text-secondary)] font-medium">
-                          {meal.itemsCount} {meal.itemsCount === 1 ? "item prescrito" : "itens prescritos"}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-[var(--border-subtle)]">
-                    <Link
-                      href={`/consultoria/${consultancySlug}/nutricao`}
-                      className="text-xs font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1"
-                    >
-                      Ver detalhes <ArrowRightIcon className="w-3 h-3" />
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                    <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                      {meal.title}
+                    </h4>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
-          <div className="p-8 sm:p-10 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs text-center space-y-3 max-w-lg mx-auto depth-base">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-secondary)] mx-auto flex items-center justify-center shadow-2xs">
-              <NutritionIcon className="w-6 h-6" />
+          /* Requirement 6: Compact empty state */
+          <div className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] flex items-center justify-center shrink-0">
+                <NutritionIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
+                  Seu plano alimentar ainda está sendo preparado.
+                </p>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Suas refeições e metas de nutrientes estarão disponíveis em breve.
+                </p>
+              </div>
             </div>
-            <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
-              Aguardando plano alimentar
-            </h3>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-              Seu nutricionista está montando seu planejamento alimentar. As refeições e horários prescritos aparecerão organizados aqui.
-            </p>
+            <span className="self-start sm:self-auto inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+              Aguardando
+            </span>
           </div>
         )}
       </section>
 
-      {/* ==================================================================== */}
-      {/* 5. SUA EVOLUÇÃO FÍSICA (WHOOP-like Quantitative Data)                 */}
-      {/* ==================================================================== */}
-      <section aria-label="Sua Evolução Física" className="space-y-3.5">
+      {/* 5.3 SUA EVOLUÇÃO */}
+      <section aria-label="Sua Evolução" className="space-y-3.5">
         <div className="flex items-center justify-between px-1">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-heading">
+            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
               Sua Evolução
             </h2>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
-              {latestProgress
-                ? `Último registro em ${formatDate(latestProgress.recordedOn)}`
-                : "Acompanhe suas pesagens e medidas corporais"}
+            <p className="text-xs text-[var(--text-secondary)]">
+              Histórico de pesagem e circunferências corporais
             </p>
           </div>
-          {latestProgress && (
-            <Link
-              href={`/consultoria/${consultancySlug}/progresso`}
-              className="text-xs sm:text-sm font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1 shrink-0"
-            >
-              Histórico completo <ArrowRightIcon className="w-3.5 h-3.5" />
-            </Link>
-          )}
+          <Link
+            href={`/consultoria/${consultancySlug}/progresso`}
+            className="text-xs font-bold text-[var(--brand)] hover:underline flex items-center gap-1"
+          >
+            <span>Ver evolução</span>
+            <ArrowRightIcon className="w-3.5 h-3.5" />
+          </Link>
         </div>
 
-        {pendingPhotoEvaluation && (
-          <div className="p-4 rounded-2xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+        {latestProgress ? (
+          <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[var(--border-subtle)]">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-heading tabular-nums">
+                  {latestProgress.weightKg} <span className="text-sm font-normal text-[var(--text-secondary)]">kg</span>
+                </span>
+                {weightDelta !== null && (
+                  <Badge variant={weightDelta <= 0 ? "success" : "warning"} size="sm">
+                    {weightDelta > 0 ? `+${weightDelta}` : weightDelta} kg
+                  </Badge>
+                )}
+              </div>
+              <span className="text-xs text-[var(--text-tertiary)]">
+                Última medição: {formatDate(latestProgress.recordedOn)}
+              </span>
+            </div>
+
+            {/* Medidas corporais */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {latestProgress.waistCm !== null && latestProgress.waistCm !== undefined && (
+                <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Cintura</span>
+                  <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">{latestProgress.waistCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span></p>
+                </div>
+              )}
+              {latestProgress.abdomenCm !== null && latestProgress.abdomenCm !== undefined && (
+                <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Abdômen</span>
+                  <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">{latestProgress.abdomenCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span></p>
+                </div>
+              )}
+              {latestProgress.hipCm !== null && latestProgress.hipCm !== undefined && (
+                <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Quadril</span>
+                  <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">{latestProgress.hipCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span></p>
+                </div>
+              )}
+              {latestProgress.armCm !== null && latestProgress.armCm !== undefined && (
+                <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Braço</span>
+                  <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">{latestProgress.armCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span></p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Requirement 6: Compact empty state */
+          <div className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] flex items-center justify-center text-[var(--brand-foreground)] shrink-0 shadow-xs">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                </svg>
+              <div className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] flex items-center justify-center shrink-0">
+                <ProgressIcon className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
-                  Fotos de avaliação solicitadas
-                </h4>
-                <p className="text-[11px] sm:text-xs text-[var(--text-secondary)]">
-                  Seu profissional solicitou novas fotos para acompanhamento da sua evolução física.
+                <p className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
+                  Você ainda não registrou medidas.
+                </p>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Registre seu peso e medidas para acompanhar sua evolução biométrica.
                 </p>
               </div>
             </div>
-            <Link href={`/consultoria/${consultancySlug}/progresso?tab=fotos`} className="shrink-0">
-              <Button variant="primary" size="sm" className="font-semibold text-xs min-h-[36px]">
-                Enviar fotos →
+            <Link href={`/consultoria/${consultancySlug}/progresso`} className="self-start sm:self-auto">
+              <Button variant="secondary" size="sm" className="text-xs font-semibold px-3 py-1.5 min-h-[36px]">
+                Registrar evolução →
               </Button>
             </Link>
           </div>
         )}
-
-        {latestProgress ? (
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-stretch">
-            {/* Hero Biometric Card: Weight & Delta */}
-            <div className="sm:col-span-5 p-6 rounded-3xl border border-[var(--border-strong)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4 border-specular-t depth-surface">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="inline-flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-primary)] shadow-2xs">
-                      <ProgressIcon className="w-4 h-4" />
-                    </div>
-                    <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                      Peso Atual
-                    </span>
-                  </div>
-                  <Badge variant="brand" size="sm">
-                    Atualizado
-                  </Badge>
-                </div>
-
-                <div className="space-y-1 pt-1">
-                  {latestProgress.weightKg !== null && latestProgress.weightKg !== undefined ? (
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-4xl sm:text-5xl font-bold text-[var(--text-primary)] tabular-nums tracking-tight font-heading">
-                        {latestProgress.weightKg}
-                      </span>
-                      <span className="text-base sm:text-lg font-bold text-[var(--text-secondary)] font-heading">
-                        kg
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[var(--text-secondary)]">Sem peso registrado</p>
-                  )}
-
-                  {/* Weight Delta (Strictly Rule 11: Render ONLY when 2 baseline points exist) */}
-                  {weightDelta !== null && (
-                    <div className="flex items-center gap-1.5 pt-0.5">
-                      <span
-                        className={`text-xs font-semibold px-2 py-0.5 rounded-md tabular-nums ${weightDelta > 0
-                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                            : weightDelta < 0
-                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                              : "bg-neutral-500/10 text-neutral-600 dark:text-neutral-400"
-                          }`}
-                      >
-                        {weightDelta > 0 ? `+${weightDelta}` : weightDelta} kg
-                      </span>
-                      <span className="text-[11px] text-[var(--text-tertiary)]">
-                        vs medição anterior ({formatDate(previousProgress!.recordedOn)})
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between">
-                <span className="text-xs text-[var(--text-tertiary)]">
-                  Registro periódico
-                </span>
-                <Link href={`/consultoria/${consultancySlug}/progresso`}>
-                  <Button variant="secondary" size="sm" className="font-semibold min-h-[40px]">
-                    Nova medição →
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            {/* Circumferences Grid */}
-            <div className="sm:col-span-7 p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4 depth-surface">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                    Medidas Corporais
-                  </span>
-                  <span className="text-xs text-[var(--text-secondary)] font-medium">
-                    {formatDate(latestProgress.recordedOn)}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
-                  {latestProgress.waistCm !== null && latestProgress.waistCm !== undefined && (
-                    <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                      <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                        Cintura
-                      </span>
-                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-heading">
-                        {latestProgress.waistCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span>
-                      </p>
-                    </div>
-                  )}
-
-                  {latestProgress.abdomenCm !== null && latestProgress.abdomenCm !== undefined && (
-                    <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                      <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                        Abdômen
-                      </span>
-                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-heading">
-                        {latestProgress.abdomenCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span>
-                      </p>
-                    </div>
-                  )}
-
-                  {latestProgress.hipCm !== null && latestProgress.hipCm !== undefined && (
-                    <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                      <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                        Quadril
-                      </span>
-                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-heading">
-                        {latestProgress.hipCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span>
-                      </p>
-                    </div>
-                  )}
-
-                  {latestProgress.armCm !== null && latestProgress.armCm !== undefined && (
-                    <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                      <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                        Braço
-                      </span>
-                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-heading">
-                        {latestProgress.armCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span>
-                      </p>
-                    </div>
-                  )}
-
-                  {latestProgress.thighCm !== null && latestProgress.thighCm !== undefined && (
-                    <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                      <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                        Coxa
-                      </span>
-                      <p className="text-base sm:text-lg font-bold text-[var(--text-primary)] tabular-nums font-heading">
-                        {latestProgress.thighCm} <span className="text-xs font-normal text-[var(--text-secondary)]">cm</span>
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between">
-                <span className="text-xs text-[var(--text-tertiary)]">
-                  Evolução visual e biométrica
-                </span>
-                <Link
-                  href={`/consultoria/${consultancySlug}/progresso`}
-                  className="text-xs font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1"
-                >
-                  Ver histórico completo <ArrowRightIcon className="w-3 h-3" />
-                </Link>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="p-8 sm:p-10 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs text-center space-y-4 max-w-lg mx-auto depth-base">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-secondary)] mx-auto flex items-center justify-center shadow-2xs">
-              <ProgressIcon className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
-                Inicie o registro de evolução
-              </h3>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                Acompanhe seu peso e medidas corporais para visualizar seus resultados reais ao longo do tempo.
-              </p>
-            </div>
-            <div>
-              <Link href={`/consultoria/${consultancySlug}/progresso`}>
-                <Button variant="primary" size="sm" className="font-semibold min-h-[44px]">
-                  Registrar primeira medição →
-                </Button>
-              </Link>
-            </div>
-          </div>
-        )}
       </section>
 
-      {/* ==================================================================== */}
-      {/* 6. APOIO & SERVIÇOS (Consultas & Pagamentos — Domain Specific)        */}
-      {/* Strictly Rule 10: Distinct composition per domain                    */}
-      {/* ==================================================================== */}
+      {/* 5.4 APOIO & SERVIÇOS */}
       <section aria-label="Apoio e Serviços" className="space-y-3.5">
         <div className="px-1">
-          <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tracking-tight font-heading">
-            Apoio & Serviços
+          <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
+            Apoio &amp; Serviços
           </h2>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal">
+          <p className="text-xs text-[var(--text-secondary)]">
             Atendimento com profissionais e gerenciamento financeiro
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Card 1: Consultas & Teleconsultas */}
-          <div className="p-6 sm:p-7 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-5 depth-surface hover:border-[var(--border-strong)] transition-all">
-            <div className="space-y-3">
+          {/* Card 1: Consultas */}
+          <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-primary)] shadow-2xs">
-                  <ConsultationIcon className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-primary)]">
+                  <ConsultationIcon className="w-4.5 h-4.5" />
                 </div>
                 <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                   Atendimento
                 </span>
               </div>
-
-              <div className="space-y-1">
-                <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-heading">
-                  Consultas & Teleconsultas
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)] font-heading">
+                  Consultas &amp; Teleconsultas
                 </h3>
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                  Agendamentos, horários de retorno e salas de videoconferência integradas com sua equipe.
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed mt-0.5">
+                  Agendamentos, horários de retorno e salas de videoconferência.
                 </p>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-[var(--border-subtle)]">
-              <Link href={`/consultoria/${consultancySlug}/consultas`} className="block w-full">
-                <Button variant="secondary" fullWidth size="md" className="font-semibold min-h-[44px]">
-                  Acessar consultas →
-                </Button>
-              </Link>
-            </div>
+            <Link href={`/consultoria/${consultancySlug}/consultas`} className="block w-full">
+              <Button variant="secondary" fullWidth size="sm" className="text-xs font-semibold min-h-[38px]">
+                Acessar consultas →
+              </Button>
+            </Link>
           </div>
 
-          {/* Card 2: Pagamentos & Faturas */}
-          <div className="p-6 sm:p-7 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-5 depth-surface hover:border-[var(--border-strong)] transition-all">
-            <div className="space-y-3">
+          {/* Card 2: Pagamentos */}
+          <div className="p-5 sm:p-6 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-4">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-primary)] shadow-2xs">
-                  <FinanceIcon className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-primary)]">
+                  <FinanceIcon className="w-4.5 h-4.5" />
                 </div>
                 <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                   Financeiro
                 </span>
               </div>
-
-              <div className="space-y-1">
-                <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-heading">
-                  Pagamentos & Faturas
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)] font-heading">
+                  Pagamentos &amp; Faturas
                 </h3>
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                  Controle de mensalidades, faturas em aberto e histórico de comprovantes emitidos.
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed mt-0.5">
+                  Controle de mensalidades, faturas em aberto e comprovantes emitidos.
                 </p>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-[var(--border-subtle)]">
-              <Link href={`/consultoria/${consultancySlug}/pagamentos`} className="block w-full">
-                <Button variant="secondary" fullWidth size="md" className="font-semibold min-h-[44px]">
-                  Ver pagamentos →
-                </Button>
-              </Link>
-            </div>
+            <Link href={`/consultoria/${consultancySlug}/pagamentos`} className="block w-full">
+              <Button variant="secondary" fullWidth size="sm" className="text-xs font-semibold min-h-[38px]">
+                Ver pagamentos →
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

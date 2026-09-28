@@ -87,6 +87,13 @@ export function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/indicacoes`,
       iconName: "referrals",
     });
+    items.push({
+      id: "influencer-comissoes",
+      label: "Comissões",
+      mobileLabel: "Comissões",
+      href: `/consultoria/${consultancySlug}/indicacoes`,
+      iconName: "finance",
+    });
   }
 
   const isLearner = presentationRoles.includes("STUDENT");
@@ -432,17 +439,15 @@ export function ConsultancyAppShell({
         mobileLabel: "Indicações",
         href: `/consultoria/${consultancySlug}/indicacoes`,
         iconName: "referrals",
+      },
+      {
+        id: "influencer-comissoes",
+        label: "Comissões",
+        mobileLabel: "Comissões",
+        href: `/consultoria/${consultancySlug}/indicacoes`,
+        iconName: "finance",
       }
     );
-    if (presentationRoles.includes("STUDENT")) {
-      mobilePrimaryItems.push({
-        id: "learner-treinos",
-        label: "Treinos",
-        mobileLabel: "Treinos",
-        href: `/consultoria/${consultancySlug}/treinos`,
-        iconName: "training",
-      });
-    }
   } else {
     // Default: Aluno (STUDENT)
     mobilePrimaryItems.push(

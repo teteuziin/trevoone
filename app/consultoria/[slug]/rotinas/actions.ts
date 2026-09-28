@@ -60,6 +60,7 @@ import {
   repointAssignmentToNewVersion,
   terminateAssignment,
   searchActiveStudents,
+  getActiveStudentByMembershipPublicId,
   listAssignmentsForProfessional,
   type StudentSearchResult,
   type ProfessionalAssignmentListItem,
@@ -1027,6 +1028,25 @@ export async function searchActiveStudentsAction(
 /**
  * Lists assignments for professional management.
  */
+/**
+ * Resolves an active student strictly by membership public ID for preselection.
+ */
+export async function getActiveStudentByMembershipAction(
+  slug: string,
+  membershipPublicId: string
+): Promise<ActionResponse<StudentSearchResult | null>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const student = await getActiveStudentByMembershipPublicId(ctx, membershipPublicId);
+    return { ok: true, data: student };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao buscar aluno por vinculo.",
+    };
+  }
+}
+
 export async function listProfessionalAssignmentsAction(
   slug: string,
   options?: {

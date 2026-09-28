@@ -316,8 +316,8 @@ export async function searchActiveStudents(
     if (query && query.trim()) {
       const trimmed = query.trim();
       const q = `%${trimmed}%`;
-      conditions.push("(u.full_name LIKE ? OR u.email LIKE ? OR cm.public_id = ?)");
-      params.push(q, q, trimmed);
+      conditions.push("(u.full_name LIKE ? OR u.email LIKE ? OR cm.public_id = ? OR u.public_id = ?)");
+      params.push(q, q, trimmed, trimmed);
     }
 
     params.push(boundedLimit);
@@ -353,6 +353,57 @@ export async function searchActiveStudents(
  * vs. latest published version of the same workout routine.
  * No N+1 query: uses subquery aggregation.
  */
+/**
+ * Resolves an active student strictly by consultancy membership public ID.
+ * Enforces current tenancy, ACTIVE status, and non-deleted user.
+ */
+export async function getActiveStudentByMembershipPublicId(
+  ctx: TrainingAccessContext,
+  membershipPublicId: string
+): Promise<StudentSearchResult | null> {
+  assertCanAuthorTraining(ctx);
+
+  if (!membershipPublicId || !membershipPublicId.trim()) {
+    return null;
+  }
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT DISTINCT
+         cm.public_id AS membership_public_id,
+         u.public_id AS user_public_id,
+         u.full_name,
+         u.email
+       FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE cm.consultancy_id = ?
+         AND cm.public_id = ?
+         AND cm.status = 'ACTIVE'
+         AND u.deleted_at IS NULL
+         AND cmr.role = 'STUDENT'
+       LIMIT 1;`,
+      [ctx.consultancyId!, membershipPublicId.trim()]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return null;
+    }
+
+    const r = rows[0];
+    return {
+      membershipPublicId: String(r.membership_public_id),
+      userPublicId: String(r.user_public_id),
+      name: String(r.full_name),
+      email: String(r.email),
+    };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
 export async function listAssignmentsForProfessional(
   ctx: TrainingAccessContext,
   options?: {

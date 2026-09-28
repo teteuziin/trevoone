@@ -1,7 +1,7 @@
 ﻿import assert from "node:assert/strict";
 import fs from "node:fs";
 
-console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB (HARDENING & CONTRACT) ===\n");
+console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB (SHARED-ROLE REGRESSION GATE) ===\n");
 
 // ----------------------------------------------------------------------------
 // TEST 1: REUSED EXISTING ROUTE AND ABSENCE OF DUPLICATE MODULE
@@ -34,14 +34,14 @@ console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB (HARDENING & C
 }
 
 // ----------------------------------------------------------------------------
-// TEST 2: STUDENT IDENTIFIER CONTRACT (MEMBERSHIP_PUBLIC_ID & NO USER FALLBACK)
+// TEST 2: STUDENT IDENTIFIER CONTRACT & PERSONAL LIST ID
 // ----------------------------------------------------------------------------
 {
-  console.log("Test 2: Verificando contrato de identificador do aluno (MEMBERSHIP_PUBLIC_ID)...");
+  console.log("Test 2: Verificando contrato de identificador do aluno (PERSONAL_LIST_ID: MEMBERSHIP_PUBLIC_ID)...");
 
   const hubCode = fs.readFileSync("lib/consultancies/personal-student-hub.ts", "utf8");
   const detailRouteCode = fs.readFileSync("app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx", "utf8");
-  const assignRepoCode = fs.readFileSync("lib/training-v2/assignment-repository.ts", "utf8");
+  const listCode = fs.readFileSync("components/consultancies/personal-student-hub/personal-student-list.tsx", "utf8");
 
   // getPersonalStudentDetail parameter contract
   assert.ok(
@@ -56,23 +56,24 @@ console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB (HARDENING & C
   );
   assert.ok(
     !hubCode.includes("cm.public_id = ? OR u.public_id = ?"),
-    "USER_PUBLIC_ID_FALLBACK deve ser ABSENT no módulo de dados"
+    "USER_PUBLIC_ID_FALLBACK deve ser ABSENT no hub de personal"
   );
 
-  // assignment repository student search must NOT allow user_public_id fallback
+  // Student list links using student.membershipPublicId
   assert.ok(
-    !assignRepoCode.includes("cm.public_id = ? OR u.public_id = ?"),
-    "searchActiveStudents não deve aceitar user_public_id como fallback para membership"
+    listCode.includes("href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}"),
+    "Links da lista de alunos devem usar student.membershipPublicId"
   );
 
   // Route passes studentMembershipPublicId
   assert.ok(
     detailRouteCode.includes("studentMembershipPublicId: studentPublicId"),
-    "Rota de detalhe deve mapear o parâmetro de rota para studentMembershipPublicId"
+    "Rota de detalhe deve repassar studentPublicId como studentMembershipPublicId para getPersonalStudentDetail"
   );
 
+  console.log("  ✓ PERSONAL_LIST_ID: MEMBERSHIP_PUBLIC_ID");
   console.log("  ✓ ROUTE_USES_MEMBERSHIP_PUBLIC_ID: PASS");
-  console.log("  ✓ USER_PUBLIC_ID_FALLBACK: ABSENT");
+  console.log("  ✓ USER_PUBLIC_ID_FALLBACK_IN_PERSONAL_DETAIL: NO");
 }
 
 // ----------------------------------------------------------------------------
@@ -91,14 +92,14 @@ console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB (HARDENING & C
 
   // Non-anamnesis intake submissions are preserved in forms
   assert.ok(
-    hubCode.includes("formType: \"INTAKE\"") &&
+    hubCode.includes('formType: "INTAKE"') &&
     hubCode.includes("Questionário de Avaliação Física"),
     "Questionários não-anamnese devem ser preservados na aba Formulários"
   );
 
   // Custom consultancy form requests are preserved in forms
   assert.ok(
-    hubCode.includes("formType: \"CUSTOM\"") &&
+    hubCode.includes('formType: "CUSTOM"') &&
     hubCode.includes("consultancy_custom_form_requests"),
     "Formulários personalizados da consultoria devem ser preservados na aba Formulários"
   );
@@ -143,7 +144,7 @@ console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB (HARDENING & C
     "Campo oculto deve repassar preselectedStudent.student.membershipPublicId"
   );
 
-  console.log("  ✓ WORKOUT_PRESELECT_USES_MEMBERSHIP_ID: PASS");
+  console.log("  ✓ PERSONAL_WORKOUT_PRESELECT: PASS");
 }
 
 // ----------------------------------------------------------------------------
@@ -180,29 +181,184 @@ console.log("=== INICIANDO SUÍTE DE TESTES: PERSONAL STUDENT HUB (HARDENING & C
 }
 
 // ----------------------------------------------------------------------------
-// TEST 6: TENANCY AND CROSS-TENANT BLOCKING
+// TEST 6: TENANCY, EX-MEMBER, AND DIRECT URL SERVER REVALIDATION
 // ----------------------------------------------------------------------------
 {
-  console.log("Test 6: Verificando segurança de multitenancy e bloqueio cross-tenant...");
+  console.log("Test 6: Verificando multitenancy, bloqueio de ex-membro e revalidação de URL direta...");
 
   const hubCode = fs.readFileSync("lib/consultancies/personal-student-hub.ts", "utf8");
   const detailRouteCode = fs.readFileSync("app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx", "utf8");
+  const evolutionCode = fs.readFileSync("lib/consultancies/evolution.ts", "utf8");
 
+  // Tenancy check in hub
   assert.ok(
     hubCode.includes("cm.consultancy_id = ?") &&
     hubCode.includes("cm.status = 'ACTIVE'") &&
     hubCode.includes("cmr.role = 'STUDENT'"),
-    "listPersonalStudents e getPersonalStudentDetail devem validar consultancy_id, status ativo e papel STUDENT"
+    "listPersonalStudents e getPersonalStudentDetail devem validar tenancy, status ACTIVE e role STUDENT"
+  );
+
+  // Tenancy check in evolution
+  assert.ok(
+    evolutionCode.includes("cm.consultancy_id = ?") &&
+    evolutionCode.includes("cm.status = 'ACTIVE'"),
+    "resolveEvolutionTargetStudent deve validar tenancy e status ACTIVE"
+  );
+
+  // Direct URL triggers server component with notFound() if not authorized
+  assert.ok(
+    detailRouteCode.includes("notFound()") &&
+    detailRouteCode.includes("resolveConsultancyContext(session.userId, slug)") &&
+    detailRouteCode.includes("resolveEffectiveViewMode(slug, context.roles)"),
+    "Rota compartilhada de detalhe deve validar sessão, tenancy e permissões em runtime"
+  );
+
+  console.log("  ✓ CROSS_TENANT: BLOCKED");
+  console.log("  ✓ EX_MEMBER: BLOCKED");
+  console.log("  ✓ DIRECT_URL: SERVER_REVALIDATED");
+}
+
+// ----------------------------------------------------------------------------
+// TEST 7: EVOLUTION ID CONTRACT & NUTRITIONIST ROLE COMPATIBILITY
+// ----------------------------------------------------------------------------
+{
+  console.log("Test 7: Verificando contrato de identificadores do módulo de evolução e suporte a Nutricionista...");
+
+  const evolutionCode = fs.readFileSync("lib/consultancies/evolution.ts", "utf8");
+  const progressCode = fs.readFileSync("lib/consultancies/progress.ts", "utf8");
+  const detailRouteCode = fs.readFileSync("app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx", "utf8");
+  const listRouteCode = fs.readFileSync("app/consultoria/[slug]/progresso/alunos/page.tsx", "utf8");
+
+  // 1. Audit resolveEvolutionTargetStudent query in evolution.ts
+  const hasBothConditionsInEvolution =
+    evolutionCode.includes("(cm.public_id = ? OR u.public_id = ?)") &&
+    evolutionCode.includes("cm.consultancy_id = ?") &&
+    evolutionCode.includes("cm.status = 'ACTIVE'");
+
+  assert.ok(
+    hasBothConditionsInEvolution,
+    "resolveEvolutionTargetStudent deve suportar BOTH (cm.public_id e u.public_id) com escopo estrito de tenancy"
+  );
+
+  // 2. Audit listProfessionalStudentsForProgress historical mapping
+  const mapsMembershipInList =
+    progressCode.includes("cm.public_id AS membership_public_id") &&
+    progressCode.includes("publicId: String(r.membership_public_id)");
+
+  assert.ok(
+    mapsMembershipInList,
+    "listProfessionalStudentsForProgress historicamente mapeia cm.public_id como publicId da rota"
+  );
+
+  // 3. Shared route delegation for NUTRITIONIST
+  assert.ok(
+    detailRouteCode.includes('isNutritionist = effectiveMode === "NUTRITIONIST"'),
+    "Rota de detalhe deve identificar modo NUTRITIONIST"
   );
 
   assert.ok(
-    detailRouteCode.includes("notFound()"),
-    "Rota de detalhe do aluno deve emitir notFound() se o aluno não pertencer à consultoria"
+    detailRouteCode.includes("getStudentEvolutionHubData") &&
+    detailRouteCode.includes("getEvolutionComparisonBetweenDates") &&
+    detailRouteCode.includes("<Evolution360Hub"),
+    "Rota de detalhe deve renderizar Evolution360Hub para Nutricionista"
   );
 
-  console.log("  ✓ CROSS_TENANT_ACCESS: BLOCKED");
+  // 4. Ensure hubData.student.publicId (canonical membership publicId) is forwarded to Evolution360Hub
+  assert.ok(
+    detailRouteCode.includes("studentPublicId={hubData.student.publicId}"),
+    "Rota de detalhe deve repassar o publicId canônico resolvido no servidor (hubData.student.publicId) ao Evolution360Hub"
+  );
+
+  // 5. Shared list page permits Nutritionist access
+  assert.ok(
+    listRouteCode.includes("isNutritionist") &&
+    listRouteCode.includes("listPersonalStudents({ consultancyId: context.consultancyId })"),
+    "Página de lista unificada deve listar alunos para o Nutricionista"
+  );
+
+  console.log("  ✓ EVOLUTION_TARGET_ID_TYPE: BOTH");
+  console.log("  ✓ NUTRITIONIST_HISTORICAL_ROUTE_ID: MEMBERSHIP_PUBLIC_ID");
+  console.log("  ✓ NUTRITIONIST_LIST: PASS");
+  console.log("  ✓ NUTRITIONIST_DETAIL: PASS");
+  console.log("  ✓ NUTRITIONIST_EVOLUTION_360: PASS");
+}
+
+// ----------------------------------------------------------------------------
+// TEST 8: CONSULTANCY ADMIN & MULTI-ROLE COMPATIBILITY
+// ----------------------------------------------------------------------------
+{
+  console.log("Test 8: Verificando compatibilidade de ADMIN / CONSULTANCY_ADMIN e suporte a Multi-Role...");
+
+  const detailRouteCode = fs.readFileSync("app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx", "utf8");
+
+  // Admin access to Central do Aluno
+  assert.ok(
+    detailRouteCode.includes("if (isPersonal || isConsultancyAdmin) {") &&
+    detailRouteCode.includes("<PersonalStudentDetailView"),
+    "CONSULTANCY_ADMIN no modo padrão deve renderizar a Central do Aluno"
+  );
+
+  // Multi-role branching: effectiveMode determines view presentation
+  assert.ok(
+    detailRouteCode.includes("const { effectiveMode } = effectiveState;") &&
+    detailRouteCode.includes('const isPersonal = effectiveMode === "PERSONAL"') &&
+    detailRouteCode.includes('const isNutritionist = effectiveMode === "NUTRITIONIST"'),
+    "Detalhamento deve honrar o modo efetivo para usuários multi-papel"
+  );
+
+  console.log("  ✓ PERSONAL_DETAIL: PASS");
+  console.log("  ✓ CONSULTANCY_ADMIN_DETAIL: PASS");
+  console.log("  ✓ MULTI_ROLE_PERSONAL_MODE: PASS");
+  console.log("  ✓ MULTI_ROLE_NUTRITIONIST_MODE: PASS");
+}
+
+// ----------------------------------------------------------------------------
+// TEST 9: GENERIC STUDENT SEARCH VS STRICT PERSONAL PRESELECTION
+// ----------------------------------------------------------------------------
+{
+  console.log("Test 9: Verificando regressão de busca genérica vs resolução estrita de pré-seleção...");
+
+  const assignRepoCode = fs.readFileSync("lib/training-v2/assignment-repository.ts", "utf8");
+  const actionsCode = fs.readFileSync("app/consultoria/[slug]/rotinas/actions.ts", "utf8");
+  const modalCode = fs.readFileSync("components/consultancies/training-v2/workout-assign-modal.tsx", "utf8");
+
+  // Generic searchActiveStudents supports name, email, cm.public_id, u.public_id
+  const hasGenericConditions =
+    assignRepoCode.includes("u.full_name LIKE ? OR u.email LIKE ? OR cm.public_id = ? OR u.public_id = ?");
+  assert.ok(
+    hasGenericConditions,
+    "searchActiveStudents DEVE preservar busca genérica por nome, email, cm.public_id e u.public_id"
+  );
+
+  // Dedicated strict resolver exists in repository
+  assert.ok(
+    assignRepoCode.includes("export async function getActiveStudentByMembershipPublicId("),
+    "assignment-repository deve exportar getActiveStudentByMembershipPublicId"
+  );
+
+  assert.ok(
+    assignRepoCode.includes("cm.consultancy_id = ?") &&
+    assignRepoCode.includes("cm.public_id = ?") &&
+    assignRepoCode.includes("cm.status = 'ACTIVE'"),
+    "getActiveStudentByMembershipPublicId deve filtrar estritamente por cm.public_id sob tenancy atual"
+  );
+
+  // Dedicated action exists
+  assert.ok(
+    actionsCode.includes("export async function getActiveStudentByMembershipAction("),
+    "rotinas/actions.ts deve exportar getActiveStudentByMembershipAction"
+  );
+
+  // Workout assignment modal uses strict membership resolution for preselection
+  assert.ok(
+    modalCode.includes("getActiveStudentByMembershipAction(slug, initialStudentPublicId)"),
+    "workout-assign-modal deve resolver pré-seleção estritamente por vínculo de membro"
+  );
+
+  console.log("  ✓ GENERIC_STUDENT_SEARCH_REGRESSION: PASS");
+  console.log("  ✓ PERSONAL_PRESELECT_STRICT_MEMBERSHIP: PASS");
 }
 
 console.log("\n===================================================================");
-console.log("✓ TODOS OS CRITÉRIOS DE HARDENING PASSARAM COM SUCESSO! (6/6)");
+console.log("✓ TODOS OS CRITÉRIOS DE REGRESSÃO DE PAPÉIS PASSARAM COM SUCESSO! (9/9)");
 console.log("===================================================================\n");

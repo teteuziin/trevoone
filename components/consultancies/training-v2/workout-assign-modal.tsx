@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import {
   searchActiveStudentsAction,
+  getActiveStudentByMembershipAction,
   assignWorkoutVersionAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import type { StudentSearchResult } from "@/lib/training-v2/assignment-repository";
@@ -93,16 +94,14 @@ export function WorkoutAssignModal({
           setStudents(res.data);
           if (initialStudentPublicId && !selectedStudent) {
             const matched = res.data.find(
-              (s) =>
-                s.membershipPublicId === initialStudentPublicId ||
-                s.userPublicId === initialStudentPublicId
+              (s) => s.membershipPublicId === initialStudentPublicId
             );
             if (matched) {
               setSelectedStudent(matched);
             } else {
-              searchActiveStudentsAction(slug, initialStudentPublicId).then((directRes) => {
-                if (!cancelled && directRes.ok && directRes.data && directRes.data.length > 0) {
-                  setSelectedStudent(directRes.data[0]);
+              getActiveStudentByMembershipAction(slug, initialStudentPublicId).then((directRes) => {
+                if (!cancelled && directRes.ok && directRes.data) {
+                  setSelectedStudent(directRes.data);
                 }
               });
             }

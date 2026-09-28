@@ -133,7 +133,7 @@ export default async function ProfessionalStudentProgressDetailPage({
           isPersonal={isPersonal}
           isNutritionist={isNutritionist}
           isAdmin={isConsultancyAdmin}
-          studentPublicId={studentPublicId}
+          studentPublicId={hubData.student.publicId}
           userPublicId={session.userPublicId}
           consultancyPublicId={context.consultancyPublicId}
           role={effectiveMode}

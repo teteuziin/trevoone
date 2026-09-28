@@ -6,6 +6,15 @@ export async function resolve(specifier, context, nextResolve) {
   if (specifier === "next/headers") {
     return nextResolve("next/headers.js", context);
   }
+  if (specifier.startsWith("@/")) {
+    const rel = specifier.slice(2);
+    for (const ext of [".ts", ".tsx", ".js", ".mjs", "/index.ts", "/index.js"]) {
+      const candidate = path.resolve(process.cwd(), rel + ext);
+      if (fs.existsSync(candidate)) {
+        return nextResolve(pathToFileURL(candidate).href, context);
+      }
+    }
+  }
   try {
     return await nextResolve(specifier, context);
   } catch (err) {

@@ -136,70 +136,122 @@ export async function listPersonalStudents(params: {
   try {
     connection = await getDbConnection();
 
-    let sql = `
-      SELECT
-        cm.id AS membership_id,
-        cm.public_id AS membership_public_id,
-        u.public_id AS user_public_id,
-        u.full_name,
-        u.email,
-        cm.created_at AS joined_at,
-        latest_w.title AS latest_workout_title,
-        latest_w.status AS latest_workout_status,
-        latest_wa.status AS latest_assignment_status,
-        latest_wa.starts_on AS latest_assignment_starts_on,
-        (
-          SELECT JSON_UNQUOTE(JSON_EXTRACT(sis.responses_json, '$.main_goal'))
-          FROM student_intake_submissions sis
-          WHERE sis.consultancy_id = cm.consultancy_id
-            AND sis.membership_id = cm.id
-            AND sis.status = 'SUBMITTED'
-          ORDER BY sis.submitted_at DESC, sis.id DESC
-          LIMIT 1
-        ) AS intake_objective
-      FROM consultancy_members cm
-      INNER JOIN users u ON u.id = cm.user_id
-      INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
-      LEFT JOIN (
-        SELECT wa.student_membership_id, wa.workout_id, wa.status, wa.starts_on
-        FROM workout_assignments wa
-        INNER JOIN (
-          SELECT student_membership_id, MAX(id) AS max_id
-          FROM workout_assignments
-          WHERE deleted_at IS NULL
-          GROUP BY student_membership_id
-        ) max_wa ON wa.id = max_wa.max_id
-      ) latest_wa ON latest_wa.student_membership_id = cm.id
-      LEFT JOIN workouts latest_w ON latest_w.id = latest_wa.workout_id
-      WHERE cm.consultancy_id = ?
-        AND cm.status = 'ACTIVE'
-        AND u.deleted_at IS NULL
-    `;
+    try {
+      // 1. Primary enriched query with latest assignment, workout and intake objective
+      let sql = `
+        SELECT
+          cm.id AS membership_id,
+          cm.public_id AS membership_public_id,
+          u.public_id AS user_public_id,
+          u.full_name,
+          u.email,
+          cm.created_at AS joined_at,
+          COALESCE(wv.title, w.title) AS latest_workout_title,
+          COALESCE(w.status, wv.status) AS latest_workout_status,
+          latest_wa.status AS latest_assignment_status,
+          latest_wa.starts_on AS latest_assignment_starts_on,
+          (
+            SELECT JSON_UNQUOTE(JSON_EXTRACT(sis.responses_json, '$.main_goal'))
+            FROM student_intake_submissions sis
+            WHERE sis.consultancy_id = cm.consultancy_id
+              AND sis.membership_id = cm.id
+              AND sis.status = 'SUBMITTED'
+            ORDER BY sis.submitted_at DESC, sis.id DESC
+            LIMIT 1
+          ) AS intake_objective
+        FROM consultancy_members cm
+        INNER JOIN users u ON u.id = cm.user_id
+        INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
+        LEFT JOIN (
+          SELECT
+            wa.student_membership_id,
+            wa.workout_version_id,
+            wa.status,
+            wa.starts_on
+          FROM workout_assignments wa
+          INNER JOIN (
+            SELECT student_membership_id, MAX(id) AS max_id
+            FROM workout_assignments
+            WHERE deleted_at IS NULL
+            GROUP BY student_membership_id
+          ) max_wa ON wa.id = max_wa.max_id
+        ) latest_wa ON latest_wa.student_membership_id = cm.id
+        LEFT JOIN workout_versions wv ON wv.id = latest_wa.workout_version_id
+        LEFT JOIN workouts w ON w.id = wv.workout_id
+        WHERE cm.consultancy_id = ?
+          AND cm.status = 'ACTIVE'
+          AND u.deleted_at IS NULL
+      `;
 
-    const queryParams: (string | number)[] = [consultancyId];
+      const queryParams: (string | number)[] = [consultancyId];
 
-    if (search && search.trim()) {
-      const q = `%${search.trim()}%`;
-      sql += ` AND (u.full_name LIKE ? OR u.email LIKE ?)`;
-      queryParams.push(q, q);
+      if (search && search.trim()) {
+        const q = `%${search.trim()}%`;
+        sql += ` AND (u.full_name LIKE ? OR u.email LIKE ?)`;
+        queryParams.push(q, q);
+      }
+
+      sql += ` ORDER BY u.full_name ASC;`;
+
+      const [rows] = await connection.execute<RowDataPacket[]>(sql, queryParams);
+
+      return (rows || []).map((r) => ({
+        membershipPublicId: String(r.membership_public_id),
+        userPublicId: String(r.user_public_id),
+        name: String(r.full_name),
+        email: String(r.email),
+        joinedAt: r.joined_at ? new Date(r.joined_at).toISOString() : new Date().toISOString(),
+        objective: r.intake_objective ? String(r.intake_objective) : null,
+        latestWorkoutTitle: r.latest_workout_title ? String(r.latest_workout_title) : null,
+        latestWorkoutStatus: r.latest_workout_status ? String(r.latest_workout_status) : null,
+        latestAssignmentStatus: (r.latest_assignment_status as "ACTIVE" | "ENDED") || null,
+        latestAssignmentStartsOn: r.latest_assignment_starts_on ? String(r.latest_assignment_starts_on) : null,
+      }));
+    } catch (enrichmentError) {
+      console.error("[PersonalStudentHub] Enriched list query failed, falling back to core list:", enrichmentError);
+
+      // 2. Fail-safe core student list (guarantees Alunos page never crashes on optional summary queries)
+      let fallbackSql = `
+        SELECT
+          cm.id AS membership_id,
+          cm.public_id AS membership_public_id,
+          u.public_id AS user_public_id,
+          u.full_name,
+          u.email,
+          cm.created_at AS joined_at
+        FROM consultancy_members cm
+        INNER JOIN users u ON u.id = cm.user_id
+        INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
+        WHERE cm.consultancy_id = ?
+          AND cm.status = 'ACTIVE'
+          AND u.deleted_at IS NULL
+      `;
+
+      const fallbackParams: (string | number)[] = [consultancyId];
+
+      if (search && search.trim()) {
+        const q = `%${search.trim()}%`;
+        fallbackSql += ` AND (u.full_name LIKE ? OR u.email LIKE ?)`;
+        fallbackParams.push(q, q);
+      }
+
+      fallbackSql += ` ORDER BY u.full_name ASC;`;
+
+      const [rows] = await connection.execute<RowDataPacket[]>(fallbackSql, fallbackParams);
+
+      return (rows || []).map((r) => ({
+        membershipPublicId: String(r.membership_public_id),
+        userPublicId: String(r.user_public_id),
+        name: String(r.full_name),
+        email: String(r.email),
+        joinedAt: r.joined_at ? new Date(r.joined_at).toISOString() : new Date().toISOString(),
+        objective: null,
+        latestWorkoutTitle: null,
+        latestWorkoutStatus: null,
+        latestAssignmentStatus: null,
+        latestAssignmentStartsOn: null,
+      }));
     }
-
-    sql += ` ORDER BY u.full_name ASC;`;
-
-    const [rows] = await connection.execute<RowDataPacket[]>(sql, queryParams);
-
-    return (rows || []).map((r) => ({
-      membershipPublicId: String(r.membership_public_id),
-      userPublicId: String(r.user_public_id),
-      name: String(r.full_name),
-      email: String(r.email),
-      joinedAt: r.joined_at ? new Date(r.joined_at).toISOString() : new Date().toISOString(),
-      objective: r.intake_objective ? String(r.intake_objective) : null,
-      latestWorkoutTitle: r.latest_workout_title ? String(r.latest_workout_title) : null,
-      latestWorkoutStatus: r.latest_workout_status ? String(r.latest_workout_status) : null,
-      latestAssignmentStatus: r.latest_assignment_status as "ACTIVE" | "ENDED" | null,
-      latestAssignmentStartsOn: r.latest_assignment_starts_on ? String(r.latest_assignment_starts_on) : null,
-    }));
   } finally {
     if (connection) {
       connection.release();
@@ -232,8 +284,7 @@ export async function getPersonalStudentDetail(params: {
         u.id AS user_id,
         u.public_id AS user_public_id,
         u.full_name,
-        u.email,
-        u.phone_number
+        u.email
        FROM consultancy_members cm
        INNER JOIN users u ON u.id = cm.user_id
        INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
@@ -257,7 +308,7 @@ export async function getPersonalStudentDetail(params: {
       userPublicId: String(member.user_public_id),
       name: String(member.full_name),
       email: String(member.email),
-      phone: member.phone_number ? String(member.phone_number) : null,
+      phone: null,
       joinedAt: member.joined_at ? new Date(member.joined_at).toISOString() : new Date().toISOString(),
       status: String(member.membership_status),
     };
@@ -500,15 +551,15 @@ export async function getPersonalStudentDetail(params: {
         wa.notes_for_student,
         wa.created_at AS assigned_at,
         w.public_id AS workout_public_id,
-        w.title AS workout_title,
-        w.subtitle AS workout_subtitle,
-        w.objective AS workout_objective,
-        w.difficulty_level,
+        COALESCE(wv.title, w.title) AS workout_title,
+        COALESCE(wv.subtitle, w.subtitle) AS workout_subtitle,
+        COALESCE(wv.objective, w.objective) AS workout_objective,
+        COALESCE(wv.difficulty_level, w.difficulty_level) AS difficulty_level,
         wv.public_id AS version_public_id,
         wv.version_number
        FROM workout_assignments wa
-       INNER JOIN workouts w ON w.id = wa.workout_id
        INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
        WHERE wa.consultancy_id = ?
          AND wa.student_membership_id = ?
          AND wa.deleted_at IS NULL
@@ -538,7 +589,7 @@ export async function getPersonalStudentDetail(params: {
         wes.public_id,
         wes.started_at,
         wes.completed_at,
-        w.title AS workout_title,
+        COALESCE(wv.title, w.title) AS workout_title,
         (
           SELECT COUNT(*)
           FROM workout_execution_sets weset
@@ -547,7 +598,8 @@ export async function getPersonalStudentDetail(params: {
         ) AS completed_sets_count
        FROM workout_execution_sessions wes
        INNER JOIN workout_assignments wa ON wa.id = wes.workout_assignment_id
-       INNER JOIN workouts w ON w.id = wa.workout_id
+       INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
        WHERE wes.consultancy_id = ?
          AND wes.student_membership_id = ?
          AND wes.status = 'COMPLETED'

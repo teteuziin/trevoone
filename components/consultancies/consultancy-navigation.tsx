@@ -436,9 +436,7 @@ export function ConsultancyNavigation({
 
   const isMoreActive = !isAnyPrimaryActive && isAnySecondaryActive;
 
-  // Categorize items for desktop sidebar with distinct semantic sections
-  const hasInfluencerItems = items.some((item) => item.id.startsWith("influencer-"));
-
+  // MULTI-ROLE UNIFIED EXPERIENCE: Group items into clear semantic sections
   type NavSection = {
     title?: string;
     items: NavItemConfig[];
@@ -446,68 +444,73 @@ export function ConsultancyNavigation({
 
   const desktopSections: NavSection[] = [];
 
-  if (hasInfluencerItems) {
-    const partnershipItems = items.filter(
-      (item) => item.id === "overview" || item.id.startsWith("influencer-")
-    );
-    const studentItems = items.filter((item) => item.id.startsWith("learner-"));
-    const servicesItems = items.filter(
-      (item) =>
-        item.id === "student-consultas" ||
-        item.id === "student-pagamentos" ||
-        item.id === "student-formularios"
-    );
+  const overviewItem = items.find((item) => item.id === "overview");
+  if (overviewItem) {
+    desktopSections.push({ items: [overviewItem] });
+  }
 
-    if (partnershipItems.length > 0) {
-      desktopSections.push({ title: "PARCERIA", items: partnershipItems });
-    }
-    if (studentItems.length > 0) {
-      desktopSections.push({ title: "ALUNO", items: studentItems });
-    }
-    if (servicesItems.length > 0) {
-      desktopSections.push({ title: "SERVIÇOS", items: servicesItems });
-    }
-  } else {
-    // Non-influencer views
-    const managementNavItems = items.filter(
-      (item) =>
-        item.id.startsWith("admin-") ||
-        item.id === "personal-exercicios" ||
-        item.id === "nutritionist-alimentos"
-    );
-    const mainNavItems = items.filter(
-      (item) =>
-        !item.id.startsWith("admin-") &&
-        item.id !== "personal-exercicios" &&
-        item.id !== "nutritionist-alimentos"
-    );
+  // 1. PARCERIA (Influencer / VIP)
+  const partnershipItems = items.filter((item) => item.id.startsWith("influencer-"));
+  if (partnershipItems.length > 0) {
+    desktopSections.push({ title: "PARCERIA", items: partnershipItems });
+  }
 
-    const studentServices = mainNavItems.filter(
-      (item) =>
-        item.id === "student-consultas" ||
-        item.id === "student-pagamentos" ||
-        item.id === "student-formularios"
-    );
-    const studentMain = mainNavItems.filter(
-      (item) =>
-        item.id !== "student-consultas" &&
-        item.id !== "student-pagamentos" &&
-        item.id !== "student-formularios"
-    );
+  // 2. ATENDIMENTO (Personal e/ou Nutricionista)
+  const attendanceItems = items.filter(
+    (item) =>
+      item.id.startsWith("atendimento-") ||
+      item.id === "personal-rotinas" ||
+      item.id === "nutritionist-planos" ||
+      item.id === "nutritionist-prontuario"
+  );
+  if (attendanceItems.length > 0) {
+    desktopSections.push({ title: "ATENDIMENTO", items: attendanceItems });
+  }
 
-    if (studentServices.length > 0 && studentMain.length > 1) {
-      desktopSections.push({ title: "PRINCIPAL", items: studentMain });
-      desktopSections.push({ title: "SERVIÇOS", items: studentServices });
-    } else {
-      desktopSections.push({
-        title: managementNavItems.length > 0 ? "PRINCIPAL" : undefined,
-        items: mainNavItems,
-      });
-    }
+  // 3. GESTÃO (Administrador da Consultoria)
+  const managementItems = items.filter((item) => item.id.startsWith("admin-"));
+  if (managementItems.length > 0) {
+    desktopSections.push({ title: "GESTÃO", items: managementItems });
+  }
 
-    if (managementNavItems.length > 0) {
-      desktopSections.push({ title: "GESTÃO & CLÍNICA", items: managementNavItems });
-    }
+  // 4. BIBLIOTECA (Exercícios e Alimentos)
+  const libraryItems = items.filter(
+    (item) => item.id === "personal-exercicios" || item.id === "nutritionist-alimentos"
+  );
+  if (libraryItems.length > 0) {
+    desktopSections.push({ title: "BIBLIOTECA", items: libraryItems });
+  }
+
+  // 5. MEU ACOMPANHAMENTO (Aluno)
+  const trackingItems = items.filter((item) => item.id.startsWith("learner-"));
+  if (trackingItems.length > 0) {
+    desktopSections.push({ title: "MEU ACOMPANHAMENTO", items: trackingItems });
+  }
+
+  // 6. SERVIÇOS (Consultas & Pagamentos do Aluno)
+  const servicesItems = items.filter(
+    (item) =>
+      item.id === "student-consultas" ||
+      item.id === "student-pagamentos" ||
+      item.id === "student-formularios"
+  );
+  if (servicesItems.length > 0) {
+    desktopSections.push({ title: "SERVIÇOS", items: servicesItems });
+  }
+
+  // 7. ITENS ADICIONAIS / OUTROS
+  const knownIds = new Set([
+    "overview",
+    ...partnershipItems.map((i) => i.id),
+    ...attendanceItems.map((i) => i.id),
+    ...managementItems.map((i) => i.id),
+    ...libraryItems.map((i) => i.id),
+    ...trackingItems.map((i) => i.id),
+    ...servicesItems.map((i) => i.id),
+  ]);
+  const leftoverItems = items.filter((item) => !knownIds.has(item.id));
+  if (leftoverItems.length > 0) {
+    desktopSections.push({ title: "OUTROS", items: leftoverItems });
   }
 
   return (
@@ -536,17 +539,27 @@ export function ConsultancyNavigation({
               <p className="text-sm font-semibold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--text-primary)] transition-colors">
                 {consultancyName}
               </p>
-              {primaryRoleLabel && (
-                <p className="text-[10px] font-medium text-[var(--text-tertiary)] truncate leading-tight mt-0.5 uppercase tracking-wider">
-                  {primaryRoleLabel}
-                </p>
+              {roleLabels.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {roleLabels.map((lbl) => (
+                    <span
+                      key={lbl}
+                      className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] uppercase tracking-wider"
+                    >
+                      {lbl}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </Link>
 
-          {/* View Mode Selector (if preview/multi-mode available) */}
-          {viewModeState && viewModeState.allowedOptions.length > 1 && (
-            <div className="p-2.5 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl depth-base">
+          {/* View Mode Selector ONLY if explicitly in preview mode */}
+          {viewModeState?.isPreview && (
+            <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+              <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-1">
+                Modo Demonstração
+              </p>
               <ViewModeSelector
                 consultancySlug={consultancySlug}
                 effectiveMode={viewModeState.effectiveMode}

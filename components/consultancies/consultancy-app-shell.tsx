@@ -40,279 +40,25 @@ export function ConsultancyAppShell({
   className = "",
   children,
 }: ConsultancyAppShellProps) {
-  // Determine effective presentation roles for navigation items
-  const activeMode = viewModeState?.effectiveMode;
-  const presentationRoles: ConsultancyRole[] = activeMode
-    ? activeMode === "ADMIN"
-      ? [
-          "CONSULTANCY_ADMIN",
-          ...(roles.includes("PERSONAL") ? (["PERSONAL"] as ConsultancyRole[]) : []),
-          ...(roles.includes("NUTRITIONIST") ? (["NUTRITIONIST"] as ConsultancyRole[]) : []),
-        ]
-      : activeMode === "PERSONAL"
-      ? ["PERSONAL"]
-      : activeMode === "NUTRITIONIST"
-      ? ["NUTRITIONIST"]
-      : activeMode === "INFLUENCER"
-      ? [
-          "INFLUENCER",
-          ...(roles.includes("STUDENT") ? (["STUDENT"] as ConsultancyRole[]) : []),
-        ]
-      : ["STUDENT"]
+  // MULTI-ROLE UNIFIED EXPERIENCE:
+  // Presentation roles represent the user's real capabilities in the consultancy.
+  // Only when explicitly in preview mode (e.g. admin previewing student), restrict to that mode.
+  const isPreview = viewModeState?.isPreview ?? false;
+  const presentationRoles: ConsultancyRole[] = isPreview && viewModeState?.effectiveMode
+    ? [
+        viewModeState.effectiveMode === "ADMIN"
+          ? "CONSULTANCY_ADMIN"
+          : (viewModeState.effectiveMode as ConsultancyRole),
+      ]
     : roles;
 
+  const isPersonal = presentationRoles.includes("PERSONAL");
+  const isNutritionist = presentationRoles.includes("NUTRITIONIST");
+  const isAdmin = presentationRoles.includes("CONSULTANCY_ADMIN");
+  const isInfluencer = presentationRoles.includes("INFLUENCER");
+  const isStudent = presentationRoles.includes("STUDENT");
+
   // Build role-derived navigation items
-  const items: NavItemConfig[] = [
-    {
-      id: "overview",
-      label: "Visão geral",
-      mobileLabel: "Início",
-      href: `/consultoria/${consultancySlug}`,
-      iconName: "overview",
-    },
-  ];
-
-  if (presentationRoles.includes("INFLUENCER")) {
-    items.push({
-      id: "influencer-missoes",
-      label: "Missões",
-      mobileLabel: "Missões",
-      href: `/consultoria/${consultancySlug}/missoes`,
-      iconName: "missions",
-    });
-    items.push({
-      id: "influencer-indicacoes",
-      label: "Indicações",
-      mobileLabel: "Indicações",
-      href: `/consultoria/${consultancySlug}/indicacoes`,
-      iconName: "referrals",
-    });
-    items.push({
-      id: "influencer-comissoes",
-      label: "Comissões",
-      mobileLabel: "Comissões",
-      href: `/consultoria/${consultancySlug}/indicacoes`,
-      iconName: "finance",
-    });
-  }
-
-  const isLearner = presentationRoles.includes("STUDENT");
-  if (isLearner) {
-    items.push({
-      id: "learner-treinos",
-      label: "Treinos",
-      mobileLabel: "Treinos",
-      href: `/consultoria/${consultancySlug}/treinos`,
-      iconName: "training",
-    });
-    items.push({
-      id: "learner-nutricao",
-      label: "Nutrição",
-      mobileLabel: "Nutrição",
-      href: `/consultoria/${consultancySlug}/nutricao`,
-      iconName: "nutrition",
-    });
-    items.push({
-      id: "learner-progresso",
-      label: "Evolução",
-      mobileLabel: "Evolução",
-      href: `/consultoria/${consultancySlug}/progresso`,
-      iconName: "progress",
-    });
-  }
-
-  if (presentationRoles.includes("STUDENT")) {
-    items.push({
-      id: "student-consultas",
-      label: "Consultas",
-      mobileLabel: "Consultas",
-      href: `/consultoria/${consultancySlug}/consultas`,
-      iconName: "consultations",
-    });
-    items.push({
-      id: "student-pagamentos",
-      label: "Pagamentos",
-      mobileLabel: "Pagamentos",
-      href: `/consultoria/${consultancySlug}/pagamentos`,
-      iconName: "finance",
-    });
-    items.push({
-      id: "student-formularios",
-      label: "Formulários",
-      mobileLabel: "Formulários",
-      href: `/consultoria/${consultancySlug}/formularios`,
-      iconName: "missions",
-    });
-  }
-
-  if (presentationRoles.includes("PERSONAL")) {
-    items.push({
-      id: "personal-alunos",
-      label: "Alunos",
-      mobileLabel: "Alunos",
-      href: `/consultoria/${consultancySlug}/progresso/alunos`,
-      iconName: "members",
-    });
-    items.push({
-      id: "personal-rotinas",
-      label: "Treinos",
-      mobileLabel: "Treinos",
-      href: `/consultoria/${consultancySlug}/rotinas`,
-      iconName: "training",
-    });
-    items.push({
-      id: "personal-exercicios",
-      label: "Biblioteca de Exercícios",
-      mobileLabel: "Exercícios",
-      href: `/consultoria/${consultancySlug}/exercicios`,
-      iconName: "exercises",
-    });
-    items.push({
-      id: "personal-consultas",
-      label: "Consultas",
-      mobileLabel: "Consultas",
-      href: `/consultoria/${consultancySlug}/consultas`,
-      iconName: "consultations",
-    });
-  }
-
-  if (presentationRoles.includes("NUTRITIONIST")) {
-    items.push({
-      id: "nutritionist-consultas",
-      label: "Consultas",
-      mobileLabel: "Consultas",
-      href: `/consultoria/${consultancySlug}/consultas`,
-      iconName: "consultations",
-    });
-    items.push({
-      id: "nutritionist-planos",
-      label: "Planos Alimentares",
-      mobileLabel: "Planos",
-      href: `/consultoria/${consultancySlug}/planos-v2`,
-      iconName: "nutrition",
-    });
-    items.push({
-      id: "nutritionist-prontuario",
-      label: "Prontuários",
-      mobileLabel: "Prontuários",
-      href: `/consultoria/${consultancySlug}/planos-v2/prontuario`,
-      iconName: "progress",
-    });
-    items.push({
-      id: "nutritionist-alimentos",
-      label: "Alimentos",
-      mobileLabel: "Alimentos",
-      href: `/consultoria/${consultancySlug}/alimentos-v2`,
-      iconName: "nutrition",
-    });
-    items.push({
-      id: "nutritionist-progresso",
-      label: "Evolução dos Alunos",
-      mobileLabel: "Alunos",
-      href: `/consultoria/${consultancySlug}/progresso/alunos`,
-      iconName: "progress",
-    });
-    items.push({
-      id: "nutritionist-formularios",
-      label: "Formulários",
-      mobileLabel: "Formulários",
-      href: `/consultoria/${consultancySlug}/formularios`,
-      iconName: "missions",
-    });
-  }
-
-    if (presentationRoles.includes("CONSULTANCY_ADMIN")) {
-    items.push({
-      id: "admin-operacoes",
-      label: "Operações",
-      mobileLabel: "Operações",
-      href: `/consultoria/${consultancySlug}/operacoes`,
-      iconName: "operations",
-    });
-    items.push({
-      id: "admin-indicacoes",
-      label: "Indicações",
-      mobileLabel: "Indicações",
-      href: `/consultoria/${consultancySlug}/indicacoes`,
-      iconName: "referrals",
-    });
-
-    items.push({
-      id: "admin-rotinas",
-      label: "Treinos",
-      mobileLabel: "Treinos",
-      href: `/consultoria/${consultancySlug}/rotinas`,
-      iconName: "training",
-    });
-    items.push({
-      id: "admin-exercicios",
-      label: "Biblioteca de Exercícios",
-      mobileLabel: "Exercícios",
-      href: `/consultoria/${consultancySlug}/exercicios`,
-      iconName: "exercises",
-    });
-    items.push({
-      id: "admin-progresso",
-      label: "Evolução dos Alunos",
-      mobileLabel: "Alunos",
-      href: `/consultoria/${consultancySlug}/progresso/alunos`,
-      iconName: "progress",
-    });
-    items.push({
-      id: "admin-membros",
-      label: "Membros",
-      mobileLabel: "Membros",
-      href: `/consultoria/${consultancySlug}/membros`,
-      iconName: "members",
-    });
-    items.push({
-      id: "admin-atividades",
-      label: "Atividades",
-      mobileLabel: "Atividades",
-      href: `/consultoria/${consultancySlug}/atividades`,
-      iconName: "activity",
-    });
-    items.push({
-      id: "admin-formularios",
-      label: "Formulários",
-      mobileLabel: "Formulários",
-      href: `/consultoria/${consultancySlug}/formularios`,
-      iconName: "missions",
-    });
-    items.push({
-      id: "admin-financeiro",
-      label: "Financeiro",
-      mobileLabel: "Financeiro",
-      href: `/consultoria/${consultancySlug}/financeiro`,
-      iconName: "finance",
-    });
-    items.push({
-      id: "admin-missoes",
-      label: "Missões",
-      mobileLabel: "Missões",
-      href: `/consultoria/${consultancySlug}/missoes/gestao`,
-      iconName: "missions",
-    });
-    items.push({
-      id: "admin-assinatura",
-      label: "Assinatura",
-      mobileLabel: "Assinatura",
-      href: `/consultoria/${consultancySlug}/assinatura`,
-      iconName: "subscription",
-    });
-  }
-
-  // Deduplicate items by href just in case
-  const seenHrefs = new Set<string>();
-  const deduplicatedItems: NavItemConfig[] = [];
-  for (const item of items) {
-    if (!seenHrefs.has(item.href)) {
-      seenHrefs.add(item.href);
-      deduplicatedItems.push(item);
-    }
-  }
-
-  // Derive explicit role-aware primary mobile destinations (max 4)
   const overviewItem: NavItemConfig = {
     id: "overview",
     label: "Visão geral",
@@ -321,67 +67,210 @@ export function ConsultancyAppShell({
     iconName: "overview",
   };
 
-  const mobilePrimaryItems: NavItemConfig[] = [];
+  const rawItems: NavItemConfig[] = [overviewItem];
 
-  if (presentationRoles.includes("CONSULTANCY_ADMIN")) {
-    mobilePrimaryItems.push(
-      overviewItem,
-      {
-        id: "admin-membros",
-        label: "Membros",
-        mobileLabel: "Membros",
-        href: `/consultoria/${consultancySlug}/membros`,
-        iconName: "members",
-      },
-      {
-        id: "admin-financeiro",
-        label: "Financeiro",
-        mobileLabel: "Financeiro",
-        href: `/consultoria/${consultancySlug}/financeiro`,
-        iconName: "finance",
-      },
-      {
-        id: "admin-assinatura",
-        label: "Assinatura",
-        mobileLabel: "Assinatura",
-        href: `/consultoria/${consultancySlug}/assinatura`,
-        iconName: "subscription",
-      }
-    );
-  } else if (presentationRoles.includes("PERSONAL") && presentationRoles.includes("NUTRITIONIST")) {
-    mobilePrimaryItems.push(
-      overviewItem,
-      {
-        id: "personal-consultas",
-        label: "Consultas",
-        mobileLabel: "Consultas",
-        href: `/consultoria/${consultancySlug}/consultas`,
-        iconName: "consultations",
-      },
-      {
+  // 1. PARCERIA (Influencer / VIP)
+  if (isInfluencer) {
+    rawItems.push({
+      id: "influencer-missoes",
+      label: "Missões",
+      mobileLabel: "Missões",
+      href: `/consultoria/${consultancySlug}/missoes`,
+      iconName: "missions",
+    });
+    rawItems.push({
+      id: "influencer-indicacoes",
+      label: "Indicações",
+      mobileLabel: "Indicações",
+      href: `/consultoria/${consultancySlug}/indicacoes`,
+      iconName: "referrals",
+    });
+    rawItems.push({
+      id: "influencer-comissoes",
+      label: "Comissões",
+      mobileLabel: "Comissões",
+      href: `/consultoria/${consultancySlug}/indicacoes`,
+      iconName: "finance",
+    });
+  }
+
+  // 2. ATENDIMENTO (Personal e/ou Nutricionista)
+  if (isPersonal || isNutritionist) {
+    rawItems.push({
+      id: "atendimento-alunos",
+      label: isNutritionist && !isPersonal ? "Pacientes / Alunos" : "Alunos",
+      mobileLabel: "Alunos",
+      href: `/consultoria/${consultancySlug}/progresso/alunos`,
+      iconName: "members",
+    });
+
+    if (isPersonal) {
+      rawItems.push({
         id: "personal-rotinas",
         label: "Treinos",
         mobileLabel: "Treinos",
         href: `/consultoria/${consultancySlug}/rotinas`,
         iconName: "training",
-      },
-      {
+      });
+    }
+
+    if (isNutritionist) {
+      rawItems.push({
         id: "nutritionist-planos",
         label: "Planos Alimentares",
         mobileLabel: "Dietas",
         href: `/consultoria/${consultancySlug}/planos-v2`,
-        iconName: "prescriptions",
-      }
-    );
-  } else if (presentationRoles.includes("PERSONAL")) {
+        iconName: "nutrition",
+      });
+      rawItems.push({
+        id: "nutritionist-prontuario",
+        label: "Prontuários",
+        mobileLabel: "Prontuários",
+        href: `/consultoria/${consultancySlug}/planos-v2/prontuario`,
+        iconName: "progress",
+      });
+    }
+
+    rawItems.push({
+      id: "atendimento-consultas",
+      label: "Consultas",
+      mobileLabel: "Consultas",
+      href: `/consultoria/${consultancySlug}/consultas`,
+      iconName: "consultations",
+    });
+  }
+
+  // 3. GESTÃO (Administrador da Consultoria)
+  if (isAdmin) {
+    rawItems.push({
+      id: "admin-membros",
+      label: (isPersonal || isNutritionist) ? "Membros da Equipe" : "Membros & Alunos",
+      mobileLabel: "Membros",
+      href: `/consultoria/${consultancySlug}/membros`,
+      iconName: "members",
+    });
+    rawItems.push({
+      id: "admin-financeiro",
+      label: "Financeiro",
+      mobileLabel: "Financeiro",
+      href: `/consultoria/${consultancySlug}/financeiro`,
+      iconName: "finance",
+    });
+    rawItems.push({
+      id: "admin-operacoes",
+      label: "Operações",
+      mobileLabel: "Operações",
+      href: `/consultoria/${consultancySlug}/operacoes`,
+      iconName: "operations",
+    });
+    if (!isInfluencer) {
+      rawItems.push({
+        id: "admin-indicacoes",
+        label: "Indicações & Afiliados",
+        mobileLabel: "Indicações",
+        href: `/consultoria/${consultancySlug}/indicacoes`,
+        iconName: "referrals",
+      });
+      rawItems.push({
+        id: "admin-missoes",
+        label: "Gestão de Missões",
+        mobileLabel: "Missões",
+        href: `/consultoria/${consultancySlug}/missoes/gestao`,
+        iconName: "missions",
+      });
+    }
+    rawItems.push({
+      id: "admin-assinatura",
+      label: "Assinatura",
+      mobileLabel: "Assinatura",
+      href: `/consultoria/${consultancySlug}/assinatura`,
+      iconName: "subscription",
+    });
+  }
+
+  // 4. BIBLIOTECA (Exercícios para Personal, Alimentos para Nutri)
+  if (isPersonal) {
+    rawItems.push({
+      id: "personal-exercicios",
+      label: "Biblioteca de Exercícios",
+      mobileLabel: "Exercícios",
+      href: `/consultoria/${consultancySlug}/exercicios`,
+      iconName: "exercises",
+    });
+  }
+  if (isNutritionist) {
+    rawItems.push({
+      id: "nutritionist-alimentos",
+      label: "Biblioteca de Alimentos",
+      mobileLabel: "Alimentos",
+      href: `/consultoria/${consultancySlug}/alimentos-v2`,
+      iconName: "nutrition",
+    });
+  }
+
+  // 5. MEU ACOMPANHAMENTO (Aluno - para Aluno puro ou Aluno + Influenciador)
+  if (isStudent && !isPersonal && !isNutritionist && !isAdmin) {
+    rawItems.push({
+      id: "learner-treinos",
+      label: "Treinos",
+      mobileLabel: "Treinos",
+      href: `/consultoria/${consultancySlug}/treinos`,
+      iconName: "training",
+    });
+    rawItems.push({
+      id: "learner-nutricao",
+      label: "Nutrição",
+      mobileLabel: "Nutrição",
+      href: `/consultoria/${consultancySlug}/nutricao`,
+      iconName: "nutrition",
+    });
+    rawItems.push({
+      id: "learner-progresso",
+      label: "Evolução",
+      mobileLabel: "Evolução",
+      href: `/consultoria/${consultancySlug}/progresso`,
+      iconName: "progress",
+    });
+    rawItems.push({
+      id: "student-consultas",
+      label: "Consultas",
+      mobileLabel: "Consultas",
+      href: `/consultoria/${consultancySlug}/consultas`,
+      iconName: "consultations",
+    });
+    rawItems.push({
+      id: "student-pagamentos",
+      label: "Pagamentos",
+      mobileLabel: "Pagamentos",
+      href: `/consultoria/${consultancySlug}/pagamentos`,
+      iconName: "finance",
+    });
+  }
+
+  // INTELLIGENT DEDUPLICATION BY ID AND HREF
+  const seenHrefs = new Set<string>();
+  const seenIds = new Set<string>();
+  const deduplicatedItems: NavItemConfig[] = [];
+
+  for (const item of rawItems) {
+    if (seenIds.has(item.id)) continue;
+    if (seenHrefs.has(item.href)) continue;
+    seenIds.add(item.id);
+    seenHrefs.add(item.href);
+    deduplicatedItems.push(item);
+  }
+
+  // DERIVE EXACT MOBILE PRIMARY ITEMS (Max 4 items + "Mais" button = 5 items)
+  const mobilePrimaryItems: NavItemConfig[] = [overviewItem];
+
+  if (isPersonal && isAdmin) {
     mobilePrimaryItems.push(
-      overviewItem,
       {
-        id: "personal-consultas",
-        label: "Consultas",
-        mobileLabel: "Consultas",
-        href: `/consultoria/${consultancySlug}/consultas`,
-        iconName: "consultations",
+        id: "atendimento-alunos",
+        label: "Alunos",
+        mobileLabel: "Alunos",
+        href: `/consultoria/${consultancySlug}/progresso/alunos`,
+        iconName: "members",
       },
       {
         id: "personal-rotinas",
@@ -391,41 +280,63 @@ export function ConsultancyAppShell({
         iconName: "training",
       },
       {
-        id: "personal-exercicios",
-        label: "Biblioteca de Exercícios",
-        mobileLabel: "Exercícios",
-        href: `/consultoria/${consultancySlug}/exercicios`,
-        iconName: "exercises",
+        id: "admin-operacoes",
+        label: "Operações",
+        mobileLabel: "Operações",
+        href: `/consultoria/${consultancySlug}/operacoes`,
+        iconName: "operations",
       }
     );
-  } else if (presentationRoles.includes("NUTRITIONIST")) {
+  } else if (isNutritionist && isAdmin) {
     mobilePrimaryItems.push(
-      overviewItem,
       {
-        id: "nutritionist-planos",
-        label: "Planos Alimentares",
-        mobileLabel: "Planos",
-        href: `/consultoria/${consultancySlug}/planos-v2`,
-        iconName: "prescriptions",
+        id: "atendimento-alunos",
+        label: "Pacientes",
+        mobileLabel: "Pacientes",
+        href: `/consultoria/${consultancySlug}/progresso/alunos`,
+        iconName: "members",
       },
       {
-        id: "nutritionist-alimentos",
-        label: "Alimentos",
-        mobileLabel: "Alimentos",
-        href: `/consultoria/${consultancySlug}/alimentos-v2`,
+        id: "nutritionist-planos",
+        label: "Planos",
+        mobileLabel: "Planos",
+        href: `/consultoria/${consultancySlug}/planos-v2`,
         iconName: "nutrition",
       },
       {
-        id: "nutritionist-progresso",
-        label: "Evolução dos Alunos",
-        mobileLabel: "Alunos",
-        href: `/consultoria/${consultancySlug}/progresso/alunos`,
-        iconName: "prescriptions",
+        id: "admin-operacoes",
+        label: "Operações",
+        mobileLabel: "Operações",
+        href: `/consultoria/${consultancySlug}/operacoes`,
+        iconName: "operations",
       }
     );
-  } else if (presentationRoles.includes("INFLUENCER")) {
+  } else if (isInfluencer && isStudent) {
     mobilePrimaryItems.push(
-      overviewItem,
+      {
+        id: "influencer-missoes",
+        label: "Missões",
+        mobileLabel: "Missões",
+        href: `/consultoria/${consultancySlug}/missoes`,
+        iconName: "missions",
+      },
+      {
+        id: "influencer-indicacoes",
+        label: "Indicações",
+        mobileLabel: "Indicações",
+        href: `/consultoria/${consultancySlug}/indicacoes`,
+        iconName: "referrals",
+      },
+      {
+        id: "learner-treinos",
+        label: "Treinos",
+        mobileLabel: "Treinos",
+        href: `/consultoria/${consultancySlug}/treinos`,
+        iconName: "training",
+      }
+    );
+  } else if (isInfluencer) {
+    mobilePrimaryItems.push(
       {
         id: "influencer-missoes",
         label: "Missões",
@@ -448,10 +359,81 @@ export function ConsultancyAppShell({
         iconName: "finance",
       }
     );
+  } else if (isAdmin) {
+    mobilePrimaryItems.push(
+      {
+        id: "admin-membros",
+        label: "Membros",
+        mobileLabel: "Membros",
+        href: `/consultoria/${consultancySlug}/membros`,
+        iconName: "members",
+      },
+      {
+        id: "admin-financeiro",
+        label: "Financeiro",
+        mobileLabel: "Financeiro",
+        href: `/consultoria/${consultancySlug}/financeiro`,
+        iconName: "finance",
+      },
+      {
+        id: "admin-operacoes",
+        label: "Operações",
+        mobileLabel: "Operações",
+        href: `/consultoria/${consultancySlug}/operacoes`,
+        iconName: "operations",
+      }
+    );
+  } else if (isPersonal) {
+    mobilePrimaryItems.push(
+      {
+        id: "atendimento-alunos",
+        label: "Alunos",
+        mobileLabel: "Alunos",
+        href: `/consultoria/${consultancySlug}/progresso/alunos`,
+        iconName: "members",
+      },
+      {
+        id: "personal-rotinas",
+        label: "Treinos",
+        mobileLabel: "Treinos",
+        href: `/consultoria/${consultancySlug}/rotinas`,
+        iconName: "training",
+      },
+      {
+        id: "atendimento-consultas",
+        label: "Consultas",
+        mobileLabel: "Consultas",
+        href: `/consultoria/${consultancySlug}/consultas`,
+        iconName: "consultations",
+      }
+    );
+  } else if (isNutritionist) {
+    mobilePrimaryItems.push(
+      {
+        id: "atendimento-alunos",
+        label: "Pacientes",
+        mobileLabel: "Pacientes",
+        href: `/consultoria/${consultancySlug}/progresso/alunos`,
+        iconName: "members",
+      },
+      {
+        id: "nutritionist-planos",
+        label: "Planos",
+        mobileLabel: "Planos",
+        href: `/consultoria/${consultancySlug}/planos-v2`,
+        iconName: "nutrition",
+      },
+      {
+        id: "atendimento-consultas",
+        label: "Consultas",
+        mobileLabel: "Consultas",
+        href: `/consultoria/${consultancySlug}/consultas`,
+        iconName: "consultations",
+      }
+    );
   } else {
     // Default: Aluno (STUDENT)
     mobilePrimaryItems.push(
-      overviewItem,
       {
         id: "learner-treinos",
         label: "Treinos",
@@ -471,23 +453,10 @@ export function ConsultancyAppShell({
         label: "Evolução",
         mobileLabel: "Evolução",
         href: `/consultoria/${consultancySlug}/progresso`,
-        iconName: "prescriptions",
+        iconName: "progress",
       }
     );
   }
-
-  const roleLabels = roles.map((r) => ROLE_LABELS[r] || r);
-
-  const hasExplicitMaxWidth = className.includes("max-w-");
-  const effectiveMaxWidthClass = hasExplicitMaxWidth
-    ? ""
-    : maxWidth === "full"
-    ? "max-w-full"
-    : maxWidth === "wide"
-    ? "max-w-7xl"
-    : maxWidth === "narrow"
-    ? "max-w-3xl"
-    : "max-w-6xl";
 
   // ACTIVE ROLE DERIVATION (Offline 360 Multi-Role Security Gate):
   // 1. If activeRole is explicitly specified (e.g. from resolved route context):
@@ -518,6 +487,19 @@ export function ConsultancyAppShell({
 
   const isStudentActive = activeContextRole === "STUDENT";
   const offlineRole = activeContextRole;
+
+  const roleLabels = roles.map((r) => ROLE_LABELS[r] || r);
+
+  const hasExplicitMaxWidth = className.includes("max-w-");
+  const effectiveMaxWidthClass = hasExplicitMaxWidth
+    ? ""
+    : maxWidth === "full"
+    ? "max-w-full"
+    : maxWidth === "wide"
+    ? "max-w-7xl"
+    : maxWidth === "narrow"
+    ? "max-w-3xl"
+    : "max-w-6xl";
 
   return (
     <div className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">

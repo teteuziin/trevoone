@@ -26,6 +26,8 @@ import { DashboardPersonalView } from "@/components/dashboard/dashboard-personal
 import { DashboardNutritionistView } from "@/components/dashboard/dashboard-nutritionist-view";
 import { DashboardInfluencerView } from "@/components/dashboard/dashboard-influencer-view";
 import { DashboardAdminView } from "@/components/dashboard/dashboard-admin-view";
+import { DashboardCombinedPersonalAdminView } from "@/components/dashboard/dashboard-combined-personal-admin-view";
+import { DashboardCombinedNutritionistAdminView } from "@/components/dashboard/dashboard-combined-nutritionist-admin-view";
 
 type PageProps = {
   params: Promise<{
@@ -60,17 +62,19 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const isNutritionist = context.roles.includes("NUTRITIONIST");
   const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
 
-  // Load real data ONLY when required by the active presentation mode AND authorized by real roles
+  // MULTI-ROLE UNIFIED EXPERIENCE: Load real data for all active roles held by the user
+  const isMultiRolePersonalAdmin = isPersonal && isConsultancyAdmin && !effectiveState.isPreview;
+  const isMultiRoleNutritionistAdmin = isNutritionist && isConsultancyAdmin && !effectiveState.isPreview;
+  const isMultiRoleStudentInfluencer = isStudent && isInfluencer && !effectiveState.isPreview;
+
   const needStudentData =
-    (effectiveMode === "STUDENT" || (effectiveMode === "INFLUENCER" && isStudent)) && isStudent;
-  const needInfluencerData = effectiveMode === "INFLUENCER" && isInfluencer;
+    (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) && isStudent;
+  const needInfluencerData = (effectiveMode === "INFLUENCER" || isMultiRoleStudentInfluencer) && isInfluencer;
   const needPersonalData =
-    (effectiveMode === "PERSONAL" && isPersonal) ||
-    (effectiveMode === "ADMIN" && isConsultancyAdmin && isPersonal);
+    (effectiveMode === "PERSONAL" || isMultiRolePersonalAdmin) && isPersonal;
   const needNutritionistData =
-    (effectiveMode === "NUTRITIONIST" && isNutritionist) ||
-    (effectiveMode === "ADMIN" && isConsultancyAdmin && isNutritionist);
-  const needAdminData = effectiveMode === "ADMIN" && isConsultancyAdmin;
+    (effectiveMode === "NUTRITIONIST" || isMultiRoleNutritionistAdmin) && isNutritionist;
+  const needAdminData = (effectiveMode === "ADMIN" || isMultiRolePersonalAdmin || isMultiRoleNutritionistAdmin) && isConsultancyAdmin;
 
   // Student Training V2 summary query
   const studentTrainingPromise = needStudentData
@@ -293,27 +297,32 @@ export default async function ConsultancyPage({ params }: PageProps) {
           roles={context.roles}
         />
 
-        {/* 1. Visão do Aluno (Real ou Preview) */}
-        {effectiveMode === "STUDENT" && (
-          <>
-            <StudentPendingRequestsInbox requests={studentPendingRequests || []} />
-            <DashboardStudentView
+                {/* 1. Visão Combinada Personal + Admin (quando possui ambos os papéis e não está em preview manual) */}
+        {!effectiveState.isPreview && isPersonal && isConsultancyAdmin && (
+          <DashboardCombinedPersonalAdminView
             consultancySlug={context.consultancySlug}
             consultancyName={context.consultancyName}
-            userName={session.fullName}
-            onboarding={studentOnboarding}
-            activeTrainingPlan={activeTrainingPlan}
-            activeNutritionPlan={activeNutritionPlan}
-            latestProgress={latestProgress}
-            previousProgress={previousProgress}
-            pendingPhotoEvaluation={hasPendingPhotoEvaluation}
-            todayCheckin={todayCheckin}
+            overview={adminOverview}
+            platformAccess={context.platformAccess}
+            recentPlans={personalPlansResult?.items || []}
+            totalPlans={personalPlansResult?.total}
           />
-          </>
         )}
 
-        {/* 2. Visão do Influenciador / VIP */}
-        {effectiveMode === "INFLUENCER" && (
+        {/* 2. Visão Combinada Nutricionista + Admin (quando possui ambos os papéis e não está em preview manual) */}
+        {!effectiveState.isPreview && isNutritionist && isConsultancyAdmin && !isPersonal && (
+          <DashboardCombinedNutritionistAdminView
+            consultancySlug={context.consultancySlug}
+            consultancyName={context.consultancyName}
+            overview={adminOverview}
+            platformAccess={context.platformAccess}
+            recentPlans={nutritionPlansResult?.items || []}
+            totalPlans={nutritionPlansResult?.total}
+          />
+        )}
+
+        {/* 3. Visão do Influenciador / VIP (ou Aluno + Influenciador) */}
+        {((!effectiveState.isPreview && isInfluencer && !isPersonal && !isConsultancyAdmin && !isNutritionist) || (effectiveMode === "INFLUENCER")) && (
           <DashboardInfluencerView
             consultancySlug={context.consultancySlug}
             userName={session.fullName}
@@ -327,8 +336,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           />
         )}
 
-        {/* 3. Visão do Personal Trainer (Real ou Preview) */}
-        {effectiveMode === "PERSONAL" && (
+        {/* 4. Visão do Personal Trainer (Puro ou Preview) */}
+        {((effectiveMode === "PERSONAL" && !isConsultancyAdmin) || (effectiveState.isPreview && effectiveMode === "PERSONAL")) && (
           <DashboardPersonalView
             consultancySlug={context.consultancySlug}
             recentPlans={personalPlansResult?.items || []}
@@ -336,8 +345,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
           />
         )}
 
-        {/* 4. Visão do Nutricionista (Real ou Preview) */}
-        {effectiveMode === "NUTRITIONIST" && (
+        {/* 5. Visão do Nutricionista (Puro ou Preview) */}
+        {((effectiveMode === "NUTRITIONIST" && !isConsultancyAdmin) || (effectiveState.isPreview && effectiveMode === "NUTRITIONIST")) && (
           <DashboardNutritionistView
             consultancySlug={context.consultancySlug}
             recentPlans={nutritionPlansResult?.items || []}
@@ -345,43 +354,34 @@ export default async function ConsultancyPage({ params }: PageProps) {
           />
         )}
 
-        {/* 5. Visão do Administrador da Consultoria */}
-        {effectiveMode === "ADMIN" && (
-          <div className="space-y-8">
-            <DashboardAdminView
+        {/* 6. Visão do Administrador da Consultoria (Puro ou Preview) */}
+        {((effectiveMode === "ADMIN" && !isPersonal && !isNutritionist) || (effectiveState.isPreview && effectiveMode === "ADMIN")) && (
+          <DashboardAdminView
+            consultancySlug={context.consultancySlug}
+            consultancyName={context.consultancyName}
+            consultancyLogoUrl={context.consultancyLogoUrl}
+            overview={adminOverview}
+            platformAccess={context.platformAccess}
+          />
+        )}
+
+        {/* 7. Visão do Aluno (Puro ou Preview) */}
+        {((effectiveMode === "STUDENT" && !isInfluencer) || (effectiveState.isPreview && effectiveMode === "STUDENT")) && (
+          <>
+            <StudentPendingRequestsInbox requests={studentPendingRequests || []} />
+            <DashboardStudentView
               consultancySlug={context.consultancySlug}
               consultancyName={context.consultancyName}
-              consultancyLogoUrl={context.consultancyLogoUrl}
-              overview={adminOverview}
-              platformAccess={context.platformAccess}
+              userName={session.fullName}
+              onboarding={studentOnboarding}
+              activeTrainingPlan={activeTrainingPlan}
+              activeNutritionPlan={activeNutritionPlan}
+              latestProgress={latestProgress}
+              previousProgress={previousProgress}
+              pendingPhotoEvaluation={hasPendingPhotoEvaluation}
+              todayCheckin={todayCheckin}
             />
-
-            {isPersonal && (
-              <div className="pt-4 border-t border-[var(--border-subtle)] space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                  Suas Prescrições de Treino (Personal)
-                </h3>
-                <DashboardPersonalView
-                  consultancySlug={context.consultancySlug}
-                  recentPlans={personalPlansResult?.items || []}
-                  totalPlans={personalPlansResult?.total}
-                />
-              </div>
-            )}
-
-            {isNutritionist && (
-              <div className="pt-4 border-t border-[var(--border-subtle)] space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                  Suas Prescrições Nutricionais (Nutricionista)
-                </h3>
-                <DashboardNutritionistView
-                  consultancySlug={context.consultancySlug}
-                  recentPlans={nutritionPlansResult?.items || []}
-                  totalPlans={nutritionPlansResult?.total}
-                />
-              </div>
-            )}
-          </div>
+          </>
         )}
       </div>
     </ConsultancyAppShell>

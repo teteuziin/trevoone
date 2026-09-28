@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "@/lib/db/mysql";
 import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
+import { encryptPixKey, decryptPixKey } from "@/lib/security/encryption";
 
 export type PixKeyType = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "RANDOM_KEY";
 export type CommissionType = "FIXED_AMOUNT" | "PERCENTAGE";
@@ -1014,6 +1015,13 @@ export async function saveMemberPayoutProfile(
     return { success: false, error: "Tipo de chave PIX inválido." };
   }
 
+  let encryptedKey: string;
+  try {
+    encryptedKey = encryptPixKey(cleanKey);
+  } catch {
+    return { success: false, error: "Falha ao proteger a chave PIX para armazenamento." };
+  }
+
   const connection = await getDbConnection();
   try {
     const publicId = crypto.randomUUID();
@@ -1025,7 +1033,7 @@ export async function saveMemberPayoutProfile(
          pix_key = VALUES(pix_key),
          receiver_name = VALUES(receiver_name),
          updated_at = UTC_TIMESTAMP(3);`,
-      [publicId, consultancyId, memberId, pixKeyType, cleanKey, receiverName?.trim() || null]
+      [publicId, consultancyId, memberId, pixKeyType, encryptedKey, receiverName?.trim() || null]
     );
 
     return { success: true };
@@ -1056,14 +1064,21 @@ export async function getMemberPayoutProfile(
     }
 
     const r = rows[0];
+    let decryptedKey = "";
+    try {
+      decryptedKey = decryptPixKey(r.pix_key);
+    } catch {
+      decryptedKey = "";
+    }
+
     return {
       id: Number(r.id),
       publicId: r.public_id,
       consultancyId: Number(r.consultancy_id),
       memberId: Number(r.member_id),
       pixKeyType: r.pix_key_type as PixKeyType,
-      pixKey: r.pix_key,
-      pixKeyMasked: maskPixKey(r.pix_key_type, r.pix_key),
+      pixKey: decryptedKey,
+      pixKeyMasked: decryptedKey ? maskPixKey(r.pix_key_type, decryptedKey) : "Não cadastrado",
       receiverName: r.receiver_name,
       createdAt: new Date(r.created_at),
       updatedAt: new Date(r.updated_at),
@@ -1085,6 +1100,21 @@ export async function getRevealedPayoutProfileForAdmin(
 ): Promise<{ success: boolean; pixKey?: string; pixKeyType?: PixKeyType; receiverName?: string | null; error?: string }> {
   const connection = await getDbConnection();
   try {
+    // Revalidate admin: same consultancy, active membership, correct effective role (CONSULTANCY_ADMIN)
+    const [adminCheckRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id
+       FROM consultancy_members cm
+       JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE cm.id = ? AND cm.consultancy_id = ? AND cm.user_id = ? AND cm.status = 'ACTIVE'
+         AND cmr.role = 'CONSULTANCY_ADMIN'
+       LIMIT 1;`,
+      [adminMemberId, consultancyId, adminUserId]
+    );
+
+    if (!Array.isArray(adminCheckRows) || adminCheckRows.length === 0) {
+      return { success: false, error: "Apenas administradores ativos da consultoria podem revelar dados PIX." };
+    }
+
     // Verify target member belongs to the same consultancy
     const [memberRows] = await connection.execute<RowDataPacket[]>(
       `SELECT id FROM consultancy_members WHERE id = ? AND consultancy_id = ? LIMIT 1;`,
@@ -1109,6 +1139,13 @@ export async function getRevealedPayoutProfileForAdmin(
 
     const row = rows[0];
 
+    let revealedKey = "";
+    try {
+      revealedKey = decryptPixKey(row.pix_key);
+    } catch {
+      return { success: false, error: "Falha ao decodificar a chave PIX protegida." };
+    }
+
     // Audit log without raw PIX key in metadata
     await recordConsultancyActivity({
       consultancyId,
@@ -1126,7 +1163,7 @@ export async function getRevealedPayoutProfileForAdmin(
 
     return {
       success: true,
-      pixKey: row.pix_key,
+      pixKey: revealedKey,
       pixKeyType: row.pix_key_type as PixKeyType,
       receiverName: row.receiver_name,
     };
@@ -1373,7 +1410,15 @@ export async function getAdminReferralsData(consultancyId: number): Promise<{
 
     const commissions = commissionRows.map((c) => {
       // Calculate masked PIX immediately and drop raw key
-      const masked = c.pix_key ? maskPixKey(c.pix_key_type, c.pix_key) : "Não cadastrado";
+      let masked = "Não cadastrado";
+      if (c.pix_key) {
+        try {
+          const decrypted = decryptPixKey(c.pix_key);
+          masked = maskPixKey(c.pix_key_type, decrypted);
+        } catch {
+          masked = "Chave protegida";
+        }
+      }
       const finalCents = c.final_amount_cents != null
         ? BigInt(c.final_amount_cents)
         : (c.final_amount != null ? brlToCents(Number(c.final_amount)) : null);

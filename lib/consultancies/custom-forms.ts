@@ -387,14 +387,14 @@ export async function requestFormForStudent(
       const [assignments] = await connection.execute<RowDataPacket[]>(
         `SELECT 1 FROM (
           SELECT 1 FROM workout_assignments
-          WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_user_id = ? AND status = 'ACTIVE'
+          WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE'
           UNION
           SELECT 1 FROM nutrition_v2_assignments
-          WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_user_id = ? AND status = 'ACTIVE'
+          WHERE consultancy_id = ? AND student_membership_id = ? AND assigned_by_membership_id = ? AND status = 'ACTIVE'
         ) rel LIMIT 1;`,
         [
-          context.consultancyId, student.id, userId,
-          context.consultancyId, student.id, userId,
+          context.consultancyId, student.id, context.membershipId,
+          context.consultancyId, student.id, context.membershipId,
         ]
       );
 

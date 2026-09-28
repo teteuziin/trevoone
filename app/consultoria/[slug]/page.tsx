@@ -17,6 +17,8 @@ import { listInfluencerMissions } from "@/lib/consultancies/missions";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { DashboardContext } from "@/components/dashboard/dashboard-context";
 import { DashboardStudentView } from "@/components/dashboard/dashboard-student-view";
+import { StudentPendingRequestsInbox } from "@/components/consultancies/student/student-pending-requests-inbox";
+import { listStudentPendingRequests } from "@/lib/consultancies/student-requests";
 import { DashboardPersonalView } from "@/components/dashboard/dashboard-personal-view";
 import { DashboardNutritionistView } from "@/components/dashboard/dashboard-nutritionist-view";
 import { DashboardInfluencerView } from "@/components/dashboard/dashboard-influencer-view";
@@ -173,6 +175,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     nutritionPlansResult,
     influencerMissionsResult,
     adminOverview,
+    studentPendingRequests,
   ] = await Promise.all([
     needStudentData ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
     needStudentData
@@ -199,6 +202,9 @@ export default async function ConsultancyPage({ params }: PageProps) {
         })
       : Promise.resolve(null),
     needAdminData ? getConsultancyAdminOverview(context.consultancyId) : Promise.resolve(null),
+    needStudentData
+      ? listStudentPendingRequests(context.consultancyId, session.userId, context.consultancySlug)
+      : Promise.resolve([]),
   ]);
 
   const hasPendingPhotoEvaluation = !!(
@@ -273,7 +279,9 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
         {/* 1. Visão do Aluno (Real ou Preview) */}
         {effectiveMode === "STUDENT" && (
-          <DashboardStudentView
+          <>
+            <StudentPendingRequestsInbox requests={studentPendingRequests || []} />
+            <DashboardStudentView
             consultancySlug={context.consultancySlug}
             consultancyName={context.consultancyName}
             userName={session.fullName}
@@ -284,6 +292,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             previousProgress={previousProgress}
             pendingPhotoEvaluation={hasPendingPhotoEvaluation}
           />
+          </>
         )}
 
         {/* 2. Visão do Influenciador / VIP */}

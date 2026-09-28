@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PersonalRequestModal, type RequestModalType } from "./personal-request-modal";
 import type {
   PersonalStudentDetail,
   StudentFormAnswer,
@@ -97,6 +98,10 @@ export function PersonalStudentDetailView({
 
   const [activeTab, setActiveTab] = useState<TabKey>("visao-geral");
   const [selectedFormForModal, setSelectedFormForModal] = useState<StudentFormAnswer | null>(null);
+  const [requestModal, setRequestModal] = useState<{ isOpen: boolean; type: RequestModalType }>({
+    isOpen: false,
+    type: "PHOTOS",
+  });
 
   const initial = student.name.charAt(0).toUpperCase() || "A";
 
@@ -372,8 +377,23 @@ export function PersonalStudentDetailView({
           ========================================================================= */}
       {activeTab === "fotos" && (
         <div className="space-y-6">
+          {/* Header Action */}
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+              Registros Fotográficos de Evolução
+            </h2>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
+              className="font-bold min-h-[44px]"
+            >
+              {photos.length === 0 ? "Solicitar fotos" : "+ Solicitar novas fotos"}
+            </Button>
+          </div>
+
           {photos.length === 0 ? (
-            <div className="p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3 shadow-xs depth-surface">
+            <div className="p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
               <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
                 <PhotoIcon className="w-6 h-6" />
               </div>
@@ -382,9 +402,17 @@ export function PersonalStudentDetailView({
                   Nenhuma foto registrada
                 </p>
                 <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  Quando o aluno enviar avaliações fotográficas corporais, elas serão exibidas aqui com datas e poses padronizadas.
+                  Solicite o envio das 4 fotos padronizadas para acompanhar visualmente a transformação do aluno.
                 </p>
               </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
+                className="font-bold min-h-[44px]"
+              >
+                Solicitar fotos
+              </Button>
             </div>
           ) : (
             <div className="space-y-6">
@@ -461,8 +489,23 @@ export function PersonalStudentDetailView({
           ========================================================================= */}
       {activeTab === "anamnese" && (
         <div className="space-y-6">
+          {/* Header Action */}
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+              Anamnese & Histórico Clínico
+            </h2>
+            <Button
+              variant={anamnesis.length === 0 ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
+              className="font-bold min-h-[44px]"
+            >
+              {anamnesis.length === 0 ? "Solicitar anamnese" : "Solicitar atualização"}
+            </Button>
+          </div>
+
           {anamnesis.length === 0 ? (
-            <div className="p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3 shadow-xs depth-surface">
+            <div className="p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
               <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
                 <ClipboardCheckIcon className="w-6 h-6" />
               </div>
@@ -471,9 +514,17 @@ export function PersonalStudentDetailView({
                   Anamnese ainda não preenchida
                 </p>
                 <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  O aluno ainda não preencheu o formulário de anamnese e histórico de saúde nesta consultoria.
+                  Solicite o preenchimento da anamnese para registrar o histórico de saúde, lesões, rotina e objetivos do aluno.
                 </p>
               </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
+                className="font-bold min-h-[44px]"
+              >
+                Solicitar anamnese
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -509,8 +560,23 @@ export function PersonalStudentDetailView({
           ========================================================================= */}
       {activeTab === "formularios" && (
         <div className="space-y-6">
+          {/* Header Action */}
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+              Formulários & Questionários
+            </h2>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
+              className="font-bold min-h-[44px]"
+            >
+              + Solicitar formulário
+            </Button>
+          </div>
+
           {forms.length === 0 ? (
-            <div className="p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3 shadow-xs depth-surface">
+            <div className="p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
               <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
                 <FileTextIcon className="w-6 h-6" />
               </div>
@@ -519,9 +585,17 @@ export function PersonalStudentDetailView({
                   Nenhum formulário respondido
                 </p>
                 <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  Quando o aluno enviar respostas a questionários e formulários personalizados, eles serão listados aqui.
+                  Envie questionários de rotina, acompanhamento ou termos personalizados para o aluno preencher.
                 </p>
               </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
+                className="font-bold min-h-[44px]"
+              >
+                + Solicitar formulário
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -729,6 +803,18 @@ export function PersonalStudentDetailView({
           </div>
         </div>
       )}
+
+      {/* =========================================================================
+          MODAL: SOLICITAÇÃO AO ALUNO (FOTOS, ANAMNESE, FORMULÁRIO, AVALIAÇÃO)
+          ========================================================================= */}
+      <PersonalRequestModal
+        isOpen={requestModal.isOpen}
+        onClose={() => setRequestModal((prev) => ({ ...prev, isOpen: false }))}
+        type={requestModal.type}
+        consultancySlug={consultancySlug}
+        studentMembershipPublicId={student.membershipPublicId}
+        studentName={student.name}
+      />
 
       {/* =========================================================================
           MODAL: VER RESPOSTAS DO FORMULÁRIO

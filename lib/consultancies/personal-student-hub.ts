@@ -40,6 +40,9 @@ export interface PersonalStudentOverview {
   hasAnamnesis: boolean;
   hasPhotos: boolean;
   hasForms: boolean;
+  hasPendingPhotos?: boolean;
+  hasPendingAnamnesis?: boolean;
+  hasPendingAssessment?: boolean;
 }
 
 export interface PhotoEvaluationItem {
@@ -70,6 +73,7 @@ export interface StudentFormAnswer {
   formType: "INTAKE" | "CUSTOM";
   status: string;
   submittedAt: string | null;
+  requestedAt?: string | null;
   questions: Array<{
     question: string;
     answer: string;
@@ -405,8 +409,8 @@ export async function getPersonalStudentDetail(params: {
        INNER JOIN consultancy_custom_form_templates t ON t.id = r.template_id
        WHERE r.consultancy_id = ?
          AND r.student_membership_id = ?
-         AND r.status IN ('SUBMITTED', 'REVIEWED')
-       ORDER BY r.submitted_at DESC, r.id DESC;`,
+         AND r.status IN ('PENDING', 'SUBMITTED', 'REVIEWED', 'CHANGES_REQUESTED')
+       ORDER BY COALESCE(r.submitted_at, r.created_at) DESC, r.id DESC;`,
       [consultancyId, membershipId]
     );
 
@@ -709,6 +713,9 @@ export async function getPersonalStudentDetail(params: {
       hasAnamnesis: anamnesis.length > 0,
       hasPhotos: photos.length > 0,
       hasForms: forms.length > 0,
+      hasPendingPhotos: photos.some((p) => p.status === "PENDING"),
+      hasPendingAnamnesis: Array.isArray(customForms) && customForms.some((r) => String(r.template_title).toLowerCase().includes("anamnes") && r.status === "PENDING"),
+      hasPendingAssessment: Array.isArray(customForms) && customForms.some((r) => (String(r.template_title).toLowerCase().includes("avalia") || String(r.template_title).toLowerCase().includes("medid")) && r.status === "PENDING"),
     };
 
     return {

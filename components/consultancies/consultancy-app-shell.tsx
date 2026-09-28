@@ -311,31 +311,7 @@ export function ConsultancyAppShell({
         iconName: "operations",
       }
     );
-  } else if (isInfluencer && isStudent) {
-    mobilePrimaryItems.push(
-      {
-        id: "influencer-missoes",
-        label: "Missões",
-        mobileLabel: "Missões",
-        href: `/consultoria/${consultancySlug}/missoes`,
-        iconName: "missions",
-      },
-      {
-        id: "influencer-indicacoes",
-        label: "Indicações",
-        mobileLabel: "Indicações",
-        href: `/consultoria/${consultancySlug}/indicacoes`,
-        iconName: "referrals",
-      },
-      {
-        id: "learner-treinos",
-        label: "Treinos",
-        mobileLabel: "Treinos",
-        href: `/consultoria/${consultancySlug}/treinos`,
-        iconName: "training",
-      }
-    );
-  } else if (isInfluencer) {
+  } else if (isInfluencer && !isStudent) {
     mobilePrimaryItems.push(
       {
         id: "influencer-missoes",
@@ -488,7 +464,13 @@ export function ConsultancyAppShell({
   const isStudentActive = activeContextRole === "STUDENT";
   const offlineRole = activeContextRole;
 
-  const roleLabels = roles.map((r) => ROLE_LABELS[r] || r);
+  // STUDENT FIRST: Se for Aluno, exibir etiqueta de Aluno primeiro
+  const sortedRolesForLabels = [...roles].sort((a, b) => {
+    if (a === "STUDENT") return -1;
+    if (b === "STUDENT") return 1;
+    return 0;
+  });
+  const roleLabels = sortedRolesForLabels.map((r) => ROLE_LABELS[r] || r);
 
   const hasExplicitMaxWidth = className.includes("max-w-");
   const effectiveMaxWidthClass = hasExplicitMaxWidth

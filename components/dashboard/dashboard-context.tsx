@@ -18,7 +18,7 @@ function getDefaultSubtitle(roles: ConsultancyRole[]): string {
     return "Painel unificado de gestão da consultoria e prescrição nutricional.";
   }
   if (roles.includes("INFLUENCER") && roles.includes("STUDENT")) {
-    return "Painel unificado de parceria VIP e acompanhamento de treinos.";
+    return "Seu espaço de saúde, treino e evolução com benefícios VIP.";
   }
   if (roles.includes("INFLUENCER")) {
     return "Bem-vindo ao seu painel de influenciador. Acompanhe suas missões, resultados e comissões.";
@@ -61,6 +61,12 @@ export function DashboardContext({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+        {/* STUDENT FIRST: Aluno é o papel prioritário */}
+        {isStudent && (
+          <Badge variant="brand" size="sm">
+            Aluno
+          </Badge>
+        )}
         {isPersonal && (
           <Badge variant="brand" size="sm">
             Personal Trainer
@@ -85,11 +91,6 @@ export function DashboardContext({
               VIP
             </Badge>
           </>
-        )}
-        {isStudent && (
-          <Badge variant="neutral" size="sm">
-            Aluno
-          </Badge>
         )}
       </div>
     </div>

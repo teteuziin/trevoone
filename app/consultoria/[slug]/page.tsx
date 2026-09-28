@@ -28,6 +28,7 @@ import { DashboardInfluencerView } from "@/components/dashboard/dashboard-influe
 import { DashboardAdminView } from "@/components/dashboard/dashboard-admin-view";
 import { DashboardCombinedPersonalAdminView } from "@/components/dashboard/dashboard-combined-personal-admin-view";
 import { DashboardCombinedNutritionistAdminView } from "@/components/dashboard/dashboard-combined-nutritionist-admin-view";
+import { DashboardCombinedStudentVipView } from "@/components/dashboard/dashboard-combined-student-vip-view";
 
 type PageProps = {
   params: Promise<{
@@ -321,12 +322,34 @@ export default async function ConsultancyPage({ params }: PageProps) {
           />
         )}
 
-        {/* 3. Visão do Influenciador / VIP (ou Aluno + Influenciador) */}
-        {((!effectiveState.isPreview && isInfluencer && !isPersonal && !isConsultancyAdmin && !isNutritionist) || (effectiveMode === "INFLUENCER")) && (
+        {/* 3. Visão Combinada Aluno + Influenciador/VIP (STUDENT FIRST) */}
+        {!effectiveState.isPreview && isStudent && isInfluencer && !isPersonal && !isConsultancyAdmin && !isNutritionist && (
+          <>
+            <StudentPendingRequestsInbox requests={studentPendingRequests || []} />
+            <DashboardCombinedStudentVipView
+              consultancySlug={context.consultancySlug}
+              consultancyName={context.consultancyName}
+              userName={session.fullName}
+              onboarding={studentOnboarding}
+              activeTrainingPlan={activeTrainingPlan}
+              activeNutritionPlan={activeNutritionPlan}
+              latestProgress={latestProgress}
+              previousProgress={previousProgress}
+              pendingPhotoEvaluation={hasPendingPhotoEvaluation}
+              todayCheckin={todayCheckin}
+              missions={influencerMissionsResult?.items || []}
+              totalMissions={influencerMissionsResult?.total}
+              referrerData={referrerData}
+            />
+          </>
+        )}
+
+        {/* 4. Visão do Influenciador / VIP Puro (ou Preview Manual) */}
+        {((!effectiveState.isPreview && isInfluencer && !isStudent && !isPersonal && !isConsultancyAdmin && !isNutritionist) || (effectiveState.isPreview && effectiveMode === "INFLUENCER")) && (
           <DashboardInfluencerView
             consultancySlug={context.consultancySlug}
             userName={session.fullName}
-            isStudent={isStudent}
+            isStudent={false}
             todayCheckin={todayCheckin}
             missions={influencerMissionsResult?.items || []}
             totalMissions={influencerMissionsResult?.total}

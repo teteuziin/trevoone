@@ -449,13 +449,8 @@ export function ConsultancyNavigation({
     desktopSections.push({ items: [overviewItem] });
   }
 
-  // 1. PARCERIA (Influencer / VIP)
+  // Itens categorizados
   const partnershipItems = items.filter((item) => item.id.startsWith("influencer-"));
-  if (partnershipItems.length > 0) {
-    desktopSections.push({ title: "PARCERIA", items: partnershipItems });
-  }
-
-  // 2. ATENDIMENTO (Personal e/ou Nutricionista)
   const attendanceItems = items.filter(
     (item) =>
       item.id.startsWith("atendimento-") ||
@@ -463,39 +458,74 @@ export function ConsultancyNavigation({
       item.id === "nutritionist-planos" ||
       item.id === "nutritionist-prontuario"
   );
-  if (attendanceItems.length > 0) {
-    desktopSections.push({ title: "ATENDIMENTO", items: attendanceItems });
-  }
-
-  // 3. GESTÃO (Administrador da Consultoria)
   const managementItems = items.filter((item) => item.id.startsWith("admin-"));
-  if (managementItems.length > 0) {
-    desktopSections.push({ title: "GESTÃO", items: managementItems });
-  }
-
-  // 4. BIBLIOTECA (Exercícios e Alimentos)
   const libraryItems = items.filter(
     (item) => item.id === "personal-exercicios" || item.id === "nutritionist-alimentos"
   );
-  if (libraryItems.length > 0) {
-    desktopSections.push({ title: "BIBLIOTECA", items: libraryItems });
-  }
-
-  // 5. MEU ACOMPANHAMENTO (Aluno)
   const trackingItems = items.filter((item) => item.id.startsWith("learner-"));
-  if (trackingItems.length > 0) {
-    desktopSections.push({ title: "MEU ACOMPANHAMENTO", items: trackingItems });
-  }
-
-  // 6. SERVIÇOS (Consultas & Pagamentos do Aluno)
   const servicesItems = items.filter(
     (item) =>
       item.id === "student-consultas" ||
       item.id === "student-pagamentos" ||
       item.id === "student-formularios"
   );
-  if (servicesItems.length > 0) {
-    desktopSections.push({ title: "SERVIÇOS", items: servicesItems });
+
+  // STUDENT-FIRST: Se o usuário possui acompanhamento de aluno, priorizar Aluno sobre Parceria VIP
+  const isStudentNavigation = trackingItems.length > 0;
+
+  if (isStudentNavigation) {
+    // 1. MEU ACOMPANHAMENTO (Treinos, Nutrição, Evolução)
+    desktopSections.push({ title: "MEU ACOMPANHAMENTO", items: trackingItems });
+
+    // 2. SERVIÇOS (Consultas, Pagamentos)
+    if (servicesItems.length > 0) {
+      desktopSections.push({ title: "SERVIÇOS", items: servicesItems });
+    }
+
+    // 3. ATENDIMENTO (se possuir personal/nutri)
+    if (attendanceItems.length > 0) {
+      desktopSections.push({ title: "ATENDIMENTO", items: attendanceItems });
+    }
+
+    // 4. GESTÃO (se possuir admin)
+    if (managementItems.length > 0) {
+      desktopSections.push({ title: "GESTÃO", items: managementItems });
+    }
+
+    // 5. BIBLIOTECA
+    if (libraryItems.length > 0) {
+      desktopSections.push({ title: "BIBLIOTECA", items: libraryItems });
+    }
+
+    // 6. PARCERIA VIP (Secundário para quem é Aluno)
+    if (partnershipItems.length > 0) {
+      desktopSections.push({ title: "PARCERIA VIP", items: partnershipItems });
+    }
+  } else {
+    // 1. PARCERIA (Influenciador puro)
+    if (partnershipItems.length > 0) {
+      desktopSections.push({ title: "PARCERIA", items: partnershipItems });
+    }
+
+    // 2. ATENDIMENTO (Personal e/ou Nutricionista)
+    if (attendanceItems.length > 0) {
+      desktopSections.push({ title: "ATENDIMENTO", items: attendanceItems });
+    }
+
+    // 3. GESTÃO (Administrador da Consultoria)
+    if (managementItems.length > 0) {
+      desktopSections.push({ title: "GESTÃO", items: managementItems });
+    }
+
+    // 4. BIBLIOTECA (Exercícios e Alimentos)
+    if (libraryItems.length > 0) {
+      desktopSections.push({ title: "BIBLIOTECA", items: libraryItems });
+    }
+
+    // 5. SERVIÇOS
+    if (servicesItems.length > 0) {
+      desktopSections.push({ title: "SERVIÇOS", items: servicesItems });
+    }
   }
 
   // 7. ITENS ADICIONAIS / OUTROS

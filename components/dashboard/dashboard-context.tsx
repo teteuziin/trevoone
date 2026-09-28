@@ -31,7 +31,9 @@ export function DashboardContext({
 }: DashboardContextProps) {
   const firstName = userName ? userName.trim().split(" ")[0] : "";
   const displaySubtitle = subtitle || getDefaultSubtitle(roles);
-  const displayRoles = roles.filter((r) => r !== "STUDENT");
+  const displayRoles = roles.includes("INFLUENCER")
+    ? (roles.includes("STUDENT") ? (["INFLUENCER", "STUDENT"] as ConsultancyRole[]) : (["INFLUENCER"] as ConsultancyRole[]))
+    : roles.filter((r) => r !== "STUDENT");
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">

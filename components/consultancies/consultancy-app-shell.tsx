@@ -54,7 +54,10 @@ export function ConsultancyAppShell({
       : activeMode === "NUTRITIONIST"
       ? ["NUTRITIONIST"]
       : activeMode === "INFLUENCER"
-      ? ["INFLUENCER"]
+      ? [
+          "INFLUENCER",
+          ...(roles.includes("STUDENT") ? (["STUDENT"] as ConsultancyRole[]) : []),
+        ]
       : ["STUDENT"]
     : roles;
 
@@ -76,6 +79,13 @@ export function ConsultancyAppShell({
       mobileLabel: "Missões",
       href: `/consultoria/${consultancySlug}/missoes`,
       iconName: "missions",
+    });
+    items.push({
+      id: "influencer-indicacoes",
+      label: "Indicações",
+      mobileLabel: "Indicações",
+      href: `/consultoria/${consultancySlug}/indicacoes`,
+      iconName: "referrals",
     });
   }
 
@@ -417,20 +427,22 @@ export function ConsultancyAppShell({
         iconName: "missions",
       },
       {
+        id: "influencer-indicacoes",
+        label: "Indicações",
+        mobileLabel: "Indicações",
+        href: `/consultoria/${consultancySlug}/indicacoes`,
+        iconName: "referrals",
+      }
+    );
+    if (presentationRoles.includes("STUDENT")) {
+      mobilePrimaryItems.push({
         id: "learner-treinos",
         label: "Treinos",
         mobileLabel: "Treinos",
         href: `/consultoria/${consultancySlug}/treinos`,
         iconName: "training",
-      },
-      {
-        id: "learner-nutricao",
-        label: "Nutrição",
-        mobileLabel: "Nutrição",
-        href: `/consultoria/${consultancySlug}/nutricao`,
-        iconName: "nutrition",
-      }
-    );
+      });
+    }
   } else {
     // Default: Aluno (STUDENT)
     mobilePrimaryItems.push(

@@ -163,6 +163,13 @@ export function getAllowedViewModeOptions(
       label: PRESENTATION_MODE_LABELS.INFLUENCER,
       isRealRole: true,
     });
+    if (isStudent) {
+      options.push({
+        mode: "STUDENT",
+        label: PRESENTATION_MODE_LABELS.STUDENT,
+        isRealRole: true,
+      });
+    }
     return options;
   }
 

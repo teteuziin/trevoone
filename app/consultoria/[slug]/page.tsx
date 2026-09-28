@@ -14,6 +14,7 @@ import { listPlansForConsultancy } from "@/lib/nutrition-v2/plan-repository";
 import { getStudentOwnProgressHistory } from "@/lib/consultancies/progress";
 import { getStudentPhotoEvaluationsData } from "@/lib/consultancies/photo-evaluations";
 import { listInfluencerMissions } from "@/lib/consultancies/missions";
+import { getReferrerDashboardData } from "@/lib/referrals/service";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { DashboardContext } from "@/components/dashboard/dashboard-context";
 import { DashboardStudentView } from "@/components/dashboard/dashboard-student-view";
@@ -60,7 +61,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
 
   // Load real data ONLY when required by the active presentation mode AND authorized by real roles
-  const needStudentData = effectiveMode === "STUDENT" && isStudent;
+  const needStudentData =
+    (effectiveMode === "STUDENT" || (effectiveMode === "INFLUENCER" && isStudent)) && isStudent;
   const needInfluencerData = effectiveMode === "INFLUENCER" && isInfluencer;
   const needPersonalData =
     (effectiveMode === "PERSONAL" && isPersonal) ||
@@ -183,9 +185,10 @@ export default async function ConsultancyPage({ params }: PageProps) {
     adminOverview,
     studentPendingRequests,
     todayCheckin,
+    referrerData,
   ] = await Promise.all([
-    needStudentData ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
-    needStudentData
+    needStudentData && effectiveMode === "STUDENT" ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
+    needStudentData && effectiveMode === "STUDENT"
       ? getStudentFinancialAccessState({
           consultancyId: context.consultancyId,
           studentMembershipId: context.membershipId,
@@ -196,7 +199,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     needStudentData
       ? getStudentOwnProgressHistory({ userId: session.userId, consultancySlug: slug, page: 1 })
       : Promise.resolve(null),
-    needStudentData
+    needStudentData && effectiveMode === "STUDENT"
       ? getStudentPhotoEvaluationsData({ userId: session.userId, consultancySlug: slug })
       : Promise.resolve(null),
     personalWorkoutsPromise,
@@ -209,11 +212,14 @@ export default async function ConsultancyPage({ params }: PageProps) {
         })
       : Promise.resolve(null),
     needAdminData ? getConsultancyAdminOverview(context.consultancyId) : Promise.resolve(null),
-    needStudentData
+    needStudentData && effectiveMode === "STUDENT"
       ? listStudentPendingRequests(context.consultancyId, session.userId, context.consultancySlug)
       : Promise.resolve([]),
     needStudentData && context.membershipId
       ? getTodayCheckin(context.consultancyId, context.membershipId)
+      : Promise.resolve(null),
+    needInfluencerData && context.membershipId
+      ? getReferrerDashboardData(context.consultancyId, context.membershipId).catch(() => null)
       : Promise.resolve(null),
   ]);
 
@@ -310,8 +316,12 @@ export default async function ConsultancyPage({ params }: PageProps) {
         {effectiveMode === "INFLUENCER" && (
           <DashboardInfluencerView
             consultancySlug={context.consultancySlug}
+            userName={session.fullName}
+            isStudent={isStudent}
+            todayCheckin={todayCheckin}
             missions={influencerMissionsResult?.items || []}
             totalMissions={influencerMissionsResult?.total}
+            referrerData={referrerData}
             activeTrainingPlan={activeTrainingPlan}
             activeNutritionPlan={activeNutritionPlan}
           />

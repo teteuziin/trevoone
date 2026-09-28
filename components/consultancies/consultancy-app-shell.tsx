@@ -203,7 +203,22 @@ export function ConsultancyAppShell({
     });
   }
 
-  if (presentationRoles.includes("CONSULTANCY_ADMIN")) {
+    if (presentationRoles.includes("CONSULTANCY_ADMIN")) {
+    items.push({
+      id: "admin-operacoes",
+      label: "Operações",
+      mobileLabel: "Operações",
+      href: `/consultoria/${consultancySlug}/operacoes`,
+      iconName: "operations",
+    });
+    items.push({
+      id: "admin-indicacoes",
+      label: "Indicações",
+      mobileLabel: "Indicações",
+      href: `/consultoria/${consultancySlug}/indicacoes`,
+      iconName: "referrals",
+    });
+
     items.push({
       id: "admin-rotinas",
       label: "Treinos",

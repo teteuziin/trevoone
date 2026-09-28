@@ -1,5 +1,6 @@
 "use client";
 
+import { UserAvatar } from "@/components/account/user-avatar";
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -29,7 +30,9 @@ export interface NavItemConfig {
     | "subscription"
     | "missions"
     | "consultations"
-    | "activity";
+    | "activity"
+    | "operations"
+    | "referrals";
 }
 
 export interface ConsultancyNavigationProps {
@@ -43,6 +46,8 @@ export interface ConsultancyNavigationProps {
   roleLabels?: string[];
   unreadNotificationsCount?: number;
   viewModeState?: EffectiveViewModeState;
+  userPublicId?: string;
+  hasProfilePhoto?: boolean;
 }
 
 type ThemeMode = "light" | "dark" | "system";
@@ -333,6 +338,8 @@ export function ConsultancyNavigation({
   roleLabels = [],
   unreadNotificationsCount = 0,
   viewModeState,
+  userPublicId,
+  hasProfilePhoto = false,
 }: ConsultancyNavigationProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -410,8 +417,6 @@ export function ConsultancyNavigation({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [mobileMenuOpen, desktopProfileOpen]);
-
-  const userInitial = (userName?.trim().charAt(0) || "U").toUpperCase();
   const primaryRoleLabel = roleLabels.length > 0 ? roleLabels[0] : null;
 
   // Determine primary (max 4) and secondary items for mobile navigation
@@ -565,9 +570,12 @@ export function ConsultancyNavigation({
         <div className="p-3.5 border-t border-[var(--border-default)] space-y-3 bg-[var(--surface)]">
           {/* User Info Card */}
           <div className="flex items-center gap-2.5 px-1 py-0.5">
-            <div className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] font-bold text-xs flex items-center justify-center shrink-0 select-none shadow-2xs">
-              {userInitial}
-            </div>
+            <UserAvatar
+            fullName={userName || "Usuário"}
+            userPublicId={userPublicId}
+            hasProfilePhoto={hasProfilePhoto}
+            size="sm"
+          />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
                 {userName || "Usuário"}
@@ -902,9 +910,12 @@ export function ConsultancyNavigation({
             {/* Header Handle & Close */}
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] font-bold text-sm flex items-center justify-center select-none shadow-2xs">
-                  {userInitial}
-                </div>
+                <UserAvatar
+                fullName={userName || "Usuário"}
+                userPublicId={userPublicId}
+                hasProfilePhoto={hasProfilePhoto}
+                size="md"
+              />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{userName || "Usuário"}</p>
                   {userEmail && <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{userEmail}</p>}

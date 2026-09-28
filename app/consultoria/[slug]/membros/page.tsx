@@ -15,6 +15,7 @@ import { DeactivateMemberButton } from "@/components/consultancies/deactivate-me
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { UserAvatar } from "@/components/account/user-avatar";
 
 type PageProps = {
   params: Promise<{
@@ -331,13 +332,16 @@ export default async function ConsultancyMembersPage({
                     {members.map((member) => (
                       <tr key={member.membershipPublicId} className="hover:bg-[var(--surface-hover)] transition-colors">
                         <td className="px-5 py-4 min-w-0">
-                          <div className="space-y-0.5 min-w-0">
-                            <p className="font-semibold text-[var(--text-primary)] truncate text-sm">
-                              {member.fullName}
-                            </p>
+                          <div className="flex items-center gap-3">
+                            <UserAvatar fullName={member.fullName} userPublicId={member.userPublicId} size="sm" />
+                            <div className="space-y-0.5 min-w-0">
+                              <p className="font-semibold text-[var(--text-primary)] truncate text-sm">
+                                {member.fullName}
+                              </p>
                             <p className="text-xs text-[var(--text-secondary)] truncate">
                               {member.email}
                             </p>
+                          </div>
                           </div>
                         </td>
 

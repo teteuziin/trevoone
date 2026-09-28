@@ -17,6 +17,7 @@ import {
   deliverNotificationAfterCommit,
 } from "@/services/notification-service";
 import { getWorkoutVersionTree } from "./workout-repository";
+import { isProfessionalAssignmentPaused } from "@/lib/monitoring/admin-actions";
 import type {
   WorkoutAssignmentDto,
   StudentWorkoutViewContract,
@@ -95,6 +96,17 @@ export async function createAssignment(
   input: CreateAssignmentInput
 ): Promise<WorkoutAssignmentDto> {
   assertCanAuthorTraining(ctx);
+
+  if (ctx.hasRole("PERSONAL") && !ctx.canManageConsultancy && ctx.consultancyId && ctx.membershipId) {
+    const isPaused = await isProfessionalAssignmentPaused(ctx.consultancyId, ctx.membershipId);
+    if (isPaused) {
+      throw new TrainingAuthorizationError(
+        "A atribuição de novos treinos está temporariamente pausada para seu perfil pela administração da consultoria.",
+        "ASSIGNMENTS_PAUSED",
+        403
+      );
+    }
+  }
 
   if (!input.startsOn || !isValidDateString(input.startsOn)) {
     throw new TrainingAuthorizationError(

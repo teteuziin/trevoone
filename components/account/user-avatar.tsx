@@ -5,6 +5,9 @@ import React, { useState } from "react";
 export interface UserAvatarProps {
   fullName?: string;
   hasProfilePhoto?: boolean;
+  avatarUrl?: string | null;
+  userPublicId?: string | null;
+  userId?: number | null;
   profilePhotoUpdatedAt?: Date | string | number | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
   className?: string;
@@ -30,7 +33,9 @@ export function getInitials(name?: string): string {
 
 export function UserAvatar({
   fullName = "Usuário",
-  hasProfilePhoto = false,
+  hasProfilePhoto,
+  avatarUrl,
+  userPublicId,
   profilePhotoUpdatedAt,
   size = "md",
   className = "",
@@ -46,9 +51,16 @@ export function UserAvatar({
       : new Date(profilePhotoUpdatedAt).getTime()
     : null;
 
-  const photoSrc = hasProfilePhoto && !imageError
-    ? `/api/account/profile-photo${versionParam ? `?v=${versionParam}` : ""}`
-    : null;
+  let photoSrc: string | null = null;
+  if (!imageError) {
+    if (avatarUrl) {
+      photoSrc = avatarUrl;
+    } else if (userPublicId && hasProfilePhoto !== false) {
+      photoSrc = `/api/users/${userPublicId}/avatar${versionParam ? `?v=${versionParam}` : ""}`;
+    } else if (hasProfilePhoto) {
+      photoSrc = `/api/account/profile-photo${versionParam ? `?v=${versionParam}` : ""}`;
+    }
+  }
 
   const altText = alt || `Foto de perfil de ${fullName}`;
 

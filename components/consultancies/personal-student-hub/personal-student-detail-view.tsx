@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { UserAvatar } from "@/components/account/user-avatar";
 import { PersonalRequestModal, type RequestModalType } from "./personal-request-modal";
 import type {
   PersonalStudentDetail,
@@ -103,8 +104,6 @@ export function PersonalStudentDetailView({
     type: "PHOTOS",
   });
 
-  const initial = student.name.charAt(0).toUpperCase() || "A";
-
   const tabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }> = [
     { key: "visao-geral", label: "Visão Geral", icon: FileTextIcon },
     { key: "fotos", label: "Fotos", icon: PhotoIcon, count: photos.length },
@@ -135,9 +134,12 @@ export function PersonalStudentDetailView({
       {/* Header Cockpit Card */}
       <div className="p-6 sm:p-8 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-4 sm:gap-5 min-w-0">
-          <div className="w-16 h-16 sm:w-20 sm:w-20 rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center text-xl sm:text-2xl font-bold text-[var(--brand)] shrink-0 shadow-sm">
-            {initial}
-          </div>
+          <UserAvatar
+            fullName={student.name}
+            userPublicId={student.userPublicId}
+            size="xl"
+            className="shrink-0 shadow-sm"
+          />
           <div className="space-y-1.5 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-heading text-xl sm:text-2xl lg:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight truncate">

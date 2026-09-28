@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/account/user-avatar";
 import type { PersonalStudentSummary } from "@/lib/consultancies/personal-student-hub";
 
 interface PersonalStudentListProps {
@@ -131,7 +132,6 @@ export function PersonalStudentList({
         /* Student Cards Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
           {filteredStudents.map((student) => {
-            const initial = student.name.charAt(0).toUpperCase() || "A";
             const hasActiveWorkout =
               student.latestAssignmentStatus === "ACTIVE" && !!student.latestWorkoutTitle;
 
@@ -143,9 +143,12 @@ export function PersonalStudentList({
                 {/* Header: Avatar, Name, Email, Status */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--brand)] font-bold text-sm shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                      {initial}
-                    </div>
+                    <UserAvatar
+                      fullName={student.name}
+                      userPublicId={student.userPublicId}
+                      size="md"
+                      className="shrink-0 group-hover:scale-105 transition-transform"
+                    />
                     <div className="min-w-0 space-y-0.5">
                       <Link
                         href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}

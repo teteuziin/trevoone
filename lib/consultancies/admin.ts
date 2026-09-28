@@ -14,6 +14,7 @@ export type ConsultancyAdminOverview = {
 
 export type ConsultancyMemberItem = {
   membershipPublicId: string;
+  userPublicId?: string;
   fullName: string;
   email: string;
   status: "ACTIVE" | "INVITED" | "SUSPENDED" | string;
@@ -179,6 +180,7 @@ export async function listConsultancyMembers(params: {
       SELECT
         cm.id AS membership_id,
         cm.public_id AS membership_public_id,
+        u.public_id AS user_public_id,
         u.full_name,
         u.email,
         cm.status AS membership_status,

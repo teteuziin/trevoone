@@ -19,6 +19,8 @@ import { DashboardContext } from "@/components/dashboard/dashboard-context";
 import { DashboardStudentView } from "@/components/dashboard/dashboard-student-view";
 import { StudentPendingRequestsInbox } from "@/components/consultancies/student/student-pending-requests-inbox";
 import { listStudentPendingRequests } from "@/lib/consultancies/student-requests";
+import { getTodayCheckin } from "@/lib/checkins/service";
+import { trackMemberActivity } from "@/lib/monitoring/activity-tracker";
 import { DashboardPersonalView } from "@/components/dashboard/dashboard-personal-view";
 import { DashboardNutritionistView } from "@/components/dashboard/dashboard-nutritionist-view";
 import { DashboardInfluencerView } from "@/components/dashboard/dashboard-influencer-view";
@@ -41,6 +43,10 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const context = await resolveConsultancyContext(session.userId, slug);
   if (!context) {
     redirect("/selecionar-consultoria");
+  }
+
+  if (context.membershipId) {
+    trackMemberActivity(context.consultancyId, context.membershipId).catch(() => {});
   }
 
   // Resolve presentation mode state server-side
@@ -176,6 +182,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     influencerMissionsResult,
     adminOverview,
     studentPendingRequests,
+    todayCheckin,
   ] = await Promise.all([
     needStudentData ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
     needStudentData
@@ -205,6 +212,9 @@ export default async function ConsultancyPage({ params }: PageProps) {
     needStudentData
       ? listStudentPendingRequests(context.consultancyId, session.userId, context.consultancySlug)
       : Promise.resolve([]),
+    needStudentData && context.membershipId
+      ? getTodayCheckin(context.consultancyId, context.membershipId)
+      : Promise.resolve(null),
   ]);
 
   const hasPendingPhotoEvaluation = !!(
@@ -291,6 +301,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             latestProgress={latestProgress}
             previousProgress={previousProgress}
             pendingPhotoEvaluation={hasPendingPhotoEvaluation}
+            todayCheckin={todayCheckin}
           />
           </>
         )}

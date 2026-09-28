@@ -1,3 +1,5 @@
+import { DailyCheckinWidget } from "@/components/checkin/daily-checkin-widget";
+import type { DailyCheckinRecord } from "@/lib/checkins/service";
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -65,6 +67,7 @@ interface DashboardStudentViewProps {
   latestProgress: LatestProgressInfo | null;
   previousProgress?: LatestProgressInfo | null;
   pendingPhotoEvaluation?: boolean;
+  todayCheckin?: DailyCheckinRecord | null;
 }
 
 // ============================================================================
@@ -166,6 +169,7 @@ export function DashboardStudentView({
   latestProgress,
   previousProgress,
   pendingPhotoEvaluation,
+  todayCheckin,
 }: DashboardStudentViewProps) {
   const hasIncompleteOnboarding =
     onboarding && onboarding.applicable && !onboarding.isComplete;
@@ -270,6 +274,11 @@ export function DashboardStudentView({
 
   return (
     <div className="space-y-8 sm:space-y-10 overflow-x-clip">
+      {/* 0. CHECK-IN DIÁRIO (10 Segundos) */}
+      <DailyCheckinWidget
+        consultancySlug={consultancySlug}
+        todayCheckin={todayCheckin || null}
+      />
       {/* ==================================================================== */}
       {/* 1. ONBOARDING MANDATÓRIO (Se aplicável e incompleto)                  */}
       {/* ==================================================================== */}

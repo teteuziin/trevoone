@@ -273,7 +273,7 @@ export function DashboardStudentView({
   ];
 
   return (
-    <div className="space-y-8 sm:space-y-10 overflow-x-clip">
+    <div className="space-y-6 sm:space-y-8 overflow-x-clip">
       {/* 0. CHECK-IN DIÁRIO (10 Segundos) */}
       <DailyCheckinWidget
         consultancySlug={consultancySlug}

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
+import { recordConsultancyActivity } from "./activity-log";
 import { resolveConsultancyContext } from "./context";
 import {
   createNotificationInTransaction,
@@ -439,6 +440,21 @@ export async function requestFormForStudent(
       // Non-blocking notification creation
     }
 
+    await recordConsultancyActivity({
+      consultancyId: context.consultancyId,
+      actorUserId: userId,
+      actorMembershipId: context.membershipId,
+      actorRole: isAdmin ? "CONSULTANCY_ADMIN" : (context.roles[0] || "PERSONAL"),
+      action: "CUSTOM_FORM_REQUESTED",
+      module: "FORMS",
+      resourceType: "form_request",
+      resourcePublicId: requestPublicId,
+      subjectMembershipId: Number(student.id),
+      summary: `Formulário "${template.title}" solicitado para o aluno`,
+      metadata: { templateTitle: template.title, templateId: template.id },
+      connection,
+    }).catch(() => {});
+
     await connection.commit();
 
     if (notifId) {
@@ -727,6 +743,21 @@ export async function submitFormResponses(
       // Non-blocking notification
     }
 
+    await recordConsultancyActivity({
+      consultancyId: context.consultancyId,
+      actorUserId: userId,
+      actorMembershipId: context.membershipId,
+      actorRole: "STUDENT",
+      action: "CUSTOM_FORM_SUBMITTED",
+      module: "FORMS",
+      resourceType: "form_request",
+      resourcePublicId: requestPublicId,
+      subjectMembershipId: context.membershipId,
+      summary: `Respostas do formulário "${req.template_title}" enviadas pelo aluno`,
+      metadata: { templateTitle: req.template_title, templateId: req.template_id },
+      connection,
+    }).catch(() => {});
+
     await connection.commit();
 
     if (notifId) {
@@ -826,6 +857,21 @@ export async function reviewFormRequest(
     } catch {
       // Non-blocking notification
     }
+
+    await recordConsultancyActivity({
+      consultancyId: context.consultancyId,
+      actorUserId: userId,
+      actorMembershipId: context.membershipId,
+      actorRole: isAdmin ? "CONSULTANCY_ADMIN" : (context.roles[0] || "PERSONAL"),
+      action: `CUSTOM_FORM_${newStatus}`,
+      module: "FORMS",
+      resourceType: "form_request",
+      resourcePublicId: requestPublicId,
+      subjectMembershipId: Number(req.student_membership_id),
+      summary: `Formulário "${req.template_title}" avaliado: ${newStatus}`,
+      metadata: { templateTitle: req.template_title, status: newStatus },
+      connection,
+    }).catch(() => {});
 
     await connection.commit();
 

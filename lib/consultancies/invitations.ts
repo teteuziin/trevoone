@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
+import { recordConsultancyActivity } from "./activity-log";
 import { VALID_ROLES, type ConsultancyRole } from "./context";
 
 export type InvitationStatus = "PENDING" | "ACCEPTED" | "EXPIRED" | "REVOKED";
@@ -268,6 +269,19 @@ export async function createConsultancyInvitation(params: {
       [auditPublicId, actorUserId, consultancyId, invitationPublicId]
     );
 
+    await recordConsultancyActivity({
+      consultancyId,
+      actorUserId,
+      actorRole: "CONSULTANCY_ADMIN",
+      action: "CONSULTANCY_INVITATION_CREATED",
+      module: "MEMBERS",
+      resourceType: "invitation",
+      resourcePublicId: invitationPublicId,
+      summary: `Convite para ${email.trim()} criado`,
+      metadata: { roles: validatedRoles },
+      connection,
+    }).catch(() => {});
+
     await connection.commit();
 
     return {
@@ -483,6 +497,19 @@ export async function revokeConsultancyInvitation(params: {
       );`,
       [auditPublicId, actorUserId, consultancyId, invitationPublicId]
     );
+
+    await recordConsultancyActivity({
+      consultancyId,
+      actorUserId,
+      actorRole: "CONSULTANCY_ADMIN",
+      action: "CONSULTANCY_INVITATION_REVOKED",
+      module: "MEMBERS",
+      resourceType: "invitation",
+      resourcePublicId: invitationPublicId,
+      summary: "Convite revogado pelo administrador",
+      metadata: { invitationPublicId },
+      connection,
+    }).catch(() => {});
 
     await connection.commit();
     return { success: true };
@@ -838,6 +865,18 @@ export async function acceptConsultancyInvitation(params: {
       );`,
       [auditPublicId, userId, consultancyId, String(inv.public_id)]
     );
+
+    await recordConsultancyActivity({
+      consultancyId,
+      actorUserId: userId,
+      actorRole: "MEMBER",
+      action: "CONSULTANCY_INVITATION_ACCEPTED",
+      module: "MEMBERS",
+      resourceType: "invitation",
+      resourcePublicId: String(inv.public_id),
+      summary: "Convite para a consultoria aceito com sucesso",
+      connection,
+    }).catch(() => {});
 
     await connection.commit();
 

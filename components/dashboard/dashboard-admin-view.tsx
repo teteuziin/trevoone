@@ -47,6 +47,14 @@ function MissionsLinearIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
+function ActivityLinearIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
 function SubscriptionLinearIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
@@ -352,6 +360,37 @@ export function DashboardAdminView({
 
             <div className="text-xs font-bold text-[var(--brand)] flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
               <span>Ver faturas & plano</span>
+              <ChevronRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Module 4: Atividades da Consultoria */}
+          <Link
+            href={`/consultoria/${consultancySlug}/atividades`}
+            className="w-[84vw] max-w-[380px] shrink-0 sm:w-auto sm:max-w-none snap-center p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--brand)] transition-all group flex flex-col justify-between space-y-4 depth-surface min-h-[190px]"
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                  <ActivityLinearIcon className="w-5 h-5" />
+                </div>
+                <Badge variant="neutral" size="sm">
+                  Auditoria
+                </Badge>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="font-heading text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+                  Atividades
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-medium">
+                  Acompanhe as principais ações realizadas na sua consultoria.
+                </p>
+              </div>
+            </div>
+
+            <div className="text-xs font-bold text-[var(--brand)] flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
+              <span>Ver atividades</span>
               <ChevronRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>

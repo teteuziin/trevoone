@@ -233,6 +233,13 @@ export function ConsultancyAppShell({
       iconName: "members",
     });
     items.push({
+      id: "admin-atividades",
+      label: "Atividades",
+      mobileLabel: "Atividades",
+      href: `/consultoria/${consultancySlug}/atividades`,
+      iconName: "activity",
+    });
+    items.push({
       id: "admin-formularios",
       label: "Formulários",
       mobileLabel: "Formulários",

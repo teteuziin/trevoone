@@ -20,6 +20,7 @@ function isMissingSnapshotColumnError(err: unknown): boolean {
 import crypto from "node:crypto";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
+import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
 import {
   NutritionAuthorizationError,
   type NutritionAccessContext,
@@ -457,6 +458,20 @@ export async function createPlanWithDraftVersion(
         ctx.membershipId!,
       ]
     );
+
+    await recordConsultancyActivity({
+      consultancyId: ctx.consultancyId!,
+      actorUserId: ctx.userId,
+      actorMembershipId: ctx.membershipId,
+      actorRole: ctx.roles.includes("NUTRITIONIST") ? "NUTRITIONIST" : (ctx.roles[0] || "NUTRITIONIST"),
+      action: "NUTRITION_PLAN_CREATED",
+      module: "NUTRITION",
+      resourceType: "nutrition_plan",
+      resourcePublicId: planPublicId,
+      summary: `Plano alimentar "${title}" criado`,
+      metadata: { title, objective },
+      connection,
+    }).catch(() => {});
 
     await connection.commit();
     return { planPublicId, versionPublicId };

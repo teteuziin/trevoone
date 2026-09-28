@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
+import { recordConsultancyActivity } from "./activity-log";
 import { formatConsultancyDateTime } from "./timezone";
 import { resolveConsultancyContext } from "./context";
 import { resolveStudentModuleAccess } from "./student-module-access";
@@ -1067,6 +1068,21 @@ export async function scheduleConsultation(
       createdByUserId: actorUserId,
     });
 
+    await recordConsultancyActivity({
+      consultancyId: context.consultancyId,
+      actorUserId,
+      actorMembershipId: context.membershipId,
+      actorRole: context.roles[0] || "CONSULTANCY_ADMIN",
+      action: "CONSULTATION_SCHEDULED",
+      module: "CONSULTATIONS",
+      resourceType: "consultation",
+      resourcePublicId: publicId,
+      subjectMembershipId: studentMembershipId,
+      summary: `Consulta "${normalizedTitle}" agendada`,
+      metadata: { scheduledStartAt: scheduledStartAt.toISOString(), scheduledEndAt: scheduledEndAt.toISOString() },
+      connection,
+    }).catch(() => {});
+
     await connection.commit();
 
     // 7. Return complete DTO
@@ -1319,6 +1335,21 @@ export async function rescheduleConsultation(
       sourcePublicId: consultationPublicId,
     });
 
+    await recordConsultancyActivity({
+      consultancyId: context.consultancyId,
+      actorUserId,
+      actorMembershipId: context.membershipId,
+      actorRole: context.roles[0] || "CONSULTANCY_ADMIN",
+      action: "CONSULTATION_RESCHEDULED",
+      module: "CONSULTATIONS",
+      resourceType: "consultation",
+      resourcePublicId: consultationPublicId,
+      subjectMembershipId: Number(consultation.student_membership_id),
+      summary: `Consulta "${consultation.title}" remarcada para ${formattedNewDateTime}`,
+      metadata: { scheduledStartAt: scheduledStartAt.toISOString() },
+      connection,
+    }).catch(() => {});
+
     await connection.commit();
 
     // Deliver Web Push after commit
@@ -1568,6 +1599,21 @@ export async function cancelConsultation(
       sourceType: "CONSULTATION",
       sourcePublicId: consultationPublicId,
     });
+
+    await recordConsultancyActivity({
+      consultancyId: context.consultancyId,
+      actorUserId,
+      actorMembershipId: context.membershipId,
+      actorRole: context.roles[0] || "CONSULTANCY_ADMIN",
+      action: "CONSULTATION_CANCELED",
+      module: "CONSULTATIONS",
+      resourceType: "consultation",
+      resourcePublicId: consultationPublicId,
+      subjectMembershipId: Number(consultation.student_membership_id),
+      summary: `Consulta "${consultation.title}" cancelada`,
+      metadata: { reason: normalizedReason },
+      connection,
+    }).catch(() => {});
 
     await connection.commit();
 

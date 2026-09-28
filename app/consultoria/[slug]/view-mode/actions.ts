@@ -9,6 +9,7 @@ import {
   getAllowedViewModeOptions,
   type ConsultancyPresentationMode,
 } from "@/lib/consultancies/view-mode";
+import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
 
 export async function setConsultancyViewModeAction(
   slug: string,
@@ -35,6 +36,18 @@ export async function setConsultancyViewModeAction(
       name: VIEW_MODE_COOKIE_NAME,
       path: "/consultoria",
     });
+    await recordConsultancyActivity({
+      consultancyId: context.consultancyId,
+      actorUserId: session.userId,
+      actorMembershipId: context.membershipId,
+      actorRole: context.roles[0] || "MEMBER",
+      action: "VIEW_MODE_RESET",
+      module: "AUTH",
+      resourceType: "membership",
+      resourcePublicId: context.membershipPublicId,
+      summary: "Modo de visualização redefinido para o padrão",
+      metadata: { requestedMode: "DEFAULT" },
+    }).catch(() => {});
     revalidatePath(`/consultoria/${slug}`);
     return { success: true };
   }
@@ -56,6 +69,19 @@ export async function setConsultancyViewModeAction(
     secure: process.env.NODE_ENV === "production",
     maxAge: 7 * 24 * 60 * 60, // 7 days
   });
+
+  await recordConsultancyActivity({
+    consultancyId: context.consultancyId,
+    actorUserId: session.userId,
+    actorMembershipId: context.membershipId,
+    actorRole: mode,
+    action: "VIEW_MODE_CHANGED",
+    module: "AUTH",
+    resourceType: "membership",
+    resourcePublicId: context.membershipPublicId,
+    summary: `Modo de visualização alterado para ${mode}`,
+    metadata: { effectiveMode: mode },
+  }).catch(() => {});
 
   revalidatePath(`/consultoria/${slug}`);
   return { success: true };

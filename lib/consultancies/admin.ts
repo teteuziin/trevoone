@@ -1,6 +1,7 @@
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import crypto from "node:crypto";
 import { getDbConnection } from "../db/mysql";
+import { recordConsultancyActivity } from "./activity-log";
 import { VALID_ROLES, type ConsultancyRole } from "./context";
 
 export type ConsultancyAdminOverview = {
@@ -462,6 +463,19 @@ export async function deactivateConsultancyMember(
         }),
       ]
     );
+
+    await recordConsultancyActivity({
+      consultancyId,
+      actorUserId,
+      actorRole: "CONSULTANCY_ADMIN",
+      action: "CONSULTANCY_MEMBER_DEACTIVATED",
+      module: "MEMBERS",
+      resourceType: "member",
+      resourcePublicId: cleanMemberPublicId,
+      summary: "Membro da consultoria desativado",
+      metadata: { targetUserId, targetRoles: rawRoles, previousStatus: currentStatus, newStatus: "SUSPENDED" },
+      connection,
+    }).catch(() => {});
 
     await connection.commit();
     return { success: true };

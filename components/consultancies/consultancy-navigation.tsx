@@ -28,7 +28,8 @@ export interface NavItemConfig {
     | "finance"
     | "subscription"
     | "missions"
-    | "consultations";
+    | "consultations"
+    | "activity";
 }
 
 export interface ConsultancyNavigationProps {
@@ -134,6 +135,12 @@ function NavIcon({ name }: { name: NavItemConfig["iconName"] }) {
       return (
         <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.504-1.125-1.125-1.125h-6.75c-.621 0-1.125.504-1.125 1.125V18.75m10.5-12.75h1.875a3.375 3.375 0 013.375 3.375c0 1.63-1.162 2.986-2.705 3.284A6.002 6.002 0 0116.5 15V6zm-9 0H5.625A3.375 3.375 0 002.25 9.375c0 1.63 1.162 2.986 2.705 3.284A6.002 6.002 0 007.5 15V6zm0 0v9m9-9v9" />
+        </svg>
+      );
+    case "activity":
+      return (
+        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       );
     case "consultations":

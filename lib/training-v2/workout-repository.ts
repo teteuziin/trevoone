@@ -6,6 +6,7 @@
 import crypto from "node:crypto";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDbConnection, getDbPool } from "../db/mysql";
+import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
 import {
   TrainingAuthorizationError,
   type TrainingAccessContext,
@@ -140,6 +141,24 @@ export async function createWorkout(
         ctx.membershipId!,
       ]
     );
+
+    await recordConsultancyActivity({
+      consultancyId: ctx.consultancyId!,
+      actorUserId: ctx.userId,
+      actorMembershipId: ctx.membershipId,
+      actorRole: ctx.roles.includes("PERSONAL") ? "PERSONAL" : (ctx.roles[0] || "PERSONAL"),
+      action: "WORKOUT_CREATED",
+      module: "PERSONAL",
+      resourceType: "workout",
+      resourcePublicId: workoutPublicId,
+      summary: `Treino "${input.title.trim()}" criado`,
+      metadata: {
+        title: input.title.trim(),
+        objective: input.objective?.trim() || null,
+        isTemplate: Boolean(input.isTemplate),
+      },
+      connection,
+    }).catch(() => {});
 
     await connection.commit();
 

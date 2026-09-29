@@ -115,6 +115,7 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
       roles={context?.roles || ctx.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
     >
       <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
         {/* Workspace Navigation Bar */}

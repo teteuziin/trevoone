@@ -83,6 +83,7 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
     >
       <div className="max-w-4xl mx-auto space-y-6 pb-12">
         {/* Header Principal */}

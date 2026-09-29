@@ -1,3 +1,4 @@
+import { PostLoginWelcome } from "@/components/auth/post-login-welcome";
 import React from "react";
 import { ConsultancyRole, ROLE_LABELS } from "@/lib/consultancies/context";
 import { ConsultancyNavigation, NavItemConfig } from "./consultancy-navigation";
@@ -15,6 +16,8 @@ export interface ConsultancyAppShellProps {
   userName?: string;
   userEmail?: string;
   userPublicId?: string;
+  userAvatarUrl?: string | null;
+  hasProfilePhoto?: boolean;
   consultancyPublicId?: string;
   unreadNotificationsCount?: number;
   viewModeState?: EffectiveViewModeState;
@@ -32,6 +35,8 @@ export function ConsultancyAppShell({
   userName,
   userEmail,
   userPublicId,
+  userAvatarUrl,
+  hasProfilePhoto,
   consultancyPublicId,
   unreadNotificationsCount = 0,
   viewModeState,
@@ -558,9 +563,21 @@ export function ConsultancyAppShell({
         mobilePrimaryItems={mobilePrimaryItems}
         userName={userName}
         userEmail={userEmail}
+        userPublicId={userPublicId}
+        avatarUrl={userAvatarUrl}
+        hasProfilePhoto={hasProfilePhoto}
         roleLabels={roleLabels}
         unreadNotificationsCount={unreadNotificationsCount}
         viewModeState={viewModeState}
+      />
+
+      {/* Post-Login Welcome Slide / Overlay */}
+      <PostLoginWelcome
+        userName={userName}
+        userEmail={userEmail}
+        userPublicId={userPublicId}
+        avatarUrl={userAvatarUrl}
+        hasProfilePhoto={hasProfilePhoto}
       />
 
       {/* Preview Notification Banner */}

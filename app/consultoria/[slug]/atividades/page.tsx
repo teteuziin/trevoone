@@ -92,6 +92,9 @@ export default async function ConsultancyActivityPage({
       consultancyName={context.consultancyName}
       consultancyLogoUrl={context.consultancyLogoUrl}
       roles={context.roles}
+      userName={session.fullName}
+      userEmail={session.email}
+      userPublicId={session.userPublicId}
     >
       <ConsultancyActivityCenterView
         initialEvents={events}

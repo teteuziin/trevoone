@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
+import { computeInitials } from "@/lib/auth/user-identity";
 
 export interface UserAvatarProps {
   fullName?: string;
@@ -10,25 +11,26 @@ export interface UserAvatarProps {
   userId?: number | null;
   profilePhotoUpdatedAt?: Date | string | number | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
+  shape?: "circle" | "rounded";
+  circular?: boolean;
   className?: string;
   alt?: string;
 }
 
-const sizeClasses: Record<NonNullable<UserAvatarProps["size"]>, { container: string; text: string }> = {
-  xs: { container: "w-7 h-7 rounded-lg", text: "text-[11px]" },
-  sm: { container: "w-8 h-8 rounded-xl", text: "text-xs" },
-  md: { container: "w-10 h-10 rounded-xl", text: "text-sm" },
-  lg: { container: "w-12 h-12 rounded-2xl", text: "text-base" },
-  xl: { container: "w-16 h-16 rounded-2xl", text: "text-xl" },
-  "2xl": { container: "w-24 h-24 rounded-3xl", text: "text-2xl" },
+const sizeClasses: Record<
+  NonNullable<UserAvatarProps["size"]>,
+  { dimension: string; text: string; roundedDefault: string }
+> = {
+  xs: { dimension: "w-7 h-7", text: "text-[11px]", roundedDefault: "rounded-lg" },
+  sm: { dimension: "w-8 h-8", text: "text-xs", roundedDefault: "rounded-xl" },
+  md: { dimension: "w-10 h-10", text: "text-sm", roundedDefault: "rounded-xl" },
+  lg: { dimension: "w-12 h-12", text: "text-base", roundedDefault: "rounded-2xl" },
+  xl: { dimension: "w-16 h-16", text: "text-xl", roundedDefault: "rounded-2xl" },
+  "2xl": { dimension: "w-24 h-24", text: "text-2xl", roundedDefault: "rounded-3xl" },
 };
 
 export function getInitials(name?: string): string {
-  if (!name || typeof name !== "string") return "U";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "U";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  return computeInitials(name);
 }
 
 export function UserAvatar({
@@ -38,12 +40,17 @@ export function UserAvatar({
   userPublicId,
   profilePhotoUpdatedAt,
   size = "md",
+  shape = "circle",
+  circular = true,
   className = "",
   alt,
 }: UserAvatarProps) {
   const [imageError, setImageError] = useState(false);
   const initials = getInitials(fullName);
   const sizeConfig = sizeClasses[size] || sizeClasses.md;
+
+  const isCircle = shape === "circle" || circular !== false;
+  const roundingClass = isCircle ? "rounded-full" : sizeConfig.roundedDefault;
 
   const versionParam = profilePhotoUpdatedAt
     ? typeof profilePhotoUpdatedAt === "number"
@@ -66,7 +73,7 @@ export function UserAvatar({
 
   return (
     <div
-      className={`relative shrink-0 select-none overflow-hidden flex items-center justify-center font-bold bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] shadow-2xs ${sizeConfig.container} ${sizeConfig.text} ${className}`.trim()}
+      className={`relative shrink-0 select-none overflow-hidden flex items-center justify-center font-bold bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] shadow-2xs ${sizeConfig.dimension} ${roundingClass} ${sizeConfig.text} ${className}`.trim()}
       aria-label={altText}
     >
       {photoSrc ? (
@@ -75,7 +82,7 @@ export function UserAvatar({
           src={photoSrc}
           alt={altText}
           onError={() => setImageError(true)}
-          className="w-full h-full object-cover"
+          className={`w-full h-full object-cover ${roundingClass}`}
         />
       ) : (
         <span aria-hidden="true">{initials}</span>

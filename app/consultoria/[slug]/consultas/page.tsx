@@ -75,6 +75,7 @@ export default async function ConsultasPage({ params }: PageProps) {
         roles={context.roles}
         userName={session.fullName}
         userEmail={session.email}
+      userPublicId={session.userPublicId}
       >
         <StudentConsultationsView
           consultancySlug={slug}

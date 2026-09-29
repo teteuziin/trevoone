@@ -65,6 +65,14 @@ export function LogoutButton({
     }
 
     try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        window.sessionStorage.removeItem("trevo_welcome_seen");
+      }
+    } catch {
+      // Best-effort
+    }
+
+    try {
       await clearAllAuthenticatedOfflineData();
     } catch {
       // Best-effort: offline storage purge failure must never block session logout

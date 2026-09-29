@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useEffect } from "react";
 import Link from "next/link";
 import { loginAccount, LoginFormState } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,16 @@ export function LoginForm({
 }) {
   const [state, formAction, isPending] = useActionState(loginAccount, initialState);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        window.sessionStorage.removeItem("trevo_welcome_seen");
+      }
+    } catch {
+      // Best-effort
+    }
+  }, []);
 
   const errors = state.errors || {};
 

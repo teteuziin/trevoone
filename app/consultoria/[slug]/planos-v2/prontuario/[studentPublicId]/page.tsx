@@ -37,6 +37,7 @@ export default async function PatientRecordPage({ params }: PatientRecordPagePro
       roles={context?.roles || ctx.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
     >
       <PatientRecordView initialDetail={res.detail} slug={slug} />
     </ConsultancyAppShell>

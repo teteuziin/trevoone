@@ -40,6 +40,7 @@ export default async function NewChargePage({ params }: PageProps) {
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
     >
       <div className="max-w-2xl mx-auto space-y-6 pb-12">
         <PageHeader

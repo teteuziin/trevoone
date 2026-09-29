@@ -1,5 +1,7 @@
 "use client";
 
+import { resolveUserIdentity } from "@/lib/auth/user-identity";
+
 import { UserAvatar } from "@/components/account/user-avatar";
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
@@ -46,6 +48,7 @@ export interface ConsultancyNavigationProps {
   roleLabels?: string[];
   unreadNotificationsCount?: number;
   viewModeState?: EffectiveViewModeState;
+  avatarUrl?: string | null;
   userPublicId?: string;
   hasProfilePhoto?: boolean;
 }
@@ -338,9 +341,17 @@ export function ConsultancyNavigation({
   roleLabels = [],
   unreadNotificationsCount = 0,
   viewModeState,
+  avatarUrl,
   userPublicId,
-  hasProfilePhoto = false,
+  hasProfilePhoto,
 }: ConsultancyNavigationProps) {
+  const identity = resolveUserIdentity({
+    fullName: userName,
+    email: userEmail,
+    userPublicId: userPublicId,
+    avatarUrl: avatarUrl,
+    hasProfilePhoto: hasProfilePhoto,
+  });
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopProfileOpen, setDesktopProfileOpen] = useState(false);
@@ -645,25 +656,31 @@ export function ConsultancyNavigation({
 
         {/* Bottom: User Card, Theme & Actions */}
         <div className="p-3.5 border-t border-[var(--border-default)] space-y-3 bg-[var(--surface)]">
-          {/* User Info Card */}
-          <div className="flex items-center gap-2.5 px-1 py-0.5">
+                    {/* User Info Card */}
+          <Link
+            href="/conta/perfil"
+            className="flex items-center gap-2.5 px-1 py-1 rounded-xl hover:bg-[var(--surface-subtle)] transition-colors min-w-0 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+            title="Ver perfil"
+          >
             <UserAvatar
-            fullName={userName || "Usuário"}
-            userPublicId={userPublicId}
-            hasProfilePhoto={hasProfilePhoto}
-            size="sm"
-          />
+              fullName={identity.fullName}
+              userPublicId={identity.userPublicId}
+              avatarUrl={identity.avatarUrl}
+              hasProfilePhoto={identity.hasProfilePhoto}
+              shape="circle"
+              size="sm"
+            />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
-                {userName || "Usuário"}
+              <p className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate leading-tight">
+                {identity.fullName}
               </p>
-              {userEmail && (
+              {identity.email && (
                 <p className="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
-                  {userEmail}
+                  {identity.email}
                 </p>
               )}
             </div>
-          </div>
+          </Link>
 
           {/* Theme Selector */}
           <AppearanceSegmentedControl
@@ -984,20 +1001,27 @@ export function ConsultancyNavigation({
             aria-modal="true"
             className="relative w-full max-h-[85vh] overflow-y-auto bg-[var(--surface)] border-t border-[var(--border-default)] rounded-t-3xl p-5 shadow-2xl z-10 animate-in slide-in-from-bottom-6 duration-200 space-y-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] border-specular-t"
           >
-            {/* Header Handle & Close */}
+                        {/* Header Handle & Close */}
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
-              <div className="flex items-center gap-3">
+              <Link
+                href="/conta/perfil"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 min-w-0 group cursor-pointer"
+                title="Ver perfil"
+              >
                 <UserAvatar
-                fullName={userName || "Usuário"}
-                userPublicId={userPublicId}
-                hasProfilePhoto={hasProfilePhoto}
-                size="md"
-              />
+                  fullName={identity.fullName}
+                  userPublicId={identity.userPublicId}
+                  avatarUrl={identity.avatarUrl}
+                  hasProfilePhoto={identity.hasProfilePhoto}
+                  shape="circle"
+                  size="md"
+                />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{userName || "Usuário"}</p>
-                  {userEmail && <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{userEmail}</p>}
+                  <p className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">{identity.fullName}</p>
+                  {identity.email && <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{identity.email}</p>}
                 </div>
-              </div>
+              </Link>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}

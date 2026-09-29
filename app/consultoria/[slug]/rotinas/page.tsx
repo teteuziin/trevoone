@@ -155,6 +155,7 @@ export default async function ConsultancyWorkoutsPage({
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* Header Cockpit */}

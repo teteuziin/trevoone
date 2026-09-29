@@ -52,6 +52,9 @@ export default async function AdminMissionsPage({
       consultancySlug={slug}
       consultancyLogoUrl={consultancyContext.consultancyLogoUrl}
       roles={consultancyContext.roles}
+      userName={session.fullName}
+      userEmail={session.email}
+      userPublicId={session.userPublicId}
     >
       <div className="space-y-6 max-w-5xl mx-auto pb-12">
         <PageHeader

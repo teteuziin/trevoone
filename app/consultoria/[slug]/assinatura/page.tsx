@@ -81,6 +81,7 @@ export default async function ConsultancySubscriptionPage({ params }: PageProps)
         roles={context.roles}
         userName={session.fullName}
         userEmail={session.email}
+      userPublicId={session.userPublicId}
       >
         <div className="p-8 text-center bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs max-w-md mx-auto my-12">
           <p className="text-sm font-semibold text-[var(--text-primary)]">

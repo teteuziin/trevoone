@@ -74,6 +74,7 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
     >
       <div className="w-full max-w-6xl mx-auto space-y-6 pb-20">
         <div className="flex items-center justify-between gap-4">

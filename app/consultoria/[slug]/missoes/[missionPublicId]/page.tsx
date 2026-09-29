@@ -64,6 +64,9 @@ export default async function InfluencerMissionDetailPage({
       consultancySlug={slug}
       consultancyLogoUrl={consultancyContext.consultancyLogoUrl}
       roles={consultancyContext.roles}
+      userName={session.fullName}
+      userEmail={session.email}
+      userPublicId={session.userPublicId}
     >
       <div className="space-y-6 max-w-4xl mx-auto pb-12">
         {/* Header / Breadcrumb */}

@@ -117,6 +117,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
     >
       <div className="w-full max-w-2xl mx-auto space-y-6 pb-12">
         <Link

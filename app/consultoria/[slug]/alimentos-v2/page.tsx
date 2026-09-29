@@ -284,6 +284,7 @@ export default async function AlimentosV2Page({ params, searchParams }: PageProp
           roles={context?.roles || ctx?.roles || []}
           userName={session.fullName}
           userEmail={session.email}
+      userPublicId={session.userPublicId}
         >
           <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
             {diagnostic.code !== "FOOD_LIB_AUTH" && <NutritionWorkspaceNav slug={slug} activeTab="alimentos" />}

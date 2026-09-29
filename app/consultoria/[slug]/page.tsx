@@ -57,11 +57,12 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
   const { effectiveMode } = effectiveState;
 
-  const isStudent = context.roles.includes("STUDENT");
-  const isInfluencer = context.roles.includes("INFLUENCER");
-  const isPersonal = context.roles.includes("PERSONAL");
-  const isNutritionist = context.roles.includes("NUTRITIONIST");
-  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+  const roles = Array.isArray(context.roles) ? context.roles : [];
+  const isStudent = roles.includes("STUDENT");
+  const isInfluencer = roles.includes("INFLUENCER");
+  const isPersonal = roles.includes("PERSONAL");
+  const isNutritionist = roles.includes("NUTRITIONIST");
+  const isConsultancyAdmin = roles.includes("CONSULTANCY_ADMIN");
 
   // MULTI-ROLE UNIFIED EXPERIENCE: Load real data for all active roles held by the user
   const isMultiRolePersonalAdmin = isPersonal && isConsultancyAdmin && !effectiveState.isPreview;
@@ -192,36 +193,36 @@ export default async function ConsultancyPage({ params }: PageProps) {
     todayCheckin,
     referrerData,
   ] = await Promise.all([
-    needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) ? getStudentOnboardingStatus(session.userId, slug) : Promise.resolve(null),
+    needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) ? getStudentOnboardingStatus(session.userId, slug).catch(() => null) : Promise.resolve(null),
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer)
       ? getStudentFinancialAccessState({
           consultancyId: context.consultancyId,
           studentMembershipId: context.membershipId,
-        })
+        }).catch(() => null)
       : Promise.resolve(null),
     studentTrainingPromise,
     studentNutritionPromise,
     needStudentData
-      ? getStudentOwnProgressHistory({ userId: session.userId, consultancySlug: slug, page: 1 })
+      ? getStudentOwnProgressHistory({ userId: session.userId, consultancySlug: slug, page: 1 }).catch(() => null)
       : Promise.resolve(null),
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer)
-      ? getStudentPhotoEvaluationsData({ userId: session.userId, consultancySlug: slug })
+      ? getStudentPhotoEvaluationsData({ userId: session.userId, consultancySlug: slug }).catch(() => null)
       : Promise.resolve(null),
     personalWorkoutsPromise,
     nutritionPlansPromise,
-    needInfluencerData
+    needInfluencerData && context.membershipId
       ? listInfluencerMissions({
           consultancyId: context.consultancyId,
           membershipId: context.membershipId,
           limit: 4,
-        })
+        }).catch(() => null)
       : Promise.resolve(null),
-    needAdminData ? getConsultancyAdminOverview(context.consultancyId) : Promise.resolve(null),
+    needAdminData ? getConsultancyAdminOverview(context.consultancyId).catch(() => null) : Promise.resolve(null),
     needStudentData && effectiveMode === "STUDENT"
-      ? listStudentPendingRequests(context.consultancyId, session.userId, context.consultancySlug)
+      ? listStudentPendingRequests(context.consultancyId, session.userId, context.consultancySlug).catch(() => [])
       : Promise.resolve([]),
     needStudentData && context.membershipId
-      ? getTodayCheckin(context.consultancyId, context.membershipId)
+      ? getTodayCheckin(context.consultancyId, context.membershipId).catch(() => null)
       : Promise.resolve(null),
     needInfluencerData && context.membershipId
       ? getReferrerDashboardData(context.consultancyId, context.membershipId).catch(() => null)
@@ -338,7 +339,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
               pendingPhotoEvaluation={hasPendingPhotoEvaluation}
               todayCheckin={todayCheckin}
               missions={influencerMissionsResult?.items || []}
-              totalMissions={influencerMissionsResult?.total}
+              totalMissions={influencerMissionsResult?.total || 0}
               referrerData={referrerData}
             />
           </>
@@ -352,7 +353,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             isStudent={false}
             todayCheckin={todayCheckin}
             missions={influencerMissionsResult?.items || []}
-            totalMissions={influencerMissionsResult?.total}
+            totalMissions={influencerMissionsResult?.total || 0}
             referrerData={referrerData}
             activeTrainingPlan={activeTrainingPlan}
             activeNutritionPlan={activeNutritionPlan}

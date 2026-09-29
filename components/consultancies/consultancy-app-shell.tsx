@@ -28,7 +28,7 @@ export function ConsultancyAppShell({
   consultancyName,
   consultancySlug,
   consultancyLogoUrl = null,
-  roles,
+  roles = [],
   userName,
   userEmail,
   userPublicId,
@@ -43,6 +43,7 @@ export function ConsultancyAppShell({
   // MULTI-ROLE UNIFIED EXPERIENCE:
   // Presentation roles represent the user's real capabilities in the consultancy.
   // Only when explicitly in preview mode (e.g. admin previewing student), restrict to that mode.
+  const safeRoles = Array.isArray(roles) ? roles : [];
   const isPreview = viewModeState?.isPreview ?? false;
   const presentationRoles: ConsultancyRole[] = isPreview && viewModeState?.effectiveMode
     ? [
@@ -50,7 +51,7 @@ export function ConsultancyAppShell({
           ? "CONSULTANCY_ADMIN"
           : (viewModeState.effectiveMode as ConsultancyRole),
       ]
-    : roles;
+    : safeRoles;
 
   const isPersonal = presentationRoles.includes("PERSONAL");
   const isNutritionist = presentationRoles.includes("NUTRITIONIST");
@@ -487,17 +488,17 @@ export function ConsultancyAppShell({
       viewModeState.effectiveMode === "ADMIN"
         ? "CONSULTANCY_ADMIN"
         : (viewModeState.effectiveMode as ConsultancyRole);
-  } else if (roles.length === 1 && roles[0] === "STUDENT") {
+  } else if (safeRoles.length === 1 && safeRoles[0] === "STUDENT") {
     activeContextRole = "STUDENT";
   } else {
-    activeContextRole = presentationRoles[0] || roles[0] || "STUDENT";
+    activeContextRole = presentationRoles[0] || safeRoles[0] || "STUDENT";
   }
 
   const isStudentActive = activeContextRole === "STUDENT";
   const offlineRole = activeContextRole;
 
   // STUDENT FIRST: Se for Aluno, exibir etiqueta de Aluno primeiro
-  const sortedRolesForLabels = [...roles].sort((a, b) => {
+  const sortedRolesForLabels = [...safeRoles].sort((a, b) => {
     if (a === "STUDENT") return -1;
     if (b === "STUDENT") return 1;
     return 0;

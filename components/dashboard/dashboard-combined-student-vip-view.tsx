@@ -253,8 +253,8 @@ export function DashboardCombinedStudentVipView({
   previousProgress,
   pendingPhotoEvaluation,
   todayCheckin,
-  missions,
-  totalMissions,
+  missions = [],
+  totalMissions = 0,
   referrerData,
 }: DashboardCombinedStudentVipViewProps) {
   const [copied, setCopied] = useState(false);
@@ -290,16 +290,17 @@ export function DashboardCombinedStudentVipView({
   // VIP Referral & Mission Metrics (Secondary)
   const referralCode = referrerData?.code || "";
   const referralUrl = referrerData?.referralUrl || "";
-  const registrationsCount = referrerData?.registrationsCount || 0;
-  const conversionsCount = referrerData?.conversionsCount || 0;
-  const approvedAmount = referrerData?.approvedAmount || 0;
-  const paidAmount = referrerData?.paidAmount || 0;
+  const registrationsCount = Number(referrerData?.registrationsCount) || 0;
+  const conversionsCount = Number(referrerData?.conversionsCount) || 0;
+  const approvedAmount = Number(referrerData?.approvedAmount) || 0;
+  const paidAmount = Number(referrerData?.paidAmount) || 0;
 
-  const pendingMissionsCount = missions.filter(
-    (m) => m.status === "PENDING" || m.status === "IN_PROGRESS"
+  const safeMissions = Array.isArray(missions) ? missions : [];
+  const pendingMissionsCount = safeMissions.filter(
+    (m) => m && (m.status === "PENDING" || m.status === "IN_PROGRESS")
   ).length;
 
-  const activeMissionsPreview = missions.slice(0, 3);
+  const activeMissionsPreview = safeMissions.slice(0, 3);
 
   async function handleCopyLink(e?: React.MouseEvent) {
     if (e) e.preventDefault();
@@ -319,12 +320,12 @@ export function DashboardCombinedStudentVipView({
       id: "student-training",
       tag: consultancyName ? `TREINOS • ${consultancyName.toUpperCase()}` : "TREINOS",
       tagColor: "brand",
-      title: hasTraining
+      title: hasTraining && activeTrainingPlan?.title
         ? activeTrainingPlan.title
         : firstName
         ? `Olá, ${firstName} — Treinos Prescritos`
         : "Rotinas e Exercícios Prescritos",
-      description: hasTraining && activeTrainingPlan.subtitle
+      description: hasTraining && activeTrainingPlan?.subtitle
         ? activeTrainingPlan.subtitle
         : "Acesse suas rotinas de treino personalizadas, exercícios e orientações do seu personal trainer.",
       ctaText: "Acessar treinos",
@@ -339,8 +340,8 @@ export function DashboardCombinedStudentVipView({
       id: "student-nutrition",
       tag: "NUTRIÇÃO",
       tagColor: "emerald",
-      title: hasNutrition ? activeNutritionPlan.title : "Planejamento Alimentar",
-      description: hasNutrition && activeNutritionPlan.subtitle
+      title: hasNutrition && activeNutritionPlan?.title ? activeNutritionPlan.title : "Planejamento Alimentar",
+      description: hasNutrition && activeNutritionPlan?.subtitle
         ? activeNutritionPlan.subtitle
         : "Consulte suas refeições prescritas, horários e diretrizes nutricionais personalizadas.",
       ctaText: "Ver plano alimentar",
@@ -569,7 +570,9 @@ export function DashboardCombinedStudentVipView({
 
         {routineList.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {routineList.map((routine, idx) => (
+            {routineList.map((routine, idx) => {
+            if (!routine) return null;
+            return (
               <div
                 key={routine.publicId || `routine-${idx}`}
                 className="p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-3"
@@ -608,7 +611,8 @@ export function DashboardCombinedStudentVipView({
                   </Link>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         ) : (
           <div className="p-5 rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)] text-center space-y-2">
@@ -666,7 +670,9 @@ export function DashboardCombinedStudentVipView({
 
             {activeNutritionPlan.meals && activeNutritionPlan.meals.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {activeNutritionPlan.meals.map((meal, idx) => (
+                {activeNutritionPlan.meals.map((meal, idx) => {
+                  if (!meal) return null;
+                  return (
                   <Link
                     key={meal.publicId || idx}
                     href={`/consultoria/${consultancySlug}/nutricao`}
@@ -692,7 +698,8 @@ export function DashboardCombinedStudentVipView({
                       </p>
                     )}
                   </Link>
-                ))}
+                );
+                })}
               </div>
             )}
           </div>
@@ -972,7 +979,7 @@ export function DashboardCombinedStudentVipView({
               </h3>
               <p className="text-xs text-[var(--text-primary)] font-medium truncate">
                 {referrerData?.pixProfile ? (
-                  `${referrerData.pixProfile.pixKeyType}: ${referrerData.pixProfile.pixKeyMasked || referrerData.pixProfile.pixKey}`
+                  `${referrerData.pixProfile.pixKeyType || "PIX"}: ${referrerData.pixProfile.pixKeyMasked || referrerData.pixProfile.pixKey || "Cadastrado"}`
                 ) : (
                   "Nenhuma chave cadastrada"
                 )}
@@ -1001,14 +1008,16 @@ export function DashboardCombinedStudentVipView({
                 href={`/consultoria/${consultancySlug}/missoes`}
                 className="text-xs font-semibold text-[var(--brand)] hover:underline"
               >
-                Ver todas ({missions.length})
+                Ver todas ({safeMissions.length})
               </Link>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              {activeMissionsPreview.map((mission) => (
+              {activeMissionsPreview.map((mission, idx) => {
+                if (!mission) return null;
+                return (
                 <div
-                  key={mission.publicId}
+                  key={mission.publicId || `mission-${idx}`}
                   className="p-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col justify-between space-y-2"
                 >
                   <div className="space-y-1">
@@ -1032,7 +1041,8 @@ export function DashboardCombinedStudentVipView({
                     <ArrowRightIcon className="w-3 h-3" />
                   </Link>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
         )}

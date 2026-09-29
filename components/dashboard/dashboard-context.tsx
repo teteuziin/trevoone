@@ -11,25 +11,26 @@ interface DashboardContextProps {
 }
 
 function getDefaultSubtitle(roles: ConsultancyRole[]): string {
-  if (roles.includes("PERSONAL") && roles.includes("CONSULTANCY_ADMIN")) {
+  const safeRoles = Array.isArray(roles) ? roles : [];
+  if (safeRoles.includes("PERSONAL") && safeRoles.includes("CONSULTANCY_ADMIN")) {
     return "Painel unificado de gestão da consultoria e prescrição de treinos.";
   }
-  if (roles.includes("NUTRITIONIST") && roles.includes("CONSULTANCY_ADMIN")) {
+  if (safeRoles.includes("NUTRITIONIST") && safeRoles.includes("CONSULTANCY_ADMIN")) {
     return "Painel unificado de gestão da consultoria e prescrição nutricional.";
   }
-  if (roles.includes("INFLUENCER") && roles.includes("STUDENT")) {
+  if (safeRoles.includes("INFLUENCER") && safeRoles.includes("STUDENT")) {
     return "Seu espaço de saúde, treino e evolução com benefícios VIP.";
   }
-  if (roles.includes("INFLUENCER")) {
+  if (safeRoles.includes("INFLUENCER")) {
     return "Bem-vindo ao seu painel de influenciador. Acompanhe suas missões, resultados e comissões.";
   }
-  if (roles.includes("CONSULTANCY_ADMIN")) {
+  if (safeRoles.includes("CONSULTANCY_ADMIN")) {
     return "Gestão da consultoria, equipe e operação.";
   }
-  if (roles.includes("PERSONAL")) {
+  if (safeRoles.includes("PERSONAL")) {
     return "Acompanhe alunos e organize suas prescrições de treino.";
   }
-  if (roles.includes("NUTRITIONIST")) {
+  if (safeRoles.includes("NUTRITIONIST")) {
     return "Acompanhe alunos e organize suas prescrições alimentares.";
   }
   return "Seu espaço de saúde, treino e evolução";
@@ -40,14 +41,15 @@ export function DashboardContext({
   roles,
   subtitle,
 }: DashboardContextProps) {
+  const safeRoles = Array.isArray(roles) ? roles : [];
   const firstName = userName ? userName.trim().split(" ")[0] : "";
-  const displaySubtitle = subtitle || getDefaultSubtitle(roles);
+  const displaySubtitle = subtitle || getDefaultSubtitle(safeRoles);
 
-  const isInfluencer = roles.includes("INFLUENCER");
-  const isStudent = roles.includes("STUDENT");
-  const isPersonal = roles.includes("PERSONAL");
-  const isNutritionist = roles.includes("NUTRITIONIST");
-  const isAdmin = roles.includes("CONSULTANCY_ADMIN");
+  const isInfluencer = safeRoles.includes("INFLUENCER");
+  const isStudent = safeRoles.includes("STUDENT");
+  const isPersonal = safeRoles.includes("PERSONAL");
+  const isNutritionist = safeRoles.includes("NUTRITIONIST");
+  const isAdmin = safeRoles.includes("CONSULTANCY_ADMIN");
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">

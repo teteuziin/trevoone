@@ -331,7 +331,7 @@ export function ConsultancyNavigation({
   consultancySlug,
   consultancyName,
   consultancyLogoUrl,
-  items,
+  items = [],
   mobilePrimaryItems,
   userName,
   userEmail,
@@ -371,7 +371,8 @@ export function ConsultancyNavigation({
 
   const baseSlugHref = `/consultoria/${consultancySlug}`;
 
-  function isItemActive(itemHref: string): boolean {
+  function isItemActive(itemHref?: string | null): boolean {
+    if (!pathname || !itemHref) return false;
     if (itemHref === baseSlugHref) {
       return pathname === baseSlugHref;
     }

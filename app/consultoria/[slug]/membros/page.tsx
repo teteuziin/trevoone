@@ -82,6 +82,9 @@ export default async function ConsultancyMembersPage({
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <div className="w-full max-w-5xl mx-auto space-y-8 pb-12">
         {/* Page Header */}

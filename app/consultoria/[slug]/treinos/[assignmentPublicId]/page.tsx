@@ -56,6 +56,8 @@ export default async function StudentWorkoutDetailPage({ params }: PageProps) {
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
       activeRole="STUDENT"
     >

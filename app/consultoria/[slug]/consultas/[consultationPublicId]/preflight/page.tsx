@@ -60,6 +60,8 @@ export default async function ConsultationPreflightPage({ params }: PageProps) {
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <ConsultationDevicePreflight
         consultancySlug={slug}

@@ -95,6 +95,8 @@ export default async function ConsultancyActivityPage({
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <ConsultancyActivityCenterView
         initialEvents={events}

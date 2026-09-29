@@ -1,4 +1,6 @@
 import { PostLoginWelcome } from "@/components/auth/post-login-welcome";
+import { AnnouncementSlideModal } from "@/components/announcements/announcement-slide-modal";
+import type { ConsultancyAnnouncementDto } from "@/lib/consultancies/announcements";
 import React from "react";
 import { ConsultancyRole, ROLE_LABELS } from "@/lib/consultancies/context";
 import { ConsultancyNavigation, NavItemConfig } from "./consultancy-navigation";
@@ -18,6 +20,8 @@ export interface ConsultancyAppShellProps {
   userPublicId?: string;
   userAvatarUrl?: string | null;
   hasProfilePhoto?: boolean;
+  profilePhotoUpdatedAt?: Date | string | number | null;
+  unreadAnnouncements?: ConsultancyAnnouncementDto[];
   consultancyPublicId?: string;
   unreadNotificationsCount?: number;
   viewModeState?: EffectiveViewModeState;
@@ -37,6 +41,8 @@ export function ConsultancyAppShell({
   userPublicId,
   userAvatarUrl,
   hasProfilePhoto,
+  profilePhotoUpdatedAt,
+  unreadAnnouncements,
   consultancyPublicId,
   unreadNotificationsCount = 0,
   viewModeState,
@@ -566,6 +572,7 @@ export function ConsultancyAppShell({
         userPublicId={userPublicId}
         avatarUrl={userAvatarUrl}
         hasProfilePhoto={hasProfilePhoto}
+        profilePhotoUpdatedAt={profilePhotoUpdatedAt}
         roleLabels={roleLabels}
         unreadNotificationsCount={unreadNotificationsCount}
         viewModeState={viewModeState}
@@ -578,7 +585,16 @@ export function ConsultancyAppShell({
         userPublicId={userPublicId}
         avatarUrl={userAvatarUrl}
         hasProfilePhoto={hasProfilePhoto}
+        profilePhotoUpdatedAt={profilePhotoUpdatedAt}
       />
+
+      {/* Unread Announcements Slide / Reading Modal */}
+      {unreadAnnouncements && unreadAnnouncements.length > 0 && (
+        <AnnouncementSlideModal
+          announcements={unreadAnnouncements}
+          consultancySlug={consultancySlug}
+        />
+      )}
 
       {/* Preview Notification Banner */}
       {viewModeState?.isPreview && (

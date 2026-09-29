@@ -38,6 +38,8 @@ export default async function PatientRecordPage({ params }: PatientRecordPagePro
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <PatientRecordView initialDetail={res.detail} slug={slug} />
     </ConsultancyAppShell>

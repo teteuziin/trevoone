@@ -82,6 +82,8 @@ export default async function ConsultancySubscriptionPage({ params }: PageProps)
         userName={session.fullName}
         userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       >
         <div className="p-8 text-center bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs max-w-md mx-auto my-12">
           <p className="text-sm font-semibold text-[var(--text-primary)]">
@@ -105,6 +107,9 @@ export default async function ConsultancySubscriptionPage({ params }: PageProps)
       roles={context.roles}
       userName={session.fullName}
       userEmail={session.email}
+      userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <div className="space-y-6 max-w-4xl mx-auto pb-12">
         {/* Header Principal */}

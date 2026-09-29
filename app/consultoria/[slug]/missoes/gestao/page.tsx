@@ -55,6 +55,8 @@ export default async function AdminMissionsPage({
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <div className="space-y-6 max-w-5xl mx-auto pb-12">
         <PageHeader

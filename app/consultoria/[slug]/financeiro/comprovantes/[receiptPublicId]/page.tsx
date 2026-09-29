@@ -84,6 +84,8 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <div className="max-w-4xl mx-auto space-y-6 pb-12">
         {/* Header Principal */}

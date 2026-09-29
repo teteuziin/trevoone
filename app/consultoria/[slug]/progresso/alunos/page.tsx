@@ -55,6 +55,8 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={effectiveState}
     >

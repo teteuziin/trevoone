@@ -69,6 +69,8 @@ export default async function StudentIntakeFormPage({ params }: PageProps) {
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
       activeRole="STUDENT"
     >

@@ -74,6 +74,8 @@ export default async function FormulariosPage({ params }: FormulariosPageProps) 
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
     >
       <CustomFormsHub

@@ -1,4 +1,4 @@
-﻿import fs from "node:fs";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -11,7 +11,10 @@ export async function resolve(specifier, context, nextResolve) {
     for (const ext of [".ts", ".tsx", ".js", ".mjs", "/index.ts", "/index.js"]) {
       const candidate = path.resolve(process.cwd(), rel + ext);
       if (fs.existsSync(candidate)) {
-        return nextResolve(pathToFileURL(candidate).href, context);
+        return {
+          url: pathToFileURL(candidate).href,
+          shortCircuit: true,
+        };
       }
     }
   }
@@ -24,7 +27,10 @@ export async function resolve(specifier, context, nextResolve) {
         for (const ext of [".ts", ".tsx", ".js", ".mjs", "/index.ts", "/index.js"]) {
           const candidate = path.resolve(parentDir, specifier + ext);
           if (fs.existsSync(candidate)) {
-            return nextResolve(pathToFileURL(candidate).href, context);
+            return {
+              url: pathToFileURL(candidate).href,
+              shortCircuit: true,
+            };
           }
         }
       }

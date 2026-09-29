@@ -14,6 +14,8 @@ export type UserSession = {
   email: string;
   rememberMe: boolean;
   expiresAt: Date;
+  hasProfilePhoto: boolean;
+  profilePhotoUpdatedAt: Date | null;
 };
 
 export async function createSession(
@@ -104,9 +106,12 @@ async function fetchCurrentSessionInternal(): Promise<UserSession | null> {
     connection = await getDbConnection();
     const [rows] = await connection.execute<RowDataPacket[]>(
       `SELECT s.id AS session_id, s.user_id, s.remember_me, s.expires_at,
-              u.public_id, u.full_name, u.email, u.status
+              u.public_id, u.full_name, u.email, u.status,
+              (up.profile_photo_storage_key IS NOT NULL) AS has_profile_photo,
+              up.profile_photo_updated_at
        FROM auth_sessions s
        INNER JOIN users u ON u.id = s.user_id
+       LEFT JOIN user_profiles up ON up.user_id = u.id
        WHERE s.token_hash = ?
          AND s.revoked_at IS NULL
          AND s.expires_at > UTC_TIMESTAMP(3)
@@ -129,6 +134,8 @@ async function fetchCurrentSessionInternal(): Promise<UserSession | null> {
       email: String(row.email),
       rememberMe: Boolean(row.remember_me),
       expiresAt: new Date(row.expires_at),
+      hasProfilePhoto: Boolean(row.has_profile_photo),
+      profilePhotoUpdatedAt: row.profile_photo_updated_at ? new Date(row.profile_photo_updated_at) : null,
     };
   } catch (err: unknown) {
     const errorDetails = {

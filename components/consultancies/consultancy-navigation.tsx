@@ -51,6 +51,7 @@ export interface ConsultancyNavigationProps {
   avatarUrl?: string | null;
   userPublicId?: string;
   hasProfilePhoto?: boolean;
+  profilePhotoUpdatedAt?: Date | string | number | null;
 }
 
 type ThemeMode = "light" | "dark" | "system";
@@ -344,6 +345,7 @@ export function ConsultancyNavigation({
   avatarUrl,
   userPublicId,
   hasProfilePhoto,
+  profilePhotoUpdatedAt,
 }: ConsultancyNavigationProps) {
   const identity = resolveUserIdentity({
     fullName: userName,
@@ -351,6 +353,7 @@ export function ConsultancyNavigation({
     userPublicId: userPublicId,
     avatarUrl: avatarUrl,
     hasProfilePhoto: hasProfilePhoto,
+    profilePhotoUpdatedAt: profilePhotoUpdatedAt,
   });
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -667,6 +670,7 @@ export function ConsultancyNavigation({
               userPublicId={identity.userPublicId}
               avatarUrl={identity.avatarUrl}
               hasProfilePhoto={identity.hasProfilePhoto}
+              profilePhotoUpdatedAt={identity.profilePhotoUpdatedAt}
               shape="circle"
               size="sm"
             />
@@ -1014,6 +1018,7 @@ export function ConsultancyNavigation({
                   userPublicId={identity.userPublicId}
                   avatarUrl={identity.avatarUrl}
                   hasProfilePhoto={identity.hasProfilePhoto}
+                  profilePhotoUpdatedAt={identity.profilePhotoUpdatedAt}
                   shape="circle"
                   size="md"
                 />

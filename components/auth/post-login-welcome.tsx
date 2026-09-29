@@ -13,6 +13,7 @@ export interface PostLoginWelcomeProps {
   userPublicId?: string | null;
   avatarUrl?: string | null;
   hasProfilePhoto?: boolean;
+  profilePhotoUpdatedAt?: Date | string | number | null;
 }
 
 export function PostLoginWelcome({
@@ -21,6 +22,7 @@ export function PostLoginWelcome({
   userPublicId,
   avatarUrl,
   hasProfilePhoto,
+  profilePhotoUpdatedAt,
 }: PostLoginWelcomeProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
@@ -60,6 +62,13 @@ export function PostLoginWelcome({
 
       const cleanupTimer = setTimeout(() => {
         setIsMounted(false);
+        try {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("trevo-welcome-finished"));
+          }
+        } catch {
+          // ignore
+        }
       }, fadeOutDuration);
 
       return () => clearTimeout(cleanupTimer);
@@ -81,6 +90,7 @@ export function PostLoginWelcome({
     userPublicId: userPublicId,
     avatarUrl: avatarUrl,
     hasProfilePhoto: hasProfilePhoto,
+    profilePhotoUpdatedAt: profilePhotoUpdatedAt,
   });
 
   return (
@@ -123,6 +133,7 @@ export function PostLoginWelcome({
               userPublicId={identity.userPublicId}
               avatarUrl={identity.avatarUrl}
               hasProfilePhoto={identity.hasProfilePhoto}
+              profilePhotoUpdatedAt={identity.profilePhotoUpdatedAt}
               shape="circle"
               size="xl"
               className="w-20 h-20 sm:w-24 sm:h-24 text-2xl sm:text-3xl font-extrabold shadow-2xl"

@@ -76,6 +76,8 @@ export default async function ConsultasPage({ params }: PageProps) {
         userName={session.fullName}
         userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       >
         <StudentConsultationsView
           consultancySlug={slug}
@@ -121,6 +123,9 @@ export default async function ConsultasPage({ params }: PageProps) {
         roles={context.roles}
         userName={session.fullName}
         userEmail={session.email}
+      userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       >
         <ProfessionalConsultationsView
           consultancySlug={slug}

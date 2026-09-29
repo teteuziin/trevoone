@@ -39,6 +39,8 @@ export default async function NewConsultancyExercisePage({ params }: PageProps) 
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         <PageHeader

@@ -16,6 +16,7 @@ import { getStudentPhotoEvaluationsData } from "@/lib/consultancies/photo-evalua
 import { listInfluencerMissions } from "@/lib/consultancies/missions";
 import { getReferrerDashboardData } from "@/lib/referrals/service";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
+import { listUnreadAnnouncementsForUser } from "@/lib/consultancies/announcements";
 import { DashboardContext } from "@/components/dashboard/dashboard-context";
 import { DashboardStudentView } from "@/components/dashboard/dashboard-student-view";
 import { StudentPendingRequestsInbox } from "@/components/consultancies/student/student-pending-requests-inbox";
@@ -55,6 +56,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
   // Resolve presentation mode state server-side
   const effectiveState = await resolveEffectiveViewMode(slug, context.roles);
+  const unreadAnnouncements = await listUnreadAnnouncementsForUser(session.userId, context.consultancyId);
   const { effectiveMode } = effectiveState;
 
   const roles = Array.isArray(context.roles) ? context.roles : [];
@@ -255,8 +257,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
         userName={session.fullName}
         userEmail={session.email}
         userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
         consultancyPublicId={context.consultancyPublicId}
         viewModeState={effectiveState}
+      unreadAnnouncements={unreadAnnouncements}
       >
         <div className="p-8 sm:p-12 max-w-xl mx-auto my-8 bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] text-center space-y-4 shadow-xs">
           <div className="w-12 h-12 rounded-full bg-[var(--warning-soft)] border border-[var(--warning-border)] text-[var(--warning-foreground)] mx-auto flex items-center justify-center text-xl font-bold">
@@ -288,8 +293,11 @@ export default async function ConsultancyPage({ params }: PageProps) {
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={effectiveState}
+      unreadAnnouncements={unreadAnnouncements}
     >
       <div className="max-w-[1120px] mx-auto w-full space-y-6 sm:space-y-8">
         {/* Context Header Compacto */}

@@ -58,6 +58,8 @@ export default async function AdminMissionDetailPage({
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <div className="space-y-6 max-w-4xl mx-auto pb-12">
         {/* Header / Breadcrumb */}

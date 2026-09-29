@@ -11,6 +11,7 @@ export interface UserIdentityInput {
   userPublicId?: string | null;
   avatarUrl?: string | null;
   hasProfilePhoto?: boolean | null;
+  profilePhotoUpdatedAt?: Date | string | number | null;
 }
 
 export interface ResolvedUserIdentity {
@@ -20,6 +21,7 @@ export interface ResolvedUserIdentity {
   userPublicId: string | null;
   avatarUrl: string | null;
   hasProfilePhoto: boolean;
+  profilePhotoUpdatedAt?: Date | string | number | null;
   initials: string;
 }
 
@@ -131,8 +133,17 @@ export function resolveUserIdentity(input?: UserIdentityInput | null): ResolvedU
     fullNameRaw || displayNameRaw || firstNameRaw || resolvedFullName
   );
 
-  // 4. Photo presence flag (defaults to true if userPublicId is provided so UserAvatar queries /api/users/[id]/avatar)
-  const hasProfilePhoto = input?.hasProfilePhoto ?? (userPublicId !== null || avatarUrl !== null);
+  // 4. Photo presence flag:
+  // If explicitly specified as boolean, honor it without guessing.
+  // Otherwise, default to true if userPublicId is provided so UserAvatar queries /api/users/[id]/avatar.
+  let hasProfilePhoto = false;
+  if (input?.hasProfilePhoto !== undefined && input?.hasProfilePhoto !== null) {
+    hasProfilePhoto = Boolean(input.hasProfilePhoto);
+  } else {
+    hasProfilePhoto = userPublicId !== null || avatarUrl !== null;
+  }
+
+  const profilePhotoUpdatedAt = input?.profilePhotoUpdatedAt ?? null;
 
   return {
     fullName: resolvedFullName,
@@ -141,6 +152,7 @@ export function resolveUserIdentity(input?: UserIdentityInput | null): ResolvedU
     userPublicId,
     avatarUrl,
     hasProfilePhoto,
+    profilePhotoUpdatedAt,
     initials,
   };
 }

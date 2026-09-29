@@ -52,6 +52,8 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
         userName={session.fullName}
         userEmail={session.email}
         userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
         consultancyPublicId={access.context.consultancyPublicId}
         activeRole="STUDENT"
       >
@@ -84,6 +86,8 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
       userName={session.fullName}
       userEmail={session.email}
       userPublicId={session.userPublicId}
+      hasProfilePhoto={session.hasProfilePhoto}
+      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={access.context.consultancyPublicId}
       activeRole="STUDENT"
     >

@@ -123,7 +123,7 @@ export async function loginAccount(
     await verifyPassword(password, DUMMY_SCRYPT_HASH);
     return {
       success: false,
-      message: "E-mail ou senha inválidos.",
+      message: "E-mail ou senha incorretos. Confira os dados e tente novamente.",
     };
   }
 
@@ -132,7 +132,7 @@ export async function loginAccount(
   if (!isPasswordValid || user.status !== "ACTIVE" || user.deleted_at !== null) {
     return {
       success: false,
-      message: "E-mail ou senha inválidos.",
+      message: "E-mail ou senha incorretos. Confira os dados e tente novamente.",
     };
   }
 

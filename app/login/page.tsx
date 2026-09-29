@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { AuthShell } from "@/components/auth/auth-shell";
-import { LoginForm } from "@/components/auth/login-form";
+import { LoginShellV2 } from "@/components/auth/login-shell-v2";
 import { getCurrentSession } from "@/lib/auth/session";
 import { validateInvitationReturnTo } from "@/lib/auth/invitation-return-to";
 
@@ -26,15 +25,9 @@ export default async function LoginPage({ searchParams }: PageProps) {
   }
 
   return (
-    <AuthShell
-      title="Bem-vindo de volta"
-      subtitle="Acesse sua conta para continuar."
-    >
-      <LoginForm
-        returnTo={safeReturnTo || undefined}
-        resetSuccess={resetSuccess}
-      />
-    </AuthShell>
+    <LoginShellV2
+      returnTo={safeReturnTo || undefined}
+      resetSuccess={resetSuccess}
+    />
   );
-
 }

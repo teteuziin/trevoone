@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 
 const AUDIO_SRC = "/audio/login-theme.mp3";
 const TARGET_VOLUME = 0.15;
@@ -12,7 +12,6 @@ export function LoginAudioController() {
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const userDisabledRef = useRef(false);
 
-  // Clear any ongoing fade intervals safely
   const clearFade = useCallback(() => {
     if (fadeIntervalRef.current) {
       clearInterval(fadeIntervalRef.current);
@@ -20,7 +19,6 @@ export function LoginAudioController() {
     }
   }, []);
 
-  // Smooth fade-in
   const fadeIn = useCallback(
     (audio: HTMLAudioElement) => {
       clearFade();
@@ -44,7 +42,6 @@ export function LoginAudioController() {
     [clearFade]
   );
 
-  // Smooth fade-out and stop
   const fadeOutAndStop = useCallback(() => {
     clearFade();
     const audio = audioRef.current;
@@ -69,7 +66,6 @@ export function LoginAudioController() {
     }, intervalMs);
   }, [clearFade]);
 
-  // Start playback
   const playAudio = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || userDisabledRef.current) return;
@@ -81,12 +77,10 @@ export function LoginAudioController() {
         fadeIn(audio);
       })
       .catch(() => {
-        // Silently caught if browser policy rejects autoplay or file absent
         setIsPlaying(false);
       });
   }, [fadeIn]);
 
-  // Pause playback
   const pauseAudio = useCallback(() => {
     clearFade();
     const audio = audioRef.current;
@@ -96,7 +90,6 @@ export function LoginAudioController() {
     setIsPlaying(false);
   }, [clearFade]);
 
-  // User click toggle
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -121,7 +114,6 @@ export function LoginAudioController() {
   };
 
   useEffect(() => {
-    // 1. Check local preference
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored === "false") {
@@ -131,20 +123,17 @@ export function LoginAudioController() {
       // storage fallback
     }
 
-    // 2. Initialize Audio element
     const audio = new Audio(AUDIO_SRC);
     audio.loop = true;
     audio.preload = "auto";
     audio.volume = 0;
     audioRef.current = audio;
 
-    // Detect error silently
     const handleError = () => {
       setIsPlaying(false);
     };
     audio.addEventListener("error", handleError);
 
-    // 3. Attempt autoplay if not user disabled
     if (!userDisabledRef.current) {
       audio
         .play()
@@ -153,7 +142,6 @@ export function LoginAudioController() {
           fadeIn(audio);
         })
         .catch(() => {
-          // Autoplay blocked by browser policy: listen for first valid user interaction
           const handleFirstInteraction = () => {
             window.removeEventListener("click", handleFirstInteraction);
             window.removeEventListener("touchstart", handleFirstInteraction);
@@ -170,7 +158,6 @@ export function LoginAudioController() {
         });
     }
 
-    // 4. Page Visibility Handling (tab switch)
     const handleVisibilityChange = () => {
       if (document.hidden) {
         if (audioRef.current && !audioRef.current.paused) {
@@ -184,7 +171,6 @@ export function LoginAudioController() {
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // 5. Listen for login submission trigger to smoothly fade out
     const handleFadeOutEvent = () => {
       fadeOutAndStop();
     };
@@ -206,31 +192,29 @@ export function LoginAudioController() {
       <button
         type="button"
         onClick={togglePlay}
-        title={isPlaying ? "Pausar música" : "Tocar música"}
-        aria-label={isPlaying ? "Pausar música" : "Tocar música"}
-        className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+        title={isPlaying ? "Pausar música" : "Ativar música"}
+        aria-label={isPlaying ? "Pausar música" : "Ativar música"}
+        className={`group relative flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00E676]/50 ${
           isPlaying
-            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/15"
-            : "bg-neutral-900/80 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/80"
+            ? "bg-[#00E676]/10 border-[#00E676]/40 text-[#00E676] hover:bg-[#00E676]/20 shadow-[0_0_15px_rgba(0,230,118,0.15)]"
+            : "bg-[#0e1015]/90 border-neutral-800 hover:border-neutral-700 text-neutral-300 hover:text-white hover:bg-[#141720]"
         }`}
       >
         {isPlaying ? (
           <>
-            {/* Animated Equalizer Wave Bars */}
             <span className="flex items-end gap-0.5 h-3.5 w-3.5" aria-hidden="true">
-              <span className="w-0.5 bg-emerald-400 rounded-full h-full animate-pulse" />
-              <span className="w-0.5 bg-emerald-400 rounded-full h-2/3 animate-pulse" style={{ animationDelay: "150ms" }} />
-              <span className="w-0.5 bg-emerald-400 rounded-full h-4/5 animate-pulse" style={{ animationDelay: "300ms" }} />
+              <span className="w-0.5 bg-[#00E676] rounded-full h-full animate-pulse" />
+              <span className="w-0.5 bg-[#00E676] rounded-full h-2/3 animate-pulse" style={{ animationDelay: "150ms" }} />
+              <span className="w-0.5 bg-[#00E676] rounded-full h-4/5 animate-pulse" style={{ animationDelay: "300ms" }} />
             </span>
-            <span className="hidden sm:inline text-[11px] font-medium tracking-wide">
-              Música ambiente
+            <span className="text-[11px] font-medium tracking-wide">
+              Pausar música
             </span>
           </>
         ) : (
           <>
-            {/* Muted Speaker Icon */}
             <svg
-              className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity"
+              className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100 transition-opacity"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -240,15 +224,10 @@ export function LoginAudioController() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
+                d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
               />
             </svg>
-            <span className="hidden sm:inline text-[11px] font-normal tracking-wide">
+            <span className="text-[11px] font-normal tracking-wide">
               Ativar música
             </span>
           </>

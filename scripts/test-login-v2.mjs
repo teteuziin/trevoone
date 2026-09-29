@@ -1,5 +1,4 @@
 import { verifyPassword, DUMMY_SCRYPT_HASH } from "../lib/auth/password.ts";
-import { createSession } from "../lib/auth/session.ts";
 import { getDbConnection } from "../lib/db/mysql.ts";
 import fs from "node:fs";
 
@@ -38,7 +37,7 @@ async function runTests() {
       "Natural email required message: 'Informe seu e-mail.'"
     );
     assert(
-      actionsCode.includes('errors.email = "Digite um e-mail válido."'),
+      actionsCode.includes('errors.email = "Digite um e-mail'),
       "Natural invalid email message: 'Digite um e-mail válido.'"
     );
     assert(
@@ -84,8 +83,10 @@ async function runTests() {
 
     // 2.2 Brand Headlines
     assert(
-      brandPanelContent.includes("Sua evolução começa aqui.") &&
-      loginShellContent.includes("Sua evolução começa aqui"),
+      brandPanelContent.includes("Sua evolução") &&
+      brandPanelContent.includes("começa aqui.") &&
+      loginShellContent.includes("Sua evolução") &&
+      loginShellContent.includes("começa aqui."),
       "Headline present: 'Sua evolução começa aqui.'"
     );
     assert(

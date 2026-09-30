@@ -16,7 +16,6 @@ import {
 import type { DocumentInput } from "../ai/openai-client";
 import type { RawTrainingImportProposal } from "../ai/schemas";
 import { recordConsultancyActivity } from "../consultancies/activity-log";
-import { ensureAiSchemaBootstrapped } from "../db/ai-schema-bootstrap";
 
 export type ExerciseMatchStatus = "MATCHED" | "AMBIGUOUS" | "NOT_FOUND";
 
@@ -204,9 +203,6 @@ export async function processTrainingAiImport(params: {
     targetStudentMembershipId,
     idempotencyKey = crypto.randomUUID(),
   } = params;
-
-  // Ensure database tables exist
-  await ensureAiSchemaBootstrapped();
 
   // 1. Compute file hash
   const fileBuffer = input.buffer || Buffer.from(input.text || "", "utf8");

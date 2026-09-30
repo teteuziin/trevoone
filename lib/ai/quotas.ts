@@ -8,7 +8,6 @@ import crypto from "node:crypto";
 import type { PoolConnection, RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { getConsultancyLocalDate } from "../consultancies/timezone";
-import { ensureAiSchemaBootstrapped } from "../db/ai-schema-bootstrap";
 
 export interface ConsultancyAiQuotaInfo {
   consultancyId: number;
@@ -93,7 +92,6 @@ export async function getConsultancyAiQuotaInfo(
   consultancyId: number | bigint,
   conn?: PoolConnection
 ): Promise<ConsultancyAiQuotaInfo> {
-  await ensureAiSchemaBootstrapped();
   const shouldRelease = !conn;
   const db = conn || (await getDbConnection());
   try {
@@ -535,7 +533,6 @@ export async function listPlatformAiUsageSummary(): Promise<Array<{
   lastUsedAt: string | null;
   status: string;
 }>> {
-  await ensureAiSchemaBootstrapped();
   const db = await getDbConnection();
   const defaultDateBucket = getConsultancyLocalDate("America/Sao_Paulo");
   try {
@@ -608,7 +605,6 @@ export async function getConsultancyAiSettings(consultancyId: number | bigint): 
     dailyLimit: number;
   }>;
 }> {
-  await ensureAiSchemaBootstrapped();
   const db = await getDbConnection();
   try {
     const quotaInfo = await getConsultancyAiQuotaInfo(consultancyId, db);

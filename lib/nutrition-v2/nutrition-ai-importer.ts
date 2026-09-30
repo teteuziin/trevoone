@@ -753,7 +753,7 @@ export async function confirmNutritionAiImport(params: {
         const [foodRows] = await db.query<RowDataPacket[]>(
           `SELECT
             id, public_id, COALESCE(display_name_pt_br, name) AS display_name,
-            calories_kcal, protein_g, carbohydrate_g, fat_g, fiber_g, reference_amount, reference_unit_code
+            calories_kcal, protein_g, carbohydrate_g, fat_g, reference_amount, reference_unit_code
            FROM nutrition_v2_foods
            WHERE public_id = ? LIMIT 1`,
           [f.foodPublicId]
@@ -774,7 +774,6 @@ export async function confirmNutritionAiImport(params: {
         const p = foodDb.protein_g !== null ? Math.round(Number(foodDb.protein_g) * factor * 10) / 10 : null;
         const c = foodDb.carbohydrate_g !== null ? Math.round(Number(foodDb.carbohydrate_g) * factor * 10) / 10 : null;
         const fat = foodDb.fat_g !== null ? Math.round(Number(foodDb.fat_g) * factor * 10) / 10 : null;
-        const fib = foodDb.fiber_g !== null ? Math.round(Number(foodDb.fiber_g) * factor * 10) / 10 : null;
 
         await db.query(
           `INSERT INTO nutrition_v2_meal_items (
@@ -782,7 +781,7 @@ export async function confirmNutritionAiImport(params: {
             prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
             calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot,
             fat_g_snapshot, micronutrients_snapshot_json, notes, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NOW(3), NOW(3))`,
           [
             itemPublicId,
             mealId,
@@ -796,7 +795,6 @@ export async function confirmNutritionAiImport(params: {
             p,
             c,
             fat,
-            fib !== null ? JSON.stringify({ fiberG: fib }) : null,
             f.notes || null,
           ]
         );

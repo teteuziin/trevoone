@@ -2,17 +2,12 @@ import crypto from "node:crypto";
 import type { PoolConnection, RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "@/lib/db/mysql";
 
-export type ConsultancyActivityModule =
-  | "AUTH"
-  | "MEMBERS"
-  | "STUDENT"
-  | "PERSONAL"
-  | "NUTRITION"
-  | "FORMS"
-  | "CONSULTATIONS"
-  | "FILES"
-  | "AI"
-  | "ADMIN";
+export * from "./activity-formatters";
+import type {
+  ConsultancyActivityModule,
+  ActivityFilterOptions,
+  ActivityEventRow,
+} from "./activity-formatters";
 
 export interface RecordActivityParams {
   consultancyId: number | bigint;
@@ -163,44 +158,35 @@ export async function recordConsultancyActivity(
   }
 }
 
-export interface ActivityFilterOptions {
-  actorMembershipId?: number | bigint;
-  actorRole?: string;
-  module?: string;
-  action?: string;
-  subjectMembershipId?: number | bigint;
-  startDate?: string;
-  endDate?: string;
-  search?: string;
-}
-
-export interface ActivityEventRow {
-  id: number;
-  public_id: string;
-  consultancy_id: number;
-  actor_membership_id: number | null;
-  actor_user_id: number;
-  actor_role: string;
-  action: string;
-  module: string;
-  resource_type: string;
-  resource_public_id: string | null;
-  subject_membership_id: number | null;
-  summary: string;
-  metadata_json: unknown;
-  created_at: string;
-  actor_name: string | null;
-  actor_email: string | null;
-  subject_name: string | null;
-  subject_email: string | null;
-}
+// Types imported and re-exported from ./activity-formatters
 
 export async function listConsultancyActivityEvents(
-  consultancyId: number | bigint,
-  filters: ActivityFilterOptions = {},
-  limit = 50,
-  offset = 0
+  consultancyIdOrOptions:
+    | number
+    | bigint
+    | (ActivityFilterOptions & { consultancyId: number | bigint; limit?: number; offset?: number }),
+  filtersOrUndefined?: ActivityFilterOptions,
+  limitArg = 50,
+  offsetArg = 0
 ): Promise<{ events: ActivityEventRow[]; total: number }> {
+  let consultancyId: number | bigint;
+  let filters: ActivityFilterOptions = {};
+  let limit = limitArg;
+  let offset = offsetArg;
+
+  if (typeof consultancyIdOrOptions === "object" && consultancyIdOrOptions !== null) {
+    consultancyId = consultancyIdOrOptions.consultancyId;
+    limit = consultancyIdOrOptions.limit ?? limitArg;
+    offset = consultancyIdOrOptions.offset ?? offsetArg;
+    filters = { ...consultancyIdOrOptions };
+    delete (filters as any).consultancyId;
+    delete (filters as any).limit;
+    delete (filters as any).offset;
+  } else {
+    consultancyId = consultancyIdOrOptions;
+    filters = filtersOrUndefined ?? {};
+  }
+
   const conn = await getDbConnection();
   try {
     const whereClauses: string[] = ["cae.consultancy_id = ?"];
@@ -209,6 +195,10 @@ export async function listConsultancyActivityEvents(
     if (filters.actorMembershipId) {
       whereClauses.push("cae.actor_membership_id = ?");
       whereValues.push(filters.actorMembershipId);
+    }
+    if (filters.actorUserId) {
+      whereClauses.push("cae.actor_user_id = ?");
+      whereValues.push(filters.actorUserId);
     }
     if (filters.actorRole) {
       whereClauses.push("cae.actor_role = ?");
@@ -326,6 +316,10 @@ export async function listConsultancyActivityEvents(
     conn.release();
   }
 }
+
+// formatActivityEventNaturalSentence imported and re-exported from ./activity-formatters
+
+
 
 export async function getConsultancyActivityEventDetail(
   consultancyId: number | bigint,

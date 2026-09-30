@@ -7,6 +7,7 @@ import {
   createSafePdfFilename,
 } from "@/lib/nutrition-v2/nutrition-plan-presentation";
 import { generateNutritionPlanPdfBuffer } from "@/lib/nutrition-v2/generate-nutrition-pdf";
+import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,7 +54,24 @@ export async function GET(request: Request, context: RouteContext) {
   // 4. Generate PDF buffer server-side
   const pdfBuffer = await generateNutritionPlanPdfBuffer(presented);
 
-  // 5. Build Content-Disposition
+  // 5. Record activity log
+  await recordConsultancyActivity({
+    consultancyId: access.context.consultancyId,
+    actorUserId: session.userId,
+    actorMembershipId: access.context.membershipId,
+    actorRole: "STUDENT",
+    action: "NUTRITION_PDF_DOWNLOADED",
+    module: "NUTRITION",
+    resourceType: "NUTRITION_PLAN",
+    resourcePublicId: v2Auth.activeAssignment.plan.publicId,
+    summary: `baixou o PDF do próprio plano alimentar "${v2Auth.activeAssignment.plan.title}"`,
+    metadata: {
+      planTitle: v2Auth.activeAssignment.plan.title,
+      planPublicId: v2Auth.activeAssignment.plan.publicId,
+    },
+  });
+
+  // 6. Build Content-Disposition
   const { searchParams } = new URL(request.url);
   const isAttachment = searchParams.get("download") === "true";
   const safeFilename = createSafePdfFilename("Plano-Alimentar", session.fullName);

@@ -41,3 +41,25 @@ export async function resolve(specifier, context, nextResolve) {
     throw err;
   }
 }
+
+export async function load(url, context, nextLoad) {
+  if (url.endsWith(".tsx")) {
+    const { default: ts } = await import("typescript");
+    const filePath = fileURLToPath(url);
+    const source = fs.readFileSync(filePath, "utf8");
+    const transpiled = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+        jsx: ts.JsxEmit.React,
+      },
+      fileName: filePath,
+    });
+    return {
+      format: "module",
+      source: transpiled.outputText,
+      shortCircuit: true,
+    };
+  }
+  return nextLoad(url, context);
+}

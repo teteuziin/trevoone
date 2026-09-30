@@ -9,6 +9,7 @@ import {
   createSafePdfFilename,
 } from "@/lib/nutrition-v2/nutrition-plan-presentation";
 import { generateNutritionPlanPdfBuffer } from "@/lib/nutrition-v2/generate-nutrition-pdf";
+import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
 import type { RowDataPacket } from "mysql2/promise";
 
 export const runtime = "nodejs";
@@ -24,12 +25,6 @@ interface RouteContext {
 /**
  * GET: Securely generates and streams a target student's active nutrition plan as a vector A4 PDF
  * for an authorized Nutritionist or Consultancy Admin.
- *
- * Strict RBAC:
- * - Caller must be CONSULTANCY_ADMIN or NUTRITIONIST with an active professional relationship.
- * - Personal trainers without nutrition authorization are strictly blocked.
- * - Former or unlinked professionals are blocked.
- * - Target student must belong to the same tenancy.
  */
 export async function GET(request: Request, context: RouteContext) {
   const { slug, studentPublicId } = await context.params;
@@ -88,7 +83,7 @@ export async function GET(request: Request, context: RouteContext) {
     const consultancyName = String(studentRow.consultancy_name || accessContext.consultancySlug || "Consultoria");
     const consultancyLogoUrl = studentRow.consultancy_logo_url ? String(studentRow.consultancy_logo_url) : null;
 
-    // 3. Strict RBAC: Non-admin professionals MUST possess an active, current professional relationship
+    // 3. Strict RBAC: Non-admin professionals MUST possess an active professional relationship
     if (!isAdmin) {
       const hasRelationship = await assertProfessionalStudentRelationship(connection, {
         consultancyId: accessContext.consultancyId,
@@ -123,7 +118,26 @@ export async function GET(request: Request, context: RouteContext) {
     // 6. Generate vector PDF buffer
     const pdfBuffer = await generateNutritionPlanPdfBuffer(presented);
 
-    // 7. Content-Disposition
+    // 7. Audit log event
+    await recordConsultancyActivity({
+      consultancyId: accessContext.consultancyId,
+      actorUserId: session.userId,
+      actorMembershipId: accessContext.membershipId,
+      actorRole: isAdmin ? "CONSULTANCY_ADMIN" : "NUTRITIONIST",
+      action: "NUTRITION_PDF_DOWNLOADED",
+      module: "NUTRITION",
+      resourceType: "NUTRITION_PLAN",
+      resourcePublicId: v2Auth.activeAssignment.plan.publicId,
+      subjectMembershipId: studentMembershipId,
+      summary: `baixou o PDF do plano alimentar de ${studentName}`,
+      metadata: {
+        studentName,
+        planTitle: v2Auth.activeAssignment.plan.title,
+        planPublicId: v2Auth.activeAssignment.plan.publicId,
+      },
+    });
+
+    // 8. Content-Disposition
     const { searchParams } = new URL(request.url);
     const isAttachment = searchParams.get("download") === "true";
     const safeFilename = createSafePdfFilename("Plano-Alimentar", studentName);

@@ -9,6 +9,7 @@ import { listAssignmentsForProfessional } from "@/lib/training-v2/assignment-rep
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { WorkoutTemplatePickerTrigger } from "@/components/consultancies/training-v2/workout-template-picker";
 import { WorkoutAssignmentsList } from "@/components/consultancies/training-v2/workout-assignments-list";
+import { TrainingAiImportModal } from "@/components/consultancies/training-v2/training-ai-import-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 

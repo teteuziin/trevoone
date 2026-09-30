@@ -37,6 +37,14 @@ import { WorkoutPublishDialog } from "./workout-publish-dialog";
 import { WorkoutAssignModal } from "./workout-assign-modal";
 import { StudentWorkoutRenderer } from "./student-workout-renderer";
 
+function DownloadIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+}
+
 function CheckIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -633,6 +641,17 @@ export function WorkoutBuilder({
               <EyeIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Pré-visualizar</span>
             </button>
+
+            <a
+              href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Baixar ficha de treino em PDF"
+            >
+              <DownloadIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+              <span>Baixar PDF</span>
+            </a>
 
             {isDraft && (
               <button

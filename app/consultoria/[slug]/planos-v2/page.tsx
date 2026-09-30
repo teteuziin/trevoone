@@ -9,6 +9,7 @@ import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NutritionWorkspaceNav } from "@/components/consultancies/nutrition-v2/nutrition-workspace-nav";
+import { NutritionAiImportModal } from "@/components/consultancies/nutrition-v2/nutrition-ai-import-modal";
 
 interface PlanosV2PageProps {
   params: Promise<{ slug: string }>;

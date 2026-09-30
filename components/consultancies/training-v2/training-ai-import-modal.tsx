@@ -330,7 +330,7 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
                 {/* Student Selector */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-foreground uppercase tracking-wider">
-                    Aluno da Consultoria
+                    Aluno da Consultoria (Opcional)
                   </label>
                   {targetStudentMembershipId ? (
                     <div className="p-2.5 rounded-xl bg-muted/20 border border-border/40 text-xs text-muted-foreground">
@@ -342,7 +342,7 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
                       onChange={(e) => setSelectedStudentId(e.target.value ? Number(e.target.value) : null)}
                       className="w-full rounded-xl bg-surface border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:border-emerald-500"
                     >
-                      <option value="">Selecione o aluno (opcional para ficha geral / modelo)...</option>
+                      <option value="">[ Nenhum — salvar como rascunho ]</option>
                       {students.map((s) => (
                         <option key={s.membershipId} value={s.membershipId}>
                           {s.fullName} ({s.email})
@@ -440,7 +440,7 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
                         onChange={(e) => setSelectedStudentId(e.target.value ? Number(e.target.value) : null)}
                         className="bg-surface border border-border rounded-xl px-2 py-1 text-xs text-foreground focus:outline-none focus:border-emerald-500"
                       >
-                        <option value="">Selecione o aluno...</option>
+                        <option value="">[ Nenhum — salvar como rascunho ]</option>
                         {students.map((s) => (
                           <option key={s.membershipId} value={s.membershipId}>
                             {s.fullName} ({s.email})
@@ -449,7 +449,7 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
                       </select>
                       {proposal.studentNameCandidate && (
                         <span className="text-muted-foreground text-[11px] italic">
-                          (Documento indica: &ldquo;{proposal.studentNameCandidate}&rdquo;)
+                          (Documento indica sugestão: &ldquo;{proposal.studentNameCandidate}&rdquo;)
                         </span>
                       )}
                     </div>
@@ -568,7 +568,13 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
                     onClick={handleConfirmImport}
                     className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5"
                   >
-                    <span>{state === "SAVING" ? "Criando ficha..." : "Criar Ficha de Treino"}</span>
+                    <span>
+                      {state === "SAVING"
+                        ? "Salvando rascunho..."
+                        : selectedStudentId || targetStudentMembershipId
+                        ? "Salvar rascunho"
+                        : "Salvar como rascunho"}
+                    </span>
                     <span>→</span>
                   </button>
                 </div>

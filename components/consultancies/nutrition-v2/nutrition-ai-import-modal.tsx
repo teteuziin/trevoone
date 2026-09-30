@@ -416,15 +416,9 @@ export function NutritionAiImportModal({
   // Confirm import
   async function handleConfirmImport() {
     if (!proposal) return;
-    if (!selectedPatientId) {
-      setErrorMessage(
-        'Selecione o aluno/paciente da consultoria antes de criar o plano alimentar.'
-      );
-      return;
-    }
     if (proposal.stats.ambiguousCount > 0 || proposal.stats.notFoundCount > 0) {
       setErrorMessage(
-        'Todos os alimentos precisam ser selecionados ou removidos antes de criar o plano alimentar.'
+        'Todos os alimentos precisam ser selecionados ou removidos antes de salvar o rascunho.'
       );
       return;
     }
@@ -440,7 +434,7 @@ export function NutritionAiImportModal({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             jobPublicId: proposal.jobPublicId,
-            targetPatientMembershipId: selectedPatientId,
+            targetPatientMembershipId: selectedPatientId || defaultPatientMembershipId || null,
             confirmedTitle: proposal.title,
             confirmedMeals: proposal.meals,
           }),
@@ -668,7 +662,7 @@ export function NutritionAiImportModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">
-                        Aluno / Paciente da Consultoria
+                        Aluno / Paciente da Consultoria (Opcional)
                       </label>
                       {defaultPatientMembershipId ? (
                         <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
@@ -680,7 +674,7 @@ export function NutritionAiImportModal({
                           onChange={(e) => setSelectedPatientId(e.target.value ? Number(e.target.value) : null)}
                           className="w-full rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                         >
-                          <option value="">Selecione o paciente (obrigatório ao salvar)...</option>
+                          <option value="">[ Nenhum — salvar como rascunho ]</option>
                           {students.map((s) => (
                             <option key={s.membershipId} value={s.membershipId}>
                               {s.fullName} ({s.email})
@@ -771,7 +765,7 @@ export function NutritionAiImportModal({
                               onChange={(e) => setSelectedPatientId(e.target.value ? Number(e.target.value) : null)}
                               className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-xl px-2.5 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                             >
-                              <option value="">Selecione o paciente...</option>
+                              <option value="">[ Nenhum — salvar como rascunho ]</option>
                               {students.map((s) => (
                                 <option key={s.membershipId} value={s.membershipId}>
                                   {s.fullName} ({s.email})
@@ -780,7 +774,7 @@ export function NutritionAiImportModal({
                             </select>
                             {proposal.patientNameCandidate && (
                               <span className="text-[var(--text-muted)] text-[11px] italic">
-                                (Documento indica: &ldquo;{proposal.patientNameCandidate}&rdquo;)
+                                (Documento indica sugestão: &ldquo;{proposal.patientNameCandidate}&rdquo;)
                               </span>
                             )}
                           </div>
@@ -1047,12 +1041,14 @@ export function NutritionAiImportModal({
                         {isConfirming ? (
                           <>
                             <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                            <span>Criando plano...</span>
+                            <span>Salvando rascunho...</span>
                           </>
                         ) : confirmSuccess ? (
-                          <span>Plano criado com sucesso!</span>
+                          <span>Rascunho salvo com sucesso!</span>
+                        ) : selectedPatientId || defaultPatientMembershipId ? (
+                          <span>Salvar rascunho</span>
                         ) : (
-                          <span>Criar plano alimentar</span>
+                          <span>Salvar como rascunho</span>
                         )}
                       </Button>
                     </div>

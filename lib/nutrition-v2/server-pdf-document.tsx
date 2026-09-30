@@ -50,6 +50,18 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
+  draftBadge: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    color: "#d97706",
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: "#fcd34d",
+    textTransform: "uppercase",
+  },
   planTitle: {
     fontSize: 16,
     fontFamily: "Helvetica-Bold",
@@ -326,7 +338,7 @@ interface ServerPdfDocumentProps {
 export function ServerPdfDocument({ plan }: ServerPdfDocumentProps) {
   return (
     <Document
-      title={`Plano Alimentar — ${plan.studentName}`}
+      title={plan.studentName ? `Plano Alimentar — ${plan.studentName}` : `Plano Alimentar — ${plan.title}`}
       author={plan.prescriberName || plan.consultancyName || "Trevo One"}
       subject="Prescrição Nutricional Oficial"
       keywords="nutrição, dieta, cardápio, trevo one, saúde"
@@ -338,17 +350,22 @@ export function ServerPdfDocument({ plan }: ServerPdfDocumentProps) {
             <Text style={styles.brandLogo}>
               TREVO <Text style={styles.brandAccent}>ONE</Text>
             </Text>
-            <Text style={styles.consultancyName}>{plan.consultancyName}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              {plan.isDraft && <Text style={styles.draftBadge}>Rascunho</Text>}
+              <Text style={styles.consultancyName}>{plan.consultancyName}</Text>
+            </View>
           </View>
 
           <Text style={styles.planTitle}>{plan.title}</Text>
           {plan.subtitle && <Text style={styles.planSubtitle}>{plan.subtitle}</Text>}
 
           <View style={styles.metadataGrid}>
-            <View style={styles.metadataCol}>
-              <Text style={styles.metadataLabel}>Aluno(a)</Text>
-              <Text style={styles.metadataValue}>{plan.studentName}</Text>
-            </View>
+            {plan.studentName && plan.studentName.trim() && plan.studentName.trim() !== "Prescrição Nutricional" && (
+              <View style={styles.metadataCol}>
+                <Text style={styles.metadataLabel}>Aluno(a)</Text>
+                <Text style={styles.metadataValue}>{plan.studentName.trim()}</Text>
+              </View>
+            )}
 
             {plan.prescriberName && (
               <View style={styles.metadataCol}>

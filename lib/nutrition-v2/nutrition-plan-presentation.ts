@@ -62,7 +62,7 @@ export interface PresentedNutritionPlan {
   generalGuidance: string | null;
   notesForStudent: string | null;
   prescriberName: string | null;
-  studentName: string;
+  studentName?: string | null;
   consultancyName: string;
   consultancyLogoUrl: string | null;
   periodFormatted: string | null;
@@ -70,10 +70,11 @@ export interface PresentedNutritionPlan {
   meals: PresentedMeal[];
   totals: PresentedPlanTotals;
   micronutrients?: PresentedMicronutrientItem[] | null;
+  isDraft?: boolean;
 }
 
 export interface PresentationOptions {
-  studentName: string;
+  studentName?: string | null;
   consultancyName: string;
   consultancyLogoUrl?: string | null;
   prescriberName?: string | null;
@@ -243,7 +244,7 @@ export function presentNutritionPlan(
     generalGuidance: version.generalGuidance ? version.generalGuidance.trim() : null,
     notesForStudent: notesForStudent ? notesForStudent.trim() : null,
     prescriberName: assignedPlan.prescriberName || options.prescriberName || null,
-    studentName: options.studentName.trim(),
+    studentName: options.studentName ? options.studentName.trim() : null,
     consultancyName: options.consultancyName.trim(),
     consultancyLogoUrl: options.consultancyLogoUrl || null,
     periodFormatted,
@@ -267,6 +268,7 @@ export function presentNutritionPlanFromVersionTree(
       objective: string | null;
       generalGuidance: string | null;
       notes: string | null;
+      status?: string | null;
     };
     meals: Array<{
       publicId: string;
@@ -376,7 +378,7 @@ export function presentNutritionPlanFromVersionTree(
     generalGuidance: version.generalGuidance ? version.generalGuidance.trim() : null,
     notesForStudent: version.notes ? version.notes.trim() : null,
     prescriberName: options.prescriberName || null,
-    studentName: options.studentName.trim(),
+    studentName: options.studentName?.trim() || null,
     consultancyName: options.consultancyName.trim(),
     consultancyLogoUrl: options.consultancyLogoUrl || null,
     periodFormatted: null,
@@ -384,5 +386,6 @@ export function presentNutritionPlanFromVersionTree(
     meals: presentedMeals,
     totals: presentedTotals,
     micronutrients: presentedMicronutrients.length > 0 ? presentedMicronutrients : null,
+    isDraft: version.status === "DRAFT" || version.status == null,
   };
 }

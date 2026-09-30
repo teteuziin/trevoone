@@ -21,6 +21,7 @@ import {
   NutritionAuthorizationError,
 } from "./access";
 import { getConsultancyLocalDate } from "../consultancies/timezone";
+import { recordConsultancyActivity } from "../consultancies/activity-log";
 import {
   createNotificationInTransaction,
   deliverNotificationAfterCommit,
@@ -326,8 +327,9 @@ export async function assignPlanVersion(
 
     // 3. Lock student membership and verify eligibility in same tenancy
     const [memberRows] = await connection.query<RowDataPacket[]>(
-      `SELECT cm.id, cm.consultancy_id, cm.status
+      `SELECT cm.id, cm.consultancy_id, cm.status, u.full_name
        FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
        WHERE cm.public_id = ? FOR UPDATE`,
       [studentMembershipPublicId]
     );
@@ -426,6 +428,32 @@ export async function assignPlanVersion(
     }
 
     await connection.commit();
+
+    // 6. Record activity
+    try {
+      const studentName = String(studentMember.full_name || "paciente");
+      const planTitle = version.title ? String(version.title) : "plano alimentar";
+      await recordConsultancyActivity({
+        consultancyId: ctx.consultancyId!,
+        actorUserId: ctx.userId!,
+        actorMembershipId: ctx.membershipId!,
+        actorRole: ctx.hasRole("CONSULTANCY_ADMIN") ? "CONSULTANCY_ADMIN" : "NUTRITIONIST",
+        action: "NUTRITION_PLAN_ASSIGNED",
+        module: "NUTRITION",
+        resourceType: "NUTRITION_PLAN",
+        resourcePublicId: String(plan.public_id),
+        subjectMembershipId: studentMember.id,
+        summary: `atribuiu o plano alimentar "${planTitle}" a ${studentName}`,
+        metadata: {
+          planPublicId: String(plan.public_id),
+          versionPublicId: String(version.public_id),
+          assignmentPublicId: newAssignmentPublicId,
+          studentName,
+        },
+      });
+    } catch (logErr) {
+      console.warn("[nutrition assignment-repository] Failed to record assignment activity:", logErr);
+    }
 
     return {
       success: true,

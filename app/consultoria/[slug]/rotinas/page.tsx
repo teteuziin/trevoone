@@ -394,6 +394,20 @@ export default async function ConsultancyWorkoutsPage({
                           </p>
                         )}
 
+                        {!w.isTemplate && (
+                          <div className="pt-0.5">
+                            {(w.activeAssignmentsCount ?? 0) === 0 ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                Sem aluno atribuído
+                              </span>
+                            ) : w.assignedStudentName ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                Aluno: {w.assignedStudentName}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+
                         <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-[var(--text-tertiary)] font-medium">
                           {w.estimatedDurationMinutes != null && (
                             <span className="flex items-center gap-1">

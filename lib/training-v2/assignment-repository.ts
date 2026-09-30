@@ -18,6 +18,7 @@ import {
 } from "@/services/notification-service";
 import { getWorkoutVersionTree } from "./workout-repository";
 import { isProfessionalAssignmentPaused } from "@/lib/monitoring/admin-actions";
+import { recordConsultancyActivity } from "@/lib/consultancies/activity-log";
 import type {
   WorkoutAssignmentDto,
   StudentWorkoutViewContract,
@@ -192,8 +193,9 @@ export async function createAssignment(
 
     // 2. Resolve & lock student membership (must belong to current consultancy and possess 'STUDENT' role)
     const [studentRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT cm.id, cm.public_id, cm.consultancy_id
+      `SELECT cm.id, cm.public_id, cm.consultancy_id, u.full_name
        FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
        INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
        WHERE cm.public_id = ? AND cm.consultancy_id = ? AND cm.status = 'ACTIVE' AND cmr.role = 'STUDENT'
        LIMIT 1
@@ -278,6 +280,32 @@ export async function createAssignment(
     );
 
     await connection.commit();
+
+    // 5. Record activity
+    try {
+      const studentName = String(student.full_name || "aluno");
+      const workoutTitle = v.title ? String(v.title) : "treino";
+      await recordConsultancyActivity({
+        consultancyId: ctx.consultancyId!,
+        actorUserId: ctx.userId!,
+        actorMembershipId: ctx.membershipId!,
+        actorRole: ctx.hasRole("CONSULTANCY_ADMIN") ? "CONSULTANCY_ADMIN" : "PERSONAL",
+        action: "WORKOUT_ASSIGNED",
+        module: "PERSONAL",
+        resourceType: "WORKOUT",
+        resourcePublicId: v.workout_public_id,
+        subjectMembershipId: student.id,
+        summary: `atribuiu a ficha "${workoutTitle}" a ${studentName}`,
+        metadata: {
+          workoutPublicId: v.workout_public_id,
+          workoutVersionPublicId: v.public_id,
+          assignmentPublicId,
+          studentName,
+        },
+      });
+    } catch (logErr) {
+      console.warn("[assignment-repository] Failed to record assignment activity:", logErr);
+    }
 
     const versionTree = await getWorkoutVersionTree(ctx, v.public_id);
 

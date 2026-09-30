@@ -331,10 +331,12 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
           {plan.subtitle && <Text style={styles.workoutSubtitle}>{plan.subtitle}</Text>}
 
           <View style={styles.metadataGrid}>
-            <View style={styles.metadataCol}>
-              <Text style={styles.metadataLabel}>Aluno(a)</Text>
-              <Text style={styles.metadataValue}>{plan.studentName || "Aluno Geral / Prescrição Direta"}</Text>
-            </View>
+            {plan.studentName && plan.studentName.trim() && (
+              <View style={styles.metadataCol}>
+                <Text style={styles.metadataLabel}>Aluno(a)</Text>
+                <Text style={styles.metadataValue}>{plan.studentName.trim()}</Text>
+              </View>
+            )}
 
             {plan.personalTrainerName && (
               <View style={styles.metadataCol}>

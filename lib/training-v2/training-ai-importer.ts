@@ -578,11 +578,12 @@ export async function confirmTrainingAiImport(params: {
     for (const cat of confirmedCategories) {
       blockSort++;
       const blockPublicId = crypto.randomUUID();
+      const blockType = cat.exercises.length === 1 ? "SINGLE" : "CUSTOM";
       const [bRes] = await db.query<ResultSetHeader>(
         `INSERT INTO workout_blocks (
           public_id, workout_version_id, block_type, title, sort_order, created_at, updated_at
-        ) VALUES (?, ?, 'NORMAL', ?, ?, NOW(3), NOW(3))`,
-        [blockPublicId, versionId, cat.name, blockSort]
+        ) VALUES (?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+        [blockPublicId, versionId, blockType, cat.name, blockSort]
       );
       const blockId = bRes.insertId;
 
@@ -643,8 +644,7 @@ export async function confirmTrainingAiImport(params: {
       }
     }
 
-    // 4. If target student assigned, create assignment
-    let assignmentPublicId: string | undefined;
+    // 4. Handle target student candidate / optional context (does NOT publish or assign during import)
     let studentFullName: string | null = null;
 
     if (targetStudentMembershipId) {
@@ -660,28 +660,7 @@ export async function confirmTrainingAiImport(params: {
         throw new Error("Aluno selecionado não é válido ou não pertence a esta consultoria.");
       }
       studentFullName = String(sRows[0].full_name);
-      assignmentPublicId = crypto.randomUUID();
-
-        // Publish version for the assignment
-        await db.query(
-          `UPDATE workout_versions SET status = 'PUBLISHED', published_at = NOW(3) WHERE id = ?`,
-          [versionId]
-        );
-
-        await db.query(
-          `INSERT INTO workout_assignments (
-            public_id, consultancy_id, student_membership_id, workout_version_id,
-            assigned_by_membership_id, starts_on, status, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, CURDATE(), 'ACTIVE', NOW(3), NOW(3))`,
-          [
-            assignmentPublicId,
-            consultancyId,
-            targetStudentMembershipId,
-            versionId,
-            memberId,
-          ]
-        );
-      }
+    }
 
     // 5. Update job status to CONFIRMED
     await db.query(
@@ -724,7 +703,7 @@ export async function confirmTrainingAiImport(params: {
     return {
       workoutPublicId,
       versionPublicId,
-      assignmentPublicId,
+      assignmentPublicId: undefined,
     };
   } catch (err) {
     await db.rollback();

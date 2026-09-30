@@ -803,8 +803,7 @@ export async function confirmNutritionAiImport(params: {
       }
     }
 
-    // 4. If target patient assigned, assign plan
-    let assignmentPublicId: string | undefined;
+    // 4. Handle target patient candidate / optional context (does NOT publish or assign during import)
     let patientFullName: string | null = null;
 
     if (targetPatientMembershipId) {
@@ -820,28 +819,7 @@ export async function confirmNutritionAiImport(params: {
         throw new Error("Aluno/paciente selecionado não é válido ou não pertence a esta consultoria.");
       }
       patientFullName = String(sRows[0].full_name);
-      assignmentPublicId = crypto.randomUUID();
-
-        // Publish version
-        await db.query(
-          `UPDATE nutrition_v2_plan_versions SET status = 'PUBLISHED', published_at = NOW(3) WHERE id = ?`,
-          [versionId]
-        );
-
-        await db.query(
-          `INSERT INTO nutrition_v2_assignments (
-            public_id, consultancy_id, student_membership_id, nutrition_plan_version_id,
-            prescriber_membership_id, starts_on, status, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, CURDATE(), 'ACTIVE', NOW(3), NOW(3))`,
-          [
-            assignmentPublicId,
-            consultancyId,
-            targetPatientMembershipId,
-            versionId,
-            memberId,
-          ]
-        );
-      }
+    }
 
     // 5. Update job status to CONFIRMED
     await db.query(
@@ -884,7 +862,7 @@ export async function confirmNutritionAiImport(params: {
     return {
       planPublicId,
       versionPublicId,
-      assignmentPublicId,
+      assignmentPublicId: undefined,
     };
   } catch (err) {
     await db.rollback();

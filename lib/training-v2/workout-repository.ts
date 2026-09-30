@@ -1704,6 +1704,8 @@ export type WorkoutListItemDto = {
   hasActiveDraft?: boolean;
   draftVersionNumber?: number | null;
   publishedVersionNumber?: number | null;
+  activeAssignmentsCount?: number;
+  assignedStudentName?: string | null;
   blocksCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -1795,7 +1797,9 @@ export async function listWorkoutsForProfessional(
               wv.updated_at AS current_version_updated_at,
               (SELECT COUNT(*) FROM workout_blocks wb WHERE wb.workout_version_id = wv.id) AS blocks_count,
               (SELECT wv_d.version_number FROM workout_versions wv_d WHERE wv_d.workout_id = w.id AND wv_d.status = 'DRAFT' LIMIT 1) AS draft_version_number,
-              (SELECT wv_p.version_number FROM workout_versions wv_p WHERE wv_p.workout_id = w.id AND wv_p.status = 'PUBLISHED' ORDER BY wv_p.version_number DESC LIMIT 1) AS published_version_number
+              (SELECT wv_p.version_number FROM workout_versions wv_p WHERE wv_p.workout_id = w.id AND wv_p.status = 'PUBLISHED' ORDER BY wv_p.version_number DESC LIMIT 1) AS published_version_number,
+              (SELECT COUNT(*) FROM workout_assignments wa JOIN workout_versions wv_all ON wv_all.id = wa.workout_version_id WHERE wv_all.workout_id = w.id AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL) AS active_assignments_count,
+              (SELECT u.full_name FROM workout_assignments wa JOIN workout_versions wv_all ON wv_all.id = wa.workout_version_id JOIN consultancy_members cm ON cm.id = wa.student_membership_id JOIN users u ON u.id = cm.user_id WHERE wv_all.workout_id = w.id AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL ORDER BY wa.id DESC LIMIT 1) AS assigned_student_name
        FROM workouts w
        LEFT JOIN workout_versions wv ON wv.workout_id = w.id
             AND wv.id = (
@@ -1825,6 +1829,8 @@ export async function listWorkoutsForProfessional(
       hasActiveDraft: r.draft_version_number != null,
       draftVersionNumber: r.draft_version_number != null ? Number(r.draft_version_number) : null,
       publishedVersionNumber: r.published_version_number != null ? Number(r.published_version_number) : null,
+      activeAssignmentsCount: Number(r.active_assignments_count || 0),
+      assignedStudentName: r.assigned_student_name ? String(r.assigned_student_name) : null,
       blocksCount: Number(r.blocks_count || 0),
       createdAt: new Date(r.created_at),
       updatedAt: new Date(r.current_version_updated_at || r.updated_at),

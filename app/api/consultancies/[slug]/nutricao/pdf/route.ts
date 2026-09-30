@@ -70,12 +70,12 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
       auditResourcePublicId = tree.plan.publicId;
 
       presented = presentNutritionPlanFromVersionTree(tree, {
-        studentName: "Prescrição Nutricional",
+        studentName: null,
         consultancyName: nutritionAccess.consultancySlug || "Consultoria",
         prescriberName: session.fullName,
       });
 
-      safeFilename = createSafePdfFilename(tree.version.title || "Plano-Alimentar", "Geral");
+      safeFilename = createSafePdfFilename(tree.version.title || "Plano-Alimentar", tree.version.status === "DRAFT" ? "Rascunho" : "Geral");
     } else {
       // Default: Check student access to their active plan
       const studentAccess = await resolveStudentModuleAccess(session.userId, slug);
@@ -132,12 +132,12 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
         auditResourcePublicId = tree.plan.publicId;
 
         presented = presentNutritionPlanFromVersionTree(tree, {
-          studentName: "Prescrição Nutricional",
+          studentName: null,
           consultancyName: nutritionAccess.consultancySlug || "Consultoria",
           prescriberName: session.fullName,
         });
 
-        safeFilename = createSafePdfFilename(tree.version.title || "Plano-Alimentar", "Geral");
+        safeFilename = createSafePdfFilename(tree.version.title || "Plano-Alimentar", tree.version.status === "DRAFT" ? "Rascunho" : "Geral");
       } else {
         return new NextResponse("Acesso não autorizado ao módulo de nutrição.", { status: 403 });
       }

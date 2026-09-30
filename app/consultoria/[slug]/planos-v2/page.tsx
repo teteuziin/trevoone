@@ -245,6 +245,20 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
                     </p>
                   )}
 
+                  {!plan.isTemplate && (
+                    <div className="pt-0.5">
+                      {(plan.activeAssignmentsCount ?? 0) === 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                          Sem paciente atribuído
+                        </span>
+                      ) : plan.assignedStudentName ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          Paciente: {plan.assignedStudentName}
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 pt-1 text-[11px] text-[var(--text-tertiary)] font-medium">
                     <span>
                       Atualizado em {new Date(plan.updatedAt).toLocaleDateString("pt-BR")}

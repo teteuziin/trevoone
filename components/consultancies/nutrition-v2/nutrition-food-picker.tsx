@@ -385,6 +385,8 @@ export function NutritionFoodPicker({
                                   className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
                                     badge.variant === "analytical"
                                       ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                                      : badge.variant === "review"
+                                      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
                                       : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
                                   }`}
                                 >
@@ -400,17 +402,25 @@ export function NutritionFoodPicker({
                             </div>
                           )}
 
-                          <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--text-secondary)]">
-                            <span>Ref: {food.referenceAmount} {food.referenceUnitCode}</span>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--text-secondary)]">
+                            <span>por {food.referenceAmount} {food.referenceUnitCode?.toLowerCase() || 'g'}:</span>
                             <span className="font-bold text-[var(--brand)]">
-                              {food.caloriesKcal != null ? `${food.caloriesKcal} kcal` : "-"}
+                              {food.caloriesKcal != null ? `${food.caloriesKcal} kcal` : "—"}
                             </span>
-                            <span>P: {food.proteinG != null ? `${food.proteinG}g` : "-"}</span>
-                            <span>C: {food.carbohydrateG != null ? `${food.carbohydrateG}g` : "-"}</span>
-                            <span>G: {food.fatG != null ? `${food.fatG}g` : "-"}</span>
-                            <span>Fibra: {food.fiberG != null ? `${food.fiberG}g` : "-"}</span>
+                            <span>•</span>
+                            <span>{food.proteinG != null ? `${food.proteinG} P` : "— P"}</span>
+                            <span>•</span>
+                            <span>{food.carbohydrateG != null ? `${food.carbohydrateG} C` : "— C"}</span>
+                            <span>•</span>
+                            <span>{food.fatG != null ? `${food.fatG} G` : "— G"}</span>
+                            {food.fiberG != null && (
+                              <>
+                                <span>•</span>
+                                <span>{food.fiberG} Fibra</span>
+                              </>
+                            )}
                             {food.portionsCount > 0 && (
-                              <span className="text-[var(--brand)] font-semibold">
+                              <span className="text-[var(--brand)] font-semibold ml-1">
                                 ({food.portionsCount} {food.portionsCount === 1 ? "porção" : "porções"})
                               </span>
                             )}
@@ -524,8 +534,10 @@ export function NutritionFoodPicker({
                             title={badge.title}
                             className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                               badge.variant === "analytical"
-                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                                : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                              : badge.variant === "review"
+                              ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                              : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
                             }`}
                           >
                             {badge.label}

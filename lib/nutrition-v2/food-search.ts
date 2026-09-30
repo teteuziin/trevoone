@@ -83,6 +83,61 @@ export function getFirstRelevantToken(tokens: string[]): string {
   return firstSignificant || tokens[0] || "";
 }
 
+
+/**
+ * Universal Portuguese inflection reducer (de-pluralizer and gender normalizer).
+ * Converts plural forms and feminine cooking participle variations to their singular base root.
+ */
+export function getPortugueseWordRoots(word: string): string[] {
+  const norm = normalizeSearchText(word);
+  if (!norm || norm.length <= 2) return [norm];
+
+  const roots = new Set<string>([norm]);
+
+  // Plural rules for Portuguese:
+  // 1. -oes, -aes, -aos -> -ao (feijoes -> feijao, paes -> pao)
+  if (norm.endsWith("oes")) {
+    roots.add(norm.slice(0, -3) + "ao");
+  } else if (norm.endsWith("aes")) {
+    roots.add(norm.slice(0, -3) + "ao");
+  } else if (norm.endsWith("aos")) {
+    roots.add(norm.slice(0, -3) + "ao");
+  }
+  // 2. -ins, -ens, -ons, -uns -> -im, -em, -om, -um (amendoins -> amendoim)
+  else if (norm.endsWith("ns")) {
+    roots.add(norm.slice(0, -2) + "m");
+  }
+  // 3. -res, -zes -> -r, -z (arrozes -> arroz)
+  else if (norm.endsWith("zes") || norm.endsWith("res") || norm.endsWith("ses")) {
+    roots.add(norm.slice(0, -2));
+  }
+  // 4. -is -> -il, -el, -al (pasteis -> pastel)
+  else if (norm.endsWith("eis")) {
+    roots.add(norm.slice(0, -3) + "el");
+  } else if (norm.endsWith("ais")) {
+    roots.add(norm.slice(0, -3) + "al");
+  }
+  // 5. -as, -os, -es -> -a, -o, -e (ovos -> ovo, mexidos -> mexido, bananas -> banana)
+  else if (norm.endsWith("s") && norm.length > 3) {
+    const singular = norm.slice(0, -1);
+    roots.add(singular);
+  }
+
+  // Culinary participles gender normalization:
+  for (const r of Array.from(roots)) {
+    if (r.endsWith("ida")) roots.add(r.slice(0, -3) + "ido");
+    if (r.endsWith("ada")) roots.add(r.slice(0, -3) + "ado");
+    if (r.endsWith("ita")) roots.add(r.slice(0, -3) + "ito");
+    if (r.endsWith("ua") && r.length <= 4) roots.add(r.slice(0, -2) + "u");
+    if (r.endsWith("ido")) roots.add(r.slice(0, -3) + "ida");
+    if (r.endsWith("ado")) roots.add(r.slice(0, -3) + "ada");
+    if (r.endsWith("ito")) roots.add(r.slice(0, -3) + "ita");
+    if (r.endsWith("u") && r.length <= 3) roots.add(r.slice(0, -1) + "ua");
+  }
+
+  return Array.from(roots);
+}
+
 function getWordStem(word: string): string {
   if (word.length > 4 && word.endsWith("es")) return word.slice(0, -2);
   if (word.length > 3 && word.endsWith("s")) return word.slice(0, -1);
@@ -330,34 +385,61 @@ export function buildFoodSearchOrderClause(
 
   const tenancyOrder = isUnified ? `CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC,` : "";
 
-  const cookingTerms = [
-    "cozido", "cozida", "assado", "assada", "grelhado", "grelhada", "frito", "frita",
-    "cru", "crua", "refogado", "refogada", "moido", "moida", "desnatado", "desnatada",
-    "cooked", "boiled", "baked", "roasted", "grilled", "fried", "broiled", "poached", "raw"
-  ];
-  const queryCookingTokens = queryTokens.filter((t) => cookingTerms.includes(t));
-  const hasCookingKeyword = queryCookingTokens.length > 0;
+  const PREPARATION_CONFLICTS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+    cozid: ["frit", "cru", "assad"],
+    cru: ["cozid", "frit", "assad", "grelhad"],
+    grelhad: ["frit", "cru", "cozid"],
+    frit: ["grelhad", "cozid", "cru"],
+    assad: ["frit", "cru"],
+    desnatad: ["integral", "gordo"],
+    integral: ["desnatad", "polido", "branco"],
+  });
 
   const isMilkQuery = queryTokens.some((t) => ["milk", "leite"].includes(t));
   const hasCheeseOrYogurtQuery = queryTokens.some((t) =>
     ["cheese", "queijo", "yogurt", "iogurte", "ricota", "ricotta"].includes(t)
   );
-
   const isBreadQuery = queryTokens.some((t) => ["bread", "pao"].includes(t));
   const isYogurtQuery = queryTokens.some((t) => ["yogurt", "iogurte"].includes(t));
 
-  // Preparation matching condition
+  const allStems = queryTokens
+    .flatMap((t) => getPortugueseWordRoots(t))
+    .map((r) => r.slice(0, Math.max(3, r.length - 1)));
+  const activePrepKeys = Object.keys(PREPARATION_CONFLICTS).filter((k) =>
+    allStems.some((s) => s.startsWith(k) || k.startsWith(s))
+  );
+
   let prepOrderSql = "";
-  if (hasCookingKeyword) {
-    const prepConditions: string[] = [];
-    for (const cTok of queryCookingTokens) {
-      const stem = cTok.slice(0, Math.max(3, cTok.length - 1));
-      prepConditions.push(`${targetCol} LIKE '%${stem}%'`);
-      prepConditions.push(`f.normalized_name LIKE '%${stem}%'`);
-    }
+  if (activePrepKeys.length > 0) {
+    const matches = activePrepKeys.map((k) => `${targetCol} LIKE '%${k}%'`);
+    const allConflicts = activePrepKeys.flatMap((k) => PREPARATION_CONFLICTS[k] || []);
+    const conflicts = allConflicts.map((c) => `${targetCol} LIKE '%${c}%'`);
+
     prepOrderSql = `
     CASE
-      WHEN (${prepConditions.join(" OR ")}) THEN 1
+      WHEN (${matches.join(" OR ")}) THEN 1
+      WHEN (${conflicts.length > 0 ? conflicts.join(" OR ") : "1=0"}) THEN 3
+      ELSE 2
+    END ASC,`;
+  } else {
+    prepOrderSql = `
+    CASE
+      WHEN (${targetCol} LIKE '% cru%' OR ${targetCol} LIKE '%, cru%' OR ${targetCol} LIKE 'cru,%' OR ${targetCol} = 'cru'
+           OR f.normalized_name LIKE '% raw%' OR f.normalized_name LIKE '%, raw%' OR f.normalized_name LIKE 'raw,%' OR f.normalized_name = 'raw') THEN 1
+      ELSE 2
+    END ASC,`;
+  }
+
+  // Base meat cut prioritization (peito, file, carne over linguiça/salsicha/coracao) when not explicitly queried
+  const allRoots = queryTokens.flatMap((t) => getPortugueseWordRoots(t));
+  const hasSausageQuery = allRoots.some((r) => ["linguica", "salsicha", "coracao"].includes(r));
+  const hasMeatConceptQuery = allRoots.some((r) => ["frango", "carne", "peixe", "bovino", "bovina", "suino", "suina"].includes(r));
+  let cutPrioritySql = "";
+  if (hasMeatConceptQuery && !hasSausageQuery) {
+    cutPrioritySql = `
+    CASE
+      WHEN ${targetCol} LIKE '%peito%' OR ${targetCol} LIKE '%file%' OR ${targetCol} LIKE '%carne%' THEN 1
+      WHEN ${targetCol} LIKE '%linguica%' OR ${targetCol} LIKE '%salsicha%' OR ${targetCol} LIKE '%coracao%' THEN 3
       ELSE 2
     END ASC,`;
   } else {
@@ -402,6 +484,7 @@ export function buildFoodSearchOrderClause(
       ELSE 11
     END ASC,
     ${prepOrderSql}
+    ${cutPrioritySql}
     -- Prioritize direct milk foods over dairy derivatives (yogurt, cheese) when querying milk / leite
     CASE
       WHEN (${isMilkQuery && !hasCheeseOrYogurtQuery ? "1=1" : "1=0"})
@@ -453,7 +536,7 @@ export function buildFoodSearchOrderClause(
 export interface DataQualityBadgeInfo {
   label: string;
   title: string;
-  variant: "analytical" | "survey";
+  variant: "analytical" | "survey" | "review";
 }
 
 /**
@@ -474,6 +557,13 @@ export function getDataQualityBadgeInfo(dataQuality?: string | null): DataQualit
       label: "Dados de inquérito",
       title: "Valores obtidos por inquérito nutricional (USDA FNDDS)",
       variant: "survey",
+    };
+  }
+    if (dataQuality === "SUSPICIOUS") {
+    return {
+      label: "Dados em revisão",
+      title: "Valores com divergência analítica sob revisão técnica",
+      variant: "review",
     };
   }
   // LEGACY_REFERENCE, CONSULTANCY_CUSTOM, UNCLASSIFIED and others receive neutral/standard display

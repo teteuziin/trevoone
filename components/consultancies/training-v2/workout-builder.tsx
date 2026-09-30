@@ -1,47 +1,60 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type {
   WorkoutRootDto,
   WorkoutVersionDto,
-  WorkoutBlockType,
-  PrescriptionMode,
-  CardioMethodConfig,
-  WarmupMethodConfig,
+  WorkoutBlockItemDto,
   DifficultyLevel,
 } from "@/lib/training-v2/types";
+import type {
+  WorkoutVersionSummaryDto,
+  QuickConfigInput,
+} from "@/lib/training-v2/workout-repository";
 import {
   updateWorkoutDraftMetadataAction,
-  duplicateBlockAction,
-  reorderBlocksAction,
-  removeBlockAction,
+  createCategoryAction,
+  renameCategoryAction,
+  duplicateCategoryAction,
+  deleteCategoryAction,
+  reorderCategoriesAction,
   addExerciseItemToBlockAction,
   addCustomItemToBlockAction,
-  removeItemAction,
-  updateNormalSetsAction,
-  updateBlockTitleAction,
-  createMethodBlockAction,
-  updateBlockConfigurationAction,
-  replaceDropSetStructureAction,
-  replaceRestPauseStructureAction,
-  updateCardioConfigurationAction,
-  updateWarmupConfigurationAction,
+  duplicateExerciseAction,
+  moveExerciseToCategoryAction,
+  deleteExerciseAction,
+  reorderExercisesAction,
+  updateExerciseQuickConfigAction,
   createNewWorkoutVersionAction,
   duplicateWorkoutAction,
   saveWorkoutAsTemplateAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
-import { WorkoutBlockCard } from "./workout-block-card";
-import { WorkoutMethodSelectorModal } from "./workout-method-selector-modal";
+import { WorkoutCategoryCard } from "./workout-category-card";
 import { UnifiedExercisePicker } from "./unified-exercise-picker";
 import { CustomExerciseInlineModal } from "./custom-exercise-inline-modal";
 import { WorkoutPublishDialog } from "./workout-publish-dialog";
-import { WorkoutVersionHistory } from "./workout-version-history";
-import { WorkoutActionsMenu } from "./workout-actions-menu";
 import { WorkoutAssignModal } from "./workout-assign-modal";
-import type { WorkoutVersionSummaryDto } from "@/lib/training-v2/workout-repository";
+import { StudentWorkoutRenderer } from "./student-workout-renderer";
 
-function UserCheck({ className = "w-4 h-4" }: { className?: string }) {
+function CheckIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function UserCheckIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -51,24 +64,42 @@ function UserCheck({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function Clock({ className = "w-4 h-4" }: { className?: string }) {
+function EyeIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }
 
-function Dumbbell({ className = "w-4 h-4" }: { className?: string }) {
+function SendIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
   );
 }
 
-function Plus({ className = "w-4 h-4" }: { className?: string }) {
+function CopyIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function BookmarkIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -76,1233 +107,937 @@ function Plus({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function Settings({ className = "w-4 h-4" }: { className?: string }) {
+function XIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <circle cx="12" cy="12" r="3" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   );
 }
 
-function X({ className = "w-4 h-4" }: { className?: string }) {
+function SlidersIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+      <line x1="4" y1="21" x2="4" y2="14" />
+      <line x1="4" y1="10" x2="4" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12" y2="3" />
+      <line x1="20" y1="21" x2="20" y2="16" />
+      <line x1="20" y1="12" x2="20" y2="3" />
+      <line x1="1" y1="14" x2="7" y2="14" />
+      <line x1="9" y1="8" x2="15" y2="8" />
+      <line x1="17" y1="16" x2="23" y2="16" />
     </svg>
   );
 }
 
-function Check({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function AlertCircle({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="8" x2="12" y2="12" />
-      <line x1="12" y1="16" x2="12.01" y2="16" />
-    </svg>
-  );
-}
-
-function Loader2({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
-    </svg>
-  );
-}
-
-function Layers({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points="2 12 12 17 22 12" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function Edit3({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-    </svg>
-  );
-}
-
-type WorkoutBuilderProps = {
+export type WorkoutBuilderProps = {
   consultancySlug: string;
   workout: WorkoutRootDto;
-  initialVersion?: WorkoutVersionDto;
-  initialDraftVersion?: WorkoutVersionDto;
-  isDraft?: boolean;
-  allVersions?: WorkoutVersionSummaryDto[];
-  isConsultancyAdmin?: boolean;
+  initialVersion: WorkoutVersionDto;
+  isDraft: boolean;
+  allVersions: WorkoutVersionSummaryDto[];
+  isConsultancyAdmin: boolean;
   initialStudentPublicId?: string;
 };
-
-const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
-  BEGINNER: "Iniciante",
-  INTERMEDIATE: "Intermediário",
-  ADVANCED: "Avançado",
-};
+const CATEGORY_PRESETS = [
+  "Peito",
+  "Costas",
+  "Pernas",
+  "Ombros",
+  "Bíceps",
+  "Tríceps",
+  "Abdômen",
+  "Cardio",
+  "Aquecimento",
+  "Mobilidade",
+  "Treino A",
+  "Treino B",
+  "Superior",
+  "Inferior",
+  "Push",
+  "Pull",
+  "Finalização",
+];
 
 export function WorkoutBuilder({
   consultancySlug,
   workout,
   initialVersion,
-  initialDraftVersion,
-  isDraft: propIsDraft,
-  allVersions = [],
+  isDraft,
+  /* allVersions and isConsultancyAdmin available in props */
   initialStudentPublicId,
 }: WorkoutBuilderProps) {
   const router = useRouter();
-  const baseVersion = (initialVersion || initialDraftVersion)!;
-  const [draft, setDraft] = useState<WorkoutVersionDto>(baseVersion);
-  const [statusMessage, setStatusMessage] = useState<{
-    type: "success" | "error" | "info";
-    text: string;
-  } | null>(null);
-
-  // E3 Lifecycle Modals
-  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
-  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
-  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
-  const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [duplicateTitle, setDuplicateTitle] = useState(`Cópia de ${baseVersion.title}`);
-  const [templateTitle, setTemplateTitle] = useState(`${baseVersion.title} (Modelo)`);
-  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
-
-  // Read-only state calculation
-  const isDraft = propIsDraft !== undefined ? propIsDraft : draft.status === "DRAFT";
-  const isReadOnly = !isDraft || draft.status !== "DRAFT";
-
-  // Metadata Edit Modal State
-  const [isEditingMetadata, setIsEditingMetadata] = useState(false);
-  const [metaTitle, setMetaTitle] = useState(draft.title);
-  const [metaSubtitle, setMetaSubtitle] = useState(draft.subtitle || "");
-  const [metaObjective, setMetaObjective] = useState(draft.objective || "");
-  const [metaDuration, setMetaDuration] = useState<string>(
-    draft.estimatedDurationMinutes ? String(draft.estimatedDurationMinutes) : ""
-  );
-  const [metaDifficulty, setMetaDifficulty] = useState<DifficultyLevel>(
-    (draft.difficultyLevel as DifficultyLevel) || "INTERMEDIATE"
-  );
-  const [metaNotes, setMetaNotes] = useState(draft.notes || "");
-  const [savingMetadata, setSavingMetadata] = useState(false);
-
-  // Method Selector Modal State
-  const [isMethodModalOpen, setIsMethodModalOpen] = useState(false);
-
-  // Picker & Custom Modal States
-  const [activePickerBlockId, setActivePickerBlockId] = useState<string | null>(null);
-  const [activeCustomBlockId, setActiveCustomBlockId] = useState<string | null>(null);
-
-  // Mobile single-block open state (accordion)
-  const [activeMobileBlockId, setActiveMobileBlockId] = useState<string | null>(null);
-
-  // Visual Guided Flow step (1: Estrutura, 2: Exercícios, 3: Ajustes, 4: Revisão)
-  const flowStep = useMemo(() => {
-    const bList = draft.blocks || [];
-    if (bList.length === 0) return 1;
-    const hasEmptyBlocks = bList.some((b) => !b.items || b.items.length === 0);
-    if (hasEmptyBlocks) return 2;
-    if (draft.status !== "PUBLISHED") return 3;
-    return 4;
-  }, [draft.blocks, draft.status]);
-
-  // General loading transition
+  const [version, setVersion] = useState<WorkoutVersionDto>(initialVersion);
   const [isPending, startTransition] = useTransition();
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
-  const showNotification = (type: "success" | "error" | "info", text: string) => {
-    setStatusMessage({ type, text });
-    setTimeout(() => {
-      setStatusMessage(null);
-    }, 4000);
-  };
+  // Metadata state
+  const [isMetadataExpanded, setIsMetadataExpanded] = useState(false);
+  const [title, setTitle] = useState(version.title || workout.title);
+  const [objective, setObjective] = useState(version.objective || workout.objective || "");
+  const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel | string>(
+    version.difficultyLevel || workout.difficultyLevel || "INTERMEDIATE"
+  );
+  const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState<number>(
+    version.estimatedDurationMinutes || workout.estimatedDurationMinutes || 50
+  );
+  const [notes, setNotes] = useState(version.notes || "");
 
-  const handleCreateNewVersion = () => {
-    setIsCreatingVersion(true);
+  // Category creation inline state
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+
+  // Modals state
+  const [activeCategoryForPicker, setActiveCategoryForPicker] = useState<string | null>(null);
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const categories = useMemo(() => version.blocks || [], [version.blocks]);
+  const totalExercises = categories.reduce(
+    (acc, cat) => acc + (cat.items ? cat.items.length : 0),
+    0
+  );
+
+  const allCategoriesSimple = useMemo(
+    () =>
+      categories.map((cat, idx) => ({
+        publicId: cat.publicId,
+        title: cat.title || `Categoria ${idx + 1}`,
+      })),
+    [categories]
+  );
+
+  function notify(msg: string) {
+    setFeedbackMessage(msg);
+    setTimeout(() => setFeedbackMessage(null), 3500);
+  }
+
+  // Save metadata
+  async function handleSaveMetadata() {
     startTransition(async () => {
-      const res = await createNewWorkoutVersionAction(consultancySlug, workout.publicId);
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao criar nova versão.");
-        setIsCreatingVersion(false);
-      } else {
-        showNotification("success", "Nova versão em rascunho aberta!");
-        router.push(`/consultoria/${consultancySlug}/rotinas/${workout.publicId}?version=${res.data.publicId}`);
-      }
-    });
-  };
-
-  const handleConfirmDuplicate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!duplicateTitle.trim()) return;
-    startTransition(async () => {
-      const res = await duplicateWorkoutAction(
+      const res = await updateWorkoutDraftMetadataAction(
         consultancySlug,
-        workout.publicId,
-        draft.publicId,
-        { title: duplicateTitle.trim() }
-      );
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao duplicar treino.");
-      } else {
-        setIsDuplicateModalOpen(false);
-        showNotification("success", "Treino duplicado com sucesso!");
-        router.push(`/consultoria/${consultancySlug}/rotinas/${res.data.workoutPublicId}`);
-      }
-    });
-  };
-
-  const handleConfirmSaveAsTemplate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!templateTitle.trim()) return;
-    startTransition(async () => {
-      const res = await saveWorkoutAsTemplateAction(
-        consultancySlug,
-        workout.publicId,
-        draft.publicId,
-        { title: templateTitle.trim() }
-      );
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao salvar como modelo.");
-      } else {
-        setIsSaveTemplateModalOpen(false);
-        showNotification("success", "Modelo salvo com sucesso!");
-        router.push(`/consultoria/${consultancySlug}/rotinas?tab=templates`);
-      }
-    });
-  };
-
-  // 1. SAVE METADATA
-  const handleSaveMetadata = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isReadOnly) {
-      showNotification("info", "Esta versão é imutável. Crie uma nova versão para editar.");
-      return;
-    }
-    if (!metaTitle.trim()) {
-      showNotification("error", "O título do treino é obrigatório.");
-      return;
-    }
-
-    setSavingMetadata(true);
-    try {
-      const res = await updateWorkoutDraftMetadataAction(consultancySlug, draft.publicId, {
-        title: metaTitle.trim(),
-        subtitle: metaSubtitle.trim() || null,
-        objective: metaObjective.trim() || null,
-        estimatedDurationMinutes: metaDuration ? parseInt(metaDuration, 10) : null,
-        difficultyLevel: metaDifficulty,
-        notes: metaNotes.trim() || null,
-      });
-
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao salvar informações do treino.");
-      } else {
-        setDraft(res.data);
-        setIsEditingMetadata(false);
-        showNotification("success", "Informações do treino atualizadas!");
-      }
-    } catch {
-      showNotification("error", "Erro de conexão ao salvar informações.");
-    } finally {
-      setSavingMetadata(false);
-    }
-  };
-
-  // 2. CREATE METHOD BLOCK
-  const handleCreateMethodBlock = async (method: WorkoutBlockType) => {
-    const nextOrder = (draft.blocks?.length || 0) + 1;
-    const defaultTitle = `Bloco ${String.fromCharCode(64 + nextOrder)}`;
-    setIsMethodModalOpen(false);
-
-    startTransition(async () => {
-      try {
-        const res = await createMethodBlockAction(consultancySlug, draft.publicId, {
-          blockType: method,
-          title: defaultTitle,
-        });
-
-        if (!res.ok || !res.data) {
-          showNotification("error", res.error || "Erro ao adicionar bloco.");
-          return;
+        version.publicId,
+        {
+          title: title.trim(),
+          objective: objective.trim() || null,
+          difficultyLevel: difficultyLevel as DifficultyLevel,
+          estimatedDurationMinutes: Number(estimatedDurationMinutes) || null,
+          notes: notes.trim() || null,
         }
+      );
+      if (res.ok && res.data) {
+        setVersion(res.data);
+        notify("Ficha atualizada com sucesso.");
+      } else {
+        notify(res.error || "Erro ao salvar ficha.");
+      }
+    });
+  }
 
-        setDraft((prev) => ({
+  // Create Category
+  async function handleCreateCategory() {
+    if (!newCategoryName.trim()) return;
+    startTransition(async () => {
+      const res = await createCategoryAction(
+        consultancySlug,
+        version.publicId,
+        newCategoryName.trim()
+      );
+      if (res.ok && res.data) {
+        setVersion((prev) => ({
           ...prev,
           blocks: [...(prev.blocks || []), res.data!],
         }));
-        if (res.data?.publicId) {
-          setActiveMobileBlockId(res.data.publicId);
-        }
-        showNotification("success", `Bloco ${res.data.title || defaultTitle} adicionado! Agora escolha o exercício.`);
-      } catch {
-        showNotification("error", "Falha ao adicionar novo bloco.");
+        setNewCategoryName("");
+        setIsCreatingCategory(false);
+        notify(`Categoria "${res.data.title}" criada.`);
+      } else {
+        notify(res.error || "Erro ao criar categoria.");
       }
     });
-  };
+  }
 
-  // 3. MOVE BLOCK UP
-  const handleMoveBlockUp = async (index: number) => {
-    if (index <= 0 || !draft.blocks) return;
-    const newBlocks = [...draft.blocks];
-    const temp = newBlocks[index - 1];
-    newBlocks[index - 1] = newBlocks[index];
-    newBlocks[index] = temp;
-
-    setDraft((prev) => ({ ...prev, blocks: newBlocks }));
-
-    try {
-      const idsInOrder = newBlocks.map((b) => b.publicId);
-      const res = await reorderBlocksAction(consultancySlug, draft.publicId, idsInOrder);
-      if (!res.ok) {
-        showNotification("error", res.error || "Erro ao salvar nova ordem dos blocos.");
-      }
-    } catch {
-      showNotification("error", "Falha ao reordenar blocos.");
-    }
-  };
-
-  // 4. MOVE BLOCK DOWN
-  const handleMoveBlockDown = async (index: number) => {
-    if (!draft.blocks || index >= draft.blocks.length - 1) return;
-    const newBlocks = [...draft.blocks];
-    const temp = newBlocks[index + 1];
-    newBlocks[index + 1] = newBlocks[index];
-    newBlocks[index] = temp;
-
-    setDraft((prev) => ({ ...prev, blocks: newBlocks }));
-
-    try {
-      const idsInOrder = newBlocks.map((b) => b.publicId);
-      const res = await reorderBlocksAction(consultancySlug, draft.publicId, idsInOrder);
-      if (!res.ok) {
-        showNotification("error", res.error || "Erro ao salvar nova ordem dos blocos.");
-      }
-    } catch {
-      showNotification("error", "Falha ao reordenar blocos.");
-    }
-  };
-
-  // 5. DUPLICATE BLOCK
-  const handleDuplicateBlock = async (blockPublicId: string) => {
-    try {
-      const res = await duplicateBlockAction(consultancySlug, blockPublicId);
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao duplicar bloco.");
-        return;
-      }
-
-      setDraft((prev) => ({
+  // Rename Category
+  async function handleRenameCategory(categoryPublicId: string, newTitle: string) {
+    const res = await renameCategoryAction(consultancySlug, categoryPublicId, newTitle);
+    if (res.ok && res.data) {
+      setVersion((prev) => ({
         ...prev,
-        blocks: [...(prev.blocks || []), res.data!],
+        blocks: prev.blocks.map((b) =>
+          b.publicId === categoryPublicId ? { ...b, title: newTitle } : b
+        ),
       }));
-      showNotification("success", "Bloco duplicado com sucesso!");
-    } catch {
-      showNotification("error", "Falha ao duplicar bloco.");
+      notify("Categoria renomeada.");
+    } else {
+      notify(res.error || "Erro ao renomear categoria.");
     }
-  };
+  }
 
-  // 6. REMOVE BLOCK
-  const handleRemoveBlock = async (blockPublicId: string) => {
-    try {
-      const res = await removeBlockAction(consultancySlug, blockPublicId);
-      if (!res.ok) {
-        showNotification("error", res.error || "Erro ao remover bloco.");
-        return;
-      }
-
-      setDraft((prev) => ({
+  // Duplicate Category
+  async function handleDuplicateCategory(categoryPublicId: string) {
+    const res = await duplicateCategoryAction(consultancySlug, categoryPublicId);
+    if (res.ok && res.data) {
+      setVersion((prev) => ({
         ...prev,
-        blocks: (prev.blocks || []).filter((b) => b.publicId !== blockPublicId),
+        blocks: [...prev.blocks, res.data!],
       }));
-      showNotification("success", "Bloco removido!");
-    } catch {
-      showNotification("error", "Falha ao remover bloco.");
+      notify("Categoria duplicada com sucesso.");
+    } else {
+      notify(res.error || "Erro ao duplicar categoria.");
     }
-  };
+  }
 
-  // 7. SELECT EXERCISE FROM PICKER
-  const handleSelectExerciseFromPicker = async (exercisePublicId: string) => {
-    if (!activePickerBlockId) return;
-    const targetBlockId = activePickerBlockId;
-
-    try {
-      const res = await addExerciseItemToBlockAction(
-        consultancySlug,
-        targetBlockId,
-        exercisePublicId
-      );
-
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao adicionar exercício.");
-        return;
-      }
-
-      setDraft((prev) => ({
+  // Delete Category
+  async function handleDeleteCategory(categoryPublicId: string) {
+    const res = await deleteCategoryAction(consultancySlug, categoryPublicId);
+    if (res.ok) {
+      setVersion((prev) => ({
         ...prev,
-        blocks: (prev.blocks || []).map((b) => {
-          if (b.publicId !== targetBlockId) return b;
-          return {
-            ...b,
-            items: [...(b.items || []), res.data!],
-          };
-        }),
+        blocks: prev.blocks.filter((b) => b.publicId !== categoryPublicId),
       }));
-
-      setActivePickerBlockId(null);
-      showNotification("success", "Exercício adicionado ao bloco!");
-    } catch {
-      showNotification("error", "Falha ao vincular exercício ao bloco.");
+      notify("Categoria removida.");
+    } else {
+      notify(res.error || "Erro ao remover categoria.");
     }
-  };
+  }
 
-  // 8. ADD INLINE CUSTOM EXERCISE
-  const handleSaveCustomExercise = async (customSnapshot: {
+  // Reorder Categories
+  async function handleMoveCategory(categoryIndex: number, direction: "up" | "down") {
+    const targetIdx = direction === "up" ? categoryIndex - 1 : categoryIndex + 1;
+    if (targetIdx < 0 || targetIdx >= categories.length) return;
+
+    const reordered = [...categories];
+    const [moved] = reordered.splice(categoryIndex, 1);
+    reordered.splice(targetIdx, 0, moved);
+
+    setVersion((prev) => ({ ...prev, blocks: reordered }));
+
+    const ids = reordered.map((b) => b.publicId);
+    const res = await reorderCategoriesAction(consultancySlug, version.publicId, ids);
+    if (!res.ok) {
+      setVersion((prev) => ({ ...prev, blocks: categories }));
+      notify(res.error || "Erro ao reordenar categorias.");
+    }
+  }
+
+  // Add Exercise from Picker
+  async function handleSelectExercise(exercisePublicId: string) {
+    if (!activeCategoryForPicker) return;
+    const catId = activeCategoryForPicker;
+    const res = await addExerciseItemToBlockAction(consultancySlug, catId, exercisePublicId);
+    if (res.ok && res.data) {
+      const newItem = res.data;
+      setVersion((prev) => ({
+        ...prev,
+        blocks: prev.blocks.map((b) =>
+          b.publicId === catId
+            ? { ...b, items: [...(b.items || []), newItem] }
+            : b
+        ),
+      }));
+      notify(`Exercício "${newItem.exerciseNameSnapshot}" adicionado.`);
+    } else {
+      notify(res.error || "Erro ao adicionar exercício.");
+    }
+  }
+
+  // Add Custom Exercise
+  async function handleAddCustomExercise(data: {
     exerciseName: string;
-    muscleGroup?: string;
-    equipment?: string;
-    instructions?: string;
-  }) => {
-    if (!activeCustomBlockId) return;
-    const targetBlockId = activeCustomBlockId;
-
-    try {
-      const res = await addCustomItemToBlockAction(
-        consultancySlug,
-        targetBlockId,
-        customSnapshot
-      );
-
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao adicionar exercício personalizado.");
-        return;
-      }
-
-      setDraft((prev) => ({
+    muscleGroup?: string | null;
+    equipment?: string | null;
+    instructions?: string | null;
+  }) {
+    if (!activeCategoryForPicker) return;
+    const catId = activeCategoryForPicker;
+    const res = await addCustomItemToBlockAction(consultancySlug, catId, {
+      exerciseName: data.exerciseName,
+      muscleGroup: data.muscleGroup,
+      equipment: data.equipment,
+      instructions: data.instructions,
+    });
+    if (res.ok && res.data) {
+      const newItem = res.data;
+      setVersion((prev) => ({
         ...prev,
-        blocks: (prev.blocks || []).map((b) => {
-          if (b.publicId !== targetBlockId) return b;
+        blocks: prev.blocks.map((b) =>
+          b.publicId === catId
+            ? { ...b, items: [...(b.items || []), newItem] }
+            : b
+        ),
+      }));
+      notify(`Exercício personalizado "${newItem.exerciseNameSnapshot}" criado.`);
+    } else {
+      notify(res.error || "Erro ao criar exercício.");
+    }
+  }
+
+  // Duplicate Exercise
+  async function handleDuplicateExercise(itemPublicId: string) {
+    const res = await duplicateExerciseAction(consultancySlug, itemPublicId);
+    if (res.ok && res.data) {
+      const duplicated = res.data;
+      setVersion((prev) => ({
+        ...prev,
+        blocks: prev.blocks.map((b) => {
+          const hasItem = b.items?.some((i) => i.publicId === itemPublicId);
+          if (!hasItem) return b;
           return {
             ...b,
-            items: [...(b.items || []), res.data!],
+            items: [...(b.items || []), duplicated],
           };
         }),
       }));
-
-      setActiveCustomBlockId(null);
-      showNotification("success", "Exercício personalizado criado!");
-    } catch {
-      showNotification("error", "Falha ao criar exercício personalizado.");
+      notify("Exercício duplicado.");
+    } else {
+      notify(res.error || "Erro ao duplicar exercício.");
     }
-  };
+  }
 
-  // 9. REMOVE ITEM FROM BLOCK
-  const handleRemoveItem = async (blockPublicId: string, itemPublicId: string) => {
-    try {
-      const res = await removeItemAction(consultancySlug, itemPublicId);
-      if (!res.ok) {
-        showNotification("error", res.error || "Erro ao remover item.");
-        return;
-      }
-
-      setDraft((prev) => ({
-        ...prev,
-        blocks: (prev.blocks || []).map((b) => {
-          if (b.publicId !== blockPublicId) return b;
-          return {
-            ...b,
-            items: (b.items || []).filter((it) => it.publicId !== itemPublicId),
-          };
-        }),
-      }));
-      showNotification("success", "Exercício removido do bloco!");
-    } catch {
-      showNotification("error", "Falha ao remover exercício do bloco.");
-    }
-  };
-
-  // 10. UPDATE SETS FOR ITEM (NORMAL)
-  const handleUpdateSets = async (
-    blockPublicId: string,
+  // Move Exercise to Category
+  async function handleMoveExerciseToCategory(
     itemPublicId: string,
-    sets: Array<{
-      setNumber: number;
-      targetReps?: number | null;
-      targetRepsMax?: number | null;
-      targetLoadKg?: number | null;
-      targetRestSeconds?: number | null;
-    }>
-  ) => {
-    try {
-      const res = await updateNormalSetsAction(consultancySlug, itemPublicId, sets);
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao salvar séries.");
-        return;
+    targetCategoryPublicId: string
+  ) {
+    const res = await moveExerciseToCategoryAction(
+      consultancySlug,
+      itemPublicId,
+      targetCategoryPublicId
+    );
+    if (res.ok) {
+      // Find item
+      let movedItem: WorkoutBlockItemDto | null = null;
+      version.blocks.forEach((b) => {
+        const found = b.items?.find((i) => i.publicId === itemPublicId);
+        if (found) movedItem = found;
+      });
+
+      if (movedItem) {
+        const itemToMove: WorkoutBlockItemDto = movedItem;
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => {
+            if (b.publicId === targetCategoryPublicId) {
+              return { ...b, items: [...(b.items || []), itemToMove] };
+            }
+            return {
+              ...b,
+              items: b.items ? b.items.filter((i) => i.publicId !== itemPublicId) : [],
+            };
+          }),
+        }));
       }
+      notify("Exercício movido para a nova categoria.");
+    } else {
+      notify(res.error || "Erro ao mover exercício.");
+    }
+  }
 
-      setDraft((prev) => ({
+  // Delete Exercise
+  async function handleDeleteExercise(itemPublicId: string) {
+    const res = await deleteExerciseAction(consultancySlug, itemPublicId);
+    if (res.ok) {
+      setVersion((prev) => ({
         ...prev,
-        blocks: (prev.blocks || []).map((b) => {
-          if (b.publicId !== blockPublicId) return b;
-          return {
-            ...b,
-            items: (b.items || []).map((it) => {
-              if (it.publicId !== itemPublicId) return it;
-              return {
-                ...it,
-                sets: res.data!,
-              };
-            }),
-          };
-        }),
+        blocks: prev.blocks.map((b) => ({
+          ...b,
+          items: b.items ? b.items.filter((i) => i.publicId !== itemPublicId) : [],
+        })),
       }));
-      showNotification("success", "Séries salvas com sucesso!");
-    } catch {
-      showNotification("error", "Falha ao atualizar séries.");
+      notify("Exercício removido.");
+    } else {
+      notify(res.error || "Erro ao remover exercício.");
     }
-  };
+  }
 
-  // 11. UPDATE BLOCK TITLE
-  const handleUpdateBlockTitle = async (blockPublicId: string, title: string | null) => {
-    try {
-      const res = await updateBlockTitleAction(consultancySlug, blockPublicId, title);
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao atualizar título do bloco.");
-        return;
-      }
+  // Reorder Exercises in Category
+  async function handleMoveExercise(
+    categoryPublicId: string,
+    itemIndex: number,
+    direction: "up" | "down"
+  ) {
+    const cat = categories.find((b) => b.publicId === categoryPublicId);
+    if (!cat || !cat.items) return;
 
-      setDraft((prev) => ({
-        ...prev,
-        blocks: (prev.blocks || []).map((b) => {
-          if (b.publicId !== blockPublicId) return b;
-          return {
-            ...b,
-            title: res.data!.title,
-          };
-        }),
-      }));
-      showNotification("success", "Título do bloco atualizado!");
-    } catch {
-      showNotification("error", "Falha ao salvar título do bloco.");
+    const targetIdx = direction === "up" ? itemIndex - 1 : itemIndex + 1;
+    if (targetIdx < 0 || targetIdx >= cat.items.length) return;
+
+    const reordered = [...cat.items];
+    const [moved] = reordered.splice(itemIndex, 1);
+    reordered.splice(targetIdx, 0, moved);
+
+    setVersion((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((b) =>
+        b.publicId === categoryPublicId ? { ...b, items: reordered } : b
+      ),
+    }));
+
+    const ids = reordered.map((i) => i.publicId);
+    const res = await reorderExercisesAction(consultancySlug, categoryPublicId, ids);
+    if (!res.ok) {
+      notify(res.error || "Erro ao reordenar exercícios.");
     }
-  };
+  }
 
-  // 12. UPDATE CIRCUIT CONFIGURATION
-  const handleUpdateCircuitConfig = async (
-    blockPublicId: string,
-    config: {
-      rounds: number;
-      restBetweenItemsSeconds: number;
-      restBetweenRoundsSeconds: number;
-      restAfterBlockSeconds: number;
-      instructions: string | null;
-    }
-  ) => {
-    try {
-      const res = await updateBlockConfigurationAction(consultancySlug, blockPublicId, config);
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao salvar parâmetros do circuito.");
-        return;
-      }
-
-      setDraft((prev) => ({
-        ...prev,
-        blocks: (prev.blocks || []).map((b) => (b.publicId === blockPublicId ? res.data! : b)),
-      }));
-      showNotification("success", "Configurações do circuito salvas!");
-    } catch {
-      showNotification("error", "Falha ao atualizar parâmetros do circuito.");
-    }
-  };
-
-  // 13. REPLACE DROP-SET STRUCTURE
-  const handleReplaceDropSet = async (
-    blockPublicId: string,
+  // Update Exercise Quick Config
+  async function handleUpdateExerciseQuickConfig(
     itemPublicId: string,
-    payload: {
-      initialSet: {
-        targetReps?: number | null;
-        targetRepsMax?: number | null;
-        targetLoadKg?: number | null;
-        targetRestSeconds?: number | null;
-        intensityIndicator?: string | null;
-      };
-      dropStages: Array<{
-        targetReps?: number | null;
-        targetRepsMax?: number | null;
-        targetLoadKg?: number | null;
-        intensityIndicator?: string | null;
-      }>;
-    }
-  ) => {
-    try {
-      const res = await replaceDropSetStructureAction(consultancySlug, itemPublicId, payload);
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao salvar séries de Drop-Set.");
-        return;
-      }
-
-      setDraft((prev) => ({
+    config: QuickConfigInput
+  ) {
+    const res = await updateExerciseQuickConfigAction(consultancySlug, itemPublicId, config);
+    if (res.ok && res.data) {
+      setVersion((prev) => ({
         ...prev,
-        blocks: (prev.blocks || []).map((b) => {
-          if (b.publicId !== blockPublicId) return b;
-          return {
-            ...b,
-            items: (b.items || []).map((it) => {
-              if (it.publicId !== itemPublicId) return it;
-              return {
-                ...it,
-                sets: res.data!,
-              };
-            }),
-          };
-        }),
+        blocks: prev.blocks.map((b) => ({
+          ...b,
+          items: b.items
+            ? b.items.map((i) =>
+                i.publicId === itemPublicId
+                  ? { ...i, sets: res.data!, notes: config.notes ?? i.notes }
+                  : i
+              )
+            : [],
+        })),
       }));
-      showNotification("success", "Séries de Drop-Set salvas!");
-    } catch {
-      showNotification("error", "Falha ao salvar Drop-Set.");
+      notify("Exercício configurado com sucesso.");
+    } else {
+      notify(res.error || "Erro ao configurar exercício.");
     }
-  };
+  }
 
-  // 14. REPLACE REST-PAUSE STRUCTURE
-  const handleReplaceRestPause = async (
-    blockPublicId: string,
-    itemPublicId: string,
-    payload: {
-      config: {
-        intraPauseSeconds: number;
-        targetTotalReps?: number | null;
-      };
-      initialSet: {
-        targetReps?: number | null;
-        targetLoadKg?: number | null;
-        targetRestSeconds?: number | null;
-        intensityIndicator?: string | null;
-      };
-      miniSets: Array<{
-        targetReps?: number | null;
-        targetLoadKg?: number | null;
-        intensityIndicator?: string | null;
-      }>;
-    }
-  ) => {
-    try {
-      const res = await replaceRestPauseStructureAction(consultancySlug, itemPublicId, payload);
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao salvar séries de Rest-Pause.");
-        return;
+  // Duplicate Ficha
+  async function handleDuplicateFicha() {
+    startTransition(async () => {
+      const res = await duplicateWorkoutAction(consultancySlug, workout.publicId, version.publicId);
+      if (res.ok && res.data) {
+        notify("Ficha duplicada!");
+        router.push(`/consultoria/${consultancySlug}/rotinas/${res.data.workoutPublicId}`);
+      } else {
+        notify(res.error || "Erro ao duplicar ficha.");
       }
+    });
+  }
 
-      setDraft((prev) => ({
-        ...prev,
-        blocks: (prev.blocks || []).map((b) => {
-          if (b.publicId !== blockPublicId) return b;
-          return {
-            ...b,
-            items: (b.items || []).map((it) => {
-              if (it.publicId !== itemPublicId) return it;
-              return {
-                ...it,
-                methodConfig: payload.config,
-                sets: res.data!,
-              };
-            }),
-          };
-        }),
-      }));
-      showNotification("success", "Séries de Rest-Pause salvas!");
-    } catch {
-      showNotification("error", "Falha ao salvar Rest-Pause.");
-    }
-  };
-
-  // 15. UPDATE CARDIO CONFIGURATION
-  const handleUpdateCardio = async (
-    blockPublicId: string,
-    itemPublicId: string,
-    payload: {
-      prescriptionMode: PrescriptionMode;
-      config: CardioMethodConfig;
-      targetDurationSeconds?: number | null;
-      targetDistanceMeters?: number | null;
-      targetRestSeconds?: number | null;
-      notes?: string | null;
-    }
-  ) => {
-    try {
-      const res = await updateCardioConfigurationAction(consultancySlug, itemPublicId, payload);
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao salvar configuração de Cardio.");
-        return;
+  // Save as Model (Template)
+  async function handleSaveAsModel() {
+    startTransition(async () => {
+      const res = await saveWorkoutAsTemplateAction(consultancySlug, workout.publicId, version.publicId);
+      if (res.ok && res.data) {
+        notify("Ficha salva como Modelo com sucesso!");
+      } else {
+        notify(res.error || "Erro ao salvar modelo.");
       }
+    });
+  }
 
-      setDraft((prev) => ({
-        ...prev,
-        blocks: (prev.blocks || []).map((b) => {
-          if (b.publicId !== blockPublicId) return b;
-          return {
-            ...b,
-            items: (b.items || []).map((it) => {
-              if (it.publicId !== itemPublicId) return it;
-              return {
-                ...it,
-                prescriptionMode: payload.prescriptionMode,
-                methodConfig: res.data!.config,
-                notes: payload.notes || it.notes,
-                sets: res.data!.sets,
-              };
-            }),
-          };
-        }),
-      }));
-      showNotification("success", "Configuração de Cardio salva!");
-    } catch {
-      showNotification("error", "Falha ao salvar Cardio.");
-    }
-  };
-
-  const handleUpdateWarmup = async (
-    blockPublicId: string,
-    itemPublicId: string,
-    payload: {
-      config: WarmupMethodConfig;
-    }
-  ) => {
-    try {
-      const res = await updateWarmupConfigurationAction(consultancySlug, itemPublicId, payload);
-      if (!res.ok || !res.data) {
-        showNotification("error", res.error || "Erro ao salvar configuração de Aquecimento.");
-        return;
+  // Create new draft version if already published
+  async function handleCreateNewVersion() {
+    startTransition(async () => {
+      const res = await createNewWorkoutVersionAction(consultancySlug, workout.publicId);
+      if (res.ok && res.data) {
+        notify("Novo rascunho de versão criado!");
+        router.push(
+          `/consultoria/${consultancySlug}/rotinas/${workout.publicId}?version=${res.data.publicId}`
+        );
+      } else {
+        notify(res.error || "Erro ao criar nova versão.");
       }
-
-      setDraft((prev) => ({
-        ...prev,
-        blocks: (prev.blocks || []).map((b) => {
-          if (b.publicId !== blockPublicId) return b;
-          return {
-            ...b,
-            items: (b.items || []).map((it) => {
-              if (it.publicId !== itemPublicId) return it;
-              return {
-                ...it,
-                methodConfig: res.data!,
-              };
-            }),
-          };
-        }),
-      }));
-      showNotification("success", "Configuração de Aquecimento salva!");
-    } catch {
-      showNotification("error", "Falha ao salvar Aquecimento.");
-    }
-  };
-
-  const blocks = draft.blocks || [];
-
+    });
+  }
   return (
-    <div className="space-y-6 pb-32 sm:pb-12 max-w-5xl mx-auto px-2.5 sm:px-6">
-      {/* Toast / Notification Banner */}
-      {statusMessage && (
-        <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-md transition-all text-xs font-medium animate-in fade-in slide-in-from-top-2 ${
-            statusMessage.type === "success"
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-              : statusMessage.type === "error"
-              ? "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400"
-              : "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400"
-          }`}
-        >
-          {statusMessage.type === "success" ? (
-            <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-          )}
-          <span>{statusMessage.text}</span>
+    <div className="space-y-6">
+      {/* Toast Feedback Notification */}
+      {feedbackMessage && (
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl bg-[var(--surface)] border border-emerald-500 shadow-xl text-xs sm:text-sm font-bold text-[var(--text-primary)] flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200">
+          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span>{feedbackMessage}</span>
         </div>
       )}
 
-      {/* Preselected Student Banner */}
-      {initialStudentPublicId && (
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-semibold">
-            <UserCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>Montando rotina do zero para aluno vinculado. Ao finalizar, prescreva o treino diretamente.</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsAssignModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shrink-0 self-start sm:self-auto cursor-pointer"
-          >
-            Prescrever agora
-          </button>
-        </div>
-      )}
-
-      {/* Routine Metadata Header Card — Limpo e Confortável */}
-      <section className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-6 lg:p-7 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div className="space-y-2 flex-1 min-w-0">
-            {/* Badges de Status e Versão */}
-            <div className="flex flex-wrap items-center gap-2">
-              {isReadOnly ? (
-                draft.status === "PUBLISHED" ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    <Check className="w-3 h-3" />
-                    Publicado
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20">
-                    Versão Anterior
-                  </span>
-                )
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Rascunho em Edição
-                </span>
-              )}
-
+      {/* Top Header Card */}
+      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Ficha Title and Sub-details */}
+          <div className="space-y-1.5 flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                FICHA DE TREINO
+              </span>
+              <span
+                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                  isDraft
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                    : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                }`}
+              >
+                {isDraft
+                  ? `Rascunho V${version.versionNumber}`
+                  : `Publicado V${version.versionNumber}`}
+              </span>
               {workout.isTemplate && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                   Modelo
                 </span>
               )}
-
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[var(--surface-subtle)] text-[var(--foreground-muted)] border border-[var(--border-subtle)]">
-                v{draft.versionNumber}
-              </span>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[var(--surface-subtle)] text-[var(--foreground-muted)] border border-[var(--border-subtle)]">
-                {DIFFICULTY_LABELS[draft.difficultyLevel as DifficultyLevel] || draft.difficultyLevel}
-              </span>
             </div>
 
-            {/* Nome do Treino */}
-            <h1 className="text-xl sm:text-2xl font-heading font-black tracking-tight text-[var(--foreground)] truncate">
-              {draft.title}
+            <h1 className="text-xl sm:text-2xl font-black text-[var(--text-primary)] tracking-tight truncate">
+              {title}
             </h1>
 
-            {draft.subtitle && (
-              <p className="text-xs sm:text-sm font-medium text-[var(--foreground-muted)] line-clamp-2">
-                {draft.subtitle}
-              </p>
-            )}
-
-            {draft.objective && (
-              <p className="text-xs text-[var(--foreground-muted)] bg-[var(--surface-subtle)] px-3 py-1.5 rounded-xl inline-block border border-[var(--border-subtle)]">
-                <span className="font-semibold text-[var(--foreground)]">Objetivo:</span> {draft.objective}
-              </p>
-            )}
-          </div>
-
-          {/* Action buttons (Desktop toolbar & non-dominant secondary actions) */}
-          <div className="flex items-center gap-2 shrink-0">
-            {!isReadOnly ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingMetadata(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors min-h-[38px] cursor-pointer"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
-                  <span className="hidden sm:inline">Editar Informações</span>
-                  <span className="sm:hidden">Editar</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsPublishDialogOpen(true)}
-                  className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs min-h-[38px] cursor-pointer"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  Publicar Treino
-                </button>
-              </>
-            ) : (
-              <>
-                {draft.status === "PUBLISHED" && !workout.isTemplate && (
-                  <button
-                    type="button"
-                    onClick={() => setIsAssignModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-xs min-h-[38px] cursor-pointer"
-                  >
-                    <UserCheck className="w-3.5 h-3.5" />
-                    Prescrever
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleCreateNewVersion}
-                  disabled={isCreatingVersion}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50 min-h-[38px] cursor-pointer"
-                >
-                  {isCreatingVersion ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Plus className="w-3.5 h-3.5" />
-                  )}
-                  Criar Nova Versão
-                </button>
-              </>
-            )}
-
-            <WorkoutActionsMenu
-              isPublishedOrArchived={isReadOnly}
-              onOpenHistory={() => setIsHistoryDrawerOpen(true)}
-              onDuplicate={() => {
-                setDuplicateTitle(`Cópia de ${draft.title}`);
-                setIsDuplicateModalOpen(true);
-              }}
-              onSaveAsTemplate={() => {
-                setTemplateTitle(`${draft.title} (Modelo)`);
-                setIsSaveTemplateModalOpen(true);
-              }}
-              onCreateNewVersion={handleCreateNewVersion}
-            />
-          </div>
-        </div>
-
-        {/* Read-Only Notice Banner */}
-        {isReadOnly && (
-          <div className="mt-4 p-4 rounded-2xl border border-blue-500/20 bg-blue-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-[var(--foreground)]">
-                  Modo de Leitura ({draft.status === "PUBLISHED" ? "Versão Publicada" : "Versão Histórica"})
-                </p>
-                <p className="text-[var(--foreground-muted)] text-[11px] mt-0.5">
-                  Esta versão é imutável. Para fazer alterações ou adicionar blocos, crie uma nova versão em rascunho.
-                </p>
-              </div>
+            <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)] font-medium flex-wrap">
+              {objective && <span>{objective}</span>}
+              {objective && <span className="opacity-40">•</span>}
+              <span>
+                {difficultyLevel === "BEGINNER"
+                  ? "Iniciante"
+                  : difficultyLevel === "ADVANCED"
+                  ? "Avançado"
+                  : "Intermediário"}
+              </span>
+              <span className="opacity-40">•</span>
+              <span className="flex items-center gap-1">
+                <ClockIcon className="w-3.5 h-3.5" />
+                ~{estimatedDurationMinutes} min
+              </span>
             </div>
+          </div>
+
+          {/* Primary Top Actions (Mobile & Desktop) */}
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
             <button
               type="button"
-              onClick={handleCreateNewVersion}
-              disabled={isCreatingVersion}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shrink-0 shadow-xs disabled:opacity-50 min-h-[40px] cursor-pointer"
+              onClick={() => setIsMetadataExpanded(!isMetadataExpanded)}
+              className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+              title="Editar dados da ficha"
             >
-              <Plus className="w-3.5 h-3.5" />
-              {isCreatingVersion ? "Criando..." : "Criar Nova Versão"}
+              <SlidersIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {isMetadataExpanded ? "Ocultar dados" : "Dados da ficha"}
+              </span>
             </button>
-          </div>
-        )}
 
-        {draft.notes && (
-          <div className="mt-4 pt-4 border-t border-[var(--border-subtle)] text-xs text-[var(--foreground-muted)]">
-            <span className="font-semibold text-[var(--foreground)]">Observações:</span> {draft.notes}
-          </div>
-        )}
-
-        {/* Resumo visual rápido: Duração, Blocos e Exercícios */}
-        <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-[var(--foreground-muted)] pt-4 border-t border-[var(--border-subtle)]">
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-emerald-500" />
-            <span>
-              {draft.estimatedDurationMinutes
-                ? `${draft.estimatedDurationMinutes} min estimados`
-                : "Duração não definida"}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="font-semibold text-[var(--foreground)]">
-              {blocks.length} {blocks.length === 1 ? "bloco" : "blocos"}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Dumbbell className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="font-semibold text-[var(--foreground)]">
-              {blocks.reduce((acc, b) => acc + (b.items?.length || 0), 0)} exercícios
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* 1. Sensação Visual de Fluxo Guiado (1. Estrutura -> 2. Exercícios -> 3. Ajustes -> 4. Revisão) */}
-      <section className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-2.5 sm:p-3 shadow-2xs">
-        <div className="flex items-center justify-between gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-0.5">
-          {[
-            { step: 1, label: "Estrutura", desc: "Blocos de treino" },
-            { step: 2, label: "Exercícios", desc: "Adição dos itens" },
-            { step: 3, label: "Ajustes", desc: "Séries & reps" },
-            { step: 4, label: "Revisão", desc: "Publicação" },
-          ].map((item) => {
-            const isActive = flowStep === item.step;
-            const isDone = flowStep > item.step;
-            return (
-              <div
-                key={item.step}
-                className={`flex items-center gap-2 flex-1 min-w-[95px] sm:min-w-0 px-2 sm:px-3 py-1.5 rounded-xl transition-all ${
-                  isActive
-                    ? "bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 font-bold"
-                    : isDone
-                    ? "text-[var(--foreground)] opacity-90 font-medium"
-                    : "text-[var(--foreground-muted)] opacity-50 font-normal"
-                }`}
-              >
-                <div
-                  className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0 ${
-                    isActive
-                      ? "bg-emerald-600 text-white shadow-2xs"
-                      : isDone
-                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                      : "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground-muted)]"
-                  }`}
-                >
-                  {isDone ? <Check className="w-3 h-3" /> : item.step}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs truncate leading-tight">{item.label}</p>
-                  <p className="text-[10px] text-[var(--foreground-muted)] truncate hidden md:block">
-                    {item.desc}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Routine Blocks List Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
-            <Layers className="w-4 h-4 text-emerald-500" />
-            Estrutura de Blocos ({blocks.length})
-          </h2>
-
-          {!isReadOnly && (
             <button
-              onClick={() => setIsMethodModalOpen(true)}
-              disabled={isPending}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50 min-h-[38px] cursor-pointer"
+              type="button"
+              onClick={() => setIsPreviewOpen(true)}
+              className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+              title="Pré-visualizar como aluno"
             >
-              {isPending ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Plus className="w-3.5 h-3.5" />
-              )}
-              Adicionar Bloco
+              <EyeIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Pré-visualizar</span>
             </button>
-          )}
-        </div>
 
-        {/* 8. Empty State Direto e Simples */}
-        {blocks.length === 0 ? (
-          <div className="p-8 sm:p-12 text-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)] space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
-              <Layers className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base font-bold text-[var(--foreground)]">
-                Comece adicionando o primeiro bloco do treino.
-              </h3>
-              <p className="text-xs text-[var(--foreground-muted)] max-w-sm mx-auto">
-                Escolha a metodologia desejada para iniciar a estrutura do treino.
-              </p>
-            </div>
-            {!isReadOnly && (
+            {isDraft && (
               <button
                 type="button"
-                onClick={() => setIsMethodModalOpen(true)}
                 disabled={isPending}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-sm min-h-[44px] cursor-pointer active:scale-98"
+                onClick={handleSaveMetadata}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
-                <span>Escolher metodologia</span>
+                <CheckIcon className="w-4 h-4" />
+                <span>Salvar</span>
               </button>
             )}
-          </div>
-        ) : (
-          /* Lista de Blocos com comportamento Mobile Accordion */
-          <div className="space-y-4">
-            {blocks.map((block, index) => (
-              <WorkoutBlockCard
-                key={block.publicId}
-                block={block}
-                blockIndex={index}
-                totalBlocks={blocks.length}
-                isControlledCollapsed={
-                  activeMobileBlockId !== null
-                    ? activeMobileBlockId !== block.publicId
-                    : blocks.length > 1 && index > 0
-                }
-                onToggleCollapse={() => {
-                  const isOpen =
-                    activeMobileBlockId !== null
-                      ? activeMobileBlockId === block.publicId
-                      : blocks.length === 1 || index === 0;
-                  setActiveMobileBlockId(isOpen ? "NONE" : block.publicId);
-                }}
-                onMoveUp={() => handleMoveBlockUp(index)}
-                onMoveDown={() => handleMoveBlockDown(index)}
-                onDuplicate={() => handleDuplicateBlock(block.publicId)}
-                onRemove={() => handleRemoveBlock(block.publicId)}
-                onOpenPicker={() => setActivePickerBlockId(block.publicId)}
-                onRemoveItem={(itemPublicId) =>
-                  handleRemoveItem(block.publicId, itemPublicId)
-                }
-                onUpdateSets={(itemPublicId, sets) =>
-                  handleUpdateSets(block.publicId, itemPublicId, sets)
-                }
-                onUpdateBlockTitle={(title) =>
-                  handleUpdateBlockTitle(block.publicId, title)
-                }
-                onUpdateCircuitConfig={(config) =>
-                  handleUpdateCircuitConfig(block.publicId, config)
-                }
-                onReplaceDropSet={(itemPublicId, payload) =>
-                  handleReplaceDropSet(block.publicId, itemPublicId, payload)
-                }
-                onReplaceRestPause={(itemPublicId, payload) =>
-                  handleReplaceRestPause(block.publicId, itemPublicId, payload)
-                }
-                onUpdateCardio={(itemPublicId, payload) =>
-                  handleUpdateCardio(block.publicId, itemPublicId, payload)
-                }
-                onUpdateWarmup={(itemPublicId, payload) =>
-                  handleUpdateWarmup(block.publicId, itemPublicId, payload)
-                }
-              />
-            ))}
-          </div>
-        )}
-      </section>
 
-      {/* Bottom Floating Action on Desktop */}
-      <div className="pt-2 flex justify-center">
-        {!isReadOnly ? (
-          blocks.length > 0 && (
-            <button
-              onClick={() => setIsMethodModalOpen(true)}
-              disabled={isPending}
-              className="inline-flex items-center gap-2 px-5 py-3 text-xs font-semibold rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] text-[var(--foreground)] hover:bg-[var(--surface-sunken)] transition-colors shadow-xs disabled:opacity-50 min-h-[44px] cursor-pointer"
-            >
-              {isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-              ) : (
-                <Plus className="w-4 h-4 text-emerald-500" />
-              )}
-              Adicionar Novo Bloco de Exercícios
-            </button>
-          )
-        ) : (
-          <button
-            type="button"
-            onClick={handleCreateNewVersion}
-            disabled={isCreatingVersion}
-            className="inline-flex items-center gap-2 px-6 py-3 text-xs font-semibold rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50 min-h-[44px] cursor-pointer"
-          >
-            {isCreatingVersion ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Plus className="w-4 h-4" />
+            {isDraft && (
+              <button
+                type="button"
+                onClick={() => setIsPublishDialogOpen(true)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+              >
+                <SendIcon className="w-3.5 h-3.5" />
+                <span>Publicar</span>
+              </button>
             )}
-            Criar Nova Versão em Rascunho
-          </button>
-        )}
-      </div>
 
-      {/* 6. Mobile Sticky Footer Action Bar (Adicionar Bloco + Salvar Treino com Safe Area) */}
-      <div className="fixed sm:hidden bottom-0 left-0 right-0 p-3 pb-[max(0.875rem,env(safe-area-inset-bottom))] bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-strong)] z-30 shadow-2xl flex items-center gap-2.5">
-        {!isReadOnly ? (
-          <>
-            <button
-              type="button"
-              onClick={() => setIsMethodModalOpen(true)}
-              disabled={isPending}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-sunken)] border border-[var(--border-default)] text-xs font-bold text-[var(--foreground)] active:scale-98 transition-all min-h-[44px] cursor-pointer"
-            >
-              <Plus className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>Adicionar bloco</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsPublishDialogOpen(true)}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm active:scale-98 transition-all min-h-[44px] cursor-pointer"
-            >
-              <Check className="w-4 h-4 shrink-0" />
-              <span>Salvar treino</span>
-            </button>
-          </>
-        ) : (
-          <>
-            {draft.status === "PUBLISHED" && !workout.isTemplate && (
+            {!isDraft && (
               <button
                 type="button"
                 onClick={() => setIsAssignModalOpen(true)}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs active:scale-98 transition-all min-h-[44px] cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[40px] flex items-center gap-1.5 cursor-pointer"
               >
-                <UserCheck className="w-4 h-4 shrink-0" />
-                <span>Prescrever</span>
+                <UserCheckIcon className="w-4 h-4" />
+                <span>Atribuir ao aluno</span>
               </button>
             )}
-            <button
-              type="button"
-              onClick={handleCreateNewVersion}
-              disabled={isCreatingVersion}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs active:scale-98 transition-all min-h-[44px] cursor-pointer disabled:opacity-50"
-            >
-              {isCreatingVersion ? (
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              ) : (
-                <Plus className="w-4 h-4 shrink-0" />
-              )}
-              <span>Nova Versão</span>
-            </button>
-          </>
+
+            {!isDraft && (
+              <button
+                type="button"
+                onClick={handleCreateNewVersion}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+              >
+                <PlusIcon className="w-3.5 h-3.5" />
+                <span>Editar (novo rascunho)</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Collapsible Metadata Drawer */}
+        {isMetadataExpanded && (
+          <div className="pt-4 border-t border-[var(--border-subtle)] space-y-4 animate-in fade-in duration-150">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-[var(--text-primary)]">
+                  Nome da ficha *
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  disabled={!isDraft}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ex: Hipertrofia — Matheus"
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-[var(--text-primary)]">
+                  Objetivo principal
+                </label>
+                <input
+                  type="text"
+                  value={objective}
+                  disabled={!isDraft}
+                  onChange={(e) => setObjective(e.target.value)}
+                  placeholder="Ex: Ganho de massa muscular"
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-[var(--text-primary)]">
+                  Nível de dificuldade
+                </label>
+                <select
+                  value={difficultyLevel}
+                  disabled={!isDraft}
+                  onChange={(e) => setDifficultyLevel(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+                >
+                  <option value="BEGINNER">Iniciante</option>
+                  <option value="INTERMEDIATE">Intermediário</option>
+                  <option value="ADVANCED">Avançado</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-[var(--text-primary)]">
+                  Duração estimada (minutos)
+                </label>
+                <input
+                  type="number"
+                  min={5}
+                  max={240}
+                  value={estimatedDurationMinutes}
+                  disabled={!isDraft}
+                  onChange={(e) =>
+                    setEstimatedDurationMinutes(parseInt(e.target.value, 10) || 50)
+                  }
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-[var(--text-primary)]">
+                Observações gerais da ficha
+              </label>
+              <textarea
+                rows={2}
+                value={notes}
+                disabled={!isDraft}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Orientações pré-treino, recomendações de aquecimento..."
+                className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            {isDraft && (
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleSaveMetadata}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white min-h-[38px] flex items-center gap-1.5 cursor-pointer"
+                >
+                  <CheckIcon className="w-3.5 h-3.5" />
+                  <span>Salvar dados</span>
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {/* 11-Method Selector Modal */}
-      <WorkoutMethodSelectorModal
-        isOpen={isMethodModalOpen}
-        onClose={() => setIsMethodModalOpen(false)}
-        onSelectMethod={handleCreateMethodBlock}
-        isSubmitting={isPending}
-      />
+      {/* Main Workspace (Center Focus + Desktop Lateral Summary) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Central Categories List (12 cols on mobile, 9 cols on desktop) */}
+        <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+          {categories.length === 0 ? (
+            <div className="p-8 sm:p-12 text-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface)] space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                <PlusIcon className="w-6 h-6" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Nenhuma categoria criada ainda
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Crie sua primeira categoria (como Peito, Costas, Bíceps ou Treino A) e adicione os exercícios.
+                </p>
+              </div>
+              {isDraft && (
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingCategory(true)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  <span>Criar primeira categoria</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            categories.map((category, catIdx) => (
+              <WorkoutCategoryCard
+                key={category.publicId}
+                category={category}
+                categoryIndex={catIdx}
+                totalCategories={categories.length}
+                allCategories={allCategoriesSimple}
+                isDraft={isDraft}
+                onOpenExercisePicker={(catId) => setActiveCategoryForPicker(catId)}
+                onRenameCategory={handleRenameCategory}
+                onDuplicateCategory={handleDuplicateCategory}
+                onDeleteCategory={handleDeleteCategory}
+                onMoveCategoryUp={(idx) => handleMoveCategory(idx, "up")}
+                onMoveCategoryDown={(idx) => handleMoveCategory(idx, "down")}
+                onDuplicateExercise={handleDuplicateExercise}
+                onMoveExerciseToCategory={handleMoveExerciseToCategory}
+                onDeleteExercise={handleDeleteExercise}
+                onMoveExerciseUp={(catId, idx) => handleMoveExercise(catId, idx, "up")}
+                onMoveExerciseDown={(catId, idx) => handleMoveExercise(catId, idx, "down")}
+                onUpdateExerciseQuickConfig={handleUpdateExerciseQuickConfig}
+              />
+            ))
+          )}
+
+          {/* New Category Button / Inline Form */}
+          {isDraft && (
+            <div className="pt-2">
+              {isCreatingCategory ? (
+                <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-emerald-500 bg-[var(--surface)] shadow-md ring-2 ring-emerald-500/20 space-y-3.5 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      Nova Categoria
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingCategory(false)}
+                      className="p-1.5 rounded-xl text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+                    >
+                      <XIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleCreateCategory();
+                        if (e.key === "Escape") setIsCreatingCategory(false);
+                      }}
+                      autoFocus
+                      placeholder="Nome da categoria (ex: Peito, Bíceps, Treino A...)"
+                      className="flex-1 px-4 py-2.5 text-xs sm:text-sm font-bold uppercase rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px]"
+                    />
+                    <button
+                      type="button"
+                      disabled={!newCategoryName.trim() || isPending}
+                      onClick={handleCreateCategory}
+                      className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 transition-colors min-h-[44px] cursor-pointer"
+                    >
+                      {isPending ? "Criando..." : "Criar"}
+                    </button>
+                  </div>
+
+                  {/* Preset quick chips */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                      Sugestões rápidas:
+                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {CATEGORY_PRESETS.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setNewCategoryName(preset)}
+                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-emerald-500/10 hover:text-emerald-600 border border-[var(--border-subtle)] text-[var(--text-secondary)] transition-colors cursor-pointer"
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingCategory(true)}
+                  className="w-full py-3.5 sm:py-4 px-6 rounded-2xl sm:rounded-3xl border-2 border-dashed border-[var(--border-default)] hover:border-emerald-500 bg-[var(--surface)] hover:bg-emerald-500/5 text-[var(--text-primary)] hover:text-emerald-600 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-2xs min-h-[50px] cursor-pointer"
+                >
+                  <PlusIcon className="w-5 h-5 text-emerald-500" />
+                  <span>+ Nova categoria</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Sticky Summary Panel (Hidden on mobile) */}
+        <aside className="hidden lg:block lg:col-span-4 xl:col-span-3 sticky top-6 space-y-4">
+          <div className="p-5 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                RESUMO DA FICHA
+              </span>
+              <h3 className="text-base font-extrabold text-[var(--text-primary)] truncate mt-0.5">
+                {title}
+              </h3>
+            </div>
+
+            <div className="space-y-2.5 text-xs text-[var(--text-secondary)] border-y border-[var(--border-subtle)] py-3">
+              <div className="flex items-center justify-between">
+                <span>Categorias:</span>
+                <span className="font-bold text-[var(--text-primary)]">
+                  {categories.length}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Exercícios totais:</span>
+                <span className="font-bold text-[var(--text-primary)]">
+                  {totalExercises}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Duração estimada:</span>
+                <span className="font-bold text-[var(--text-primary)]">
+                  ~{estimatedDurationMinutes} min
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Status:</span>
+                <span
+                  className={`font-bold text-[11px] px-2 py-0.5 rounded-full ${
+                    isDraft
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  }`}
+                >
+                  {isDraft ? "Rascunho" : "Publicado"}
+                </span>
+              </div>
+            </div>
+
+            {/* Panel Quick Actions */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setIsPreviewOpen(true)}
+                className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-colors flex items-center justify-center gap-2 min-h-[38px] cursor-pointer"
+              >
+                <EyeIcon className="w-4 h-4 text-blue-500" />
+                <span>Pré-visualizar</span>
+              </button>
+
+              {isDraft ? (
+                <button
+                  type="button"
+                  onClick={() => setIsPublishDialogOpen(true)}
+                  className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center justify-center gap-2 min-h-[38px] cursor-pointer"
+                >
+                  <SendIcon className="w-3.5 h-3.5" />
+                  <span>Publicar ficha</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsAssignModalOpen(true)}
+                  className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center justify-center gap-2 min-h-[38px] cursor-pointer"
+                >
+                  <UserCheckIcon className="w-4 h-4" />
+                  <span>Atribuir ao aluno</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={handleSaveAsModel}
+                className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[36px] cursor-pointer"
+              >
+                <BookmarkIcon className="w-3.5 h-3.5" />
+                <span>Salvar como modelo</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={handleDuplicateFicha}
+                className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[36px] cursor-pointer"
+              >
+                <CopyIcon className="w-3.5 h-3.5" />
+                <span>Duplicar ficha</span>
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
 
       {/* Unified Exercise Picker Modal */}
-      <UnifiedExercisePicker
-        isOpen={!!activePickerBlockId}
-        consultancySlug={consultancySlug}
-        onClose={() => setActivePickerBlockId(null)}
-        onSelectExercise={handleSelectExerciseFromPicker}
-        onOpenCustomModal={() => {
-          const currentBlock = activePickerBlockId;
-          setActivePickerBlockId(null);
-          setActiveCustomBlockId(currentBlock);
-        }}
-      />
+      {activeCategoryForPicker && (
+        <UnifiedExercisePicker
+          isOpen={true}
+          consultancySlug={consultancySlug}
+          onClose={() => setActiveCategoryForPicker(null)}
+          onSelectExercise={handleSelectExercise}
+          onOpenCustomModal={() => setIsCustomModalOpen(true)}
+        />
+      )}
 
       {/* Custom Exercise Inline Modal */}
-      <CustomExerciseInlineModal
-        isOpen={!!activeCustomBlockId}
-        onClose={() => setActiveCustomBlockId(null)}
-        onSave={handleSaveCustomExercise}
-      />
+      {isCustomModalOpen && (
+        <CustomExerciseInlineModal
+          isOpen={true}
+          consultancySlug={consultancySlug}
+          onClose={() => setIsCustomModalOpen(false)}
+          onSave={handleAddCustomExercise}
+        />
+      )}
 
       {/* Workout Publish Dialog */}
       <WorkoutPublishDialog
-        consultancySlug={consultancySlug}
-        version={draft}
         isOpen={isPublishDialogOpen}
         onClose={() => setIsPublishDialogOpen(false)}
-        onPublished={(pub) => {
-          setDraft(pub);
-          showNotification("success", "Treino publicado com sucesso!");
+        consultancySlug={consultancySlug}
+        version={version}
+        onPublished={(pubVersion) => {
+          setVersion(pubVersion);
+          setIsPublishDialogOpen(false);
+          notify("Ficha publicada com sucesso!");
           router.refresh();
         }}
       />
@@ -1312,276 +1047,57 @@ export function WorkoutBuilder({
         isOpen={isAssignModalOpen}
         onClose={() => setIsAssignModalOpen(false)}
         slug={consultancySlug}
+        workoutTitle={title}
         workoutPublicId={workout.publicId}
-        workoutTitle={workout.title}
-        versionPublicId={draft.publicId}
-        versionNumber={draft.versionNumber}
+        versionPublicId={version.publicId}
+        versionNumber={version.versionNumber}
         initialStudentPublicId={initialStudentPublicId}
         onAssigned={() => {
-          showNotification("success", "Treino prescrito para o aluno com sucesso!");
-          router.refresh();
+          setIsAssignModalOpen(false);
+          notify("Ficha prescrita com sucesso ao aluno!");
         }}
       />
 
-      {/* Workout Version History Drawer */}
-      <WorkoutVersionHistory
-        consultancySlug={consultancySlug}
-        workoutPublicId={workout.publicId}
-        currentVersionPublicId={draft.publicId}
-        versions={allVersions}
-        isOpen={isHistoryDrawerOpen}
-        onClose={() => setIsHistoryDrawerOpen(false)}
-        onCreateNewVersion={handleCreateNewVersion}
-        isCreatingNewVersion={isCreatingVersion}
-      />
-
-      {/* Duplicate Workout Modal */}
-      {isDuplicateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
-              <h2 className="text-base font-bold text-[var(--foreground)]">
-                Duplicar Treino Completo
-              </h2>
+      {/* Student View Preview Modal */}
+      {isPreviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-3xl max-h-[92vh] rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--surface-subtle)]">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                  PRÉ-VISUALIZAÇÃO DO ALUNO
+                </span>
+                <h3 className="text-base font-extrabold text-[var(--text-primary)]">
+                  {title}
+                </h3>
+              </div>
               <button
-                onClick={() => setIsDuplicateModalOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--foreground-muted)] transition-colors"
+                type="button"
+                onClick={() => setIsPreviewOpen(false)}
+                className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
-
-            <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
-              Será criada uma nova rotina de treino independente com Versão 1 em rascunho, clonando exatamente a estrutura da versão exibida (Versão {draft.versionNumber}).
-            </p>
-
-            <form onSubmit={handleConfirmDuplicate} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-[var(--foreground)]">
-                  Título do Novo Treino *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={duplicateTitle}
-                  onChange={(e) => setDuplicateTitle(e.target.value)}
-                  placeholder="Nome do treino duplicado..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => setIsDuplicateModalOpen(false)}
-                  disabled={isPending}
-                  className="px-4 py-2 text-xs font-medium rounded-xl border border-[var(--border-default)] text-[var(--foreground-muted)] hover:bg-[var(--surface-subtle)] transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isPending || !duplicateTitle.trim()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
-                >
-                  {isPending ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : null}
-                  Confirmar Duplicação
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Save As Template Modal */}
-      {isSaveTemplateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
-              <h2 className="text-base font-bold text-[var(--foreground)]">
-                Salvar como Modelo
-              </h2>
-              <button
-                onClick={() => setIsSaveTemplateModalOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--foreground-muted)] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <StudentWorkoutRenderer
+                workout={{
+                  assignmentPublicId: "preview-mode",
+                  consultancyName: "TREVO ONE",
+                  startsOn: new Date().toISOString().split("T")[0],
+                  endsOn: null,
+                  versionNumber: version.versionNumber,
+                  title: title,
+                  subtitle: null,
+                  objective: objective || null,
+                  estimatedDurationMinutes: estimatedDurationMinutes,
+                  difficultyLevel: difficultyLevel,
+                  notesForStudent: notes || null,
+                  blocks: version.blocks,
+                }}
+                consultancySlug={consultancySlug}
+              />
             </div>
-
-            <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
-              Esta rotina será salva como um modelo reutilizável. O treino original não será modificado.
-            </p>
-
-            <form onSubmit={handleConfirmSaveAsTemplate} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-[var(--foreground)]">
-                  Nome do Modelo *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={templateTitle}
-                  onChange={(e) => setTemplateTitle(e.target.value)}
-                  placeholder="Nome do modelo..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => setIsSaveTemplateModalOpen(false)}
-                  disabled={isPending}
-                  className="px-4 py-2 text-xs font-medium rounded-xl border border-[var(--border-default)] text-[var(--foreground-muted)] hover:bg-[var(--surface-subtle)] transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isPending || !templateTitle.trim()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-xs disabled:opacity-50"
-                >
-                  {isPending ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : null}
-                  Salvar Modelo
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Metadata Edit Modal */}
-      {isEditingMetadata && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-lg bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
-              <h2 className="text-base font-bold text-[var(--foreground)] flex items-center gap-2">
-                <Settings className="w-4 h-4 text-emerald-500" />
-                Editar Informações do Treino
-              </h2>
-              <button
-                onClick={() => setIsEditingMetadata(false)}
-                className="p-1.5 rounded-xl hover:bg-[var(--surface-subtle)] text-[var(--foreground-muted)] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveMetadata} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-[var(--foreground)]">
-                  Nome / Título da Rotina *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={metaTitle}
-                  onChange={(e) => setMetaTitle(e.target.value)}
-                  placeholder="Ex: Treino A - Hipertrofia Peitoral e Tríceps"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-[var(--foreground)]">
-                  Subtítulo / Foco
-                </label>
-                <input
-                  type="text"
-                  value={metaSubtitle}
-                  onChange={(e) => setMetaSubtitle(e.target.value)}
-                  placeholder="Ex: Foco na porção clavicular e progressão de carga"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[var(--foreground)]">
-                    Nível de Dificuldade
-                  </label>
-                  <select
-                    value={metaDifficulty}
-                    onChange={(e) =>
-                      setMetaDifficulty(e.target.value as DifficultyLevel)
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--foreground)] focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  >
-                    <option value="BEGINNER">Iniciante</option>
-                    <option value="INTERMEDIATE">Intermediário</option>
-                    <option value="ADVANCED">Avançado</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[var(--foreground)]">
-                    Duração Estimada (minutos)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="360"
-                    value={metaDuration}
-                    onChange={(e) => setMetaDuration(e.target.value)}
-                    placeholder="Ex: 50"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-[var(--foreground)]">
-                  Objetivo Principal
-                </label>
-                <input
-                  type="text"
-                  value={metaObjective}
-                  onChange={(e) => setMetaObjective(e.target.value)}
-                  placeholder="Ex: Hipertrofia, Força, Resistência, etc."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-[var(--foreground)]">
-                  Observações Gerais / Instruções
-                </label>
-                <textarea
-                  rows={3}
-                  value={metaNotes}
-                  onChange={(e) => setMetaNotes(e.target.value)}
-                  placeholder="Orientações de aquecimento, pausas ou recomendações especiais..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => setIsEditingMetadata(false)}
-                  className="px-4 py-2 text-xs font-medium rounded-xl border border-[var(--border-default)] text-[var(--foreground-muted)] hover:bg-[var(--surface-subtle)] transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingMetadata}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
-                >
-                  {savingMetadata ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Check className="w-3.5 h-3.5" />
-                  )}
-                  Salvar Alterações
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

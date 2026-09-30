@@ -147,7 +147,7 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
               <Link href={`/consultoria/${slug}/planos-v2/novo`} className="shrink-0">
                 <Button variant="primary" size="md" className="font-bold min-h-[44px] shadow-sm">
                   <PlusIcon className="w-4 h-4 mr-1.5" />
-                  <span>Novo Plano</span>
+                  <span>Criar plano</span>
                 </Button>
               </Link>
             </div>
@@ -192,7 +192,7 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
             </div>
             <div className="space-y-1 max-w-sm mx-auto">
               <h3 className="text-base font-bold text-[var(--text-primary)]">
-                Nenhum plano alimentar encontrado
+                Você ainda não criou nenhum plano alimentar.
               </h3>
               <p className="text-xs text-[var(--text-secondary)]">
                 {query

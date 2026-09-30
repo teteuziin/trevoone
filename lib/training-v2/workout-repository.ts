@@ -556,34 +556,13 @@ export async function addItemToDraftBlock(
       throw new TrainingAuthorizationError("Não é permitido alterar itens de uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
     }
 
-    // 1.1 Method cardinality enforcement
-    const [itemCountRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT COUNT(*) AS item_count FROM workout_block_items WHERE block_id = ?;`,
-      [b.id]
-    );
-    const currentItemCount = Number(itemCountRows[0]?.item_count || 0);
-    const blockType = b.block_type as WorkoutBlockType;
-
-    if (["SINGLE", "DROP_SET", "REST_PAUSE", "CARDIO"].includes(blockType) && currentItemCount >= 1) {
-      throw new TrainingAuthorizationError(
-        `Blocos do tipo ${blockType} suportam exatamente 1 exercício (já possui ${currentItemCount}).`,
-        "CARDINALITY_EXCEEDED",
-        400
+    // In Training V2 simplified architecture, categories support unlimited exercises
+    if (b.block_type !== "CUSTOM") {
+      await connection.execute(
+        "UPDATE workout_blocks SET block_type = 'CUSTOM' WHERE id = ?;",
+        [b.id]
       );
-    }
-    if (["BI_SET", "SUPER_SET"].includes(blockType) && currentItemCount >= 2) {
-      throw new TrainingAuthorizationError(
-        `Blocos do tipo ${blockType} suportam no máximo 2 exercícios (já possui ${currentItemCount}).`,
-        "CARDINALITY_EXCEEDED",
-        400
-      );
-    }
-    if (blockType === "TRI_SET" && currentItemCount >= 3) {
-      throw new TrainingAuthorizationError(
-        `Blocos do tipo TRI_SET suportam no máximo 3 exercícios (já possui ${currentItemCount}).`,
-        "CARDINALITY_EXCEEDED",
-        400
-      );
+      b.block_type = "CUSTOM";
     }
 
     let exerciseId: number | null = null;
@@ -3594,6 +3573,384 @@ export async function updateWarmupConfigurationForDraftItem(
     return input.config;
   } finally {
     if (connection) connection.release();
+  }
+}
+
+// ============================================================================
+// SIMPLIFIED TRAINING MONTADOR FUNCTIONS (CATEGORIAS & EXERCÍCIOS)
+// ============================================================================
+
+export type QuickConfigInput = {
+  seriesCount: number;
+  reps?: number | null;
+  targetDurationSeconds?: number | null;
+  restSeconds: number;
+  loadKg?: number | null;
+  notes?: string | null;
+};
+
+/**
+ * Duplicates an exercise item and all its sets within the same draft category.
+ */
+export async function duplicateItemInDraft(
+  ctx: TrainingAccessContext,
+  itemPublicId: string
+): Promise<WorkoutBlockItemDto> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [iRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wbi.id, wbi.block_id, wbi.exercise_id, wbi.sort_order, wbi.exercise_name_snapshot,
+              wbi.muscle_group_snapshot, wbi.equipment_snapshot, wbi.instructions_snapshot,
+              wbi.prescription_mode, wbi.target_cadence, wbi.target_rpe, wbi.target_rir,
+              wbi.method_config_json, wbi.custom_video_url, wbi.notes,
+              wv.status, w.consultancy_id, w.created_by_membership_id
+       FROM workout_block_items wbi
+       INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wbi.public_id = ?
+       LIMIT 1;`,
+      [itemPublicId]
+    );
+
+    if (!iRows || iRows.length === 0) {
+      throw new TrainingAuthorizationError("Exercício não encontrado.", "NOT_FOUND", 404);
+    }
+    const sourceItem = iRows[0];
+
+    if (Number(sourceItem.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado ao treino de outra consultoria.", "FORBIDDEN", 403);
+    }
+    const isCreator = ctx.membershipId && Number(sourceItem.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError("Apenas o autor ou administrador podem duplicar exercícios.", "FORBIDDEN", 403);
+    }
+    if (sourceItem.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Não é permitido duplicar itens de uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    // Shift following items
+    await connection.execute(
+      `UPDATE workout_block_items
+       SET sort_order = sort_order + 1
+       WHERE block_id = ? AND sort_order > ?;`,
+      [sourceItem.block_id, sourceItem.sort_order]
+    );
+
+    const newSortOrder = Number(sourceItem.sort_order) + 1;
+    const newItemPublicId = crypto.randomUUID();
+
+    const [iRes] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO workout_block_items (
+        public_id, block_id, exercise_id, sort_order, exercise_name_snapshot,
+        muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
+        prescription_mode, target_cadence, target_rpe, target_rir,
+        method_config_json, custom_video_url, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        newItemPublicId,
+        sourceItem.block_id,
+        sourceItem.exercise_id,
+        newSortOrder,
+        sourceItem.exercise_name_snapshot,
+        sourceItem.muscle_group_snapshot,
+        sourceItem.equipment_snapshot,
+        sourceItem.instructions_snapshot,
+        sourceItem.prescription_mode,
+        sourceItem.target_cadence,
+        sourceItem.target_rpe,
+        sourceItem.target_rir,
+        sourceItem.method_config_json,
+        sourceItem.custom_video_url,
+        sourceItem.notes,
+      ]
+    );
+    const newItemId = iRes.insertId;
+
+    // Duplicate pinned media
+    const [mediaRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT media_asset_id, role, sort_order FROM workout_block_item_media WHERE block_item_id = ?;`,
+      [sourceItem.id]
+    );
+    for (const m of mediaRows) {
+      await connection.execute(
+        `INSERT INTO workout_block_item_media (block_item_id, media_asset_id, role, sort_order) VALUES (?, ?, ?, ?);`,
+        [newItemId, m.media_asset_id, m.role, m.sort_order]
+      );
+    }
+
+    // Duplicate sets
+    const [sourceSets] = await connection.execute<RowDataPacket[]>(
+      `SELECT set_number, set_type, target_reps, target_reps_max,
+              target_load_kg, target_duration_seconds, target_distance_meters,
+              target_rest_seconds, intensity_indicator
+       FROM workout_item_sets
+       WHERE block_item_id = ?
+       ORDER BY set_number ASC;`,
+      [sourceItem.id]
+    );
+
+    const resultSets: WorkoutItemSetDto[] = [];
+    for (const s of sourceSets) {
+      await connection.execute(
+        `INSERT INTO workout_item_sets (
+          block_item_id, set_number, set_type, parent_set_id, target_reps,
+          target_reps_max, target_load_kg, target_duration_seconds,
+          target_distance_meters, target_rest_seconds, intensity_indicator
+        ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          newItemId,
+          s.set_number,
+          s.set_type,
+          s.target_reps,
+          s.target_reps_max,
+          s.target_load_kg,
+          s.target_duration_seconds,
+          s.target_distance_meters,
+          s.target_rest_seconds,
+          s.intensity_indicator,
+        ]
+      );
+      resultSets.push({
+        setNumber: Number(s.set_number),
+        setType: s.set_type,
+        parentSetNumber: null,
+        targetReps: s.target_reps != null ? Number(s.target_reps) : null,
+        targetRepsMax: s.target_reps_max != null ? Number(s.target_reps_max) : null,
+        targetLoadKg: s.target_load_kg != null ? Number(s.target_load_kg) : null,
+        targetDurationSeconds: s.target_duration_seconds != null ? Number(s.target_duration_seconds) : null,
+        targetDistanceMeters: s.target_distance_meters != null ? Number(s.target_distance_meters) : null,
+        targetRestSeconds: s.target_rest_seconds != null ? Number(s.target_rest_seconds) : null,
+        intensityIndicator: s.intensity_indicator || null,
+      });
+    }
+
+    await connection.commit();
+
+    return {
+      publicId: newItemPublicId,
+      exercisePublicId: null,
+      sortOrder: newSortOrder,
+      exerciseNameSnapshot: sourceItem.exercise_name_snapshot,
+      muscleGroupSnapshot: sourceItem.muscle_group_snapshot,
+      equipmentSnapshot: sourceItem.equipment_snapshot,
+      instructionsSnapshot: sourceItem.instructions_snapshot,
+      prescriptionMode: sourceItem.prescription_mode,
+      targetCadence: sourceItem.target_cadence,
+      targetRpe: sourceItem.target_rpe != null ? Number(sourceItem.target_rpe) : null,
+      targetRir: sourceItem.target_rir != null ? Number(sourceItem.target_rir) : null,
+      methodConfig: sourceItem.method_config_json ? JSON.parse(sourceItem.method_config_json) : null,
+      customVideoUrl: sourceItem.custom_video_url,
+      notes: sourceItem.notes,
+      pinnedMedia: [],
+      sets: resultSets,
+    };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Moves an exercise item from one category to another in the draft version.
+ */
+export async function moveItemToBlockInDraft(
+  ctx: TrainingAccessContext,
+  itemPublicId: string,
+  targetBlockPublicId: string
+): Promise<void> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [iRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wbi.id, wbi.block_id, wbi.sort_order,
+              wb.workout_version_id, wv.status, w.consultancy_id, w.created_by_membership_id
+       FROM workout_block_items wbi
+       INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wbi.public_id = ?
+       LIMIT 1;`,
+      [itemPublicId]
+    );
+    if (!iRows || iRows.length === 0) {
+      throw new TrainingAuthorizationError("Exercício não encontrado.", "NOT_FOUND", 404);
+    }
+    const item = iRows[0];
+
+    const [bRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, workout_version_id, block_type
+       FROM workout_blocks
+       WHERE public_id = ?
+       LIMIT 1;`,
+      [targetBlockPublicId]
+    );
+    if (!bRows || bRows.length === 0) {
+      throw new TrainingAuthorizationError("Categoria de destino não encontrada.", "NOT_FOUND", 404);
+    }
+    const targetBlock = bRows[0];
+
+    if (item.workout_version_id !== targetBlock.workout_version_id) {
+      throw new TrainingAuthorizationError("A categoria de destino pertence a outra ficha.", "BAD_REQUEST", 400);
+    }
+    if (Number(item.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    if (item.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Não é permitido alterar itens de uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    if (item.block_id === targetBlock.id) {
+      await connection.commit();
+      return;
+    }
+
+    if (targetBlock.block_type !== "CUSTOM") {
+      await connection.execute("UPDATE workout_blocks SET block_type = 'CUSTOM' WHERE id = ?;", [targetBlock.id]);
+    }
+
+    const [maxOrderRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order
+       FROM workout_block_items
+       WHERE block_id = ?;`,
+      [targetBlock.id]
+    );
+    const newSortOrder = Number(maxOrderRows[0]?.next_order || 0);
+
+    await connection.execute(
+      `UPDATE workout_block_items
+       SET block_id = ?, sort_order = ?, updated_at = NOW(3)
+       WHERE id = ?;`,
+      [targetBlock.id, newSortOrder, item.id]
+    );
+
+    // Re-index previous block
+    const [remainingItems] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM workout_block_items
+       WHERE block_id = ?
+       ORDER BY sort_order ASC;`,
+      [item.block_id]
+    );
+    for (let i = 0; i < remainingItems.length; i++) {
+      await connection.execute(
+        "UPDATE workout_block_items SET sort_order = ? WHERE id = ?;",
+        [i, remainingItems[i].id]
+      );
+    }
+
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Updates quick configuration of an exercise: series count, reps, rest, load, and notes.
+ */
+export async function updateItemQuickConfigInDraft(
+  ctx: TrainingAccessContext,
+  itemPublicId: string,
+  input: QuickConfigInput
+): Promise<WorkoutItemSetDto[]> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [iRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wbi.id, wv.status, w.consultancy_id, w.created_by_membership_id
+       FROM workout_block_items wbi
+       INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wbi.public_id = ?
+       LIMIT 1;`,
+      [itemPublicId]
+    );
+
+    if (!iRows || iRows.length === 0) {
+      throw new TrainingAuthorizationError("Exercício não encontrado.", "NOT_FOUND", 404);
+    }
+    const item = iRows[0];
+
+    if (Number(item.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    const isCreator = ctx.membershipId && Number(item.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError("Apenas o autor ou administrador podem editar exercícios.", "FORBIDDEN", 403);
+    }
+    if (item.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Não é permitido alterar itens de uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    // Update notes
+    await connection.execute(
+      "UPDATE workout_block_items SET notes = ?, updated_at = NOW(3) WHERE id = ?;",
+      [input.notes !== undefined ? (input.notes?.trim() || null) : null, item.id]
+    );
+
+    // Delete existing sets
+    await connection.execute("DELETE FROM workout_item_sets WHERE block_item_id = ?;", [item.id]);
+
+    const resultSets: WorkoutItemSetDto[] = [];
+    const count = Math.max(1, Math.min(20, input.seriesCount || 3));
+    const isDuration = input.targetDurationSeconds != null && input.targetDurationSeconds > 0;
+    const reps = isDuration ? null : Math.max(1, input.reps || 10);
+    const duration = isDuration ? Math.max(1, input.targetDurationSeconds!) : null;
+    const rest = Math.max(0, input.restSeconds ?? 60);
+    const load = input.loadKg != null && !isNaN(Number(input.loadKg)) ? Number(input.loadKg) : null;
+
+    for (let setNum = 1; setNum <= count; setNum++) {
+      await connection.execute(
+        `INSERT INTO workout_item_sets (
+          block_item_id, set_number, set_type, parent_set_id, target_reps,
+          target_reps_max, target_load_kg, target_duration_seconds,
+          target_distance_meters, target_rest_seconds, intensity_indicator
+        ) VALUES (?, ?, 'NORMAL', NULL, ?, NULL, ?, ?, NULL, ?, NULL);`,
+        [item.id, setNum, reps, load, duration, rest]
+      );
+
+      resultSets.push({
+        setNumber: setNum,
+        setType: "NORMAL",
+        parentSetNumber: null,
+        targetReps: reps,
+        targetRepsMax: null,
+        targetLoadKg: load,
+        targetDurationSeconds: duration,
+        targetDistanceMeters: null,
+        targetRestSeconds: rest,
+        intensityIndicator: null,
+      });
+    }
+
+    await connection.commit();
+    return resultSets;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
   }
 }
 

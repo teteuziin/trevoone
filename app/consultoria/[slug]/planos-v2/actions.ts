@@ -1,6 +1,15 @@
 "use server";
 
 import {
+  registerFoodManually,
+  registerFoodFromLabel,
+  registerRecipeFood,
+  type RegisterFoodManualInput,
+  type RegisterFoodLabelInput,
+  type RecipeIngredientInput,
+  type RegisterRecipeInput,
+} from "@/lib/nutrition-v2/food-repository";
+import {
   createTemplateFromPlan,
   listTemplates,
   renameTemplate,
@@ -1104,6 +1113,69 @@ export async function createPlanFromTemplateAction(
     return { success: true, data: res };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao criar plano a partir do modelo.";
+    return { success: false, error: message };
+  }
+}
+
+// ============================================================================
+// PARTE E — CADASTRO DE QUALQUER ALIMENTO NO TREVO ONE (SEM DEPENDER DO IBGE)
+// ============================================================================
+
+
+export type {
+  RegisterFoodManualInput,
+  RegisterFoodLabelInput,
+  RecipeIngredientInput,
+  RegisterRecipeInput,
+};
+
+export async function registerFoodManuallyAction(
+  slug: string,
+  input: RegisterFoodManualInput
+): Promise<ActionResult<{ publicId: string; name: string; referenceAmount: number; referenceUnitCode: string; caloriesKcal: number | null; proteinG: number | null; carbohydrateG: number | null; fatG: number | null; sodiumMg?: number | null }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+    const data = await registerFoodManually(ctx, input);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao cadastrar alimento manualmente.";
+    return { success: false, error: message };
+  }
+}
+
+export async function registerFoodFromLabelAction(
+  slug: string,
+  input: RegisterFoodLabelInput
+): Promise<ActionResult<{ publicId: string; name: string; referenceAmount: number; referenceUnitCode: string; caloriesKcal: number | null; proteinG: number | null; carbohydrateG: number | null; fatG: number | null; sodiumMg?: number | null; portionPublicId?: string | null }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+    const data = await registerFoodFromLabel(ctx, input);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao cadastrar alimento pelo rótulo.";
+    return { success: false, error: message };
+  }
+}
+
+export async function registerRecipeFoodAction(
+  slug: string,
+  input: RegisterRecipeInput
+): Promise<ActionResult<{ publicId: string; name: string; referenceAmount: number; referenceUnitCode: string; caloriesKcal: number | null; proteinG: number | null; carbohydrateG: number | null; fatG: number | null; fiberG: number | null; sodiumMg?: number | null; portionPublicId?: string | null }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+    const data = await registerRecipeFood(ctx, input);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao cadastrar receita.";
     return { success: false, error: message };
   }
 }

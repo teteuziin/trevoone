@@ -145,7 +145,7 @@ export default async function ConsultancyWorkoutsPage({
     ? "Acompanhe os treinos atualmente atribuídos aos alunos vinculados."
     : isTemplatesTab
     ? "Modelos reutilizáveis para padronizar e acelerar a prescrição de novos treinos."
-    : "Estruture treinos modulares por blocos, exercícios da biblioteca ou personalizados.";
+    : "Estruture fichas de treino completas organizadas por categorias e exercícios.";
 
   return (
     <ConsultancyAppShell
@@ -187,7 +187,7 @@ export default async function ConsultancyWorkoutsPage({
               <Link href={`/consultoria/${slug}/rotinas/novo`} className="w-full sm:w-auto">
                 <Button variant="primary" size="md" className="w-full sm:w-auto font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2">
                   <PlusIcon className="w-4 h-4" />
-                  <span>Novo treino</span>
+                  <span>Nova ficha</span>
                 </Button>
               </Link>
             )}
@@ -298,15 +298,15 @@ export default async function ConsultancyWorkoutsPage({
                         ? "Nenhum modelo encontrado para os filtros informados."
                         : "Nenhum treino encontrado para os filtros informados."
                       : isTemplatesTab
-                      ? "Você ainda não possui modelos criados."
-                      : "Você ainda não possui rotinas criadas."}
+                      ? "Você ainda não criou nenhum modelo de ficha."
+                      : "Você ainda não criou nenhuma ficha."}
                   </h3>
                   <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                     {q || validStatus !== "ALL"
                       ? "Tente ajustar sua busca ou limpar os filtros de status."
                       : isTemplatesTab
                       ? "Crie treinos e use a opção 'Salvar como Modelo' para salvar modelos reutilizáveis."
-                      : "Comece agora criando seu primeiro treino modular baseado em blocos."}
+                      : "Comece agora criando sua primeira ficha de treino dividida por categorias e exercícios."}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
@@ -316,7 +316,7 @@ export default async function ConsultancyWorkoutsPage({
                   <Link href={`/consultoria/${slug}/rotinas/novo`}>
                     <Button variant="primary" size="sm" className="font-bold min-h-[44px] flex items-center gap-1.5 shadow-sm">
                       <PlusIcon className="w-4 h-4" />
-                      <span>Criar primeiro treino</span>
+                      <span>Criar ficha</span>
                     </Button>
                   </Link>
                 </div>
@@ -399,7 +399,7 @@ export default async function ConsultancyWorkoutsPage({
                           )}
                           <span className="flex items-center gap-1">
                             <LayersIcon className="w-3.5 h-3.5" />
-                            {w.blocksCount} {w.blocksCount === 1 ? "bloco" : "blocos"}
+                            {w.blocksCount} {w.blocksCount === 1 ? "categoria" : "categorias"}
                           </span>
                           <span className="flex items-center gap-1">
                             <CalendarIcon className="w-3.5 h-3.5" />
@@ -420,7 +420,7 @@ export default async function ConsultancyWorkoutsPage({
                           href={`/consultoria/${slug}/rotinas/${w.publicId}`}
                           className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] hover:border-[var(--border-strong)] transition-all min-h-[36px] depth-interactive"
                         >
-                          Abrir no Criador →
+                          Abrir ficha →
                         </Link>
                       </div>
                     </div>

@@ -933,7 +933,7 @@ export function StudentWorkoutRenderer({
             </span>
           )}
           <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
-            {blocks.length} {blocks.length === 1 ? "bloco de treino" : "blocos de treino"}
+            {blocks.length} {blocks.length === 1 ? "categoria" : "categorias"}
           </span>
           {workout.estimatedDurationMinutes != null && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--foreground)]">
@@ -1195,7 +1195,7 @@ function BlockCard({
 
   return (
     <section
-      aria-label={`Bloco ${blockIndex + 1}: ${block.title || methodLabel}`}
+      aria-label={`Categoria ${blockIndex + 1}: ${block.title || methodLabel}`}
       className="rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs overflow-hidden space-y-4"
     >
       {/* Block Header */}
@@ -1238,7 +1238,7 @@ function BlockCard({
           ) : null}
           {block.restAfterBlockSeconds ? (
             <span className="px-2 py-0.5 rounded-lg bg-[var(--surface)] border border-[var(--border-default)] font-semibold text-[var(--foreground)]">
-              Descanso pós-bloco: {formatRest(block.restAfterBlockSeconds, { includeWord: true })}
+              Descanso final: {formatRest(block.restAfterBlockSeconds, { includeWord: true })}
             </span>
           ) : null}
         </div>

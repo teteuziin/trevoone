@@ -803,17 +803,22 @@ export function buildWhereClause(
     }
   }
 
-  // Determine effective source tab (defaults to TREVO_BRASIL for nutritionist experience)
-  let effectiveTab: FoodSourceTab = filter.sourceTab || "TREVO_BRASIL";
+  // Determine effective source tab
+  let effectiveTab: FoodSourceTab | "ALL" = filter.sourceTab || (filter.source === "ALL" ? "ALL" : "TREVO_BRASIL");
   if (filter.source === "USDA") {
     effectiveTab = "OTHER_DATABASES";
   } else if (filter.source === "CONSULTANCY") {
     effectiveTab = "MY_FOODS";
   } else if (filter.source === "TACO") {
     effectiveTab = "TREVO_BRASIL";
+  } else if (filter.source === "ALL") {
+    effectiveTab = filter.sourceTab ? filter.sourceTab : "ALL";
   }
 
-  if (effectiveTab === "TREVO_BRASIL") {
+  if (effectiveTab === "ALL") {
+    // Searches all valid active foods across sources (TACO, USDA, IBGE POF, Branded, Consultancy)
+    conditions.push(`NOT ${OBJECTIVE_INVALID_DATA_SQL_CONDITION}`);
+  } else if (effectiveTab === "TREVO_BRASIL") {
     // Explicit allowlist: TACO + Approved Commercial Brands + Consultancy custom foods
     // Strictly blocks unknown future sources, unverified brands (AMAFIL), and raw USDA
     const brKeysSql = APPROVED_BR_SOURCE_KEYS.map(() => "?").join(", ");

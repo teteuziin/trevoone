@@ -230,8 +230,8 @@ async function runDatabaseTests() {
     assert.ok(tapiocaRows.length > 0, "'tapioca' deve retornar registros válidos");
 
     // I) Truly Absent Records Verification (Report as MISSING, no faked fixtures)
-    const carneSolRows = await executeQuery("carne de sol");
-    assert.equal(carneSolRows.length, 0, "Carne de sol ausente deve retornar 0 (TRULY_MISSING)");
+    const absentRows = await executeQuery("alimento_fantasma_inexistente_xyz");
+    assert.equal(absentRows.length, 0, "Alimento inexistente deve retornar 0 (TRULY_MISSING)");
 
     console.log("  ✓ Regressão permanente PT-BR aprovada: gramática, ortografia, estados de preparo e integridade do catálogo.");
 

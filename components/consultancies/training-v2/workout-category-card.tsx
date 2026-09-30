@@ -1,0 +1,864 @@
+﻿"use client";
+
+import { useState, useTransition } from "react";
+import type {
+  WorkoutBlockDto,
+  WorkoutBlockItemDto,
+} from "@/lib/training-v2/types";
+import type { QuickConfigInput } from "@/lib/training-v2/workout-repository";
+
+function MoreVertical({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="12" cy="5" r="1" />
+      <circle cx="12" cy="19" r="1" />
+    </svg>
+  );
+}
+
+function ArrowUp({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+    </svg>
+  );
+}
+
+function ArrowDown({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function Plus({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+    </svg>
+  );
+}
+
+function Edit2({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+    </svg>
+  );
+}
+
+function Copy({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function Trash2({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <polyline points="3 6 5 6 21 6" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  );
+}
+
+function MoveIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <polyline points="5 9 2 12 5 15" />
+      <polyline points="9 5 12 2 15 5" />
+      <polyline points="15 19 12 22 9 19" />
+      <polyline points="19 9 22 12 19 15" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <line x1="12" y1="2" x2="12" y2="22" />
+    </svg>
+  );
+}
+
+function Check({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function Dumbbell({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
+    </svg>
+  );
+}
+
+function FileText({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  );
+}
+
+export type CategoryCardProps = {
+  category: WorkoutBlockDto;
+  categoryIndex: number;
+  totalCategories: number;
+  allCategories: { publicId: string; title: string }[];
+  isDraft: boolean;
+  onOpenExercisePicker: (categoryPublicId: string) => void;
+  onRenameCategory: (categoryPublicId: string, newTitle: string) => Promise<void>;
+  onDuplicateCategory: (categoryPublicId: string) => Promise<void>;
+  onDeleteCategory: (categoryPublicId: string) => Promise<void>;
+  onMoveCategoryUp: (categoryIndex: number) => Promise<void>;
+  onMoveCategoryDown: (categoryIndex: number) => Promise<void>;
+  onDuplicateExercise: (itemPublicId: string) => Promise<void>;
+  onMoveExerciseToCategory: (itemPublicId: string, targetCategoryPublicId: string) => Promise<void>;
+  onDeleteExercise: (itemPublicId: string) => Promise<void>;
+  onMoveExerciseUp: (categoryPublicId: string, itemIndex: number) => Promise<void>;
+  onMoveExerciseDown: (categoryPublicId: string, itemIndex: number) => Promise<void>;
+  onUpdateExerciseQuickConfig: (itemPublicId: string, config: QuickConfigInput) => Promise<void>;
+};
+export function WorkoutCategoryCard({
+  category,
+  categoryIndex,
+  totalCategories,
+  allCategories,
+  isDraft,
+  onOpenExercisePicker,
+  onRenameCategory,
+  onDuplicateCategory,
+  onDeleteCategory,
+  onMoveCategoryUp,
+  onMoveCategoryDown,
+  onDuplicateExercise,
+  onMoveExerciseToCategory,
+  onDeleteExercise,
+  onMoveExerciseUp,
+  onMoveExerciseDown,
+  onUpdateExerciseQuickConfig,
+}: CategoryCardProps) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(category.title || "");
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
+  const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
+  const [activeExerciseMenuId, setActiveExerciseMenuId] = useState<string | null>(null);
+  const [movingExerciseId, setMovingExerciseId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const items = category.items || [];
+  const categoryTitle = category.title || `Categoria ${categoryIndex + 1}`;
+
+  function handleSaveTitle() {
+    if (!titleDraft.trim()) {
+      setIsEditingTitle(false);
+      return;
+    }
+    startTransition(async () => {
+      await onRenameCategory(category.publicId, titleDraft.trim());
+      setIsEditingTitle(false);
+    });
+  }
+
+  return (
+    <div className="rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs overflow-hidden transition-all">
+      {/* Category Header */}
+      <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[var(--border-subtle)] bg-[var(--surface-subtle)]/70 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-xs sm:text-sm flex items-center justify-center shrink-0">
+            {categoryIndex + 1}
+          </div>
+
+          {isEditingTitle && isDraft ? (
+            <div className="flex items-center gap-1.5 flex-1 max-w-sm">
+              <input
+                type="text"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveTitle();
+                  if (e.key === "Escape") setIsEditingTitle(false);
+                }}
+                autoFocus
+                placeholder="Nome da categoria (ex: Peito)"
+                className="w-full px-3 py-1.5 text-xs sm:text-sm font-bold uppercase rounded-xl border border-emerald-500 bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none min-h-[36px]"
+              />
+              <button
+                type="button"
+                onClick={handleSaveTitle}
+                className="p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 min-h-[36px] min-w-[36px] flex items-center justify-center shrink-0 cursor-pointer"
+                title="Salvar nome"
+              >
+                <Check className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="min-w-0 flex items-center gap-2 flex-wrap">
+              <h2
+                onClick={() => {
+                  if (isDraft) {
+                    setTitleDraft(category.title || "");
+                    setIsEditingTitle(true);
+                  }
+                }}
+                className={`text-sm sm:text-base font-extrabold uppercase tracking-wide text-[var(--text-primary)] truncate ${
+                  isDraft ? "cursor-pointer hover:text-emerald-600 transition-colors" : ""
+                }`}
+                title={isDraft ? "Clique para renomear" : undefined}
+              >
+                {categoryTitle}
+              </h2>
+              <span className="text-[11px] sm:text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--text-secondary)] whitespace-nowrap">
+                {items.length} {items.length === 1 ? "exercício" : "exercícios"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Category Actions */}
+        {isDraft && (
+          <div className="flex items-center gap-1 shrink-0 relative">
+            <button
+              type="button"
+              disabled={categoryIndex === 0 || isPending}
+              onClick={() => startTransition(() => onMoveCategoryUp(categoryIndex))}
+              aria-label="Mover categoria para cima"
+              className="p-1.5 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+              title="Mover para cima"
+            >
+              <ArrowUp className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              disabled={categoryIndex === totalCategories - 1 || isPending}
+              onClick={() => startTransition(() => onMoveCategoryDown(categoryIndex))}
+              aria-label="Mover categoria para baixo"
+              className="p-1.5 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+              title="Mover para baixo"
+            >
+              <ArrowDown className="w-4 h-4" />
+            </button>
+
+            {/* Menu [...] */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
+                aria-label="Opções da categoria"
+                className="p-1.5 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              {isCategoryMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setIsCategoryMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1.5 w-48 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                    <div className="p-1 space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCategoryMenuOpen(false);
+                          setTitleDraft(category.title || "");
+                          setIsEditingTitle(true);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Renomear</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCategoryMenuOpen(false);
+                          startTransition(() => onDuplicateCategory(category.publicId));
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Duplicar categoria</span>
+                      </button>
+                    </div>
+
+                    <div className="p-1 space-y-0.5">
+                      <button
+                        type="button"
+                        disabled={categoryIndex === 0}
+                        onClick={() => {
+                          setIsCategoryMenuOpen(false);
+                          startTransition(() => onMoveCategoryUp(categoryIndex));
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left disabled:opacity-40 cursor-pointer"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                        <span>Mover para cima</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={categoryIndex === totalCategories - 1}
+                        onClick={() => {
+                          setIsCategoryMenuOpen(false);
+                          startTransition(() => onMoveCategoryDown(categoryIndex));
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left disabled:opacity-40 cursor-pointer"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                        <span>Mover para baixo</span>
+                      </button>
+                    </div>
+
+                    <div className="p-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCategoryMenuOpen(false);
+                          if (
+                            confirm(
+                              `Excluir categoria "${categoryTitle}" e todos os seus exercícios?`
+                            )
+                          ) {
+                            startTransition(() => onDeleteCategory(category.publicId));
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Excluir categoria</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Exercises List */}
+      <div className="p-3 sm:p-5 space-y-2.5">
+        {items.length === 0 ? (
+          <div className="py-6 px-4 text-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)]/40 space-y-2">
+            <p className="text-xs font-semibold text-[var(--text-secondary)]">
+              Nenhum exercício adicionado nesta categoria ainda.
+            </p>
+            {isDraft && (
+              <button
+                type="button"
+                onClick={() => onOpenExercisePicker(category.publicId)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Adicionar primeiro exercício</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          items.map((item, itemIdx) => {
+            const isExpanded = expandedExerciseId === item.publicId;
+            return (
+              <ExerciseRow
+                key={item.publicId}
+                item={item}
+                itemIndex={itemIdx}
+                totalItems={items.length}
+                isExpanded={isExpanded}
+                isDraft={isDraft}
+                categoryPublicId={category.publicId}
+                allCategories={allCategories}
+                onToggleExpand={() =>
+                  setExpandedExerciseId(isExpanded ? null : item.publicId)
+                }
+                onCloseExpand={() => setExpandedExerciseId(null)}
+                isMenuOpen={activeExerciseMenuId === item.publicId}
+                onToggleMenu={() =>
+                  setActiveExerciseMenuId(
+                    activeExerciseMenuId === item.publicId ? null : item.publicId
+                  )
+                }
+                onCloseMenu={() => setActiveExerciseMenuId(null)}
+                isMovingOpen={movingExerciseId === item.publicId}
+                onOpenMove={() => setMovingExerciseId(item.publicId)}
+                onCloseMove={() => setMovingExerciseId(null)}
+                onDuplicate={() => onDuplicateExercise(item.publicId)}
+                onDelete={() => onDeleteExercise(item.publicId)}
+                onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
+                onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
+                onMoveToCategory={(targetCatId) =>
+                  onMoveExerciseToCategory(item.publicId, targetCatId)
+                }
+                onSaveQuickConfig={(cfg) =>
+                  onUpdateExerciseQuickConfig(item.publicId, cfg)
+                }
+              />
+            );
+          })
+        )}
+
+        {/* Add Exercise Button inside Category */}
+        {isDraft && (
+          <button
+            type="button"
+            onClick={() => onOpenExercisePicker(category.publicId)}
+            className="w-full py-2.5 sm:py-3 px-4 rounded-xl sm:rounded-2xl border border-dashed border-emerald-500/40 hover:border-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all min-h-[42px] cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Adicionar exercício</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+type ExerciseRowProps = {
+  item: WorkoutBlockItemDto;
+  itemIndex: number;
+  totalItems: number;
+  isExpanded: boolean;
+  isDraft: boolean;
+  categoryPublicId: string;
+  allCategories: { publicId: string; title: string }[];
+  onToggleExpand: () => void;
+  onCloseExpand: () => void;
+  isMenuOpen: boolean;
+  onToggleMenu: () => void;
+  onCloseMenu: () => void;
+  isMovingOpen: boolean;
+  onOpenMove: () => void;
+  onCloseMove: () => void;
+  onDuplicate: () => Promise<void>;
+  onDelete: () => Promise<void>;
+  onMoveUp: () => Promise<void>;
+  onMoveDown: () => Promise<void>;
+  onMoveToCategory: (targetCategoryPublicId: string) => Promise<void>;
+  onSaveQuickConfig: (config: QuickConfigInput) => Promise<void>;
+};
+
+function ExerciseRow({
+  item,
+  itemIndex,
+  totalItems,
+  isExpanded,
+  isDraft,
+  categoryPublicId,
+  allCategories,
+  onToggleExpand,
+  onCloseExpand,
+  isMenuOpen,
+  onToggleMenu,
+  onCloseMenu,
+  isMovingOpen,
+  onOpenMove,
+  onCloseMove,
+  onDuplicate,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  onMoveToCategory,
+  onSaveQuickConfig,
+}: ExerciseRowProps) {
+  const sets = item.sets || [];
+  const initialSeriesCount = sets.length > 0 ? sets.length : 4;
+  const initialDuration = sets[0]?.targetDurationSeconds ?? null;
+  const initialIsDuration = initialDuration != null && initialDuration > 0 && (!sets[0]?.targetReps || sets[0]?.targetReps === 0);
+  const initialReps = sets[0]?.targetReps ?? 10;
+  const initialRest = sets[0]?.targetRestSeconds ?? 60;
+  const initialLoad = sets[0]?.targetLoadKg ?? null;
+  const initialNotes = item.notes || "";
+
+  const [seriesCount, setSeriesCount] = useState<number>(initialSeriesCount);
+  const [isDurationBased, setIsDurationBased] = useState<boolean>(initialIsDuration);
+  const [reps, setReps] = useState<number>(initialReps || 10);
+  const [durationSeconds, setDurationSeconds] = useState<number>(initialDuration || 30);
+  const [restSeconds, setRestSeconds] = useState<number>(initialRest);
+  const [loadKg, setLoadKg] = useState<string>(initialLoad != null ? String(initialLoad) : "");
+  const [notes, setNotes] = useState<string>(initialNotes);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSaveAndClose() {
+    startTransition(async () => {
+      await onSaveQuickConfig({
+        seriesCount: Math.max(1, Math.min(20, seriesCount || 3)),
+        reps: isDurationBased ? null : Math.max(1, reps || 10),
+        targetDurationSeconds: isDurationBased ? Math.max(1, durationSeconds || 30) : null,
+        restSeconds: Math.max(0, restSeconds ?? 60),
+        loadKg: loadKg.trim() !== "" && !isNaN(Number(loadKg)) ? Number(loadKg) : null,
+        notes: notes.trim() || null,
+      });
+      onCloseExpand();
+    });
+  }
+
+  const repsOrDurationText = initialIsDuration
+    ? `${initialDuration}s`
+    : `${initialReps} rep`;
+
+  const summaryLine = `${initialSeriesCount} ${initialSeriesCount === 1 ? "série" : "séries"} • ${repsOrDurationText} • ${initialRest}s${
+    initialLoad != null ? ` • ${initialLoad} kg` : ""
+  }`;
+
+  return (
+    <div
+      className={`rounded-2xl border transition-all ${
+        isExpanded
+          ? "border-emerald-500 bg-[var(--surface)] shadow-md ring-2 ring-emerald-500/20"
+          : "border-[var(--border-default)] bg-[var(--surface-sunken)]/60 hover:bg-[var(--surface)] hover:border-[var(--border-strong)]"
+      }`}
+    >
+      {/* Compact Header Row (Always visible, tap to expand) */}
+      <div
+        onClick={() => {
+          if (isDraft) onToggleExpand();
+        }}
+        className={`p-3 sm:p-3.5 flex items-center justify-between gap-3 ${
+          isDraft ? "cursor-pointer" : ""
+        }`}
+      >
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+            <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
+                {item.exerciseNameSnapshot}
+              </h3>
+              {item.notes && (
+                <span
+                  title={`Observação: ${item.notes}`}
+                  className="text-[var(--text-tertiary)] hover:text-emerald-600 shrink-0"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 mt-0.5 text-[11px] sm:text-xs text-[var(--text-secondary)] font-medium">
+              <span>{summaryLine}</span>
+              {item.muscleGroupSnapshot && (
+                <>
+                  <span className="opacity-40">•</span>
+                  <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] truncate">
+                    {item.muscleGroupSnapshot}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Action Controls */}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-1 shrink-0 relative"
+        >
+          {isDraft && (
+            <>
+              <button
+                type="button"
+                disabled={itemIndex === 0 || isPending}
+                onClick={() => startTransition(() => onMoveUp())}
+                aria-label="Mover exercício para cima"
+                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
+                title="Mover para cima"
+              >
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={itemIndex === totalItems - 1 || isPending}
+                onClick={() => startTransition(() => onMoveDown())}
+                aria-label="Mover exercício para baixo"
+                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
+                title="Mover para baixo"
+              >
+                <ArrowDown className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={onToggleMenu}
+                  aria-label="Opções do exercício"
+                  className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
+                >
+                  <MoreVertical className="w-3.5 h-3.5" />
+                </button>
+
+                {isMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={onCloseMenu} />
+                    <div className="absolute right-0 top-full mt-1 w-44 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                      <div className="p-1 space-y-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onCloseMenu();
+                            onToggleExpand();
+                          }}
+                          className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>{isExpanded ? "Fechar edição" : "Editar"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onCloseMenu();
+                            startTransition(() => onDuplicate());
+                          }}
+                          className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-blue-500" />
+                          <span>Duplicar</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onCloseMenu();
+                            onOpenMove();
+                          }}
+                          className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                        >
+                          <MoveIcon className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Mover categoria</span>
+                        </button>
+                      </div>
+
+                      <div className="p-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onCloseMenu();
+                            if (confirm(`Remover "${item.exerciseNameSnapshot}" desta categoria?`)) {
+                              startTransition(() => onDelete());
+                            }
+                          }}
+                          className="w-full px-3 py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remover</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Expanded Quick Editor */}
+      {isExpanded && isDraft && (
+        <div className="px-3.5 sm:px-5 pb-4 pt-2 border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)]/50 space-y-3.5 animate-in fade-in duration-150">
+          {/* Mode Switch: Repetições ↕ Tempo */}
+          <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--border-subtle)] flex-wrap">
+            <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+              Tipo de Meta
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsDurationBased(!isDurationBased)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer border border-emerald-500/20"
+            >
+              <span>{isDurationBased ? "Tempo (segundos)" : "Repetições"}</span>
+              <span className="text-emerald-500 font-extrabold">↕</span>
+              <span className="text-[10px] text-[var(--text-tertiary)] font-medium">
+                {isDurationBased ? "Mudar para repetições" : "Mudar para tempo"}
+              </span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+                Séries
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={seriesCount}
+                onChange={(e) => setSeriesCount(parseInt(e.target.value, 10) || 1)}
+                className="w-full px-3 py-2 text-xs sm:text-sm font-bold text-center rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+              />
+            </div>
+
+            {isDurationBased ? (
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+                  Tempo (s)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={1}
+                    max={600}
+                    step={5}
+                    value={durationSeconds}
+                    onChange={(e) => setDurationSeconds(parseInt(e.target.value, 10) || 1)}
+                    className="w-full px-3 pr-7 py-2 text-xs sm:text-sm font-bold text-center rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] pointer-events-none font-bold">
+                    s
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+                  Repetições
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={200}
+                  value={reps}
+                  onChange={(e) => setReps(parseInt(e.target.value, 10) || 1)}
+                  className="w-full px-3 py-2 text-xs sm:text-sm font-bold text-center rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+                />
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+                Descanso
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min={0}
+                  max={600}
+                  step={5}
+                  value={restSeconds}
+                  onChange={(e) => setRestSeconds(parseInt(e.target.value, 10) || 0)}
+                  className="w-full px-3 pr-7 py-2 text-xs sm:text-sm font-bold text-center rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+                />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] pointer-events-none font-bold">
+                  s
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+                Carga (kg) <span className="font-normal text-[10px] text-[var(--text-tertiary)]">(opcional)</span>
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                value={loadKg}
+                onChange={(e) => setLoadKg(e.target.value)}
+                placeholder="Ex: 20"
+                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+                Observação <span className="font-normal text-[10px] text-[var(--text-tertiary)]">(opcional)</span>
+              </label>
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex: Pegada aberta, cadência controlada"
+                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onCloseExpand}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] min-h-[36px] cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={handleSaveAndClose}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[36px] cursor-pointer"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>{isPending ? "Salvando..." : "Concluir"}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal / Dialog: Move to another category */}
+      {isMovingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-5 space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-extrabold text-[var(--text-primary)]">
+                Mover Exercício
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Selecione a categoria de destino para{" "}
+                <span className="font-bold text-[var(--text-primary)]">
+                  {item.exerciseNameSnapshot}
+                </span>
+                :
+              </p>
+            </div>
+
+            <div className="space-y-1 max-h-56 overflow-y-auto">
+              {allCategories
+                .filter((cat) => cat.publicId !== categoryPublicId)
+                .map((cat) => (
+                  <button
+                    key={cat.publicId}
+                    type="button"
+                    onClick={() => {
+                      onCloseMove();
+                      startTransition(() => onMoveToCategory(cat.publicId));
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] hover:border-emerald-500 bg-[var(--surface-subtle)] hover:bg-emerald-500/10 text-left text-xs font-bold text-[var(--text-primary)] transition-all flex items-center justify-between cursor-pointer"
+                  >
+                    <span>{cat.title}</span>
+                    <span className="text-[10px] text-emerald-600 font-semibold">Mover →</span>
+                  </button>
+                ))}
+              {allCategories.filter((cat) => cat.publicId !== categoryPublicId).length === 0 && (
+                <p className="text-xs text-[var(--text-tertiary)] py-4 text-center">
+                  Não há outras categorias nesta ficha.
+                </p>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-[var(--border-subtle)] flex justify-end">
+              <button
+                type="button"
+                onClick={onCloseMove}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

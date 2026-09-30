@@ -4,8 +4,9 @@
  */
 
 import crypto from "node:crypto";
-import type { RowDataPacket } from "mysql2/promise";
+import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
+import { calculateItemNutrients, type CanonicalPortionSource } from "./nutrient-calculator";
 import {
   NutritionAuthorizationError,
   type NutritionAccessContext,
@@ -949,6 +950,518 @@ export async function archiveFoodPortion(
     );
 
     return { success: true };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+// ============================================================================
+// PARTE E — REPOSITÓRIO: QUALQUER ALIMENTO NO TREVO ONE (SEM DEPENDER DO IBGE)
+// ============================================================================
+
+export interface RegisterFoodManualInput {
+  name: string;
+  brand?: string | null;
+  category?: string | null;
+  referenceAmount: number;
+  referenceUnitCode: string;
+  caloriesKcal?: number | null;
+  proteinG?: number | null;
+  carbohydrateG?: number | null;
+  fatG?: number | null;
+  fiberG?: number | null;
+  sodiumMg?: number | null;
+  dataSource: "ROTULO" | "FABRICANTE" | "FONTE_CIENTIFICA" | "OUTRA";
+  sourceReference?: string | null;
+}
+
+export async function registerFoodManually(
+  ctx: NutritionAccessContext,
+  input: RegisterFoodManualInput
+): Promise<{ publicId: string; name: string; referenceAmount: number; referenceUnitCode: string; caloriesKcal: number | null; proteinG: number | null; carbohydrateG: number | null; fatG: number | null; sodiumMg?: number | null }> {
+  assertCanAuthorNutrition(ctx);
+
+  const name = input.name?.trim();
+  if (!name) throw new Error("Nome do alimento é obrigatório.");
+
+  const refAmount = Number(input.referenceAmount);
+  if (isNaN(refAmount) || refAmount <= 0) throw new Error("Porção de referência inválida.");
+
+  const refUnit = (input.referenceUnitCode || "G").trim().toUpperCase();
+
+  const parseMacro = (val: unknown, fieldName: string): number | null => {
+    if (val === null || val === undefined || val === "") return null;
+    const num = Number(val);
+    if (isNaN(num)) throw new Error(`Valor de ${fieldName} inválido.`);
+    if (num < 0) throw new Error(`Valor de ${fieldName} não pode ser negativo.`);
+    return Math.round(num * 100) / 100;
+  };
+
+  const kcal = parseMacro(input.caloriesKcal, "calorias");
+  const p = parseMacro(input.proteinG, "proteína");
+  const c = parseMacro(input.carbohydrateG, "carboidrato");
+  const g = parseMacro(input.fatG, "gorduras");
+  const fiber = parseMacro(input.fiberG, "fibras");
+  const sodium = parseMacro(input.sodiumMg, "sódio");
+
+  const publicId = crypto.randomUUID();
+  const fullName = input.brand?.trim() ? `${name} (${input.brand.trim()})` : name;
+  const normalizedName = normalizeSearchText(fullName);
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    const [result] = await connection.query<ResultSetHeader>(
+      `INSERT INTO nutrition_v2_foods (
+        public_id, scope, consultancy_id, name, display_name_pt_br,
+        normalized_name, normalized_display_name_pt_br, category,
+        reference_amount, reference_unit_code, calories_kcal, protein_g,
+        carbohydrate_g, fat_g, fiber_g, status, source_type, data_quality,
+        source_key, source_reference, source_imported_at, last_verified_at,
+        source_uid, created_by_user_id, created_by_membership_id, created_at, updated_at
+      ) VALUES (?, 'CONSULTANCY', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'PROFESSIONAL_UPLOAD', 'PROFESSIONAL_CONFIRMED', ?, ?, NOW(3), NOW(3), ?, ?, ?, NOW(3), NOW(3))`,
+      [
+        publicId,
+        ctx.consultancyId,
+        fullName,
+        fullName,
+        normalizedName,
+        normalizedName,
+        input.category?.trim() || "Alimento Personalizado",
+        refAmount,
+        refUnit,
+        kcal,
+        p,
+        c,
+        g,
+        fiber,
+        input.dataSource || "MANUAL",
+        input.sourceReference?.trim() || null,
+        `MANUAL:${publicId}`,
+        ctx.userId,
+        ctx.membershipId,
+      ]
+    );
+
+    const foodId = result.insertId;
+
+    if (sodium !== null && foodId) {
+      const sodiumStatus = sodium === 0 ? "KNOWN_ZERO" : "KNOWN";
+      await connection.query(
+        `INSERT INTO nutrition_v2_food_nutrients (
+          food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at
+        ) VALUES (?, 'NA', ?, 'MG', ?, NOW(3), NOW(3))`,
+        [foodId, sodium, sodiumStatus]
+      );
+    }
+
+    if (fiber !== null && foodId) {
+      const fiberStatus = fiber === 0 ? "KNOWN_ZERO" : "KNOWN";
+      await connection.query(
+        `INSERT INTO nutrition_v2_food_nutrients (
+          food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at
+        ) VALUES (?, 'FIBER', ?, 'G', ?, NOW(3), NOW(3))`,
+        [foodId, fiber, fiberStatus]
+      );
+    }
+
+    return {
+      publicId,
+      name: fullName,
+      referenceAmount: refAmount,
+      referenceUnitCode: refUnit,
+      caloriesKcal: kcal,
+      proteinG: p,
+      carbohydrateG: c,
+      fatG: g,
+      sodiumMg: sodium,
+    };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+export interface RegisterFoodLabelInput {
+  name: string;
+  brand?: string | null;
+  servingAmount: number;
+  servingUnitCode: string;
+  servingHouseholdMeasure?: string | null;
+  caloriesKcal?: number | null;
+  proteinG?: number | null;
+  carbohydrateG?: number | null;
+  fatG?: number | null;
+  fiberG?: number | null;
+  sodiumMg?: number | null;
+  labelNotes?: string | null;
+}
+
+export async function registerFoodFromLabel(
+  ctx: NutritionAccessContext,
+  input: RegisterFoodLabelInput
+): Promise<{ publicId: string; name: string; referenceAmount: number; referenceUnitCode: string; caloriesKcal: number | null; proteinG: number | null; carbohydrateG: number | null; fatG: number | null; sodiumMg?: number | null; portionPublicId?: string | null }> {
+  assertCanAuthorNutrition(ctx);
+
+  const name = input.name?.trim();
+  if (!name) throw new Error("Nome do produto é obrigatório.");
+
+  const servingAmount = Number(input.servingAmount);
+  if (isNaN(servingAmount) || servingAmount <= 0) throw new Error("Tamanho da porção do rótulo inválido.");
+
+  const servingUnit = (input.servingUnitCode || "G").trim().toUpperCase();
+
+  const parseMacro = (val: unknown, fieldName: string): number | null => {
+    if (val === null || val === undefined || val === "") return null;
+    const num = Number(val);
+    if (isNaN(num)) throw new Error(`Valor de ${fieldName} no rótulo inválido.`);
+    if (num < 0) throw new Error(`Valor de ${fieldName} no rótulo não pode ser negativo.`);
+    return Math.round(num * 100) / 100;
+  };
+
+  const kcal = parseMacro(input.caloriesKcal, "calorias");
+  const p = parseMacro(input.proteinG, "proteína");
+  const c = parseMacro(input.carbohydrateG, "carboidrato");
+  const g = parseMacro(input.fatG, "gorduras");
+  const fiber = parseMacro(input.fiberG, "fibras");
+  const sodium = parseMacro(input.sodiumMg, "sódio");
+
+  const publicId = crypto.randomUUID();
+  const fullName = input.brand?.trim() ? `${name} (${input.brand.trim()})` : name;
+  const normalizedName = normalizeSearchText(fullName);
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    const [result] = await connection.query<ResultSetHeader>(
+      `INSERT INTO nutrition_v2_foods (
+        public_id, scope, consultancy_id, name, display_name_pt_br,
+        normalized_name, normalized_display_name_pt_br, category,
+        reference_amount, reference_unit_code, calories_kcal, protein_g,
+        carbohydrate_g, fat_g, fiber_g, status, source_type, data_quality,
+        source_key, source_reference, source_imported_at, last_verified_at,
+        source_uid, created_by_user_id, created_by_membership_id, created_at, updated_at
+      ) VALUES (?, 'CONSULTANCY', ?, ?, ?, ?, ?, 'Produto Embalado', ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'PROFESSIONAL_UPLOAD', 'LABEL_CONFIRMED', 'PRODUCT_LABEL', ?, NOW(3), NOW(3), ?, ?, ?, NOW(3), NOW(3))`,
+      [
+        publicId,
+        ctx.consultancyId,
+        fullName,
+        fullName,
+        normalizedName,
+        normalizedName,
+        servingAmount,
+        servingUnit,
+        kcal,
+        p,
+        c,
+        g,
+        fiber,
+        input.labelNotes?.trim() || "Transcrito do rótulo nutricional",
+        `LABEL:${publicId}`,
+        ctx.userId,
+        ctx.membershipId,
+      ]
+    );
+
+    const foodId = result.insertId;
+    let portionPublicId: string | null = null;
+
+    if (input.servingHouseholdMeasure?.trim() && foodId) {
+      portionPublicId = crypto.randomUUID();
+      await connection.query(
+        `INSERT INTO nutrition_v2_food_portions (
+          public_id, food_id, label, equivalent_reference_amount, sort_order, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 1, 'ACTIVE', NOW(3), NOW(3))`,
+        [portionPublicId, foodId, input.servingHouseholdMeasure.trim(), servingAmount]
+      );
+    }
+
+    if (sodium !== null && foodId) {
+      const sodiumStatus = sodium === 0 ? "KNOWN_ZERO" : "KNOWN";
+      await connection.query(
+        `INSERT INTO nutrition_v2_food_nutrients (
+          food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at
+        ) VALUES (?, 'NA', ?, 'MG', ?, NOW(3), NOW(3))`,
+        [foodId, sodium, sodiumStatus]
+      );
+    }
+
+    if (fiber !== null && foodId) {
+      const fiberStatus = fiber === 0 ? "KNOWN_ZERO" : "KNOWN";
+      await connection.query(
+        `INSERT INTO nutrition_v2_food_nutrients (
+          food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at
+        ) VALUES (?, 'FIBER', ?, 'G', ?, NOW(3), NOW(3))`,
+        [foodId, fiber, fiberStatus]
+      );
+    }
+
+    return {
+      publicId,
+      name: fullName,
+      referenceAmount: servingAmount,
+      referenceUnitCode: servingUnit,
+      caloriesKcal: kcal,
+      proteinG: p,
+      carbohydrateG: c,
+      fatG: g,
+      sodiumMg: sodium,
+      portionPublicId,
+    };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+export interface RecipeIngredientInput {
+  foodPublicId: string;
+  quantity: number;
+  unitCode: string;
+  portionPublicId?: string | null;
+}
+
+export interface RegisterRecipeInput {
+  name: string;
+  servingsYield: number;
+  ingredients: RecipeIngredientInput[];
+  notes?: string | null;
+}
+
+export async function registerRecipeFood(
+  ctx: NutritionAccessContext,
+  input: RegisterRecipeInput
+): Promise<{ publicId: string; name: string; referenceAmount: number; referenceUnitCode: string; caloriesKcal: number | null; proteinG: number | null; carbohydrateG: number | null; fatG: number | null; fiberG: number | null; sodiumMg?: number | null; portionPublicId?: string | null }> {
+  assertCanAuthorNutrition(ctx);
+
+  const name = input.name?.trim();
+  if (!name) throw new Error("Nome da receita é obrigatório.");
+
+  const servings = Math.max(1, Math.round(Number(input.servingsYield) || 1));
+  if (!Array.isArray(input.ingredients) || input.ingredients.length === 0) {
+    throw new Error("A receita precisa ter ao menos um ingrediente da biblioteca.");
+  }
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+
+    let totalKcal = 0;
+    let knownKcalCount = 0;
+
+    let totalP = 0;
+    let knownPCount = 0;
+
+    let totalC = 0;
+    let knownCCount = 0;
+
+    let totalG = 0;
+    let knownGCount = 0;
+
+    let totalFiber = 0;
+    let knownFiberCount = 0;
+
+    const micronutrientsAccumulator = new Map<string, { sum: number; countKnown: number; unitCode: string }>();
+    const summaryParts: string[] = [];
+
+    for (const ing of input.ingredients) {
+      if (!ing.foodPublicId) {
+        throw new Error("Identificador do alimento ausente em ingrediente da receita.");
+      }
+      const qty = Number(ing.quantity);
+      if (isNaN(qty) || qty <= 0) {
+        throw new Error("Quantidade inválida para ingrediente da receita.");
+      }
+      const unitCode = (ing.unitCode || "G").trim().toUpperCase();
+
+      // 1. Resolve food in database
+      const [fRows] = await connection.query<RowDataPacket[]>(
+        `SELECT id, public_id, scope, consultancy_id, name, display_name_pt_br,
+                status, reference_amount, reference_unit_code,
+                calories_kcal, protein_g, carbohydrate_g, fat_g, fiber_g, deleted_at
+         FROM nutrition_v2_foods
+         WHERE public_id = ?`,
+        [ing.foodPublicId]
+      );
+
+      if (!fRows || fRows.length === 0) {
+        throw new Error(`Alimento do ingrediente não encontrado: ${ing.foodPublicId}`);
+      }
+
+      const food = fRows[0];
+
+      // 2. Validate ACTIVE and not deleted
+      if (food.deleted_at != null) {
+        throw new Error(`Alimento arquivado ou excluído não pode ser usado em receitas: ${food.name}`);
+      }
+      if (food.status !== "ACTIVE") {
+        throw new Error(`Alimento inativo não pode ser usado em receitas: ${food.name}`);
+      }
+
+      // 3. Tenancy isolation check: must be GLOBAL or same consultancy
+      const isAllowed = food.scope === "GLOBAL" || (food.scope === "CONSULTANCY" && Number(food.consultancy_id) === Number(ctx.consultancyId));
+      if (!isAllowed) {
+        throw new NutritionAuthorizationError(`Acesso negado: o alimento '${food.name}' pertence a outra consultoria.`);
+      }
+
+      // 4. Resolve portion if provided
+      let portionObj: CanonicalPortionSource | null = null;
+      let portionLabel = unitCode;
+      if (ing.portionPublicId) {
+        const [pRows] = await connection.query<RowDataPacket[]>(
+          `SELECT id, public_id, food_id, label, equivalent_reference_amount, status, deleted_at
+           FROM nutrition_v2_food_portions
+           WHERE public_id = ? AND food_id = ?`,
+          [ing.portionPublicId, food.id]
+        );
+        if (!pRows || pRows.length === 0 || pRows[0].deleted_at != null || pRows[0].status !== "ACTIVE") {
+          throw new Error(`Porção selecionada para '${food.name}' é inválida ou inativa.`);
+        }
+        portionObj = {
+          publicId: pRows[0].public_id,
+          label: pRows[0].label,
+          equivalentReferenceAmount: Number(pRows[0].equivalent_reference_amount),
+        };
+        portionLabel = pRows[0].label;
+      }
+
+      // 5. Authoritative calculation from server DB macros
+      const calc = calculateItemNutrients({
+        food: {
+          referenceAmount: Number(food.reference_amount),
+          referenceUnitCode: food.reference_unit_code,
+          caloriesKcal: food.calories_kcal != null ? Number(food.calories_kcal) : null,
+          proteinG: food.protein_g != null ? Number(food.protein_g) : null,
+          carbohydrateG: food.carbohydrate_g != null ? Number(food.carbohydrate_g) : null,
+          fatG: food.fat_g != null ? Number(food.fat_g) : null,
+          fiberG: food.fiber_g != null ? Number(food.fiber_g) : null,
+        },
+        prescribedQuantity: qty,
+        prescribedUnitCode: unitCode,
+        portion: portionObj,
+      });
+
+      if (!calc.isValid) {
+        throw new Error(calc.errorMessage || `Erro ao calcular nutrientes do ingrediente '${food.name}'.`);
+      }
+
+      // 6. Aggregate macros preserving UNKNOWN != ZERO
+      if (calc.caloriesKcal != null) {
+        totalKcal += calc.caloriesKcal;
+        knownKcalCount++;
+      }
+      if (calc.proteinG != null) {
+        totalP += calc.proteinG;
+        knownPCount++;
+      }
+      if (calc.carbohydrateG != null) {
+        totalC += calc.carbohydrateG;
+        knownCCount++;
+      }
+      if (calc.fatG != null) {
+        totalG += calc.fatG;
+        knownGCount++;
+      }
+      if (calc.fiberG != null) {
+        totalFiber += calc.fiberG;
+        knownFiberCount++;
+      }
+
+      summaryParts.push(`${food.display_name_pt_br || food.name} (${qty} ${portionLabel})`);
+
+      // 7. Scale and aggregate canonical micronutrients (including Sódio NA)
+      const [nutRows] = await connection.query<RowDataPacket[]>(
+        `SELECT nutrient_code, amount_per_reference, unit_code, status
+         FROM nutrition_v2_food_nutrients
+         WHERE food_id = ? AND status IN ('KNOWN', 'KNOWN_ZERO')`,
+        [food.id]
+      );
+
+      for (const nRow of nutRows) {
+        const factor = calc.factor || 0;
+        const val = nRow.status === "KNOWN_ZERO" ? 0 : (Number(nRow.amount_per_reference) || 0) * factor;
+        const existing = micronutrientsAccumulator.get(nRow.nutrient_code) || { sum: 0, countKnown: 0, unitCode: nRow.unit_code };
+        existing.sum += val;
+        existing.countKnown += 1;
+        micronutrientsAccumulator.set(nRow.nutrient_code, existing);
+      }
+    }
+
+    const perServingKcal = knownKcalCount > 0 ? Math.round((totalKcal / servings) * 10) / 10 : null;
+    const perServingP = knownPCount > 0 ? Math.round((totalP / servings) * 10) / 10 : null;
+    const perServingC = knownCCount > 0 ? Math.round((totalC / servings) * 10) / 10 : null;
+    const perServingG = knownGCount > 0 ? Math.round((totalG / servings) * 10) / 10 : null;
+    const perServingFiber = knownFiberCount > 0 ? Math.round((totalFiber / servings) * 10) / 10 : null;
+
+    const publicId = crypto.randomUUID();
+    const normalizedName = normalizeSearchText(name);
+    const summaryIngredients = summaryParts.join(", ");
+
+    const [result] = await connection.query<ResultSetHeader>(
+      `INSERT INTO nutrition_v2_foods (
+        public_id, scope, consultancy_id, name, display_name_pt_br,
+        normalized_name, normalized_display_name_pt_br, category,
+        reference_amount, reference_unit_code, calories_kcal, protein_g,
+        carbohydrate_g, fat_g, fiber_g, status, source_type, data_quality,
+        source_key, source_reference, source_imported_at, last_verified_at,
+        source_uid, created_by_user_id, created_by_membership_id, created_at, updated_at
+      ) VALUES (?, 'CONSULTANCY', ?, ?, ?, ?, ?, 'Receita Caseira', 1.0, 'PORCAO', ?, ?, ?, ?, ?, 'ACTIVE', 'PROFESSIONAL_UPLOAD', 'PROFESSIONAL_CONFIRMED', 'RECIPE', ?, NOW(3), NOW(3), ?, ?, ?, NOW(3), NOW(3))`,
+      [
+        publicId,
+        ctx.consultancyId,
+        name,
+        name,
+        normalizedName,
+        normalizedName,
+        perServingKcal,
+        perServingP,
+        perServingC,
+        perServingG,
+        perServingFiber,
+        `Rendimento: ${servings} porção(ões). Ingredientes: ${summaryIngredients}`,
+        `RECIPE:${publicId}`,
+        ctx.userId,
+        ctx.membershipId,
+      ]
+    );
+
+    const foodId = result.insertId;
+    let portionPublicId: string | null = null;
+    if (foodId) {
+      portionPublicId = crypto.randomUUID();
+      await connection.query(
+        `INSERT INTO nutrition_v2_food_portions (
+          public_id, food_id, label, equivalent_reference_amount, sort_order, status, created_at, updated_at
+        ) VALUES (?, ?, ?, 1.0, 1, 'ACTIVE', NOW(3), NOW(3))`,
+        [portionPublicId, foodId, `1 porção (1/${servings})`]
+      );
+
+      for (const [nutrientCode, data] of micronutrientsAccumulator.entries()) {
+        const perServingNutrient = Math.round((data.sum / servings) * 100) / 100;
+        const status = perServingNutrient === 0 ? "KNOWN_ZERO" : "KNOWN";
+        await connection.query(
+          `INSERT INTO nutrition_v2_food_nutrients (
+            food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+          [foodId, nutrientCode, perServingNutrient, data.unitCode, status]
+        );
+      }
+    }
+
+    const sodiumAcc = micronutrientsAccumulator.get("NA");
+    const perServingSodium = sodiumAcc ? Math.round((sodiumAcc.sum / servings) * 100) / 100 : null;
+
+    return {
+      publicId,
+      name,
+      referenceAmount: 1.0,
+      referenceUnitCode: "PORCAO",
+      caloriesKcal: perServingKcal,
+      proteinG: perServingP,
+      carbohydrateG: perServingC,
+      fatG: perServingG,
+      fiberG: perServingFiber,
+      sodiumMg: perServingSodium,
+      portionPublicId,
+    };
   } finally {
     if (connection) connection.release();
   }

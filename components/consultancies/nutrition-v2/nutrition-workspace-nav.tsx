@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import Link from "next/link";
@@ -16,12 +16,12 @@ export function NutritionWorkspaceNav({
   const tabs = [
     {
       id: "planos",
-      label: "Planos Alimentares",
+      label: "Planos",
       href: `/consultoria/${slug}/planos-v2`,
     },
     {
       id: "prontuario",
-      label: "Pacientes & Prontuários",
+      label: "Pacientes",
       href: `/consultoria/${slug}/planos-v2/prontuario`,
     },
     {

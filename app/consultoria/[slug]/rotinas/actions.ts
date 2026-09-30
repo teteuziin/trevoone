@@ -17,6 +17,10 @@ import {
   addItemToDraftBlock,
   addSetToDraftItem,
   duplicateBlockInDraft,
+  duplicateItemInDraft,
+  moveItemToBlockInDraft,
+  updateItemQuickConfigInDraft,
+  type QuickConfigInput,
   reorderBlocksInDraft,
   removeBlockFromDraft,
   removeItemFromDraft,
@@ -186,7 +190,7 @@ export async function addBlockToDraftAction(
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erro ao adicionar bloco ao treino.",
+      error: err instanceof Error ? err.message : "Erro ao adicionar categoria à ficha.",
     };
   }
 }
@@ -210,7 +214,7 @@ export async function updateBlockTitleAction(
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erro ao atualizar título do bloco.",
+      error: err instanceof Error ? err.message : "Erro ao renomear categoria.",
     };
   }
 }
@@ -239,27 +243,28 @@ export async function addExerciseItemToBlockAction(
 
     // Provide default initial set if none exist
     try {
-      await addSetToDraftItem(ctx, item.publicId, {
-        setNumber: 1,
-        setType: "NORMAL",
-        targetReps: 10,
-        targetRepsMax: 12,
-        targetRestSeconds: 60,
-      });
-      item.sets = [
-        {
-          setNumber: 1,
+      const initialSets: WorkoutItemSetDto[] = [];
+      for (let s = 1; s <= 4; s++) {
+        await addSetToDraftItem(ctx, item.publicId, {
+          setNumber: s,
+          setType: "NORMAL",
+          targetReps: 10,
+          targetRestSeconds: 60,
+        });
+        initialSets.push({
+          setNumber: s,
           setType: "NORMAL",
           parentSetNumber: null,
           targetReps: 10,
-          targetRepsMax: 12,
+          targetRepsMax: null,
           targetLoadKg: null,
           targetDurationSeconds: null,
           targetDistanceMeters: null,
           targetRestSeconds: 60,
           intensityIndicator: null,
-        },
-      ];
+        });
+      }
+      item.sets = initialSets;
     } catch {
       // Ignored if initial set creation fails
     }
@@ -269,7 +274,7 @@ export async function addExerciseItemToBlockAction(
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erro ao adicionar exercício ao bloco.",
+      error: err instanceof Error ? err.message : "Erro ao adicionar exercício à categoria.",
     };
   }
 }
@@ -366,7 +371,7 @@ export async function duplicateBlockAction(
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erro ao duplicar bloco.",
+      error: err instanceof Error ? err.message : "Erro ao duplicar categoria.",
     };
   }
 }
@@ -389,7 +394,7 @@ export async function reorderBlocksAction(
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erro ao reordenar blocos.",
+      error: err instanceof Error ? err.message : "Erro ao reordenar categorias.",
     };
   }
 }
@@ -411,7 +416,7 @@ export async function removeBlockAction(
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erro ao remover bloco.",
+      error: err instanceof Error ? err.message : "Erro ao remover categoria.",
     };
   }
 }
@@ -580,7 +585,7 @@ export async function createMethodBlockAction(
     if (!parsedBlockType.success) {
       return {
         ok: false,
-        error: "Método de bloco inválido.",
+        error: "Método de categoria inválido.",
       };
     }
 
@@ -599,7 +604,7 @@ export async function createMethodBlockAction(
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erro ao criar bloco metodológico.",
+      error: err instanceof Error ? err.message : "Erro ao criar categoria.",
     };
   }
 }
@@ -622,7 +627,7 @@ export async function updateBlockConfigurationAction(
   } catch (err: unknown) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erro ao atualizar configuração do bloco.",
+      error: err instanceof Error ? err.message : "Erro ao atualizar categoria.",
     };
   }
 }
@@ -1075,6 +1080,132 @@ export async function listProfessionalAssignmentsAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao carregar prescrições.",
+    };
+  }
+}
+
+// ============================================================================
+// SIMPLIFIED CATEGORY & EXERCISE ACTIONS (TREVO ONE — TRAINING V2)
+// ============================================================================
+
+export async function createCategoryAction(
+  slug: string,
+  versionPublicId: string,
+  title: string
+): Promise<ActionResponse<WorkoutBlockDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    if (!title || !title.trim()) {
+      return { ok: false, error: "Nome da categoria é obrigatório." };
+    }
+    const block = await addBlockToDraft(ctx, versionPublicId, {
+      blockType: "CUSTOM",
+      title: title.trim(),
+    });
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: block };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao criar categoria.",
+    };
+  }
+}
+
+export async function renameCategoryAction(
+  slug: string,
+  blockPublicId: string,
+  title: string
+): Promise<ActionResponse<WorkoutBlockDto>> {
+  return updateBlockTitleAction(slug, blockPublicId, title);
+}
+
+export async function duplicateCategoryAction(
+  slug: string,
+  blockPublicId: string
+): Promise<ActionResponse<WorkoutBlockDto>> {
+  return duplicateBlockAction(slug, blockPublicId);
+}
+
+export async function deleteCategoryAction(
+  slug: string,
+  blockPublicId: string
+): Promise<ActionResponse<{ success: boolean }>> {
+  return removeBlockAction(slug, blockPublicId);
+}
+
+export async function reorderCategoriesAction(
+  slug: string,
+  versionPublicId: string,
+  categoryPublicIds: string[]
+): Promise<ActionResponse<{ success: boolean }>> {
+  return reorderBlocksAction(slug, versionPublicId, categoryPublicIds);
+}
+
+export async function duplicateExerciseAction(
+  slug: string,
+  itemPublicId: string
+): Promise<ActionResponse<WorkoutBlockItemDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const newItem = await duplicateItemInDraft(ctx, itemPublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: newItem };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao duplicar exercício.",
+    };
+  }
+}
+
+export async function moveExerciseToCategoryAction(
+  slug: string,
+  itemPublicId: string,
+  targetCategoryPublicId: string
+): Promise<ActionResponse<void>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await moveItemToBlockInDraft(ctx, itemPublicId, targetCategoryPublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao mover exercício para outra categoria.",
+    };
+  }
+}
+
+export async function deleteExerciseAction(
+  slug: string,
+  itemPublicId: string
+): Promise<ActionResponse<{ success: boolean }>> {
+  return removeItemAction(slug, itemPublicId);
+}
+
+export async function reorderExercisesAction(
+  slug: string,
+  categoryPublicId: string,
+  itemPublicIds: string[]
+): Promise<ActionResponse<{ success: boolean }>> {
+  return reorderItemsAction(slug, categoryPublicId, itemPublicIds);
+}
+
+export async function updateExerciseQuickConfigAction(
+  slug: string,
+  itemPublicId: string,
+  config: QuickConfigInput
+): Promise<ActionResponse<WorkoutItemSetDto[]>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const sets = await updateItemQuickConfigInDraft(ctx, itemPublicId, config);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: sets };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao salvar configurações do exercício.",
     };
   }
 }

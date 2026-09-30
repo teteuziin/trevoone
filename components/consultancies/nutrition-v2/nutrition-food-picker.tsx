@@ -12,6 +12,9 @@ import {
 } from "@/lib/nutrition-v2/nutrient-calculator";
 import type { FoodListItemDto, FoodWithPortionsDto } from "@/lib/nutrition-v2/food-repository";
 import { Button } from "@/components/ui/button";
+import { NutritionManualFoodModal } from "./nutrition-manual-food-modal";
+import { NutritionLabelReaderModal } from "./nutrition-label-reader-modal";
+import { NutritionRecipeBuilderModal } from "./nutrition-recipe-builder-modal";
 
 export interface FoodSelectionResult {
   foodPublicId?: string | null;
@@ -61,6 +64,9 @@ export function NutritionFoodPicker({
   const [items, setItems] = useState<FoodListItemDto[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [isSearching, startSearchTransition] = useTransition();
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
+  const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
 
   // Selection & prescription state
   const [selectedFood, setSelectedFood] = useState<FoodWithPortionsDto | null>(null);
@@ -815,6 +821,36 @@ export function NutritionFoodPicker({
             </Button>
           )}
         </div>
+        {/* Modals for Parte E */}
+        <NutritionManualFoodModal
+          isOpen={isManualModalOpen}
+          onClose={() => setIsManualModalOpen(false)}
+          slug={slug}
+          onFoodCreated={(res) => {
+            onSelect(res);
+            handleClose();
+          }}
+        />
+
+        <NutritionLabelReaderModal
+          isOpen={isLabelModalOpen}
+          onClose={() => setIsLabelModalOpen(false)}
+          slug={slug}
+          onFoodCreated={(res) => {
+            onSelect(res);
+            handleClose();
+          }}
+        />
+
+        <NutritionRecipeBuilderModal
+          isOpen={isRecipeModalOpen}
+          onClose={() => setIsRecipeModalOpen(false)}
+          slug={slug}
+          onFoodCreated={(res) => {
+            onSelect(res);
+            handleClose();
+          }}
+        />
       </div>
     </div>
   );

@@ -6,6 +6,9 @@ export async function resolve(specifier, context, nextResolve) {
   if (specifier === "next/headers") {
     return nextResolve("next/headers.js", context);
   }
+  if (specifier === "next/cache") {
+    return nextResolve("next/cache.js", context);
+  }
   if (specifier.startsWith("@/")) {
     const rel = specifier.slice(2);
     for (const ext of [".ts", ".tsx", ".js", ".mjs", "/index.ts", "/index.js"]) {

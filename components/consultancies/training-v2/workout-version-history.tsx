@@ -149,7 +149,7 @@ export function WorkoutVersionHistory({
                     </span>
                     <span className="flex items-center gap-1">
                       <Layers className="w-3 h-3" />
-                      {v.blocksCount} {v.blocksCount === 1 ? "bloco" : "blocos"}
+                      {v.blocksCount} {v.blocksCount === 1 ? "categoria" : "categorias"}
                     </span>
                   </div>
 

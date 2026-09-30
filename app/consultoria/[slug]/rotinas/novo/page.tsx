@@ -147,10 +147,10 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
               </Badge>
             </div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-              Informações Iniciais da Rotina
+              Nova Ficha de Treino
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium leading-relaxed">
-              Defina o nome e os objetivos gerais. Em seguida, você adicionará os blocos e exercícios do zero no Criador.
+              Defina o nome e os dados da ficha. Em seguida, você adicionará as categorias e exercícios.
             </p>
           </div>
 
@@ -195,7 +195,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
 
             <div className="space-y-1.5">
               <label htmlFor="title" className="block text-xs font-bold text-[var(--text-primary)]">
-                Nome do treino *
+                Nome da ficha *
               </label>
               <input
                 id="title"
@@ -291,7 +291,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                 className="font-bold min-h-[44px] flex items-center gap-2 shadow-sm"
               >
                 <DumbbellIcon className="w-4 h-4" />
-                <span>Criar e Abrir no Criador</span>
+                <span>Criar Ficha de Treino</span>
               </Button>
             </div>
           </form>

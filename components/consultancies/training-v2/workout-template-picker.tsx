@@ -222,7 +222,7 @@ export function WorkoutTemplatePicker({
                     <div className="flex items-center gap-3 pt-1 text-[11px] text-[var(--foreground-muted)]">
                       <span className="flex items-center gap-1">
                         <Layers className="w-3 h-3" />
-                        {tpl.blocksCount} {tpl.blocksCount === 1 ? "bloco" : "blocos"}
+                        {tpl.blocksCount} {tpl.blocksCount === 1 ? "categoria" : "categorias"}
                       </span>
                       {tpl.estimatedDurationMinutes != null && (
                         <span className="flex items-center gap-1">

@@ -132,7 +132,7 @@ export function WorkoutPublishDialog({
 
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--border-subtle)] text-center">
               <div className="p-2 rounded-lg bg-[var(--surface)]">
-                <span className="text-[11px] text-[var(--foreground-muted)] block">Blocos</span>
+                <span className="text-[11px] text-[var(--foreground-muted)] block">Categorias</span>
                 <span className="text-sm font-bold text-[var(--foreground)]">{totalBlocks}</span>
               </div>
               <div className="p-2 rounded-lg bg-[var(--surface)]">

@@ -219,7 +219,7 @@ export function CustomExerciseInlineModal({
               className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-medium rounded-xl bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] shadow-xs disabled:opacity-50 transition-colors"
             >
               {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              Adicionar ao Bloco
+              Adicionar à Categoria
             </button>
           </div>
         </form>

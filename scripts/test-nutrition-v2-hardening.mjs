@@ -1,4 +1,7 @@
-﻿import assert from "node:assert/strict";
+import { register } from "node:module";
+register("./ts-loader.mjs", import.meta.url);
+
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import mysql from "mysql2/promise";
 

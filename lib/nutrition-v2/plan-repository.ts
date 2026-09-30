@@ -240,6 +240,18 @@ export async function captureMicronutrientsSnapshotForFood(
     status: r.status as FoodNutrientStatus,
   }));
 
+    if (foodRow.fiber_g != null && !nutrientDensities.some((d) => d.nutrientCode === "FIBER")) {
+    const fiberVal = Number(foodRow.fiber_g);
+    if (!Number.isNaN(fiberVal) && fiberVal >= 0) {
+      nutrientDensities.push({
+        nutrientCode: "FIBER",
+        amountPerReference: fiberVal,
+        unitCode: "g",
+        status: fiberVal === 0 ? "KNOWN_ZERO" : "KNOWN",
+      });
+    }
+  }
+
   return scaleMicronutrientsForFood(nutrientDensities, factor, {
     sourceUid: foodRow.source_uid ? String(foodRow.source_uid) : (foodRow.public_id ? String(foodRow.public_id) : null),
     sourceType: foodRow.source_type ? String(foodRow.source_type) : "EXTERNAL",

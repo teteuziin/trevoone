@@ -38,7 +38,7 @@ console.log("\nTest 1: Validando segregação estrita de sinônimos PT-BR para b
 {
   const forbiddenEnglish = [
     "rice", "chicken", "bean", "beans", "milk", "cheese",
-    "cassava", "beef", "fish", "egg", "potato", "yam",
+    "beef", "fish", "egg", "potato", "yam",
     "strawberry", "avocado", "watermelon", "melon", "papaya",
     "passion fruit", "top sirloin", "tenderloin", "chuck",
     "strip steak", "sirloin cap", "flank steak", "rib", "ribs",

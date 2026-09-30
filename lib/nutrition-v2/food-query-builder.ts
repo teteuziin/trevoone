@@ -209,18 +209,55 @@ function getWordStem(word: string): string {
  */
 export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = Object.freeze({
   // Pães e variações regionais brasileiras
-  cacetinho: ["pao frances", "frances"],
-  careca: ["frances", "pao frances"],
+  cacetinho: ["pao frances", "frances", "pao de sal", "careca"],
+  careca: ["pao frances", "frances", "cacetinho", "pao de sal"],
+  "pao de sal": ["pao frances", "cacetinho", "careca", "frances"],
+  "pao careca": ["pao frances", "cacetinho", "pao de sal", "frances"],
+  "pao frances": ["cacetinho", "pao de sal", "pao careca", "frances"],
+
   // Tubérculos e Raízes (variações regionais inequívocas em PT-BR)
   aipim: ["mandioca", "macaxeira"],
   macaxeira: ["mandioca", "aipim"],
   mandioca: ["aipim", "macaxeira"],
+  cassava: ["mandioca", "aipim", "macaxeira"],
+
+  // Mandioquinha / Batata-baroa
+  mandioquinha: ["batata baroa", "batata-baroa", "baroa"],
+  baroa: ["mandioquinha", "batata baroa", "batata-baroa"],
+  "batata baroa": ["mandioquinha", "baroa"],
+  "batata-baroa": ["mandioquinha", "baroa"],
+
+  // Abóbora e jerimum
+  abobora: ["jerimum"],
+  jerimum: ["abobora"],
 
   // Frutas com variações regionais brasileiras
   mexerica: ["tangerina", "bergamota", "mandarina"],
   bergamota: ["tangerina", "mexerica", "mandarina"],
   tangerina: ["mexerica", "bergamota", "mandarina"],
+  mandarina: ["tangerina", "mexerica", "bergamota"],
   abacaxi: ["ananas"],
+
+  // Feijões regionais
+  fradinho: ["feijao fradinho", "feijao de corda", "corda", "caupi"],
+  corda: ["feijao fradinho", "fradinho", "feijao de corda", "caupi"],
+  "feijao fradinho": ["feijao de corda", "fradinho", "corda"],
+  "feijao-fradinho": ["feijao de corda", "fradinho", "corda"],
+  "feijao de corda": ["feijao fradinho", "fradinho", "corda"],
+  "feijao-de-corda": ["feijao fradinho", "fradinho", "corda"],
+
+  // Milho e cuscuz
+  milho: ["milho verde"],
+  "milho verde": ["milho"],
+  cuscuz: ["cuscuz de milho", "flocao"],
+  "cuscuz de milho": ["cuscuz", "flocao"],
+  flocao: ["cuscuz", "cuscuz de milho", "milho flocos"],
+
+  // Aveia
+  aveia: ["flocos de aveia", "aveia em flocos"],
+
+  // Laticínios
+  yogurt: ["iogurte"],
 
   // Queijos e grafias em PT-BR
   mussarela: ["mucarela", "mozarela"],
@@ -257,9 +294,6 @@ export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = 
   defumada: ["defumado"],
 });
 
-/**
- * Aliased to USER_SEARCH_ALIASES for backward compatibility with user-facing code.
- */
 export const COMMON_FOOD_SYNONYMS: Readonly<Record<string, readonly string[]>> = USER_SEARCH_ALIASES;
 
 /**
@@ -316,6 +350,12 @@ export const DISCOVERY_ALIASES: Readonly<Record<string, readonly string[]>> = Ob
 
 export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
   const hasAmendoim = tokens.some((t) => normalizeSearchText(t) === "amendoim");
+  const hasPao = tokens.some((t) => normalizeSearchText(t) === "pao");
+  const hasBatata = tokens.some((t) => normalizeSearchText(t) === "batata");
+  const hasFeijao = tokens.some((t) => normalizeSearchText(t) === "feijao");
+  const hasArroz = tokens.some((t) => normalizeSearchText(t) === "arroz");
+  const hasMilho = tokens.some((t) => normalizeSearchText(t) === "milho");
+  const hasCuscuz = tokens.some((t) => normalizeSearchText(t) === "cuscuz");
 
   return tokens.map((token) => {
     const normalized = normalizeSearchText(token);
@@ -326,19 +366,40 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
     }
 
     // Phrase-aware handling: pão francês / cacetinho / pão de sal / pão careca
-    const hasPao = tokens.some((t) => normalizeSearchText(t) === "pao");
     if (hasPao && (normalized === "sal" || normalized === "careca")) {
-      return [token, "frances", "sal", "careca"];
+      return [token, "frances", "sal", "careca", "pao frances"];
     }
     if (hasPao && normalized === "frances") {
-      return [token, "frances", "cacetinho", "sal"];
+      return [token, "frances", "cacetinho", "sal", "careca"];
     }
     if (normalized === "cacetinho") {
-      return [token, "cacetinho", "frances"];
+      return [token, "cacetinho", "frances", "pao frances"];
+    }
+
+    // Phrase-aware handling: batata-baroa / mandioquinha
+    if (hasBatata && normalized === "baroa") {
+      return [token, "baroa", "mandioquinha", "batata baroa"];
+    }
+    if (normalized === "mandioquinha") {
+      return [token, "mandioquinha", "baroa", "batata baroa"];
+    }
+
+    // Phrase-aware handling: feijão fradinho / feijão de corda
+    if (hasFeijao && (normalized === "fradinho" || normalized === "corda")) {
+      return [token, "fradinho", "corda", "feijao fradinho", "feijao de corda"];
+    }
+
+    // Phrase-aware handling: milho / milho verde
+    if (hasMilho && normalized === "verde") {
+      return [token, "verde", "milho verde"];
+    }
+
+    // Phrase-aware handling: cuscuz / flocão
+    if ((hasCuscuz && normalized === "milho") || normalized === "flocao") {
+      return [token, "flocao", "cuscuz de milho", "cuscuz"];
     }
 
     // Phrase-aware handling: arroz branco -> TACO arroz tipo 1 / tipo 2 / polido
-    const hasArroz = tokens.some((t) => normalizeSearchText(t) === "arroz");
     if (hasArroz && (normalized === "branco" || normalized === "polido" || normalized === "tipo 1")) {
       return [token, "tipo 1", "tipo 2", "polido", "branco"];
     }
@@ -522,13 +583,13 @@ export function buildFoodSearchOrderClause(
   const firstStem = getWordStem(firstToken);
   const orderParams: (string | number)[] = [];
 
-  const targetCol = "f.normalized_name";
+  const targetCol = "COALESCE(f.normalized_display_name_pt_br, f.normalized_name)";
 
   // Tier 1: Exact match normalized (PT-BR first, then EN alias)
   orderParams.push(normalizedQuery, cleanQuery);
   orderParams.push(normalizedQuery, cleanQuery);
 
-  // Tier 2: Sequence starts with first token as distinct word or phrase
+  // Tier 2: Structured sequence or query tokens at start
   const tier2Pt: string[] = [];
   const tier2En: string[] = [];
   if (queryTokens.length >= 2) {
@@ -557,10 +618,13 @@ export function buildFoodSearchOrderClause(
 
   const tenancyOrder = isUnified ? `CASE WHEN f.scope = 'CONSULTANCY' THEN 0 ELSE 1 END ASC,` : "";
 
-  const hasCookingKeyword = queryTokens.some((t) =>
-    ["cozido", "cozida", "assado", "assada", "grelhado", "grelhada", "frito", "frita",
-     "cooked", "boiled", "baked", "roasted", "grilled", "fried", "broiled", "poached"].includes(t)
-  );
+  const cookingTerms = [
+    "cozido", "cozida", "assado", "assada", "grelhado", "grelhada", "frito", "frita",
+    "cru", "crua", "refogado", "refogada", "moido", "moida", "desnatado", "desnatada",
+    "cooked", "boiled", "baked", "roasted", "grilled", "fried", "broiled", "poached", "raw"
+  ];
+  const queryCookingTokens = queryTokens.filter((t) => cookingTerms.includes(t));
+  const hasCookingKeyword = queryCookingTokens.length > 0;
 
   const isMilkQuery = queryTokens.some((t) => ["milk", "leite"].includes(t));
   const hasCheeseOrYogurtQuery = queryTokens.some((t) =>
@@ -569,6 +633,29 @@ export function buildFoodSearchOrderClause(
 
   const isBreadQuery = queryTokens.some((t) => ["bread", "pao"].includes(t));
   const isYogurtQuery = queryTokens.some((t) => ["yogurt", "iogurte"].includes(t));
+
+  // Preparation matching condition
+  let prepOrderSql = "";
+  if (hasCookingKeyword) {
+    const prepConditions: string[] = [];
+    for (const cTok of queryCookingTokens) {
+      const stem = cTok.slice(0, Math.max(3, cTok.length - 1));
+      prepConditions.push(`${targetCol} LIKE '%${stem}%'`);
+      prepConditions.push(`f.normalized_name LIKE '%${stem}%'`);
+    }
+    prepOrderSql = `
+    CASE
+      WHEN (${prepConditions.join(" OR ")}) THEN 1
+      ELSE 2
+    END ASC,`;
+  } else {
+    prepOrderSql = `
+    CASE
+      WHEN (${targetCol} LIKE '% cru%' OR ${targetCol} LIKE '%, cru%' OR ${targetCol} LIKE 'cru,%' OR ${targetCol} = 'cru'
+           OR f.normalized_name LIKE '% raw%' OR f.normalized_name LIKE '%, raw%' OR f.normalized_name LIKE 'raw,%' OR f.normalized_name = 'raw') THEN 1
+      ELSE 2
+    END ASC,`;
+  }
 
   const orderClause = `ORDER BY
     ${tenancyOrder}
@@ -602,6 +689,7 @@ export function buildFoodSearchOrderClause(
       WHEN f.normalized_name LIKE ? THEN 10
       ELSE 11
     END ASC,
+    ${prepOrderSql}
     -- Prioritize direct milk foods over dairy derivatives (yogurt, cheese) when querying milk / leite
     CASE
       WHEN (${isMilkQuery && !hasCheeseOrYogurtQuery ? "1=1" : "1=0"})
@@ -620,13 +708,6 @@ export function buildFoodSearchOrderClause(
         OR f.normalized_name LIKE '%meat and skin%' OR f.normalized_name LIKE '%skin eaten%' OR f.normalized_name LIKE '%skin on%' THEN 5
       ELSE 4
     END ASC,
-    -- Prefer raw / cru base food when cooking method is not specified in query
-    CASE
-      WHEN (${!hasCookingKeyword ? "1=1" : "1=0"})
-        AND (${targetCol} LIKE '% cru%' OR ${targetCol} LIKE '%, cru%' OR ${targetCol} LIKE 'cru,%' OR ${targetCol} = 'cru'
-             OR f.normalized_name LIKE '% raw%' OR f.normalized_name LIKE '%, raw%' OR f.normalized_name LIKE 'raw,%' OR f.normalized_name = 'raw') THEN 1
-      ELSE 2
-    END ASC,
     -- Prefer plain / white / whole wheat bread over nut / fruit bread when querying bread
     CASE
       WHEN (${isBreadQuery ? "1=1" : "1=0"})
@@ -644,9 +725,11 @@ export function buildFoodSearchOrderClause(
     -- Prioritize analytical laboratory direct data & survey recipe data quality
     CASE
       WHEN f.source_key = 'TACO' THEN 1
-      WHEN f.source_key = 'USDA_FOUNDATION' THEN 2
-      WHEN f.source_key = 'USDA_FNDDS' THEN 3
-      ELSE 4
+      WHEN f.source_key = 'GROWTH_SUPPLEMENTS' THEN 2
+      WHEN f.source_key = 'IBGE_POF_2008_2009' THEN 3
+      WHEN f.source_key = 'USDA_FOUNDATION' THEN 4
+      WHEN f.source_key = 'USDA_FNDDS' THEN 5
+      ELSE 6
     END ASC,
     -- Shorter food names tend to be basic primary ingredients rather than complex derivatives
     CHAR_LENGTH(COALESCE(f.display_name_pt_br, f.name)) ASC,

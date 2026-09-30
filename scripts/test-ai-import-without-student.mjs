@@ -650,11 +650,14 @@ async function run() {
       }
       await conn.end();
     }
-    process.exit(0);
   }
 }
 
-run().catch((err) => {
-  console.error(`\n${colors.red}${colors.bold}TEST SUITE FAILED:${colors.reset}`, err);
-  process.exit(1);
-});
+run()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error(`\n${colors.red}${colors.bold}TEST SUITE FAILED:${colors.reset}`, err);
+    process.exit(1);
+  });

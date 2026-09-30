@@ -400,6 +400,183 @@ async function run() {
     assert.equal(dbLabelCheck[0].data_quality, "LABEL_CONFIRMED");
     console.log("  PASS: Provenance fields strictly preserved with exact source keys and quality tags.");
 
+    // ------------------------------------------------------------------------
+    // TEST 8: RECIPE NUTRITIONAL COMPLETENESS (UNKNOWN != ZERO, CASES A-F)
+    // ------------------------------------------------------------------------
+    console.log("\n[Test 8] Recipe Nutritional Completeness & Strict Macro/Micro Aggregation (Cases A-F)...");
+
+    // Helper to create test foods
+    async function createTestFood(props) {
+      const pid = crypto.randomUUID();
+      createdFoodPublicIds.push(pid);
+      const [res] = await pool.query(
+        `INSERT INTO nutrition_v2_foods (
+          public_id, scope, consultancy_id, name, display_name_pt_br, normalized_name,
+          reference_amount, reference_unit_code, calories_kcal, protein_g, carbohydrate_g, fat_g, fiber_g,
+          status, source_type, data_quality, source_key, created_at, updated_at
+        ) VALUES (?, 'CONSULTANCY', ?, ?, ?, ?, 100, 'G', ?, ?, ?, ?, ?, 'ACTIVE', 'PROFESSIONAL_UPLOAD', 'PROFESSIONAL_CONFIRMED', 'TEST', NOW(3), NOW(3))`,
+        [
+          pid,
+          ctx.consultancyId,
+          props.name,
+          props.name,
+          props.name.toLowerCase(),
+          props.kcal !== undefined ? props.kcal : null,
+          props.p !== undefined ? props.p : null,
+          props.c !== undefined ? props.c : null,
+          props.g !== undefined ? props.g : null,
+          props.fiber !== undefined ? props.fiber : null,
+        ]
+      );
+      const foodId = res.insertId;
+      if (props.na) {
+        if (props.na.status === "KNOWN" && props.na.amount != null) {
+          await pool.query(
+            `INSERT INTO nutrition_v2_food_nutrients (food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at)
+             VALUES (?, 'NA', ?, 'MG', 'KNOWN', NOW(3), NOW(3))`,
+            [foodId, props.na.amount]
+          );
+        } else if (props.na.status === "KNOWN_ZERO") {
+          await pool.query(
+            `INSERT INTO nutrition_v2_food_nutrients (food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at)
+             VALUES (?, 'NA', 0, 'MG', 'KNOWN_ZERO', NOW(3), NOW(3))`,
+            [foodId]
+          );
+        }
+      }
+      return { pid, foodId };
+    }
+
+    // CASE A: 3 ingredients: protein 10, 15, UNKNOWN -> proteinG = null
+    const fA1 = await createTestFood({ name: "Ing A1 " + Date.now(), kcal: 100, p: 10, c: 10, g: 2, fiber: 1 });
+    const fA2 = await createTestFood({ name: "Ing A2 " + Date.now(), kcal: 120, p: 15, c: 10, g: 2, fiber: 1 });
+    const fA3 = await createTestFood({ name: "Ing A3 " + Date.now(), kcal: 80, p: null, c: 10, g: 2, fiber: 1 }); // protein UNKNOWN
+
+    const resA = await registerRecipeFood(ctx, {
+      name: "Receita Caso A " + Date.now(),
+      servingsYield: 1,
+      ingredients: [
+        { foodPublicId: fA1.pid, quantity: 100, unitCode: "G" },
+        { foodPublicId: fA2.pid, quantity: 100, unitCode: "G" },
+        { foodPublicId: fA3.pid, quantity: 100, unitCode: "G" },
+      ],
+    });
+    createdFoodPublicIds.push(resA.publicId);
+    assert.equal(resA.proteinG, null, "[Case A] proteinG must be null when one ingredient is UNKNOWN");
+    console.log("  [Case A PASS]: 3 ingredients (10g, 15g, UNKNOWN) -> proteinG = null (no partial sum).");
+
+    // CASE B: 3 ingredients: protein 10, 15, 0 KNOWN_ZERO -> proteinG = 25
+    const fB1 = await createTestFood({ name: "Ing B1 " + Date.now(), kcal: 100, p: 10, c: 10, g: 2, fiber: 1 });
+    const fB2 = await createTestFood({ name: "Ing B2 " + Date.now(), kcal: 120, p: 15, c: 10, g: 2, fiber: 1 });
+    const fB3 = await createTestFood({ name: "Ing B3 " + Date.now(), kcal: 80, p: 0, c: 10, g: 2, fiber: 1 }); // protein KNOWN_ZERO (0)
+
+    const resB = await registerRecipeFood(ctx, {
+      name: "Receita Caso B " + Date.now(),
+      servingsYield: 1,
+      ingredients: [
+        { foodPublicId: fB1.pid, quantity: 100, unitCode: "G" },
+        { foodPublicId: fB2.pid, quantity: 100, unitCode: "G" },
+        { foodPublicId: fB3.pid, quantity: 100, unitCode: "G" },
+      ],
+    });
+    createdFoodPublicIds.push(resB.publicId);
+    assert.equal(resB.proteinG, 25, "[Case B] proteinG must be 25 when all are known (10 + 15 + 0)");
+    console.log("  [Case B PASS]: 3 ingredients (10g, 15g, 0g KNOWN_ZERO) -> proteinG = 25.");
+
+    // CASE C: sodium: 100mg, 50mg, UNKNOWN -> sodium CANNOT be persisted as 150mg KNOWN
+    const fC1 = await createTestFood({ name: "Ing C1 " + Date.now(), kcal: 100, p: 5, c: 5, g: 2, fiber: 1, na: { amount: 100, status: "KNOWN" } });
+    const fC2 = await createTestFood({ name: "Ing C2 " + Date.now(), kcal: 100, p: 5, c: 5, g: 2, fiber: 1, na: { amount: 50, status: "KNOWN" } });
+    const fC3 = await createTestFood({ name: "Ing C3 " + Date.now(), kcal: 100, p: 5, c: 5, g: 2, fiber: 1 }); // na is UNKNOWN (no row)
+
+    const resC = await registerRecipeFood(ctx, {
+      name: "Receita Caso C " + Date.now(),
+      servingsYield: 1,
+      ingredients: [
+        { foodPublicId: fC1.pid, quantity: 100, unitCode: "G" },
+        { foodPublicId: fC2.pid, quantity: 100, unitCode: "G" },
+        { foodPublicId: fC3.pid, quantity: 100, unitCode: "G" },
+      ],
+    });
+    createdFoodPublicIds.push(resC.publicId);
+    assert.equal(resC.sodiumMg, null, "[Case C] Returned sodiumMg must be null when one ingredient is UNKNOWN");
+
+    const [dbCNa] = await pool.query(
+      `SELECT n.* FROM nutrition_v2_food_nutrients n
+       JOIN nutrition_v2_foods f ON f.id = n.food_id
+       WHERE f.public_id = ? AND n.nutrient_code = 'NA'`,
+      [resC.publicId]
+    );
+    assert.equal(dbCNa.length, 0, "[Case C] Sodium must NOT be persisted as KNOWN row when one ingredient is UNKNOWN");
+    console.log("  [Case C PASS]: Sodium (100mg, 50mg, UNKNOWN) -> NOT persisted as 150mg KNOWN (absent / null).");
+
+    // CASE D: sodium: 100mg, 50mg, 0mg KNOWN_ZERO -> 150mg KNOWN
+    const fD1 = await createTestFood({ name: "Ing D1 " + Date.now(), kcal: 100, p: 5, c: 5, g: 2, fiber: 1, na: { amount: 100, status: "KNOWN" } });
+    const fD2 = await createTestFood({ name: "Ing D2 " + Date.now(), kcal: 100, p: 5, c: 5, g: 2, fiber: 1, na: { amount: 50, status: "KNOWN" } });
+    const fD3 = await createTestFood({ name: "Ing D3 " + Date.now(), kcal: 100, p: 5, c: 5, g: 2, fiber: 1, na: { amount: 0, status: "KNOWN_ZERO" } });
+
+    const resD = await registerRecipeFood(ctx, {
+      name: "Receita Caso D " + Date.now(),
+      servingsYield: 1,
+      ingredients: [
+        { foodPublicId: fD1.pid, quantity: 100, unitCode: "G" },
+        { foodPublicId: fD2.pid, quantity: 100, unitCode: "G" },
+        { foodPublicId: fD3.pid, quantity: 100, unitCode: "G" },
+      ],
+    });
+    createdFoodPublicIds.push(resD.publicId);
+    assert.equal(resD.sodiumMg, 150, "[Case D] Returned sodiumMg must be 150");
+
+    const [dbDNa] = await pool.query(
+      `SELECT n.* FROM nutrition_v2_food_nutrients n
+       JOIN nutrition_v2_foods f ON f.id = n.food_id
+       WHERE f.public_id = ? AND n.nutrient_code = 'NA'`,
+      [resD.publicId]
+    );
+    assert.equal(dbDNa.length, 1, "[Case D] Sodium row must exist");
+    assert.equal(Number(dbDNa[0].amount_per_reference), 150, "[Case D] Amount must be 150mg");
+    assert.equal(dbDNa[0].status, "KNOWN", "[Case D] Status must be KNOWN");
+    console.log("  [Case D PASS]: Sodium (100mg, 50mg, 0mg KNOWN_ZERO) -> 150mg KNOWN persisted.");
+
+    // CASE E: all macros known: numeric normal result
+    const fE1 = await createTestFood({ name: "Ing E1 " + Date.now(), kcal: 100, p: 10, c: 12, g: 3, fiber: 2 });
+    const fE2 = await createTestFood({ name: "Ing E2 " + Date.now(), kcal: 200, p: 20, c: 18, g: 5, fiber: 4 });
+
+    const resE = await registerRecipeFood(ctx, {
+      name: "Receita Caso E " + Date.now(),
+      servingsYield: 2,
+      ingredients: [
+        { foodPublicId: fE1.pid, quantity: 100, unitCode: "G" },
+        { foodPublicId: fE2.pid, quantity: 100, unitCode: "G" },
+      ],
+    });
+    createdFoodPublicIds.push(resE.publicId);
+    assert.equal(resE.caloriesKcal, 150);
+    assert.equal(resE.proteinG, 15);
+    assert.equal(resE.carbohydrateG, 15);
+    assert.equal(resE.fatG, 4);
+    assert.equal(resE.fiberG, 3);
+    console.log("  [Case E PASS]: All macros known -> exact numeric per-serving results.");
+
+    // CASE F: all zero known: result 0, not null
+    const fF1 = await createTestFood({ name: "Ing F1 " + Date.now(), kcal: 0, p: 0, c: 0, g: 0, fiber: 0 });
+    const fF2 = await createTestFood({ name: "Ing F2 " + Date.now(), kcal: 0, p: 0, c: 0, g: 0, fiber: 0 });
+
+    const resF = await registerRecipeFood(ctx, {
+      name: "Receita Caso F " + Date.now(),
+      servingsYield: 1,
+      ingredients: [
+        { foodPublicId: fF1.pid, quantity: 100, unitCode: "G" },
+        { foodPublicId: fF2.pid, quantity: 100, unitCode: "G" },
+      ],
+    });
+    createdFoodPublicIds.push(resF.publicId);
+    assert.equal(resF.caloriesKcal, 0, "[Case F] 0 kcal must be 0, not null");
+    assert.equal(resF.proteinG, 0, "[Case F] 0g protein must be 0, not null");
+    assert.equal(resF.carbohydrateG, 0, "[Case F] 0g carbs must be 0, not null");
+    assert.equal(resF.fatG, 0, "[Case F] 0g fat must be 0, not null");
+    assert.equal(resF.fiberG, 0, "[Case F] 0g fiber must be 0, not null");
+    console.log("  [Case F PASS]: All zero known -> exact 0 values, never null.");
+
   } finally {
     // Cleanup fixtures
     for (const pid of createdFoodPublicIds) {

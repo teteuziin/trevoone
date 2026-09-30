@@ -10,11 +10,11 @@ interface RecipeIngredient {
   foodName: string;
   quantity: number;
   unitCode: string;
-  caloriesKcal: number;
-  proteinG: number;
-  carbohydrateG: number;
-  fatG: number;
-  fiberG: number;
+  caloriesKcal: number | null;
+  proteinG: number | null;
+  carbohydrateG: number | null;
+  fatG: number | null;
+  fiberG: number | null;
   portionPublicId?: string | null;
 }
 
@@ -47,19 +47,28 @@ export function NutritionRecipeBuilderModal({
 
   if (!isOpen) return null;
 
-  // Calculate totals across ingredients
-  const totalKcal = Math.round(ingredients.reduce((acc, ing) => acc + ing.caloriesKcal, 0) * 10) / 10;
-  const totalP = Math.round(ingredients.reduce((acc, ing) => acc + ing.proteinG, 0) * 10) / 10;
-  const totalC = Math.round(ingredients.reduce((acc, ing) => acc + ing.carbohydrateG, 0) * 10) / 10;
-  const totalG = Math.round(ingredients.reduce((acc, ing) => acc + ing.fatG, 0) * 10) / 10;
-  const totalFiber = Math.round(ingredients.reduce((acc, ing) => acc + ing.fiberG, 0) * 10) / 10;
+  // Calculate totals across ingredients strictly preserving UNKNOWN != ZERO
+  const allKcalKnown = ingredients.length > 0 && ingredients.every((ing) => ing.caloriesKcal != null);
+  const totalKcal = allKcalKnown ? Math.round(ingredients.reduce((acc, ing) => acc + (ing.caloriesKcal ?? 0), 0) * 10) / 10 : null;
+
+  const allPKnown = ingredients.length > 0 && ingredients.every((ing) => ing.proteinG != null);
+  const totalP = allPKnown ? Math.round(ingredients.reduce((acc, ing) => acc + (ing.proteinG ?? 0), 0) * 10) / 10 : null;
+
+  const allCKnown = ingredients.length > 0 && ingredients.every((ing) => ing.carbohydrateG != null);
+  const totalC = allCKnown ? Math.round(ingredients.reduce((acc, ing) => acc + (ing.carbohydrateG ?? 0), 0) * 10) / 10 : null;
+
+  const allGKnown = ingredients.length > 0 && ingredients.every((ing) => ing.fatG != null);
+  const totalG = allGKnown ? Math.round(ingredients.reduce((acc, ing) => acc + (ing.fatG ?? 0), 0) * 10) / 10 : null;
+
+  const allFiberKnown = ingredients.length > 0 && ingredients.every((ing) => ing.fiberG != null);
+  const totalFiber = allFiberKnown ? Math.round(ingredients.reduce((acc, ing) => acc + (ing.fiberG ?? 0), 0) * 10) / 10 : null;
 
   const validServings = Math.max(1, servingsYield || 1);
-  const perServingKcal = Math.round((totalKcal / validServings) * 10) / 10;
-  const perServingP = Math.round((totalP / validServings) * 10) / 10;
-  const perServingC = Math.round((totalC / validServings) * 10) / 10;
-  const perServingG = Math.round((totalG / validServings) * 10) / 10;
-  const perServingFiber = Math.round((totalFiber / validServings) * 10) / 10;
+  const perServingKcal = totalKcal != null ? Math.round((totalKcal / validServings) * 10) / 10 : null;
+  const perServingP = totalP != null ? Math.round((totalP / validServings) * 10) / 10 : null;
+  const perServingC = totalC != null ? Math.round((totalC / validServings) * 10) / 10 : null;
+  const perServingG = totalG != null ? Math.round((totalG / validServings) * 10) / 10 : null;
+  const perServingFiber = totalFiber != null ? Math.round((totalFiber / validServings) * 10) / 10 : null;
 
   async function handleSearchIngredients(q: string) {
     setIngredientQuery(q);
@@ -81,11 +90,11 @@ export function NutritionRecipeBuilderModal({
     const ref = selectedFood.referenceAmount || 100;
     const factor = qty / ref;
 
-    const ingKcal = selectedFood.caloriesKcal != null ? Math.round(selectedFood.caloriesKcal * factor * 10) / 10 : 0;
-    const ingP = selectedFood.proteinG != null ? Math.round(selectedFood.proteinG * factor * 10) / 10 : 0;
-    const ingC = selectedFood.carbohydrateG != null ? Math.round(selectedFood.carbohydrateG * factor * 10) / 10 : 0;
-    const ingG = selectedFood.fatG != null ? Math.round(selectedFood.fatG * factor * 10) / 10 : 0;
-    const ingFiber = selectedFood.fiberG != null ? Math.round(selectedFood.fiberG * factor * 10) / 10 : 0;
+    const ingKcal = selectedFood.caloriesKcal != null ? Math.round(selectedFood.caloriesKcal * factor * 10) / 10 : null;
+    const ingP = selectedFood.proteinG != null ? Math.round(selectedFood.proteinG * factor * 10) / 10 : null;
+    const ingC = selectedFood.carbohydrateG != null ? Math.round(selectedFood.carbohydrateG * factor * 10) / 10 : null;
+    const ingG = selectedFood.fatG != null ? Math.round(selectedFood.fatG * factor * 10) / 10 : null;
+    const ingFiber = selectedFood.fiberG != null ? Math.round(selectedFood.fiberG * factor * 10) / 10 : null;
 
     const newIng: RecipeIngredient = {
       foodPublicId: selectedFood.publicId,
@@ -328,7 +337,7 @@ export function NutritionRecipeBuilderModal({
                         {ing.foodName}
                       </span>
                       <span className="text-[11px] text-[var(--text-secondary)]">
-                        {ing.quantity} {ing.unitCode} • {ing.caloriesKcal} kcal • {ing.proteinG}g P • {ing.carbohydrateG}g C • {ing.fatG}g G
+                        {ing.quantity} {ing.unitCode} • {ing.caloriesKcal != null ? `${ing.caloriesKcal} kcal` : "— kcal"} • {ing.proteinG != null ? `${ing.proteinG}g P` : "— P"} • {ing.carbohydrateG != null ? `${ing.carbohydrateG}g C` : "— C"} • {ing.fatG != null ? `${ing.fatG}g G` : "— G"}
                       </span>
                     </div>
                     <button
@@ -357,20 +366,20 @@ export function NutritionRecipeBuilderModal({
                 <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] space-y-1">
                   <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase">Por Porção (1/{validServings})</span>
                   <div className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
-                    {perServingKcal} kcal
+                    {perServingKcal != null ? `${perServingKcal} kcal` : "Calorias incompletas"}
                   </div>
                   <div className="text-[11px] text-[var(--text-secondary)]">
-                    P: <strong>{perServingP}g</strong> • C: <strong>{perServingC}g</strong> • G: <strong>{perServingG}g</strong> • Fib: <strong>{perServingFiber}g</strong>
+                    P: <strong>{perServingP != null ? `${perServingP}g` : "—"}</strong> • C: <strong>{perServingC != null ? `${perServingC}g` : "—"}</strong> • G: <strong>{perServingG != null ? `${perServingG}g` : "—"}</strong> • Fib: <strong>{perServingFiber != null ? `${perServingFiber}g` : "—"}</strong>
                   </div>
                 </div>
 
                 <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] space-y-1">
                   <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase">Total da Receita Inteira</span>
                   <div className="text-sm font-extrabold text-[var(--text-primary)]">
-                    {totalKcal} kcal
+                    {totalKcal != null ? `${totalKcal} kcal` : "Total incompleto"}
                   </div>
                   <div className="text-[11px] text-[var(--text-secondary)]">
-                    P: {totalP}g • C: {totalC}g • G: {totalG}g
+                    P: {totalP != null ? `${totalP}g` : "—"} • C: {totalC != null ? `${totalC}g` : "—"} • G: {totalG != null ? `${totalG}g` : "—"}
                   </div>
                 </div>
               </div>

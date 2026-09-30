@@ -1244,6 +1244,8 @@ export async function registerRecipeFood(
   try {
     connection = await getDbConnection();
 
+    const totalIngredients = input.ingredients.length;
+
     let totalKcal = 0;
     let knownKcalCount = 0;
 
@@ -1259,7 +1261,13 @@ export async function registerRecipeFood(
     let totalFiber = 0;
     let knownFiberCount = 0;
 
-    const micronutrientsAccumulator = new Map<string, { sum: number; countKnown: number; unitCode: string }>();
+    interface MicronutrientTracking {
+      sum: number;
+      countKnown: number;
+      countTrace: number;
+      unitCode: string;
+    }
+    const micronutrientsAccumulator = new Map<string, MicronutrientTracking>();
     const summaryParts: string[] = [];
 
     for (const ing of input.ingredients) {
@@ -1371,25 +1379,49 @@ export async function registerRecipeFood(
       const [nutRows] = await connection.query<RowDataPacket[]>(
         `SELECT nutrient_code, amount_per_reference, unit_code, status
          FROM nutrition_v2_food_nutrients
-         WHERE food_id = ? AND status IN ('KNOWN', 'KNOWN_ZERO')`,
+         WHERE food_id = ?`,
         [food.id]
       );
 
+      const factor = calc.factor || 0;
       for (const nRow of nutRows) {
-        const factor = calc.factor || 0;
-        const val = nRow.status === "KNOWN_ZERO" ? 0 : (Number(nRow.amount_per_reference) || 0) * factor;
-        const existing = micronutrientsAccumulator.get(nRow.nutrient_code) || { sum: 0, countKnown: 0, unitCode: nRow.unit_code };
-        existing.sum += val;
-        existing.countKnown += 1;
-        micronutrientsAccumulator.set(nRow.nutrient_code, existing);
+        const code = nRow.nutrient_code;
+        const current = micronutrientsAccumulator.get(code) || {
+          sum: 0,
+          countKnown: 0,
+          countTrace: 0,
+          unitCode: nRow.unit_code,
+        };
+
+        if (nRow.status === "KNOWN_ZERO" || (nRow.status === "KNOWN" && Number(nRow.amount_per_reference) === 0)) {
+          current.countKnown += 1;
+        } else if (nRow.status === "KNOWN") {
+          current.sum += (Number(nRow.amount_per_reference) || 0) * factor;
+          current.countKnown += 1;
+        } else if (nRow.status === "TRACE") {
+          current.countTrace += 1;
+        }
+        // status === 'UNKNOWN' is preserved as not known
+
+        micronutrientsAccumulator.set(code, current);
       }
     }
 
-    const perServingKcal = knownKcalCount > 0 ? Math.round((totalKcal / servings) * 10) / 10 : null;
-    const perServingP = knownPCount > 0 ? Math.round((totalP / servings) * 10) / 10 : null;
-    const perServingC = knownCCount > 0 ? Math.round((totalC / servings) * 10) / 10 : null;
-    const perServingG = knownGCount > 0 ? Math.round((totalG / servings) * 10) / 10 : null;
-    const perServingFiber = knownFiberCount > 0 ? Math.round((totalFiber / servings) * 10) / 10 : null;
+    const perServingKcal = (totalIngredients > 0 && knownKcalCount === totalIngredients)
+      ? Math.round((totalKcal / servings) * 10) / 10
+      : null;
+    const perServingP = (totalIngredients > 0 && knownPCount === totalIngredients)
+      ? Math.round((totalP / servings) * 10) / 10
+      : null;
+    const perServingC = (totalIngredients > 0 && knownCCount === totalIngredients)
+      ? Math.round((totalC / servings) * 10) / 10
+      : null;
+    const perServingG = (totalIngredients > 0 && knownGCount === totalIngredients)
+      ? Math.round((totalG / servings) * 10) / 10
+      : null;
+    const perServingFiber = (totalIngredients > 0 && knownFiberCount === totalIngredients)
+      ? Math.round((totalFiber / servings) * 10) / 10
+      : null;
 
     const publicId = crypto.randomUUID();
     const normalizedName = normalizeSearchText(name);
@@ -1434,20 +1466,49 @@ export async function registerRecipeFood(
         [portionPublicId, foodId, `1 porção (1/${servings})`]
       );
 
+      // Persist ONLY micronutrients that are fully known across all ingredients
       for (const [nutrientCode, data] of micronutrientsAccumulator.entries()) {
-        const perServingNutrient = Math.round((data.sum / servings) * 100) / 100;
-        const status = perServingNutrient === 0 ? "KNOWN_ZERO" : "KNOWN";
-        await connection.query(
-          `INSERT INTO nutrition_v2_food_nutrients (
-            food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, NOW(3), NOW(3))`,
-          [foodId, nutrientCode, perServingNutrient, data.unitCode, status]
-        );
+        if (data.countKnown === totalIngredients && totalIngredients > 0) {
+          const perServingNutrient = Math.round((data.sum / servings) * 100) / 100;
+          const status = (perServingNutrient === 0 && data.sum === 0) ? "KNOWN_ZERO" : "KNOWN";
+          await connection.query(
+            `INSERT INTO nutrition_v2_food_nutrients (
+              food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+            [foodId, nutrientCode, perServingNutrient, data.unitCode, status]
+          );
+        } else if (data.countTrace > 0 && data.countKnown + data.countTrace === totalIngredients && data.sum === 0) {
+          // Pure TRACE across all ingredients
+          await connection.query(
+            `INSERT INTO nutrition_v2_food_nutrients (
+              food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at
+            ) VALUES (?, ?, NULL, ?, 'TRACE', NOW(3), NOW(3))`,
+            [foodId, nutrientCode, data.unitCode]
+          );
+        }
+        // If unknown in any ingredient: do NOT persist as KNOWN row (absence = UNKNOWN)
+      }
+
+      // If fiber was fully known across all ingredients, ensure it's also recorded in nutrition_v2_food_nutrients
+      if (perServingFiber != null) {
+        const fiberAcc = micronutrientsAccumulator.get("FIBER");
+        if (!fiberAcc || fiberAcc.countKnown !== totalIngredients) {
+          const status = perServingFiber === 0 ? "KNOWN_ZERO" : "KNOWN";
+          await connection.query(
+            `INSERT INTO nutrition_v2_food_nutrients (
+              food_id, nutrient_code, amount_per_reference, unit_code, status, created_at, updated_at
+            ) VALUES (?, 'FIBER', ?, 'G', ?, NOW(3), NOW(3))
+            ON DUPLICATE KEY UPDATE amount_per_reference = VALUES(amount_per_reference), status = VALUES(status)`,
+            [foodId, perServingFiber, status]
+          );
+        }
       }
     }
 
     const sodiumAcc = micronutrientsAccumulator.get("NA");
-    const perServingSodium = sodiumAcc ? Math.round((sodiumAcc.sum / servings) * 100) / 100 : null;
+    const perServingSodium = (sodiumAcc && sodiumAcc.countKnown === totalIngredients && totalIngredients > 0)
+      ? Math.round((sodiumAcc.sum / servings) * 100) / 100
+      : null;
 
     return {
       publicId,

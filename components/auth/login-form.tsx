@@ -186,7 +186,7 @@ export function LoginForm({
         </div>
 
         {/* Opções: Manter conectado (checkbox verde) & Esqueci minha senha */}
-        <div className="flex items-center justify-between text-xs sm:text-sm pt-0.5">
+        <div className="flex flex-wrap items-center justify-between gap-y-2 text-xs sm:text-sm pt-0.5">
           <label className="flex items-center gap-2.5 cursor-pointer select-none text-neutral-300 hover:text-white transition-colors min-h-[44px] sm:min-h-0">
             <button
               type="button"

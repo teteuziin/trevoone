@@ -27,20 +27,29 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Trevo One",
-  description: "Saúde, performance e acompanhamento em um só lugar.",
-  applicationName: "Trevo One",
+  title: "TREVO ONE",
+  description: "Treino, nutrição e evolução em um só lugar.",
+  applicationName: "TREVO ONE",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Trevo One",
+    title: "TREVO ONE",
   },
   formatDetection: {
     telephone: false,
   },
   icons: {
-    icon: "/icons/icon-192x192.png",
-    apple: "/icons/apple-touch-icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
   },
 };
 

@@ -10,7 +10,7 @@ export function LoginAudioController() {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const userDisabledRef = useRef(false);
+  const userPausedRef = useRef(false);
 
   const clearFade = useCallback(() => {
     if (fadeIntervalRef.current) {
@@ -68,7 +68,7 @@ export function LoginAudioController() {
 
   const playAudio = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || userDisabledRef.current) return;
+    if (!audio || userPausedRef.current) return;
 
     audio
       .play()
@@ -94,8 +94,8 @@ export function LoginAudioController() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isPlaying) {
-      userDisabledRef.current = true;
+    if (!audio.paused) {
+      userPausedRef.current = true;
       try {
         localStorage.setItem(STORAGE_KEY, "false");
       } catch {
@@ -103,7 +103,7 @@ export function LoginAudioController() {
       }
       pauseAudio();
     } else {
-      userDisabledRef.current = false;
+      userPausedRef.current = false;
       try {
         localStorage.setItem(STORAGE_KEY, "true");
       } catch {
@@ -117,7 +117,7 @@ export function LoginAudioController() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored === "false") {
-        userDisabledRef.current = true;
+        userPausedRef.current = true;
       }
     } catch {
       // storage fallback
@@ -129,12 +129,42 @@ export function LoginAudioController() {
     audio.volume = 0;
     audioRef.current = audio;
 
-    const handleError = () => {
-      setIsPlaying(false);
-    };
-    audio.addEventListener("error", handleError);
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onEnded = () => setIsPlaying(false);
+    const onError = () => setIsPlaying(false);
 
-    if (!userDisabledRef.current) {
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
+
+    // Helper for first user interaction fallback when browser blocks autoplay
+    let interactionHandlersRegistered = false;
+
+    const handleFirstInteraction = () => {
+      cleanupInteractionListeners();
+      if (!userPausedRef.current && audioRef.current && audioRef.current.paused) {
+        audioRef.current.play().then(() => {
+          setIsPlaying(true);
+          fadeIn(audioRef.current!);
+        }).catch(() => {
+          setIsPlaying(false);
+        });
+      }
+    };
+
+    const cleanupInteractionListeners = () => {
+      if (interactionHandlersRegistered) {
+        window.removeEventListener("pointerdown", handleFirstInteraction);
+        window.removeEventListener("touchstart", handleFirstInteraction);
+        window.removeEventListener("click", handleFirstInteraction);
+        window.removeEventListener("keydown", handleFirstInteraction);
+        interactionHandlersRegistered = false;
+      }
+    };
+
+    if (!userPausedRef.current) {
       audio
         .play()
         .then(() => {
@@ -142,18 +172,11 @@ export function LoginAudioController() {
           fadeIn(audio);
         })
         .catch(() => {
-          const handleFirstInteraction = () => {
-            window.removeEventListener("click", handleFirstInteraction);
-            window.removeEventListener("touchstart", handleFirstInteraction);
-            window.removeEventListener("keydown", handleFirstInteraction);
-
-            if (!userDisabledRef.current && audioRef.current && audioRef.current.paused) {
-              playAudio();
-            }
-          };
-
-          window.addEventListener("click", handleFirstInteraction, { once: true, passive: true });
+          // Autoplay blocked by browser policy: register single-fire interaction listeners
+          interactionHandlersRegistered = true;
+          window.addEventListener("pointerdown", handleFirstInteraction, { once: true, passive: true });
           window.addEventListener("touchstart", handleFirstInteraction, { once: true, passive: true });
+          window.addEventListener("click", handleFirstInteraction, { once: true, passive: true });
           window.addEventListener("keydown", handleFirstInteraction, { once: true, passive: true });
         });
     }
@@ -164,7 +187,7 @@ export function LoginAudioController() {
           audioRef.current.pause();
         }
       } else {
-        if (!userDisabledRef.current && audioRef.current && audioRef.current.paused && isPlaying) {
+        if (!userPausedRef.current && audioRef.current && audioRef.current.paused && isPlaying) {
           audioRef.current.play().catch(() => {});
         }
       }
@@ -178,9 +201,13 @@ export function LoginAudioController() {
 
     return () => {
       clearFade();
+      cleanupInteractionListeners();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("trevo-login-fade-out", handleFadeOutEvent);
-      audio.removeEventListener("error", handleError);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
       audio.pause();
       audio.src = "";
       audioRef.current = null;

@@ -2,15 +2,15 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Trevo One",
-    short_name: "Trevo",
-    description: "Saúde, performance e acompanhamento em um só lugar.",
+    name: "TREVO ONE",
+    short_name: "TREVO ONE",
+    description: "Treino, nutrição e evolução em um só lugar.",
     start_url: "/",
     id: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#00a859",
+    background_color: "#060709",
+    theme_color: "#00E676",
     lang: "pt-BR",
     icons: [
       {

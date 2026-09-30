@@ -244,6 +244,20 @@ export function ConsultancyAppShell({
       href: `/consultoria/${consultancySlug}/assinatura`,
       iconName: "subscription",
     });
+    rawItems.push({
+      id: "admin-ia",
+      label: "Gestão de IA & Cotas",
+      mobileLabel: "Cotas IA",
+      href: `/consultoria/${consultancySlug}/configuracoes/ia`,
+      iconName: "ai",
+    });
+    rawItems.push({
+      id: "admin-atividades",
+      label: "Central de Atividades",
+      mobileLabel: "Atividades",
+      href: `/consultoria/${consultancySlug}/atividades`,
+      iconName: "activity",
+    });
   }
 
   // 4. BIBLIOTECA (Exercícios para Personal, Alimentos para Nutri)

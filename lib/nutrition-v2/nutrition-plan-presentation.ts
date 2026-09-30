@@ -47,6 +47,13 @@ export interface PresentedPlanTotals {
   hasAnyMacro: boolean;
 }
 
+export interface PresentedMicronutrientItem {
+  code: string;
+  name: string;
+  valueFormatted: string;
+  category: string;
+}
+
 export interface PresentedNutritionPlan {
   assignmentPublicId: string;
   title: string;
@@ -62,6 +69,7 @@ export interface PresentedNutritionPlan {
   generationDateFormatted: string;
   meals: PresentedMeal[];
   totals: PresentedPlanTotals;
+  micronutrients?: PresentedMicronutrientItem[] | null;
 }
 
 export interface PresentationOptions {
@@ -212,6 +220,21 @@ export function presentNutritionPlan(
     })),
   }));
 
+  const presentedMicronutrients: PresentedMicronutrientItem[] = [];
+  const microSummary = assignedPlan.totals.micronutrients;
+  if (microSummary && microSummary.nutrients) {
+    for (const [code, d] of Object.entries(microSummary.nutrients)) {
+      if ((d.value && d.value > 0) || d.quantifiedItemCount > 0) {
+        presentedMicronutrients.push({
+          code,
+          name: d.namePtBr,
+          valueFormatted: `${Math.round(d.value * 10) / 10} ${d.unit}`,
+          category: d.category,
+        });
+      }
+    }
+  }
+
   return {
     assignmentPublicId,
     title: version.title.trim(),
@@ -227,5 +250,139 @@ export function presentNutritionPlan(
     generationDateFormatted,
     meals: presentedMeals,
     totals: presentedTotals,
+    micronutrients: presentedMicronutrients.length > 0 ? presentedMicronutrients : null,
+  };
+}
+
+/**
+ * Pure presentation transformer for unassigned or builder plans (PlanVersionTreeDto).
+ * Allows nutritionists and consultancy admins to export clean PDFs directly from the builder.
+ */
+export function presentNutritionPlanFromVersionTree(
+  tree: {
+    plan: { publicId: string };
+    version: {
+      title: string;
+      subtitle: string | null;
+      objective: string | null;
+      generalGuidance: string | null;
+      notes: string | null;
+    };
+    meals: Array<{
+      publicId: string;
+      title: string;
+      scheduledTime: string | null;
+      notes: string | null;
+      items: Array<{
+        publicId: string;
+        foodNameSnapshot: string;
+        prescribedQuantity: number | null;
+        prescribedUnitLabel: string | null;
+        prescribedUnitCode: string | null;
+        notes: string | null;
+        substitutions: Array<{
+          publicId: string;
+          foodNameSnapshot: string;
+          prescribedQuantity: number | null;
+          prescribedUnitLabel: string | null;
+          prescribedUnitCode: string | null;
+          notes: string | null;
+        }>;
+      }>;
+    }>;
+    dailyTotals: {
+      caloriesKcal: number | null;
+      proteinG: number | null;
+      carbohydrateG: number | null;
+      fatG: number | null;
+    };
+    dailyMicronutrientTotals?: {
+      nutrients?: Record<string, { namePtBr: string; unit: string; value: number; category: string; quantifiedItemCount?: number }>;
+    } | null;
+  },
+  options: PresentationOptions
+): PresentedNutritionPlan {
+  const { version, meals, dailyTotals } = tree;
+  const now = new Date();
+  const generationDateFormatted = `${String(now.getDate()).padStart(2, "0")}/${String(
+    now.getMonth() + 1
+  ).padStart(2, "0")}/${now.getFullYear()}`;
+
+  const hasAnyMacro =
+    dailyTotals.caloriesKcal != null ||
+    dailyTotals.proteinG != null ||
+    dailyTotals.carbohydrateG != null ||
+    dailyTotals.fatG != null;
+
+  const presentedTotals: PresentedPlanTotals = {
+    caloriesKcal: dailyTotals.caloriesKcal,
+    caloriesFormatted: formatCaloriesKcal(dailyTotals.caloriesKcal),
+    proteinG: dailyTotals.proteinG,
+    proteinFormatted: formatMacroGram(dailyTotals.proteinG),
+    carbohydrateG: dailyTotals.carbohydrateG,
+    carbohydrateFormatted: formatMacroGram(dailyTotals.carbohydrateG),
+    fatG: dailyTotals.fatG,
+    fatFormatted: formatMacroGram(dailyTotals.fatG),
+    hasAnyMacro,
+  };
+
+  const presentedMeals: PresentedMeal[] = meals.map((m) => ({
+    id: m.publicId,
+    title: m.title.trim(),
+    timeFormatted: m.scheduledTime ? m.scheduledTime.trim() : null,
+    notes: m.notes ? m.notes.trim() : null,
+    items: m.items.map((it) => ({
+      id: it.publicId,
+      foodName: it.foodNameSnapshot.trim(),
+      quantityFormatted: formatQuantity(
+        it.prescribedQuantity,
+        it.prescribedUnitLabel,
+        it.prescribedUnitCode
+      ),
+      notes: it.notes ? it.notes.trim() : null,
+      substitutions: it.substitutions.map((sub) => ({
+        id: sub.publicId,
+        foodName: sub.foodNameSnapshot.trim(),
+        quantityFormatted: formatQuantity(
+          sub.prescribedQuantity,
+          sub.prescribedUnitLabel,
+          sub.prescribedUnitCode
+        ),
+        notes: sub.notes ? sub.notes.trim() : null,
+      })),
+    })),
+  }));
+
+  const presentedMicronutrients: PresentedMicronutrientItem[] = [];
+  const microSummary = tree.dailyMicronutrientTotals;
+  if (microSummary && microSummary.nutrients) {
+    for (const [code, d] of Object.entries(microSummary.nutrients)) {
+      if ((d.value && d.value > 0) || (d.quantifiedItemCount != null && d.quantifiedItemCount > 0)) {
+        presentedMicronutrients.push({
+          code,
+          name: d.namePtBr,
+          valueFormatted: `${Math.round(d.value * 10) / 10} ${d.unit}`,
+          category: d.category,
+        });
+      }
+    }
+  }
+
+  return {
+    assignmentPublicId: tree.plan.publicId,
+    title: version.title.trim(),
+    subtitle: version.subtitle ? version.subtitle.trim() : null,
+    objective: version.objective ? version.objective.trim() : null,
+    generalGuidance: version.generalGuidance ? version.generalGuidance.trim() : null,
+    notesForStudent: version.notes ? version.notes.trim() : null,
+    prescriberName: options.prescriberName || null,
+    studentName: options.studentName.trim(),
+    consultancyName: options.consultancyName.trim(),
+    consultancyLogoUrl: options.consultancyLogoUrl || null,
+    periodFormatted: null,
+    generationDateFormatted,
+    meals: presentedMeals,
+    totals: presentedTotals,
+    micronutrients: presentedMicronutrients.length > 0 ? presentedMicronutrients : null,
   };
 }

@@ -194,6 +194,24 @@ export function StudentNutritionV2Print({
               </div>
             )}
 
+            {/* Micronutrientes do Plano (Print) */}
+            {plan.micronutrients && plan.micronutrients.length > 0 && (
+              <div className="print-avoid-break p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                  Micronutrientes Estimados no Plano
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200/60 text-[11px]">
+                  {plan.micronutrients.map((micro) => (
+                    <div key={micro.code} className="flex justify-between gap-1 py-0.5">
+                      <span className="text-slate-600 truncate">{micro.name}:</span>
+                      <span className="font-bold text-slate-900 shrink-0">{micro.valueFormatted}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* General Guidance */}
             {plan.generalGuidance && (
               <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs text-slate-700">

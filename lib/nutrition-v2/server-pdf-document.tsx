@@ -123,6 +123,45 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: "#0f172a",
   },
+  // Micronutrient Summary Box
+  micronutrientBox: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 6,
+    padding: 8,
+    marginVertical: 6,
+  },
+  micronutrientTitle: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#475569",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  micronutrientGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  micronutrientItem: {
+    width: "32%",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 1.5,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#f1f5f9",
+  },
+  micronutrientName: {
+    fontSize: 7.5,
+    color: "#64748b",
+  },
+  micronutrientVal: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#1e293b",
+  },
   // Guidance / Notes Box
   noticeBox: {
     backgroundColor: "#f8fafc",
@@ -353,6 +392,21 @@ export function ServerPdfDocument({ plan }: ServerPdfDocumentProps) {
                 <Text style={styles.macroItemLabel}>Gorduras</Text>
                 <Text style={styles.macroItemValue}>{plan.totals.fatFormatted}</Text>
               </View>
+            </View>
+          </View>
+        )}
+
+        {/* Micronutrients Summary (Rendered if available) */}
+        {plan.micronutrients && plan.micronutrients.length > 0 && (
+          <View style={styles.micronutrientBox} wrap={false}>
+            <Text style={styles.micronutrientTitle}>Micronutrientes Estimados no Plano</Text>
+            <View style={styles.micronutrientGrid}>
+              {plan.micronutrients.map((micro) => (
+                <View key={micro.code} style={styles.micronutrientItem}>
+                  <Text style={styles.micronutrientName}>{micro.name}</Text>
+                  <Text style={styles.micronutrientVal}>{micro.valueFormatted}</Text>
+                </View>
+              ))}
             </View>
           </View>
         )}

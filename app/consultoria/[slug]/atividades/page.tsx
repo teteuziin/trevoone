@@ -40,7 +40,8 @@ export default async function ConsultancyActivityPage({
   }
 
   // Apenas membros com CONSULTANCY_ADMIN ou PLATFORM_ADMIN podem acessar o Centro de Atividades
-  if (!context.roles.includes("CONSULTANCY_ADMIN")) {
+  const userRoles = context.roles as readonly string[];
+  if (!userRoles.includes("CONSULTANCY_ADMIN") && !userRoles.includes("PLATFORM_ADMIN")) {
     redirect(`/consultoria/${slug}`);
   }
 
@@ -79,12 +80,22 @@ export default async function ConsultancyActivityPage({
   const limit = 50;
   const offset = (validPage - 1) * limit;
 
-  const { events, total } = await listConsultancyActivityEvents(
-    context.consultancyId,
-    filters,
-    limit,
-    offset
-  );
+  let events: import("@/lib/consultancies/activity-formatters").ActivityEventRow[] = [];
+  let total = 0;
+  try {
+    const result = await listConsultancyActivityEvents(
+      context.consultancyId,
+      filters,
+      limit,
+      offset
+    );
+    events = result.events;
+    total = result.total;
+  } catch (err) {
+    console.error("[ConsultancyActivityPage] Error loading activity events:", err);
+    events = [];
+    total = 0;
+  }
 
   return (
     <ConsultancyAppShell

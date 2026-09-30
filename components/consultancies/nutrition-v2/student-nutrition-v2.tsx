@@ -223,6 +223,29 @@ export function StudentNutritionV2({
             </div>
           )}
 
+          {/* Micronutrientes do Plano (Expandable if present) */}
+          {plan.micronutrients && plan.micronutrients.length > 0 && (
+            <details className="group bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-lg p-3 text-xs">
+              <summary className="cursor-pointer font-semibold text-[var(--text-primary)] flex items-center justify-between select-none">
+                <span className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Micronutrientes do Plano ({plan.micronutrients.length} identificados)
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary)] group-open:rotate-180 transition-transform">
+                  ▼
+                </span>
+              </summary>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 pt-3 border-t border-[var(--border-subtle)]">
+                {plan.micronutrients.map((micro) => (
+                  <div key={micro.code} className="flex items-baseline justify-between gap-1 text-[11px] py-0.5">
+                    <span className="text-[var(--text-secondary)] truncate">{micro.name}:</span>
+                    <span className="font-semibold text-[var(--text-primary)] shrink-0 tabular-nums">{micro.valueFormatted}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
           {/* Orientações do Nutricionista (Subtle box, only if present) */}
           {plan.generalGuidance && (
             <div className="p-3.5 bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-lg space-y-1 text-xs text-[var(--text-secondary)]">

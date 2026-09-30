@@ -362,7 +362,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
             </button>
 
             <a
-              href={`/api/consultancies/${slug}/nutricao/pdf`}
+              href={`/api/consultancies/${slug}/nutricao/pdf?planPublicId=${initialTree.plan.publicId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5 shadow-2xs transition-colors depth-interactive min-h-[38px]"

@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import type { PoolConnection, RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { getConsultancyLocalDate } from "../consultancies/timezone";
+import { ensureAiSchemaBootstrapped } from "../db/ai-schema-bootstrap";
 
 export interface ConsultancyAiQuotaInfo {
   consultancyId: number;
@@ -92,6 +93,7 @@ export async function getConsultancyAiQuotaInfo(
   consultancyId: number | bigint,
   conn?: PoolConnection
 ): Promise<ConsultancyAiQuotaInfo> {
+  await ensureAiSchemaBootstrapped();
   const shouldRelease = !conn;
   const db = conn || (await getDbConnection());
   try {
@@ -533,10 +535,12 @@ export async function listPlatformAiUsageSummary(): Promise<Array<{
   lastUsedAt: string | null;
   status: string;
 }>> {
+  await ensureAiSchemaBootstrapped();
   const db = await getDbConnection();
+  const defaultDateBucket = getConsultancyLocalDate("America/Sao_Paulo");
   try {
-    const [rows] = await db.query<RowDataPacket[]>(`
-      SELECT
+    const [rows] = await db.query<RowDataPacket[]>(
+      `SELECT 
         c.id AS consultancy_id,
         c.public_id AS consultancy_public_id,
         c.name AS consultancy_name,
@@ -545,11 +549,11 @@ export async function listPlatformAiUsageSummary(): Promise<Array<{
         COALESCE(q.daily_limit, ${DEFAULT_PLATFORM_DAILY_LIMIT}) AS daily_limit,
         COALESCE(q.is_enabled, 1) AS is_enabled,
         (
-          SELECT COUNT(*)
+          SELECT COUNT(*) 
           FROM ai_usage_events ue
           WHERE ue.consultancy_id = c.id
             AND ue.status IN ('RESERVED', 'CONSUMED')
-            AND ue.date_bucket = DATE_FORMAT(CONVERT_TZ(NOW(), '+00:00', COALESCE(c.timezone, '-03:00')), '%Y-%m-%d')
+            AND ue.date_bucket = ?
         ) AS used_today,
         (
           SELECT MAX(ue.created_at)
@@ -558,8 +562,9 @@ export async function listPlatformAiUsageSummary(): Promise<Array<{
         ) AS last_used_at
       FROM consultancies c
       LEFT JOIN consultancy_ai_quotas q ON q.consultancy_id = c.id
-      ORDER BY c.name ASC
-    `);
+      ORDER BY c.name ASC`,
+      [defaultDateBucket]
+    );
 
     return rows.map((r) => {
       const dailyLimit = Number(r.daily_limit);
@@ -603,6 +608,7 @@ export async function getConsultancyAiSettings(consultancyId: number | bigint): 
     dailyLimit: number;
   }>;
 }> {
+  await ensureAiSchemaBootstrapped();
   const db = await getDbConnection();
   try {
     const quotaInfo = await getConsultancyAiQuotaInfo(consultancyId, db);

@@ -497,14 +497,22 @@ function ExerciseRow({
   function handleSaveAndClose() {
     startTransition(async () => {
       const parsedReps = parseRepsInput(repsInput);
+      const isDuration = isDurationBased || Boolean(parsedReps?.durationSeconds);
+      const effectiveDuration = parsedReps?.durationSeconds || (isDuration ? Math.max(1, durationSeconds || 30) : null);
+      const intensity = parsedReps?.intensityIndicator || null;
+      const baseNote = notes.trim();
+      const combinedNotes = intensity
+        ? baseNote ? `${baseNote} • ${intensity}` : intensity
+        : baseNote || null;
+
       await onSaveQuickConfig({
         seriesCount: Math.max(1, Math.min(20, seriesCount || 3)),
-        reps: isDurationBased ? null : (parsedReps?.repsMin || 10),
-        targetRepsMax: isDurationBased ? null : (parsedReps?.repsMax ?? null),
-        targetDurationSeconds: isDurationBased ? Math.max(1, durationSeconds || 30) : null,
+        reps: isDuration ? null : (parsedReps?.repsMin ?? (intensity ? null : 10)),
+        targetRepsMax: isDuration ? null : (parsedReps?.repsMax ?? null),
+        targetDurationSeconds: effectiveDuration,
         restSeconds: Math.max(0, restSeconds ?? 60),
         loadKg: loadKg.trim() !== "" && !isNaN(Number(loadKg)) ? Number(loadKg) : null,
-        notes: notes.trim() || null,
+        notes: combinedNotes,
       });
       onCloseExpand();
     });

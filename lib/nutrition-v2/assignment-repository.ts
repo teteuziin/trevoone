@@ -25,6 +25,15 @@ import {
   createNotificationInTransaction,
   deliverNotificationAfterCommit,
 } from "@/services/notification-service";
+import {
+  calculateMealMicronutrientTotals,
+  calculatePlanMicronutrientTotals,
+  type MicronutrientTotalsSummary,
+} from "./nutrient-calculator";
+import {
+  parseMicronutrientsSnapshot,
+  type MicronutrientsSnapshotEnvelope,
+} from "./micronutrients";
 
 export type EligibleStudentDto = {
   membershipPublicId: string;
@@ -76,6 +85,7 @@ export type StudentNutritionMealItemDto = {
   proteinGSnapshot: number | null;
   carbohydrateGSnapshot: number | null;
   fatGSnapshot: number | null;
+  micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null;
   notes: string | null;
   substitutions: StudentNutritionSubstitutionDto[];
 };
@@ -93,6 +103,7 @@ export type StudentNutritionSubstitutionDto = {
   proteinGSnapshot: number | null;
   carbohydrateGSnapshot: number | null;
   fatGSnapshot: number | null;
+  micronutrientsSnapshotJson?: MicronutrientsSnapshotEnvelope | null;
   notes: string | null;
 };
 
@@ -104,6 +115,7 @@ export type StudentNutritionMealDto = {
   notes: string | null;
   sortOrder: number;
   items: StudentNutritionMealItemDto[];
+  micronutrientTotals?: MicronutrientTotalsSummary | null;
 };
 
 export type StudentAssignedPlanTreeDto = {
@@ -131,6 +143,7 @@ export type StudentAssignedPlanTreeDto = {
     proteinG: number | null;
     carbohydrateG: number | null;
     fatG: number | null;
+    micronutrients?: MicronutrientTotalsSummary | null;
   };
 };
 
@@ -929,6 +942,7 @@ async function loadFrozenTreeForAssignment(
         food_name_snapshot, category_snapshot, prescribed_quantity,
         prescribed_unit_code, prescribed_unit_label,
         calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
+        micronutrients_snapshot_json,
         notes
        FROM nutrition_v2_meal_items
        WHERE meal_id IN (?) AND deleted_at IS NULL
@@ -949,6 +963,7 @@ async function loadFrozenTreeForAssignment(
         food_name_snapshot, prescribed_quantity,
         prescribed_unit_code, prescribed_unit_label,
         calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
+        micronutrients_snapshot_json,
         notes
        FROM nutrition_v2_item_substitutions
        WHERE meal_item_id IN (?) AND deleted_at IS NULL
@@ -976,6 +991,7 @@ async function loadFrozenTreeForAssignment(
       proteinGSnapshot: s.protein_g_snapshot != null ? Number(s.protein_g_snapshot) : null,
       carbohydrateGSnapshot: s.carbohydrate_g_snapshot != null ? Number(s.carbohydrate_g_snapshot) : null,
       fatGSnapshot: s.fat_g_snapshot != null ? Number(s.fat_g_snapshot) : null,
+      micronutrientsSnapshotJson: parseMicronutrientsSnapshot(s.micronutrients_snapshot_json),
       notes: s.notes ? String(s.notes) : null,
     });
   }
@@ -998,20 +1014,28 @@ async function loadFrozenTreeForAssignment(
       proteinGSnapshot: it.protein_g_snapshot != null ? Number(it.protein_g_snapshot) : null,
       carbohydrateGSnapshot: it.carbohydrate_g_snapshot != null ? Number(it.carbohydrate_g_snapshot) : null,
       fatGSnapshot: it.fat_g_snapshot != null ? Number(it.fat_g_snapshot) : null,
+      micronutrientsSnapshotJson: parseMicronutrientsSnapshot(it.micronutrients_snapshot_json),
       notes: it.notes ? String(it.notes) : null,
       substitutions: subsByItem.get(Number(it.id)) || [],
     });
   }
 
-  const meals: StudentNutritionMealDto[] = mealRows.map((m) => ({
-    id: Number(m.id),
-    publicId: String(m.public_id),
-    title: String(m.title),
-    scheduledTime: m.scheduled_time ? String(m.scheduled_time) : null,
-    notes: m.notes ? String(m.notes) : null,
-    sortOrder: Number(m.sort_order),
-    items: itemsByMeal.get(Number(m.id)) || [],
-  }));
+  const meals: StudentNutritionMealDto[] = mealRows.map((m) => {
+    const mealItems = itemsByMeal.get(Number(m.id)) || [];
+    const micronutrientTotals = calculateMealMicronutrientTotals(mealItems);
+    return {
+      id: Number(m.id),
+      publicId: String(m.public_id),
+      title: String(m.title),
+      scheduledTime: m.scheduled_time ? String(m.scheduled_time) : null,
+      notes: m.notes ? String(m.notes) : null,
+      sortOrder: Number(m.sort_order),
+      items: mealItems,
+      micronutrientTotals,
+    };
+  });
+
+  const dailyMicronutrientTotals = calculatePlanMicronutrientTotals(meals);
 
   // Calculate totals from main items (if any macros are null, total can still reflect known or null)
   let hasAnyKnown = false;
@@ -1044,6 +1068,7 @@ async function loadFrozenTreeForAssignment(
     proteinG: hasAnyKnown ? Math.round(prot * 10) / 10 : null,
     carbohydrateG: hasAnyKnown ? Math.round(carb * 10) / 10 : null,
     fatG: hasAnyKnown ? Math.round(fat * 10) / 10 : null,
+    micronutrients: dailyMicronutrientTotals.empty ? null : dailyMicronutrientTotals,
   };
 
   return {

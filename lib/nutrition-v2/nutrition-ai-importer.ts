@@ -14,11 +14,10 @@ import {
   refundAiQuota,
 } from "../ai/quotas";
 import type { DocumentInput } from "../ai/openai-client";
-import type {
-  RawNutritionImportProposal,
-} from "../ai/schemas";
+import type { RawNutritionImportProposal } from "../ai/schemas";
 import { recordConsultancyActivity } from "../consultancies/activity-log";
 import { normalizeSearchText } from "./food-search";
+import { ensureAiSchemaBootstrapped } from "../db/ai-schema-bootstrap";
 
 export type FoodMatchStatus = "MATCHED" | "AMBIGUOUS" | "NOT_FOUND";
 
@@ -313,6 +312,9 @@ export async function processNutritionAiImport(params: {
     targetPatientMembershipId,
     idempotencyKey = crypto.randomUUID(),
   } = params;
+
+  // Ensure database tables exist
+  await ensureAiSchemaBootstrapped();
 
   // 1. Compute file hash
   const fileBuffer = input.buffer || Buffer.from(input.text || "", "utf8");

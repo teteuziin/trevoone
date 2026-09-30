@@ -45,6 +45,8 @@ async function run() {
 
   const conn = await getTestDb();
 
+  let c1Id, c2Id, coachUserId, coachMemberId, studentUserId, studentMemberId, otherStudentUserId, otherStudentMemberId;
+
   try {
     // 1. Setup Test Tenancy & Fixtures
     const uniqueSuffix = Date.now().toString(36);
@@ -57,7 +59,7 @@ async function run() {
        VALUES (?, ?, ?, 'ACTIVE', NOW(3), NOW(3))`,
       [crypto.randomUUID(), `Consultoria Alfa ${uniqueSuffix}`, slug1]
     );
-    const c1Id = c1Res.insertId;
+    c1Id = c1Res.insertId;
 
     // Create Consultancy 2 (for cross-tenant test)
     const [c2Res] = await conn.execute(
@@ -65,7 +67,7 @@ async function run() {
        VALUES (?, ?, ?, 'ACTIVE', NOW(3), NOW(3))`,
       [crypto.randomUUID(), `Consultoria Beta ${uniqueSuffix}`, slug2]
     );
-    const c2Id = c2Res.insertId;
+    c2Id = c2Res.insertId;
 
     // Create Personal Trainer User in Consultancy 1
     const [uCoachRes] = await conn.execute(
@@ -73,7 +75,7 @@ async function run() {
        VALUES (?, ?, 'hash', 'Felipe Personal', NOW(3), NOW(3))`,
       [crypto.randomUUID(), `coach-${uniqueSuffix}@test.com`]
     );
-    const coachUserId = uCoachRes.insertId;
+    coachUserId = uCoachRes.insertId;
     const coachUserPublicId = crypto.randomUUID();
 
     const [mCoachRes] = await conn.execute(
@@ -81,7 +83,7 @@ async function run() {
        VALUES (?, ?, ?, 'ACTIVE', NOW(3), NOW(3))`,
       [crypto.randomUUID(), c1Id, coachUserId]
     );
-    const coachMemberId = mCoachRes.insertId;
+    coachMemberId = mCoachRes.insertId;
     const coachMemberPublicId = crypto.randomUUID();
 
     await conn.execute(
@@ -96,7 +98,7 @@ async function run() {
        VALUES (?, ?, 'hash', 'Marcos Aluno', NOW(3), NOW(3))`,
       [crypto.randomUUID(), `student-${uniqueSuffix}@test.com`]
     );
-    const studentUserId = uStudRes.insertId;
+    studentUserId = uStudRes.insertId;
     const studentUserPublicId = crypto.randomUUID();
 
     const studentMemberPublicId = crypto.randomUUID();
@@ -105,7 +107,7 @@ async function run() {
        VALUES (?, ?, ?, 'ACTIVE', NOW(3), NOW(3))`,
       [studentMemberPublicId, c1Id, studentUserId]
     );
-    const studentMemberId = mStudRes.insertId;
+    studentMemberId = mStudRes.insertId;
 
     await conn.execute(
       `INSERT INTO consultancy_member_roles (member_id, role, created_at)
@@ -119,7 +121,7 @@ async function run() {
        VALUES (?, ?, 'hash', 'Outro Aluno Beta', NOW(3), NOW(3))`,
       [crypto.randomUUID(), `other-${uniqueSuffix}@test.com`]
     );
-    const otherStudentUserId = uOtherStudRes.insertId;
+    otherStudentUserId = uOtherStudRes.insertId;
     const otherStudentMemberPublicId = crypto.randomUUID();
 
     const [mOtherStudRes] = await conn.execute(
@@ -127,7 +129,7 @@ async function run() {
        VALUES (?, ?, ?, 'ACTIVE', NOW(3), NOW(3))`,
       [otherStudentMemberPublicId, c2Id, otherStudentUserId]
     );
-    const otherStudentMemberId = mOtherStudRes.insertId;
+    otherStudentMemberId = mOtherStudRes.insertId;
 
     await conn.execute(
       `INSERT INTO consultancy_member_roles (member_id, role, created_at)
@@ -607,7 +609,47 @@ async function run() {
     console.log(`${colors.green}${colors.bold}========================================${colors.reset}\n`);
 
   } finally {
-    await conn.end();
+    if (conn) {
+      try {
+        console.log(`\n--- Cleaning up test fixtures ---`);
+        if (c1Id && c2Id) {
+          await conn.execute(`DELETE FROM workout_assignments WHERE consultancy_id IN (?, ?)`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM nutrition_v2_assignments WHERE consultancy_id IN (?, ?)`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM workout_item_sets WHERE block_item_id IN (SELECT id FROM workout_block_items WHERE block_id IN (SELECT id FROM workout_blocks WHERE workout_version_id IN (SELECT id FROM workout_versions WHERE workout_id IN (SELECT id FROM workouts WHERE consultancy_id IN (?, ?)))))`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM workout_block_items WHERE block_id IN (SELECT id FROM workout_blocks WHERE workout_version_id IN (SELECT id FROM workout_versions WHERE workout_id IN (SELECT id FROM workouts WHERE consultancy_id IN (?, ?))))`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM workout_blocks WHERE workout_version_id IN (SELECT id FROM workout_versions WHERE workout_id IN (SELECT id FROM workouts WHERE consultancy_id IN (?, ?)))`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM workout_versions WHERE workout_id IN (SELECT id FROM workouts WHERE consultancy_id IN (?, ?))`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM workouts WHERE consultancy_id IN (?, ?)`, [c1Id, c2Id]);
+
+          await conn.execute(`DELETE FROM nutrition_v2_item_substitutions WHERE meal_item_id IN (SELECT id FROM nutrition_v2_meal_items WHERE meal_id IN (SELECT id FROM nutrition_v2_meals WHERE nutrition_plan_version_id IN (SELECT id FROM nutrition_v2_plan_versions WHERE nutrition_plan_id IN (SELECT id FROM nutrition_v2_plans WHERE consultancy_id IN (?, ?)))))`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM nutrition_v2_meal_items WHERE meal_id IN (SELECT id FROM nutrition_v2_meals WHERE nutrition_plan_version_id IN (SELECT id FROM nutrition_v2_plan_versions WHERE nutrition_plan_id IN (SELECT id FROM nutrition_v2_plans WHERE consultancy_id IN (?, ?))))`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM nutrition_v2_meals WHERE nutrition_plan_version_id IN (SELECT id FROM nutrition_v2_plan_versions WHERE nutrition_plan_id IN (SELECT id FROM nutrition_v2_plans WHERE consultancy_id IN (?, ?)))`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM nutrition_v2_plan_versions WHERE nutrition_plan_id IN (SELECT id FROM nutrition_v2_plans WHERE consultancy_id IN (?, ?))`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM nutrition_v2_plans WHERE consultancy_id IN (?, ?)`, [c1Id, c2Id]);
+
+          await conn.execute(`DELETE FROM ai_import_jobs WHERE consultancy_id IN (?, ?)`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM ai_usage_events WHERE consultancy_id IN (?, ?)`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM consultancy_activity_events WHERE consultancy_id IN (?, ?)`, [c1Id, c2Id]);
+
+          if (coachMemberId && studentMemberId && otherStudentMemberId) {
+            await conn.execute(`DELETE FROM consultancy_member_roles WHERE member_id IN (?, ?, ?)`, [coachMemberId, studentMemberId, otherStudentMemberId]);
+            await conn.execute(`DELETE FROM consultancy_members WHERE id IN (?, ?, ?)`, [coachMemberId, studentMemberId, otherStudentMemberId]);
+          }
+          if (coachUserId && studentUserId && otherStudentUserId) {
+            await conn.execute(`DELETE FROM users WHERE id IN (?, ?, ?)`, [coachUserId, studentUserId, otherStudentUserId]);
+          }
+
+          await conn.execute(`DELETE FROM consultancy_ai_member_limits WHERE consultancy_id IN (?, ?)`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM consultancy_ai_role_limits WHERE consultancy_id IN (?, ?)`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM consultancy_ai_quotas WHERE consultancy_id IN (?, ?)`, [c1Id, c2Id]);
+          await conn.execute(`DELETE FROM consultancies WHERE id IN (?, ?)`, [c1Id, c2Id]);
+          console.log(`Fixtures cleaned up successfully.`);
+        }
+      } catch (cleanErr) {
+        console.warn('Cleanup warning:', cleanErr.message);
+      }
+      await conn.end();
+    }
     process.exit(0);
   }
 }

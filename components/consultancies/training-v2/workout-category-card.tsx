@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useTransition } from "react";
 import type {
@@ -6,6 +6,8 @@ import type {
   WorkoutBlockItemDto,
 } from "@/lib/training-v2/types";
 import type { QuickConfigInput } from "@/lib/training-v2/workout-repository";
+import { ExerciseExecutionModal } from "./exercise-execution-modal";
+import { parseRepsInput, formatRepetitionRange } from "@/lib/training-v2/reps-normalizer";
 
 function MoreVertical({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -474,24 +476,31 @@ function ExerciseRow({
   const initialDuration = sets[0]?.targetDurationSeconds ?? null;
   const initialIsDuration = initialDuration != null && initialDuration > 0 && (!sets[0]?.targetReps || sets[0]?.targetReps === 0);
   const initialReps = sets[0]?.targetReps ?? 10;
+  const initialRepsMax = sets[0]?.targetRepsMax ?? null;
+  const initialRepsText = initialRepsMax && initialRepsMax > initialReps
+    ? `${initialReps}-${initialRepsMax}`
+    : String(initialReps || 10);
   const initialRest = sets[0]?.targetRestSeconds ?? 60;
   const initialLoad = sets[0]?.targetLoadKg ?? null;
   const initialNotes = item.notes || "";
 
   const [seriesCount, setSeriesCount] = useState<number>(initialSeriesCount);
   const [isDurationBased, setIsDurationBased] = useState<boolean>(initialIsDuration);
-  const [reps, setReps] = useState<number>(initialReps || 10);
+  const [repsInput, setRepsInput] = useState<string>(initialRepsText);
   const [durationSeconds, setDurationSeconds] = useState<number>(initialDuration || 30);
   const [restSeconds, setRestSeconds] = useState<number>(initialRest);
   const [loadKg, setLoadKg] = useState<string>(initialLoad != null ? String(initialLoad) : "");
   const [notes, setNotes] = useState<string>(initialNotes);
+  const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleSaveAndClose() {
     startTransition(async () => {
+      const parsedReps = parseRepsInput(repsInput);
       await onSaveQuickConfig({
         seriesCount: Math.max(1, Math.min(20, seriesCount || 3)),
-        reps: isDurationBased ? null : Math.max(1, reps || 10),
+        reps: isDurationBased ? null : (parsedReps?.repsMin || 10),
+        targetRepsMax: isDurationBased ? null : (parsedReps?.repsMax ?? null),
         targetDurationSeconds: isDurationBased ? Math.max(1, durationSeconds || 30) : null,
         restSeconds: Math.max(0, restSeconds ?? 60),
         loadKg: loadKg.trim() !== "" && !isNaN(Number(loadKg)) ? Number(loadKg) : null,
@@ -503,7 +512,7 @@ function ExerciseRow({
 
   const repsOrDurationText = initialIsDuration
     ? `${initialDuration}s`
-    : `${initialReps} rep`;
+    : formatRepetitionRange(initialReps, initialRepsMax);
 
   const summaryLine = `${initialSeriesCount} ${initialSeriesCount === 1 ? "série" : "séries"} • ${repsOrDurationText} • ${initialRest}s${
     initialLoad != null ? ` • ${initialLoad} kg` : ""
@@ -532,10 +541,22 @@ function ExerciseRow({
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate max-w-[200px] sm:max-w-none">
                 {item.exerciseNameSnapshot}
               </h3>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExecutionModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors shrink-0 cursor-pointer"
+                title={`Ver execução de ${item.exerciseNameSnapshot}`}
+              >
+                <span>▶</span>
+                <span>Ver execução</span>
+              </button>
               {item.notes && (
                 <span
                   title={`Observação: ${item.notes}`}
@@ -722,15 +743,17 @@ function ExerciseRow({
               </div>
             ) : (
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase">
-                  Repetições
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+                    Repetições
+                  </label>
+                  <span className="text-[10px] text-[var(--text-tertiary)]">Ex: 8-12 ou 10</span>
+                </div>
                 <input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={reps}
-                  onChange={(e) => setReps(parseInt(e.target.value, 10) || 1)}
+                  type="text"
+                  value={repsInput}
+                  onChange={(e) => setRepsInput(e.target.value)}
+                  placeholder="Ex: 8-12 ou 10"
                   className="w-full px-3 py-2 text-xs sm:text-sm font-bold text-center rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
                 />
               </div>
@@ -859,6 +882,17 @@ function ExerciseRow({
           </div>
         </div>
       )}
+
+      {/* Exercise Execution Modal */}
+      <ExerciseExecutionModal
+        isOpen={isExecutionModalOpen}
+        onClose={() => setIsExecutionModalOpen(false)}
+        exerciseName={item.exerciseNameSnapshot}
+        exercisePublicId={item.exercisePublicId}
+        pinnedMedia={item.pinnedMedia}
+        customVideoUrl={item.customVideoUrl}
+        instructions={item.instructionsSnapshot}
+      />
     </div>
   );
 }

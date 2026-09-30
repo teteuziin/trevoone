@@ -59,8 +59,9 @@ export async function updateConsultancyRoleAiLimitsAction(
 
     revalidatePath(`/consultoria/${slug}/configuracoes/ia`);
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || "Erro ao salvar limites padrão." };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao salvar limites padrão.";
+    return { success: false, error: message };
   }
 }
 
@@ -109,8 +110,9 @@ export async function updateConsultancyMemberAiOverrideAction(
 
     revalidatePath(`/consultoria/${slug}/configuracoes/ia`);
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || "Erro ao salvar limite individual." };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao salvar limite individual.";
+    return { success: false, error: message };
   }
 }
 
@@ -154,7 +156,8 @@ export async function removeConsultancyMemberAiOverrideAction(
 
     revalidatePath(`/consultoria/${slug}/configuracoes/ia`);
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || "Erro ao remover limite individual." };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao remover limite individual.";
+    return { success: false, error: message };
   }
 }

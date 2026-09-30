@@ -112,9 +112,10 @@ export async function POST(request: Request, context: RouteContext) {
       success: true,
       proposal,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao processar importação com IA.";
     return NextResponse.json(
-      { success: false, error: err.message || "Erro ao processar importação com IA." },
+      { success: false, error: message },
       { status: 400 }
     );
   }

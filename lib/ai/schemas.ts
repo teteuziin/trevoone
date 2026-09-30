@@ -8,6 +8,7 @@ export interface RawTrainingExerciseItem {
   exerciseNameCandidate: string;
   sets: number | null;
   reps: number | null;
+  repsMax?: number | null;
   durationSeconds: number | null;
   restSeconds: number | null;
   load: number | null;
@@ -81,6 +82,7 @@ export const TRAINING_IMPORT_JSON_SCHEMA = {
                   exerciseNameCandidate: { type: "string" },
                   sets: { type: ["number", "null"] },
                   reps: { type: ["number", "null"] },
+                  repsMax: { type: ["number", "null"] },
                   durationSeconds: { type: ["number", "null"] },
                   restSeconds: { type: ["number", "null"] },
                   load: { type: ["number", "null"] },
@@ -91,6 +93,7 @@ export const TRAINING_IMPORT_JSON_SCHEMA = {
                   "exerciseNameCandidate",
                   "sets",
                   "reps",
+                  "repsMax",
                   "durationSeconds",
                   "restSeconds",
                   "load",

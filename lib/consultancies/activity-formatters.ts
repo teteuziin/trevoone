@@ -35,7 +35,7 @@ export interface ActivityEventRow {
   resource_public_id: string | null;
   subject_membership_id: number | null;
   summary: string;
-  metadata_json: Record<string, unknown> | null | any;
+  metadata_json: Record<string, unknown> | null;
   created_at: string;
   actor_name: string | null;
   actor_email: string | null;
@@ -52,7 +52,7 @@ export function formatActivityEventNaturalSentence(event: ActivityEventRow): {
   const subject = event.subject_name?.trim() || "";
   const meta =
     typeof event.metadata_json === "object" && event.metadata_json !== null
-      ? (event.metadata_json as Record<string, any>)
+      ? (event.metadata_json as Record<string, string | number | null | undefined>)
       : {};
 
   let verbPhrase = event.summary;

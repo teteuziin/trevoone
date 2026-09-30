@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type {
   ResolvedTrainingProposal,
@@ -36,6 +36,10 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
   const [proposal, setProposal] = useState<ResolvedTrainingProposal | null>(null);
   const [editableCategories, setEditableCategories] = useState<ResolvedTrainingCategory[]>([]);
   const [workoutTitle, setWorkoutTitle] = useState("");
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(
+    targetStudentMembershipId || null
+  );
+  const [students, setStudents] = useState<Array<{ membershipId: number; fullName: string; email: string }>>([]);
 
   const fetchQuota = async () => {
     try {
@@ -55,12 +59,6 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
     }
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchQuota();
-    }
-  }, [isOpen]);
-
   const handleOpen = () => {
     setIsOpen(true);
     setState("IDLE");
@@ -68,6 +66,17 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
     setSelectedFile(null);
     setPastedText("");
     setProposal(null);
+    fetchQuota();
+    if (!targetStudentMembershipId) {
+      fetch(`/api/consultancies/${consultancySlug}/students`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.students && Array.isArray(data.students)) {
+            setStudents(data.students);
+          }
+        })
+        .catch(() => {});
+    }
   };
 
   const handleClose = () => {
@@ -95,8 +104,9 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
       } else {
         formData.append("text", pastedText.trim());
       }
-      if (targetStudentMembershipId) {
-        formData.append("targetStudentMembershipId", String(targetStudentMembershipId));
+      const studentIdToSend = selectedStudentId || targetStudentMembershipId;
+      if (studentIdToSend) {
+        formData.append("targetStudentMembershipId", String(studentIdToSend));
       }
 
       const res = await fetch(`/api/consultancies/${consultancySlug}/ai/training-import`, {
@@ -115,8 +125,8 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
       setEditableCategories(prop.categories);
       setState("PREVIEW");
       fetchQuota();
-    } catch (err: any) {
-      setErrorMsg(err.message || "Falha na análise do treino com IA.");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Falha na análise do treino com IA.");
       setState("IDLE");
     }
   };
@@ -158,12 +168,13 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
     setState("SAVING");
 
     try {
+      const finalStudentId = selectedStudentId || proposal.targetStudentMembershipId || targetStudentMembershipId || null;
       const res = await fetch(`/api/consultancies/${consultancySlug}/ai/training-import/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobPublicId: proposal.jobPublicId,
-          targetStudentMembershipId: proposal.targetStudentMembershipId || targetStudentMembershipId || null,
+          targetStudentMembershipId: finalStudentId,
           confirmedTitle: workoutTitle.trim() || proposal.title,
           confirmedCategories: editableCategories,
         }),
@@ -177,8 +188,8 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
       setIsOpen(false);
       router.push(`/consultoria/${consultancySlug}/rotinas/${data.workoutPublicId}`);
       router.refresh();
-    } catch (err: any) {
-      setErrorMsg(err.message || "Falha ao confirmar importação.");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Falha ao confirmar importação.");
       setState("PREVIEW");
     }
   };
@@ -316,6 +327,31 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
                   </div>
                 )}
 
+                {/* Student Selector */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-foreground uppercase tracking-wider">
+                    Aluno da Consultoria
+                  </label>
+                  {targetStudentMembershipId ? (
+                    <div className="p-2.5 rounded-xl bg-muted/20 border border-border/40 text-xs text-muted-foreground">
+                      Aluno contextualizado pela página atual.
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedStudentId || ""}
+                      onChange={(e) => setSelectedStudentId(e.target.value ? Number(e.target.value) : null)}
+                      className="w-full rounded-xl bg-surface border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="">Selecione o aluno (opcional para ficha geral / modelo)...</option>
+                      {students.map((s) => (
+                        <option key={s.membershipId} value={s.membershipId}>
+                          {s.fullName} ({s.email})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
                 <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/40">
                   <button
                     type="button"
@@ -390,6 +426,36 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
                   </span>
                 </div>
 
+                {/* Student Assignment in Preview */}
+                <div className="flex items-center gap-2 text-xs flex-wrap p-2.5 rounded-xl bg-muted/20 border border-border/40">
+                  <span className="font-bold text-foreground">Aluno:</span>
+                  {targetStudentMembershipId ? (
+                    <span className="text-emerald-500 font-semibold">
+                      {proposal.targetStudentName || "Aluno contextualizado"}
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <select
+                        value={selectedStudentId || ""}
+                        onChange={(e) => setSelectedStudentId(e.target.value ? Number(e.target.value) : null)}
+                        className="bg-surface border border-border rounded-xl px-2 py-1 text-xs text-foreground focus:outline-none focus:border-emerald-500"
+                      >
+                        <option value="">Selecione o aluno...</option>
+                        {students.map((s) => (
+                          <option key={s.membershipId} value={s.membershipId}>
+                            {s.fullName} ({s.email})
+                          </option>
+                        ))}
+                      </select>
+                      {proposal.studentNameCandidate && (
+                        <span className="text-muted-foreground text-[11px] italic">
+                          (Documento indica: &ldquo;{proposal.studentNameCandidate}&rdquo;)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Workout Title Field */}
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1">
@@ -426,7 +492,7 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
                                   {ex.exerciseNameCandidate}
                                 </div>
                                 <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                                  {ex.sets || 3} séries × {ex.reps ? `${ex.reps} reps` : ex.durationSeconds ? `${ex.durationSeconds}s` : "livre"}
+                                  {ex.sets || 3} séries × {ex.reps ? (ex.repsMax && ex.repsMax > ex.reps ? `${ex.reps}–${ex.repsMax} reps` : `${ex.reps} reps`) : ex.durationSeconds ? `${ex.durationSeconds}s` : "livre"}
                                   {ex.load ? ` • Carga: ${ex.load} kg` : ""}
                                   {ex.restSeconds ? ` • Descanso: ${ex.restSeconds}s` : ""}
                                 </div>

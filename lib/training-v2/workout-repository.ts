@@ -3583,6 +3583,7 @@ export async function updateWarmupConfigurationForDraftItem(
 export type QuickConfigInput = {
   seriesCount: number;
   reps?: number | null;
+  targetRepsMax?: number | null;
   targetDurationSeconds?: number | null;
   restSeconds: number;
   loadKg?: number | null;
@@ -3916,6 +3917,9 @@ export async function updateItemQuickConfigInDraft(
     const count = Math.max(1, Math.min(20, input.seriesCount || 3));
     const isDuration = input.targetDurationSeconds != null && input.targetDurationSeconds > 0;
     const reps = isDuration ? null : Math.max(1, input.reps || 10);
+    const repsMax = (isDuration || !reps || input.targetRepsMax == null)
+      ? null
+      : Math.max(reps, Math.round(Number(input.targetRepsMax)));
     const duration = isDuration ? Math.max(1, input.targetDurationSeconds!) : null;
     const rest = Math.max(0, input.restSeconds ?? 60);
     const load = input.loadKg != null && !isNaN(Number(input.loadKg)) ? Number(input.loadKg) : null;
@@ -3926,8 +3930,8 @@ export async function updateItemQuickConfigInDraft(
           block_item_id, set_number, set_type, parent_set_id, target_reps,
           target_reps_max, target_load_kg, target_duration_seconds,
           target_distance_meters, target_rest_seconds, intensity_indicator
-        ) VALUES (?, ?, 'NORMAL', NULL, ?, NULL, ?, ?, NULL, ?, NULL);`,
-        [item.id, setNum, reps, load, duration, rest]
+        ) VALUES (?, ?, 'NORMAL', NULL, ?, ?, ?, ?, NULL, ?, NULL);`,
+        [item.id, setNum, reps, repsMax, load, duration, rest]
       );
 
       resultSets.push({
@@ -3935,7 +3939,7 @@ export async function updateItemQuickConfigInDraft(
         setType: "NORMAL",
         parentSetNumber: null,
         targetReps: reps,
-        targetRepsMax: null,
+        targetRepsMax: repsMax,
         targetLoadKg: load,
         targetDurationSeconds: duration,
         targetDistanceMeters: null,

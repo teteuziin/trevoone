@@ -31,7 +31,8 @@ export async function updateConsultancyPlatformAiLimitAction(
 
     revalidatePath("/admin/ia");
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || "Erro ao salvar limite da consultoria." };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao salvar limite da consultoria.";
+    return { success: false, error: message };
   }
 }

@@ -62,9 +62,10 @@ export async function POST(request: Request, context: RouteContext) {
       success: true,
       ...result,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao confirmar importação de treino.";
     return NextResponse.json(
-      { success: false, error: err.message || "Erro ao confirmar importação de treino." },
+      { success: false, error: message },
       { status: 400 }
     );
   }

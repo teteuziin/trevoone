@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,11 +67,11 @@ interface ResolvedNutritionProposal {
     notFoundCount: number;
   };
   totalNutrientsAuthoritative: {
-    caloriesKcal: number;
-    proteinG: number;
-    carbsG: number;
-    fatG: number;
-    fiberG: number;
+    caloriesKcal: number | null;
+    proteinG: number | null;
+    carbsG: number | null;
+    fatG: number | null;
+    fiberG: number | null;
   };
   status: 'READY' | 'NEEDS_REVIEW';
 }
@@ -106,6 +106,7 @@ export function NutritionAiImportModal({
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
     defaultPatientMembershipId || null
   );
+  const [students, setStudents] = useState<Array<{ membershipId: number; fullName: string; email: string }>>([]);
 
   // Loading & error
   const [isLoading, setIsLoading] = useState(false);
@@ -128,25 +129,6 @@ export function NutritionAiImportModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch quota on open
-  useEffect(() => {
-    if (isOpen) {
-      fetch(`/api/consultancies/${consultancySlug}/ai/usage?role=NUTRITIONIST`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setQuota({
-              dailyLimit: data.effectiveDailyLimit,
-              usedToday: data.memberUsedToday ?? data.consultancyUsedToday,
-              remainingToday: data.effectiveDailyRemaining,
-              canUseAi: data.effectiveDailyRemaining > 0,
-            });
-          }
-        })
-        .catch(() => {});
-    }
-  }, [isOpen, consultancySlug]);
-
   function handleOpen() {
     setIsOpen(true);
     setProposal(null);
@@ -154,6 +136,31 @@ export function NutritionAiImportModal({
     setConfirmSuccess(false);
     setFile(null);
     setPastedText('');
+
+    if (!defaultPatientMembershipId) {
+      fetch(`/api/consultancies/${consultancySlug}/students`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.students && Array.isArray(data.students)) {
+            setStudents(data.students);
+          }
+        })
+        .catch(() => {});
+    }
+
+    fetch(`/api/consultancies/${consultancySlug}/ai/usage?role=NUTRITIONIST`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setQuota({
+            dailyLimit: data.effectiveDailyLimit,
+            usedToday: data.memberUsedToday ?? data.consultancyUsedToday,
+            remainingToday: data.effectiveDailyRemaining,
+            canUseAi: data.effectiveDailyRemaining > 0,
+          });
+        }
+      })
+      .catch(() => {});
   }
 
   function handleClose() {
@@ -207,9 +214,9 @@ export function NutritionAiImportModal({
       }
 
       setProposal(data.proposal);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMessage(
-        err.message || 'Importação não concluída. Nenhum plano foi alterado.'
+        err instanceof Error ? err.message : 'Importação não concluída. Nenhum plano foi alterado.'
       );
     } finally {
       setIsLoading(false);
@@ -269,13 +276,56 @@ export function NutritionAiImportModal({
     let ambiguousCount = 0;
     let notFoundCount = 0;
     let totalFoods = 0;
+    let totalCalories = 0;
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
+    let totalFiber = 0;
+    let hasUnknownCalories = false;
+    let hasUnknownProtein = false;
+    let hasUnknownCarbs = false;
+    let hasUnknownFat = false;
+    let hasUnknownFiber = false;
 
     for (const m of nextMeals) {
       for (const f of m.foods) {
         totalFoods++;
-        if (f.matchStatus === 'MATCHED') matchedCount++;
-        else if (f.matchStatus === 'AMBIGUOUS') ambiguousCount++;
-        else notFoundCount++;
+        if (f.matchStatus === 'MATCHED') {
+          matchedCount++;
+          if (f.authoritativeNutrients?.caloriesKcal !== null && f.authoritativeNutrients?.caloriesKcal !== undefined) {
+            totalCalories += f.authoritativeNutrients.caloriesKcal;
+          } else {
+            hasUnknownCalories = true;
+          }
+          if (f.authoritativeNutrients?.proteinG !== null && f.authoritativeNutrients?.proteinG !== undefined) {
+            totalProtein += f.authoritativeNutrients.proteinG;
+          } else {
+            hasUnknownProtein = true;
+          }
+          if (f.authoritativeNutrients?.carbsG !== null && f.authoritativeNutrients?.carbsG !== undefined) {
+            totalCarbs += f.authoritativeNutrients.carbsG;
+          } else {
+            hasUnknownCarbs = true;
+          }
+          if (f.authoritativeNutrients?.fatG !== null && f.authoritativeNutrients?.fatG !== undefined) {
+            totalFat += f.authoritativeNutrients.fatG;
+          } else {
+            hasUnknownFat = true;
+          }
+          if (f.authoritativeNutrients?.fiberG !== null && f.authoritativeNutrients?.fiberG !== undefined) {
+            totalFiber += f.authoritativeNutrients.fiberG;
+          } else {
+            hasUnknownFiber = true;
+          }
+        } else {
+          if (f.matchStatus === 'AMBIGUOUS') ambiguousCount++;
+          else notFoundCount++;
+          hasUnknownCalories = true;
+          hasUnknownProtein = true;
+          hasUnknownCarbs = true;
+          hasUnknownFat = true;
+          hasUnknownFiber = true;
+        }
       }
     }
 
@@ -287,6 +337,13 @@ export function NutritionAiImportModal({
         matchedCount,
         ambiguousCount,
         notFoundCount,
+      },
+      totalNutrientsAuthoritative: {
+        caloriesKcal: hasUnknownCalories ? null : Math.round(totalCalories * 10) / 10,
+        proteinG: hasUnknownProtein ? null : Math.round(totalProtein * 10) / 10,
+        carbsG: hasUnknownCarbs ? null : Math.round(totalCarbs * 10) / 10,
+        fatG: hasUnknownFat ? null : Math.round(totalFat * 10) / 10,
+        fiberG: hasUnknownFiber ? null : Math.round(totalFiber * 10) / 10,
       },
       status: ambiguousCount === 0 && notFoundCount === 0 ? 'READY' : 'NEEDS_REVIEW',
     });
@@ -310,7 +367,24 @@ export function NutritionAiImportModal({
       const data = await res.json();
       if (data.items && Array.isArray(data.items)) {
         setSearchResults(
-          data.items.map((i: any) => ({
+          data.items.map((i: {
+            publicId?: string;
+            id?: string;
+            name: string;
+            sourceType?: string;
+            caloriesKcal?: number | null;
+            calories?: number | null;
+            proteinG?: number | null;
+            protein?: number | null;
+            carbsG?: number | null;
+            carbs?: number | null;
+            fatG?: number | null;
+            fat?: number | null;
+            fiberG?: number | null;
+            fiber?: number | null;
+            referenceAmount?: number;
+            referenceUnitCode?: string;
+          }) => ({
             foodPublicId: i.publicId || i.id,
             name: i.name,
             sourceType: i.sourceType || 'TREVO',
@@ -342,6 +416,12 @@ export function NutritionAiImportModal({
   // Confirm import
   async function handleConfirmImport() {
     if (!proposal) return;
+    if (!selectedPatientId) {
+      setErrorMessage(
+        'Selecione o aluno/paciente da consultoria antes de criar o plano alimentar.'
+      );
+      return;
+    }
     if (proposal.stats.ambiguousCount > 0 || proposal.stats.notFoundCount > 0) {
       setErrorMessage(
         'Todos os alimentos precisam ser selecionados ou removidos antes de criar o plano alimentar.'
@@ -382,8 +462,8 @@ export function NutritionAiImportModal({
           router.refresh();
         }, 800);
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Falha ao confirmar importação.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Falha ao confirmar importação.');
     } finally {
       setIsConfirming(false);
     }
@@ -588,6 +668,29 @@ export function NutritionAiImportModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">
+                        Aluno / Paciente da Consultoria
+                      </label>
+                      {defaultPatientMembershipId ? (
+                        <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+                          Paciente contextualizado pelo aluno.
+                        </div>
+                      ) : (
+                        <select
+                          value={selectedPatientId || ''}
+                          onChange={(e) => setSelectedPatientId(e.target.value ? Number(e.target.value) : null)}
+                          className="w-full rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                        >
+                          <option value="">Selecione o paciente (obrigatório ao salvar)...</option>
+                          {students.map((s) => (
+                            <option key={s.membershipId} value={s.membershipId}>
+                              {s.fullName} ({s.email})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">
                         Objetivo do Plano (opcional)
                       </label>
                       <input
@@ -642,7 +745,7 @@ export function NutritionAiImportModal({
                 <div className="space-y-6">
                   {/* Status Banner */}
                   <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-strong)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
+                    <div className="space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-base font-extrabold text-[var(--text-primary)]">
                           {proposal.title}
@@ -653,7 +756,38 @@ export function NutritionAiImportModal({
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-2 text-xs font-semibold flex-wrap">
+
+                      {/* Patient Selection & Document Claim */}
+                      <div className="flex items-center gap-2 text-xs flex-wrap">
+                        <span className="font-bold text-[var(--text-secondary)]">Paciente:</span>
+                        {defaultPatientMembershipId ? (
+                          <span className="text-[var(--text-primary)] font-semibold">
+                            {proposal.targetPatientName || 'Paciente contextualizado'}
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <select
+                              value={selectedPatientId || ''}
+                              onChange={(e) => setSelectedPatientId(e.target.value ? Number(e.target.value) : null)}
+                              className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-xl px-2.5 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                            >
+                              <option value="">Selecione o paciente...</option>
+                              {students.map((s) => (
+                                <option key={s.membershipId} value={s.membershipId}>
+                                  {s.fullName} ({s.email})
+                                </option>
+                              ))}
+                            </select>
+                            {proposal.patientNameCandidate && (
+                              <span className="text-[var(--text-muted)] text-[11px] italic">
+                                (Documento indica: &ldquo;{proposal.patientNameCandidate}&rdquo;)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs font-semibold flex-wrap">
                         <span className="text-emerald-400 flex items-center gap-1">
                           ✓ {proposal.stats.matchedCount} encontrados
                         </span>
@@ -676,10 +810,12 @@ export function NutritionAiImportModal({
                     <div className="text-right text-xs shrink-0">
                       <span className="text-[var(--text-muted)] block">Total Nutricional Real:</span>
                       <span className="font-bold text-[var(--text-primary)] text-sm">
-                        {proposal.totalNutrientsAuthoritative.caloriesKcal} kcal
+                        {proposal.totalNutrientsAuthoritative.caloriesKcal !== null
+                          ? `${proposal.totalNutrientsAuthoritative.caloriesKcal} kcal`
+                          : '— kcal'}
                       </span>
                       <span className="text-[var(--text-secondary)] block text-[11px]">
-                        P: {proposal.totalNutrientsAuthoritative.proteinG}g | C: {proposal.totalNutrientsAuthoritative.carbsG}g | G: {proposal.totalNutrientsAuthoritative.fatG}g
+                        P: {proposal.totalNutrientsAuthoritative.proteinG !== null ? `${proposal.totalNutrientsAuthoritative.proteinG}g` : '—'} | C: {proposal.totalNutrientsAuthoritative.carbsG !== null ? `${proposal.totalNutrientsAuthoritative.carbsG}g` : '—'} | G: {proposal.totalNutrientsAuthoritative.fatG !== null ? `${proposal.totalNutrientsAuthoritative.fatG}g` : '—'}
                       </span>
                     </div>
                   </div>
@@ -761,8 +897,8 @@ export function NutritionAiImportModal({
                                     Mapeado para: <strong>{food.foodNameSnapshot}</strong>
                                     {food.authoritativeNutrients && (
                                       <span className="text-[var(--text-secondary)] ml-1">
-                                        ({food.authoritativeNutrients.caloriesKcal ?? 0} kcal, P:{' '}
-                                        {food.authoritativeNutrients.proteinG ?? 0}g)
+                                        ({food.authoritativeNutrients.caloriesKcal !== null ? `${food.authoritativeNutrients.caloriesKcal} kcal` : '— kcal'}, P:{' '}
+                                        {food.authoritativeNutrients.proteinG !== null ? `${food.authoritativeNutrients.proteinG}g` : '—'})
                                       </span>
                                     )}
                                   </p>
@@ -794,7 +930,7 @@ export function NutritionAiImportModal({
                                     </option>
                                     {food.candidates.map((c) => (
                                       <option key={c.foodPublicId} value={c.foodPublicId}>
-                                        {c.name} ({c.caloriesKcal ?? 0} kcal)
+                                        {c.name} ({c.caloriesKcal !== null ? `${c.caloriesKcal} kcal` : '— kcal'})
                                       </option>
                                     ))}
                                   </select>
@@ -873,7 +1009,7 @@ export function NutritionAiImportModal({
                                   {item.name}
                                 </span>
                                 <span className="text-[var(--text-muted)]">
-                                  {item.caloriesKcal ?? 0} kcal / {item.referenceAmount}
+                                  {item.caloriesKcal !== null ? `${item.caloriesKcal} kcal` : '— kcal'} / {item.referenceAmount}
                                   {item.referenceUnitCode}
                                 </span>
                               </button>

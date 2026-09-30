@@ -6,7 +6,7 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
-import type { WorkoutVersionDto, WorkoutBlockDto, WorkoutBlockItemDto, WorkoutItemSetDto } from "./types";
+import type { WorkoutItemSetDto } from "./types";
 
 const styles = StyleSheet.create({
   page: {
@@ -265,7 +265,7 @@ export function formatExerciseSetsSummary(sets: WorkoutItemSetDto[]): {
 
   const numSets = sets.length;
   const firstSet = sets[0];
-  const allSameReps = sets.every((s) => s.targetReps === firstSet.targetReps);
+  const allSameReps = sets.every((s) => s.targetReps === firstSet.targetReps && s.targetRepsMax === firstSet.targetRepsMax);
   const allSameLoad = sets.every((s) => s.targetLoadKg === firstSet.targetLoadKg);
   const allSameRest = sets.every((s) => s.targetRestSeconds === firstSet.targetRestSeconds);
 
@@ -273,7 +273,10 @@ export function formatExerciseSetsSummary(sets: WorkoutItemSetDto[]): {
 
   // Sets and Reps
   if (allSameReps && firstSet.targetReps) {
-    parts.push(`${numSets} × ${firstSet.targetReps}`);
+    const repsStr = firstSet.targetRepsMax && firstSet.targetRepsMax > firstSet.targetReps
+      ? `${firstSet.targetReps}–${firstSet.targetRepsMax}`
+      : `${firstSet.targetReps}`;
+    parts.push(`${numSets} × ${repsStr}`);
   } else if (allSameReps && firstSet.targetDurationSeconds) {
     parts.push(`${numSets} × ${firstSet.targetDurationSeconds}s`);
   } else {

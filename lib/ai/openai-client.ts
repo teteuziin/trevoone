@@ -26,7 +26,8 @@ DIRETRIZES DE SEGURANÇA E EXTRAÇÃO RÍGIDA:
 5. Se uma informação (como descanso, carga, repetições, horário ou macros) não constar explicitamente no documento, retorne null. NUNCA invente valores ausentes (ex: não defina descanso como 60s se o documento não especificar).
 6. Para treinos, a estrutura canônica é sempre FICHA -> CATEGORIA -> EXERCÍCIO. Mapeie seções, divisões (A, B, C, Peito, Pernas, etc.) para 'categories' e cada exercício dentro da respectiva categoria.
 7. Para planos alimentares, a estrutura canônica é sempre PLANO -> REFEIÇÃO -> ALIMENTO. Mapeie cada refeição para 'meals' e os alimentos consumidos para 'foods'.
-8. Se o documento indicar valores calóricos ou de macronutrientes alegados para um alimento, inclua-os no campo 'sourceDocumentClaim' apenas para fins de conferência visual.`;
+8. Se o documento indicar valores calóricos ou de macronutrientes alegados para um alimento, inclua-os no campo 'sourceDocumentClaim' apenas para fins de conferência visual.
+9. Para repetições de treino: se for um número exato (ex: 10), preencha 'reps': 10 e 'repsMax': null. Se for uma faixa de repetições (ex: 8-12, 8 a 12, 10-15), preencha 'reps' com o valor mínimo (ex: 8) e 'repsMax' com o valor máximo (ex: 12). Nunca escolha arbitrariamente um único número quando houver faixa.`;
 
 export interface DocumentInput {
   filename: string;
@@ -42,6 +43,17 @@ export interface ExtractionMetadata {
   model: string;
   providerRequestId?: string;
 }
+
+type ResponsesApiClient = {
+  responses: {
+    create: (params: Record<string, unknown>) => Promise<{
+      output_text?: string;
+      output?: Array<{ content?: Array<{ text?: string }> }>;
+      usage?: { input_tokens?: number; output_tokens?: number };
+      id?: string;
+    }>;
+  };
+};
 
 export function isOpenAiConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim().length > 0);
@@ -130,7 +142,7 @@ export async function callOpenAiForTraining(
 
       try {
         // Try Responses API with input_file
-        const response = await (client as any).responses.create({
+        const response = await (client as unknown as ResponsesApiClient).responses.create({
           model,
           instructions: SYSTEM_PROMPT,
           input: [
@@ -142,9 +154,13 @@ export async function callOpenAiForTraining(
               ],
             },
           ],
-          response_format: {
-            type: "json_schema",
-            json_schema: TRAINING_IMPORT_JSON_SCHEMA,
+          text: {
+            format: {
+              type: "json_schema",
+              name: TRAINING_IMPORT_JSON_SCHEMA.name,
+              schema: TRAINING_IMPORT_JSON_SCHEMA.schema,
+              strict: true,
+            },
           },
         });
 
@@ -152,36 +168,9 @@ export async function callOpenAiForTraining(
         inputTokens = response.usage?.input_tokens ?? 0;
         outputTokens = response.usage?.output_tokens ?? 0;
         providerRequestId = response.id;
-      } catch (respErr) {
-        // Fallback: Chat Completions
-        const response = await client.chat.completions.create({
-          model,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: `Extraia o treino do arquivo PDF anexado: ${input.filename}` },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:application/pdf;base64,${input.buffer.toString("base64")}`,
-                  },
-                } as any,
-              ],
-            },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: TRAINING_IMPORT_JSON_SCHEMA,
-          },
-          temperature: 0.1,
-        });
-
-        parsedContent = response.choices[0]?.message?.content || null;
-        inputTokens = response.usage?.prompt_tokens ?? 0;
-        outputTokens = response.usage?.completion_tokens ?? 0;
-        providerRequestId = response.id;
+      } catch (respErr: unknown) {
+        const msg = respErr instanceof Error ? respErr.message : String(respErr);
+        throw new Error(`Falha no processamento de PDF via Responses API: ${msg}`);
       }
     } else {
       throw new Error(`Tipo de arquivo não suportado para importação: ${input.filename}`);
@@ -271,7 +260,7 @@ export async function callOpenAiForNutrition(
       uploadedFileId = uploadedFile.id;
 
       try {
-        const response = await (client as any).responses.create({
+        const response = await (client as unknown as ResponsesApiClient).responses.create({
           model,
           instructions: SYSTEM_PROMPT,
           input: [
@@ -283,9 +272,13 @@ export async function callOpenAiForNutrition(
               ],
             },
           ],
-          response_format: {
-            type: "json_schema",
-            json_schema: NUTRITION_IMPORT_JSON_SCHEMA,
+          text: {
+            format: {
+              type: "json_schema",
+              name: NUTRITION_IMPORT_JSON_SCHEMA.name,
+              schema: NUTRITION_IMPORT_JSON_SCHEMA.schema,
+              strict: true,
+            },
           },
         });
 
@@ -293,35 +286,9 @@ export async function callOpenAiForNutrition(
         inputTokens = response.usage?.input_tokens ?? 0;
         outputTokens = response.usage?.output_tokens ?? 0;
         providerRequestId = response.id;
-      } catch {
-        const response = await client.chat.completions.create({
-          model,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: `Extraia o plano alimentar do arquivo PDF anexado: ${input.filename}` },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:application/pdf;base64,${input.buffer.toString("base64")}`,
-                  },
-                } as any,
-              ],
-            },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: NUTRITION_IMPORT_JSON_SCHEMA,
-          },
-          temperature: 0.1,
-        });
-
-        parsedContent = response.choices[0]?.message?.content || null;
-        inputTokens = response.usage?.prompt_tokens ?? 0;
-        outputTokens = response.usage?.completion_tokens ?? 0;
-        providerRequestId = response.id;
+      } catch (respErr: unknown) {
+        const msg = respErr instanceof Error ? respErr.message : String(respErr);
+        throw new Error(`Falha no processamento de PDF via Responses API: ${msg}`);
       }
     } else {
       throw new Error(`Tipo de arquivo não suportado para importação: ${input.filename}`);

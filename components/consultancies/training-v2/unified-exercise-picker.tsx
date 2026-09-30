@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import type { ExerciseItemDto } from "@/lib/training-v2/types";
 import { searchExercisesForPickerAction } from "@/app/consultoria/[slug]/rotinas/actions";
+import { ExerciseExecutionModal } from "./exercise-execution-modal";
 function Search({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -106,6 +107,7 @@ export function UnifiedExercisePicker({
   const [exercises, setExercises] = useState<ExerciseItemDto[]>([]);
   const [selectingId, setSelectingId] = useState<string | null>(null);
   const [previewingExerciseId, setPreviewingExerciseId] = useState<string | null>(null);
+  const [executionModalExercise, setExecutionModalExercise] = useState<ExerciseItemDto | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -334,29 +336,31 @@ export function UnifiedExercisePicker({
                         </div>
 
                         {/* Ver Execução Button */}
-                        {hasExecution && (
-                          <div className="pt-0.5">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                        <div className="pt-0.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (hasExecution) {
                                 setPreviewingExerciseId(isPreviewing ? null : ex.publicId);
-                              }}
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                                isPreviewing
-                                  ? "bg-emerald-600 text-white shadow-2xs"
-                                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20"
-                              }`}
-                            >
-                              {isGif ? (
-                                <span className="text-[10px] font-black tracking-wider uppercase">GIF</span>
-                              ) : (
-                                <Video className="w-3.5 h-3.5" />
-                              )}
-                              <span>{isPreviewing ? "Ocultar execução" : "Ver execução"}</span>
-                            </button>
-                          </div>
-                        )}
+                              } else {
+                                setExecutionModalExercise(ex);
+                              }
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                              isPreviewing
+                                ? "bg-emerald-600 text-white shadow-2xs"
+                                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20"
+                            }`}
+                          >
+                            {isGif ? (
+                              <span className="text-[10px] font-black tracking-wider uppercase">GIF</span>
+                            ) : (
+                              <Video className="w-3.5 h-3.5" />
+                            )}
+                            <span>{isPreviewing ? "Ocultar execução" : "Ver execução"}</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -441,6 +445,16 @@ export function UnifiedExercisePicker({
           </button>
         </div>
       </div>
+
+      {/* Fallback / Video modal for exercises */}
+      <ExerciseExecutionModal
+        isOpen={Boolean(executionModalExercise)}
+        onClose={() => setExecutionModalExercise(null)}
+        exerciseName={executionModalExercise?.name || ""}
+        exercisePublicId={executionModalExercise?.publicId}
+        pinnedMedia={executionModalExercise?.media}
+        instructions={executionModalExercise?.instructions}
+      />
     </div>
   );
 }

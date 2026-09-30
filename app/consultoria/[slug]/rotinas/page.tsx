@@ -182,7 +182,10 @@ export default async function ConsultancyWorkoutsPage({
 
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
             {!isTemplatesTab && !isAssignmentsTab && (
-              <WorkoutTemplatePickerTrigger consultancySlug={slug} />
+              <>
+                <TrainingAiImportModal consultancySlug={slug} />
+                <WorkoutTemplatePickerTrigger consultancySlug={slug} />
+              </>
             )}
             {!isAssignmentsTab && (
               <Link href={`/consultoria/${slug}/rotinas/novo`} className="w-full sm:w-auto">

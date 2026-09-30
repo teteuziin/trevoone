@@ -729,6 +729,114 @@ async function runActivityCenterTests(conn) {
   pass('Privacy check: no sensitive or clinical dump data stored in audit metadata');
 }
 
+async function runRepRangeAndHotfixTests() {
+  console.log(`\n${colors.cyan}${colors.bold}=== PART 6: REPETITION RANGE & HOTFIX TESTS ===${colors.reset}`);
+
+  // 1. Normalizer Unit Tests
+  const { parseRepsInput, formatRepetitionRange } = await import('../lib/training-v2/reps-normalizer.ts');
+
+  // Exact reps
+  const exact = parseRepsInput('10');
+  assert.equal(exact.repsMin, 10);
+  assert.equal(exact.repsMax, null);
+  assert.equal(formatRepetitionRange(exact.repsMin, exact.repsMax), '10 reps');
+  pass('EXACT REPS: 10 -> min: 10, max: null, formatted as 10 reps');
+
+  // Range with hyphen
+  const range1 = parseRepsInput('8-12');
+  assert.equal(range1.repsMin, 8);
+  assert.equal(range1.repsMax, 12);
+  assert.equal(formatRepetitionRange(range1.repsMin, range1.repsMax), '8–12 reps');
+  pass('REP RANGE: 8-12 -> min: 8, max: 12, formatted as 8–12 reps');
+
+  // Range with "a"
+  const range2 = parseRepsInput('8 a 12');
+  assert.equal(range2.repsMin, 8);
+  assert.equal(range2.repsMax, 12);
+  pass('REP RANGE INPUT NORMALIZATION: "8 a 12" -> min: 8, max: 12');
+
+  // Range with "até"
+  const range3 = parseRepsInput('8 até 12');
+  assert.equal(range3.repsMin, 8);
+  assert.equal(range3.repsMax, 12);
+  pass('REP RANGE INPUT NORMALIZATION: "8 até 12" -> min: 8, max: 12');
+
+  // Range with en-dash
+  const range4 = parseRepsInput('8–12');
+  assert.equal(range4.repsMin, 8);
+  assert.equal(range4.repsMax, 12);
+  pass('REP RANGE INPUT NORMALIZATION: "8–12" -> min: 8, max: 12');
+
+  // Invalid ranges
+  assert.equal(parseRepsInput('12-8'), null);
+  assert.equal(parseRepsInput('0-12'), null);
+  assert.equal(parseRepsInput('-5'), null);
+  assert.equal(parseRepsInput('texto'), null);
+  pass('REP RANGE VALIDATION: blocks 12-8, 0-12, -5, text');
+
+  // 2. Range in PDF format
+  const { formatExerciseSetsSummary } = await import('../lib/training-v2/server-training-pdf-document.tsx');
+  const pdfSummary = formatExerciseSetsSummary([
+    { setNumber: 1, targetReps: 8, targetRepsMax: 12, targetRestSeconds: 60, targetLoadKg: null, targetDurationSeconds: null },
+    { setNumber: 2, targetReps: 8, targetRepsMax: 12, targetRestSeconds: 60, targetLoadKg: null, targetDurationSeconds: null },
+    { setNumber: 3, targetReps: 8, targetRepsMax: 12, targetRestSeconds: 60, targetLoadKg: null, targetDurationSeconds: null },
+  ]);
+  assert(pdfSummary.summaryString.includes('3 × 8–12'), `PDF summary should contain '3 × 8–12', got: ${pdfSummary.summaryString}`);
+  pass('REP RANGE PDF: formatted as "3 × 8–12"');
+
+  // 3. Nutrition UNKNOWN != 0 test
+  const { processNutritionAiImport } = await import('../lib/nutrition-v2/nutrition-ai-importer.ts');
+  const nutritionProposal = await processNutritionAiImport({
+    consultancyId: testConsultancyId,
+    memberId: testNutriMemberId,
+    userId: testNutriUserId,
+    role: 'NUTRITIONIST',
+    input: {
+      filename: 'teste_unknown.txt',
+      mimeType: 'text/plain',
+      text: 'PLANO\nAlmoço\n100g alimento_totalmente_desconhecido_xyz',
+    },
+  });
+  assert.equal(nutritionProposal.totalNutrientsAuthoritative.caloriesKcal, null, 'Unknown food must produce null caloriesKcal total');
+  assert.equal(nutritionProposal.totalNutrientsAuthoritative.proteinG, null, 'Unknown food must produce null proteinG total');
+  pass('UNKNOWN != ZERO: totalNutrientsAuthoritative is null when items are unknown');
+
+  // 4. Cross-Tenant student/patient validation on confirm
+  const { confirmTrainingAiImport } = await import('../lib/training-v2/training-ai-importer.ts');
+  const { confirmNutritionAiImport } = await import('../lib/nutrition-v2/nutrition-ai-importer.ts');
+
+  const invalidMembershipId = 999999999;
+  await assert.rejects(
+    confirmTrainingAiImport({
+      consultancyId: testConsultancyId,
+      memberId: testPersonalMemberId,
+      userId: testPersonalUserId,
+      role: 'PERSONAL',
+      jobPublicId: crypto.randomUUID(),
+      targetStudentMembershipId: invalidMembershipId,
+      confirmedTitle: 'Treino Teste',
+      confirmedCategories: [],
+    }),
+    /não encontrado|não pertence|não é válido/
+  );
+  pass('CROSS TENANT STUDENT ASSIGNMENT: BLOCKED on training confirm');
+
+  await assert.rejects(
+    confirmNutritionAiImport({
+      consultancyId: testConsultancyId,
+      memberId: testPersonalMemberId,
+      userId: testPersonalUserId,
+      role: 'NUTRITIONIST',
+      jobPublicId: crypto.randomUUID(),
+      targetPatientMembershipId: invalidMembershipId,
+      confirmedTitle: 'Plano Teste',
+      confirmedMeals: [],
+    }),
+    /não encontrado|não pertence|não é válido/
+  );
+  pass('CROSS TENANT PATIENT ASSIGNMENT: BLOCKED on nutrition confirm');
+}
+
 async function main() {
   console.log(`${colors.bold}Starting Master Feature V1 Automated Test Suite...${colors.reset}`);
   
@@ -744,6 +852,7 @@ async function main() {
     await runNutritionImportTests();
     await runPdfTests();
     await runActivityCenterTests(conn);
+    await runRepRangeAndHotfixTests();
 
     console.log(`\n${colors.green}${colors.bold}====================================================`);
     console.log(`ALL MASTER FEATURE V1 TESTS PASSED PERFECTLY!`);

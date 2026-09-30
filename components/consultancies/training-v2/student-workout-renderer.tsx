@@ -2449,7 +2449,7 @@ function formatPrescribedSet(set: WorkoutExecutionHistorySetDto): string {
     set.prescribedRepsMax != null &&
     set.prescribedReps !== set.prescribedRepsMax
   ) {
-    parts.push(`${set.prescribedReps}-${set.prescribedRepsMax} reps`);
+    parts.push(`${set.prescribedReps}–${set.prescribedRepsMax} reps`);
   } else if (set.prescribedReps != null) {
     parts.push(`${set.prescribedReps} reps`);
   }

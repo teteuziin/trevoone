@@ -399,8 +399,7 @@ export async function markAiQuotaConsumed(
  * Automatically refunds a quota reservation if an internal error, timeout, or provider 5xx occurs.
  */
 export async function refundAiQuota(
-  usageEventPublicId: string,
-  reason?: string
+  usageEventPublicId: string
 ): Promise<boolean> {
   const db = await getDbConnection();
   try {

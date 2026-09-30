@@ -178,10 +178,17 @@ export async function listConsultancyActivityEvents(
     consultancyId = consultancyIdOrOptions.consultancyId;
     limit = consultancyIdOrOptions.limit ?? limitArg;
     offset = consultancyIdOrOptions.offset ?? offsetArg;
-    filters = { ...consultancyIdOrOptions };
-    delete (filters as any).consultancyId;
-    delete (filters as any).limit;
-    delete (filters as any).offset;
+    filters = {
+      actorMembershipId: consultancyIdOrOptions.actorMembershipId,
+      actorUserId: consultancyIdOrOptions.actorUserId,
+      actorRole: consultancyIdOrOptions.actorRole,
+      action: consultancyIdOrOptions.action,
+      module: consultancyIdOrOptions.module,
+      subjectMembershipId: consultancyIdOrOptions.subjectMembershipId,
+      startDate: consultancyIdOrOptions.startDate,
+      endDate: consultancyIdOrOptions.endDate,
+      search: consultancyIdOrOptions.search,
+    };
   } else {
     consultancyId = consultancyIdOrOptions;
     filters = filtersOrUndefined ?? {};
@@ -281,10 +288,11 @@ export async function listConsultancyActivityEvents(
     const [rows] = await conn.query<RowDataPacket[]>(selectSql, [...whereValues, safeLimit, safeOffset]);
 
     const events: ActivityEventRow[] = rows.map((r) => {
-      let meta: unknown = null;
+      let meta: Record<string, unknown> | null = null;
       if (r.metadata_json) {
         try {
-          meta = typeof r.metadata_json === "string" ? JSON.parse(r.metadata_json) : r.metadata_json;
+          const parsed = typeof r.metadata_json === "string" ? JSON.parse(r.metadata_json) : r.metadata_json;
+          meta = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
         } catch {
           meta = null;
         }
@@ -359,10 +367,11 @@ export async function getConsultancyActivityEventDetail(
     if (!rows || rows.length === 0) return null;
 
     const r = rows[0];
-    let meta: unknown = null;
+    let meta: Record<string, unknown> | null = null;
     if (r.metadata_json) {
       try {
-        meta = typeof r.metadata_json === "string" ? JSON.parse(r.metadata_json) : r.metadata_json;
+        const parsed = typeof r.metadata_json === "string" ? JSON.parse(r.metadata_json) : r.metadata_json;
+        meta = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
       } catch {
         meta = null;
       }

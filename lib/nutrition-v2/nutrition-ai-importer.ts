@@ -16,7 +16,6 @@ import {
 import type { DocumentInput } from "../ai/openai-client";
 import type {
   RawNutritionImportProposal,
-  RawNutritionFoodItem,
 } from "../ai/schemas";
 import { recordConsultancyActivity } from "../consultancies/activity-log";
 import { normalizeSearchText } from "./food-search";
@@ -85,11 +84,11 @@ export interface ResolvedNutritionProposal {
     notFoundCount: number;
   };
   totalNutrientsAuthoritative: {
-    caloriesKcal: number;
-    proteinG: number;
-    carbsG: number;
-    fatG: number;
-    fiberG: number;
+    caloriesKcal: number | null;
+    proteinG: number | null;
+    carbsG: number | null;
+    fatG: number | null;
+    fiberG: number | null;
   };
   status: "READY" | "NEEDS_REVIEW";
 }
@@ -272,7 +271,7 @@ export async function matchFoodCandidate(
 /**
  * Calculates authoritative nutritional totals from real Trevo food records.
  */
-function calculateAuthoritativeItemNutrients(
+export function calculateAuthoritativeItemNutrients(
   food: MatchedFoodCandidate,
   quantity: number | null
 ) {
@@ -420,14 +419,15 @@ export async function processNutritionAiImport(params: {
       outputTokens: metadata.outputTokens,
       totalTokens: metadata.totalTokens,
     });
-  } catch (providerErr: any) {
-    await refundAiQuota(usageEventPublicId, providerErr.message);
+  } catch (providerErr: unknown) {
+    const errorMsg = providerErr instanceof Error ? providerErr.message : String(providerErr);
+    await refundAiQuota(usageEventPublicId);
 
     const dbFail = await getDbConnection();
     try {
       await dbFail.query(
         `UPDATE ai_import_jobs SET status = 'FAILED', error_message = ?, updated_at = NOW(3) WHERE public_id = ?`,
-        [String(providerErr.message || "Falha na chamada da OpenAI").slice(0, 500), importJobPublicId]
+        [(errorMsg || "Falha na chamada da OpenAI").slice(0, 500), importJobPublicId]
       );
     } finally {
       dbFail.release();
@@ -443,10 +443,10 @@ export async function processNutritionAiImport(params: {
       resourceType: "AI_IMPORT_JOB",
       resourcePublicId: importJobPublicId,
       summary: `Falha ao processar o arquivo de nutrição ${input.filename} com IA`,
-      metadata: { error: providerErr.message },
+      metadata: { error: errorMsg },
     });
 
-    throw new Error(`Falha no processamento com IA: ${providerErr.message}`);
+    throw new Error(`Falha no processamento com IA: ${errorMsg}`);
   }
 
   // 5. Match Foods against Food Library V3
@@ -460,6 +460,12 @@ export async function processNutritionAiImport(params: {
   let totalCarbs = 0;
   let totalFat = 0;
   let totalFiber = 0;
+
+  let hasUnknownCalories = false;
+  let hasUnknownProtein = false;
+  let hasUnknownCarbs = false;
+  let hasUnknownFat = false;
+  let hasUnknownFiber = false;
 
   const resolvedMeals: ResolvedNutritionMeal[] = [];
 
@@ -485,15 +491,42 @@ export async function processNutritionAiImport(params: {
           f.quantity
         );
 
-        if (authoritativeNutrients.caloriesKcal !== null) totalCalories += authoritativeNutrients.caloriesKcal;
-        if (authoritativeNutrients.proteinG !== null) totalProtein += authoritativeNutrients.proteinG;
-        if (authoritativeNutrients.carbsG !== null) totalCarbs += authoritativeNutrients.carbsG;
-        if (authoritativeNutrients.fatG !== null) totalFat += authoritativeNutrients.fatG;
-        if (authoritativeNutrients.fiberG !== null) totalFiber += authoritativeNutrients.fiberG;
-      } else if (matchResult.status === "AMBIGUOUS") {
-        ambiguousCount++;
+        if (authoritativeNutrients.caloriesKcal !== null) {
+          totalCalories += authoritativeNutrients.caloriesKcal;
+        } else {
+          hasUnknownCalories = true;
+        }
+        if (authoritativeNutrients.proteinG !== null) {
+          totalProtein += authoritativeNutrients.proteinG;
+        } else {
+          hasUnknownProtein = true;
+        }
+        if (authoritativeNutrients.carbsG !== null) {
+          totalCarbs += authoritativeNutrients.carbsG;
+        } else {
+          hasUnknownCarbs = true;
+        }
+        if (authoritativeNutrients.fatG !== null) {
+          totalFat += authoritativeNutrients.fatG;
+        } else {
+          hasUnknownFat = true;
+        }
+        if (authoritativeNutrients.fiberG !== null) {
+          totalFiber += authoritativeNutrients.fiberG;
+        } else {
+          hasUnknownFiber = true;
+        }
       } else {
-        notFoundCount++;
+        if (matchResult.status === "AMBIGUOUS") {
+          ambiguousCount++;
+        } else {
+          notFoundCount++;
+        }
+        hasUnknownCalories = true;
+        hasUnknownProtein = true;
+        hasUnknownCarbs = true;
+        hasUnknownFat = true;
+        hasUnknownFiber = true;
       }
 
       resolvedFoods.push({
@@ -559,11 +592,11 @@ export async function processNutritionAiImport(params: {
       notFoundCount,
     },
     totalNutrientsAuthoritative: {
-      caloriesKcal: Math.round(totalCalories * 10) / 10,
-      proteinG: Math.round(totalProtein * 10) / 10,
-      carbsG: Math.round(totalCarbs * 10) / 10,
-      fatG: Math.round(totalFat * 10) / 10,
-      fiberG: Math.round(totalFiber * 10) / 10,
+      caloriesKcal: hasUnknownCalories ? null : Math.round(totalCalories * 10) / 10,
+      proteinG: hasUnknownProtein ? null : Math.round(totalProtein * 10) / 10,
+      carbsG: hasUnknownCarbs ? null : Math.round(totalCarbs * 10) / 10,
+      fatG: hasUnknownFat ? null : Math.round(totalFat * 10) / 10,
+      fiberG: hasUnknownFiber ? null : Math.round(totalFiber * 10) / 10,
     },
     status: proposalStatus,
   };
@@ -780,12 +813,16 @@ export async function confirmNutritionAiImport(params: {
       const [sRows] = await db.query<RowDataPacket[]>(
         `SELECT u.full_name FROM consultancy_members cm
          INNER JOIN users u ON u.id = cm.user_id
-         WHERE cm.id = ? AND cm.consultancy_id = ? LIMIT 1`,
+         INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role IN ('STUDENT', 'INFLUENCER')
+         WHERE cm.id = ? AND cm.consultancy_id = ? AND cm.status = 'ACTIVE' AND u.deleted_at IS NULL LIMIT 1`,
         [targetPatientMembershipId, consultancyId]
       );
-      if (sRows.length > 0) {
-        patientFullName = String(sRows[0].full_name);
-        assignmentPublicId = crypto.randomUUID();
+      if (sRows.length === 0) {
+        await db.rollback();
+        throw new Error("Aluno/paciente selecionado não é válido ou não pertence a esta consultoria.");
+      }
+      patientFullName = String(sRows[0].full_name);
+      assignmentPublicId = crypto.randomUUID();
 
         // Publish version
         await db.query(
@@ -807,7 +844,6 @@ export async function confirmNutritionAiImport(params: {
           ]
         );
       }
-    }
 
     // 5. Update job status to CONFIRMED
     await db.query(

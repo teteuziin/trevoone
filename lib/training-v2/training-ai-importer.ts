@@ -14,7 +14,7 @@ import {
   refundAiQuota,
 } from "../ai/quotas";
 import type { DocumentInput } from "../ai/openai-client";
-import type { RawTrainingImportProposal, RawTrainingExerciseItem } from "../ai/schemas";
+import type { RawTrainingImportProposal } from "../ai/schemas";
 import { recordConsultancyActivity } from "../consultancies/activity-log";
 
 export type ExerciseMatchStatus = "MATCHED" | "AMBIGUOUS" | "NOT_FOUND";
@@ -38,6 +38,7 @@ export interface ResolvedTrainingExerciseItem {
   candidates: MatchedExerciseCandidate[];
   sets: number | null;
   reps: number | null;
+  repsMax: number | null;
   durationSeconds: number | null;
   restSeconds: number | null;
   load: number | null;
@@ -310,15 +311,16 @@ export async function processTrainingAiImport(params: {
       outputTokens: metadata.outputTokens,
       totalTokens: metadata.totalTokens,
     });
-  } catch (providerErr: any) {
+  } catch (providerErr: unknown) {
+    const errorMsg = providerErr instanceof Error ? providerErr.message : String(providerErr);
     // Automatic refund on network, timeout, or 5xx provider failure
-    await refundAiQuota(usageEventPublicId, providerErr.message);
+    await refundAiQuota(usageEventPublicId);
 
     const dbFail = await getDbConnection();
     try {
       await dbFail.query(
         `UPDATE ai_import_jobs SET status = 'FAILED', error_message = ?, updated_at = NOW(3) WHERE public_id = ?`,
-        [String(providerErr.message || "Falha na chamada da OpenAI").slice(0, 500), importJobPublicId]
+        [(errorMsg || "Falha na chamada da OpenAI").slice(0, 500), importJobPublicId]
       );
     } finally {
       dbFail.release();
@@ -334,10 +336,10 @@ export async function processTrainingAiImport(params: {
       resourceType: "AI_IMPORT_JOB",
       resourcePublicId: importJobPublicId,
       summary: `Falha ao processar o arquivo ${input.filename} com IA`,
-      metadata: { error: providerErr.message },
+      metadata: { error: errorMsg },
     });
 
-    throw new Error(`Falha no processamento com IA: ${providerErr.message}`);
+    throw new Error(`Falha no processamento com IA: ${errorMsg}`);
   }
 
   // 5. Match Exercises against Library
@@ -384,6 +386,7 @@ export async function processTrainingAiImport(params: {
         candidates: matchResult.candidates,
         sets: ex.sets,
         reps: ex.reps,
+        repsMax: ex.repsMax || null,
         durationSeconds: ex.durationSeconds,
         restSeconds: ex.restSeconds,
         load: ex.load,
@@ -623,13 +626,14 @@ export async function confirmTrainingAiImport(params: {
         for (let s = 1; s <= numSets; s++) {
           await db.query(
             `INSERT INTO workout_item_sets (
-              block_item_id, set_number, set_type, target_reps, target_load_kg,
+              block_item_id, set_number, set_type, target_reps, target_reps_max, target_load_kg,
               target_duration_seconds, target_rest_seconds, created_at, updated_at
-            ) VALUES (?, ?, 'NORMAL', ?, ?, ?, ?, NOW(3), NOW(3))`,
+            ) VALUES (?, ?, 'NORMAL', ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
             [
               itemId,
               s,
               ex.reps || null,
+              ex.repsMax || null,
               ex.load || null,
               ex.durationSeconds || null,
               ex.restSeconds || null,
@@ -647,12 +651,16 @@ export async function confirmTrainingAiImport(params: {
       const [sRows] = await db.query<RowDataPacket[]>(
         `SELECT u.full_name FROM consultancy_members cm
          INNER JOIN users u ON u.id = cm.user_id
-         WHERE cm.id = ? AND cm.consultancy_id = ? LIMIT 1`,
+         INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role IN ('STUDENT', 'INFLUENCER')
+         WHERE cm.id = ? AND cm.consultancy_id = ? AND cm.status = 'ACTIVE' AND u.deleted_at IS NULL LIMIT 1`,
         [targetStudentMembershipId, consultancyId]
       );
-      if (sRows.length > 0) {
-        studentFullName = String(sRows[0].full_name);
-        assignmentPublicId = crypto.randomUUID();
+      if (sRows.length === 0) {
+        await db.rollback();
+        throw new Error("Aluno selecionado não é válido ou não pertence a esta consultoria.");
+      }
+      studentFullName = String(sRows[0].full_name);
+      assignmentPublicId = crypto.randomUUID();
 
         // Publish version for the assignment
         await db.query(
@@ -674,7 +682,6 @@ export async function confirmTrainingAiImport(params: {
           ]
         );
       }
-    }
 
     // 5. Update job status to CONFIRMED
     await db.query(

@@ -36,6 +36,9 @@ yarn-error.log*
 
 # private local storage (dev fallback)
 /.data/
+/.tmp/
+/data/usda/
+/scratch/
 
 
 # vercel

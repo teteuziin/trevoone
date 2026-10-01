@@ -651,9 +651,13 @@ async function run() {
     ? path.resolve(process.env.USDA_SCRATCH_DIR)
     : path.resolve(__dirname, "../scratch");
 
+  const tmpUsdaDir = path.resolve(__dirname, "../.tmp/usda");
+
   // Determine Foundation and FNDDS JSON paths with robust candidates
   const candidateFoundation = [
     process.env.USDA_FOUNDATION_PATH,
+    path.join(tmpUsdaDir, "foundation_extracted/FoodData_Central_foundation_food_json_2026-04-30.json"),
+    path.join(tmpUsdaDir, "foundation_2026_extracted/FoodData_Central_foundation_food_json_2026-04-30.json"),
     path.join(scratchDir, "foundation_2026_extracted/FoodData_Central_foundation_food_json_2026-04-30.json"),
     path.join(scratchDir, "foundation_extracted/FoodData_Central_foundation_food_json_2026-04-30.json"),
     path.join(scratchDir, "foundation_extracted/foundationDownload.json"),
@@ -661,6 +665,7 @@ async function run() {
 
   const candidateFndds = [
     process.env.USDA_FNDDS_PATH,
+    path.join(tmpUsdaDir, "fndds_extracted/surveyDownload.json"),
     path.join(scratchDir, "fndds_extracted/surveyDownload.json"),
   ].filter(Boolean);
 

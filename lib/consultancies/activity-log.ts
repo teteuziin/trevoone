@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { PoolConnection, RowDataPacket, ResultSetHeader } from "mysql2/promise";
-import { getDbConnection } from "@/lib/db/mysql";
+import { getDbConnection } from "../db/mysql";
 
 export * from "./activity-formatters";
 import type {

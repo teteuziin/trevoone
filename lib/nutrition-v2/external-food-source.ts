@@ -41,6 +41,13 @@ export interface ExternalFoodSearchResult {
   candidates: ExternalFoodCandidate[];
 }
 
+export const IS_USDA_ONLINE_API_OPTIONAL = true;
+
+/**
+ * Checks if the optional USDA FoodData Central online API key is configured.
+ * NOTE: The primary resolution engine uses the local USDA Foundation + FNDDS database
+ * stored in MySQL, eliminating the functional requirement for this key.
+ */
 export function isUsdaApiConfigured(): boolean {
   const key = process.env.USDA_FDC_API_KEY || process.env.USDA_API_KEY;
   return Boolean(key && key.trim().length > 0);

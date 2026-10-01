@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useTransition } from "react";
+import Link from "next/link";
 import {
   searchFoodsForPickerAction,
   getFoodPortionsForPickerAction,
@@ -334,13 +335,42 @@ export function NutritionFoodPicker({
               {isSearching ? (
                 <div className="py-12 text-center text-xs text-[var(--text-secondary)]">Buscando alimentos...</div>
               ) : items.length === 0 ? (
-                <div className="py-12 text-center text-xs text-[var(--text-secondary)] space-y-1">
-                  <p className="font-semibold text-[var(--text-primary)]">Nenhum alimento encontrado.</p>
-                  <p className="text-[var(--text-tertiary)]">
-                    {query.trim()
-                      ? `Nenhum resultado para "${query}". Experimente buscar por termos comuns (ex: arroz, frango, batata, whey) ou trocar o filtro de origem.`
-                      : "Digite um termo para pesquisar ou selecione outra fonte de dados."}
-                  </p>
+                <div className="py-8 px-4 text-center space-y-3 bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-2xl">
+                  <div className="space-y-1">
+                    <p className="font-semibold text-xs sm:text-sm text-[var(--text-primary)]">
+                      {query.trim()
+                        ? `Nenhum alimento encontrado para "${query}".`
+                        : "Nenhum alimento encontrado nesta categoria."}
+                    </p>
+                    <p className="text-[11px] text-[var(--text-tertiary)] max-w-sm mx-auto">
+                      {query.trim()
+                        ? "Não encontrou na base oficial? Você pode prescrever como item avulso agora ou adicionar um novo alimento com rótulo/receita."
+                        : "Experimente buscar por termos comuns (ex: arroz, frango, batata, whey) ou trocar o filtro."}
+                    </p>
+                  </div>
+                  {query.trim() && (
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setCustomName(query.trim());
+                          setActiveTab("CUSTOM");
+                        }}
+                        className="text-xs"
+                      >
+                        Prescrever &ldquo;{query.trim()}&rdquo; como item avulso →
+                      </Button>
+                      <Link
+                        href={`/consultoria/${slug}/alimentos-v2`}
+                        target="_blank"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--brand)] hover:underline px-3 py-1.5"
+                      >
+                        Cadastrar novo alimento na biblioteca ↗
+                      </Link>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">

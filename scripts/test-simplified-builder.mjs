@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import mysql from 'mysql2/promise';
 import {
   createWorkout,
@@ -45,9 +45,10 @@ async function run() {
   const row = mRows[0];
   console.log('Using consultancy:', row.slug, 'membership:', row.membership_id);
 
-  // Find or pick an exercise from library
+  // Find or pick an exercise from library (global or consultancy tenant)
   const [eRows] = await pool.query(
-    `SELECT public_id, name FROM exercises WHERE deleted_at IS NULL AND status = 'PUBLISHED' LIMIT 2`
+    `SELECT public_id, name FROM exercises WHERE deleted_at IS NULL AND status = 'PUBLISHED' AND (consultancy_id IS NULL OR consultancy_id = ?) LIMIT 2`,
+    [row.consultancy_id]
   );
   if (!eRows || eRows.length === 0) {
     console.log('No exercises found in DB. Skipping.');

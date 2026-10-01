@@ -176,12 +176,12 @@ export default async function AdminDashboardPage() {
             </h2>
           </div>
 
-          <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-2 sm:overflow-visible">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
             {operationalModules.map((m) => (
               <Link
                 key={m.id}
                 href={m.href}
-                className="w-[84vw] max-w-[420px] shrink-0 sm:w-auto sm:max-w-none snap-center group relative flex flex-col justify-between rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] p-5 sm:p-6 shadow-xs hover:shadow-sm transition-all focus-visible:outline-[var(--brand)] depth-surface min-h-[220px]"
+                className="group relative flex flex-col justify-between rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] p-4 sm:p-5 shadow-xs hover:shadow-sm transition-all focus-visible:outline-[var(--brand)] min-h-[180px]"
               >
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-3">

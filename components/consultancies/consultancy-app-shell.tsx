@@ -131,24 +131,10 @@ export function ConsultancyAppShell({
     });
     rawItems.push({
       id: "influencer-indicacoes",
-      label: "Indicações",
+      label: "Indicações & Ganhos",
       mobileLabel: "Indicações",
       href: `/consultoria/${consultancySlug}/indicacoes`,
       iconName: "referrals",
-    });
-    rawItems.push({
-      id: "influencer-comissoes",
-      label: "Comissões",
-      mobileLabel: "Comissões",
-      href: `/consultoria/${consultancySlug}/indicacoes#comissoes`,
-      iconName: "finance",
-    });
-    rawItems.push({
-      id: "influencer-pix",
-      label: "PIX",
-      mobileLabel: "PIX",
-      href: `/consultoria/${consultancySlug}/indicacoes#pix`,
-      iconName: "finance",
     });
   }
 

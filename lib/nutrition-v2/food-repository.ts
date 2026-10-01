@@ -1016,10 +1016,10 @@ export async function registerFoodManually(
         public_id, scope, consultancy_id, name, display_name_pt_br,
         normalized_name, normalized_display_name_pt_br, category,
         reference_amount, reference_unit_code, calories_kcal, protein_g,
-        carbohydrate_g, fat_g, fiber_g, status, source_type, data_quality,
-        source_key, source_reference, source_imported_at, last_verified_at,
+        carbohydrate_g, fat_g, status, source_type,
+        source_key, source_reference, source_imported_at,
         source_uid, created_by_user_id, created_by_membership_id, created_at, updated_at
-      ) VALUES (?, 'CONSULTANCY', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'PROFESSIONAL_UPLOAD', 'PROFESSIONAL_CONFIRMED', ?, ?, NOW(3), NOW(3), ?, ?, ?, NOW(3), NOW(3))`,
+      ) VALUES (?, 'CONSULTANCY', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'PROFESSIONAL_UPLOAD', ?, ?, NOW(3), ?, ?, ?, NOW(3), NOW(3))`,
       [
         publicId,
         ctx.consultancyId,
@@ -1034,7 +1034,6 @@ export async function registerFoodManually(
         p,
         c,
         g,
-        fiber,
         input.dataSource || "MANUAL",
         input.sourceReference?.trim() || null,
         `MANUAL:${publicId}`,
@@ -1137,10 +1136,10 @@ export async function registerFoodFromLabel(
         public_id, scope, consultancy_id, name, display_name_pt_br,
         normalized_name, normalized_display_name_pt_br, category,
         reference_amount, reference_unit_code, calories_kcal, protein_g,
-        carbohydrate_g, fat_g, fiber_g, status, source_type, data_quality,
-        source_key, source_reference, source_imported_at, last_verified_at,
+        carbohydrate_g, fat_g, status, source_type,
+        source_key, source_reference, source_imported_at,
         source_uid, created_by_user_id, created_by_membership_id, created_at, updated_at
-      ) VALUES (?, 'CONSULTANCY', ?, ?, ?, ?, ?, 'Produto Embalado', ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'PROFESSIONAL_UPLOAD', 'LABEL_CONFIRMED', 'PRODUCT_LABEL', ?, NOW(3), NOW(3), ?, ?, ?, NOW(3), NOW(3))`,
+      ) VALUES (?, 'CONSULTANCY', ?, ?, ?, ?, ?, 'Produto Embalado', ?, ?, ?, ?, ?, ?, 'ACTIVE', 'PROFESSIONAL_UPLOAD', 'PRODUCT_LABEL', ?, NOW(3), ?, ?, ?, NOW(3), NOW(3))`,
       [
         publicId,
         ctx.consultancyId,
@@ -1154,7 +1153,6 @@ export async function registerFoodFromLabel(
         p,
         c,
         g,
-        fiber,
         input.labelNotes?.trim() || "Transcrito do rótulo nutricional",
         `LABEL:${publicId}`,
         ctx.userId,
@@ -1284,7 +1282,7 @@ export async function registerRecipeFood(
       const [fRows] = await connection.query<RowDataPacket[]>(
         `SELECT id, public_id, scope, consultancy_id, name, display_name_pt_br,
                 status, reference_amount, reference_unit_code,
-                calories_kcal, protein_g, carbohydrate_g, fat_g, fiber_g, deleted_at
+                calories_kcal, protein_g, carbohydrate_g, fat_g, deleted_at
          FROM nutrition_v2_foods
          WHERE public_id = ?`,
         [ing.foodPublicId]
@@ -1340,7 +1338,7 @@ export async function registerRecipeFood(
           proteinG: food.protein_g != null ? Number(food.protein_g) : null,
           carbohydrateG: food.carbohydrate_g != null ? Number(food.carbohydrate_g) : null,
           fatG: food.fat_g != null ? Number(food.fat_g) : null,
-          fiberG: food.fiber_g != null ? Number(food.fiber_g) : null,
+          fiberG: null,
         },
         prescribedQuantity: qty,
         prescribedUnitCode: unitCode,
@@ -1432,10 +1430,10 @@ export async function registerRecipeFood(
         public_id, scope, consultancy_id, name, display_name_pt_br,
         normalized_name, normalized_display_name_pt_br, category,
         reference_amount, reference_unit_code, calories_kcal, protein_g,
-        carbohydrate_g, fat_g, fiber_g, status, source_type, data_quality,
-        source_key, source_reference, source_imported_at, last_verified_at,
+        carbohydrate_g, fat_g, status, source_type,
+        source_key, source_reference, source_imported_at,
         source_uid, created_by_user_id, created_by_membership_id, created_at, updated_at
-      ) VALUES (?, 'CONSULTANCY', ?, ?, ?, ?, ?, 'Receita Caseira', 1.0, 'PORCAO', ?, ?, ?, ?, ?, 'ACTIVE', 'PROFESSIONAL_UPLOAD', 'PROFESSIONAL_CONFIRMED', 'RECIPE', ?, NOW(3), NOW(3), ?, ?, ?, NOW(3), NOW(3))`,
+      ) VALUES (?, 'CONSULTANCY', ?, ?, ?, ?, ?, 'Receita Caseira', 1.0, 'PORCAO', ?, ?, ?, ?, 'ACTIVE', 'PROFESSIONAL_UPLOAD', 'RECIPE', ?, NOW(3), ?, ?, ?, NOW(3), NOW(3))`,
       [
         publicId,
         ctx.consultancyId,
@@ -1447,7 +1445,6 @@ export async function registerRecipeFood(
         perServingP,
         perServingC,
         perServingG,
-        perServingFiber,
         `Rendimento: ${servings} porção(ões). Ingredientes: ${summaryIngredients}`,
         `RECIPE:${publicId}`,
         ctx.userId,

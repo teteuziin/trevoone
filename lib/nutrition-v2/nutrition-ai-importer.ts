@@ -135,6 +135,7 @@ export async function matchFoodCandidate(
   try {
     const [rows] = await db.query<RowDataPacket[]>(
       `SELECT
+        f.id,
         f.public_id,
         COALESCE(f.display_name_pt_br, f.name) AS display_name,
         f.normalized_name,
@@ -143,10 +144,13 @@ export async function matchFoodCandidate(
         f.protein_g,
         f.carbohydrate_g,
         f.fat_g,
-        f.fiber_g,
+        fn_fiber.amount_per_reference AS fiber_amount,
+        fn_fiber.status AS fiber_status,
         f.reference_amount,
         f.reference_unit_code
        FROM nutrition_v2_foods f
+       LEFT JOIN nutrition_v2_food_nutrients fn_fiber
+         ON fn_fiber.food_id = f.id AND fn_fiber.nutrient_code = 'FIBER'
        WHERE f.status = 'ACTIVE'
          AND f.deleted_at IS NULL
          AND (f.scope = 'GLOBAL' OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ?))`,
@@ -164,6 +168,17 @@ export async function matchFoodCandidate(
     }
 
     for (const r of rows) {
+      let fiberVal: number | null = null;
+      if (r.fiber_status === "KNOWN_ZERO") {
+        fiberVal = 0;
+      } else if (r.fiber_status === "TRACE") {
+        fiberVal = null;
+      } else if (r.fiber_status === "KNOWN" && r.fiber_amount !== null && r.fiber_amount !== undefined) {
+        fiberVal = Number(r.fiber_amount);
+      } else {
+        fiberVal = null; // UNKNOWN
+      }
+
       const candidateObj: MatchedFoodCandidate = {
         foodPublicId: String(r.public_id),
         name: String(r.display_name),
@@ -172,7 +187,7 @@ export async function matchFoodCandidate(
         proteinG: r.protein_g !== null ? Number(r.protein_g) : null,
         carbsG: r.carbohydrate_g !== null ? Number(r.carbohydrate_g) : null,
         fatG: r.fat_g !== null ? Number(r.fat_g) : null,
-        fiberG: r.fiber_g !== null ? Number(r.fiber_g) : null,
+        fiberG: fiberVal,
         referenceAmount: Number(r.reference_amount || 100),
         referenceUnitCode: String(r.reference_unit_code || "G"),
       };

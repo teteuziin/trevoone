@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TREVO ONE - NUTRITION V2 FOOD QUERY BUILDER & ERROR ISOLATION
  * Pure SQL query construction, schema compatibility guarantee,
  * typed error taxonomy, and safe row mapping for Food Library.
@@ -70,10 +70,10 @@ export function isApprovedCommercialSourceKey(
  * review signals only and MUST NOT automatically hide official source foods.
  */
 export const OBJECTIVE_INVALID_DATA_SQL_CONDITION = `(
-  f.calories_kcal < 0
-  OR f.protein_g < 0
-  OR f.carbohydrate_g < 0
-  OR f.fat_g < 0
+  COALESCE(f.calories_kcal, 0) < 0
+  OR COALESCE(f.protein_g, 0) < 0
+  OR COALESCE(f.carbohydrate_g, 0) < 0
+  OR COALESCE(f.fat_g, 0) < 0
   OR f.reference_amount <= 0
   OR f.reference_amount IS NULL
   OR f.reference_unit_code IS NULL
@@ -322,6 +322,9 @@ export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = 
 
   // Carnes
   mignon: ["file mignon"],
+  contrafile: ["contra-file", "contra file"],
+  "contra file": ["contrafile", "contra-file"],
+  "contra-file": ["contrafile", "contra file"],
 
   // Suplementos e derivados lácteos em PT-BR
   whey: ["whey protein", "soro de leite"],
@@ -329,6 +332,10 @@ export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = 
   // Flexões culinárias e estados de preparo simétricos (preserva o estado exato: cozido <-> cozida, cru <-> crua, etc.)
   cozido: ["cozida"],
   cozida: ["cozido"],
+  desfiado: ["desfiada", "cozido", "cozida"],
+  desfiada: ["desfiado", "cozida", "cozido"],
+  refogado: ["refogada"],
+  refogada: ["refogado"],
   assado: ["assada"],
   assada: ["assado"],
   grelhado: ["grelhada"],
@@ -464,6 +471,10 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
     // Phrase-aware handling: arroz branco -> TACO arroz tipo 1 / tipo 2 / polido
     if (hasArroz && (normalized === "branco" || normalized === "polido" || normalized === "tipo 1")) {
       return [token, "tipo 1", "tipo 2", "polido", "branco"];
+    }
+
+    if (normalized === "desfiado" || normalized === "desfiada") {
+      return [token, "desfiado", "desfiada", "cozido", "cozida"];
     }
 
     // Look up known aliases for all roots

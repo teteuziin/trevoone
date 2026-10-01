@@ -1,13 +1,13 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ShieldCheckIcon as ShieldCheck } from "@/components/ui/icons";
-import { NetflixFeatureCarousel, type CarouselSlide } from "./netflix-feature-carousel";
+import { Section, CompactCard, ListRow } from "@/components/ui/design-system";
+import { ConsultancyPhotoEditor } from "@/components/consultancies/consultancy-photo-editor";
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
-
-import { ConsultancyPhotoEditor } from "@/components/consultancies/consultancy-photo-editor";
 
 interface DashboardAdminViewProps {
   consultancySlug: string;
@@ -15,68 +15,6 @@ interface DashboardAdminViewProps {
   consultancyLogoUrl?: string | null;
   overview: ConsultancyAdminOverview | null;
   platformAccess?: PlatformEffectiveAccessState;
-}
-
-// =========================================================================
-// EXECUTIVE SAAS ICONS (Linear, Sharp Geometric, Executive Tone)
-// =========================================================================
-
-function TeamLinearIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-    </svg>
-  );
-}
-
-function FinanceLinearIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <rect x="2.5" y="5" width="19" height="14" rx="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 10h19" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 15h3m4 0h5" />
-    </svg>
-  );
-}
-
-function MissionsLinearIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-    </svg>
-  );
-}
-
-function ActivityLinearIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
-
-function SubscriptionLinearIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-    </svg>
-  );
-}
-
-function AiLinearIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
 }
 
 export function DashboardAdminView({
@@ -89,75 +27,23 @@ export function DashboardAdminView({
   const isSuspendedOrCanceled = platformAccess && !platformAccess.isOperationalAllowed;
   const isInGrace = platformAccess && platformAccess.effectiveStatus === "GRACE";
 
-  const adminSlides: CarouselSlide[] = [
-    {
-      id: "admin-members",
-      tag: "EQUIPE E ALUNOS",
-      tagColor: "brand",
-      title: "Gerencie sua equipe e seus alunos",
-      description: "Coordene permissões, convites e o acesso dos profissionais e alunos vinculados à consultoria.",
-      ctaText: "Gerenciar membros",
-      ctaHref: `/consultoria/${consultancySlug}/membros`,
-      imageUrl: "/images/admin/workspace.jpg",
-      meta: overview?.activeMembers ? `${overview.activeMembers} membros ativos` : undefined,
-    },
-    {
-      id: "admin-finance",
-      tag: "FINANCEIRO",
-      tagColor: "emerald",
-      title: "Central Financeira da Consultoria",
-      description: "Acompanhe faturas, controle mensalidades e relatórios de fluxo financeiro da operação.",
-      ctaText: "Acessar financeiro",
-      ctaHref: `/consultoria/${consultancySlug}/financeiro`,
-      imageUrl: "/images/admin/finance.jpg",
-    },
-    {
-      id: "admin-subscription",
-      tag: "ASSINATURA",
-      tagColor: "blue",
-      title: "Plano & Assinatura Trevo One",
-      description: "Consulte o status do plano da sua consultoria, limites de alunos e recursos disponíveis.",
-      ctaText: "Ver assinatura",
-      ctaHref: `/consultoria/${consultancySlug}/assinatura`,
-      imageUrl: "/images/student/hero-athlete.webp",
-      meta:
-        platformAccess?.effectiveStatus === "ACTIVE"
-          ? "Plano Ativo"
-          : platformAccess?.effectiveStatus === "GRACE"
-          ? "Período de Carência"
-          : undefined,
-    },
-  ];
-
   return (
-    <div className="space-y-7 sm:space-y-9 overflow-x-clip">
-      {/* 1. Alertas P0 de Assinatura da Plataforma */}
+    <div className="space-y-5 sm:space-y-6 max-w-5xl mx-auto animate-in fade-in duration-150">
+      {/* 1. Alertas Críticos de Assinatura da Plataforma */}
       {isSuspendedOrCanceled && (
-        <div className="p-4.5 sm:p-5 rounded-3xl border border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger-foreground)] shadow-xs space-y-3">
+        <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300 space-y-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1">
+            <div>
               <div className="flex items-center gap-2">
-                <Badge variant="danger" size="sm">
-                  {platformAccess.effectiveStatus === "CANCELED"
-                    ? "Assinatura Cancelada"
-                    : "Serviços Suspensos"}
-                </Badge>
-                <span className="text-xs font-bold text-[var(--danger-foreground)]">
-                  Acesso operacional restrito
-                </span>
+                <Badge variant="danger" size="sm">Operação Bloqueada</Badge>
+                <h3 className="text-sm font-bold">Assinatura Suspensa</h3>
               </div>
-              <p className="text-xs sm:text-sm text-[var(--danger-foreground)] opacity-95 leading-relaxed">
-                {platformAccess.effectiveStatus === "CANCELED"
-                  ? "A assinatura desta consultoria foi cancelada. Regularize ou entre em contato com o suporte da plataforma."
-                  : platformAccess.effectiveReason === "NONPAYMENT"
-                  ? "O acesso aos módulos operacionais foi suspenso devido a faturas em atraso além do período de carência."
-                  : `A consultoria foi suspensa administrativamente: ${
-                      platformAccess.manualSuspensionReason || "Sem motivo informado."
-                    }`}
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                A assinatura da consultoria na plataforma Trevo One está pendente.
               </p>
             </div>
-            <Link href={`/consultoria/${consultancySlug}/assinatura`} className="shrink-0">
-              <Button variant="danger" size="sm" className="min-h-[44px] font-bold">
+            <Link href={`/consultoria/${consultancySlug}/assinatura`}>
+              <Button variant="danger" size="sm">
                 Regularizar Assinatura →
               </Button>
             </Link>
@@ -166,317 +52,170 @@ export function DashboardAdminView({
       )}
 
       {isInGrace && (
-        <div className="p-4.5 sm:p-5 rounded-3xl border border-[var(--warning-border)] bg-[var(--warning-soft)] text-[var(--warning-foreground)] shadow-xs space-y-3">
+        <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-800 dark:text-amber-200">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1">
+            <div>
               <div className="flex items-center gap-2">
-                <Badge variant="warning" size="sm">
-                  Carência de Pagamento
-                </Badge>
-                <span className="text-xs font-bold text-[var(--warning-foreground)]">
-                  Fatura da consultoria pendente
-                </span>
+                <Badge variant="warning" size="sm">Carência</Badge>
+                <h3 className="text-sm font-bold">Período de Carência Ativo</h3>
               </div>
-              <p className="text-xs sm:text-sm text-[var(--warning-foreground)] opacity-95 leading-relaxed">
-                Há uma fatura da consultoria com período de carência ativo. Realize o pagamento para
-                evitar a suspensão automática dos serviços.
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                Regularize sua fatura para manter os recursos e as cotas de IA ativas.
               </p>
             </div>
-            <Link href={`/consultoria/${consultancySlug}/assinatura`} className="shrink-0">
-              <Button variant="secondary" size="sm" className="min-h-[44px] font-bold">
-                Ver Fatura & Pix →
+            <Link href={`/consultoria/${consultancySlug}/assinatura`}>
+              <Button variant="secondary" size="sm">
+                Ver Fatura
               </Button>
             </Link>
           </div>
         </div>
       )}
 
-      {/* 2. CARROSSEL DESTAQUE NETFLIX */}
-      <NetflixFeatureCarousel
-        slides={adminSlides}
-        consultancySlug={consultancySlug}
-      />
-
-      {/* 3. EXECUTIVE HERO: Gestão de Equipe & Operação */}
-      {overview ? (
-        <div className="relative rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] p-5 sm:p-7 md:p-8 shadow-xs depth-surface space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-4 max-w-2xl">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--brand)] text-white shadow-2xs">
-                  Administração
-                </span>
-                <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                  Administrador da Consultoria
-                </span>
-              </div>
-
-              <div className="space-y-1">
-                <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
-                  Gestão da Consultoria & Equipe
-                </h1>
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
-                  Acompanhe a equipe, gerencie alunos, controle receitas e mantenha sua consultoria em dia.
-                </p>
-              </div>
-
-              {/* Total Members Highlight & Role Breakdown Pills */}
-              <div className="pt-2 flex flex-wrap items-center gap-2.5">
-                <div className="flex items-baseline gap-2 px-3.5 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
-                  <span className="font-heading text-xl font-bold text-[var(--text-primary)]">
-                    {overview.activeMembers}
-                  </span>
-                  <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                    {overview.activeMembers === 1 ? "membro ativo" : "membros ativos"}
-                  </span>
-                </div>
-
-                <span className="px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] font-medium">
-                  <strong className="text-[var(--text-primary)] font-bold">{overview.students}</strong>{" "}
-                  {overview.students === 1 ? "Aluno" : "Alunos"}
-                </span>
-                <span className="px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] font-medium">
-                  <strong className="text-[var(--text-primary)] font-bold">{overview.personals}</strong>{" "}
-                  {overview.personals === 1 ? "Personal" : "Personais"}
-                </span>
-                <span className="px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] font-medium">
-                  <strong className="text-[var(--text-primary)] font-bold">{overview.nutritionists}</strong>{" "}
-                  {overview.nutritionists === 1 ? "Nutricionista" : "Nutricionistas"}
-                </span>
-                <span className="px-3 py-1.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] font-medium">
-                  <strong className="text-[var(--text-primary)] font-bold">{overview.admins}</strong>{" "}
-                  {overview.admins === 1 ? "Admin" : "Admins"}
-                </span>
-              </div>
+      {/* 2. HEADER DA CONSULTORIA */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center gap-3.5">
+          <ConsultancyPhotoEditor
+            consultancySlug={consultancySlug}
+            currentLogoUrl={consultancyLogoUrl}
+            consultancyName={consultancyName || "Consultoria"}
+          />
+          <div>
+            <div className="text-[11px] font-semibold text-[var(--brand)] uppercase tracking-wider">
+              Painel de Gestão
             </div>
-
-            {/* Protagonist CTA */}
-            <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-[var(--border-subtle)]">
-              <Link href={`/consultoria/${consultancySlug}/membros`} className="w-full sm:w-auto">
-                <Button variant="primary" size="md" className="w-full font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2">
-                  <TeamLinearIcon className="w-4 h-4" />
-                  <span>Gerenciar Membros</span>
-                </Button>
-              </Link>
-            </div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight font-heading">
+              {consultancyName || "Administração Geral"}
+            </h1>
           </div>
         </div>
-      ) : (
-        <div className="p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] text-center text-xs text-[var(--text-secondary)]">
-          Dados da equipe indisponíveis no momento.
-        </div>
-      )}
 
-      {/* 3. OPERATIONAL CENTRAL MODULES (84vw Snap Cards on Mobile, 3-column on Desktop) */}
-      <div className="space-y-3.5">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-            Central Operacional da Consultoria
-          </h2>
-          <span className="text-[11px] text-[var(--text-tertiary)] font-medium hidden sm:inline">
-            Gestão financeira, influenciadores e plataforma
-          </span>
-        </div>
-
-        <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-visible">
-          {/* Module 1: Financeiro dos Alunos */}
-          <Link
-            href={`/consultoria/${consultancySlug}/financeiro`}
-            className="w-[84vw] max-w-[380px] shrink-0 sm:w-auto sm:max-w-none snap-center p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--brand)] transition-all group flex flex-col justify-between space-y-4 depth-surface min-h-[190px]"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                  <FinanceLinearIcon className="w-5 h-5" />
-                </div>
-                <Badge variant="brand" size="sm">
-                  Receita
-                </Badge>
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="font-heading text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                  Financeiro dos Alunos
-                </h3>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-medium">
-                  Controle de mensalidades, cobranças Pix, faturas em aberto e conciliação de comprovantes.
-                </p>
-              </div>
-            </div>
-
-            <div className="text-xs font-bold text-[var(--brand)] flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
-              <span>Acessar financeiro</span>
-              <ChevronRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
+        <div className="flex items-center gap-2">
+          <Link href={`/consultoria/${consultancySlug}/operacoes`}>
+            <Button variant="secondary" size="sm">
+              Operações
+            </Button>
           </Link>
-
-          {/* Module 2: Missões de Influenciadores */}
-          <Link
-            href={`/consultoria/${consultancySlug}/missoes/gestao`}
-            className="w-[84vw] max-w-[380px] shrink-0 sm:w-auto sm:max-w-none snap-center p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--brand)] transition-all group flex flex-col justify-between space-y-4 depth-surface min-h-[190px]"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                  <MissionsLinearIcon className="w-5 h-5" />
-                </div>
-                <Badge variant="neutral" size="sm">
-                  Influenciadores
-                </Badge>
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="font-heading text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                  Missões VIP & Embaixadores
-                </h3>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-medium">
-                  Atribuição de missões a embaixadores, upload de comprovações e revisão das entregas de marketing.
-                </p>
-              </div>
-            </div>
-
-            <div className="text-xs font-bold text-[var(--brand)] flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
-              <span>Gerenciar missões</span>
-              <ChevronRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Module 3: Assinatura Trevo One */}
-          <Link
-            href={`/consultoria/${consultancySlug}/assinatura`}
-            className="w-[84vw] max-w-[380px] shrink-0 sm:w-auto sm:max-w-none snap-center p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--brand)] transition-all group flex flex-col justify-between space-y-4 depth-surface min-h-[190px]"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                  <SubscriptionLinearIcon className="w-5 h-5" />
-                </div>
-                <Badge variant="brand" size="sm">
-                  Plataforma
-                </Badge>
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="font-heading text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                  Assinatura Trevo One
-                </h3>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-medium">
-                  Gestão do plano SaaS da consultoria, faturas institucionais e controle de carência operacional.
-                </p>
-              </div>
-            </div>
-
-            <div className="text-xs font-bold text-[var(--brand)] flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
-              <span>Ver faturas & plano</span>
-              <ChevronRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Module 4: Atividades da Consultoria */}
-          <Link
-            href={`/consultoria/${consultancySlug}/atividades`}
-            className="w-[84vw] max-w-[380px] shrink-0 sm:w-auto sm:max-w-none snap-center p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--brand)] transition-all group flex flex-col justify-between space-y-4 depth-surface min-h-[190px]"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                  <ActivityLinearIcon className="w-5 h-5" />
-                </div>
-                <Badge variant="neutral" size="sm">
-                  Auditoria
-                </Badge>
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="font-heading text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                  Atividades
-                </h3>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-medium">
-                  Acompanhe as principais ações realizadas na sua consultoria.
-                </p>
-              </div>
-            </div>
-
-            <div className="text-xs font-bold text-[var(--brand)] flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
-              <span>Ver atividades</span>
-              <ChevronRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Module 5: Inteligência Artificial & Cotas */}
-          <Link
-            href={`/consultoria/${consultancySlug}/configuracoes/ia`}
-            className="w-[84vw] max-w-[380px] shrink-0 sm:w-auto sm:max-w-none snap-center p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--brand)] transition-all group flex flex-col justify-between space-y-4 depth-surface min-h-[190px]"
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                  <AiLinearIcon className="w-5 h-5" />
-                </div>
-                <Badge variant="brand" size="sm">
-                  IA & Automação
-                </Badge>
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="font-heading text-base font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                  Cotas & Importação IA
-                </h3>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-medium">
-                  Distribua e gerencie os limites diários de uso da IA entre os personais e nutricionistas da sua equipe.
-                </p>
-              </div>
-            </div>
-
-            <div className="text-xs font-bold text-[var(--brand)] flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
-              <span>Gerenciar cotas</span>
-              <ChevronRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
+          <Link href={`/consultoria/${consultancySlug}/membros`}>
+            <Button variant="primary" size="sm">
+              + Convidar Membro
+            </Button>
           </Link>
         </div>
       </div>
 
-      {/* 4. IDENTIDADE VISUAL DA CONSULTORIA (LOGOTIPO PERSISTENTE) */}
-      <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] p-5 sm:p-7 md:p-8 shadow-xs depth-surface space-y-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--brand)] text-white shadow-2xs">
-              Marca & Identidade
-            </span>
-          </div>
-          <h2 className="font-heading text-lg sm:text-xl font-bold text-[var(--text-primary)]">
-            Logotipo da Consultoria
-          </h2>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
-            Personalize a imagem oficial da sua consultoria. Ela será exibida no menu, cabeçalho do aluno e relatórios impressos.
-          </p>
-        </div>
-
-        <ConsultancyPhotoEditor
-          consultancySlug={consultancySlug}
-          consultancyName={consultancyName || "Consultoria"}
-          currentLogoUrl={consultancyLogoUrl}
+      {/* 3. METRICAS EXECUTIVAS */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <CompactCard
+          title="Membros da Equipe"
+          value={overview?.activeMembers ?? "—"}
+          subtitle="Personais e nutricionistas"
+          href={`/consultoria/${consultancySlug}/membros`}
+          icon={
+            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          }
+        />
+        <CompactCard
+          title="Financeiro"
+          value="Faturas"
+          subtitle="Cobranças e recebíveis"
+          href={`/consultoria/${consultancySlug}/financeiro`}
+          icon={
+            <svg className="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+        <CompactCard
+          title="Consumo de IA"
+          value="Cotas"
+          subtitle="Importações e limites"
+          href={`/consultoria/${consultancySlug}/configuracoes/ia`}
+          icon={
+            <svg className="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          }
+        />
+        <CompactCard
+          title="Assinatura"
+          value={platformAccess?.effectiveStatus === "ACTIVE" ? "Ativa" : "Gerenciar"}
+          subtitle="Plano Trevo One"
+          href={`/consultoria/${consultancySlug}/assinatura`}
+          icon={
+            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          }
         />
       </div>
 
-      {/* 5. PRIVACY & SECURITY FOOTER */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <ShieldCheck className="w-4 h-4" strokeWidth={1.75} />
-            </div>
-            <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-              Privacidade & Proteção de Dados
-            </h3>
+      {/* 4. MODULOS DE GESTÃO DA OPERAÇÃO */}
+      <Section
+        title="Gestão da Operação"
+        subtitle="Acesso rápido aos controles centrais da consultoria"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <ListRow
+            title="Membros e Alunos"
+            subtitle="Controle de acessos, convites de equipe e alunos vinculados"
+            href={`/consultoria/${consultancySlug}/membros`}
+            trailing={<span className="text-xs text-[var(--brand)] font-semibold">Gerenciar →</span>}
+          />
+          <ListRow
+            title="Central de Atividades"
+            subtitle="Trilha de auditoria em tempo real de treinos, dietas e acessos"
+            href={`/consultoria/${consultancySlug}/atividades`}
+            trailing={<span className="text-xs text-[var(--brand)] font-semibold">Ver trilha →</span>}
+          />
+          <ListRow
+            title="Gestão de IA e Limites"
+            subtitle="Acompanhe o saldo e uso das ferramentas de importação da equipe"
+            href={`/consultoria/${consultancySlug}/configuracoes/ia`}
+            trailing={<span className="text-xs text-[var(--brand)] font-semibold">Configurar →</span>}
+          />
+          <ListRow
+            title="Formulários & Anamneses"
+            subtitle="Configuração de questionários personalizados e onboarding de novos alunos"
+            href={`/consultoria/${consultancySlug}/operacoes`}
+            trailing={<span className="text-xs text-[var(--brand)] font-semibold">Acessar →</span>}
+          />
+        </div>
+      </Section>
+
+      {/* 5. GESTÃO DE PARCERIAS & AFILIADOS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Link
+          href={`/consultoria/${consultancySlug}/indicacoes`}
+          className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] transition-all flex items-center justify-between group"
+        >
+          <div>
+            <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)]">
+              Programa de Afiliados & Indicações
+            </h4>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Configure comissões, regras de repasse e aprove pagamentos PIX
+            </p>
           </div>
-          <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-xl">
-            Os dados dos seus alunos, treinos, planos alimentares e finanças são protegidos e acessíveis exclusivamente pela sua equipe.
-          </p>
-        </div>
-        <div className="shrink-0 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-          Ambiente Seguro
-        </div>
+          <span className="text-sm text-[var(--brand)] font-bold">→</span>
+        </Link>
+
+        <Link
+          href={`/consultoria/${consultancySlug}/missoes/gestao`}
+          className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] transition-all flex items-center justify-between group"
+        >
+          <div>
+            <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)]">
+              Gestão de Missões VIP
+            </h4>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Crie desafios, prazos e aprove comprovações enviadas pelos embaixadores
+            </p>
+          </div>
+          <span className="text-sm text-[var(--brand)] font-bold">→</span>
+        </Link>
       </div>
     </div>
   );

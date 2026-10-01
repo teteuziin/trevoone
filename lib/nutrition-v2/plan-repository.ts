@@ -1418,7 +1418,6 @@ export async function updateMealItem(
         f.consultancy_id AS f_consultancy_id,
         f.status AS f_status,
         f.source_type AS f_source_type,
-        f.data_quality AS f_data_quality,
         f.source_key AS f_source_key,
         f.source_version AS f_source_version,
         f.source_uid AS f_source_uid,
@@ -1430,8 +1429,7 @@ export async function updateMealItem(
         f.calories_kcal,
         f.protein_g,
         f.carbohydrate_g,
-        f.fat_g,
-        f.fiber_g
+        f.fat_g
        FROM nutrition_v2_meal_items mi
        INNER JOIN nutrition_v2_meals m ON m.id = mi.meal_id
        INNER JOIN nutrition_v2_plan_versions v ON v.id = m.nutrition_plan_version_id
@@ -1468,7 +1466,7 @@ export async function updateMealItem(
       protein_g: item.protein_g,
       carbohydrate_g: item.carbohydrate_g,
       fat_g: item.fat_g,
-      fiber_g: item.fiber_g,
+      fiber_g: null,
     } as RowDataPacket) : null;
 
     let foodNameSnapshot = String(item.food_name_snapshot);
@@ -2099,7 +2097,6 @@ export async function updateSubstitution(
         f.consultancy_id AS f_consultancy_id,
         f.status AS f_status,
         f.source_type AS f_source_type,
-        f.data_quality AS f_data_quality,
         f.source_key AS f_source_key,
         f.source_version AS f_source_version,
         f.source_uid AS f_source_uid,
@@ -2111,8 +2108,7 @@ export async function updateSubstitution(
         f.calories_kcal,
         f.protein_g,
         f.carbohydrate_g,
-        f.fat_g,
-        f.fiber_g
+        f.fat_g
        FROM nutrition_v2_item_substitutions s
        INNER JOIN nutrition_v2_meal_items mi ON mi.id = s.meal_item_id
        INNER JOIN nutrition_v2_meals m ON m.id = mi.meal_id
@@ -2150,7 +2146,7 @@ export async function updateSubstitution(
       protein_g: sub.protein_g,
       carbohydrate_g: sub.carbohydrate_g,
       fat_g: sub.fat_g,
-      fiber_g: sub.fiber_g,
+      fiber_g: null,
     } as RowDataPacket) : null;
 
     let foodNameSnapshot = String(sub.food_name_snapshot);

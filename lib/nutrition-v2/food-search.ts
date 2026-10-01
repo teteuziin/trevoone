@@ -214,6 +214,14 @@ export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = 
 
   // Carnes
   mignon: ["file mignon"],
+  contrafile: ["contra-file", "contra file"],
+  "contra-file": ["contrafile", "contra file"],
+  "contra file": ["contrafile", "contra-file"],
+  "frango desfiado": ["frango cozido", "peito de frango cozido"],
+  desfiado: ["cozido"],
+  desfiada: ["cozida"],
+  refogado: ["cozido"],
+  refogada: ["cozida"],
 
   // Suplementos e derivados lácteos em PT-BR
   whey: ["whey protein", "soro de leite"],
@@ -322,6 +330,10 @@ export function expandSearchTokensWithSynonyms(tokens: string[]): string[][] {
     const hasArroz = tokens.some((t) => normalizeSearchText(t) === "arroz");
     if (hasArroz && (normalized === "branco" || normalized === "polido" || normalized === "tipo 1")) {
       return [token, "tipo 1", "tipo 2", "polido", "branco"];
+    }
+
+    if (normalized === "desfiado" || normalized === "desfiada") {
+      return [token, "desfiado", "desfiada", "cozido", "cozida"];
     }
 
     const synonyms = USER_SEARCH_ALIASES[normalized];

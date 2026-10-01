@@ -474,11 +474,11 @@ export function NutritionAiImportModal({
         variant="secondary"
         size="md"
         onClick={handleOpen}
-        className="font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2 border-[var(--brand)]/30 hover:border-[var(--brand)]/60 bg-[var(--brand)]/5 text-[var(--brand)] hover:bg-[var(--brand)]/10 transition-colors"
-        title="Importar plano alimentar a partir de PDF ou texto com IA"
+        className="font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2 border-[var(--border-default)] hover:border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
+        title="Importar plano alimentar a partir de PDF ou texto"
       >
         <svg
-          className="w-4 h-4 text-[var(--brand)]"
+          className="w-4 h-4 text-[var(--text-secondary)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -487,9 +487,9 @@ export function NutritionAiImportModal({
           strokeLinejoin="round"
           aria-hidden="true"
         >
-          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+          <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
-        <span>Importar com IA</span>
+        <span>Importar plano</span>
       </Button>
 
       {isOpen && (

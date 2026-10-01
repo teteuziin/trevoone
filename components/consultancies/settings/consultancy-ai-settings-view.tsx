@@ -138,15 +138,21 @@ export function ConsultancyAiSettingsView({
     <div className="space-y-6 max-w-4xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="border-b border-border/40 pb-5">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">✨</span>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Configurações de Inteligência Artificial
-          </h1>
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Cotas de Importação & Automação
+            </h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Gerencie os limites diários de importação de arquivos para profissionais da consultoria.
+            </p>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Controle quantas importações de treinos e planos com IA os profissionais da sua consultoria podem utilizar diariamente.
-        </p>
       </div>
 
       {/* Consultancy Quota Card */}

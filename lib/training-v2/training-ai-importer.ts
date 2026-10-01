@@ -16,6 +16,11 @@ import {
 import type { DocumentInput } from "../ai/openai-client";
 import type { RawTrainingImportProposal } from "../ai/schemas";
 import { recordConsultancyActivity } from "../consultancies/activity-log";
+import {
+  resolveCanonicalExercise,
+  resolveSemanticExerciseWithAi,
+  type ExerciseCandidateDbItem,
+} from "./exercise-resolver";
 
 export type ExerciseMatchStatus = "MATCHED" | "AMBIGUOUS" | "NOT_FOUND";
 
@@ -68,16 +73,6 @@ export interface ResolvedTrainingProposal {
   status: "READY" | "NEEDS_REVIEW";
 }
 
-function normalize(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /**
  * Searches the authoritative Exercise Library (Global + Consultancy) for matches.
  */
@@ -89,8 +84,8 @@ export async function matchExerciseCandidate(
   matched?: MatchedExerciseCandidate;
   candidates: MatchedExerciseCandidate[];
 }> {
-  const normCandidate = normalize(candidateName);
-  if (!normCandidate) {
+  const trimmed = candidateName?.trim();
+  if (!trimmed) {
     return { status: "NOT_FOUND", candidates: [] };
   }
 
@@ -98,7 +93,7 @@ export async function matchExerciseCandidate(
   try {
     const [rows] = await db.query<RowDataPacket[]>(
       `SELECT
-        public_id, name, normalized_name, muscle_group_primary, equipment
+        public_id, name, normalized_name, muscle_group_primary, equipment, movement_pattern
        FROM exercises
        WHERE status = 'PUBLISHED'
          AND deleted_at IS NULL
@@ -106,65 +101,75 @@ export async function matchExerciseCandidate(
       [consultancyId]
     );
 
-    const exactMatches: MatchedExerciseCandidate[] = [];
-    const partialMatches: MatchedExerciseCandidate[] = [];
+    const availableItems: ExerciseCandidateDbItem[] = rows.map((r) => ({
+      publicId: String(r.public_id),
+      name: String(r.name),
+      normalizedName: r.normalized_name ? String(r.normalized_name) : null,
+      muscleGroupPrimary: r.muscle_group_primary ? String(r.muscle_group_primary) : null,
+      equipment: r.equipment ? String(r.equipment) : null,
+      movementPattern: r.movement_pattern ? String(r.movement_pattern) : null,
+    }));
 
-    for (const r of rows) {
-      const candidateObj: MatchedExerciseCandidate = {
-        exercisePublicId: String(r.public_id),
-        name: String(r.name),
-        muscleGroupPrimary: String(r.muscle_group_primary),
-        equipment: String(r.equipment),
-      };
+    // Layers 1 to 6: Deterministic canonical resolution
+    const deterministicResult = resolveCanonicalExercise(trimmed, availableItems);
 
-      const normDb = normalize(String(r.name));
-
-      if (normDb === normCandidate) {
-        exactMatches.push(candidateObj);
-      } else if (normDb.includes(normCandidate) || normCandidate.includes(normDb)) {
-        partialMatches.push(candidateObj);
-      }
-    }
-
-    // 1. Exact match takes precedence
-    if (exactMatches.length === 1) {
+    if (deterministicResult.status === "MATCHED" && deterministicResult.matched) {
       return {
         status: "MATCHED",
-        matched: exactMatches[0],
-        candidates: exactMatches,
+        matched: {
+          exercisePublicId: deterministicResult.matched.publicId,
+          name: deterministicResult.matched.name,
+          muscleGroupPrimary: deterministicResult.matched.muscleGroupPrimary || "",
+          equipment: deterministicResult.matched.equipment || "",
+        },
+        candidates: deterministicResult.candidates.map((c) => ({
+          exercisePublicId: c.publicId,
+          name: c.name,
+          muscleGroupPrimary: c.muscleGroupPrimary || "",
+          equipment: c.equipment || "",
+        })),
       };
     }
 
-    if (exactMatches.length > 1) {
-      return {
-        status: "AMBIGUOUS",
-        candidates: exactMatches,
-      };
-    }
+    // Layer 7: OpenAI Semantic Resolution if AMBIGUOUS and candidate list is manageable (2 to 6 candidates)
+    if (
+      deterministicResult.status === "AMBIGUOUS" &&
+      deterministicResult.candidates.length >= 2 &&
+      deterministicResult.candidates.length <= 6
+    ) {
+      const aiResult = await resolveSemanticExerciseWithAi({
+        rawCandidateText: trimmed,
+        shortlistCandidates: deterministicResult.candidates,
+      });
 
-    // 2. Partial matches
-    if (partialMatches.length === 1) {
-      // If partial match is distinct and high confidence
-      const p = partialMatches[0];
-      const pNorm = normalize(p.name);
-      // If candidate is a prefix like "supino reto" and match is "supino reto com barra"
-      if (pNorm.startsWith(normCandidate) || normCandidate.startsWith(pNorm)) {
+      if (aiResult.status === "MATCHED" && aiResult.matched) {
         return {
           status: "MATCHED",
-          matched: p,
-          candidates: partialMatches,
+          matched: {
+            exercisePublicId: aiResult.matched.publicId,
+            name: aiResult.matched.name,
+            muscleGroupPrimary: aiResult.matched.muscleGroupPrimary || "",
+            equipment: aiResult.matched.equipment || "",
+          },
+          candidates: deterministicResult.candidates.map((c) => ({
+            exercisePublicId: c.publicId,
+            name: c.name,
+            muscleGroupPrimary: c.muscleGroupPrimary || "",
+            equipment: c.equipment || "",
+          })),
         };
       }
-      return {
-        status: "AMBIGUOUS",
-        candidates: partialMatches,
-      };
     }
 
-    if (partialMatches.length > 1) {
+    if (deterministicResult.status === "AMBIGUOUS") {
       return {
         status: "AMBIGUOUS",
-        candidates: partialMatches.slice(0, 10),
+        candidates: deterministicResult.candidates.map((c) => ({
+          exercisePublicId: c.publicId,
+          name: c.name,
+          muscleGroupPrimary: c.muscleGroupPrimary || "",
+          equipment: c.equipment || "",
+        })),
       };
     }
 
@@ -247,10 +252,10 @@ export async function processTrainingAiImport(params: {
   const sourceType = input.filename.endsWith(".pdf")
     ? "PDF"
     : input.filename.endsWith(".docx")
-    ? "DOCX"
-    : input.filename.endsWith(".md")
-    ? "MARKDOWN"
-    : "TEXT";
+      ? "DOCX"
+      : input.filename.endsWith(".md")
+        ? "MARKDOWN"
+        : "TEXT";
 
   const dbJob = await getDbConnection();
   try {
@@ -621,6 +626,25 @@ export async function confirmTrainingAiImport(params: {
           ]
         );
         const itemId = iRes.insertId;
+
+        // Pin approved exercise media into workout_block_item_media so preview/videos are immediately available
+        if (exerciseId) {
+          const [mediaRows] = await db.query<RowDataPacket[]>(
+            `SELECT em.media_asset_id, em.role, em.sort_order
+             FROM exercise_media em
+             INNER JOIN media_assets ma ON ma.id = em.media_asset_id
+             WHERE em.exercise_id = ? AND ma.deleted_at IS NULL
+             ORDER BY em.sort_order ASC`,
+            [exerciseId]
+          );
+          for (const m of mediaRows) {
+            await db.query(
+              `INSERT INTO workout_block_item_media (block_item_id, media_asset_id, role, sort_order)
+               VALUES (?, ?, ?, ?)`,
+              [itemId, m.media_asset_id, m.role, m.sort_order]
+            );
+          }
+        }
 
         // Insert sets
         const numSets = Math.max(1, ex.sets || 3);

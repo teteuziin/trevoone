@@ -7,6 +7,7 @@ import type {
   ResolvedTrainingCategory,
   ResolvedTrainingExerciseItem,
 } from "@/lib/training-v2/training-ai-importer";
+import { formatDurationToMinutes } from "@/lib/training-v2/reps-normalizer";
 
 interface Props {
   consultancySlug: string;
@@ -492,7 +493,7 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
                                   {ex.exerciseNameCandidate}
                                 </div>
                                 <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                                  {ex.sets || 3} séries × {ex.reps ? (ex.repsMax && ex.repsMax > ex.reps ? `${ex.reps}–${ex.repsMax} reps` : `${ex.reps} reps`) : ex.durationSeconds ? `${ex.durationSeconds}s` : "livre"}
+                                  {ex.sets || 3} séries × {ex.reps ? (ex.repsMax && ex.repsMax > ex.reps ? `${ex.reps}–${ex.repsMax} reps` : `${ex.reps} reps`) : ex.durationSeconds ? formatDurationToMinutes(ex.durationSeconds) : "livre"}
                                   {ex.load ? ` • Carga: ${ex.load} kg` : ""}
                                   {ex.restSeconds ? ` • Descanso: ${ex.restSeconds}s` : ""}
                                 </div>

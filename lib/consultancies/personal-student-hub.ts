@@ -1,4 +1,4 @@
-﻿import { getDbConnection } from "@/lib/db/mysql";
+import { getDbConnection } from "@/lib/db/mysql";
 import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { COMPLETE_ANAMNESIS_FORM_V1, PHYSICAL_ASSESSMENT_FORM_V1 } from "./intake-schemas";
 
@@ -102,6 +102,11 @@ export interface CompletedWorkoutSession {
   startedAt: string;
   completedAt: string;
   completedSetsCount: number;
+  substitutions?: Array<{
+    originalExerciseName: string;
+    performedExerciseName: string;
+    reason: string;
+  }>;
 }
 
 export interface PhysicalMeasurement {
@@ -612,13 +617,53 @@ export async function getPersonalStudentDetail(params: {
       [consultancyId, membershipId]
     );
 
-    const completedSessions: CompletedWorkoutSession[] = (completedRows || []).map((r) => ({
-      publicId: String(r.public_id),
-      workoutTitle: String(r.workout_title),
-      startedAt: new Date(r.started_at).toISOString(),
-      completedAt: new Date(r.completed_at).toISOString(),
-      completedSetsCount: Number(r.completed_sets_count || 0),
-    }));
+    const sessionSubstitutionsMap = new Map<string, Array<{ originalExerciseName: string; performedExerciseName: string; reason: string }>>();
+    if (completedRows && completedRows.length > 0) {
+      try {
+        const sessionPublicIds = completedRows.map((r) => String(r.public_id));
+        const [subRows] = await connection.query<RowDataPacket[]>(
+          `SELECT
+            wes.public_id AS session_public_id,
+            wees.reason,
+            orig_ex.name AS original_exercise_name,
+            perf_ex.name AS performed_exercise_name
+           FROM workout_execution_exercise_substitutions wees
+           INNER JOIN workout_execution_sessions wes ON wes.id = wees.execution_session_id
+           INNER JOIN exercises orig_ex ON orig_ex.id = wees.original_exercise_id
+           INNER JOIN exercises perf_ex ON perf_ex.id = wees.performed_exercise_id
+           WHERE wes.public_id IN (?)
+           ORDER BY wees.sequence_number ASC;`,
+          [sessionPublicIds]
+        );
+
+        for (const sub of subRows) {
+          const sPubId = String(sub.session_public_id);
+          if (!sessionSubstitutionsMap.has(sPubId)) {
+            sessionSubstitutionsMap.set(sPubId, []);
+          }
+          sessionSubstitutionsMap.get(sPubId)!.push({
+            originalExerciseName: String(sub.original_exercise_name),
+            performedExerciseName: String(sub.performed_exercise_name),
+            reason: String(sub.reason),
+          });
+        }
+      } catch {
+        // Table or records safe fallback
+      }
+    }
+
+    const completedSessions: CompletedWorkoutSession[] = (completedRows || []).map((r) => {
+      const pubId = String(r.public_id);
+      const subs = sessionSubstitutionsMap.get(pubId);
+      return {
+        publicId: pubId,
+        workoutTitle: String(r.workout_title),
+        startedAt: new Date(r.started_at).toISOString(),
+        completedAt: new Date(r.completed_at).toISOString(),
+        completedSetsCount: Number(r.completed_sets_count || 0),
+        substitutions: subs && subs.length > 0 ? subs : undefined,
+      };
+    });
 
     // 8. Build Anamnesis Sections (clean, categorized)
     const anamnesis: AnamnesisSection[] = [];

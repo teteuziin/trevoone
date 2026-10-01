@@ -56,11 +56,12 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
     try {
       // 1. Check if workoutPublicId is an assignmentPublicId
       const [aRows] = await conn.query<RowDataPacket[]>(
-        `SELECT wa.id, wa.public_id, wa.student_membership_id, wa.workout_id,
+        `SELECT wa.id, wa.public_id, wa.student_membership_id, wv.workout_id,
                 u.full_name AS student_name, c.name AS consultancy_name,
                 COALESCE(c.timezone, 'America/Sao_Paulo') AS timezone,
                 DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on
          FROM workout_assignments wa
+         INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
          INNER JOIN consultancies c ON c.id = wa.consultancy_id
          INNER JOIN consultancy_members cm ON cm.id = wa.student_membership_id
          INNER JOIN users u ON u.id = cm.user_id
@@ -150,7 +151,8 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
         try {
           const [checkRows] = await conn2.query<RowDataPacket[]>(
             `SELECT wa.public_id FROM workout_assignments wa
-             WHERE wa.workout_id = ? AND wa.student_membership_id = ? AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL
+             INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+             WHERE wv.workout_id = ? AND wa.student_membership_id = ? AND wa.status = 'ACTIVE' AND wa.deleted_at IS NULL
              ORDER BY wa.id DESC LIMIT 1`,
             [workoutRow.id, access.membershipId]
           );

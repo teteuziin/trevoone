@@ -11,18 +11,23 @@ import type {
   WorkoutBlockItemDto,
   WorkoutItemSetDto,
   WorkoutSetType,
+  BlockItemMediaDto,
 } from "@/lib/training-v2/types";
 import {
   startOrResumeWorkoutExecutionAction,
   completeWorkoutExecutionSetAction,
   completeWorkoutExecutionAction,
+  getWorkoutExecutionSwapStatusAction,
 } from "@/app/consultoria/[slug]/treinos/actions";
+import { StudentExerciseSwapModal } from "./student-exercise-swap-modal";
+import type { ExerciseSwapReason } from "@/lib/training-v2/exercise-substitution-types";
 import {
   RestTimer,
   getInitialActiveRest,
   markRestTimerSkipped,
   type ActiveRestState,
 } from "./rest-timer";
+import { formatDurationToMinutes } from "@/lib/training-v2/reps-normalizer";
 
 function Check({ className = "w-3 h-3" }: { className?: string }) {
   return (
@@ -132,6 +137,9 @@ function formatReps(set: WorkoutItemSetDto): string {
   if (set.targetReps != null) {
     return `${set.targetReps} reps`;
   }
+  if (set.targetDurationSeconds != null && set.targetDurationSeconds > 0) {
+    return formatDurationToMinutes(set.targetDurationSeconds);
+  }
   return "Reps livre";
 }
 
@@ -233,7 +241,7 @@ function formatCompactPrescriptionSummary(sets: WorkoutItemSetDto[]): string {
   const count = sets.length;
   const s0 = sets[0];
   const allSameReps = sets.every(
-    (s) => s.targetReps === s0.targetReps && s.targetRepsMax === s0.targetRepsMax
+    (s) => s.targetReps === s0.targetReps && s.targetRepsMax === s0.targetRepsMax && s.targetDurationSeconds === s0.targetDurationSeconds
   );
   const allSameLoad = sets.every((s) => s.targetLoadKg === s0.targetLoadKg);
   const allSameRest = sets.every((s) => s.targetRestSeconds === s0.targetRestSeconds);
@@ -245,6 +253,8 @@ function formatCompactPrescriptionSummary(sets: WorkoutItemSetDto[]): string {
       parts.push(`${count} × ${s0.targetReps}–${s0.targetRepsMax} reps`);
     } else if (s0.targetReps != null) {
       parts.push(`${count} × ${s0.targetReps} reps`);
+    } else if (s0.targetDurationSeconds != null && s0.targetDurationSeconds > 0) {
+      parts.push(`${count} × ${formatDurationToMinutes(s0.targetDurationSeconds)}`);
     } else {
       parts.push(`${count} ${count === 1 ? "série" : "séries"}`);
     }
@@ -443,6 +453,70 @@ export function StudentWorkoutRenderer({
       },
     }));
   };
+
+  const [swapStatus, setSwapStatus] = useState<{
+    confirmedSwapsCount: number;
+    remainingSwaps: number;
+    activeSubstitutions: Record<
+      string,
+      {
+        performedExercisePublicId: string;
+        performedExerciseName: string;
+        performedMuscleGroup?: string;
+        reason: ExerciseSwapReason;
+        reasonLabel: string;
+        pinnedMedia?: BlockItemMediaDto[];
+      }
+    >;
+  }>({
+    confirmedSwapsCount: 0,
+    remainingSwaps: 3,
+    activeSubstitutions: {},
+  });
+  const [swapModalItem, setSwapModalItem] = useState<WorkoutBlockItemDto | null>(null);
+
+  useEffect(() => {
+    if (!activeSession || activeSession.status !== "IN_PROGRESS" || !consultancySlug) {
+      return;
+    }
+    let isCurrent = true;
+    getWorkoutExecutionSwapStatusAction(consultancySlug, activeSession.publicId)
+      .then((res) => {
+        if (isCurrent && res.success && res.status) {
+          const subsMap: Record<
+            string,
+            {
+              performedExercisePublicId: string;
+              performedExerciseName: string;
+              performedMuscleGroup?: string;
+              reason: ExerciseSwapReason;
+              reasonLabel: string;
+              pinnedMedia?: BlockItemMediaDto[];
+            }
+          > = {};
+
+          for (const s of res.status.substitutions) {
+            subsMap[s.blockItemPublicId] = {
+              performedExercisePublicId: s.performedExercisePublicId,
+              performedExerciseName: s.performedExerciseName,
+              reason: s.reason,
+              reasonLabel: s.reasonLabel,
+              pinnedMedia: s.pinnedMedia,
+            };
+          }
+
+          setSwapStatus({
+            confirmedSwapsCount: res.status.totalConfirmedSwaps,
+            remainingSwaps: res.status.remainingSwaps,
+            activeSubstitutions: subsMap,
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeSession, consultancySlug]);
 
   const isMounted = useSyncExternalStore(
     () => () => { },
@@ -1068,6 +1142,9 @@ export function StudentWorkoutRenderer({
             onToggleExpandSet={handleToggleExpandSet}
             sessionDrafts={sessionDrafts}
             onDraftChange={handleDraftChange}
+            activeSubstitutions={swapStatus.activeSubstitutions}
+            remainingSwaps={swapStatus.remainingSwaps}
+            onOpenSwapModal={(item) => setSwapModalItem(item)}
           />
         ))}
 
@@ -1153,6 +1230,39 @@ export function StudentWorkoutRenderer({
         )}
       </div>
 
+      {/* Student Exercise Swap Modal */}
+      {swapModalItem && activeSession && consultancySlug && (
+        <StudentExerciseSwapModal
+          isOpen={Boolean(swapModalItem)}
+          onClose={() => setSwapModalItem(null)}
+          consultancySlug={consultancySlug}
+          sessionPublicId={activeSession.publicId}
+          item={swapModalItem}
+          currentExerciseName={
+            swapStatus.activeSubstitutions[swapModalItem.publicId]?.performedExerciseName ||
+            swapModalItem.exerciseNameSnapshot
+          }
+          remainingSwaps={swapStatus.remainingSwaps}
+          onSwapConfirmed={(data) => {
+            setSwapStatus((prev) => ({
+              confirmedSwapsCount: 3 - data.remainingSwaps,
+              remainingSwaps: data.remainingSwaps,
+              activeSubstitutions: {
+                ...prev.activeSubstitutions,
+                [swapModalItem.publicId]: {
+                  performedExercisePublicId: data.performedExercisePublicId,
+                  performedExerciseName: data.performedExerciseName,
+                  reason: data.reason,
+                  reasonLabel: data.reasonLabel,
+                  pinnedMedia: data.pinnedMedia,
+                },
+              },
+            }));
+            setSwapModalItem(null);
+          }}
+        />
+      )}
+
       {/* Execution History */}
       <WorkoutExecutionHistorySection history={history} />
     </div>
@@ -1172,6 +1282,9 @@ function BlockCard({
   onToggleExpandSet,
   sessionDrafts,
   onDraftChange,
+  activeSubstitutions,
+  remainingSwaps,
+  onOpenSwapModal,
 }: {
   block: WorkoutBlockDto;
   blockIndex: number;
@@ -1188,6 +1301,19 @@ function BlockCard({
   onToggleExpandSet?: (setKey: string, expanded: boolean) => void;
   sessionDrafts?: Record<string, { reps: string; load: string }>;
   onDraftChange?: (setKey: string, draft: { reps: string; load: string }) => void;
+  activeSubstitutions?: Record<
+    string,
+    {
+      performedExercisePublicId: string;
+      performedExerciseName: string;
+      performedMuscleGroup?: string;
+      reason: ExerciseSwapReason;
+      reasonLabel: string;
+      pinnedMedia?: BlockItemMediaDto[];
+    }
+  >;
+  remainingSwaps?: number;
+  onOpenSwapModal?: (item: WorkoutBlockItemDto) => void;
 }) {
   const methodLabel = METHOD_LABELS[block.blockType] || block.blockType;
   const items = block.items || [];
@@ -1269,6 +1395,9 @@ function BlockCard({
             onToggleExpandSet={onToggleExpandSet}
             sessionDrafts={sessionDrafts}
             onDraftChange={onDraftChange}
+            activeSubstitutions={activeSubstitutions}
+            remainingSwaps={remainingSwaps}
+            onOpenSwapModal={onOpenSwapModal}
           />
         ))}
       </div>
@@ -1291,6 +1420,9 @@ function ItemCard({
   onToggleExpandSet,
   sessionDrafts,
   onDraftChange,
+  activeSubstitutions,
+  remainingSwaps,
+  onOpenSwapModal,
 }: {
   item: WorkoutBlockItemDto;
   blockType: string;
@@ -1309,19 +1441,43 @@ function ItemCard({
   onToggleExpandSet?: (setKey: string, expanded: boolean) => void;
   sessionDrafts?: Record<string, { reps: string; load: string }>;
   onDraftChange?: (setKey: string, draft: { reps: string; load: string }) => void;
+  activeSubstitutions?: Record<
+    string,
+    {
+      performedExercisePublicId: string;
+      performedExerciseName: string;
+      performedMuscleGroup?: string;
+      reason: ExerciseSwapReason;
+      reasonLabel: string;
+      pinnedMedia?: BlockItemMediaDto[];
+    }
+  >;
+  remainingSwaps?: number;
+  onOpenSwapModal?: (item: WorkoutBlockItemDto) => void;
 }) {
   const isDropSet = blockType === "DROP_SET";
   const isRestPause = blockType === "REST_PAUSE";
   const isCardio = blockType === "CARDIO";
   const isWarmup = blockType === "WARMUP";
 
-  const pinnedMedia = item.pinnedMedia || [];
+  const substitution = activeSubstitutions?.[item.publicId];
+  const isSubstituted = Boolean(substitution);
+  const displayName = substitution ? substitution.performedExerciseName : item.exerciseNameSnapshot;
+  const displayMuscleGroup = substitution?.performedMuscleGroup || item.muscleGroupSnapshot;
+  const pinnedMedia = (substitution?.pinnedMedia && substitution.pinnedMedia.length > 0)
+    ? substitution.pinnedMedia
+    : (item.pinnedMedia || []);
   const isCustom = item.exercisePublicId === null;
+
+  const itemSets = activeSession?.sets?.filter(
+    (s) => (s.blockItemPublicId ?? "") === item.publicId
+  ) || [];
+  const hasStartedSets = itemSets.some((s) => s.completedAt !== null);
 
   return (
     <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-subtle)]/50 border border-[var(--border-subtle)] space-y-4">
       {/* SECTION 1: EXERCISE IDENTITY */}
-      <div className="space-y-1">
+      <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             {totalItems > 1 && (
@@ -1330,36 +1486,118 @@ function ItemCard({
               </span>
             )}
             <h3 className="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">
-              {item.exerciseNameSnapshot}
+              {displayName}
             </h3>
-            {isCustom && (
+            {isSubstituted && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">
+                <Repeat className="w-3 h-3" />
+                Substituído nesta sessão
+              </span>
+            )}
+            {isCustom && !isSubstituted && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400">
                 Personalizado
               </span>
             )}
           </div>
 
-          {item.muscleGroupSnapshot && (
+          {displayMuscleGroup && (
             <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--foreground-muted)]">
-              {item.muscleGroupSnapshot}
+              {displayMuscleGroup}
             </span>
           )}
         </div>
+
+        {isSubstituted && (
+          <div className="p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs space-y-1">
+            <div className="text-[var(--foreground-muted)] text-[11px]">
+              <span className="font-semibold text-[var(--foreground)]">Prescrito originalmente:</span>{" "}
+              <span className="line-through">{item.exerciseNameSnapshot}</span>
+            </div>
+            <div className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
+              <span>Realizado:</span> {displayName}
+            </div>
+            <div className="text-[10px] text-[var(--foreground-muted)] flex flex-wrap gap-2 pt-0.5">
+              <span><strong className="text-[var(--foreground)]">Motivo:</strong> {substitution?.reasonLabel}</span>
+              <span>•</span>
+              <span><strong className="text-[var(--foreground)]">Origem:</strong> Sugestão inteligente TREVO ONE</span>
+            </div>
+          </div>
+        )}
 
         {item.notes && (
           <p className="text-xs text-[var(--foreground-muted)] italic">
             Obs: {item.notes}
           </p>
         )}
+
+        {/* SWAP EXERCISE ACTION AREA */}
+        {activeSession && activeSession.status === "IN_PROGRESS" && !isCustom && (
+          <div className="pt-1">
+            {hasStartedSets ? (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-[11px] text-[var(--foreground-muted)]">
+                <span className="italic">Este exercício já foi iniciado. Finalize ou pule antes de substituir.</span>
+                {remainingSwaps !== undefined && (
+                  <span className="text-[10px] font-medium bg-[var(--surface-subtle)] px-2 py-0.5 rounded border border-[var(--border-subtle)] shrink-0">
+                    Trocas disponíveis: {remainingSwaps}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenSwapModal?.(item)}
+                  disabled={remainingSwaps === 0}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] hover:border-emerald-500/30 text-[var(--foreground)] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                  title={remainingSwaps === 0 ? "Você já utilizou as 3 substituições disponíveis para este treino." : "Substituir exercício por indisponibilidade"}
+                >
+                  <Repeat className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{isSubstituted ? "Trocar novamente" : "Trocar exercício"}</span>
+                </button>
+
+                {remainingSwaps !== undefined && (
+                  <span className="text-[11px] text-[var(--foreground-muted)]">
+                    Trocas disponíveis: <strong className="text-[var(--foreground)]">{remainingSwaps}</strong>
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* SECTION 2: VÍDEO / MÍDIA */}
-      {pinnedMedia.length > 0 && (() => {
+      {(pinnedMedia.length > 0 || (item.customVideoUrl && item.customVideoUrl.trim().length > 0)) && (() => {
+        if (pinnedMedia.length === 0 && item.customVideoUrl) {
+          const url = item.customVideoUrl.trim();
+          return (
+            <div className="space-y-2">
+              <div className="rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-center p-1 sm:p-2 shadow-xs">
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  controls
+                  preload="metadata"
+                  src={url}
+                  className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block bg-black"
+                />
+              </div>
+            </div>
+          );
+        }
+
         // Priority: 1. GIF animado, 2. MP4 de execução, 3. Frame estático/imagem fallback
         const executionMedia = pinnedMedia.find((m) => m.role === "EXECUTION_VIDEO");
         const fallbackMedia = pinnedMedia.find(
           (m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER" || m.role === "ALTERNATE_IMAGE"
         );
+        const posterMedia = pinnedMedia.find(
+          (m) => m.role === "VIDEO_POSTER" || m.role === "START_IMAGE"
+        );
+        const posterUrl = posterMedia ? `/api/training-v2/media/${posterMedia.mediaAsset.publicId}` : undefined;
         const displayMediaList = executionMedia ? [executionMedia] : fallbackMedia ? [fallbackMedia] : [pinnedMedia[0]];
 
         return (
@@ -1381,6 +1619,7 @@ function ItemCard({
                       muted
                       playsInline
                       controls
+                      poster={posterUrl}
                       preload="metadata"
                       src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
                       className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block bg-black"
@@ -1418,6 +1657,7 @@ function ItemCard({
             onCompleteSet={onCompleteSet}
             activeRest={activeRest}
             onSkipRest={onSkipRest}
+            isSubstituted={isSubstituted}
           />
         ) : isRestPause ? (
           <RestPausePrescription
@@ -1428,6 +1668,7 @@ function ItemCard({
             onCompleteSet={onCompleteSet}
             activeRest={activeRest}
             onSkipRest={onSkipRest}
+            isSubstituted={isSubstituted}
           />
         ) : (
           <StandardSetsPrescription
@@ -1443,6 +1684,7 @@ function ItemCard({
             onToggleExpandSet={onToggleExpandSet}
             sessionDrafts={sessionDrafts}
             onDraftChange={onDraftChange}
+            isSubstituted={isSubstituted}
           />
         )}
       </div>
@@ -1499,6 +1741,7 @@ function SetCheckoffControl({
   isSessionActive,
   draft,
   onDraftChange,
+  isSubstituted,
 }: {
   executionSet?: WorkoutExecutionSetDto | null;
   setDto?: WorkoutItemSetDto | null;
@@ -1510,6 +1753,7 @@ function SetCheckoffControl({
   isSessionActive?: boolean;
   draft?: { reps: string; load: string };
   onDraftChange?: (draft: { reps: string; load: string }) => void;
+  isSubstituted?: boolean;
 }) {
   if (!executionSet) return null;
 
@@ -1549,6 +1793,7 @@ function SetCheckoffControl({
       onCompleteSet={onCompleteSet}
       draft={draft}
       onDraftChange={onDraftChange}
+      isSubstituted={isSubstituted}
     />
   );
 }
@@ -1560,6 +1805,7 @@ function PendingSetControl({
   onCompleteSet,
   draft,
   onDraftChange,
+  isSubstituted,
 }: {
   executionSet: WorkoutExecutionSetDto;
   setDto?: WorkoutItemSetDto | null;
@@ -1570,6 +1816,7 @@ function PendingSetControl({
   ) => Promise<void>;
   draft?: { reps: string; load: string };
   onDraftChange?: (draft: { reps: string; load: string }) => void;
+  isSubstituted?: boolean;
 }) {
   const [repsInput, setRepsInput] = useState<string>(() =>
     draft?.reps !== undefined
@@ -1579,6 +1826,8 @@ function PendingSetControl({
   const [loadInput, setLoadInput] = useState<string>(() =>
     draft?.load !== undefined
       ? draft.load
+      : isSubstituted
+      ? ""
       : getInitialLoad(setDto?.targetLoadKg, executionSet.prescribedLoadKg)
   );
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -1751,6 +2000,7 @@ function StandardSetsPrescription({
   onToggleExpandSet,
   sessionDrafts = {},
   onDraftChange,
+  isSubstituted,
 }: {
   sets: WorkoutItemSetDto[];
   item?: WorkoutBlockItemDto;
@@ -1767,6 +2017,7 @@ function StandardSetsPrescription({
   onToggleExpandSet?: (setKey: string, expanded: boolean) => void;
   sessionDrafts?: Record<string, { reps: string; load: string }>;
   onDraftChange?: (setKey: string, draft: { reps: string; load: string }) => void;
+  isSubstituted?: boolean;
 }) {
 
   if (!sets || sets.length === 0) {
@@ -1890,7 +2141,7 @@ function StandardSetsPrescription({
                   <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] text-right">
                     <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
                     <span className="font-semibold text-[var(--foreground)]">{reps}</span>
-                    {load != null && <span>· {load}</span>}
+                    {load != null && !isSubstituted && <span>· {load}</span>}
                     {rest != null && (
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
@@ -1908,6 +2159,7 @@ function StandardSetsPrescription({
                   isSessionActive={true}
                   draft={draft}
                   onDraftChange={(newDraft) => onDraftChange?.(setKey, newDraft)}
+                  isSubstituted={isSubstituted}
                 />
 
                 {setErr && (
@@ -1947,7 +2199,7 @@ function StandardSetsPrescription({
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                     <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
                       <span className="font-medium text-[var(--foreground)]">{reps}</span>
-                      {load != null && <span>· {load}</span>}
+                      {load != null && !isSubstituted && <span>· {load}</span>}
                       {rest != null && (
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
@@ -1990,7 +2242,7 @@ function StandardSetsPrescription({
                   <div className="flex items-center gap-2.5">
                     <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] text-right">
                       <span className="font-medium text-[var(--foreground)]">{reps}</span>
-                      {load != null && <span>· {load}</span>}
+                      {load != null && !isSubstituted && <span>· {load}</span>}
                       {rest != null && (
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
@@ -2017,6 +2269,7 @@ function StandardSetsPrescription({
                   isSessionActive={true}
                   draft={draft}
                   onDraftChange={(newDraft) => onDraftChange?.(setKey, newDraft)}
+                  isSubstituted={isSubstituted}
                 />
 
                 {setErr && (
@@ -2050,7 +2303,7 @@ function StandardSetsPrescription({
               <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] text-right">
                 <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
                 <span className="font-semibold text-[var(--foreground)]">{reps}</span>
-                {load != null && <span>· {load}</span>}
+                {load != null && !isSubstituted && <span>· {load}</span>}
                 {rest != null && (
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
@@ -2081,6 +2334,7 @@ function DropSetPrescription({
   onCompleteSet,
   activeRest,
   onSkipRest,
+  isSubstituted,
 }: {
   item: WorkoutBlockItemDto;
   activeSession?: WorkoutExecutionSessionDto | null;
@@ -2092,6 +2346,7 @@ function DropSetPrescription({
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
+  isSubstituted?: boolean;
 }) {
   const sets = item.sets || [];
   if (sets.length === 0) return null;
@@ -2116,7 +2371,7 @@ function DropSetPrescription({
               <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
               <span className="font-semibold text-[var(--foreground)]">
                 {formatReps(mainSet)}
-                {formatLoad(mainSet) && ` · ${formatLoad(mainSet)}`}
+                {formatLoad(mainSet) && !isSubstituted && ` · ${formatLoad(mainSet)}`}
               </span>
             </div>
           </div>
@@ -2126,6 +2381,7 @@ function DropSetPrescription({
             isLoading={loadingSetPublicId === mainExecutionSet?.publicId}
             onCompleteSet={onCompleteSet}
             isSessionActive={activeSession?.status === "IN_PROGRESS"}
+            isSubstituted={isSubstituted}
           />
         </div>
 
@@ -2158,7 +2414,7 @@ function DropSetPrescription({
                       <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
                       <span className="font-semibold text-[var(--foreground)]">
                         {formatReps(stage)}
-                        {formatLoad(stage) && ` · ${formatLoad(stage)}`}
+                        {formatLoad(stage) && !isSubstituted && ` · ${formatLoad(stage)}`}
                       </span>
                     </div>
                   </div>
@@ -2168,6 +2424,7 @@ function DropSetPrescription({
                     isLoading={loadingSetPublicId === stageExecutionSet?.publicId}
                     onCompleteSet={onCompleteSet}
                     isSessionActive={activeSession?.status === "IN_PROGRESS"}
+                    isSubstituted={isSubstituted}
                   />
                   {stageErr && (
                     <div className="text-right">
@@ -2205,6 +2462,7 @@ function RestPausePrescription({
   onCompleteSet,
   activeRest,
   onSkipRest,
+  isSubstituted,
 }: {
   item: WorkoutBlockItemDto;
   activeSession?: WorkoutExecutionSessionDto | null;
@@ -2216,6 +2474,7 @@ function RestPausePrescription({
   ) => Promise<void>;
   activeRest?: ActiveRestState | null;
   onSkipRest?: () => void;
+  isSubstituted?: boolean;
 }) {
   const sets = item.sets || [];
   if (sets.length === 0) return null;
@@ -2247,7 +2506,7 @@ function RestPausePrescription({
               <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
               <span className="font-semibold text-[var(--foreground)]">
                 {formatReps(mainSet)}
-                {formatLoad(mainSet) && ` · ${formatLoad(mainSet)}`}
+                {formatLoad(mainSet) && !isSubstituted && ` · ${formatLoad(mainSet)}`}
               </span>
             </div>
           </div>
@@ -2257,6 +2516,7 @@ function RestPausePrescription({
             isLoading={loadingSetPublicId === mainExecutionSet?.publicId}
             onCompleteSet={onCompleteSet}
             isSessionActive={activeSession?.status === "IN_PROGRESS"}
+            isSubstituted={isSubstituted}
           />
         </div>
 
@@ -2289,7 +2549,7 @@ function RestPausePrescription({
                       <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Prescrito:</span>
                       <span className="font-semibold text-[var(--foreground)]">
                         {formatReps(mini)}
-                        {formatLoad(mini) && ` · ${formatLoad(mini)}`}
+                        {formatLoad(mini) && !isSubstituted && ` · ${formatLoad(mini)}`}
                       </span>
                     </div>
                   </div>
@@ -2299,6 +2559,7 @@ function RestPausePrescription({
                     isLoading={loadingSetPublicId === miniExecutionSet?.publicId}
                     onCompleteSet={onCompleteSet}
                     isSessionActive={activeSession?.status === "IN_PROGRESS"}
+                    isSubstituted={isSubstituted}
                   />
                   {miniErr && (
                     <div className="text-right">
@@ -2576,37 +2837,76 @@ function HistorySessionCard({
 
       {isExpanded && (
         <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-4">
-          {exerciseGroups.map((group, gIdx) => (
-            <div key={gIdx} className="space-y-2">
-              <h4 className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
-                {group.exerciseName}
-              </h4>
-              <div className="space-y-2">
-                {group.sets.map((set) => {
-                  const prescribedText = formatPrescribedSet(set);
-                  const actualContent = formatActualSet(set);
+          {exerciseGroups.map((group, gIdx) => {
+            const firstSet = group.sets[0];
+            const isSubstituted = Boolean(firstSet?.isSubstituted);
+            const prescribedName = firstSet?.prescribedExerciseName || group.exerciseName;
+            const performedName = firstSet?.performedExerciseName || group.exerciseName;
+            const reasonCode = firstSet?.substitutionReason || "";
+            const reasonMap: Record<string, string> = {
+              MACHINE_OCCUPIED: "Máquina ocupada",
+              EQUIPMENT_BROKEN: "Equipamento quebrado",
+              EQUIPMENT_UNAVAILABLE: "Equipamento indisponível",
+              OTHER_OPERATIONAL: "Outro motivo operacional",
+            };
+            const reasonLabel = reasonMap[reasonCode] || reasonCode;
 
-                  return (
-                    <div
-                      key={set.publicId}
-                      className="p-3 rounded-xl bg-neutral-500/5 border border-neutral-500/10 text-xs space-y-1"
-                    >
-                      <div className="font-semibold text-[var(--foreground)]">
-                        Série {set.setNumber}
-                      </div>
-                      <div className="text-[var(--foreground-muted)]">
-                        <span className="font-medium">Prescrito:</span> {prescribedText}
-                      </div>
-                      <div>
-                        <span className="font-medium text-[var(--foreground-muted)]">Realizado: </span>
-                        {actualContent}
-                      </div>
+            return (
+              <div key={gIdx} className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <h4 className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
+                    {group.exerciseName}
+                  </h4>
+                  {isSubstituted && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                      Substituído no Treino
+                    </span>
+                  )}
+                </div>
+
+                {isSubstituted && (
+                  <div className="p-2.5 rounded-xl bg-blue-500/5 border border-blue-500/15 text-xs space-y-1">
+                    <div className="text-[var(--foreground-muted)] text-[11px]">
+                      <span className="font-semibold text-[var(--foreground)]">Prescrito:</span> {prescribedName}
                     </div>
-                  );
-                })}
+                    <div className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
+                      <span>Realizado:</span> {performedName}
+                    </div>
+                    <div className="text-[10px] text-[var(--foreground-muted)] flex flex-wrap gap-2 pt-0.5">
+                      <span><strong className="text-[var(--foreground)]">Motivo:</strong> {reasonLabel}</span>
+                      <span>•</span>
+                      <span><strong className="text-[var(--foreground)]">Origem:</strong> Sugestão inteligente TREVO ONE</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {group.sets.map((set) => {
+                    const prescribedText = formatPrescribedSet(set);
+                    const actualContent = formatActualSet(set);
+
+                    return (
+                      <div
+                        key={set.publicId}
+                        className="p-3 rounded-xl bg-neutral-500/5 border border-neutral-500/10 text-xs space-y-1"
+                      >
+                        <div className="font-semibold text-[var(--foreground)]">
+                          Série {set.setNumber}
+                        </div>
+                        <div className="text-[var(--foreground-muted)]">
+                          <span className="font-medium">Prescrito:</span> {prescribedText}
+                        </div>
+                        <div>
+                          <span className="font-medium text-[var(--foreground-muted)]">Realizado: </span>
+                          {actualContent}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -1040,6 +1040,7 @@ export async function listStudentWorkoutExecutionHistory(
       `SELECT
         wex.public_id,
         wex.execution_session_id,
+        wex.block_item_id,
         wex.set_number,
         wex.set_type,
         wex.prescribed_reps,
@@ -1058,6 +1059,56 @@ export async function listStudentWorkoutExecutionHistory(
       [sessionIds]
     );
 
+    // 4. Batch fetch substitutions for these sessions
+    const subsBySessionId = new Map<number, Array<{
+      blockItemId: number;
+      blockItemPublicId: string;
+      originalExerciseName: string;
+      performedExerciseName: string;
+      reason: string;
+      source: string;
+      sequenceNumber: number;
+    }>>();
+
+    try {
+      const [subRows] = await connection.query<RowDataPacket[]>(
+        `SELECT
+          wees.execution_session_id,
+          wees.block_item_id,
+          wees.reason,
+          wees.source,
+          wees.sequence_number,
+          wbi.public_id AS block_item_public_id,
+          orig_ex.name AS original_exercise_name,
+          perf_ex.name AS performed_exercise_name
+         FROM workout_execution_exercise_substitutions wees
+         INNER JOIN workout_block_items wbi ON wbi.id = wees.block_item_id
+         INNER JOIN exercises orig_ex ON orig_ex.id = wees.original_exercise_id
+         INNER JOIN exercises perf_ex ON perf_ex.id = wees.performed_exercise_id
+         WHERE wees.execution_session_id IN (?)
+         ORDER BY wees.execution_session_id ASC, wees.sequence_number ASC;`,
+        [sessionIds]
+      );
+
+      for (const sub of subRows) {
+        const sId = Number(sub.execution_session_id);
+        if (!subsBySessionId.has(sId)) {
+          subsBySessionId.set(sId, []);
+        }
+        subsBySessionId.get(sId)!.push({
+          blockItemId: Number(sub.block_item_id),
+          blockItemPublicId: String(sub.block_item_public_id),
+          originalExerciseName: String(sub.original_exercise_name),
+          performedExerciseName: String(sub.performed_exercise_name),
+          reason: String(sub.reason),
+          source: String(sub.source || "STUDENT_AI_SUGGESTION"),
+          sequenceNumber: Number(sub.sequence_number),
+        });
+      }
+    } catch {
+      // Table might not have records or safe fallback
+    }
+
     // Group sets by execution_session_id
     const setsBySessionId = new Map<number, WorkoutExecutionHistorySetDto[]>();
     for (const r of setRows) {
@@ -1065,10 +1116,23 @@ export async function listStudentWorkoutExecutionHistory(
       if (!setsBySessionId.has(sId)) {
         setsBySessionId.set(sId, []);
       }
+
+      // Check if this block item has a substitution in this session
+      const sessionSubs = subsBySessionId.get(sId) || [];
+      const matchingSub = sessionSubs.find((s) => s.blockItemId === Number(r.block_item_id));
+
+      const prescribedName = matchingSub ? matchingSub.originalExerciseName : String(r.exercise_name_snapshot || "Exercício");
+      const performedName = matchingSub ? matchingSub.performedExerciseName : prescribedName;
+
       setsBySessionId.get(sId)!.push({
         publicId: String(r.public_id),
         setNumber: Number(r.set_number),
-        exerciseName: String(r.exercise_name_snapshot || "Exercício"),
+        exerciseName: performedName,
+        prescribedExerciseName: matchingSub ? prescribedName : undefined,
+        performedExerciseName: matchingSub ? performedName : undefined,
+        isSubstituted: Boolean(matchingSub),
+        substitutionReason: matchingSub ? matchingSub.reason : undefined,
+        substitutionSource: matchingSub ? matchingSub.source : undefined,
         blockItemPublicId: r.block_item_public_id ? String(r.block_item_public_id) : undefined,
         setType: r.set_type as WorkoutSetType,
         prescribedReps: r.prescribed_reps != null ? Number(r.prescribed_reps) : null,
@@ -1081,12 +1145,25 @@ export async function listStudentWorkoutExecutionHistory(
       });
     }
 
-    return sessionRows.map((s) => ({
-      publicId: String(s.public_id),
-      startedAt: new Date(s.started_at),
-      completedAt: s.completed_at ? new Date(s.completed_at) : null,
-      sets: setsBySessionId.get(Number(s.id)) || [],
-    }));
+    return sessionRows.map((s) => {
+      const sId = Number(s.id);
+      const sessionSubs = (subsBySessionId.get(sId) || []).map((sub) => ({
+        blockItemPublicId: sub.blockItemPublicId,
+        originalExerciseName: sub.originalExerciseName,
+        performedExerciseName: sub.performedExerciseName,
+        reason: sub.reason,
+        source: sub.source,
+        sequenceNumber: sub.sequenceNumber,
+      }));
+
+      return {
+        publicId: String(s.public_id),
+        startedAt: new Date(s.started_at),
+        completedAt: s.completed_at ? new Date(s.completed_at) : null,
+        sets: setsBySessionId.get(sId) || [],
+        substitutions: sessionSubs.length > 0 ? sessionSubs : undefined,
+      };
+    });
   } finally {
     connection.release();
   }

@@ -83,6 +83,9 @@ export function formatActivityEventNaturalSentence(event: ActivityEventRow): {
     case "AI_NUTRITION_IMPORT_FAILED":
       verbPhrase = `tentou importar o arquivo "${meta.filename || "de nutrição"}" com IA, mas ocorreu uma falha`;
       break;
+    case "STUDENT_EXERCISE_SUBSTITUTED":
+      verbPhrase = `substituiu o exercício "${meta.prescribedExerciseName || "prescrito"}" por "${meta.performedExerciseName || "alternativa"}" no treino (Motivo: ${meta.reasonLabel || meta.reason || "operacional"}${meta.swapSequence ? ` · Troca #${meta.swapSequence}` : ""})`;
+      break;
 
     case "TRAINING_PLAN_CREATED":
       verbPhrase = `criou a ficha de treino "${meta.workoutTitle || meta.title || "Treino"}"${subject ? ` para ${subject}` : ""}`;

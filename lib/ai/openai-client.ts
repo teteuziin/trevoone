@@ -27,7 +27,8 @@ DIRETRIZES DE SEGURANÇA E EXTRAÇÃO RÍGIDA:
 6. Para treinos, a estrutura canônica é sempre FICHA -> CATEGORIA -> EXERCÍCIO. Mapeie seções, divisões (A, B, C, Peito, Pernas, etc.) para 'categories' e cada exercício dentro da respectiva categoria.
 7. Para planos alimentares, a estrutura canônica é sempre PLANO -> REFEIÇÃO -> ALIMENTO. Mapeie cada refeição para 'meals' e os alimentos consumidos para 'foods'.
 8. Se o documento indicar valores calóricos ou de macronutrientes alegados para um alimento, inclua-os no campo 'sourceDocumentClaim' apenas para fins de conferência visual.
-9. Para repetições de treino: se for um número exato (ex: 10), preencha 'reps': 10 e 'repsMax': null. Se for uma faixa de repetições (ex: 8-12, 8 a 12, 10-15), preencha 'reps' com o valor mínimo (ex: 8) e 'repsMax' com o valor máximo (ex: 12). Nunca escolha arbitrariamente um único número quando houver faixa.`;
+9. Para repetições de treino: se for um número exato (ex: 10), preencha 'reps': 10 e 'repsMax': null. Se for uma faixa de repetições (ex: 8-12, 8 a 12, 10-15), preencha 'reps' com o valor mínimo (ex: 8) e 'repsMax' com o valor máximo (ex: 12). Nunca escolha arbitrariamente um único número quando houver faixa.
+10. Para duração de exercícios (ex: prancha 1 min, esteira 20 minutos, 45 segundos): se a duração estiver em minutos, converta para segundos no campo 'durationSeconds' (ex: 1 min = 60, 2 minutos = 120, 20 minutos = 1200). Se estiver em segundos, preencha diretamente com os segundos.`;
 
 export interface DocumentInput {
   filename: string;

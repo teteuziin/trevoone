@@ -25,11 +25,24 @@ export async function GET(request: Request, context: RouteContext) {
     return new NextResponse("Acesso não autorizado a esta consultoria.", { status: 403 });
   }
 
-  const role = consultancyCtx.roles.includes("CONSULTANCY_ADMIN")
-    ? "CONSULTANCY_ADMIN"
-    : consultancyCtx.roles.includes("NUTRITIONIST")
-    ? "NUTRITIONIST"
-    : "PERSONAL";
+  const { searchParams } = new URL(request.url);
+  const requestedRole = searchParams.get("role")?.toUpperCase();
+
+  let role: string;
+  if (
+    requestedRole &&
+    ((consultancyCtx.roles as readonly string[]).includes(requestedRole) || consultancyCtx.roles.includes("CONSULTANCY_ADMIN"))
+  ) {
+    role = requestedRole;
+  } else if (consultancyCtx.roles.includes("NUTRITIONIST") && !consultancyCtx.roles.includes("PERSONAL")) {
+    role = "NUTRITIONIST";
+  } else if (consultancyCtx.roles.includes("PERSONAL")) {
+    role = "PERSONAL";
+  } else if (consultancyCtx.roles.includes("CONSULTANCY_ADMIN")) {
+    role = "CONSULTANCY_ADMIN";
+  } else {
+    role = consultancyCtx.roles[0] || "STUDENT";
+  }
 
   const quotaInfo = await getMemberEffectiveAiQuota({
     consultancyId: consultancyCtx.consultancyId,
@@ -41,5 +54,10 @@ export async function GET(request: Request, context: RouteContext) {
   return NextResponse.json({
     success: true,
     quota: quotaInfo,
+    effectiveDailyLimit: quotaInfo.memberLimit,
+    memberUsedToday: quotaInfo.memberUsedToday,
+    consultancyUsedToday: quotaInfo.consultancyUsedToday,
+    effectiveDailyRemaining: quotaInfo.effectiveRemaining,
+    canImport: quotaInfo.canImport,
   });
 }

@@ -7,6 +7,7 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import type { WorkoutItemSetDto } from "./types";
+import { formatDurationToMinutes } from "./reps-normalizer";
 
 const styles = StyleSheet.create({
   page: {
@@ -278,7 +279,7 @@ export function formatExerciseSetsSummary(sets: WorkoutItemSetDto[]): {
       : `${firstSet.targetReps}`;
     parts.push(`${numSets} × ${repsStr}`);
   } else if (allSameReps && firstSet.targetDurationSeconds) {
-    parts.push(`${numSets} × ${firstSet.targetDurationSeconds}s`);
+    parts.push(`${numSets} × ${formatDurationToMinutes(firstSet.targetDurationSeconds)}`);
   } else {
     parts.push(`${numSets} séries`);
   }

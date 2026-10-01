@@ -875,7 +875,7 @@ export function PersonalStudentDetailView({
                         key={session.publicId}
                         className="py-2.5 flex items-center justify-between text-xs gap-3"
                       >
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="font-bold text-[var(--text-primary)] truncate">
                             {session.workoutTitle}
                           </p>
@@ -883,6 +883,31 @@ export function PersonalStudentDetailView({
                             {new Date(session.completedAt).toLocaleDateString("pt-BR")} às{" "}
                             {new Date(session.completedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                           </p>
+                          {session.substitutions && session.substitutions.length > 0 && (
+                            <div className="mt-1.5 space-y-1">
+                              {session.substitutions.map((sub, sIdx) => {
+                                const reasonMap: Record<string, string> = {
+                                  MACHINE_OCCUPIED: "Máquina ocupada",
+                                  EQUIPMENT_BROKEN: "Equipamento quebrado",
+                                  EQUIPMENT_UNAVAILABLE: "Equipamento indisponível",
+                                  OTHER_OPERATIONAL: "Outro motivo operacional",
+                                };
+                                return (
+                                  <div
+                                    key={sIdx}
+                                    className="p-1.5 rounded-lg bg-blue-500/5 border border-blue-500/15 text-[11px] text-blue-600 dark:text-blue-400 flex flex-wrap items-center gap-1.5"
+                                  >
+                                    <span className="font-semibold">{sub.originalExerciseName}</span>
+                                    <span className="text-[var(--text-muted)]">→</span>
+                                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{sub.performedExerciseName}</span>
+                                    <span className="text-[10px] text-[var(--text-muted)] font-normal">
+                                      (Motivo: {reasonMap[sub.reason] || sub.reason})
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                         <Badge variant="success" size="sm" className="shrink-0">
                           {session.completedSetsCount} séries concluídas

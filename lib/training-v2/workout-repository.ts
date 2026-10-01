@@ -328,6 +328,49 @@ export async function getWorkoutVersionTree(
         itemIds
       );
       mRows = media;
+
+      // Authoritative fallback: for any items with an exercise_id that have no pinned media,
+      // fall back to the exercise's approved media so previews never disappear in draft, student view, or preview mode
+      const itemsWithoutMedia = iRows.filter(
+        (i) => i.exercise_id && !mRows.some((m) => m.block_item_id === i.id)
+      );
+      if (itemsWithoutMedia.length > 0) {
+        const uniqueExerciseIds = Array.from(new Set(itemsWithoutMedia.map((i) => i.exercise_id)));
+        const [exerciseMedia] = await connection.execute<RowDataPacket[]>(
+          `SELECT em.exercise_id, em.role, em.sort_order,
+                  ma.public_id AS media_public_id, ma.scope, ma.visibility,
+                  ma.media_type, ma.storage_provider, ma.mime_type,
+                  ma.file_size_bytes, ma.duration_seconds, ma.width, ma.height,
+                  ma.created_at
+           FROM exercise_media em
+           INNER JOIN media_assets ma ON ma.id = em.media_asset_id
+           WHERE em.exercise_id IN (${uniqueExerciseIds.map(() => "?").join(",")}) AND ma.deleted_at IS NULL
+           ORDER BY em.sort_order ASC;`,
+          uniqueExerciseIds
+        );
+
+        for (const item of itemsWithoutMedia) {
+          const exMedias = exerciseMedia.filter((em) => em.exercise_id === item.exercise_id);
+          for (const em of exMedias) {
+            mRows.push({
+              block_item_id: item.id,
+              role: em.role,
+              sort_order: em.sort_order,
+              media_public_id: em.media_public_id,
+              scope: em.scope,
+              visibility: em.visibility,
+              media_type: em.media_type,
+              storage_provider: em.storage_provider,
+              mime_type: em.mime_type,
+              file_size_bytes: em.file_size_bytes,
+              duration_seconds: em.duration_seconds,
+              width: em.width,
+              height: em.height,
+              created_at: em.created_at,
+            } as unknown as RowDataPacket);
+          }
+        }
+      }
     }
 
     // Assemble the tree
@@ -3682,14 +3725,83 @@ export async function duplicateItemInDraft(
 
     // Duplicate pinned media
     const [mediaRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT media_asset_id, role, sort_order FROM workout_block_item_media WHERE block_item_id = ?;`,
+      `SELECT wbim.media_asset_id, wbim.role, wbim.sort_order,
+              ma.public_id AS media_public_id, ma.scope, ma.visibility,
+              ma.media_type, ma.storage_provider, ma.mime_type,
+              ma.file_size_bytes, ma.duration_seconds, ma.width, ma.height,
+              ma.created_at
+       FROM workout_block_item_media wbim
+       INNER JOIN media_assets ma ON ma.id = wbim.media_asset_id
+       WHERE wbim.block_item_id = ? AND ma.deleted_at IS NULL
+       ORDER BY wbim.sort_order ASC;`,
       [sourceItem.id]
     );
-    for (const m of mediaRows) {
-      await connection.execute(
-        `INSERT INTO workout_block_item_media (block_item_id, media_asset_id, role, sort_order) VALUES (?, ?, ?, ?);`,
-        [newItemId, m.media_asset_id, m.role, m.sort_order]
+
+    const pinnedMediaDtos: BlockItemMediaDto[] = [];
+
+    if (mediaRows.length > 0) {
+      for (const m of mediaRows) {
+        await connection.execute(
+          `INSERT INTO workout_block_item_media (block_item_id, media_asset_id, role, sort_order) VALUES (?, ?, ?, ?);`,
+          [newItemId, m.media_asset_id, m.role, m.sort_order]
+        );
+        pinnedMediaDtos.push({
+          role: m.role as MediaRole,
+          sortOrder: Number(m.sort_order),
+          mediaAsset: {
+            publicId: String(m.media_public_id),
+            scope: m.scope,
+            visibility: m.visibility,
+            consultancyPublicId: null,
+            mediaType: m.media_type as MediaType,
+            storageProvider: m.storage_provider as StorageProvider,
+            mimeType: String(m.mime_type),
+            fileSizeBytes: Number(m.file_size_bytes),
+            durationSeconds: m.duration_seconds != null ? Number(m.duration_seconds) : null,
+            width: m.width != null ? Number(m.width) : null,
+            height: m.height != null ? Number(m.height) : null,
+            createdAt: new Date(m.created_at),
+          },
+        });
+      }
+    } else if (sourceItem.exercise_id) {
+      // Fallback: pin from exercise_media
+      const [exMedia] = await connection.execute<RowDataPacket[]>(
+        `SELECT em.media_asset_id, em.role, em.sort_order,
+                ma.public_id AS media_public_id, ma.scope, ma.visibility,
+                ma.media_type, ma.storage_provider, ma.mime_type,
+                ma.file_size_bytes, ma.duration_seconds, ma.width, ma.height,
+                ma.created_at
+         FROM exercise_media em
+         INNER JOIN media_assets ma ON ma.id = em.media_asset_id
+         WHERE em.exercise_id = ? AND ma.deleted_at IS NULL
+         ORDER BY em.sort_order ASC;`,
+        [sourceItem.exercise_id]
       );
+      for (const m of exMedia) {
+        await connection.execute(
+          `INSERT INTO workout_block_item_media (block_item_id, media_asset_id, role, sort_order) VALUES (?, ?, ?, ?);`,
+          [newItemId, m.media_asset_id, m.role, m.sort_order]
+        );
+        pinnedMediaDtos.push({
+          role: m.role as MediaRole,
+          sortOrder: Number(m.sort_order),
+          mediaAsset: {
+            publicId: String(m.media_public_id),
+            scope: m.scope,
+            visibility: m.visibility,
+            consultancyPublicId: null,
+            mediaType: m.media_type as MediaType,
+            storageProvider: m.storage_provider as StorageProvider,
+            mimeType: String(m.mime_type),
+            fileSizeBytes: Number(m.file_size_bytes),
+            durationSeconds: m.duration_seconds != null ? Number(m.duration_seconds) : null,
+            width: m.width != null ? Number(m.width) : null,
+            height: m.height != null ? Number(m.height) : null,
+            createdAt: new Date(m.created_at),
+          },
+        });
+      }
     }
 
     // Duplicate sets
@@ -3738,11 +3850,22 @@ export async function duplicateItemInDraft(
       });
     }
 
+    let exercisePublicId: string | null = null;
+    if (sourceItem.exercise_id) {
+      const [exRow] = await connection.execute<RowDataPacket[]>(
+        `SELECT public_id FROM exercises WHERE id = ? LIMIT 1;`,
+        [sourceItem.exercise_id]
+      );
+      if (exRow.length > 0) {
+        exercisePublicId = String(exRow[0].public_id);
+      }
+    }
+
     await connection.commit();
 
     return {
       publicId: newItemPublicId,
-      exercisePublicId: null,
+      exercisePublicId,
       sortOrder: newSortOrder,
       exerciseNameSnapshot: sourceItem.exercise_name_snapshot,
       muscleGroupSnapshot: sourceItem.muscle_group_snapshot,
@@ -3755,7 +3878,7 @@ export async function duplicateItemInDraft(
       methodConfig: sourceItem.method_config_json ? JSON.parse(sourceItem.method_config_json) : null,
       customVideoUrl: sourceItem.custom_video_url,
       notes: sourceItem.notes,
-      pinnedMedia: [],
+      pinnedMedia: pinnedMediaDtos,
       sets: resultSets,
     };
   } catch (err) {

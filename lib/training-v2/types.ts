@@ -335,6 +335,11 @@ export type WorkoutExecutionHistorySetDto = {
   publicId: string;
   setNumber: number;
   exerciseName: string;
+  prescribedExerciseName?: string;
+  performedExerciseName?: string;
+  isSubstituted?: boolean;
+  substitutionReason?: string;
+  substitutionSource?: string;
   blockItemPublicId?: string;
   setType: WorkoutSetType;
   prescribedReps: number | null;
@@ -351,4 +356,12 @@ export type WorkoutExecutionHistorySessionDto = {
   startedAt: Date;
   completedAt: Date | null;
   sets: WorkoutExecutionHistorySetDto[];
+  substitutions?: Array<{
+    blockItemPublicId: string;
+    originalExerciseName: string;
+    performedExerciseName: string;
+    reason: string;
+    source: string;
+    sequenceNumber: number;
+  }>;
 };

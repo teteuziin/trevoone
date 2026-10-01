@@ -44,9 +44,9 @@ export interface ReserveAiQuotaParams {
   memberId: number | bigint;
   userId: number | bigint;
   role: string;
-  feature: "TRAINING_IMPORT" | "NUTRITION_IMPORT";
+  feature: "TRAINING_IMPORT" | "NUTRITION_IMPORT" | "STUDENT_EXERCISE_SWAP";
   model: string;
-  importJobPublicId: string;
+  importJobPublicId?: string | null;
 }
 
 export interface ReserveAiQuotaResult {
@@ -61,6 +61,7 @@ const DEFAULT_PLATFORM_DAILY_LIMIT = 20;
 const DEFAULT_ROLE_LIMITS: Record<string, number> = {
   PERSONAL: 3,
   NUTRITIONIST: 5,
+  STUDENT: 10,
 };
 
 /**
@@ -345,7 +346,7 @@ export async function reserveAiQuota(params: ReserveAiQuotaParams): Promise<Rese
         role,
         feature,
         recordedModel,
-        importJobPublicId,
+        importJobPublicId ?? null,
         dateBucket,
       ]
     );

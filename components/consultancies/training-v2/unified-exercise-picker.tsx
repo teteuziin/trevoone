@@ -263,7 +263,7 @@ export function UnifiedExercisePicker({
               const videoPoster = ex.media.find((m) => m.role === "VIDEO_POSTER");
               const alternateImage = ex.media.find((m) => m.role === "ALTERNATE_IMAGE");
 
-              const thumbnailAsset = startImage || videoPoster || alternateImage;
+              const thumbnailAsset = startImage || videoPoster || alternateImage || executionMedia;
               const thumbnailUrl = thumbnailAsset
                 ? `/api/training-v2/media/${thumbnailAsset.mediaAsset.publicId}`
                 : null;

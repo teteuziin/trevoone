@@ -196,10 +196,10 @@ export function ConsultancyAiSettingsView({
       <div className="bg-card/50 border border-border/50 rounded-2xl p-5 space-y-4 shadow-xs">
         <div>
           <h2 className="text-base font-bold text-foreground">
-            Limites Padrão por Função
+            Limites Padrão por Função & Recursos de IA
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Define quantas importações diárias cada profissional tem por padrão conforme o cargo.
+            Define as cotas diárias de importação com IA por perfil profissional e regras de inteligência de treino.
           </p>
         </div>
 
@@ -217,39 +217,69 @@ export function ConsultancyAiSettingsView({
 
         <form onSubmit={handleSaveRoleLimits} className="space-y-4 text-xs">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-medium text-foreground mb-1">
-                Personal Trainer (Padrão)
-              </label>
-              <div className="flex items-center gap-2">
+            <div className="p-3.5 rounded-xl border border-border/40 bg-background/50 space-y-2">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <label className="block font-semibold text-foreground">
+                  Importação IA — Personal
+                </label>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Importação automatizada de fichas e rotinas de treino via PDF, DOCX ou texto.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
                 <input
                   type="number"
                   min="0"
                   max="100"
                   value={personalLimit}
                   onChange={(e) => setPersonalLimit(Number(e.target.value))}
-                  className="w-28 bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  className="w-24 bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
                 />
-                <span className="text-muted-foreground">importações / dia</span>
+                <span className="text-muted-foreground text-xs">importações / dia</span>
               </div>
             </div>
 
-            <div>
-              <label className="block font-medium text-foreground mb-1">
-                Nutricionista (Padrão)
-              </label>
-              <div className="flex items-center gap-2">
+            <div className="p-3.5 rounded-xl border border-border/40 bg-background/50 space-y-2">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-teal-500" />
+                <label className="block font-semibold text-foreground">
+                  Importação IA — Nutricionista
+                </label>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Importação de planos alimentares e cardápios com pareamento automático de alimentos.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
                 <input
                   type="number"
                   min="0"
                   max="100"
                   value={nutritionistLimit}
                   onChange={(e) => setNutritionistLimit(Number(e.target.value))}
-                  className="w-28 bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  className="w-24 bg-background border border-border rounded-lg px-3 py-1.5 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
                 />
-                <span className="text-muted-foreground">importações / dia</span>
+                <span className="text-muted-foreground text-xs">importações / dia</span>
               </div>
             </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-border/40 bg-background/50 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="font-semibold text-foreground">
+                  Substituição inteligente — Alunos
+                </span>
+              </div>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                Ativo no Runtime
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Permite que alunos em treino substituam até <strong>3 exercícios por treino</strong> por motivos operacionais (máquina ocupada ou equipamento indisponível).
+              As sugestões de IA consom o teto global da consultoria. Se a cota de IA se esgotar, o aluno utiliza o motor determinístico inteligente sem interrupções.
+            </p>
           </div>
 
           <button

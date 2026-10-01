@@ -246,3 +246,137 @@ export async function syncOfflineWorkoutExecutionAction(
     };
   }
 }
+
+/**
+ * Retrieves the current swap status and active substitutions for an in-progress session.
+ */
+export async function getWorkoutExecutionSwapStatusAction(
+  slug: string,
+  sessionPublicId: string
+) {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false as const, error: "Não autenticado." };
+  }
+
+  const ctx = await resolveTrainingAccessContext(slug);
+  if (!ctx) {
+    return { success: false as const, error: "Acesso não autorizado à consultoria." };
+  }
+
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+    return { success: false as const, error: "Apenas alunos podem consultar substituições." };
+  }
+
+  try {
+    const { getWorkoutExecutionSwapStatus } = await import(
+      "@/lib/training-v2/exercise-substitution-service"
+    );
+    const status = await getWorkoutExecutionSwapStatus(ctx, sessionPublicId);
+    return {
+      success: true as const,
+      status,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao consultar substituições.";
+    return {
+      success: false as const,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Requests up to 3 candidate exercise alternatives for a block item.
+ */
+export async function requestExerciseAlternativesAction(
+  slug: string,
+  sessionPublicId: string,
+  blockItemPublicId: string,
+  reason: import("@/lib/training-v2/exercise-substitution-service").ExerciseSwapReason
+) {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false as const, error: "Não autenticado." };
+  }
+
+  const ctx = await resolveTrainingAccessContext(slug);
+  if (!ctx) {
+    return { success: false as const, error: "Acesso não autorizado à consultoria." };
+  }
+
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+    return { success: false as const, error: "Apenas alunos podem solicitar substituições." };
+  }
+
+  try {
+    const { requestExerciseAlternatives } = await import(
+      "@/lib/training-v2/exercise-substitution-service"
+    );
+    const result = await requestExerciseAlternatives({
+      ctx,
+      sessionPublicId,
+      blockItemPublicId,
+      reason,
+    });
+    return {
+      success: true as const,
+      ...result,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao buscar alternativas de exercícios.";
+    return {
+      success: false as const,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Confirms an exercise substitution atomically in an active session.
+ */
+export async function confirmExerciseSubstitutionAction(
+  slug: string,
+  sessionPublicId: string,
+  blockItemPublicId: string,
+  performedExercisePublicId: string,
+  reason: import("@/lib/training-v2/exercise-substitution-service").ExerciseSwapReason,
+  idempotencyKey?: string
+) {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false as const, error: "Não autenticado." };
+  }
+
+  const ctx = await resolveTrainingAccessContext(slug);
+  if (!ctx) {
+    return { success: false as const, error: "Acesso não autorizado à consultoria." };
+  }
+
+  if (!ctx.isStudent && !ctx.hasRole("STUDENT")) {
+    return { success: false as const, error: "Apenas alunos podem confirmar substituições." };
+  }
+
+  try {
+    const { confirmExerciseSubstitution } = await import(
+      "@/lib/training-v2/exercise-substitution-service"
+    );
+    const result = await confirmExerciseSubstitution({
+      ctx,
+      sessionPublicId,
+      blockItemPublicId,
+      performedExercisePublicId,
+      reason,
+      idempotencyKey,
+    });
+    return {
+      ...result,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao confirmar substituição.";
+    return {
+      success: false as const,
+      error: message,
+    };
+  }
+}

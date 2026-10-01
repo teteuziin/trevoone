@@ -55,7 +55,7 @@ export async function POST(request: Request, context: RouteContext) {
       consultancyId: access.consultancyId,
       memberId: access.membershipId || 0,
       userId: session.userId,
-      role: isAdmin ? "CONSULTANCY_ADMIN" : "NUTRITIONIST",
+      role: isNutritionist ? "NUTRITIONIST" : "CONSULTANCY_ADMIN",
       jobPublicId,
       targetPatientMembershipId: targetPatientMembershipId ? Number(targetPatientMembershipId) : null,
       confirmedTitle,

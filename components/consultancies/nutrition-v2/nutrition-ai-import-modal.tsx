@@ -145,22 +145,27 @@ export function NutritionAiImportModal({
             setStudents(data.students);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     fetch(`/api/consultancies/${consultancySlug}/ai/usage?role=NUTRITIONIST`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
+          const q = data.quota || data;
+          const limit = Number(q.memberLimit ?? data.effectiveDailyLimit ?? 5);
+          const used = Number(q.memberUsedToday ?? data.memberUsedToday ?? q.consultancyUsedToday ?? 0);
+          const remaining = Number(q.effectiveRemaining ?? data.effectiveDailyRemaining ?? Math.max(0, limit - used));
+          const canUse = q.canImport !== undefined ? Boolean(q.canImport) : remaining > 0;
           setQuota({
-            dailyLimit: data.effectiveDailyLimit,
-            usedToday: data.memberUsedToday ?? data.consultancyUsedToday,
-            remainingToday: data.effectiveDailyRemaining,
-            canUseAi: data.effectiveDailyRemaining > 0,
+            dailyLimit: limit,
+            usedToday: used,
+            remainingToday: remaining,
+            canUseAi: canUse,
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }
 
   function handleClose() {
@@ -579,22 +584,20 @@ export function NutritionAiImportModal({
                     <button
                       type="button"
                       onClick={() => setActiveTab('file')}
-                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                        activeTab === 'file'
+                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'file'
                           ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-sm'
                           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
+                        }`}
                     >
                       Arquivo (.pdf, .txt, .docx)
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveTab('text')}
-                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                        activeTab === 'text'
+                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'text'
                           ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-sm'
                           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
+                        }`}
                     >
                       Colar Texto
                     </button>

@@ -7,7 +7,7 @@ import type {
 } from "@/lib/training-v2/types";
 import type { QuickConfigInput } from "@/lib/training-v2/workout-repository";
 import { ExerciseExecutionModal } from "./exercise-execution-modal";
-import { parseRepsInput, formatRepetitionRange } from "@/lib/training-v2/reps-normalizer";
+import { parseRepsInput, formatRepetitionRange, formatDurationToMinutes } from "@/lib/training-v2/reps-normalizer";
 
 function MoreVertical({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -487,7 +487,9 @@ function ExerciseRow({
   const [seriesCount, setSeriesCount] = useState<number>(initialSeriesCount);
   const [isDurationBased, setIsDurationBased] = useState<boolean>(initialIsDuration);
   const [repsInput, setRepsInput] = useState<string>(initialRepsText);
-  const [durationSeconds, setDurationSeconds] = useState<number>(initialDuration || 30);
+  const [durationMinutes, setDurationMinutes] = useState<number>(
+    initialDuration ? Math.round((initialDuration / 60) * 10) / 10 : 1
+  );
   const [restSeconds, setRestSeconds] = useState<number>(initialRest);
   const [loadKg, setLoadKg] = useState<string>(initialLoad != null ? String(initialLoad) : "");
   const [notes, setNotes] = useState<string>(initialNotes);
@@ -498,7 +500,7 @@ function ExerciseRow({
     startTransition(async () => {
       const parsedReps = parseRepsInput(repsInput);
       const isDuration = isDurationBased || Boolean(parsedReps?.durationSeconds);
-      const effectiveDuration = parsedReps?.durationSeconds || (isDuration ? Math.max(1, durationSeconds || 30) : null);
+      const effectiveDuration = parsedReps?.durationSeconds || (isDuration ? Math.max(1, Math.round(durationMinutes * 60)) : null);
       const intensity = parsedReps?.intensityIndicator || null;
       const baseNote = notes.trim();
       const combinedNotes = intensity
@@ -519,7 +521,7 @@ function ExerciseRow({
   }
 
   const repsOrDurationText = initialIsDuration
-    ? `${initialDuration}s`
+    ? formatDurationToMinutes(initialDuration)
     : formatRepetitionRange(initialReps, initialRepsMax);
 
   const summaryLine = `${initialSeriesCount} ${initialSeriesCount === 1 ? "série" : "séries"} • ${repsOrDurationText} • ${initialRest}s${
@@ -706,7 +708,7 @@ function ExerciseRow({
               onClick={() => setIsDurationBased(!isDurationBased)}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer border border-emerald-500/20"
             >
-              <span>{isDurationBased ? "Tempo (segundos)" : "Repetições"}</span>
+              <span>{isDurationBased ? "Tempo (minutos)" : "Repetições"}</span>
               <span className="text-emerald-500 font-extrabold">↕</span>
               <span className="text-[10px] text-[var(--text-tertiary)] font-medium">
                 {isDurationBased ? "Mudar para repetições" : "Mudar para tempo"}
@@ -732,20 +734,20 @@ function ExerciseRow({
             {isDurationBased ? (
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase">
-                  Tempo (s)
+                  Tempo (min)
                 </label>
                 <div className="relative">
                   <input
                     type="number"
-                    min={1}
-                    max={600}
-                    step={5}
-                    value={durationSeconds}
-                    onChange={(e) => setDurationSeconds(parseInt(e.target.value, 10) || 1)}
-                    className="w-full px-3 pr-7 py-2 text-xs sm:text-sm font-bold text-center rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
+                    min={0.5}
+                    max={120}
+                    step={0.5}
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(parseFloat(e.target.value) || 1)}
+                    className="w-full px-3 pr-9 py-2 text-xs sm:text-sm font-bold text-center rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
                   />
                   <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] pointer-events-none font-bold">
-                    s
+                    min
                   </span>
                 </div>
               </div>

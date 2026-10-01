@@ -54,16 +54,30 @@ export function parseRepsInput(input: string | number | null | undefined): Parse
     };
   }
 
-  // 2. Duration: "30s", "45 seg", "60 segundos"
-  const durationMatch = str.match(/^(\d+)\s*(?:s|seg|segundos?)$/i);
-  if (durationMatch) {
-    const sec = parseInt(durationMatch[1], 10);
-    if (sec > 0 && sec <= 3600) {
+  // 2. Duration in Minutes or Seconds: "2 min", "2m", "1 minuto", "1.5 min", "1,5 min", "30s", "45 seg", "60 segundos"
+  const minutesMatch = str.match(/^(\d+(?:[.,]\d+)?)\s*(?:m|min|minutos?)$/i);
+  if (minutesMatch) {
+    const mins = parseFloat(minutesMatch[1].replace(",", "."));
+    if (mins > 0 && mins <= 180) {
+      const sec = Math.round(mins * 60);
       return {
         repsMin: null,
         repsMax: null,
         durationSeconds: sec,
-        formatted: `${sec}s`,
+        formatted: formatDurationToMinutes(sec),
+      };
+    }
+  }
+
+  const durationMatch = str.match(/^(\d+)\s*(?:s|seg|segundos?)$/i);
+  if (durationMatch) {
+    const sec = parseInt(durationMatch[1], 10);
+    if (sec > 0 && sec <= 10800) {
+      return {
+        repsMin: null,
+        repsMax: null,
+        durationSeconds: sec,
+        formatted: formatDurationToMinutes(sec),
       };
     }
   }
@@ -105,4 +119,22 @@ export function formatRepetitionRange(
     return `${repsMin}–${repsMax} reps`;
   }
   return `${repsMin} reps`;
+}
+
+/**
+ * Formats duration in seconds into a friendly user representation in minutes.
+ * Examples:
+ * - 120 -> "2 min"
+ * - 60  -> "1 min"
+ * - 90  -> "1,5 min"
+ * - 30  -> "0,5 min"
+ */
+export function formatDurationToMinutes(seconds: number | null | undefined): string {
+  if (seconds == null || seconds <= 0) return "";
+  const minutes = seconds / 60;
+  if (Number.isInteger(minutes)) {
+    return `${minutes} min`;
+  }
+  const rounded = Math.round(minutes * 10) / 10;
+  return `${rounded.toString().replace(".", ",")} min`;
 }

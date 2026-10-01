@@ -28,7 +28,11 @@ DIRETRIZES DE SEGURANÇA E EXTRAÇÃO RÍGIDA:
 7. Para planos alimentares, a estrutura canônica é sempre PLANO -> REFEIÇÃO -> ALIMENTO. Mapeie cada refeição para 'meals' e os alimentos consumidos para 'foods'.
 8. Se o documento indicar valores calóricos ou de macronutrientes alegados para um alimento, inclua-os no campo 'sourceDocumentClaim' apenas para fins de conferência visual.
 9. Para repetições de treino: se for um número exato (ex: 10), preencha 'reps': 10 e 'repsMax': null. Se for uma faixa de repetições (ex: 8-12, 8 a 12, 10-15), preencha 'reps' com o valor mínimo (ex: 8) e 'repsMax' com o valor máximo (ex: 12). Nunca escolha arbitrariamente um único número quando houver faixa.
-10. Para duração de exercícios (ex: prancha 1 min, esteira 20 minutos, 45 segundos): se a duração estiver em minutos, converta para segundos no campo 'durationSeconds' (ex: 1 min = 60, 2 minutos = 120, 20 minutos = 1200). Se estiver em segundos, preencha diretamente com os segundos.`;
+10. Para duração de exercícios (ex: prancha 1 min, esteira 20 minutos, 45 segundos): se a duração estiver em minutos, converta para segundos no campo 'durationSeconds' (ex: 1 min = 60, 2 minutos = 120, 20 minutos = 1200). Se estiver em segundos, preencha diretamente com os segundos.
+11. Para alternativas alimentares ('OU', 'ou', opções equivalentes): o primeiro item da opção é o alimento principal ('foods'), e as alternativas subsequentes separadas por 'OU' DEVEM ser preenchidas no campo 'substitutions' desse alimento. NUNCA coloque alternativas como itens obrigatórios na mesma refeição para não somar calorias indevidamente. Preencha 'substitutions': [] quando não houver alternativas.
+12. Para itens livres como 'Salada à vontade (tomate, pepino e folhas)': defina 'quantity': null e 'unitCandidate': 'à vontade'. NUNCA invente gramas ou macros.
+13. Para receitas ou sucos sem discriminação de ingredientes e quantidades (ex: 'Suco de mamão, ameixa e aveia'): preserve o nome no 'foodNameCandidate', mantenha 'sourceDocumentClaim': null e defina 'notes': 'NEEDS_RECIPE_DETAILS'.
+14. Textos gerais de hidratação, orientações e pesar alimentos devem ser preenchidos no campo 'notes' do plano ou da refeição, NUNCA transformados em itens alimentares.`;
 
 export interface DocumentInput {
   filename: string;

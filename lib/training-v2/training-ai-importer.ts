@@ -516,15 +516,9 @@ export async function confirmTrainingAiImport(params: {
     confirmedCategories,
   } = params;
 
-  // Validate no unresolved exercises exist
-  for (const cat of confirmedCategories) {
-    for (const ex of cat.exercises) {
-      if (ex.matchStatus !== "MATCHED" || !ex.exercisePublicId) {
-        throw new Error(
-          `O exercício "${ex.exerciseNameCandidate}" na categoria "${cat.name}" precisa ser selecionado ou removido antes de confirmar.`
-        );
-      }
-    }
+  // Validate at least one category and exercise exists to form a valid workout draft
+  if (!confirmedCategories || confirmedCategories.length === 0) {
+    throw new Error("O treino precisa conter pelo menos uma divisão/categoria para ser salvo.");
   }
 
   const db = await getDbConnection();

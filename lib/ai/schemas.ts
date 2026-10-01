@@ -40,6 +40,7 @@ export interface RawNutritionFoodItem {
     carbs: number | null;
     fat: number | null;
   } | null;
+  substitutions?: RawNutritionFoodItem[];
 }
 
 export interface RawNutritionMeal {
@@ -152,6 +153,39 @@ export const NUTRITION_IMPORT_JSON_SCHEMA = {
                     required: ["kcal", "protein", "carbs", "fat"],
                     additionalProperties: false,
                   },
+                  substitutions: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        originalText: { type: "string" },
+                        foodNameCandidate: { type: "string" },
+                        quantity: { type: ["number", "null"] },
+                        unitCandidate: { type: ["string", "null"] },
+                        notes: { type: ["string", "null"] },
+                        sourceDocumentClaim: {
+                          type: ["object", "null"],
+                          properties: {
+                            kcal: { type: ["number", "null"] },
+                            protein: { type: ["number", "null"] },
+                            carbs: { type: ["number", "null"] },
+                            fat: { type: ["number", "null"] },
+                          },
+                          required: ["kcal", "protein", "carbs", "fat"],
+                          additionalProperties: false,
+                        },
+                      },
+                      required: [
+                        "originalText",
+                        "foodNameCandidate",
+                        "quantity",
+                        "unitCandidate",
+                        "notes",
+                        "sourceDocumentClaim",
+                      ],
+                      additionalProperties: false,
+                    },
+                  },
                 },
                 required: [
                   "originalText",
@@ -160,6 +194,7 @@ export const NUTRITION_IMPORT_JSON_SCHEMA = {
                   "unitCandidate",
                   "notes",
                   "sourceDocumentClaim",
+                  "substitutions",
                 ],
                 additionalProperties: false,
               },

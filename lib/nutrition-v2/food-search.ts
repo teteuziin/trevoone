@@ -212,12 +212,39 @@ export const USER_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = 
   mozarela: ["mussarela", "mucarela"],
   mozzarella: ["mussarela", "mucarela", "mozarela"],
 
-  // Carnes
+  // Pão libanês / sírio
+  "pao libanes": ["pao sirio", "pao pita"],
+  "pao sirio": ["pao libanes", "pao pita"],
+  "pao pita": ["pao sirio", "pao libanes"],
+
+  // Carnes, aves, peixes e miúdos
   mignon: ["file mignon"],
   contrafile: ["contra-file", "contra file"],
   "contra-file": ["contrafile", "contra file"],
   "contra file": ["contrafile", "contra-file"],
   "frango desfiado": ["frango cozido", "peito de frango cozido"],
+  "moela de frango": ["moela", "moela cozida", "moela de galinha"],
+  moela: ["moela de frango", "moela cozida"],
+  "file suino": ["lombo suino", "carne suina", "porco"],
+  "carne suina": ["file suino", "lombo suino", "pernil suino"],
+  "carne moida": ["carne moida bovina", "patinho moido", "carne bovina moida"],
+  "carne bovina moida": ["carne moida", "patinho moido"],
+  "atum em lata": ["atum conserva", "atum claro em conserva", "atum solido", "atum ralado"],
+  "atum em posta": ["atum fresco", "atum cru", "atum posta", "atum"],
+  "atum fresco": ["atum cru", "atum em posta", "atum"],
+
+  // Massas, tubérculos, acompanhamentos e sobremesas
+  "gelatina de frutas": ["gelatina", "gelatina sobremesa", "gelatina em po"],
+  "macarrao de arroz": ["bifum", "macarrao bifum", "massa de arroz"],
+  "pure de batata": ["pure de batatas", "pure batata"],
+  "pure de batatas": ["pure de batata"],
+  "batata inglesa assada": ["batata inglesa cozida", "batata assada", "batata inglesa"],
+  "aipim assado": ["mandioca assada", "mandioca cozida", "mandioca"],
+  "banana-da-terra": ["banana terra", "banana da terra"],
+  "banana da terra": ["banana-da-terra", "banana terra"],
+  "ervilha em grao": ["ervilha em graos", "ervilha fresca", "ervilha cozida", "ervilha"],
+  "ervilha em graos": ["ervilha em grao", "ervilha"],
+
   desfiado: ["cozido"],
   desfiada: ["cozida"],
   refogado: ["cozido"],

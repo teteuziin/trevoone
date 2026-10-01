@@ -16,7 +16,8 @@ import {
 import type { DocumentInput } from "../ai/openai-client";
 import type { RawNutritionImportProposal } from "../ai/schemas";
 import { recordConsultancyActivity } from "../consultancies/activity-log";
-import { normalizeSearchText } from "./food-search";
+import { normalizeSearchText, USER_SEARCH_ALIASES, getPortugueseWordRoots } from "./food-search";
+import { searchExternalFoodSource, autoIngestExternalFood } from "./external-food-source";
 
 export type FoodMatchStatus = "MATCHED" | "AMBIGUOUS" | "NOT_FOUND";
 
@@ -57,6 +58,8 @@ export interface ResolvedNutritionFoodItem {
     carbs: number | null;
     fat: number | null;
   } | null;
+  provenance?: "LOCAL_MATCHED" | "EXTERNAL_IMPORTED" | "NEEDS_REVIEW" | "MANUALLY_RESOLVED" | null;
+  substitutions?: ResolvedNutritionFoodItem[];
 }
 
 export interface ResolvedNutritionMeal {
@@ -109,9 +112,39 @@ const COOKING_PREPARATIONS = [
   "ensopada",
 ];
 
+export const INHERENTLY_GENERIC_FOODS = new Set([
+  "peixe",
+  "folhas",
+  "salada de verduras",
+  "carne moida",
+]);
+
+// Secondary recipe words that indicate a composite preparation rather than the base food
+const COMPOSITE_RECIPE_PREFIXES = [
+  "sanduiche",
+  "bolo",
+  "torta",
+  "escondidinho",
+  "cacarola",
+  "molho para",
+  "sopa",
+  "amendoas",
+  "amendoa",
+  "castanha",
+  "sementes",
+  "macarrao com",
+  "maionese",
+  "camarao",
+];
+
+function cleanPunctuation(text: string): string {
+  return text.replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
 /**
  * Searches Food Library V3 (Global + Consultancy) for candidate matches,
- * with strict preparation matching and regional Brazilian synonyms.
+ * with strict preparation matching, regional Brazilian synonyms, and
+ * multi-tier resolution (Exact -> Alias -> Prep -> Semantic -> External -> Ambiguous -> Not Found).
  */
 export async function matchFoodCandidate(
   consultancyId: number | bigint,
@@ -120,11 +153,13 @@ export async function matchFoodCandidate(
   status: FoodMatchStatus;
   matched?: MatchedFoodCandidate;
   candidates: MatchedFoodCandidate[];
+  provenance?: "LOCAL_MATCHED" | "EXTERNAL_IMPORTED" | "NEEDS_REVIEW";
 }> {
   const normCandidate = normalizeSearchText(candidateName);
   if (!normCandidate) {
-    return { status: "NOT_FOUND", candidates: [] };
+    return { status: "NOT_FOUND", candidates: [], provenance: "NEEDS_REVIEW" };
   }
+  const cleanCandidate = cleanPunctuation(normCandidate);
 
   // Detect preparation terms in candidate (e.g. "cozida", "crua", "grelhado")
   const requestedPrep = COOKING_PREPARATIONS.find((prep) =>
@@ -157,17 +192,7 @@ export async function matchFoodCandidate(
       [consultancyId]
     );
 
-    const exactMatches: MatchedFoodCandidate[] = [];
-    const prepMatches: MatchedFoodCandidate[] = [];
-    const partialMatches: MatchedFoodCandidate[] = [];
-
-    // Common regional aliases mapping
-    let aliasedName = normCandidate;
-    if (normCandidate.includes("aipim") || normCandidate.includes("macaxeira")) {
-      aliasedName = normCandidate.replace(/aipim|macaxeira/g, "mandioca");
-    }
-
-    for (const r of rows) {
+    const mapCandidateObj = (r: RowDataPacket): MatchedFoodCandidate => {
       let fiberVal: number | null = null;
       if (r.fiber_status === "KNOWN_ZERO") {
         fiberVal = 0;
@@ -179,7 +204,7 @@ export async function matchFoodCandidate(
         fiberVal = null; // UNKNOWN
       }
 
-      const candidateObj: MatchedFoodCandidate = {
+      return {
         foodPublicId: String(r.public_id),
         name: String(r.display_name),
         sourceType: String(r.source_type),
@@ -191,90 +216,389 @@ export async function matchFoodCandidate(
         referenceAmount: Number(r.reference_amount || 100),
         referenceUnitCode: String(r.reference_unit_code || "G"),
       };
+    };
 
-      const normDb = normalizeSearchText(String(r.display_name));
-
-      // Exact match
-      if (normDb === normCandidate || normDb === aliasedName) {
-        exactMatches.push(candidateObj);
-        continue;
+    // 1. INHERENTLY GENERIC FOODS (Section 8: "peixe", "folhas", "salada de verduras", "carne moída")
+    // If not enough information is provided, MUST stay AMBIGUOUS / NEEDS_REVIEW to prevent fabricating false macros.
+    if (INHERENTLY_GENERIC_FOODS.has(normCandidate) || INHERENTLY_GENERIC_FOODS.has(cleanCandidate)) {
+      const genericCandidates: MatchedFoodCandidate[] = [];
+      for (const r of rows) {
+        const cName = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        if (cName.includes(cleanCandidate)) {
+          genericCandidates.push(mapCandidateObj(r));
+          if (genericCandidates.length >= 10) break;
+        }
       }
+      return {
+        status: "AMBIGUOUS",
+        candidates: genericCandidates,
+        provenance: "NEEDS_REVIEW",
+      };
+    }
 
-      // Check if matches preparation requirement
-      const matchesCandidate =
-        normDb.includes(normCandidate) ||
-        normCandidate.includes(normDb) ||
-        normDb.includes(aliasedName) ||
-        aliasedName.includes(normDb);
+    // 2. TIER 1: LOCAL EXACT MATCHES (Direct Candidate === DB Name)
+    const exactRows = rows.filter((r) => {
+      const cName = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+      return cName === cleanCandidate;
+    });
 
-      if (matchesCandidate) {
-        if (requestedPrep) {
-          const dbHasPrep = new RegExp(`\\b${requestedPrep}\\b`, "i").test(normDb);
-          if (dbHasPrep) {
-            prepMatches.push(candidateObj);
-          } else {
-            // Check if opposing preparation (e.g. cru vs cozido)
-            const hasOpposingPrep = COOKING_PREPARATIONS.some(
-              (p) => p !== requestedPrep && new RegExp(`\\b${p}\\b`, "i").test(normDb)
-            );
-            if (!hasOpposingPrep) {
-              partialMatches.push(candidateObj);
-            }
-          }
-        } else {
-          partialMatches.push(candidateObj);
+    if (exactRows.length > 0) {
+      // If multiple duplicate rows exist with the exact same name (e.g. duplicate "Muçarela" or "Tangerina"),
+      // pick canonical record (TACO first, then GLOBAL/lowest ID)
+      const canonical = exactRows.find((r) => String(r.source_type).toUpperCase() === "TACO") || exactRows[0];
+      const matched = mapCandidateObj(canonical);
+      return {
+        status: "MATCHED",
+        matched,
+        candidates: [matched],
+        provenance: "LOCAL_MATCHED",
+      };
+    }
+
+    // Expand search vocabulary with singular roots, regional aliases, and substitutions
+    const searchTermsSet = new Set<string>([normCandidate, cleanCandidate]);
+    const roots = getPortugueseWordRoots(normCandidate);
+    for (const root of roots) {
+      searchTermsSet.add(root);
+      searchTermsSet.add(cleanPunctuation(root));
+    }
+    if (normCandidate.includes("aipim") || normCandidate.includes("macaxeira")) {
+      searchTermsSet.add(normCandidate.replace(/aipim|macaxeira/g, "mandioca"));
+      searchTermsSet.add(cleanPunctuation(normCandidate.replace(/aipim|macaxeira/g, "mandioca")));
+    }
+    if (USER_SEARCH_ALIASES[normCandidate]) {
+      for (const al of USER_SEARCH_ALIASES[normCandidate]) {
+        const normAl = normalizeSearchText(al);
+        searchTermsSet.add(normAl);
+        searchTermsSet.add(cleanPunctuation(normAl));
+      }
+    }
+    for (const [key, alList] of Object.entries(USER_SEARCH_ALIASES)) {
+      if (normCandidate.includes(key)) {
+        for (const al of alList) {
+          const replaced = normalizeSearchText(normCandidate.replace(key, al));
+          searchTermsSet.add(replaced);
+          searchTermsSet.add(cleanPunctuation(replaced));
         }
       }
     }
 
-    // 1. Exact matches
-    if (exactMatches.length === 1) {
-      return {
-        status: "MATCHED",
-        matched: exactMatches[0],
-        candidates: exactMatches,
-      };
+    const searchTerms = Array.from(searchTermsSet);
+
+    // 3. TIER 2: LOCAL ALIAS EXACT MATCH
+    for (const alias of searchTerms.slice(1)) {
+      const aliasRows = rows.filter((r) => {
+        const cName = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return cName === alias;
+      });
+      if (aliasRows.length > 0) {
+        const canonical = aliasRows.find((r) => String(r.source_type).toUpperCase() === "TACO") || aliasRows[0];
+        const matched = mapCandidateObj(canonical);
+        return {
+          status: "MATCHED",
+          matched,
+          candidates: [matched],
+          provenance: "LOCAL_MATCHED",
+        };
+      }
     }
-    if (exactMatches.length > 1) {
+
+    // 4. TIER 3 & 4: HEAD NOUN, CULINARY DEFAULTS & SEMANTIC MATCHING
+    const poolRows: RowDataPacket[] = [];
+    for (const r of rows) {
+      const normDb = normalizeSearchText(String(r.display_name));
+      const cleanDb = cleanPunctuation(normDb);
+      if (cleanDb.length <= 2) continue;
+
+      const matchesTerm = searchTerms.some((st) => {
+        if (st.length >= 3 && cleanDb.includes(st)) return true;
+        if (cleanDb.length >= 4 && st.includes(cleanDb)) return true;
+        return false;
+      });
+
+      if (!matchesTerm) continue;
+
+      // Filter composite dishes (e.g. sandwiches, cakes, pies, salads with mayo) if candidate is a base food
+      const queryIsComposite = COMPOSITE_RECIPE_PREFIXES.some((p) => cleanCandidate.startsWith(p));
+      if (!queryIsComposite) {
+        const nameIsComposite = COMPOSITE_RECIPE_PREFIXES.some((p) => cleanDb.startsWith(p));
+        if (nameIsComposite) continue;
+      }
+
+      poolRows.push(r);
+    }
+
+    // High-frequency Brazilian dietary canonicals:
+    // Torradas
+    if (cleanCandidate === "torradas" || cleanCandidate === "torrada") {
+      const breadToast = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("torrada pao"));
+      if (breadToast) {
+        const matched = mapCandidateObj(breadToast);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Pão de forma
+    if (cleanCandidate === "pao de forma") {
+      const breadLoaf = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("pao de forma"));
+      if (breadLoaf) {
+        const matched = mapCandidateObj(breadLoaf);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Ovos
+    if (cleanCandidate === "ovos" || cleanCandidate === "ovo") {
+      const egg = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("ovo de galinha inteiro cozido"));
+      if (egg) {
+        const matched = mapCandidateObj(egg);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Queijo Minas
+    if (cleanCandidate === "queijo minas") {
+      const minas = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("queijo minas frescal"));
+      if (minas) {
+        const matched = mapCandidateObj(minas);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Banana Prata
+    if (cleanCandidate === "banana prata") {
+      const prata = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("banana prata"));
+      if (prata) {
+        const matched = mapCandidateObj(prata);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Banana-da-terra
+    if (cleanCandidate.includes("banana da terra") || cleanCandidate.includes("banana terra")) {
+      const terra = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("banana da terra crua") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("banana terra cru"));
+      if (terra) {
+        const matched = mapCandidateObj(terra);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Abacaxi
+    if (cleanCandidate === "abacaxi") {
+      const abacaxi = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("abacaxi cru"));
+      if (abacaxi) {
+        const matched = mapCandidateObj(abacaxi);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Tapioca
+    if (cleanCandidate === "tapioca") {
+      const tapioca = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).includes("massa para tapioca") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("tapioca de goma"));
+      if (tapioca) {
+        const matched = mapCandidateObj(tapioca);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Pão Libanês / Sírio
+    if (cleanCandidate.includes("pao libanes") || cleanCandidate.includes("pao sirio")) {
+      const paoSirio = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).includes("pao sirio") && !cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("torradinhas"));
+      if (paoSirio) {
+        const matched = mapCandidateObj(paoSirio);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Meats: Patinho
+    if (cleanCandidate === "patinho") {
+      const patinho = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("patinho sem gordura grelhado") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("patinho grelhado"));
+      if (patinho) {
+        const matched = mapCandidateObj(patinho);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Meats: Alcatra
+    if (cleanCandidate === "alcatra") {
+      const alcatra = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("miolo de alcatra sem gordura grelhado") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("alcatra grelhada"));
+      if (alcatra) {
+        const matched = mapCandidateObj(alcatra);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Meats: Fígado Bovino
+    if (cleanCandidate.includes("figado bovino")) {
+      const figado = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("figado bovino grelhado") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("figado bovino cozido"));
+      if (figado) {
+        const matched = mapCandidateObj(figado);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Meats: Filé Suíno / Lombo Suíno
+    if (cleanCandidate.includes("file suino") || cleanCandidate.includes("lombo suino")) {
+      const suino = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("lombo suino grelhado") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("lombo suino file mignon") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("lombo suino"));
+      if (suino) {
+        const matched = mapCandidateObj(suino);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Moela de frango
+    if (cleanCandidate.includes("moela")) {
+      const moela = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("moela de galinha ou frango cozida") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("moela cozida"));
+      if (moela) {
+        const matched = mapCandidateObj(moela);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Arroz
+    if (cleanCandidate === "arroz") {
+      const arroz = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))) === "arroz tipo 1 cozido" || cleanPunctuation(normalizeSearchText(String(r.display_name))) === "arroz cozido");
+      if (arroz) {
+        const matched = mapCandidateObj(arroz);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Feijão Carioca
+    if (cleanCandidate.includes("feijao carioca")) {
+      const feijao = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("feijao carioca cozido"));
+      if (feijao) {
+        const matched = mapCandidateObj(feijao);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Feijão Preto
+    if (cleanCandidate.includes("feijao preto")) {
+      const feijao = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("feijao preto cozido"));
+      if (feijao) {
+        const matched = mapCandidateObj(feijao);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Aipim / Macaxeira
+    if (cleanCandidate === "aipim" || cleanCandidate === "macaxeira") {
+      const mandioca = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("mandioca cozida"));
+      if (mandioca) {
+        const matched = mapCandidateObj(mandioca);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Atum em posta
+    if (cleanCandidate.includes("atum em posta")) {
+      const atum = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("atum fresco cru") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("atum cru"));
+      if (atum) {
+        const matched = mapCandidateObj(atum);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Atum em lata
+    if (cleanCandidate.includes("atum em lata")) {
+      const atumAgua = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).includes("conserva de agua")) || poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("atum"));
+      if (atumAgua) {
+        const matched = mapCandidateObj(atumAgua);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Macarrão de arroz
+    if (cleanCandidate.includes("macarrao de arroz")) {
+      const pasta = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))) === "macarrao" || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("macarrao"));
+      if (pasta) {
+        const matched = mapCandidateObj(pasta);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Coxa de frango
+    if (cleanCandidate === "coxa de frango") {
+      const coxa = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("coxa de frango sem pele cozida") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("coxa de frango sem pele assada"));
+      if (coxa) {
+        const matched = mapCandidateObj(coxa);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Sobrecoxa
+    if (cleanCandidate === "sobrecoxa") {
+      const sobrecoxa = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("sobrecoxa de frango sem pele assada") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("sobrecoxa de frango sem pele cozida"));
+      if (sobrecoxa) {
+        const matched = mapCandidateObj(sobrecoxa);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // If requestedPrep is present and matches exactly 1
+    if (requestedPrep) {
+      const prepRows = poolRows.filter((r) => new RegExp(`\\b${requestedPrep}\\b`, "i").test(normalizeSearchText(String(r.display_name))));
+      if (prepRows.length === 1) {
+        const matched = mapCandidateObj(prepRows[0]);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // If pool has exactly 1 candidate
+    if (poolRows.length === 1) {
+      const matched = mapCandidateObj(poolRows[0]);
+      return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+    }
+
+    // 5. TIER 5: EXTERNAL NUTRITIONAL SOURCE (USDA FoodData Central on-demand)
+    const externalResult = await searchExternalFoodSource(candidateName, { requestedPrep });
+    if (externalResult.status === "FOUND" && externalResult.candidates.length > 0) {
+      const top = externalResult.candidates[0];
+      if (top.confidence === "HIGH") {
+        const ingested = await autoIngestExternalFood(consultancyId, top);
+        return {
+          status: "MATCHED",
+          matched: ingested,
+          candidates: [ingested],
+          provenance: "EXTERNAL_IMPORTED",
+        };
+      } else {
+        const mappedCandidates: MatchedFoodCandidate[] = externalResult.candidates.map((c) => ({
+          foodPublicId: c.sourceUid,
+          name: c.displayNamePtBr,
+          sourceType: "EXTERNAL_USDA",
+          caloriesKcal: c.caloriesKcal,
+          proteinG: c.proteinG,
+          carbsG: c.carbsG,
+          fatG: c.fatG,
+          fiberG: c.fiberG,
+          referenceAmount: c.referenceAmount,
+          referenceUnitCode: c.referenceUnitCode,
+        }));
+        return {
+          status: "AMBIGUOUS",
+          candidates: mappedCandidates.slice(0, 10),
+          provenance: "NEEDS_REVIEW",
+        };
+      }
+    }
+
+    // 6. TIER 6: AMBIGUOUS (when multiple safe candidates exist in local pool)
+    if (poolRows.length > 1) {
+      const mappedCandidates = poolRows.slice(0, 10).map(mapCandidateObj);
       return {
         status: "AMBIGUOUS",
-        candidates: exactMatches,
+        candidates: mappedCandidates,
+        provenance: "NEEDS_REVIEW",
       };
     }
 
-    // 2. Preparation-specific matches
-    if (prepMatches.length === 1) {
-      return {
-        status: "MATCHED",
-        matched: prepMatches[0],
-        candidates: prepMatches,
-      };
-    }
-    if (prepMatches.length > 1) {
-      return {
-        status: "AMBIGUOUS",
-        candidates: prepMatches.slice(0, 10),
-      };
-    }
-
-    // 3. Partial matches
-    if (partialMatches.length === 1) {
-      return {
-        status: "MATCHED",
-        matched: partialMatches[0],
-        candidates: partialMatches,
-      };
-    }
-    if (partialMatches.length > 1) {
-      return {
-        status: "AMBIGUOUS",
-        candidates: partialMatches.slice(0, 10),
-      };
-    }
-
+    // 7. TIER 7: NOT_FOUND
     return {
       status: "NOT_FOUND",
       candidates: [],
+      provenance: "NEEDS_REVIEW",
     };
   } finally {
     db.release();
@@ -485,8 +809,47 @@ export async function processNutritionAiImport(params: {
   for (const m of rawProposal.meals || []) {
     const resolvedFoods: ResolvedNutritionFoodItem[] = [];
 
+    // Group alternatives ("OU") into substitutions
+    const groupedFoods: Array<{
+      primary: NonNullable<typeof m.foods>[0];
+      substitutions: NonNullable<typeof m.foods>[0][];
+    }> = [];
+
     for (const f of m.foods || []) {
+      const isAlternative =
+        /^\s*(ou|opção|opcao)\b/i.test(f.originalText) ||
+        /^\s*(ou|opção|opcao)\b/i.test(f.foodNameCandidate) ||
+        (f.notes && /^\s*(ou|opção|opcao)\b/i.test(f.notes));
+
+      if (isAlternative && groupedFoods.length > 0) {
+        const cleanName = f.foodNameCandidate.replace(/^\s*(ou|opção|opcao)\s*:?\s*/i, "").trim();
+        groupedFoods[groupedFoods.length - 1].substitutions.push({
+          ...f,
+          foodNameCandidate: cleanName || f.foodNameCandidate,
+        });
+      } else {
+        const existingSubs = Array.isArray(f.substitutions) ? [...f.substitutions] : [];
+        groupedFoods.push({
+          primary: f,
+          substitutions: existingSubs,
+        });
+      }
+    }
+
+    for (const grouped of groupedFoods) {
+      const f = grouped.primary;
       totalFoods++;
+
+      const isFreeSalad =
+        f.quantity === null ||
+        (f.unitCandidate && /à\s*vontade|a\s*vontade|livre/i.test(f.unitCandidate)) ||
+        /à\s*vontade|a\s*vontade|salada\s+livre/i.test(f.foodNameCandidate) ||
+        (f.notes && /à\s*vontade|a\s*vontade/i.test(f.notes));
+
+      const isCompoundRecipeWithoutQty =
+        (f.notes && f.notes.includes("NEEDS_RECIPE_DETAILS")) ||
+        (/^suco de /i.test(f.foodNameCandidate) && f.foodNameCandidate.includes(" e ") && (!f.quantity || f.quantity === 1));
+
       const matchResult = await matchFoodCandidate(consultancyId, f.foodNameCandidate);
 
       let foodPublicId: string | null = null;
@@ -498,36 +861,46 @@ export async function processNutritionAiImport(params: {
         foodPublicId = matchResult.matched.foodPublicId;
         foodNameSnapshot = matchResult.matched.name;
 
-        // Authoritative values strictly from the Trevo Food Library record!
-        authoritativeNutrients = calculateAuthoritativeItemNutrients(
-          matchResult.matched,
-          f.quantity
-        );
-
-        if (authoritativeNutrients.caloriesKcal !== null) {
-          totalCalories += authoritativeNutrients.caloriesKcal;
-        } else {
+        // Authoritative values strictly from the Food Library record!
+        if (isFreeSalad || isCompoundRecipeWithoutQty) {
+          // Never fabricate macros for free salads or recipes without ingredient breakdown
+          authoritativeNutrients = null;
           hasUnknownCalories = true;
-        }
-        if (authoritativeNutrients.proteinG !== null) {
-          totalProtein += authoritativeNutrients.proteinG;
-        } else {
           hasUnknownProtein = true;
-        }
-        if (authoritativeNutrients.carbsG !== null) {
-          totalCarbs += authoritativeNutrients.carbsG;
-        } else {
           hasUnknownCarbs = true;
-        }
-        if (authoritativeNutrients.fatG !== null) {
-          totalFat += authoritativeNutrients.fatG;
-        } else {
           hasUnknownFat = true;
-        }
-        if (authoritativeNutrients.fiberG !== null) {
-          totalFiber += authoritativeNutrients.fiberG;
-        } else {
           hasUnknownFiber = true;
+        } else {
+          authoritativeNutrients = calculateAuthoritativeItemNutrients(
+            matchResult.matched,
+            f.quantity
+          );
+
+          if (authoritativeNutrients.caloriesKcal !== null) {
+            totalCalories += authoritativeNutrients.caloriesKcal;
+          } else {
+            hasUnknownCalories = true;
+          }
+          if (authoritativeNutrients.proteinG !== null) {
+            totalProtein += authoritativeNutrients.proteinG;
+          } else {
+            hasUnknownProtein = true;
+          }
+          if (authoritativeNutrients.carbsG !== null) {
+            totalCarbs += authoritativeNutrients.carbsG;
+          } else {
+            hasUnknownCarbs = true;
+          }
+          if (authoritativeNutrients.fatG !== null) {
+            totalFat += authoritativeNutrients.fatG;
+          } else {
+            hasUnknownFat = true;
+          }
+          if (authoritativeNutrients.fiberG !== null) {
+            totalFiber += authoritativeNutrients.fiberG;
+          } else {
+            hasUnknownFiber = true;
+          }
         }
       } else {
         if (matchResult.status === "AMBIGUOUS") {
@@ -542,6 +915,52 @@ export async function processNutritionAiImport(params: {
         hasUnknownFiber = true;
       }
 
+      // Process substitutions for this primary item
+      const resolvedSubs: ResolvedNutritionFoodItem[] = [];
+      for (const sub of grouped.substitutions) {
+        totalFoods++;
+        const subMatch = await matchFoodCandidate(consultancyId, sub.foodNameCandidate);
+        let subFoodPublicId: string | null = null;
+        let subFoodNameSnapshot = sub.foodNameCandidate;
+        let subAuthNutrients: ResolvedNutritionFoodItem["authoritativeNutrients"] = null;
+
+        if (subMatch.status === "MATCHED" && subMatch.matched) {
+          matchedCount++;
+          subFoodPublicId = subMatch.matched.foodPublicId;
+          subFoodNameSnapshot = subMatch.matched.name;
+          subAuthNutrients = calculateAuthoritativeItemNutrients(
+            subMatch.matched,
+            sub.quantity
+          );
+          // CRITICAL: Substitutions NEVER add to totalCalories or meal totals!
+        } else if (subMatch.status === "AMBIGUOUS") {
+          ambiguousCount++;
+        } else {
+          notFoundCount++;
+        }
+
+        resolvedSubs.push({
+          id: crypto.randomUUID(),
+          originalText: sub.originalText,
+          foodNameCandidate: sub.foodNameCandidate,
+          matchStatus: subMatch.status,
+          foodPublicId: subFoodPublicId,
+          foodNameSnapshot: subFoodNameSnapshot,
+          quantity: sub.quantity,
+          unitCandidate: sub.unitCandidate,
+          notes: sub.notes,
+          candidates: subMatch.candidates,
+          authoritativeNutrients: subAuthNutrients,
+          sourceDocumentClaim: sub.sourceDocumentClaim,
+          provenance: subMatch.provenance || null,
+        });
+      }
+
+      let itemNotes = f.notes;
+      if (isCompoundRecipeWithoutQty && (!itemNotes || !itemNotes.includes("NEEDS_RECIPE_DETAILS"))) {
+        itemNotes = itemNotes ? `${itemNotes} (NEEDS_RECIPE_DETAILS)` : "NEEDS_RECIPE_DETAILS";
+      }
+
       resolvedFoods.push({
         id: crypto.randomUUID(),
         originalText: f.originalText,
@@ -549,13 +968,15 @@ export async function processNutritionAiImport(params: {
         matchStatus: matchResult.status,
         foodPublicId,
         foodNameSnapshot,
-        quantity: f.quantity,
-        unitCandidate: f.unitCandidate,
-        notes: f.notes,
+        quantity: isFreeSalad ? null : f.quantity,
+        unitCandidate: isFreeSalad ? "à vontade" : f.unitCandidate,
+        notes: itemNotes,
         candidates: matchResult.candidates,
         authoritativeNutrients,
         // Visual comparison claim ONLY — never used as authoritative calculations!
         sourceDocumentClaim: f.sourceDocumentClaim,
+        provenance: matchResult.provenance || null,
+        substitutions: resolvedSubs,
       });
     }
 
@@ -685,15 +1106,9 @@ export async function confirmNutritionAiImport(params: {
     confirmedMeals,
   } = params;
 
-  // Validate no unresolved foods exist
-  for (const m of confirmedMeals) {
-    for (const f of m.foods) {
-      if (f.matchStatus !== "MATCHED" || !f.foodPublicId) {
-        throw new Error(
-          `O alimento "${f.foodNameCandidate}" na refeição "${m.name}" precisa ser selecionado ou removido antes de confirmar.`
-        );
-      }
-    }
+  // Validate at least one meal exists to form a valid draft
+  if (!confirmedMeals || confirmedMeals.length === 0) {
+    throw new Error("O plano alimentar precisa conter pelo menos uma refeição para ser salvo.");
   }
 
   const db = await getDbConnection();
@@ -764,33 +1179,42 @@ export async function confirmNutritionAiImport(params: {
         foodsCreated++;
         const itemPublicId = crypto.randomUUID();
 
-        // Query authoritative food record from Trevo Food Library
-        const [foodRows] = await db.query<RowDataPacket[]>(
-          `SELECT
-            id, public_id, COALESCE(display_name_pt_br, name) AS display_name,
-            calories_kcal, protein_g, carbohydrate_g, fat_g, reference_amount, reference_unit_code
-           FROM nutrition_v2_foods
-           WHERE public_id = ? LIMIT 1`,
-          [f.foodPublicId]
-        );
+        let foodId: number | bigint | null = null;
+        let displayName = f.foodNameSnapshot || f.foodNameCandidate;
+        let cal: number | null = null;
+        let p: number | null = null;
+        let c: number | null = null;
+        let fat: number | null = null;
+        let refUnit = f.unitCandidate || "G";
 
-        if (foodRows.length === 0) {
-          throw new Error(`Alimento com ID ${f.foodPublicId} não encontrado no banco.`);
+        if (f.foodPublicId) {
+          const [foodRows] = await db.query<RowDataPacket[]>(
+            `SELECT
+              id, public_id, COALESCE(display_name_pt_br, name) AS display_name,
+              calories_kcal, protein_g, carbohydrate_g, fat_g, reference_amount, reference_unit_code
+             FROM nutrition_v2_foods
+             WHERE public_id = ? LIMIT 1`,
+            [f.foodPublicId]
+          );
+
+          if (foodRows.length > 0) {
+            const foodDb = foodRows[0];
+            foodId = foodDb.id;
+            displayName = String(foodDb.display_name);
+            refUnit = String(foodDb.reference_unit_code || "G");
+
+            if (f.quantity && f.quantity > 0) {
+              const refAmount = Number(foodDb.reference_amount || 100);
+              const factor = f.quantity / refAmount;
+              cal = foodDb.calories_kcal !== null ? Math.round(Number(foodDb.calories_kcal) * factor * 10) / 10 : null;
+              p = foodDb.protein_g !== null ? Math.round(Number(foodDb.protein_g) * factor * 10) / 10 : null;
+              c = foodDb.carbohydrate_g !== null ? Math.round(Number(foodDb.carbohydrate_g) * factor * 10) / 10 : null;
+              fat = foodDb.fat_g !== null ? Math.round(Number(foodDb.fat_g) * factor * 10) / 10 : null;
+            }
+          }
         }
 
-        const foodDb = foodRows[0];
-        const foodId = foodDb.id;
-        const displayName = String(foodDb.display_name);
-        const qty = f.quantity && f.quantity > 0 ? f.quantity : 100;
-        const refAmount = Number(foodDb.reference_amount || 100);
-        const factor = qty / refAmount;
-
-        const cal = foodDb.calories_kcal !== null ? Math.round(Number(foodDb.calories_kcal) * factor * 10) / 10 : null;
-        const p = foodDb.protein_g !== null ? Math.round(Number(foodDb.protein_g) * factor * 10) / 10 : null;
-        const c = foodDb.carbohydrate_g !== null ? Math.round(Number(foodDb.carbohydrate_g) * factor * 10) / 10 : null;
-        const fat = foodDb.fat_g !== null ? Math.round(Number(foodDb.fat_g) * factor * 10) / 10 : null;
-
-        await db.query(
+        const [itemRes] = await db.query<ResultSetHeader>(
           `INSERT INTO nutrition_v2_meal_items (
             public_id, meal_id, food_id, sort_order, food_name_snapshot,
             prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
@@ -803,9 +1227,9 @@ export async function confirmNutritionAiImport(params: {
             foodId,
             itemSort,
             displayName,
-            qty,
-            f.unitCandidate || String(foodDb.reference_unit_code || "G"),
-            f.unitCandidate || String(foodDb.reference_unit_code || "G"),
+            f.quantity,
+            f.unitCandidate || refUnit,
+            f.unitCandidate || refUnit,
             cal,
             p,
             c,
@@ -813,6 +1237,70 @@ export async function confirmNutritionAiImport(params: {
             f.notes || null,
           ]
         );
+        const mealItemId = itemRes.insertId;
+
+        // 3.1. Insert substitutions (alternativas / opções equivalentes "OU")
+        if (Array.isArray(f.substitutions)) {
+          let subSort = 0;
+          for (const sub of f.substitutions) {
+            subSort++;
+            const subPublicId = crypto.randomUUID();
+            let subFoodId: number | bigint | null = null;
+            let subDisplayName = sub.foodNameSnapshot || sub.foodNameCandidate;
+            let subCal: number | null = null;
+            let subP: number | null = null;
+            let subC: number | null = null;
+            let subFat: number | null = null;
+            let subUnit = sub.unitCandidate || "G";
+
+            if (sub.foodPublicId) {
+              const [sFoodRows] = await db.query<RowDataPacket[]>(
+                `SELECT id, public_id, COALESCE(display_name_pt_br, name) AS display_name,
+                  calories_kcal, protein_g, carbohydrate_g, fat_g, reference_amount, reference_unit_code
+                 FROM nutrition_v2_foods WHERE public_id = ? LIMIT 1`,
+                [sub.foodPublicId]
+              );
+              if (sFoodRows.length > 0) {
+                const sDb = sFoodRows[0];
+                subFoodId = sDb.id;
+                subDisplayName = String(sDb.display_name);
+                subUnit = String(sDb.reference_unit_code || "G");
+
+                if (sub.quantity && sub.quantity > 0) {
+                  const sFactor = sub.quantity / Number(sDb.reference_amount || 100);
+                  subCal = sDb.calories_kcal !== null ? Math.round(Number(sDb.calories_kcal) * sFactor * 10) / 10 : null;
+                  subP = sDb.protein_g !== null ? Math.round(Number(sDb.protein_g) * sFactor * 10) / 10 : null;
+                  subC = sDb.carbohydrate_g !== null ? Math.round(Number(sDb.carbohydrate_g) * sFactor * 10) / 10 : null;
+                  subFat = sDb.fat_g !== null ? Math.round(Number(sDb.fat_g) * sFactor * 10) / 10 : null;
+                }
+              }
+            }
+
+            await db.query(
+              `INSERT INTO nutrition_v2_item_substitutions (
+                public_id, meal_item_id, food_id, sort_order, food_name_snapshot,
+                prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+                calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot,
+                fat_g_snapshot, notes, created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+              [
+                subPublicId,
+                mealItemId,
+                subFoodId,
+                subSort,
+                subDisplayName,
+                sub.quantity,
+                sub.unitCandidate || subUnit,
+                sub.unitCandidate || subUnit,
+                subCal,
+                subP,
+                subC,
+                subFat,
+                sub.notes || null,
+              ]
+            );
+          }
+        }
       }
     }
 

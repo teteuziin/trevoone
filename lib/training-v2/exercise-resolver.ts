@@ -79,6 +79,27 @@ export function normalizeExerciseText(text: string): string {
     .replace(/\bquadris\b/g, "quadril")
     .replace(/\bgraus\b/g, "");
 
+  // Common gym abbreviations & typos
+  norm = norm
+    .replace(/\bsup\b/g, "supino")
+    .replace(/\binc\b/g, "inclinado")
+    .replace(/\bdec\b/g, "declinado")
+    .replace(/\bhalt\b/g, "halter")
+    .replace(/\bpux\b/g, "puxada")
+    .replace(/\btriang\b/g, "triangulo")
+    .replace(/\brem\b/g, "remada")
+    .replace(/\bdesenv\b/g, "desenvolvimento")
+    .replace(/\belev\b/g, "elevacao")
+    .replace(/\blat\b(?!\s*pulldown)/g, "lateral")
+    .replace(/\bfront\b/g, "frontal")
+    .replace(/\bpost\b/g, "posterior")
+    .replace(/\bext\b/g, "extensora")
+    .replace(/\bflex\b/g, "flexora")
+    .replace(/\brot\b/g, "rotacao")
+    .replace(/\bcross\b/g, "crossover")
+    .replace(/\bfacepull\b/g, "face pull")
+    .replace(/\bcabos?\b/g, "polia");
+
   return norm.trim();
 }
 
@@ -377,6 +398,15 @@ export const EXERCISE_SYNONYM_CLUSTERS: string[][] = [
     "remada t-bar cavalinho",
     "cavalinho"
   ],
+  // Remada Máquina Neutra
+  [
+    "remada maquina neutra",
+    "remada na maquina com pegada neutra",
+    "remada maquina pegada neutra",
+    "remada maquina neutra fechada",
+    "remada sentada maquina neutra",
+    "seated machine row neutral grip"
+  ],
   // Desenvolvimento com Halteres
   [
     "desenvolvimento com halteres",
@@ -445,8 +475,7 @@ export const EXERCISE_SYNONYM_CLUSTERS: string[][] = [
     "agachamento livre",
     "agachamento com barra",
     "back squat",
-    "barbell squat",
-    "agachamento"
+    "barbell squat"
   ],
   // Agachamento no Smith
   [
@@ -562,6 +591,58 @@ export const EXERCISE_SYNONYM_CLUSTERS: string[][] = [
     "plank",
     "prancha isometrica",
     "prancha frontal"
+  ],
+  // Face Pull
+  [
+    "face pull",
+    "facepull",
+    "face pull na polia",
+    "face pull cabo",
+    "face pull com corda"
+  ],
+  // Pulldown Braços Retos / Estendidos
+  [
+    "pulldown bracos retos",
+    "pulldown bracos estendidos",
+    "pulldown na polia com bracos estendidos",
+    "pulldown na polia",
+    "pulldown barra reta",
+    "straight arm pulldown"
+  ],
+  // Arnold Press
+  [
+    "arnold press",
+    "desenvolvimento arnold",
+    "arnold maquina",
+    "arnold press na maquina",
+    "desenvolvimento arnold na maquina"
+  ],
+  // Rotação Externa
+  [
+    "rotacao externa",
+    "rotacao externa cabo",
+    "rotacao externa polia",
+    "rotacao externa na polia",
+    "rotacao externa ombro",
+    "external rotation"
+  ],
+  // Crucifixo na Máquina / Voador
+  [
+    "crucifixo maquina",
+    "crucifixo na maquina",
+    "voador maquina",
+    "voador na maquina",
+    "voador",
+    "peck deck",
+    "fly machine"
+  ],
+  // Crucifixo Inclinado Máquina Hammer
+  [
+    "crucifixo inclinado maquina",
+    "crucifixo inclinado na maquina",
+    "voador inclinado na maquina",
+    "voador inclinado",
+    "crucifixo inclinado maquina hammer"
   ]
 ];
 

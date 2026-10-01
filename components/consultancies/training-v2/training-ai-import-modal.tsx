@@ -7,7 +7,7 @@ import type {
   ResolvedTrainingCategory,
   ResolvedTrainingExerciseItem,
 } from "@/lib/training-v2/training-ai-importer";
-import { formatDurationToMinutes } from "@/lib/training-v2/reps-normalizer";
+import { formatDurationNatural } from "@/lib/training-v2/reps-normalizer";
 
 interface Props {
   consultancySlug: string;
@@ -164,7 +164,7 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
   const totalExercisesCount = editableCategories.reduce((acc, cat) => acc + cat.exercises.length, 0);
 
   const handleConfirmImport = async () => {
-    if (!proposal || hasUnresolvedItems) return;
+    if (!proposal) return;
     setErrorMsg(null);
     setState("SAVING");
 
@@ -491,11 +491,16 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
-                                <div className="font-semibold text-foreground">
-                                  {ex.exerciseNameCandidate}
+                                <div className="font-semibold text-foreground flex items-center gap-1.5 flex-wrap">
+                                  <span>{ex.exerciseNameCandidate}</span>
+                                  {ex.groupName && (
+                                    <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/40">
+                                      {ex.groupName}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                                  {ex.sets || 3} séries × {ex.reps ? (ex.repsMax && ex.repsMax > ex.reps ? `${ex.reps}–${ex.repsMax} reps` : `${ex.reps} reps`) : ex.durationSeconds ? formatDurationToMinutes(ex.durationSeconds) : "livre"}
+                                  {ex.sets || 3} séries × {ex.reps ? (ex.repsMax && ex.repsMax > ex.reps ? `${ex.reps}–${ex.repsMax} reps` : `${ex.reps} reps`) : ex.durationSeconds ? formatDurationNatural(ex.durationSeconds, ex.durationUnit) : "livre"}
                                   {ex.load ? ` • Carga: ${ex.load} kg` : ""}
                                   {ex.restSeconds ? ` • Descanso: ${ex.restSeconds}s` : ""}
                                 </div>
@@ -567,13 +572,15 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
 
                   <button
                     type="button"
-                    disabled={hasUnresolvedItems || state === "SAVING" || totalExercisesCount === 0}
+                    disabled={state === "SAVING" || totalExercisesCount === 0}
                     onClick={handleConfirmImport}
                     className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5"
                   >
                     <span>
                       {state === "SAVING"
                         ? "Salvando rascunho..."
+                        : hasUnresolvedItems
+                        ? "Salvar rascunho com pendências"
                         : selectedStudentId || targetStudentMembershipId
                         ? "Salvar rascunho"
                         : "Salvar como rascunho"}

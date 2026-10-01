@@ -6,10 +6,12 @@
 export interface RawTrainingExerciseItem {
   originalText: string;
   exerciseNameCandidate: string;
+  groupName?: string | null;
   sets: number | null;
   reps: number | null;
   repsMax?: number | null;
   durationSeconds: number | null;
+  durationUnit?: "SECONDS" | "MINUTES" | string | null;
   restSeconds: number | null;
   load: number | null;
   notes: string | null;
@@ -81,10 +83,12 @@ export const TRAINING_IMPORT_JSON_SCHEMA = {
                 properties: {
                   originalText: { type: "string" },
                   exerciseNameCandidate: { type: "string" },
+                  groupName: { type: ["string", "null"] },
                   sets: { type: ["number", "null"] },
                   reps: { type: ["number", "null"] },
                   repsMax: { type: ["number", "null"] },
                   durationSeconds: { type: ["number", "null"] },
+                  durationUnit: { type: ["string", "null"], enum: ["SECONDS", "MINUTES", null] },
                   restSeconds: { type: ["number", "null"] },
                   load: { type: ["number", "null"] },
                   notes: { type: ["string", "null"] },
@@ -92,10 +96,12 @@ export const TRAINING_IMPORT_JSON_SCHEMA = {
                 required: [
                   "originalText",
                   "exerciseNameCandidate",
+                  "groupName",
                   "sets",
                   "reps",
                   "repsMax",
                   "durationSeconds",
+                  "durationUnit",
                   "restSeconds",
                   "load",
                   "notes",

@@ -10,6 +10,7 @@ import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-
 import { WorkoutTemplatePickerTrigger } from "@/components/consultancies/training-v2/workout-template-picker";
 import { WorkoutAssignmentsList } from "@/components/consultancies/training-v2/workout-assignments-list";
 import { TrainingAiImportModal } from "@/components/consultancies/training-v2/training-ai-import-modal";
+import { WorkoutCardActions } from "@/components/consultancies/training-v2/workout-card-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -366,14 +367,12 @@ export default async function ConsultancyWorkoutsPage({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--border-subtle)] justify-end">
-                        <Link
-                          href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                          className="inline-flex items-center justify-center px-4 py-1.5 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] hover:border-[var(--border-strong)] transition-all min-h-[34px] cursor-pointer"
-                        >
-                          Abrir →
-                        </Link>
-                      </div>
+                      <WorkoutCardActions
+                        consultancySlug={slug}
+                        workoutPublicId={w.publicId}
+                        workoutTitle={w.title}
+                        isDraft={Boolean(w.hasActiveDraft)}
+                      />
                     </div>
                   );
                 })}

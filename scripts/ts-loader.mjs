@@ -6,6 +6,7 @@ export async function resolve(specifier, context, nextResolve) {
   try {
     return await nextResolve(specifier, context);
   } catch (err) {
+
     if (specifier.startsWith('next/')) {
       const full = path.resolve(process.cwd(), 'node_modules', specifier + '.js');
       if (fs.existsSync(full)) {
@@ -30,15 +31,15 @@ export async function resolve(specifier, context, nextResolve) {
       }
     }
 
-    if (specifier.startsWith('.') || specifier.startsWith('/') || specifier.startsWith('file://')) {
+    if (specifier.startsWith('.') || specifier.startsWith('/') || specifier.startsWith('file://') || /^[a-zA-Z]:[\\/]/.test(specifier)) {
       let parentDir = process.cwd();
       if (context.parentURL) {
         try {
           const urlObj = new URL(context.parentURL);
-          parentDir = path.dirname(urlObj.pathname.replace(/^\/([A-Z]:)/, '$1'));
+          parentDir = path.dirname(decodeURIComponent(urlObj.pathname.replace(/^\/([a-zA-Z]:)/, '$1')));
         } catch {}
       }
-      const basePath = path.resolve(parentDir, specifier);
+      const basePath = /^[a-zA-Z]:[\\/]/.test(specifier) ? path.resolve(specifier) : path.resolve(parentDir, specifier);
       for (const ext of ['.ts', '.tsx', '.js', '.mjs', '/index.ts', '/index.tsx', '/index.js']) {
         const full = basePath + ext;
         if (fs.existsSync(full) && !fs.statSync(full).isDirectory()) {

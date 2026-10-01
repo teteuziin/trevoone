@@ -35,6 +35,7 @@ export interface ResolvedTrainingExerciseItem {
   id: string; // client temporary ID
   originalText: string;
   exerciseNameCandidate: string;
+  groupName?: string | null;
   matchStatus: ExerciseMatchStatus;
   exercisePublicId: string | null;
   exerciseNameSnapshot: string;
@@ -45,6 +46,7 @@ export interface ResolvedTrainingExerciseItem {
   reps: number | null;
   repsMax: number | null;
   durationSeconds: number | null;
+  durationUnit?: "SECONDS" | "MINUTES" | string | null;
   restSeconds: number | null;
   load: number | null;
   notes: string | null;
@@ -383,6 +385,7 @@ export async function processTrainingAiImport(params: {
         id: crypto.randomUUID(),
         originalText: ex.originalText,
         exerciseNameCandidate: ex.exerciseNameCandidate,
+        groupName: ex.groupName || null,
         matchStatus: matchResult.status,
         exercisePublicId,
         exerciseNameSnapshot,
@@ -393,6 +396,7 @@ export async function processTrainingAiImport(params: {
         reps: ex.reps,
         repsMax: ex.repsMax || null,
         durationSeconds: ex.durationSeconds,
+        durationUnit: ex.durationUnit || null,
         restSeconds: ex.restSeconds,
         load: ex.load,
         notes: ex.notes,
@@ -586,6 +590,29 @@ export async function confirmTrainingAiImport(params: {
       );
       const blockId = bRes.insertId;
 
+      // Check if any exercises have groupName
+      const distinctGroups: string[] = [];
+      for (const ex of cat.exercises) {
+        const gn = ex.groupName?.trim();
+        if (gn && !distinctGroups.includes(gn)) {
+          distinctGroups.push(gn);
+        }
+      }
+
+      const subBlockMap = new Map<string, number>();
+      let groupSort = 0;
+      for (const groupName of distinctGroups) {
+        groupSort++;
+        const subBlockPublicId = crypto.randomUUID();
+        const [sbRes] = await db.query<ResultSetHeader>(
+          `INSERT INTO workout_sub_blocks (
+            public_id, block_id, title, sort_order, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, NOW(3), NOW(3))`,
+          [subBlockPublicId, blockId, groupName, groupSort]
+        );
+        subBlockMap.set(groupName, sbRes.insertId);
+      }
+
       let itemSort = 0;
       for (const ex of cat.exercises) {
         itemSort++;
@@ -601,21 +628,26 @@ export async function confirmTrainingAiImport(params: {
         const nameSnapshot = exRows.length > 0 ? String(exRows[0].name) : ex.exerciseNameSnapshot;
         const muscleSnapshot = exRows.length > 0 ? String(exRows[0].muscle_group_primary) : ex.muscleGroupSnapshot;
         const equipSnapshot = exRows.length > 0 ? String(exRows[0].equipment) : ex.equipmentSnapshot;
+        const gn = ex.groupName?.trim();
+        const subBlockId = gn && subBlockMap.has(gn) ? subBlockMap.get(gn) : null;
+        const durationUnit = ex.durationUnit || (ex.durationSeconds ? "SECONDS" : null);
 
         const [iRes] = await db.query<ResultSetHeader>(
           `INSERT INTO workout_block_items (
-            public_id, block_id, exercise_id, sort_order, exercise_name_snapshot,
-            muscle_group_snapshot, equipment_snapshot, prescription_mode, notes,
+            public_id, block_id, sub_block_id, exercise_id, sort_order, exercise_name_snapshot,
+            muscle_group_snapshot, equipment_snapshot, prescription_mode, duration_unit, notes,
             created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'SETS', ?, NOW(3), NOW(3))`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SETS', ?, ?, NOW(3), NOW(3))`,
           [
             itemPublicId,
             blockId,
+            subBlockId,
             exerciseId,
             itemSort,
             nameSnapshot,
             muscleSnapshot,
             equipSnapshot,
+            durationUnit,
             ex.notes || null,
           ]
         );
@@ -646,8 +678,8 @@ export async function confirmTrainingAiImport(params: {
           await db.query(
             `INSERT INTO workout_item_sets (
               block_item_id, set_number, set_type, target_reps, target_reps_max, target_load_kg,
-              target_duration_seconds, target_rest_seconds, created_at, updated_at
-            ) VALUES (?, ?, 'NORMAL', ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+              target_duration_seconds, duration_unit, target_rest_seconds, created_at, updated_at
+            ) VALUES (?, ?, 'NORMAL', ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
             [
               itemId,
               s,
@@ -655,6 +687,7 @@ export async function confirmTrainingAiImport(params: {
               ex.repsMax || null,
               ex.load || null,
               ex.durationSeconds || null,
+              durationUnit,
               ex.restSeconds || null,
             ]
           );

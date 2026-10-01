@@ -138,3 +138,21 @@ export function formatDurationToMinutes(seconds: number | null | undefined): str
   const rounded = Math.round(minutes * 10) / 10;
   return `${rounded.toString().replace(".", ",")} min`;
 }
+
+/**
+ * Natural duration representation in Portuguese for Student Runtime, Builder, and PDF.
+ * If prescribed in minutes (or exact multiple of 60s when specified), returns e.g. "1 minuto", "2 minutos", "10 minutos".
+ * If prescribed in seconds, returns e.g. "30 segundos", "45 segundos".
+ * Never shows confusing fractional minutes like "0,8 min" or "120 sec".
+ */
+export function formatDurationNatural(
+  seconds: number | null | undefined,
+  unit?: "SECONDS" | "MINUTES" | string | null
+): string {
+  if (seconds == null || seconds <= 0) return "";
+  if (unit === "MINUTES" || (unit !== "SECONDS" && seconds >= 60 && seconds % 60 === 0)) {
+    const mins = Math.round(seconds / 60);
+    return `${mins} ${mins === 1 ? "minuto" : "minutos"}`;
+  }
+  return `${seconds} ${seconds === 1 ? "segundo" : "segundos"}`;
+}

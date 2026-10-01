@@ -173,6 +173,7 @@ export const workoutItemSetSchema = z
     targetDistanceMeters: z.number().int().positive("Distância deve ser maior que zero.").max(500000).nullable().optional(),
     targetRestSeconds: z.number().int().min(0, "Descanso não pode ser negativo.").max(3600).nullable().optional(),
     intensityIndicator: z.string().trim().max(50).nullable().optional(),
+    durationUnit: z.enum(["SECONDS", "MINUTES"]).nullable().optional(),
   })
   .superRefine((set, ctx) => {
     if (set.targetReps != null && set.targetRepsMax != null) {
@@ -196,11 +197,19 @@ export const workoutItemSetSchema = z
   });
 
 // ============================================================================
-// WORKOUT BLOCK ITEM SCHEMA
+// WORKOUT SUB-BLOCK & BLOCK ITEM SCHEMAS
 // ============================================================================
+
+export const workoutSubBlockSchema = z.object({
+  publicId: z.string().trim().min(1),
+  title: z.string().trim().min(1, "Nome do grupo é obrigatório.").max(255),
+  sortOrder: z.number().int().min(0),
+});
 
 export const workoutBlockItemSchema = z.object({
   exercisePublicId: z.string().trim().min(1).nullable().optional(),
+  subBlockPublicId: z.string().trim().nullable().optional(),
+  subBlockTitle: z.string().trim().nullable().optional(),
   sortOrder: z.number().int().min(0),
   exerciseNameSnapshot: z.string().trim().min(1, "Nome do exercício é obrigatório.").max(255),
   muscleGroupSnapshot: z.string().trim().max(100).nullable().optional(),
@@ -210,6 +219,7 @@ export const workoutBlockItemSchema = z.object({
   targetCadence: z.string().trim().max(20).nullable().optional(),
   targetRpe: z.number().min(1.0).max(10.0).nullable().optional(),
   targetRir: z.number().int().min(0).max(10).nullable().optional(),
+  durationUnit: z.enum(["SECONDS", "MINUTES"]).nullable().optional(),
   methodConfig: z.record(z.string(), z.unknown()).nullable().optional(),
   customVideoUrl: z.string().url("URL de vídeo inválida.").max(1000).nullable().optional(),
   notes: z.string().trim().max(2000).nullable().optional(),
@@ -230,6 +240,7 @@ export const workoutBlockSchema = z
     restBetweenRoundsSeconds: z.number().int().min(0).max(3600).nullable().optional(),
     restAfterBlockSeconds: z.number().int().min(0).max(3600).nullable().optional(),
     instructions: z.string().trim().max(2000).nullable().optional(),
+    subBlocks: z.array(workoutSubBlockSchema).default([]).optional(),
     items: z.array(workoutBlockItemSchema).min(1, "O bloco deve conter ao menos 1 exercício."),
   })
   .superRefine((block, ctx) => {

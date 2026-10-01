@@ -27,7 +27,7 @@ import {
   markRestTimerSkipped,
   type ActiveRestState,
 } from "./rest-timer";
-import { formatDurationToMinutes } from "@/lib/training-v2/reps-normalizer";
+import { formatDurationToMinutes, formatDurationNatural } from "@/lib/training-v2/reps-normalizer";
 
 function Check({ className = "w-3 h-3" }: { className?: string }) {
   return (
@@ -138,7 +138,7 @@ function formatReps(set: WorkoutItemSetDto): string {
     return `${set.targetReps} reps`;
   }
   if (set.targetDurationSeconds != null && set.targetDurationSeconds > 0) {
-    return formatDurationToMinutes(set.targetDurationSeconds);
+    return formatDurationNatural(set.targetDurationSeconds, set.durationUnit);
   }
   return "Reps livre";
 }
@@ -1378,28 +1378,108 @@ function BlockCard({
 
       {/* Items List */}
       <div className="px-5 pb-5 space-y-4">
-        {items.map((item, itemIndex) => (
-          <ItemCard
-            key={item.publicId}
-            item={item}
-            blockType={block.blockType}
-            itemIndex={itemIndex}
-            totalItems={items.length}
-            activeSession={activeSession}
-            loadingSetPublicId={loadingSetPublicId}
-            setErrors={setErrors}
-            onCompleteSet={onCompleteSet}
-            activeRest={activeRest}
-            onSkipRest={onSkipRest}
-            expandedFutureSets={expandedFutureSets}
-            onToggleExpandSet={onToggleExpandSet}
-            sessionDrafts={sessionDrafts}
-            onDraftChange={onDraftChange}
-            activeSubstitutions={activeSubstitutions}
-            remainingSwaps={remainingSwaps}
-            onOpenSwapModal={onOpenSwapModal}
-          />
-        ))}
+        {block.subBlocks && block.subBlocks.length > 0 ? (
+          (() => {
+            const sortedSubBlocks = [...block.subBlocks].sort((a, b) => a.sortOrder - b.sortOrder);
+            const unassignedItems = items.filter(
+              (i) => !i.subBlockPublicId || !sortedSubBlocks.some((sb) => sb.publicId === i.subBlockPublicId)
+            );
+            return (
+              <div className="space-y-5">
+                {sortedSubBlocks.map((sb) => {
+                  const sbItems = items.filter((i) => i.subBlockPublicId === sb.publicId);
+                  if (sbItems.length === 0) return null;
+                  return (
+                    <div key={sb.publicId} className="space-y-3">
+                      <div className="flex items-center gap-2 pt-2 border-b border-[var(--border-subtle)] pb-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                        <h4 className="text-xs sm:text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">
+                          {sb.title}
+                        </h4>
+                        <span className="text-[11px] font-medium text-[var(--foreground-muted)]">
+                          ({sbItems.length} {sbItems.length === 1 ? "exercício" : "exercícios"})
+                        </span>
+                      </div>
+                      <div className="space-y-4">
+                        {sbItems.map((item, itemIndex) => (
+                          <ItemCard
+                            key={item.publicId}
+                            item={item}
+                            blockType={block.blockType}
+                            itemIndex={itemIndex}
+                            totalItems={sbItems.length}
+                            activeSession={activeSession}
+                            loadingSetPublicId={loadingSetPublicId}
+                            setErrors={setErrors}
+                            onCompleteSet={onCompleteSet}
+                            activeRest={activeRest}
+                            onSkipRest={onSkipRest}
+                            expandedFutureSets={expandedFutureSets}
+                            onToggleExpandSet={onToggleExpandSet}
+                            sessionDrafts={sessionDrafts}
+                            onDraftChange={onDraftChange}
+                            activeSubstitutions={activeSubstitutions}
+                            remainingSwaps={remainingSwaps}
+                            onOpenSwapModal={onOpenSwapModal}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {unassignedItems.length > 0 && (
+                  <div className="space-y-4 pt-2">
+                    {unassignedItems.map((item, itemIndex) => (
+                      <ItemCard
+                        key={item.publicId}
+                        item={item}
+                        blockType={block.blockType}
+                        itemIndex={itemIndex}
+                        totalItems={unassignedItems.length}
+                        activeSession={activeSession}
+                        loadingSetPublicId={loadingSetPublicId}
+                        setErrors={setErrors}
+                        onCompleteSet={onCompleteSet}
+                        activeRest={activeRest}
+                        onSkipRest={onSkipRest}
+                        expandedFutureSets={expandedFutureSets}
+                        onToggleExpandSet={onToggleExpandSet}
+                        sessionDrafts={sessionDrafts}
+                        onDraftChange={onDraftChange}
+                        activeSubstitutions={activeSubstitutions}
+                        remainingSwaps={remainingSwaps}
+                        onOpenSwapModal={onOpenSwapModal}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()
+        ) : (
+          items.map((item, itemIndex) => (
+            <ItemCard
+              key={item.publicId}
+              item={item}
+              blockType={block.blockType}
+              itemIndex={itemIndex}
+              totalItems={items.length}
+              activeSession={activeSession}
+              loadingSetPublicId={loadingSetPublicId}
+              setErrors={setErrors}
+              onCompleteSet={onCompleteSet}
+              activeRest={activeRest}
+              onSkipRest={onSkipRest}
+              expandedFutureSets={expandedFutureSets}
+              onToggleExpandSet={onToggleExpandSet}
+              sessionDrafts={sessionDrafts}
+              onDraftChange={onDraftChange}
+              activeSubstitutions={activeSubstitutions}
+              remainingSwaps={remainingSwaps}
+              onOpenSwapModal={onOpenSwapModal}
+            />
+          ))
+        )}
       </div>
     </section>
   );

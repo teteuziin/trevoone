@@ -173,6 +173,7 @@ export type WorkoutItemSetDto = {
   targetRepsMax?: number | null;
   targetLoadKg?: number | null;
   targetDurationSeconds?: number | null;
+  durationUnit?: "SECONDS" | "MINUTES" | string | null;
   targetDistanceMeters?: number | null;
   targetRestSeconds?: number | null;
   intensityIndicator?: string | null;
@@ -184,15 +185,28 @@ export type BlockItemMediaDto = {
   mediaAsset: MediaAssetDto;
 };
 
+export type WorkoutSubBlockDto = {
+  publicId: string;
+  blockPublicId?: string;
+  title: string;
+  sortOrder: number;
+  items?: WorkoutBlockItemDto[];
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
 export type WorkoutBlockItemDto = {
   publicId: string;
   exercisePublicId: string | null;
+  subBlockPublicId?: string | null;
+  subBlockTitle?: string | null;
   sortOrder: number;
   exerciseNameSnapshot: string;
   muscleGroupSnapshot: string | null;
   equipmentSnapshot: string | null;
   instructionsSnapshot: string | null;
   prescriptionMode: PrescriptionMode;
+  durationUnit?: "SECONDS" | "MINUTES" | string | null;
   targetCadence: string | null;
   targetRpe: number | null;
   targetRir: number | null;
@@ -213,6 +227,7 @@ export type WorkoutBlockDto = {
   restBetweenRoundsSeconds: number | null;
   restAfterBlockSeconds: number | null;
   instructions: string | null;
+  subBlocks?: WorkoutSubBlockDto[];
   items: WorkoutBlockItemDto[];
 };
 

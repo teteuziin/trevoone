@@ -19,6 +19,7 @@ import type {
   WorkoutBlockDto,
   WorkoutBlockItemDto,
   WorkoutItemSetDto,
+  WorkoutSubBlockDto,
   BlockItemMediaDto,
   WorkoutBlockType,
   PrescriptionMode,
@@ -56,6 +57,7 @@ export type AddBlockInput = {
 
 export type AddItemInput = {
   exercisePublicId?: string | null;
+  subBlockPublicId?: string | null;
   customSnapshot?: {
     exerciseName: string;
     muscleGroup?: string | null;
@@ -66,6 +68,7 @@ export type AddItemInput = {
   targetCadence?: string | null;
   targetRpe?: number | null;
   targetRir?: number | null;
+  durationUnit?: "SECONDS" | "MINUTES" | string | null;
   methodConfig?: Record<string, unknown> | null;
   customVideoUrl?: string | null;
   notes?: string | null;
@@ -80,6 +83,7 @@ export type AddSetInput = {
   targetRepsMax?: number | null;
   targetLoadKg?: number | null;
   targetDurationSeconds?: number | null;
+  durationUnit?: "SECONDS" | "MINUTES" | string | null;
   targetDistanceMeters?: number | null;
   targetRestSeconds?: number | null;
   intensityIndicator?: string | null;
@@ -279,16 +283,27 @@ export async function getWorkoutVersionTree(
 
     const blockIds = bRows.map((b) => b.id);
 
+    // Fetch sub-blocks for all blocks
+    const [subBlockRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, block_id, title, sort_order
+       FROM workout_sub_blocks
+       WHERE block_id IN (${blockIds.map(() => "?").join(",")})
+       ORDER BY sort_order ASC;`,
+      blockIds
+    );
+
     // 3. Fetch items for all blocks
     const [iRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wbi.id, wbi.public_id, wbi.block_id, wbi.sort_order,
+      `SELECT wbi.id, wbi.public_id, wbi.block_id, wbi.sub_block_id, wbi.sort_order,
               wbi.exercise_name_snapshot, wbi.muscle_group_snapshot,
               wbi.equipment_snapshot, wbi.instructions_snapshot,
               wbi.prescription_mode, wbi.target_cadence, wbi.target_rpe,
-              wbi.target_rir, wbi.method_config_json, wbi.custom_video_url,
-              wbi.notes, e.public_id AS exercise_public_id
+              wbi.target_rir, wbi.duration_unit, wbi.method_config_json, wbi.custom_video_url,
+              wbi.notes, e.public_id AS exercise_public_id,
+              wsb.public_id AS sub_block_public_id, wsb.title AS sub_block_title
        FROM workout_block_items wbi
        LEFT JOIN exercises e ON e.id = wbi.exercise_id
+       LEFT JOIN workout_sub_blocks wsb ON wsb.id = wbi.sub_block_id
        WHERE wbi.block_id IN (${blockIds.map(() => "?").join(",")})
        ORDER BY wbi.sort_order ASC;`,
       blockIds
@@ -305,7 +320,7 @@ export async function getWorkoutVersionTree(
         `SELECT wis.id, wis.block_item_id, wis.set_number, wis.set_type,
                 wis.parent_set_id, p.set_number AS parent_set_number,
                 wis.target_reps, wis.target_reps_max, wis.target_load_kg,
-                wis.target_duration_seconds, wis.target_distance_meters,
+                wis.target_duration_seconds, wis.duration_unit, wis.target_distance_meters,
                 wis.target_rest_seconds, wis.intensity_indicator
          FROM workout_item_sets wis
          LEFT JOIN workout_item_sets p ON p.id = wis.parent_set_id
@@ -387,6 +402,7 @@ export async function getWorkoutVersionTree(
             targetRepsMax: s.target_reps_max != null ? Number(s.target_reps_max) : null,
             targetLoadKg: s.target_load_kg != null ? Number(s.target_load_kg) : null,
             targetDurationSeconds: s.target_duration_seconds != null ? Number(s.target_duration_seconds) : null,
+            durationUnit: s.duration_unit ? String(s.duration_unit) : null,
             targetDistanceMeters: s.target_distance_meters != null ? Number(s.target_distance_meters) : null,
             targetRestSeconds: s.target_rest_seconds != null ? Number(s.target_rest_seconds) : null,
             intensityIndicator: s.intensity_indicator ? String(s.intensity_indicator) : null,
@@ -416,6 +432,8 @@ export async function getWorkoutVersionTree(
         return {
           publicId: String(item.public_id),
           exercisePublicId: item.exercise_public_id ? String(item.exercise_public_id) : null,
+          subBlockPublicId: item.sub_block_public_id ? String(item.sub_block_public_id) : null,
+          subBlockTitle: item.sub_block_title ? String(item.sub_block_title) : null,
           sortOrder: Number(item.sort_order),
           exerciseNameSnapshot: String(item.exercise_name_snapshot),
           muscleGroupSnapshot: item.muscle_group_snapshot ? String(item.muscle_group_snapshot) : null,
@@ -425,6 +443,7 @@ export async function getWorkoutVersionTree(
           targetCadence: item.target_cadence ? String(item.target_cadence) : null,
           targetRpe: item.target_rpe != null ? Number(item.target_rpe) : null,
           targetRir: item.target_rir != null ? Number(item.target_rir) : null,
+          durationUnit: item.duration_unit ? String(item.duration_unit) : null,
           methodConfig: item.method_config_json
             ? typeof item.method_config_json === "string"
               ? JSON.parse(item.method_config_json)
@@ -437,6 +456,18 @@ export async function getWorkoutVersionTree(
         };
       });
 
+      const blockSubBlocks: WorkoutSubBlockDto[] = (subBlockRows || [])
+        .filter((sb) => sb.block_id === b.id)
+        .map((sb) => ({
+          publicId: String(sb.public_id),
+          blockPublicId: String(b.public_id),
+          title: String(sb.title),
+          sortOrder: Number(sb.sort_order),
+          items: items.filter((it) => it.subBlockPublicId === sb.public_id),
+          createdAt: sb.created_at ? new Date(sb.created_at) : new Date(),
+          updatedAt: sb.updated_at ? new Date(sb.updated_at) : new Date(),
+        }));
+
       return {
         publicId: String(b.public_id),
         blockType: b.block_type as WorkoutBlockType,
@@ -447,6 +478,7 @@ export async function getWorkoutVersionTree(
         restBetweenRoundsSeconds: b.rest_between_rounds_seconds != null ? Number(b.rest_between_rounds_seconds) : null,
         restAfterBlockSeconds: b.rest_after_block_seconds != null ? Number(b.rest_after_block_seconds) : null,
         instructions: b.instructions ? String(b.instructions) : null,
+        subBlocks: blockSubBlocks,
         items,
       };
     });
@@ -665,20 +697,34 @@ export async function addItemToDraftBlock(
       instSnapshot = input.customSnapshot.instructions?.trim() || null;
     }
 
+    let subBlockId: number | null = null;
+    let subBlockTitle: string | null = null;
+    if (input.subBlockPublicId) {
+      const [sbRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, title FROM workout_sub_blocks WHERE public_id = ? AND block_id = ? LIMIT 1;`,
+        [input.subBlockPublicId, b.id]
+      );
+      if (sbRows.length > 0) {
+        subBlockId = sbRows[0].id;
+        subBlockTitle = String(sbRows[0].title);
+      }
+    }
+
     const itemPublicId = crypto.randomUUID();
     const sortOrder = input.sortOrder ?? 0;
     const configJson = input.methodConfig ? JSON.stringify(input.methodConfig) : null;
 
     const [itemRes] = await connection.execute<ResultSetHeader>(
       `INSERT INTO workout_block_items (
-        public_id, block_id, exercise_id, sort_order, exercise_name_snapshot,
+        public_id, block_id, sub_block_id, exercise_id, sort_order, exercise_name_snapshot,
         muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
-        prescription_mode, target_cadence, target_rpe, target_rir,
+        prescription_mode, target_cadence, target_rpe, target_rir, duration_unit,
         method_config_json, custom_video_url, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         itemPublicId,
         b.id,
+        subBlockId,
         exerciseId,
         sortOrder,
         nameSnapshot,
@@ -689,6 +735,7 @@ export async function addItemToDraftBlock(
         input.targetCadence?.trim() || null,
         input.targetRpe ?? null,
         input.targetRir ?? null,
+        input.durationUnit || null,
         configJson,
         input.customVideoUrl?.trim() || null,
         input.notes?.trim() || null,
@@ -741,6 +788,8 @@ export async function addItemToDraftBlock(
     return {
       publicId: itemPublicId,
       exercisePublicId: input.exercisePublicId || null,
+      subBlockPublicId: input.subBlockPublicId || null,
+      subBlockTitle,
       sortOrder,
       exerciseNameSnapshot: nameSnapshot,
       muscleGroupSnapshot: muscleSnapshot,
@@ -750,6 +799,7 @@ export async function addItemToDraftBlock(
       targetCadence: input.targetCadence?.trim() || null,
       targetRpe: input.targetRpe ?? null,
       targetRir: input.targetRir ?? null,
+      durationUnit: input.durationUnit || null,
       methodConfig: input.methodConfig || null,
       customVideoUrl: input.customVideoUrl?.trim() || null,
       notes: input.notes?.trim() || null,
@@ -845,9 +895,9 @@ export async function addSetToDraftItem(
     await connection.execute<ResultSetHeader>(
       `INSERT INTO workout_item_sets (
         block_item_id, set_number, set_type, parent_set_id, target_reps,
-        target_reps_max, target_load_kg, target_duration_seconds,
+        target_reps_max, target_load_kg, target_duration_seconds, duration_unit,
         target_distance_meters, target_rest_seconds, intensity_indicator
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         item.id,
         setNumber,
@@ -857,6 +907,7 @@ export async function addSetToDraftItem(
         input.targetRepsMax ?? null,
         input.targetLoadKg ?? null,
         input.targetDurationSeconds ?? null,
+        input.durationUnit || null,
         input.targetDistanceMeters ?? null,
         input.targetRestSeconds ?? null,
         input.intensityIndicator?.trim() || null,
@@ -871,6 +922,7 @@ export async function addSetToDraftItem(
       targetRepsMax: input.targetRepsMax ?? null,
       targetLoadKg: input.targetLoadKg ?? null,
       targetDurationSeconds: input.targetDurationSeconds ?? null,
+      durationUnit: input.durationUnit || null,
       targetDistanceMeters: input.targetDistanceMeters ?? null,
       targetRestSeconds: input.targetRestSeconds ?? null,
       intensityIndicator: input.intensityIndicator?.trim() || null,
@@ -903,6 +955,24 @@ export function validateWorkoutVersionForPublish(tree: WorkoutVersionDto): void 
       400
     );
   }
+
+  // Guard against unresolved / unmatched exercises
+  let unresolvedCount = 0;
+  for (const block of tree.blocks || []) {
+    for (const item of block.items || []) {
+      if (!item.exercisePublicId) {
+        unresolvedCount++;
+      }
+    }
+  }
+  if (unresolvedCount > 0) {
+    throw new TrainingAuthorizationError(
+      `${unresolvedCount} exercício(s) precisa(m) ser revisado(s) antes da publicação.`,
+      "UNRESOLVED_EXERCISES",
+      400
+    );
+  }
+
   const validationResult = workoutVersionSchema.safeParse(tree);
   if (!validationResult.success) {
     const errorDetails = validationResult.error.issues.map((i) => i.message).join(" | ");
@@ -916,7 +986,7 @@ export function validateWorkoutVersionForPublish(tree: WorkoutVersionDto): void 
 
 /**
  * Generic deep-clone helper for Training V2 version trees.
- * Deep-clones all blocks, items, snapshots, method configurations, pinned media associations,
+ * Deep-clones all blocks, sub-blocks, items, snapshots, method configurations, pinned media associations,
  * and normalized sets with parent_set_id remapping (for DROP_STAGE and REST_PAUSE_MINI).
  *
  * CRITICAL RULE: Generates brand new identities (public_id) for all cloned mutable rows.
@@ -959,11 +1029,26 @@ async function cloneVersionTree(
     );
     const newBlockId = bRes.insertId;
 
+    // 1b. Fetch and clone sub-blocks of this block
+    const [sourceSubBlocks] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, title, sort_order FROM workout_sub_blocks WHERE block_id = ? ORDER BY sort_order ASC;`,
+      [b.id]
+    );
+    const subBlockIdMap = new Map<number, number>(); // oldSubBlockId -> newSubBlockId
+    for (const sb of sourceSubBlocks) {
+      const newSubBlockPublicId = crypto.randomUUID();
+      const [sbRes] = await connection.execute<ResultSetHeader>(
+        `INSERT INTO workout_sub_blocks (public_id, block_id, title, sort_order) VALUES (?, ?, ?, ?);`,
+        [newSubBlockPublicId, newBlockId, sb.title, sb.sort_order]
+      );
+      subBlockIdMap.set(Number(sb.id), sbRes.insertId);
+    }
+
     // 2. Fetch source items of this block
     const [sourceItems] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, exercise_id, sort_order, exercise_name_snapshot, muscle_group_snapshot,
+      `SELECT id, sub_block_id, exercise_id, sort_order, exercise_name_snapshot, muscle_group_snapshot,
               equipment_snapshot, instructions_snapshot, prescription_mode,
-              target_cadence, target_rpe, target_rir, method_config_json,
+              target_cadence, target_rpe, target_rir, duration_unit, method_config_json,
               custom_video_url, notes
        FROM workout_block_items
        WHERE block_id = ?
@@ -973,6 +1058,10 @@ async function cloneVersionTree(
 
     for (const item of sourceItems) {
       const newItemPublicId = crypto.randomUUID();
+      const targetSubBlockId =
+        item.sub_block_id != null && subBlockIdMap.has(Number(item.sub_block_id))
+          ? subBlockIdMap.get(Number(item.sub_block_id))
+          : null;
       const methodConfigValue =
         item.method_config_json != null
           ? typeof item.method_config_json === "object"
@@ -982,14 +1071,15 @@ async function cloneVersionTree(
 
       const [iRes] = await connection.execute<ResultSetHeader>(
         `INSERT INTO workout_block_items (
-          public_id, block_id, exercise_id, sort_order, exercise_name_snapshot,
+          public_id, block_id, sub_block_id, exercise_id, sort_order, exercise_name_snapshot,
           muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
           prescription_mode, target_cadence, target_rpe, target_rir,
-          method_config_json, custom_video_url, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          duration_unit, method_config_json, custom_video_url, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           newItemPublicId,
           newBlockId,
+          targetSubBlockId,
           item.exercise_id,
           item.sort_order,
           item.exercise_name_snapshot,
@@ -1000,6 +1090,7 @@ async function cloneVersionTree(
           item.target_cadence,
           item.target_rpe,
           item.target_rir,
+          item.duration_unit || null,
           methodConfigValue,
           item.custom_video_url,
           item.notes,
@@ -1022,7 +1113,7 @@ async function cloneVersionTree(
       // 4. Clone sets with parent_set_id remapping
       const [sourceSets] = await connection.execute<RowDataPacket[]>(
         `SELECT id, set_number, set_type, parent_set_id, target_reps, target_reps_max,
-                target_load_kg, target_duration_seconds, target_distance_meters,
+                target_load_kg, target_duration_seconds, duration_unit, target_distance_meters,
                 target_rest_seconds, intensity_indicator
          FROM workout_item_sets
          WHERE block_item_id = ?
@@ -1038,8 +1129,8 @@ async function cloneVersionTree(
           `INSERT INTO workout_item_sets (
             block_item_id, set_number, set_type, parent_set_id, target_reps,
             target_reps_max, target_load_kg, target_duration_seconds,
-            target_distance_meters, target_rest_seconds, intensity_indicator
-          ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?);`,
+            duration_unit, target_distance_meters, target_rest_seconds, intensity_indicator
+          ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?);`,
           [
             newItemId,
             s.set_number,
@@ -1048,6 +1139,7 @@ async function cloneVersionTree(
             s.target_reps_max,
             s.target_load_kg,
             s.target_duration_seconds,
+            s.duration_unit || null,
             s.target_distance_meters,
             s.target_rest_seconds,
             s.intensity_indicator,
@@ -3634,6 +3726,7 @@ export type QuickConfigInput = {
   reps?: number | null;
   targetRepsMax?: number | null;
   targetDurationSeconds?: number | null;
+  durationUnit?: "SECONDS" | "MINUTES" | string | null;
   restSeconds: number;
   loadKg?: number | null;
   notes?: string | null;
@@ -4033,10 +4126,14 @@ export async function updateItemQuickConfigInDraft(
       throw new TrainingAuthorizationError("Não é permitido alterar itens de uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
     }
 
-    // Update notes
+    // Update notes and duration_unit
     await connection.execute(
-      "UPDATE workout_block_items SET notes = ?, updated_at = NOW(3) WHERE id = ?;",
-      [input.notes !== undefined ? (input.notes?.trim() || null) : null, item.id]
+      "UPDATE workout_block_items SET notes = ?, duration_unit = ?, updated_at = NOW(3) WHERE id = ?;",
+      [
+        input.notes !== undefined ? (input.notes?.trim() || null) : null,
+        input.durationUnit || null,
+        item.id,
+      ]
     );
 
     // Delete existing sets
@@ -4050,6 +4147,7 @@ export async function updateItemQuickConfigInDraft(
       ? null
       : Math.max(reps, Math.round(Number(input.targetRepsMax)));
     const duration = isDuration ? Math.max(1, input.targetDurationSeconds!) : null;
+    const durationUnit = isDuration ? (input.durationUnit || "SECONDS") : null;
     const rest = Math.max(0, input.restSeconds ?? 60);
     const load = input.loadKg != null && !isNaN(Number(input.loadKg)) ? Number(input.loadKg) : null;
 
@@ -4057,10 +4155,10 @@ export async function updateItemQuickConfigInDraft(
       await connection.execute(
         `INSERT INTO workout_item_sets (
           block_item_id, set_number, set_type, parent_set_id, target_reps,
-          target_reps_max, target_load_kg, target_duration_seconds,
+          target_reps_max, target_load_kg, target_duration_seconds, duration_unit,
           target_distance_meters, target_rest_seconds, intensity_indicator
-        ) VALUES (?, ?, 'NORMAL', NULL, ?, ?, ?, ?, NULL, ?, NULL);`,
-        [item.id, setNum, reps, repsMax, load, duration, rest]
+        ) VALUES (?, ?, 'NORMAL', NULL, ?, ?, ?, ?, ?, NULL, ?, NULL);`,
+        [item.id, setNum, reps, repsMax, load, duration, durationUnit, rest]
       );
 
       resultSets.push({
@@ -4071,6 +4169,7 @@ export async function updateItemQuickConfigInDraft(
         targetRepsMax: repsMax,
         targetLoadKg: load,
         targetDurationSeconds: duration,
+        durationUnit,
         targetDistanceMeters: null,
         targetRestSeconds: rest,
         intensityIndicator: null,
@@ -4086,4 +4185,757 @@ export async function updateItemQuickConfigInDraft(
     connection.release();
   }
 }
+
+// ============================================================================
+// TRAINING BUILDER V3: SUB-BLOCKS, EXERCISE RESOLUTION & WORKOUT DELETION
+// ============================================================================
+
+export type { WorkoutSubBlockDto } from "./types";
+
+
+/**
+ * Creates a new Sub-block (Grupo) inside a draft block (Treino/Dia).
+ */
+export async function createWorkoutSubBlock(
+  ctx: TrainingAccessContext,
+  blockPublicId: string,
+  input: { title: string }
+): Promise<WorkoutSubBlockDto> {
+  assertCanAuthorTraining(ctx);
+
+  const cleanTitle = input.title?.trim();
+  if (!cleanTitle) {
+    throw new TrainingAuthorizationError("O nome do grupo é obrigatório.", "VALIDATION_FAILED", 400);
+  }
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [bRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wb.id, wv.status, w.consultancy_id, w.created_by_membership_id
+       FROM workout_blocks wb
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wb.public_id = ? AND w.deleted_at IS NULL
+       LIMIT 1;`,
+      [blockPublicId]
+    );
+
+    if (!bRows || bRows.length === 0) {
+      throw new TrainingAuthorizationError("Bloco de treino não encontrado.", "NOT_FOUND", 404);
+    }
+    const b = bRows[0];
+
+    if (Number(b.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    const isCreator = ctx.membershipId && Number(b.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError("Acesso restrito ao criador ou administrador.", "FORBIDDEN", 403);
+    }
+    if (b.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Não é permitido alterar uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    const [maxRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM workout_sub_blocks WHERE block_id = ?;`,
+      [b.id]
+    );
+    const nextOrder = Number(maxRows[0]?.next_order || 0);
+    const subBlockPublicId = crypto.randomUUID();
+
+    await connection.execute(
+      `INSERT INTO workout_sub_blocks (public_id, block_id, title, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, NOW(3), NOW(3));`,
+      [subBlockPublicId, b.id, cleanTitle, nextOrder]
+    );
+
+    await connection.commit();
+
+    return {
+      publicId: subBlockPublicId,
+      title: cleanTitle,
+      sortOrder: nextOrder,
+    };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Renames a Sub-block (Grupo).
+ */
+export async function renameWorkoutSubBlock(
+  ctx: TrainingAccessContext,
+  subBlockPublicId: string,
+  newTitle: string
+): Promise<WorkoutSubBlockDto> {
+  assertCanAuthorTraining(ctx);
+
+  const cleanTitle = newTitle?.trim();
+  if (!cleanTitle) {
+    throw new TrainingAuthorizationError("O nome do grupo é obrigatório.", "VALIDATION_FAILED", 400);
+  }
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [sbRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wsb.id, wsb.sort_order, wv.status, w.consultancy_id, w.created_by_membership_id
+       FROM workout_sub_blocks wsb
+       INNER JOIN workout_blocks wb ON wb.id = wsb.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wsb.public_id = ? AND w.deleted_at IS NULL
+       LIMIT 1;`,
+      [subBlockPublicId]
+    );
+
+    if (!sbRows || sbRows.length === 0) {
+      throw new TrainingAuthorizationError("Grupo não encontrado.", "NOT_FOUND", 404);
+    }
+    const sb = sbRows[0];
+
+    if (Number(sb.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    const isCreator = ctx.membershipId && Number(sb.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError("Acesso restrito ao criador ou administrador.", "FORBIDDEN", 403);
+    }
+    if (sb.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Não é permitido alterar uma versão já publicada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    await connection.execute(
+      `UPDATE workout_sub_blocks SET title = ?, updated_at = NOW(3) WHERE id = ?;`,
+      [cleanTitle, sb.id]
+    );
+
+    await connection.commit();
+
+    return {
+      publicId: subBlockPublicId,
+      title: cleanTitle,
+      sortOrder: Number(sb.sort_order),
+    };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Reorders Sub-blocks (Grupos) inside a block.
+ */
+export async function reorderWorkoutSubBlocks(
+  ctx: TrainingAccessContext,
+  blockPublicId: string,
+  orderedPublicIds: string[]
+): Promise<void> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [bRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wb.id, wv.status, w.consultancy_id, w.created_by_membership_id
+       FROM workout_blocks wb
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wb.public_id = ? AND w.deleted_at IS NULL
+       LIMIT 1;`,
+      [blockPublicId]
+    );
+
+    if (!bRows || bRows.length === 0) {
+      throw new TrainingAuthorizationError("Bloco de treino não encontrado.", "NOT_FOUND", 404);
+    }
+    const b = bRows[0];
+
+    if (Number(b.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    if (b.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Não é permitido alterar uma versão já publicada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    for (let i = 0; i < orderedPublicIds.length; i++) {
+      await connection.execute(
+        `UPDATE workout_sub_blocks SET sort_order = ?, updated_at = NOW(3) WHERE public_id = ? AND block_id = ?;`,
+        [i, orderedPublicIds[i], b.id]
+      );
+    }
+
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Deletes a Sub-block (Grupo).
+ * If deleteItemsWithGroup is true: deletes all exercises inside this sub-block.
+ * Otherwise: moves exercises to block root (sub_block_id = NULL).
+ */
+export async function deleteWorkoutSubBlock(
+  ctx: TrainingAccessContext,
+  subBlockPublicId: string,
+  deleteItemsWithGroup: boolean = true
+): Promise<boolean> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [sbRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wsb.id, wsb.block_id, wv.status, w.consultancy_id, w.created_by_membership_id
+       FROM workout_sub_blocks wsb
+       INNER JOIN workout_blocks wb ON wb.id = wsb.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wsb.public_id = ? AND w.deleted_at IS NULL
+       LIMIT 1;`,
+      [subBlockPublicId]
+    );
+
+    if (!sbRows || sbRows.length === 0) {
+      throw new TrainingAuthorizationError("Grupo não encontrado.", "NOT_FOUND", 404);
+    }
+    const sb = sbRows[0];
+
+    if (Number(sb.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    const isCreator = ctx.membershipId && Number(sb.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError("Acesso restrito ao criador ou administrador.", "FORBIDDEN", 403);
+    }
+    if (sb.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Não é permitido alterar uma versão já publicada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    if (deleteItemsWithGroup) {
+      // Find items in this sub-block
+      const [items] = await connection.execute<RowDataPacket[]>(
+        `SELECT id FROM workout_block_items WHERE sub_block_id = ?;`,
+        [sb.id]
+      );
+      for (const item of items) {
+        await connection.execute(`DELETE FROM workout_item_sets WHERE block_item_id = ?;`, [item.id]);
+        await connection.execute(`DELETE FROM workout_block_item_media WHERE block_item_id = ?;`, [item.id]);
+        await connection.execute(`DELETE FROM workout_block_items WHERE id = ?;`, [item.id]);
+      }
+    } else {
+      // Unlink items from sub-block
+      await connection.execute(
+        `UPDATE workout_block_items SET sub_block_id = NULL, updated_at = NOW(3) WHERE sub_block_id = ?;`,
+        [sb.id]
+      );
+    }
+
+    // Delete sub-block
+    await connection.execute(`DELETE FROM workout_sub_blocks WHERE id = ?;`, [sb.id]);
+
+    await connection.commit();
+    return true;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Duplicates a Sub-block (Grupo) and all its exercises inside the same block.
+ */
+export async function duplicateWorkoutSubBlock(
+  ctx: TrainingAccessContext,
+  subBlockPublicId: string
+): Promise<WorkoutSubBlockDto> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [sbRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wsb.id, wsb.block_id, wsb.title, wsb.sort_order, wv.status, w.consultancy_id, w.created_by_membership_id
+       FROM workout_sub_blocks wsb
+       INNER JOIN workout_blocks wb ON wb.id = wsb.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wsb.public_id = ? AND w.deleted_at IS NULL
+       LIMIT 1;`,
+      [subBlockPublicId]
+    );
+
+    if (!sbRows || sbRows.length === 0) {
+      throw new TrainingAuthorizationError("Grupo não encontrado.", "NOT_FOUND", 404);
+    }
+    const sb = sbRows[0];
+
+    if (Number(sb.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    if (sb.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Não é permitido alterar uma versão já publicada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    const [maxOrderRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM workout_sub_blocks WHERE block_id = ?;`,
+      [sb.block_id]
+    );
+    const nextOrder = Number(maxOrderRows[0]?.next_order || 0);
+
+    const newSubBlockPublicId = crypto.randomUUID();
+    const newTitle = `${sb.title} (Cópia)`;
+
+    const [newSbRes] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO workout_sub_blocks (public_id, block_id, title, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, NOW(3), NOW(3));`,
+      [newSubBlockPublicId, sb.block_id, newTitle, nextOrder]
+    );
+    const newSubBlockId = newSbRes.insertId;
+
+    // Fetch items of this sub-block
+    const [sourceItems] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, exercise_id, sort_order, exercise_name_snapshot, muscle_group_snapshot,
+              equipment_snapshot, instructions_snapshot, prescription_mode,
+              target_cadence, target_rpe, target_rir, duration_unit, method_config_json,
+              custom_video_url, notes
+       FROM workout_block_items
+       WHERE sub_block_id = ?
+       ORDER BY sort_order ASC;`,
+      [sb.id]
+    );
+
+    for (const item of sourceItems) {
+      const newItemPublicId = crypto.randomUUID();
+      const [iRes] = await connection.execute<ResultSetHeader>(
+        `INSERT INTO workout_block_items (
+          public_id, block_id, sub_block_id, exercise_id, sort_order, exercise_name_snapshot,
+          muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
+          prescription_mode, target_cadence, target_rpe, target_rir,
+          duration_unit, method_config_json, custom_video_url, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          newItemPublicId,
+          sb.block_id,
+          newSubBlockId,
+          item.exercise_id,
+          item.sort_order,
+          item.exercise_name_snapshot,
+          item.muscle_group_snapshot,
+          item.equipment_snapshot,
+          item.instructions_snapshot,
+          item.prescription_mode,
+          item.target_cadence,
+          item.target_rpe,
+          item.target_rir,
+          item.duration_unit || null,
+          item.method_config_json,
+          item.custom_video_url,
+          item.notes,
+        ]
+      );
+      const newItemId = iRes.insertId;
+
+      // Clone media
+      const [mediaRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT media_asset_id, role, sort_order FROM workout_block_item_media WHERE block_item_id = ?;`,
+        [item.id]
+      );
+      for (const m of mediaRows) {
+        await connection.execute(
+          `INSERT INTO workout_block_item_media (block_item_id, media_asset_id, role, sort_order) VALUES (?, ?, ?, ?);`,
+          [newItemId, m.media_asset_id, m.role, m.sort_order]
+        );
+      }
+
+      // Clone sets
+      const [sets] = await connection.execute<RowDataPacket[]>(
+        `SELECT set_number, set_type, target_reps, target_reps_max, target_load_kg,
+                target_duration_seconds, duration_unit, target_distance_meters,
+                target_rest_seconds, intensity_indicator
+         FROM workout_item_sets
+         WHERE block_item_id = ?
+         ORDER BY set_number ASC;`,
+        [item.id]
+      );
+      for (const s of sets) {
+        await connection.execute(
+          `INSERT INTO workout_item_sets (
+            block_item_id, set_number, set_type, parent_set_id, target_reps,
+            target_reps_max, target_load_kg, target_duration_seconds,
+            duration_unit, target_distance_meters, target_rest_seconds, intensity_indicator
+          ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            newItemId,
+            s.set_number,
+            s.set_type,
+            s.target_reps,
+            s.target_reps_max,
+            s.target_load_kg,
+            s.target_duration_seconds,
+            s.duration_unit || null,
+            s.target_distance_meters,
+            s.target_rest_seconds,
+            s.intensity_indicator,
+          ]
+        );
+      }
+    }
+
+    await connection.commit();
+
+    return {
+      publicId: newSubBlockPublicId,
+      title: newTitle,
+      sortOrder: nextOrder,
+    };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Resolves an unmatched or needs-review exercise item in a draft by associating a real library exercise.
+ * Preserves all prescribed sets, reps, load, duration, and notes!
+ */
+export async function resolveUnmatchedExerciseItem(
+  ctx: TrainingAccessContext,
+  itemPublicId: string,
+  exercisePublicId: string
+): Promise<WorkoutBlockItemDto> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [iRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wbi.id, wbi.block_id, wbi.sub_block_id, wv.status, wv.public_id AS version_public_id, w.consultancy_id, w.created_by_membership_id
+       FROM workout_block_items wbi
+       INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wbi.public_id = ? AND w.deleted_at IS NULL
+       LIMIT 1;`,
+      [itemPublicId]
+    );
+
+    if (!iRows || iRows.length === 0) {
+      throw new TrainingAuthorizationError("Item de treino não encontrado.", "NOT_FOUND", 404);
+    }
+    const item = iRows[0];
+
+    if (Number(item.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    const isCreator = ctx.membershipId && Number(item.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError("Acesso restrito ao criador ou administrador.", "FORBIDDEN", 403);
+    }
+    if (item.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Apenas rascunhos podem ter exercícios resolvidos.", "IMMUTABLE_VERSION", 400);
+    }
+
+    // Fetch library exercise
+    const [exRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, name, muscle_group_primary, equipment, instructions, scope, consultancy_id, visibility, created_by_membership_id
+       FROM exercises
+       WHERE public_id = ? AND deleted_at IS NULL AND status = 'PUBLISHED'
+       LIMIT 1;`,
+      [exercisePublicId]
+    );
+
+    if (!exRows || exRows.length === 0) {
+      throw new TrainingAuthorizationError("Exercício da biblioteca não encontrado.", "EXERCISE_NOT_FOUND", 404);
+    }
+    const realEx = exRows[0];
+
+    if (realEx.scope === "CONSULTANCY") {
+      if (Number(realEx.consultancy_id) !== ctx.consultancyId) {
+        throw new TrainingAuthorizationError("Exercício pertence a outra consultoria.", "TENANT_MISMATCH", 403);
+      }
+      if (realEx.visibility === "CREATOR_ONLY") {
+        const isExCreator = ctx.membershipId && Number(realEx.created_by_membership_id) === ctx.membershipId;
+        if (!isExCreator && !ctx.canManageConsultancy) {
+          throw new TrainingAuthorizationError("Exercício privado de outro profissional.", "FORBIDDEN", 403);
+        }
+      }
+    }
+
+    // Update item exercise_id and snapshot while preserving prescription
+    await connection.execute(
+      `UPDATE workout_block_items
+       SET exercise_id = ?,
+           exercise_name_snapshot = ?,
+           muscle_group_snapshot = COALESCE(muscle_group_snapshot, ?),
+           equipment_snapshot = COALESCE(equipment_snapshot, ?),
+           instructions_snapshot = COALESCE(instructions_snapshot, ?),
+           updated_at = NOW(3)
+       WHERE id = ?;`,
+      [
+        realEx.id,
+        realEx.name,
+        realEx.muscle_group_primary,
+        realEx.equipment,
+        realEx.instructions,
+        item.id,
+      ]
+    );
+
+    // If item has no pinned media, pin exercise media
+    const [existingMedia] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM workout_block_item_media WHERE block_item_id = ? LIMIT 1;`,
+      [item.id]
+    );
+    if (!existingMedia || existingMedia.length === 0) {
+      const [exMedia] = await connection.execute<RowDataPacket[]>(
+        `SELECT em.media_asset_id, em.role, em.sort_order
+         FROM exercise_media em
+         INNER JOIN media_assets ma ON ma.id = em.media_asset_id
+         WHERE em.exercise_id = ? AND ma.deleted_at IS NULL
+         ORDER BY em.sort_order ASC;`,
+        [realEx.id]
+      );
+      for (const m of exMedia) {
+        await connection.execute(
+          `INSERT INTO workout_block_item_media (block_item_id, media_asset_id, role, sort_order) VALUES (?, ?, ?, ?);`,
+          [item.id, m.media_asset_id, m.role, m.sort_order]
+        );
+      }
+    }
+
+    await connection.commit();
+
+    // Return updated item DTO
+    const tree = await getWorkoutVersionTree(ctx, String(item.version_public_id));
+    // Find item in tree
+    const targetItem = tree?.blocks
+      .flatMap((b) => b.items)
+      .find((i) => i.publicId === itemPublicId);
+
+    if (targetItem) return targetItem;
+
+    return {
+      publicId: itemPublicId,
+      exercisePublicId: String(realEx.public_id),
+      sortOrder: 0,
+      exerciseNameSnapshot: String(realEx.name),
+      muscleGroupSnapshot: realEx.muscle_group_primary ? String(realEx.muscle_group_primary) : null,
+      equipmentSnapshot: realEx.equipment ? String(realEx.equipment) : null,
+      instructionsSnapshot: realEx.instructions ? String(realEx.instructions) : null,
+      prescriptionMode: "SETS",
+      targetCadence: null,
+      targetRpe: null,
+      targetRir: null,
+      methodConfig: null,
+      customVideoUrl: null,
+      notes: null,
+      pinnedMedia: [],
+      sets: [],
+    };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Deletes or archives a workout root (Ficha).
+ * Validates tenant, author/admin capability, and preserves student completed execution history!
+ */
+export async function deleteWorkout(
+  ctx: TrainingAccessContext,
+  workoutPublicId: string
+): Promise<boolean> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [wRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, consultancy_id, created_by_membership_id, status, title
+       FROM workouts
+       WHERE public_id = ? AND consultancy_id = ? AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [workoutPublicId, ctx.consultancyId!]
+    );
+
+    if (!wRows || wRows.length === 0) {
+      throw new TrainingAuthorizationError("Treino não encontrado.", "NOT_FOUND", 404);
+    }
+    const w = wRows[0];
+
+    const isCreator = ctx.membershipId && Number(w.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError("Acesso restrito ao autor ou administrador.", "FORBIDDEN", 403);
+    }
+
+    // 1. Archive any active assignments
+    await connection.execute(
+      `UPDATE workout_assignments wa
+       JOIN workout_versions wv ON wv.id = wa.workout_version_id
+       SET wa.status = 'ARCHIVED', wa.updated_at = NOW(3)
+       WHERE wv.workout_id = ? AND wa.status = 'ACTIVE';`,
+      [w.id]
+    );
+
+    // 2. Soft-delete workout
+    await connection.execute(
+      `UPDATE workouts
+       SET status = 'ARCHIVED', deleted_at = NOW(3), updated_at = NOW(3)
+       WHERE id = ?;`,
+      [w.id]
+    );
+
+    await recordConsultancyActivity({
+      consultancyId: ctx.consultancyId!,
+      actorUserId: ctx.userId,
+      actorMembershipId: ctx.membershipId,
+      actorRole: ctx.roles.includes("PERSONAL") ? "PERSONAL" : (ctx.roles[0] || "PERSONAL"),
+      action: "WORKOUT_ARCHIVED",
+      module: "PERSONAL",
+      resourceType: "workout",
+      resourcePublicId: workoutPublicId,
+      summary: `Treino "${w.title}" excluído/arquivado`,
+      metadata: { workoutPublicId, title: w.title },
+      connection,
+    }).catch(() => {});
+
+    await connection.commit();
+    return true;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Deletes a draft version of a workout.
+ * If the workout has no other published versions, soft-deletes the workout root entirely.
+ */
+export async function deleteWorkoutDraft(
+  ctx: TrainingAccessContext,
+  versionPublicId: string
+): Promise<boolean> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [vRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wv.id, wv.workout_id, wv.status, w.consultancy_id, w.created_by_membership_id, w.public_id AS workout_public_id, w.title
+       FROM workout_versions wv
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wv.public_id = ? AND w.deleted_at IS NULL
+       FOR UPDATE;`,
+      [versionPublicId]
+    );
+
+    if (!vRows || vRows.length === 0) {
+      throw new TrainingAuthorizationError("Versão de treino não encontrada.", "NOT_FOUND", 404);
+    }
+    const v = vRows[0];
+
+    if (Number(v.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    const isCreator = ctx.membershipId && Number(v.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError("Acesso restrito ao autor ou administrador.", "FORBIDDEN", 403);
+    }
+    if (v.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Apenas rascunhos podem ser excluídos por esta ação.", "INVALID_STATUS", 400);
+    }
+
+    // Check if other published versions exist
+    const [otherVersions] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, status FROM workout_versions WHERE workout_id = ? AND id != ? AND status = 'PUBLISHED';`,
+      [v.workout_id, v.id]
+    );
+
+    if (!otherVersions || otherVersions.length === 0) {
+      // It's a draft-only workout (e.g. from an import or newly created). Soft delete the whole workout!
+      await connection.execute(
+        `UPDATE workouts SET status = 'ARCHIVED', deleted_at = NOW(3), updated_at = NOW(3) WHERE id = ?;`,
+        [v.workout_id]
+      );
+      await connection.execute(
+        `UPDATE workout_versions SET status = 'ARCHIVED', updated_at = NOW(3) WHERE id = ?;`,
+        [v.id]
+      );
+    } else {
+      // A published version exists. Just archive this draft version.
+      await connection.execute(
+        `UPDATE workout_versions SET status = 'ARCHIVED', updated_at = NOW(3) WHERE id = ?;`,
+        [v.id]
+      );
+    }
+
+    await recordConsultancyActivity({
+      consultancyId: ctx.consultancyId!,
+      actorUserId: ctx.userId,
+      actorMembershipId: ctx.membershipId,
+      actorRole: ctx.roles.includes("PERSONAL") ? "PERSONAL" : (ctx.roles[0] || "PERSONAL"),
+      action: "WORKOUT_DRAFT_DELETED",
+      module: "PERSONAL",
+      resourceType: "workout",
+      resourcePublicId: String(v.workout_public_id),
+      summary: `Rascunho de treino "${v.title}" excluído`,
+      metadata: { workoutPublicId: v.workout_public_id, versionPublicId },
+      connection,
+    }).catch(() => {});
+
+    await connection.commit();
+    return true;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 

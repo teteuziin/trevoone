@@ -33,6 +33,14 @@ import {
   updateCardioConfigurationForDraftItem,
   updateWarmupConfigurationForDraftItem,
   archiveWorkout,
+  deleteWorkout,
+  deleteWorkoutDraft,
+  createWorkoutSubBlock,
+  renameWorkoutSubBlock,
+  reorderWorkoutSubBlocks,
+  deleteWorkoutSubBlock,
+  duplicateWorkoutSubBlock,
+  resolveUnmatchedExerciseItem,
   publishWorkoutVersion,
   createNewDraftVersionFromPublished,
   duplicateWorkout,
@@ -54,6 +62,7 @@ import {
 import type {
   WorkoutVersionDto,
   WorkoutBlockDto,
+  WorkoutSubBlockDto,
   WorkoutBlockItemDto,
   WorkoutItemSetDto,
   WorkoutBlockType,
@@ -227,7 +236,9 @@ export async function addExerciseItemToBlockAction(
   slug: string,
   blockPublicId: string,
   exercisePublicId: string,
-  notes?: string
+  notes?: string,
+  subBlockPublicId?: string | null,
+  durationUnit?: "SECONDS" | "MINUTES" | null
 ): Promise<ActionResponse<WorkoutBlockItemDto>> {
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
@@ -238,6 +249,8 @@ export async function addExerciseItemToBlockAction(
 
     const item = await addItemToDraftBlock(ctx, blockPublicId, {
       exercisePublicId: exercisePublicId.trim(),
+      subBlockPublicId: subBlockPublicId?.trim() || null,
+      durationUnit: durationUnit || null,
       notes: notes?.trim() || null,
     });
 
@@ -250,6 +263,7 @@ export async function addExerciseItemToBlockAction(
           setType: "NORMAL",
           targetReps: 10,
           targetRestSeconds: 60,
+          durationUnit: durationUnit || null,
         });
         initialSets.push({
           setNumber: s,
@@ -259,6 +273,7 @@ export async function addExerciseItemToBlockAction(
           targetRepsMax: null,
           targetLoadKg: null,
           targetDurationSeconds: null,
+          durationUnit: durationUnit || null,
           targetDistanceMeters: null,
           targetRestSeconds: 60,
           intensityIndicator: null,
@@ -292,7 +307,8 @@ export async function addCustomItemToBlockAction(
     equipment?: string | null;
     instructions?: string | null;
   },
-  notes?: string
+  notes?: string,
+  subBlockPublicId?: string | null
 ): Promise<ActionResponse<WorkoutBlockItemDto>> {
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
@@ -314,6 +330,7 @@ export async function addCustomItemToBlockAction(
         equipment: customSnapshot.equipment?.trim() || null,
         instructions: customSnapshot.instructions?.trim() || null,
       },
+      subBlockPublicId: subBlockPublicId?.trim() || null,
       notes: notes?.trim() || null,
     });
 
@@ -775,12 +792,21 @@ export async function createNewWorkoutVersionAction(
 export async function duplicateWorkoutAction(
   slug: string,
   workoutPublicId: string,
-  versionPublicId: string,
+  versionPublicId?: string,
   options?: { title?: string }
 ): Promise<ActionResponse<{ workoutPublicId: string; versionPublicId: string }>> {
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
-    const result = await duplicateWorkout(ctx, workoutPublicId, versionPublicId, options);
+    let targetVersionPublicId = versionPublicId;
+    if (!targetVersionPublicId) {
+      const versions = await listWorkoutVersions(ctx, workoutPublicId);
+      if (!versions || versions.length === 0) {
+        return { ok: false, error: "Nenhuma versão encontrada para duplicar." };
+      }
+      const published = versions.find((v) => v.status === "PUBLISHED");
+      targetVersionPublicId = (published || versions[0]).publicId;
+    }
+    const result = await duplicateWorkout(ctx, workoutPublicId, targetVersionPublicId, options);
 
     revalidatePath(`/consultoria/${slug}/rotinas`);
     return {
@@ -1209,3 +1235,176 @@ export async function updateExerciseQuickConfigAction(
     };
   }
 }
+
+/**
+ * Creates a new sub-block (Grupo) inside a workout block.
+ */
+export async function createSubBlockAction(
+  slug: string,
+  blockPublicId: string,
+  title: string
+): Promise<ActionResponse<WorkoutSubBlockDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    if (!title || !title.trim()) {
+      return { ok: false, error: "O nome do grupo é obrigatório." };
+    }
+    const subBlock = await createWorkoutSubBlock(ctx, blockPublicId, { title: title.trim() });
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: subBlock };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao criar grupo.",
+    };
+  }
+}
+
+/**
+ * Renames a sub-block (Grupo).
+ */
+export async function renameSubBlockAction(
+  slug: string,
+  subBlockPublicId: string,
+  title: string
+): Promise<ActionResponse<WorkoutSubBlockDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    if (!title || !title.trim()) {
+      return { ok: false, error: "O nome do grupo não pode ser vazio." };
+    }
+    const subBlock = await renameWorkoutSubBlock(ctx, subBlockPublicId, title.trim());
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: subBlock };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao renomear grupo.",
+    };
+  }
+}
+
+/**
+ * Reorders sub-blocks (Grupos) inside a workout block.
+ */
+export async function reorderSubBlocksAction(
+  slug: string,
+  blockPublicId: string,
+  subBlockPublicIds: string[]
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await reorderWorkoutSubBlocks(ctx, blockPublicId, subBlockPublicIds);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao reordenar grupos.",
+    };
+  }
+}
+
+/**
+ * Deletes a sub-block (Grupo) and its contained exercises.
+ */
+export async function deleteSubBlockAction(
+  slug: string,
+  subBlockPublicId: string
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await deleteWorkoutSubBlock(ctx, subBlockPublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao excluir grupo.",
+    };
+  }
+}
+
+/**
+ * Duplicates a sub-block (Grupo) and all its exercises, media, and sets.
+ */
+export async function duplicateSubBlockAction(
+  slug: string,
+  subBlockPublicId: string
+): Promise<ActionResponse<WorkoutSubBlockDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const duplicated = await duplicateWorkoutSubBlock(ctx, subBlockPublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: duplicated };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao duplicar grupo.",
+    };
+  }
+}
+
+/**
+ * Resolves an unmatched or needs-review exercise item in a draft by associating a real library exercise.
+ */
+export async function resolveUnmatchedExerciseItemAction(
+  slug: string,
+  itemPublicId: string,
+  exercisePublicId: string
+): Promise<ActionResponse<WorkoutBlockItemDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const item = await resolveUnmatchedExerciseItem(ctx, itemPublicId, exercisePublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: item };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao vincular exercício da biblioteca.",
+    };
+  }
+}
+
+/**
+ * Deletes or archives a workout root (Ficha).
+ * Preserves completed student execution history.
+ */
+export async function deleteWorkoutAction(
+  slug: string,
+  workoutPublicId: string
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await deleteWorkout(ctx, workoutPublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao excluir treino.",
+    };
+  }
+}
+
+/**
+ * Deletes a draft version of a workout.
+ * If the workout has no published versions, soft-deletes the workout root entirely.
+ */
+export async function deleteWorkoutDraftAction(
+  slug: string,
+  versionPublicId: string
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await deleteWorkoutDraft(ctx, versionPublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao excluir rascunho.",
+    };
+  }
+}
+

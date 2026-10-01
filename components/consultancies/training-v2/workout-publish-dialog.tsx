@@ -74,8 +74,19 @@ export function WorkoutPublishDialog({
 
   const totalBlocks = version.blocks?.length || 0;
   const totalItems = version.blocks?.reduce((acc, b) => acc + (b.items?.length || 0), 0) || 0;
+  const unresolvedItemsCount =
+    version.blocks?.reduce(
+      (acc, b) => acc + (b.items?.filter((i) => !i.exercisePublicId).length || 0),
+      0
+    ) || 0;
 
   const handleConfirmPublish = () => {
+    if (unresolvedItemsCount > 0) {
+      setErrorMessage(
+        `Existem ${unresolvedItemsCount} exercício(s) pendente(s) de revisão. Resolva-os antes de publicar.`
+      );
+      return;
+    }
     setErrorMessage(null);
     startTransition(async () => {
       const res = await publishWorkoutAction(consultancySlug, version.publicId);
@@ -167,6 +178,19 @@ export function WorkoutPublishDialog({
             )}
           </div>
 
+          {/* Unresolved Exercises Alert Notice */}
+          {unresolvedItemsCount > 0 && (
+            <div className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Exercícios pendentes de revisão</p>
+                <p className="mt-0.5 leading-relaxed text-[11px]">
+                  Existem {unresolvedItemsCount} exercício(s) sem vínculo com a biblioteca oficial. Resolva-os antes de publicar.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Immutability Alert Notice */}
           <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -203,8 +227,8 @@ export function WorkoutPublishDialog({
           <button
             type="button"
             onClick={handleConfirmPublish}
-            disabled={isPending}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
+            disabled={isPending || unresolvedItemsCount > 0}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-40"
           >
             {isPending ? (
               <>

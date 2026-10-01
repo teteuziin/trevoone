@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -29,6 +29,14 @@ import {
   createNewWorkoutVersionAction,
   duplicateWorkoutAction,
   saveWorkoutAsTemplateAction,
+  createSubBlockAction,
+  renameSubBlockAction,
+  reorderSubBlocksAction,
+  deleteSubBlockAction,
+  duplicateSubBlockAction,
+  resolveUnmatchedExerciseItemAction,
+  deleteWorkoutAction,
+  deleteWorkoutDraftAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import { WorkoutCategoryCard } from "./workout-category-card";
 import { UnifiedExercisePicker } from "./unified-exercise-picker";
@@ -140,6 +148,15 @@ function SlidersIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function TrashIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <polyline points="3 6 5 6 21 6" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  );
+}
+
 export type WorkoutBuilderProps = {
   consultancySlug: string;
   workout: WorkoutRootDto;
@@ -200,10 +217,14 @@ export function WorkoutBuilder({
 
   // Modals state
   const [activeCategoryForPicker, setActiveCategoryForPicker] = useState<string | null>(null);
+  const [activeSubBlockForPicker, setActiveSubBlockForPicker] = useState<string | null>(null);
+  const [resolvingItemPublicId, setResolvingItemPublicId] = useState<string | null>(null);
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
 
   const categories = useMemo(() => version.blocks || [], [version.blocks]);
   const totalExercises = categories.reduce(
@@ -334,11 +355,46 @@ export function WorkoutBuilder({
     }
   }
 
-  // Add Exercise from Picker
+  // Add Exercise from Picker (or resolve unmatched exercise)
   async function handleSelectExercise(exercisePublicId: string) {
+    if (resolvingItemPublicId) {
+      const itemToResolve = resolvingItemPublicId;
+      setResolvingItemPublicId(null);
+      setActiveCategoryForPicker(null);
+      setActiveSubBlockForPicker(null);
+      const res = await resolveUnmatchedExerciseItemAction(
+        consultancySlug,
+        itemToResolve,
+        exercisePublicId
+      );
+      if (res.ok && res.data) {
+        const updatedItem = res.data;
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => ({
+            ...b,
+            items: (b.items || []).map((i) =>
+              i.publicId === itemToResolve ? updatedItem : i
+            ),
+          })),
+        }));
+        notify(`Exercício "${updatedItem.exerciseNameSnapshot}" vinculado com sucesso!`);
+      } else {
+        notify(res.error || "Erro ao vincular exercício da biblioteca.");
+      }
+      return;
+    }
+
     if (!activeCategoryForPicker) return;
     const catId = activeCategoryForPicker;
-    const res = await addExerciseItemToBlockAction(consultancySlug, catId, exercisePublicId);
+    const subBlockId = activeSubBlockForPicker;
+    const res = await addExerciseItemToBlockAction(
+      consultancySlug,
+      catId,
+      exercisePublicId,
+      undefined,
+      subBlockId
+    );
     if (res.ok && res.data) {
       const newItem = res.data;
       setVersion((prev) => ({
@@ -364,12 +420,19 @@ export function WorkoutBuilder({
   }) {
     if (!activeCategoryForPicker) return;
     const catId = activeCategoryForPicker;
-    const res = await addCustomItemToBlockAction(consultancySlug, catId, {
-      exerciseName: data.exerciseName,
-      muscleGroup: data.muscleGroup,
-      equipment: data.equipment,
-      instructions: data.instructions,
-    });
+    const subBlockId = activeSubBlockForPicker;
+    const res = await addCustomItemToBlockAction(
+      consultancySlug,
+      catId,
+      {
+        exerciseName: data.exerciseName,
+        muscleGroup: data.muscleGroup,
+        equipment: data.equipment,
+        instructions: data.instructions,
+      },
+      undefined,
+      subBlockId
+    );
     if (res.ok && res.data) {
       const newItem = res.data;
       setVersion((prev) => ({
@@ -559,6 +622,139 @@ export function WorkoutBuilder({
       }
     });
   }
+
+  // Create Sub-Block (Grupo)
+  async function handleCreateSubBlock(categoryPublicId: string, title: string) {
+    const res = await createSubBlockAction(consultancySlug, categoryPublicId, title);
+    if (res.ok && res.data) {
+      const newSubBlock = res.data;
+      setVersion((prev) => ({
+        ...prev,
+        blocks: prev.blocks.map((b) =>
+          b.publicId === categoryPublicId
+            ? { ...b, subBlocks: [...(b.subBlocks || []), newSubBlock] }
+            : b
+        ),
+      }));
+      notify(`Grupo "${title}" criado.`);
+    } else {
+      notify(res.error || "Erro ao criar grupo.");
+    }
+  }
+
+  // Rename Sub-Block (Grupo)
+  async function handleRenameSubBlock(subBlockPublicId: string, newTitle: string) {
+    const res = await renameSubBlockAction(consultancySlug, subBlockPublicId, newTitle);
+    if (res.ok && res.data) {
+      setVersion((prev) => ({
+        ...prev,
+        blocks: prev.blocks.map((b) => ({
+          ...b,
+          subBlocks: (b.subBlocks || []).map((sb) =>
+            sb.publicId === subBlockPublicId ? { ...sb, title: newTitle } : sb
+          ),
+        })),
+      }));
+      notify("Grupo renomeado.");
+    } else {
+      notify(res.error || "Erro ao renomear grupo.");
+    }
+  }
+
+  // Duplicate Sub-Block (Grupo)
+  async function handleDuplicateSubBlock(subBlockPublicId: string) {
+    const res = await duplicateSubBlockAction(consultancySlug, subBlockPublicId);
+    if (res.ok && res.data) {
+      router.refresh();
+      notify("Grupo duplicado com sucesso.");
+    } else {
+      notify(res.error || "Erro ao duplicar grupo.");
+    }
+  }
+
+  // Delete Sub-Block (Grupo)
+  async function handleDeleteSubBlock(subBlockPublicId: string) {
+    const res = await deleteSubBlockAction(consultancySlug, subBlockPublicId);
+    if (res.ok) {
+      setVersion((prev) => ({
+        ...prev,
+        blocks: prev.blocks.map((b) => ({
+          ...b,
+          subBlocks: (b.subBlocks || []).filter((sb) => sb.publicId !== subBlockPublicId),
+          items: (b.items || []).filter((i) => i.subBlockPublicId !== subBlockPublicId),
+        })),
+      }));
+      notify("Grupo excluído.");
+    } else {
+      notify(res.error || "Erro ao excluir grupo.");
+    }
+  }
+
+  // Move Sub-Block (Grupo) Up/Down
+  async function handleMoveSubBlock(
+    categoryPublicId: string,
+    subBlockIndex: number,
+    direction: "up" | "down"
+  ) {
+    const cat = categories.find((b) => b.publicId === categoryPublicId);
+    if (!cat || !cat.subBlocks) return;
+
+    const targetIdx = direction === "up" ? subBlockIndex - 1 : subBlockIndex + 1;
+    if (targetIdx < 0 || targetIdx >= cat.subBlocks.length) return;
+
+    const reordered = [...cat.subBlocks];
+    const [moved] = reordered.splice(subBlockIndex, 1);
+    reordered.splice(targetIdx, 0, moved);
+
+    setVersion((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((b) =>
+        b.publicId === categoryPublicId ? { ...b, subBlocks: reordered } : b
+      ),
+    }));
+
+    const ids = reordered.map((sb) => sb.publicId);
+    const res = await reorderSubBlocksAction(consultancySlug, categoryPublicId, ids);
+    if (!res.ok) {
+      notify(res.error || "Erro ao reordenar grupos.");
+    }
+  }
+
+  // Delete Workout or Draft
+  async function handleConfirmDelete() {
+    startTransition(async () => {
+      if (isDraft) {
+        const res = await deleteWorkoutDraftAction(consultancySlug, version.publicId);
+        if (res.ok) {
+          notify("Rascunho excluído com sucesso.");
+          router.push(`/consultoria/${consultancySlug}/rotinas`);
+        } else {
+          notify(res.error || "Erro ao excluir rascunho.");
+        }
+      } else {
+        const res = await deleteWorkoutAction(consultancySlug, workout.publicId);
+        if (res.ok) {
+          notify("Treino excluído com sucesso.");
+          router.push(`/consultoria/${consultancySlug}/rotinas`);
+        } else {
+          notify(res.error || "Erro ao excluir treino.");
+        }
+      }
+    });
+  }
+
+  // Guard for Publishing
+  function handleOpenPublishDialog() {
+    const hasUnresolved = (version.blocks || []).some((b) =>
+      (b.items || []).some((i) => !i.exercisePublicId)
+    );
+    if (hasUnresolved) {
+      notify("Não é possível publicar: existem exercícios pendentes de revisão. Resolva-os antes de publicar.");
+      return;
+    }
+    setIsPublishDialogOpen(true);
+  }
+
   return (
     <div className="space-y-6">
       {/* Toast Feedback Notification */}
@@ -668,7 +864,7 @@ export function WorkoutBuilder({
             {isDraft && (
               <button
                 type="button"
-                onClick={() => setIsPublishDialogOpen(true)}
+                onClick={handleOpenPublishDialog}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[40px] flex items-center gap-1.5 cursor-pointer"
               >
                 <SendIcon className="w-3.5 h-3.5" />
@@ -697,6 +893,62 @@ export function WorkoutBuilder({
                 <span>Editar (novo rascunho)</span>
               </button>
             )}
+
+            {/* More actions menu */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+                className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                title="Mais opções do treino"
+              >
+                <span className="font-extrabold tracking-widest leading-none">•••</span>
+              </button>
+              {isHeaderMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setIsHeaderMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 w-48 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                    <div className="p-1 space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          handleDuplicateFicha();
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                      >
+                        <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Duplicar treino</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          handleSaveAsModel();
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                      >
+                        <BookmarkIcon className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Salvar como modelo</span>
+                      </button>
+                    </div>
+                    <div className="p-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer"
+                      >
+                        <TrashIcon className="w-3.5 h-3.5" />
+                        <span>{isDraft ? "Excluir rascunho" : "Excluir treino"}</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -836,7 +1088,10 @@ export function WorkoutBuilder({
                 totalCategories={categories.length}
                 allCategories={allCategoriesSimple}
                 isDraft={isDraft}
-                onOpenExercisePicker={(catId) => setActiveCategoryForPicker(catId)}
+                onOpenExercisePicker={(catId, subBlockId) => {
+                  setActiveCategoryForPicker(catId);
+                  setActiveSubBlockForPicker(subBlockId || null);
+                }}
                 onRenameCategory={handleRenameCategory}
                 onDuplicateCategory={handleDuplicateCategory}
                 onDeleteCategory={handleDeleteCategory}
@@ -848,6 +1103,16 @@ export function WorkoutBuilder({
                 onMoveExerciseUp={(catId, idx) => handleMoveExercise(catId, idx, "up")}
                 onMoveExerciseDown={(catId, idx) => handleMoveExercise(catId, idx, "down")}
                 onUpdateExerciseQuickConfig={handleUpdateExerciseQuickConfig}
+                onCreateSubBlock={handleCreateSubBlock}
+                onRenameSubBlock={handleRenameSubBlock}
+                onDuplicateSubBlock={handleDuplicateSubBlock}
+                onDeleteSubBlock={handleDeleteSubBlock}
+                onMoveSubBlockUp={(catId, idx) => handleMoveSubBlock(catId, idx, "up")}
+                onMoveSubBlockDown={(catId, idx) => handleMoveSubBlock(catId, idx, "down")}
+                onResolveExercise={(itemPublicId) => {
+                  setResolvingItemPublicId(itemPublicId);
+                  setActiveCategoryForPicker(category.publicId);
+                }}
               />
             ))
           )}
@@ -985,7 +1250,7 @@ export function WorkoutBuilder({
               {isDraft ? (
                 <button
                   type="button"
-                  onClick={() => setIsPublishDialogOpen(true)}
+                  onClick={handleOpenPublishDialog}
                   className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center justify-center gap-2 min-h-[38px] cursor-pointer"
                 >
                   <SendIcon className="w-3.5 h-3.5" />
@@ -1027,11 +1292,15 @@ export function WorkoutBuilder({
       </div>
 
       {/* Unified Exercise Picker Modal */}
-      {activeCategoryForPicker && (
+      {(activeCategoryForPicker || resolvingItemPublicId) && (
         <UnifiedExercisePicker
           isOpen={true}
           consultancySlug={consultancySlug}
-          onClose={() => setActiveCategoryForPicker(null)}
+          onClose={() => {
+            setActiveCategoryForPicker(null);
+            setActiveSubBlockForPicker(null);
+            setResolvingItemPublicId(null);
+          }}
           onSelectExercise={handleSelectExercise}
           onOpenCustomModal={() => setIsCustomModalOpen(true)}
         />
@@ -1116,6 +1385,45 @@ export function WorkoutBuilder({
                 }}
                 consultancySlug={consultancySlug}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Simple Delete Confirmation Dialog */}
+      {isDeleteDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-5 space-y-4">
+            <div className="space-y-1.5">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                <TrashIcon className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-extrabold text-[var(--text-primary)]">
+                {isDraft ? "Excluir este rascunho?" : "Excluir este treino?"}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                Esta ação removerá este {isDraft ? "rascunho de ficha" : "treino da consultoria"}.
+                O histórico de treinos concluídos pelos alunos é 100% preservado.
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setIsDeleteDialogOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isPending ? "Excluindo..." : "Excluir"}
+              </button>
             </div>
           </div>
         </div>

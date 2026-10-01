@@ -83,62 +83,19 @@ export function NutritionMealEditor({
   return (
     <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
       {/* Meal Header */}
-      <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] pb-3.5">
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h3 className="font-bold text-base text-[var(--text-primary)] leading-tight">
-              {meal.title}
-            </h3>
-            {meal.scheduledTime && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
-                <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{meal.scheduledTime}</span>
-              </span>
-            )}
-          </div>
-          {meal.notes && (
-            <p className="text-xs text-[var(--text-muted)]">{meal.notes}</p>
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <h3 className="font-bold text-sm tracking-wide text-[var(--text-primary)] uppercase truncate">
+            {meal.title}
+          </h3>
+          {meal.scheduledTime && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)] shrink-0">
+              <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{meal.scheduledTime}</span>
+            </span>
           )}
-
-          {/* Meal macro totals badge */}
-          <div className="flex items-center gap-2 pt-1 flex-wrap text-xs">
-            <span className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-              Total da refeição:
-            </span>
-            <span className="font-bold text-[var(--brand)] bg-[var(--brand)]/10 px-2.5 py-0.5 rounded-full border border-[var(--brand)]/20">
-              {meal.mealTotals.caloriesKcal} kcal
-              {!meal.mealTotals.empty && meal.mealTotals.details?.calories?.hasUnknown && (
-                <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.details.calories.knownItemCount} de ${meal.mealTotals.details.calories.totalItemCount} alimentos com dado conhecido`}>*</span>
-              )}
-            </span>
-            <span className="font-medium text-[var(--text-secondary)]">
-              P <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.proteinG} g</strong>
-              {!meal.mealTotals.empty && meal.mealTotals.details?.protein?.hasUnknown && (
-                <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.details.protein.knownItemCount} de ${meal.mealTotals.details.protein.totalItemCount} alimentos com dado conhecido`}>*</span>
-              )}
-            </span>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span className="font-medium text-[var(--text-secondary)]">
-              C <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.carbohydrateG} g</strong>
-              {!meal.mealTotals.empty && meal.mealTotals.details?.carbohydrate?.hasUnknown && (
-                <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.details.carbohydrate.knownItemCount} de ${meal.mealTotals.details.carbohydrate.totalItemCount} alimentos com dado conhecido`}>*</span>
-              )}
-            </span>
-            <span className="text-[var(--text-tertiary)]">·</span>
-            <span className="font-medium text-[var(--text-secondary)]">
-              G <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.fatG} g</strong>
-              {!meal.mealTotals.empty && meal.mealTotals.details?.fat?.hasUnknown && (
-                <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.details.fat.knownItemCount} de ${meal.mealTotals.details.fat.totalItemCount} alimentos com dado conhecido`}>*</span>
-              )}
-            </span>
-            {!meal.mealTotals.empty && meal.mealTotals.hasIncompleteData && (
-              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                * Contém dados incompletos
-              </span>
-            )}
-          </div>
         </div>
 
         {/* Meal Actions */}
@@ -210,23 +167,35 @@ export function NutritionMealEditor({
         </div>
       </div>
 
+      {meal.notes && (
+        <p className="text-xs text-[var(--text-muted)] -mt-2">{meal.notes}</p>
+      )}
+
       {isCollapsed ? (
         <div
           onClick={() => setIsCollapsed(false)}
-          className="p-3.5 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs text-[var(--text-secondary)] rounded-xl flex items-center justify-between cursor-pointer transition-colors"
+          className="p-3 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs text-[var(--text-secondary)] rounded-xl flex items-center justify-between cursor-pointer transition-colors"
         >
           <div className="flex items-center gap-2 truncate min-w-0">
             <span className="font-semibold text-[var(--text-primary)] shrink-0">
               {meal.items.length} {meal.items.length === 1 ? "alimento" : "alimentos"}
             </span>
+            <span className="text-[var(--text-tertiary)] shrink-0">·</span>
+            <span className="font-bold text-[var(--brand)] shrink-0">
+              {meal.mealTotals.caloriesKcal} kcal
+            </span>
+            <span className="text-[var(--text-tertiary)] shrink-0">·</span>
+            <span className="text-[var(--text-muted)] text-[11px] shrink-0">
+              P {meal.mealTotals.proteinG}g • C {meal.mealTotals.carbohydrateG}g • G {meal.mealTotals.fatG}g
+            </span>
             {meal.items.length > 0 && (
-              <span className="truncate text-[var(--text-tertiary)]">
-                · {meal.items.map((it) => it.foodNameSnapshot || "Alimento").join(", ")}
+              <span className="truncate text-[var(--text-tertiary)] hidden sm:inline ml-1">
+                ({meal.items.map((it) => it.foodNameSnapshot || "Alimento").join(", ")})
               </span>
             )}
           </div>
           <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
-            Expandir refeição ↓
+            Expandir ↓
           </span>
         </div>
       ) : (
@@ -285,9 +254,9 @@ export function NutritionMealEditor({
       )}
 
       {/* Items List */}
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         {meal.items.length === 0 ? (
-          <div className="py-6 px-4 text-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30">
+          <div className="py-5 px-4 text-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30">
             <p className="text-xs text-[var(--text-muted)]">Nenhum alimento adicionado nesta refeição.</p>
           </div>
         ) : (
@@ -312,21 +281,60 @@ export function NutritionMealEditor({
         )}
       </div>
 
-      {/* Add Item Action */}
-      {!readOnly && (
-        <div className="pt-2">
+      {/* Meal Totals Summary Footer & Actions */}
+      <div className="border-t border-[var(--border)] pt-3 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-[var(--text-primary)] text-sm">
+              {meal.mealTotals.caloriesKcal} kcal
+              {!meal.mealTotals.empty && meal.mealTotals.details?.calories?.hasUnknown && (
+                <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.details.calories.knownItemCount} de ${meal.mealTotals.details.calories.totalItemCount} alimentos com dado conhecido`}>*</span>
+              )}
+            </span>
+            <span className="text-[var(--text-tertiary)]">•</span>
+            <span className="text-[var(--text-secondary)]">
+              P <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.proteinG}g</strong>
+              {!meal.mealTotals.empty && meal.mealTotals.details?.protein?.hasUnknown && (
+                <span className="text-amber-500 font-bold ml-0.5">*</span>
+              )}
+            </span>
+            <span className="text-[var(--text-tertiary)]">•</span>
+            <span className="text-[var(--text-secondary)]">
+              C <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.carbohydrateG}g</strong>
+              {!meal.mealTotals.empty && meal.mealTotals.details?.carbohydrate?.hasUnknown && (
+                <span className="text-amber-500 font-bold ml-0.5">*</span>
+              )}
+            </span>
+            <span className="text-[var(--text-tertiary)]">•</span>
+            <span className="text-[var(--text-secondary)]">
+              G <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.fatG}g</strong>
+              {!meal.mealTotals.empty && meal.mealTotals.details?.fat?.hasUnknown && (
+                <span className="text-amber-500 font-bold ml-0.5">*</span>
+              )}
+            </span>
+          </div>
+
+          {!meal.mealTotals.empty && meal.mealTotals.hasIncompleteData && (
+            <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+              * Dados incompletos
+            </span>
+          )}
+        </div>
+
+        {/* Add Item Action */}
+        {!readOnly && (
           <button
             type="button"
             onClick={() => setIsPickerOpen(true)}
-            className="w-full py-3 px-4 rounded-xl border border-dashed border-[var(--border)] hover:border-[var(--brand-primary)] bg-[var(--surface-secondary)]/40 hover:bg-[var(--brand-primary)]/5 text-xs font-semibold text-[var(--brand-primary)] transition-colors flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl border border-dashed border-[var(--border)] hover:border-[var(--brand)] bg-[var(--surface-secondary)]/40 hover:bg-[var(--brand)]/5 text-xs font-semibold text-[var(--brand)] transition-colors flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            <span>Adicionar Alimento a esta Refeição</span>
+            <span>+ Alimento</span>
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Meal Micronutrients Breakdown */}
       {meal.micronutrientTotals && meal.items.length > 0 && (

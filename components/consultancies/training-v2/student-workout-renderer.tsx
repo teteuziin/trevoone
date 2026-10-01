@@ -1473,6 +1473,8 @@ function ItemCard({
     (s) => (s.blockItemPublicId ?? "") === item.publicId
   ) || [];
   const hasStartedSets = itemSets.some((s) => s.completedAt !== null);
+  const [showMedia, setShowMedia] = useState(false);
+  const hasMedia = pinnedMedia.length > 0 || Boolean(item.customVideoUrl && item.customVideoUrl.trim().length > 0);
 
   return (
     <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-subtle)]/50 border border-[var(--border-subtle)] space-y-4">
@@ -1488,6 +1490,17 @@ function ItemCard({
             <h3 className="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">
               {displayName}
             </h3>
+            {hasMedia && (
+              <button
+                type="button"
+                onClick={() => setShowMedia(!showMedia)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors shrink-0 cursor-pointer"
+                title="Ver execução do exercício"
+              >
+                <span>▶</span>
+                <span>{showMedia ? "Ocultar execução" : "Ver execução"}</span>
+              </button>
+            )}
             {isSubstituted && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">
                 <Repeat className="w-3 h-3" />
@@ -1567,8 +1580,8 @@ function ItemCard({
         )}
       </div>
 
-      {/* SECTION 2: VÍDEO / MÍDIA */}
-      {(pinnedMedia.length > 0 || (item.customVideoUrl && item.customVideoUrl.trim().length > 0)) && (() => {
+      {/* SECTION 2: VÍDEO / MÍDIA (On-demand) */}
+      {showMedia && (pinnedMedia.length > 0 || (item.customVideoUrl && item.customVideoUrl.trim().length > 0)) && (() => {
         if (pinnedMedia.length === 0 && item.customVideoUrl) {
           const url = item.customVideoUrl.trim();
           return (

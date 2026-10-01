@@ -166,29 +166,32 @@ export function ConsultancyActivityCenterView({
     groupedEvents[bucket].push(evt);
   }
 
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const hasActiveFilters = period !== "ALL" || role !== "ALL" || selectedModule !== "ALL" || Boolean(searchTerm.trim());
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-5">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xl">📋</span>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Central de Atividades</h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">Central de Atividades</h1>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs sm:text-sm text-[var(--text-secondary)]">
             Acompanhe em tempo real e com transparência tudo o que acontece na consultoria.
           </p>
         </div>
         <div className="flex items-center gap-3">
           {/* View toggle */}
-          <div className="flex items-center bg-muted/40 p-1 rounded-lg border border-border/50 text-xs">
+          <div className="flex items-center bg-[var(--surface-subtle)] p-1 rounded-xl border border-[var(--border-default)] text-xs">
             <button
               type="button"
               onClick={() => setViewMode("TIMELINE")}
-              className={`px-3 py-1 rounded-md font-medium transition ${
+              className={`px-3 py-1 rounded-lg font-medium transition ${
                 viewMode === "TIMELINE"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-2xs"
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               }`}
             >
               Linha do Tempo
@@ -196,33 +199,33 @@ export function ConsultancyActivityCenterView({
             <button
               type="button"
               onClick={() => setViewMode("TABLE")}
-              className={`px-3 py-1 rounded-md font-medium transition ${
+              className={`px-3 py-1 rounded-lg font-medium transition ${
                 viewMode === "TABLE"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-2xs"
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               }`}
             >
               Tabela
             </button>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
+          <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] bg-[var(--surface-subtle)] px-3 py-1.5 rounded-xl border border-[var(--border-default)]">
             <span>Total:</span>
-            <span className="font-semibold text-foreground">{totalEvents}</span>
+            <span className="font-semibold text-[var(--text-primary)]">{totalEvents}</span>
           </div>
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="bg-card/40 backdrop-blur-sm border border-border/50 rounded-xl p-4 space-y-4 shadow-xs">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3">
+      {/* Desktop Filters Bar */}
+      <div className="hidden md:block bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 space-y-4 shadow-2xs">
+        <form onSubmit={handleSearchSubmit} className="flex gap-3">
           <div className="relative flex-1">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por usuário, aluno, resumo ou ID..."
-              className="w-full bg-background/60 border border-border/60 rounded-lg px-3.5 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+              className="w-full bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl px-3.5 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] transition"
             />
             {searchTerm && (
               <button
@@ -231,7 +234,7 @@ export function ConsultancyActivityCenterView({
                   setSearchTerm("");
                   applyFilters({ search: "" });
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
                 Limpar
               </button>
@@ -239,20 +242,20 @@ export function ConsultancyActivityCenterView({
           </div>
           <button
             type="submit"
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition shadow-xs"
+            className="px-4 py-2 bg-[var(--brand)] hover:opacity-90 text-white rounded-xl text-xs font-semibold transition shadow-xs"
           >
             Filtrar
           </button>
         </form>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border/30">
+        <div className="grid grid-cols-3 gap-3 pt-2 border-t border-[var(--border-subtle)]">
           {/* Período */}
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Período</label>
+            <label className="block text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Período</label>
             <select
               value={period}
               onChange={(e) => handlePeriodChange(e.target.value)}
-              className="w-full bg-background/60 border border-border/60 rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
             >
               <option value="ALL">Todo o histórico</option>
               <option value="TODAY">Hoje</option>
@@ -263,11 +266,11 @@ export function ConsultancyActivityCenterView({
 
           {/* Papel */}
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Função / Papel</label>
+            <label className="block text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Função / Papel</label>
             <select
               value={role}
               onChange={(e) => handleRoleChange(e.target.value)}
-              className="w-full bg-background/60 border border-border/60 rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
             >
               <option value="ALL">Todas as funções</option>
               <option value="CONSULTANCY_ADMIN">Administrador</option>
@@ -279,11 +282,11 @@ export function ConsultancyActivityCenterView({
 
           {/* Módulo */}
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Módulo</label>
+            <label className="block text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Módulo</label>
             <select
               value={selectedModule}
               onChange={(e) => handleModuleChange(e.target.value)}
-              className="w-full bg-background/60 border border-border/60 rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
             >
               <option value="ALL">Todos os módulos</option>
               <option value="PERSONAL">Treinos</option>
@@ -297,32 +300,159 @@ export function ConsultancyActivityCenterView({
         </div>
       </div>
 
+      {/* Mobile Search & Filter Action Bar */}
+      <div className="md:hidden flex items-center gap-2">
+        <form onSubmit={handleSearchSubmit} className="relative flex-1">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar atividade..."
+            className="w-full bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)]"
+          />
+        </form>
+        <button
+          type="button"
+          onClick={() => setIsMobileFilterOpen(true)}
+          className="px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 shrink-0 shadow-2xs"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <span>Filtros</span>
+          {hasActiveFilters && (
+            <span className="w-2 h-2 rounded-full bg-[var(--brand)] inline-block" />
+          )}
+        </button>
+      </div>
+
+      {/* Mobile Filter Bottom Sheet / Modal */}
+      {isMobileFilterOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => setIsMobileFilterOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <h3 className="font-bold text-sm text-[var(--text-primary)]">Filtros da Central</h3>
+              <button
+                type="button"
+                onClick={() => setIsMobileFilterOpen(false)}
+                className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Período</label>
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  className="w-full bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)]"
+                >
+                  <option value="ALL">Todo o histórico</option>
+                  <option value="TODAY">Hoje</option>
+                  <option value="WEEK">Últimos 7 dias</option>
+                  <option value="MONTH">Últimos 30 dias</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Função / Papel</label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)]"
+                >
+                  <option value="ALL">Todas as funções</option>
+                  <option value="CONSULTANCY_ADMIN">Administrador</option>
+                  <option value="PERSONAL">Personal</option>
+                  <option value="NUTRITIONIST">Nutricionista</option>
+                  <option value="STUDENT">Aluno</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Módulo</label>
+                <select
+                  value={selectedModule}
+                  onChange={(e) => setSelectedModule(e.target.value)}
+                  className="w-full bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)]"
+                >
+                  <option value="ALL">Todos os módulos</option>
+                  <option value="PERSONAL">Treinos</option>
+                  <option value="NUTRITION">Nutrição</option>
+                  <option value="AI">Inteligência Artificial</option>
+                  <option value="STUDENT">Alunos</option>
+                  <option value="MEMBERS">Equipe / Membros</option>
+                  <option value="ADMIN">Gestão</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPeriod("ALL");
+                    setRole("ALL");
+                    setSelectedModule("ALL");
+                    setSearchTerm("");
+                    applyFilters({ period: "ALL", role: "ALL", module: "ALL", search: "" });
+                    setIsMobileFilterOpen(false);
+                  }}
+                  className="px-3 py-2 rounded-xl border border-[var(--border-default)] text-xs font-semibold text-[var(--text-secondary)]"
+                >
+                  Limpar
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  applyFilters({ period, role, module: selectedModule, search: searchTerm });
+                  setIsMobileFilterOpen(false);
+                }}
+                className="flex-1 py-2 bg-[var(--brand)] text-white rounded-xl text-xs font-bold hover:opacity-90"
+              >
+                Aplicar Filtros
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
       {initialEvents.length === 0 ? (
-        <div className="bg-card/40 backdrop-blur-sm border border-border/50 rounded-xl p-12 text-center space-y-3">
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-12 text-center space-y-3 shadow-2xs">
           <span className="text-3xl">📋</span>
-          <h3 className="text-base font-medium text-foreground">Nenhuma atividade registrada</h3>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+          <h3 className="text-base font-bold text-[var(--text-primary)]">Nenhuma atividade registrada</h3>
+          <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto">
             Nenhuma ação encontrada com os filtros selecionados. Altere os filtros ou aguarde novas atividades na consultoria.
           </p>
         </div>
       ) : viewMode === "TIMELINE" ? (
         /* Timeline View */
-        <div className="space-y-8">
+        <div className="space-y-6">
           {Object.entries(groupedEvents).map(([dayBucket, events]) => (
-            <div key={dayBucket} className="space-y-3">
+            <div key={dayBucket} className="space-y-2.5">
               {/* Day header */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+                <span className="text-xs font-bold text-[var(--brand)] uppercase tracking-wider bg-[var(--brand)]/10 px-2.5 py-0.5 rounded-md border border-[var(--brand)]/20">
                   {dayBucket}
                 </span>
-                <div className="h-px flex-1 bg-border/40" />
+                <div className="h-px flex-1 bg-[var(--border-subtle)]" />
               </div>
 
               {/* Event cards */}
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {events.map((evt) => {
-                  const { actor, fullSentence } = formatActivityEventNaturalSentence(evt);
+                  const { fullSentence } = formatActivityEventNaturalSentence(evt);
                   const roleConfig = ROLE_LABELS[evt.actor_role] || {
                     label: evt.actor_role,
                     color: "bg-muted text-muted-foreground border-border",
@@ -336,39 +466,34 @@ export function ConsultancyActivityCenterView({
                     <div
                       key={evt.public_id}
                       onClick={() => setSelectedEvent(evt)}
-                      className="bg-card/50 hover:bg-card/80 border border-border/50 hover:border-emerald-500/30 rounded-xl p-4 transition cursor-pointer shadow-2xs group flex items-start gap-4"
+                      className="bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] hover:border-[var(--brand)]/30 rounded-xl p-3 sm:p-3.5 transition cursor-pointer shadow-2xs group flex items-start gap-3"
                     >
                       {/* Time pill */}
-                      <div className="shrink-0 font-mono text-xs font-semibold text-muted-foreground group-hover:text-emerald-500 pt-0.5">
+                      <div className="shrink-0 font-mono text-xs font-semibold text-[var(--text-secondary)] group-hover:text-[var(--brand)] pt-0.5">
                         {formatTimeOnly(evt.created_at)}
                       </div>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="font-semibold text-sm text-foreground">
-                            {actor}
-                          </span>
+                        <p className="text-xs sm:text-sm text-[var(--text-primary)] leading-relaxed">
+                          {fullSentence}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span
                             className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${roleConfig.color}`}
                           >
                             {roleConfig.label}
                           </span>
-                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <span className="text-[10px] text-[var(--text-tertiary)] flex items-center gap-1">
                             <span>{modConfig.icon}</span>
                             <span>{modConfig.label}</span>
                           </span>
                         </div>
-
-                        <p className="text-sm text-foreground/90 leading-relaxed">
-                          {fullSentence}
-                        </p>
                       </div>
 
                       {/* Detail CTA */}
-                      <div className="shrink-0 text-xs text-muted-foreground group-hover:text-emerald-500 flex items-center gap-1">
-                        <span>Ver detalhes</span>
-                        <span>→</span>
+                      <div className="shrink-0 text-xs text-[var(--text-tertiary)] group-hover:text-[var(--brand)] pt-0.5">
+                        ›
                       </div>
                     </div>
                   );

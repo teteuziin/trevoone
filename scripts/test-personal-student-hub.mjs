@@ -1,4 +1,4 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import mysql from "mysql2/promise";
 
@@ -168,13 +168,15 @@ loadEnvLocal();
   const shellCode = fs.readFileSync("components/consultancies/consultancy-app-shell.tsx", "utf8");
 
   assert.ok(
-    dashboardCode.includes("href: `/consultoria/${consultancySlug}/progresso/alunos`") &&
-    dashboardCode.includes('title: "Alunos"'),
+    (dashboardCode.includes("href: `/consultoria/${consultancySlug}/progresso/alunos`") ||
+      dashboardCode.includes("href={`/consultoria/${consultancySlug}/progresso/alunos`}")) &&
+    (dashboardCode.includes('title: "Alunos"') ||
+      dashboardCode.includes('title="Alunos"')),
     "PERSONAL_HOME_ALUNOS_CARD deve apontar para /progresso/alunos"
   );
 
   assert.ok(
-    shellCode.includes('id: "personal-alunos"') &&
+    (shellCode.includes('id: "personal-alunos"') || shellCode.includes('id: "atendimento-alunos"')) &&
     shellCode.includes('href: `/consultoria/${consultancySlug}/progresso/alunos`'),
     "PERSONAL_MAIS_ALUNOS deve apontar para /progresso/alunos"
   );

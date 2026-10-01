@@ -90,26 +90,6 @@ function Check({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function Dumbbell({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
-    </svg>
-  );
-}
-
-function FileText({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-      <polyline points="10 9 9 9 8 9" />
-    </svg>
-  );
-}
-
 export type CategoryCardProps = {
   category: WorkoutBlockDto;
   categoryIndex: number;
@@ -154,7 +134,7 @@ export function WorkoutCategoryCard({
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
   const [activeExerciseMenuId, setActiveExerciseMenuId] = useState<string | null>(null);
   const [movingExerciseId, setMovingExerciseId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const items = category.items || [];
   const categoryTitle = category.title || `Categoria ${categoryIndex + 1}`;
@@ -171,14 +151,10 @@ export function WorkoutCategoryCard({
   }
 
   return (
-    <div className="rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs overflow-hidden transition-all">
+    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs overflow-hidden transition-all">
       {/* Category Header */}
-      <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[var(--border-subtle)] bg-[var(--surface-subtle)]/70 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-xs sm:text-sm flex items-center justify-center shrink-0">
-            {categoryIndex + 1}
-          </div>
-
+      <div className="px-4 sm:px-5 py-3 border-b border-[var(--border-subtle)] bg-[var(--surface-subtle)]/50 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           {isEditingTitle && isDraft ? (
             <div className="flex items-center gap-1.5 flex-1 max-w-sm">
               <input
@@ -191,15 +167,15 @@ export function WorkoutCategoryCard({
                 }}
                 autoFocus
                 placeholder="Nome da categoria (ex: Peito)"
-                className="w-full px-3 py-1.5 text-xs sm:text-sm font-bold uppercase rounded-xl border border-emerald-500 bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none min-h-[36px]"
+                className="w-full px-3 py-1 text-xs sm:text-sm font-bold uppercase rounded-lg border border-emerald-500 bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none min-h-[32px]"
               />
               <button
                 type="button"
                 onClick={handleSaveTitle}
-                className="p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 min-h-[36px] min-w-[36px] flex items-center justify-center shrink-0 cursor-pointer"
+                className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 min-h-[32px] min-w-[32px] flex items-center justify-center shrink-0 cursor-pointer"
                 title="Salvar nome"
               >
-                <Check className="w-4 h-4" />
+                <Check className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
@@ -211,14 +187,14 @@ export function WorkoutCategoryCard({
                     setIsEditingTitle(true);
                   }
                 }}
-                className={`text-sm sm:text-base font-extrabold uppercase tracking-wide text-[var(--text-primary)] truncate ${
+                className={`text-sm font-bold uppercase tracking-wider text-[var(--text-primary)] truncate ${
                   isDraft ? "cursor-pointer hover:text-emerald-600 transition-colors" : ""
                 }`}
                 title={isDraft ? "Clique para renomear" : undefined}
               >
                 {categoryTitle}
               </h2>
-              <span className="text-[11px] sm:text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--text-secondary)] whitespace-nowrap">
+              <span className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-md bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--text-secondary)] whitespace-nowrap">
                 {items.length} {items.length === 1 ? "exercício" : "exercícios"}
               </span>
             </div>
@@ -230,23 +206,11 @@ export function WorkoutCategoryCard({
           <div className="flex items-center gap-1 shrink-0 relative">
             <button
               type="button"
-              disabled={categoryIndex === 0 || isPending}
-              onClick={() => startTransition(() => onMoveCategoryUp(categoryIndex))}
-              aria-label="Mover categoria para cima"
-              className="p-1.5 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
-              title="Mover para cima"
+              onClick={() => onOpenExercisePicker(category.publicId)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors cursor-pointer"
             >
-              <ArrowUp className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              disabled={categoryIndex === totalCategories - 1 || isPending}
-              onClick={() => startTransition(() => onMoveCategoryDown(categoryIndex))}
-              aria-label="Mover categoria para baixo"
-              className="p-1.5 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
-              title="Mover para baixo"
-            >
-              <ArrowDown className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline sm:inline">Exercício</span>
             </button>
 
             {/* Menu [...] */}
@@ -254,8 +218,8 @@ export function WorkoutCategoryCard({
               <button
                 type="button"
                 onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
-                aria-label="Opções da categoria"
-                className="p-1.5 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+                aria-label="Ações da categoria"
+                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
               >
                 <MoreVertical className="w-4 h-4" />
               </button>
@@ -541,54 +505,50 @@ function ExerciseRow({
         onClick={() => {
           if (isDraft) onToggleExpand();
         }}
-        className={`p-3 sm:p-3.5 flex items-center justify-between gap-3 ${
+        className={`p-2.5 sm:p-3 flex items-start sm:items-center justify-between gap-2.5 ${
           isDraft ? "cursor-pointer" : ""
         }`}
       >
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-            <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5" />
+        <div className="min-w-0 flex-1 space-y-1">
+          {/* Line 1: Exercise Name & Execution Button */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate max-w-[240px] sm:max-w-none">
+              {item.exerciseNameSnapshot}
+            </h3>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExecutionModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors shrink-0 cursor-pointer"
+              title={`Ver execução de ${item.exerciseNameSnapshot}`}
+            >
+              <span>▶</span>
+              <span className="hidden xs:inline sm:inline">Ver execução</span>
+              <span className="xs:hidden sm:hidden">Execução</span>
+            </button>
           </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate max-w-[200px] sm:max-w-none">
-                {item.exerciseNameSnapshot}
-              </h3>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExecutionModalOpen(true);
-                }}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors shrink-0 cursor-pointer"
-                title={`Ver execução de ${item.exerciseNameSnapshot}`}
-              >
-                <span>▶</span>
-                <span>Ver execução</span>
-              </button>
-              {item.notes && (
-                <span
-                  title={`Observação: ${item.notes}`}
-                  className="text-[var(--text-tertiary)] hover:text-emerald-600 shrink-0"
-                >
-                  <FileText className="w-3.5 h-3.5" />
+          {/* Line 2: Prescription Summary (Séries × Reps • Descanso • Carga) */}
+          <div className="flex items-center gap-2 text-[11px] sm:text-xs text-[var(--text-secondary)] font-medium">
+            <span>{summaryLine}</span>
+            {item.muscleGroupSnapshot && (
+              <>
+                <span className="opacity-40">•</span>
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] truncate">
+                  {item.muscleGroupSnapshot}
                 </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 mt-0.5 text-[11px] sm:text-xs text-[var(--text-secondary)] font-medium">
-              <span>{summaryLine}</span>
-              {item.muscleGroupSnapshot && (
-                <>
-                  <span className="opacity-40">•</span>
-                  <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] truncate">
-                    {item.muscleGroupSnapshot}
-                  </span>
-                </>
-              )}
-            </div>
+              </>
+            )}
           </div>
+
+          {/* Line 3: Optional notes preview */}
+          {item.notes && (
+            <p className="text-[10px] sm:text-[11px] text-[var(--text-tertiary)] italic line-clamp-1">
+              Obs: {item.notes}
+            </p>
+          )}
         </div>
 
         {/* Action Controls */}

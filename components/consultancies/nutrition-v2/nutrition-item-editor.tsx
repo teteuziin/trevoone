@@ -74,49 +74,47 @@ export function NutritionItemEditor({
   };
 
   return (
-    <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] shadow-sm hover:border-[var(--brand-primary)]/40 transition-colors space-y-3">
+    <div className="p-2.5 sm:p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] shadow-2xs hover:border-[var(--brand-primary)]/40 transition-all space-y-1.5">
       {/* Item Header / Overview */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-sm text-[var(--text-primary)]">
+      <div className="flex items-start justify-between gap-2.5">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          {/* Line 1: Food name and calories */}
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
               {item.foodNameSnapshot}
             </span>
-            {item.prescribedQuantity != null && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[var(--surface-secondary)] text-[var(--text-secondary)]">
-                {item.prescribedQuantity} {item.prescribedUnitLabel || item.prescribedUnitCode || ""}
-              </span>
-            )}
-            {item.foodScope && (
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                  item.foodScope === "GLOBAL"
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300"
-                    : "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300"
-                }`}
-              >
-                {item.foodScope === "GLOBAL" ? "Trevo One" : "Minha Consultoria"}
-              </span>
-            )}
+            <span className="font-bold text-xs text-amber-600 dark:text-amber-400 font-mono shrink-0">
+              {item.caloriesKcalSnapshot != null ? `${item.caloriesKcalSnapshot} kcal` : "— kcal"}
+            </span>
           </div>
 
-          {/* Macros row */}
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-[var(--text-secondary)]">
-            <span className="font-semibold text-amber-600 dark:text-amber-400">
-              {item.caloriesKcalSnapshot != null ? `${item.caloriesKcalSnapshot} kcal` : "Sem cálculo"}
-            </span>
-            <span>P: {item.proteinGSnapshot != null ? `${item.proteinGSnapshot}g` : "-"}</span>
-            <span>C: {item.carbohydrateGSnapshot != null ? `${item.carbohydrateGSnapshot}g` : "-"}</span>
-            <span>G: {item.fatGSnapshot != null ? `${item.fatGSnapshot}g` : "-"}</span>
+          {/* Line 2: Quantity & Macros */}
+          <div className="flex items-center gap-2 text-[11px] text-[var(--text-secondary)] flex-wrap">
+            {item.prescribedQuantity != null && (
+              <span className="font-medium text-[var(--text-primary)]">
+                {item.prescribedQuantity} {item.prescribedUnitLabel || item.prescribedUnitCode || "g"}
+              </span>
+            )}
+            <span>•</span>
+            <span>P {item.proteinGSnapshot != null ? `${item.proteinGSnapshot}g` : "—"}</span>
+            <span>•</span>
+            <span>C {item.carbohydrateGSnapshot != null ? `${item.carbohydrateGSnapshot}g` : "—"}</span>
+            <span>•</span>
+            <span>G {item.fatGSnapshot != null ? `${item.fatGSnapshot}g` : "—"}</span>
+
             {item.notes && <span className="text-[var(--text-muted)] italic">· {item.notes}</span>}
+
             {item.micronutrientsSnapshotJson && (
-              <button
-                type="button"
-                onClick={() => setShowMicro(!showMicro)}
-                className="text-xs text-[var(--brand-primary)] hover:underline font-semibold ml-auto cursor-pointer"
-              >
-                {showMicro ? "Ocultar micronutrientes" : "Micronutrientes"}
-              </button>
+              <>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={() => setShowMicro(!showMicro)}
+                  className="text-[10px] text-[var(--brand-primary)] hover:underline font-semibold cursor-pointer"
+                >
+                  {showMicro ? "Ocultar micros" : "Micronutrientes"}
+                </button>
+              </>
             )}
           </div>
         </div>

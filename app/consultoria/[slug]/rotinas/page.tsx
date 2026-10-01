@@ -38,35 +38,7 @@ function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function CalendarIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  );
-}
 
-function ClockIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-
-function LayersIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" />
-      <polyline points="2 12 12 17 22 12" />
-    </svg>
-  );
-}
 
 type PageProps = {
   params: Promise<{
@@ -326,119 +298,80 @@ export default async function ConsultancyWorkoutsPage({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2.5">
                 {items.map((w) => {
                   return (
                     <div
                       key={w.publicId}
-                      className="p-5 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--border-strong)] hover:shadow-sm transition-all flex flex-col justify-between space-y-4 depth-surface"
+                      className="p-3.5 sm:p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-2xs hover:border-[var(--border-strong)] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
-                      <div className="space-y-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="text-base font-bold text-[var(--text-primary)] line-clamp-1">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
                             {w.title}
                           </h3>
-                          {/* Dual-state badges */}
-                          <div className="flex flex-wrap items-center gap-1.5 shrink-0 justify-end">
-                            {w.isTemplate ? (
-                              w.hasActiveDraft && w.publishedVersionNumber != null ? (
-                                <>
-                                  <Badge variant="warning" size="sm">
-                                    Modelo · Rascunho V{w.draftVersionNumber}
-                                  </Badge>
-                                  <Badge variant="brand" size="sm">
-                                    Modelo · Publicado V{w.publishedVersionNumber}
-                                  </Badge>
-                                </>
-                              ) : w.publishedVersionNumber != null ? (
-                                <Badge variant="brand" size="sm">
-                                  Modelo · Publicado V{w.publishedVersionNumber}
-                                </Badge>
-                              ) : w.hasActiveDraft ? (
-                                <Badge variant="warning" size="sm">
-                                  Modelo · Rascunho V{w.draftVersionNumber}
-                                </Badge>
-                              ) : (
-                                <Badge variant="neutral" size="sm">
-                                  Modelo · Arquivado
-                                </Badge>
-                              )
-                            ) : w.hasActiveDraft && w.publishedVersionNumber != null ? (
-                              <>
-                                <Badge variant="warning" size="sm">
-                                  Rascunho V{w.draftVersionNumber}
-                                </Badge>
-                                <Badge variant="success" size="sm">
-                                  Publicado V{w.publishedVersionNumber}
-                                </Badge>
-                              </>
-                            ) : w.hasActiveDraft ? (
-                              <Badge variant="warning" size="sm">
-                                Rascunho V{w.draftVersionNumber}
-                              </Badge>
-                            ) : w.publishedVersionNumber != null ? (
-                              <Badge variant="success" size="sm">
-                                Publicado V{w.publishedVersionNumber}
-                              </Badge>
-                            ) : (
-                              <Badge variant="neutral" size="sm">
-                                Arquivado
-                              </Badge>
-                            )}
-                          </div>
+                          {/* Status Badge */}
+                          {w.hasActiveDraft ? (
+                            <Badge variant="warning" size="sm">
+                              Rascunho V{w.draftVersionNumber}
+                            </Badge>
+                          ) : w.publishedVersionNumber != null ? (
+                            <Badge variant="success" size="sm">
+                              Publicado V{w.publishedVersionNumber}
+                            </Badge>
+                          ) : (
+                            <Badge variant="neutral" size="sm">
+                              Arquivado
+                            </Badge>
+                          )}
+                          {w.isTemplate && (
+                            <Badge variant="brand" size="sm">
+                              Modelo
+                            </Badge>
+                          )}
                         </div>
 
                         {w.objective && (
-                          <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
+                          <p className="text-xs text-[var(--text-secondary)] truncate">
                             {w.objective}
                           </p>
                         )}
 
-                        {!w.isTemplate && (
-                          <div className="pt-0.5">
-                            {(w.activeAssignmentsCount ?? 0) === 0 ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                                Sem aluno atribuído
-                              </span>
-                            ) : w.assignedStudentName ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                Aluno: {w.assignedStudentName}
-                              </span>
-                            ) : null}
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-[var(--text-tertiary)] font-medium">
-                          {w.estimatedDurationMinutes != null && (
-                            <span className="flex items-center gap-1">
-                              <ClockIcon className="w-3.5 h-3.5" />
-                              ~{w.estimatedDurationMinutes} min
-                            </span>
+                        <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-[var(--text-tertiary)]">
+                          {!w.isTemplate && (
+                            <>
+                              {(w.activeAssignmentsCount ?? 0) === 0 ? (
+                                <span className="font-medium text-amber-600 dark:text-amber-400">
+                                  Sem aluno atribuído
+                                </span>
+                              ) : w.assignedStudentName ? (
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  Aluno: {w.assignedStudentName}
+                                </span>
+                              ) : null}
+                              <span>•</span>
+                            </>
                           )}
-                          <span className="flex items-center gap-1">
-                            <LayersIcon className="w-3.5 h-3.5" />
+                          <span>
                             {w.blocksCount} {w.blocksCount === 1 ? "categoria" : "categorias"}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <CalendarIcon className="w-3.5 h-3.5" />
-                            {new Date(w.updatedAt).toLocaleDateString("pt-BR")}
-                          </span>
+                          {w.estimatedDurationMinutes != null && (
+                            <>
+                              <span>•</span>
+                              <span>~{w.estimatedDurationMinutes} min</span>
+                            </>
+                          )}
+                          <span>•</span>
+                          <span>Atualizado em {new Date(w.updatedAt).toLocaleDateString("pt-BR")}</span>
                         </div>
                       </div>
 
-                      <div className="pt-3 border-t border-[var(--border-default)] flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-                          {w.difficultyLevel === "BEGINNER"
-                            ? "Iniciante"
-                            : w.difficultyLevel === "ADVANCED"
-                            ? "Avançado"
-                            : "Intermediário"}
-                        </span>
+                      <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--border-subtle)] justify-end">
                         <Link
                           href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                          className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] hover:border-[var(--border-strong)] transition-all min-h-[36px] depth-interactive"
+                          className="inline-flex items-center justify-center px-4 py-1.5 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] hover:border-[var(--border-strong)] transition-all min-h-[34px] cursor-pointer"
                         >
-                          Abrir ficha →
+                          Abrir →
                         </Link>
                       </div>
                     </div>

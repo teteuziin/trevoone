@@ -332,6 +332,7 @@ export const EXERCISE_SYNONYM_CLUSTERS: string[][] = [
     "puxada neutra com triangulo",
     "puxada triangulo",
     "puxada com triangulo",
+    "puxada frontal na polia com pegada neutra fechada",
     "triangle lat pulldown",
     "close grip lat pulldown"
   ],

@@ -503,36 +503,55 @@ async function runSuite() {
     const [cFirst]: any = await dbQuota.query(`SELECT id FROM consultancies LIMIT 1`);
     if (cFirst.length > 0) {
       const cid = cFirst[0].id;
-
-      // Reserve quota for NUTRITION_IMPORT with role NUTRITIONIST
-      const nutriQuotaRes = await reserveAiQuota({
-        consultancyId: cid,
-        userId: 1,
-        memberId: 1,
-        role: "NUTRITIONIST",
-        feature: "NUTRITION_IMPORT",
-        model: "gpt-4o",
-      });
-
-      assert(
-        nutriQuotaRes.success === true,
-        "Nutritionist Quota: NUTRITIONIST role successfully reserves NUTRITION_IMPORT quota"
+      // Ensure daily limit has headroom
+      await dbQuota.query(
+        `INSERT INTO consultancy_ai_quotas (consultancy_id, daily_limit, is_enabled, created_at, updated_at)
+         VALUES (?, 100, 1, NOW(3), NOW(3))
+         ON DUPLICATE KEY UPDATE daily_limit = 100, is_enabled = 1, updated_at = NOW(3)`,
+        [cid]
       );
 
-      // Reserve quota for STUDENT_EXERCISE_SWAP with role STUDENT
-      const studentQuotaRes = await reserveAiQuota({
-        consultancyId: cid,
-        userId: 1,
-        memberId: 1,
-        role: "STUDENT",
-        feature: "STUDENT_EXERCISE_SWAP",
-        model: "gpt-4o",
-      });
+      const [mFirst]: any = await dbQuota.query(`SELECT id, user_id FROM consultancy_members WHERE consultancy_id = ? LIMIT 1`, [cid]);
+      if (mFirst.length > 0) {
+        const testMemberId = mFirst[0].id;
+        const testUserId = mFirst[0].user_id;
 
-      assert(
-        studentQuotaRes.success === true,
-        "Student Swap Quota: STUDENT role successfully reserves STUDENT_EXERCISE_SWAP quota"
-      );
+        // Clear usage events for this member for today to ensure test passes
+        await dbQuota.query(`DELETE FROM ai_usage_events WHERE member_id = ?`, [testMemberId]);
+
+        // Reserve quota for NUTRITION_IMPORT with role NUTRITIONIST
+        const nutriQuotaRes = await reserveAiQuota({
+          consultancyId: cid,
+          userId: testUserId,
+          memberId: testMemberId,
+          role: "NUTRITIONIST",
+          feature: "NUTRITION_IMPORT",
+          model: "gpt-4o",
+        });
+
+        assert(
+          nutriQuotaRes.success === true,
+          "Nutritionist Quota: NUTRITIONIST role successfully reserves NUTRITION_IMPORT quota"
+        );
+
+        // Reserve quota for STUDENT_EXERCISE_SWAP with role STUDENT
+        const studentQuotaRes = await reserveAiQuota({
+          consultancyId: cid,
+          userId: testUserId,
+          memberId: testMemberId,
+          role: "STUDENT",
+          feature: "STUDENT_EXERCISE_SWAP",
+          model: "gpt-4o",
+        });
+
+        assert(
+          studentQuotaRes.success === true,
+          "Student Swap Quota: STUDENT role successfully reserves STUDENT_EXERCISE_SWAP quota"
+        );
+
+        // Cleanup test quota usage events
+        await dbQuota.query(`DELETE FROM ai_usage_events WHERE member_id = ?`, [testMemberId]);
+      }
     }
   } finally {
     dbQuota.release();

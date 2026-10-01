@@ -13,7 +13,6 @@ import type { BlockItemMediaDto, MediaRole, MediaType, StorageProvider } from ".
 import { recordConsultancyActivity } from "../consultancies/activity-log";
 import { reserveAiQuota, markAiQuotaConsumed } from "../ai/quotas";
 import { getOpenAiClient, isOpenAiConfigured } from "../ai/openai-client";
-import { ensureAiSchemaBootstrapped } from "../db/ai-schema-bootstrap";
 
 export type {
   ExerciseSwapReason,
@@ -90,7 +89,6 @@ export async function getWorkoutExecutionSwapStatus(
   sessionPublicId: string
 ): Promise<WorkoutExecutionSwapStatus> {
   assertStudentContext(ctx);
-  await ensureAiSchemaBootstrapped();
 
   const pool = getDbPool();
   const connection = await pool.getConnection();
@@ -194,7 +192,6 @@ export async function requestExerciseAlternatives(params: {
 }> {
   const { ctx, sessionPublicId, blockItemPublicId, reason } = params;
   assertStudentContext(ctx);
-  await ensureAiSchemaBootstrapped();
 
   // Validate allowed reasons (strictly operational, no pain/injury in V1)
   const validReasons: ExerciseSwapReason[] = [
@@ -535,7 +532,6 @@ export async function confirmExerciseSubstitution(params: {
 }> {
   const { ctx, sessionPublicId, blockItemPublicId, performedExercisePublicId, reason } = params;
   assertStudentContext(ctx);
-  await ensureAiSchemaBootstrapped();
 
   const validReasons: ExerciseSwapReason[] = [
     "MACHINE_OCCUPIED",

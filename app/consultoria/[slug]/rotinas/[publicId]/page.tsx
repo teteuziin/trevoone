@@ -55,7 +55,8 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
   let result;
   try {
     result = await getWorkoutWithSpecificVersion(ctx, publicId, requestedVersionPublicId);
-  } catch {
+  } catch (err) {
+    console.error("[WorkoutEditorPage] Erro ao carregar rotina no Builder:", err);
     // If forbidden or version mismatch (e.g. forged version id or other personal's workout)
     redirect(`/consultoria/${slug}/rotinas`);
   }

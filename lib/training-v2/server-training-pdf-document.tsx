@@ -175,6 +175,30 @@ const styles = StyleSheet.create({
     paddingVertical: 1.5,
     borderRadius: 3,
   },
+  combBadge: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#059669",
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 4,
+    paddingVertical: 1.5,
+    borderRadius: 3,
+    borderWidth: 0.5,
+    borderColor: "#a7f3d0",
+    textTransform: "uppercase",
+  },
+  customBadge: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#7c3aed",
+    backgroundColor: "#f5f3ff",
+    paddingHorizontal: 4,
+    paddingVertical: 1.5,
+    borderRadius: 3,
+    borderWidth: 0.5,
+    borderColor: "#ddd6fe",
+    textTransform: "uppercase",
+  },
   setRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -239,6 +263,10 @@ export interface PresentedTrainingPlan {
       equipment?: string | null;
       notes?: string | null;
       summaryString: string;
+      combinationType?: string | null;
+      combinationTitle?: string | null;
+      combinationRestSeconds?: number | null;
+      isCustomExercise?: boolean;
       setsDetail: Array<{
         setNumber: number;
         reps?: number | null;
@@ -381,7 +409,17 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
             {block.exercises.map((ex, eIdx) => (
               <View key={`e-${eIdx}`} style={styles.exerciseCard} wrap={false}>
                 <View style={styles.exerciseHeader}>
-                  <Text style={styles.exerciseName}>{ex.name}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
+                    {ex.combinationType && (
+                      <Text style={styles.combBadge}>
+                        {ex.combinationType.replace("_", "-")}
+                      </Text>
+                    )}
+                    {ex.isCustomExercise && (
+                      <Text style={styles.customBadge}>Personalizado</Text>
+                    )}
+                    <Text style={styles.exerciseName}>{ex.name}</Text>
+                  </View>
                   {(ex.muscleGroup || ex.equipment) && (
                     <Text style={styles.exerciseMetaBadge}>
                       {[ex.muscleGroup, ex.equipment].filter(Boolean).join(" • ")}

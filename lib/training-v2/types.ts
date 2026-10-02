@@ -185,12 +185,35 @@ export type BlockItemMediaDto = {
   mediaAsset: MediaAssetDto;
 };
 
+export type WorkoutCombinationType =
+  | "BI_SET"
+  | "TRI_SET"
+  | "SUPERSET"
+  | "GIANT_SET"
+  | "CIRCUIT";
+
+export type WorkoutItemCombinationDto = {
+  publicId: string;
+  blockPublicId?: string;
+  subBlockPublicId?: string | null;
+  combinationType: WorkoutCombinationType;
+  title: string | null;
+  sortOrder: number;
+  rounds: number | null;
+  restAfterSeconds: number;
+  restAfterUnit: "SECONDS" | "MINUTES" | string;
+  items?: WorkoutBlockItemDto[];
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
 export type WorkoutSubBlockDto = {
   publicId: string;
   blockPublicId?: string;
   title: string;
   sortOrder: number;
   items?: WorkoutBlockItemDto[];
+  combinations?: WorkoutItemCombinationDto[];
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -198,6 +221,10 @@ export type WorkoutSubBlockDto = {
 export type WorkoutBlockItemDto = {
   publicId: string;
   exercisePublicId: string | null;
+  customExercisePublicId?: string | null;
+  isCustomExercise?: boolean;
+  combinationPublicId?: string | null;
+  combinationType?: WorkoutCombinationType | null;
   subBlockPublicId?: string | null;
   subBlockTitle?: string | null;
   sortOrder: number;
@@ -228,6 +255,7 @@ export type WorkoutBlockDto = {
   restAfterBlockSeconds: number | null;
   instructions: string | null;
   subBlocks?: WorkoutSubBlockDto[];
+  combinations?: WorkoutItemCombinationDto[];
   items: WorkoutBlockItemDto[];
 };
 

@@ -9,6 +9,7 @@ import type {
   WorkoutExecutionHistorySetDto,
   WorkoutBlockDto,
   WorkoutBlockItemDto,
+  WorkoutItemCombinationDto,
   WorkoutItemSetDto,
   WorkoutSetType,
   BlockItemMediaDto,
@@ -1269,6 +1270,209 @@ export function StudentWorkoutRenderer({
   );
 }
 
+const COMBINATION_LABELS: Record<string, string> = {
+  BI_SET: "Bi-Set",
+  TRI_SET: "Tri-Set",
+  SUPERSET: "Super-Série",
+  GIANT_SET: "Série Gigante",
+  CIRCUIT: "Circuito",
+};
+
+function ItemOrCombinationList({
+  items,
+  combinations = [],
+  blockType,
+  activeSession,
+  loadingSetPublicId,
+  setErrors,
+  onCompleteSet,
+  activeRest,
+  onSkipRest,
+  expandedFutureSets,
+  onToggleExpandSet,
+  sessionDrafts,
+  onDraftChange,
+  activeSubstitutions,
+  remainingSwaps,
+  onOpenSwapModal,
+}: {
+  items: WorkoutBlockItemDto[];
+  combinations?: WorkoutItemCombinationDto[];
+  blockType: string;
+  activeSession?: WorkoutExecutionSessionDto | null;
+  loadingSetPublicId?: string | null;
+  setErrors?: Record<string, string>;
+  onCompleteSet?: (
+    setPublicId: string,
+    input: { actualReps: number; actualLoadKg: number | null }
+  ) => Promise<void>;
+  activeRest?: ActiveRestState | null;
+  onSkipRest?: () => void;
+  expandedFutureSets?: Record<string, boolean>;
+  onToggleExpandSet?: (setKey: string, expanded: boolean) => void;
+  sessionDrafts?: Record<string, { reps: string; load: string }>;
+  onDraftChange?: (setKey: string, draft: { reps: string; load: string }) => void;
+  activeSubstitutions?: Record<
+    string,
+    {
+      performedExercisePublicId: string;
+      performedExerciseName: string;
+      performedMuscleGroup?: string;
+      reason: ExerciseSwapReason;
+      reasonLabel: string;
+      pinnedMedia?: BlockItemMediaDto[];
+    }
+  >;
+  remainingSwaps?: number;
+  onOpenSwapModal?: (item: WorkoutBlockItemDto) => void;
+}) {
+  const combMap = new Map<string, WorkoutItemCombinationDto>();
+  for (const c of combinations) {
+    combMap.set(c.publicId, c);
+  }
+
+  type RenderUnit =
+    | { type: "single"; item: WorkoutBlockItemDto; index: number }
+    | { type: "combination"; combination: WorkoutItemCombinationDto; items: WorkoutBlockItemDto[] };
+
+  const units: RenderUnit[] = [];
+  const processedCombIds = new Set<string>();
+
+  items.forEach((item, idx) => {
+    if (item.combinationPublicId) {
+      if (processedCombIds.has(item.combinationPublicId)) {
+        return;
+      }
+      processedCombIds.add(item.combinationPublicId);
+      const comb = combMap.get(item.combinationPublicId) || {
+        id: 0,
+        publicId: item.combinationPublicId,
+        combinationType: item.combinationType || "BI_SET",
+        title: null,
+        sortOrder: item.sortOrder,
+        rounds: null,
+        restAfterSeconds: 60,
+        restAfterUnit: "s",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const combItems = items.filter((i) => i.combinationPublicId === item.combinationPublicId);
+      units.push({
+        type: "combination",
+        combination: comb as WorkoutItemCombinationDto,
+        items: combItems,
+      });
+    } else {
+      units.push({ type: "single", item, index: idx });
+    }
+  });
+
+  return (
+    <div className="space-y-4">
+      {units.map((unit) => {
+        if (unit.type === "single") {
+          return (
+            <ItemCard
+              key={unit.item.publicId}
+              item={unit.item}
+              blockType={blockType}
+              itemIndex={unit.index}
+              totalItems={items.length}
+              activeSession={activeSession}
+              loadingSetPublicId={loadingSetPublicId}
+              setErrors={setErrors}
+              onCompleteSet={onCompleteSet}
+              activeRest={activeRest}
+              onSkipRest={onSkipRest}
+              expandedFutureSets={expandedFutureSets}
+              onToggleExpandSet={onToggleExpandSet}
+              sessionDrafts={sessionDrafts}
+              onDraftChange={onDraftChange}
+              activeSubstitutions={activeSubstitutions}
+              remainingSwaps={remainingSwaps}
+              onOpenSwapModal={onOpenSwapModal}
+            />
+          );
+        }
+
+        const comb = unit.combination;
+        const combLabel = COMBINATION_LABELS[comb.combinationType] || comb.combinationType;
+        const restSec = comb.restAfterSeconds ?? 60;
+        const formattedRest =
+          restSec <= 60
+            ? `${restSec}s`
+            : `${Math.floor(restSec / 60)}min ${restSec % 60 ? `${restSec % 60}s` : ""}`.trim();
+
+        return (
+          <div
+            key={comb.publicId}
+            className="rounded-2xl border-2 border-emerald-500/25 bg-emerald-500/[0.03] dark:bg-emerald-500/[0.05] p-3.5 sm:p-4 space-y-3.5 shadow-xs"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-500/15 pb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  ⚡ {combLabel}
+                </span>
+                {comb.title && (
+                  <span className="text-sm font-bold text-[var(--foreground)]">
+                    {comb.title}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] font-medium bg-[var(--surface)] px-2.5 py-1 rounded-lg border border-[var(--border-subtle)]">
+                <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>
+                  Descanso pós-combinação:{" "}
+                  <strong className="text-[var(--foreground)]">{formattedRest}</strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-[var(--foreground-muted)] italic">
+              Execute 1 série de cada exercício sucessivamente sem descanso. Ao concluir a volta, aguarde o descanso acima.
+            </div>
+
+            <div className="space-y-3">
+              {unit.items.map((cItem, cIdx) => (
+                <div key={cItem.publicId} className="space-y-2">
+                  <ItemCard
+                    item={cItem}
+                    blockType={blockType}
+                    itemIndex={cIdx}
+                    totalItems={unit.items.length}
+                    activeSession={activeSession}
+                    loadingSetPublicId={loadingSetPublicId}
+                    setErrors={setErrors}
+                    onCompleteSet={onCompleteSet}
+                    activeRest={activeRest}
+                    onSkipRest={onSkipRest}
+                    expandedFutureSets={expandedFutureSets}
+                    onToggleExpandSet={onToggleExpandSet}
+                    sessionDrafts={sessionDrafts}
+                    onDraftChange={onDraftChange}
+                    activeSubstitutions={activeSubstitutions}
+                    remainingSwaps={remainingSwaps}
+                    onOpenSwapModal={onOpenSwapModal}
+                  />
+                  {cIdx < unit.items.length - 1 && (
+                    <div className="flex items-center justify-center py-1">
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">
+                        <span>↓</span>
+                        <span>Transição direta (sem descanso)</span>
+                        <span>↓</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function BlockCard({
   block,
   blockIndex,
@@ -1400,42 +1604,10 @@ function BlockCard({
                           ({sbItems.length} {sbItems.length === 1 ? "exercício" : "exercícios"})
                         </span>
                       </div>
-                      <div className="space-y-4">
-                        {sbItems.map((item, itemIndex) => (
-                          <ItemCard
-                            key={item.publicId}
-                            item={item}
-                            blockType={block.blockType}
-                            itemIndex={itemIndex}
-                            totalItems={sbItems.length}
-                            activeSession={activeSession}
-                            loadingSetPublicId={loadingSetPublicId}
-                            setErrors={setErrors}
-                            onCompleteSet={onCompleteSet}
-                            activeRest={activeRest}
-                            onSkipRest={onSkipRest}
-                            expandedFutureSets={expandedFutureSets}
-                            onToggleExpandSet={onToggleExpandSet}
-                            sessionDrafts={sessionDrafts}
-                            onDraftChange={onDraftChange}
-                            activeSubstitutions={activeSubstitutions}
-                            remainingSwaps={remainingSwaps}
-                            onOpenSwapModal={onOpenSwapModal}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-                {unassignedItems.length > 0 && (
-                  <div className="space-y-4 pt-2">
-                    {unassignedItems.map((item, itemIndex) => (
-                      <ItemCard
-                        key={item.publicId}
-                        item={item}
+                      <ItemOrCombinationList
+                        items={sbItems}
+                        combinations={sb.combinations || []}
                         blockType={block.blockType}
-                        itemIndex={itemIndex}
-                        totalItems={unassignedItems.length}
                         activeSession={activeSession}
                         loadingSetPublicId={loadingSetPublicId}
                         setErrors={setErrors}
@@ -1450,35 +1622,53 @@ function BlockCard({
                         remainingSwaps={remainingSwaps}
                         onOpenSwapModal={onOpenSwapModal}
                       />
-                    ))}
+                    </div>
+                  );
+                })}
+                {unassignedItems.length > 0 && (
+                  <div className="space-y-4 pt-2">
+                    <ItemOrCombinationList
+                      items={unassignedItems}
+                      combinations={block.combinations || []}
+                      blockType={block.blockType}
+                      activeSession={activeSession}
+                      loadingSetPublicId={loadingSetPublicId}
+                      setErrors={setErrors}
+                      onCompleteSet={onCompleteSet}
+                      activeRest={activeRest}
+                      onSkipRest={onSkipRest}
+                      expandedFutureSets={expandedFutureSets}
+                      onToggleExpandSet={onToggleExpandSet}
+                      sessionDrafts={sessionDrafts}
+                      onDraftChange={onDraftChange}
+                      activeSubstitutions={activeSubstitutions}
+                      remainingSwaps={remainingSwaps}
+                      onOpenSwapModal={onOpenSwapModal}
+                    />
                   </div>
                 )}
               </div>
             );
           })()
         ) : (
-          items.map((item, itemIndex) => (
-            <ItemCard
-              key={item.publicId}
-              item={item}
-              blockType={block.blockType}
-              itemIndex={itemIndex}
-              totalItems={items.length}
-              activeSession={activeSession}
-              loadingSetPublicId={loadingSetPublicId}
-              setErrors={setErrors}
-              onCompleteSet={onCompleteSet}
-              activeRest={activeRest}
-              onSkipRest={onSkipRest}
-              expandedFutureSets={expandedFutureSets}
-              onToggleExpandSet={onToggleExpandSet}
-              sessionDrafts={sessionDrafts}
-              onDraftChange={onDraftChange}
-              activeSubstitutions={activeSubstitutions}
-              remainingSwaps={remainingSwaps}
-              onOpenSwapModal={onOpenSwapModal}
-            />
-          ))
+          <ItemOrCombinationList
+            items={items}
+            combinations={block.combinations || []}
+            blockType={block.blockType}
+            activeSession={activeSession}
+            loadingSetPublicId={loadingSetPublicId}
+            setErrors={setErrors}
+            onCompleteSet={onCompleteSet}
+            activeRest={activeRest}
+            onSkipRest={onSkipRest}
+            expandedFutureSets={expandedFutureSets}
+            onToggleExpandSet={onToggleExpandSet}
+            sessionDrafts={sessionDrafts}
+            onDraftChange={onDraftChange}
+            activeSubstitutions={activeSubstitutions}
+            remainingSwaps={remainingSwaps}
+            onOpenSwapModal={onOpenSwapModal}
+          />
         )}
       </div>
     </section>

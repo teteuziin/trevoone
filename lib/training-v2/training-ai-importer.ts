@@ -21,6 +21,7 @@ import {
   resolveSemanticExerciseWithAi,
   type ExerciseCandidateDbItem,
 } from "./exercise-resolver";
+import type { WorkoutCombinationType } from "./types";
 
 export type ExerciseMatchStatus = "MATCHED" | "AMBIGUOUS" | "NOT_FOUND";
 
@@ -36,6 +37,9 @@ export interface ResolvedTrainingExerciseItem {
   originalText: string;
   exerciseNameCandidate: string;
   groupName?: string | null;
+  combinationType?: WorkoutCombinationType | null;
+  combinationIndex?: number | null;
+  combinationRestSeconds?: number | null;
   matchStatus: ExerciseMatchStatus;
   exercisePublicId: string | null;
   exerciseNameSnapshot: string;
@@ -392,6 +396,9 @@ export async function processTrainingAiImport(params: {
         muscleGroupSnapshot,
         equipmentSnapshot,
         candidates: matchResult.candidates,
+        combinationType: (ex.combinationType as WorkoutCombinationType) || null,
+        combinationIndex: ex.combinationIndex ?? null,
+        combinationRestSeconds: ex.combinationRestSeconds ?? null,
         sets: ex.sets,
         reps: ex.reps,
         repsMax: ex.repsMax || null,
@@ -613,6 +620,42 @@ export async function confirmTrainingAiImport(params: {
         subBlockMap.set(groupName, sbRes.insertId);
       }
 
+      // Pre-create combinations for exercises sharing combinationIndex within each subBlock (or block)
+      const combinationMap = new Map<string, number>();
+      const combGroups = new Map<string, typeof cat.exercises>();
+      for (const ex of cat.exercises) {
+        if (ex.combinationIndex != null) {
+          const gn = ex.groupName?.trim();
+          const sbId = gn && subBlockMap.has(gn) ? subBlockMap.get(gn) : null;
+          const key = `${sbId || "none"}:${ex.combinationIndex}`;
+          if (!combGroups.has(key)) {
+            combGroups.set(key, []);
+          }
+          combGroups.get(key)!.push(ex);
+        }
+      }
+
+      for (const [key, groupExs] of combGroups.entries()) {
+        if (groupExs.length >= 2) {
+          const [sbIdStr] = key.split(":");
+          const sbId = sbIdStr === "none" ? null : Number(sbIdStr);
+          const firstEx = groupExs[0];
+          const combType =
+            firstEx.combinationType ||
+            (groupExs.length === 2 ? "BI_SET" : groupExs.length === 3 ? "TRI_SET" : "CIRCUIT");
+          const combPublicId = crypto.randomUUID();
+          const restSeconds = firstEx.combinationRestSeconds ?? 60;
+          const [combRes] = await db.query<ResultSetHeader>(
+            `INSERT INTO workout_item_combinations (
+              public_id, block_id, sub_block_id, combination_type, title, sort_order,
+              rest_after_seconds, rest_after_unit, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, NULL, 0, ?, 'SECONDS', NOW(3), NOW(3))`,
+            [combPublicId, blockId, sbId, combType, restSeconds]
+          );
+          combinationMap.set(key, combRes.insertId);
+        }
+      }
+
       let itemSort = 0;
       for (const ex of cat.exercises) {
         itemSort++;
@@ -630,19 +673,22 @@ export async function confirmTrainingAiImport(params: {
         const equipSnapshot = exRows.length > 0 ? String(exRows[0].equipment) : ex.equipmentSnapshot;
         const gn = ex.groupName?.trim();
         const subBlockId = gn && subBlockMap.has(gn) ? subBlockMap.get(gn) : null;
+        const combKey = ex.combinationIndex != null ? `${subBlockId || "none"}:${ex.combinationIndex}` : null;
+        const combinationId = combKey && combinationMap.has(combKey) ? combinationMap.get(combKey)! : null;
         const durationUnit = ex.durationUnit || (ex.durationSeconds ? "SECONDS" : null);
 
         const [iRes] = await db.query<ResultSetHeader>(
           `INSERT INTO workout_block_items (
-            public_id, block_id, sub_block_id, exercise_id, sort_order, exercise_name_snapshot,
+            public_id, block_id, sub_block_id, exercise_id, combination_id, sort_order, exercise_name_snapshot,
             muscle_group_snapshot, equipment_snapshot, prescription_mode, duration_unit, notes,
             created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SETS', ?, ?, NOW(3), NOW(3))`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'SETS', ?, ?, NOW(3), NOW(3))`,
           [
             itemPublicId,
             blockId,
             subBlockId,
             exerciseId,
+            combinationId,
             itemSort,
             nameSnapshot,
             muscleSnapshot,

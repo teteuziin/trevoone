@@ -7,6 +7,7 @@ import type {
   WorkoutVersionDto,
   WorkoutBlockItemDto,
   DifficultyLevel,
+  WorkoutCombinationType,
 } from "@/lib/training-v2/types";
 import type {
   WorkoutVersionSummaryDto,
@@ -20,7 +21,6 @@ import {
   deleteCategoryAction,
   reorderCategoriesAction,
   addExerciseItemToBlockAction,
-  addCustomItemToBlockAction,
   duplicateExerciseAction,
   moveExerciseToCategoryAction,
   deleteExerciseAction,
@@ -37,10 +37,22 @@ import {
   resolveUnmatchedExerciseItemAction,
   deleteWorkoutAction,
   deleteWorkoutDraftAction,
+  createItemCombinationAction,
+  updateItemCombinationAction,
+  ungroupItemCombinationAction,
+  deleteItemCombinationAction,
+  moveItemInCombinationAction,
+  removeItemFromCombinationAction,
+  duplicateItemCombinationAction,
+  createCustomExerciseAction,
+  convertUnresolvedToCustomExerciseAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import { WorkoutCategoryCard } from "./workout-category-card";
 import { UnifiedExercisePicker } from "./unified-exercise-picker";
-import { CustomExerciseInlineModal } from "./custom-exercise-inline-modal";
+import {
+  CustomExerciseInlineModal,
+  type CustomExerciseFormData,
+} from "./custom-exercise-inline-modal";
 import { WorkoutPublishDialog } from "./workout-publish-dialog";
 import { WorkoutAssignModal } from "./workout-assign-modal";
 import { StudentWorkoutRenderer } from "./student-workout-renderer";
@@ -220,6 +232,12 @@ export function WorkoutBuilder({
   const [activeSubBlockForPicker, setActiveSubBlockForPicker] = useState<string | null>(null);
   const [resolvingItemPublicId, setResolvingItemPublicId] = useState<string | null>(null);
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+  const [customModalTarget, setCustomModalTarget] = useState<{
+    categoryPublicId: string;
+    subBlockPublicId?: string;
+    convertingItemPublicId?: string;
+    initialData?: Partial<CustomExerciseFormData>;
+  } | null>(null);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -411,28 +429,80 @@ export function WorkoutBuilder({
     }
   }
 
-  // Add Custom Exercise
-  async function handleAddCustomExercise(data: {
-    exerciseName: string;
-    muscleGroup?: string | null;
-    equipment?: string | null;
-    instructions?: string | null;
-  }) {
-    if (!activeCategoryForPicker) return;
-    const catId = activeCategoryForPicker;
-    const subBlockId = activeSubBlockForPicker;
-    const res = await addCustomItemToBlockAction(
-      consultancySlug,
-      catId,
-      {
-        exerciseName: data.exerciseName,
-        muscleGroup: data.muscleGroup,
+  function handleOpenCreateCustomExercise(
+    categoryPublicId: string,
+    subBlockPublicId?: string,
+    convertingItemPublicId?: string,
+    initialData?: { name?: string; muscleGroup?: string; equipment?: string }
+  ) {
+    setCustomModalTarget({
+      categoryPublicId,
+      subBlockPublicId,
+      convertingItemPublicId,
+      initialData: initialData
+        ? {
+            name: initialData.name || "",
+            muscleGroup: initialData.muscleGroup || "",
+            equipment: initialData.equipment || "",
+          }
+        : undefined,
+    });
+    setIsCustomModalOpen(true);
+  }
+
+  // Add or Convert Custom Exercise
+  async function handleSaveCustomExercise(data: CustomExerciseFormData) {
+    if (!customModalTarget) return;
+
+    if (customModalTarget.convertingItemPublicId) {
+      const res = await convertUnresolvedToCustomExerciseAction(consultancySlug, {
+        itemPublicId: customModalTarget.convertingItemPublicId,
+        name: data.name,
+        muscleGroupPrimary: data.muscleGroup,
         equipment: data.equipment,
-        instructions: data.instructions,
-      },
-      undefined,
-      subBlockId
-    );
+        customVideoUrl: data.videoUrl,
+        mediaAssetPublicId: data.videoKey,
+        saveToLibrary: data.saveToMyLibrary,
+      });
+      if (res.ok && res.data) {
+        const converted = res.data;
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => ({
+            ...b,
+            items: (b.items || []).map((i) =>
+              i.publicId === customModalTarget.convertingItemPublicId ? converted : i
+            ),
+          })),
+        }));
+        notify(`Exercício "${data.name}" personalizado com sucesso e liberado para publicação!`);
+        setIsCustomModalOpen(false);
+        setCustomModalTarget(null);
+      } else {
+        notify(res.error || "Erro ao personalizar exercício.");
+      }
+      return;
+    }
+
+    const catId = customModalTarget.categoryPublicId;
+    const sbId = customModalTarget.subBlockPublicId;
+    const res = await createCustomExerciseAction(consultancySlug, catId, {
+      name: data.name,
+      muscleGroup: data.muscleGroup,
+      equipment: data.equipment,
+      subBlockPublicId: sbId,
+      customVideoUrl: data.videoUrl,
+      mediaAssetPublicId: data.videoKey,
+      saveToLibrary: data.saveToMyLibrary,
+      notes: data.notes,
+      sets: [
+        {
+          setType: "NORMAL",
+          targetReps: 10,
+          targetRestSeconds: data.restSeconds ?? 60,
+        },
+      ],
+    });
     if (res.ok && res.data) {
       const newItem = res.data;
       setVersion((prev) => ({
@@ -443,7 +513,9 @@ export function WorkoutBuilder({
             : b
         ),
       }));
-      notify(`Exercício personalizado "${newItem.exerciseNameSnapshot}" criado.`);
+      notify(`Exercício personalizado "${newItem.exerciseNameSnapshot}" criado com sucesso.`);
+      setIsCustomModalOpen(false);
+      setCustomModalTarget(null);
     } else {
       notify(res.error || "Erro ao criar exercício.");
     }
@@ -743,13 +815,190 @@ export function WorkoutBuilder({
     });
   }
 
+  // Combinations (Bi-Set, Tri-Set, etc.)
+  async function handleCreateCombination(input: {
+    blockPublicId: string;
+    subBlockPublicId?: string;
+    combinationType: WorkoutCombinationType;
+    title?: string;
+    restAfterSeconds?: number;
+    itemPublicIds: string[];
+  }) {
+    const res = await createItemCombinationAction(consultancySlug, input);
+    if (res.ok && res.data) {
+      const newComb = res.data;
+      setVersion((prev) => ({
+        ...prev,
+        blocks: prev.blocks.map((b) => {
+          if (b.publicId !== input.blockPublicId) return b;
+          const updatedItems = (b.items || []).map((it) =>
+            input.itemPublicIds.includes(it.publicId)
+              ? {
+                  ...it,
+                  combinationPublicId: newComb.publicId,
+                  combinationType: newComb.combinationType,
+                }
+              : it
+          );
+          const updatedCombs = [...(b.combinations || []), newComb];
+          return {
+            ...b,
+            items: updatedItems,
+            combinations: updatedCombs,
+          };
+        }),
+      }));
+      notify("Combinação criada com sucesso!");
+    } else {
+      notify(res.error || "Erro ao criar combinação.");
+    }
+  }
+
+  async function handleUpdateCombination(
+    combinationPublicId: string,
+    input: {
+      combinationType?: WorkoutCombinationType;
+      title?: string;
+      restAfterSeconds?: number;
+    }
+  ) {
+    const res = await updateItemCombinationAction(consultancySlug, combinationPublicId, input);
+    if (res.ok && res.data) {
+      const updatedComb = res.data;
+      setVersion((prev) => ({
+        ...prev,
+        blocks: prev.blocks.map((b) => ({
+          ...b,
+          combinations: (b.combinations || []).map((c) =>
+            c.publicId === combinationPublicId ? { ...c, ...updatedComb } : c
+          ),
+          items: (b.items || []).map((it) =>
+            it.combinationPublicId === combinationPublicId
+              ? {
+                  ...it,
+                  combinationType: updatedComb.combinationType || it.combinationType,
+                }
+              : it
+          ),
+        })),
+      }));
+      notify("Combinação atualizada.");
+    } else {
+      notify(res.error || "Erro ao atualizar combinação.");
+    }
+  }
+
+  async function handleUngroupCombination(combinationPublicId: string) {
+    const res = await ungroupItemCombinationAction(consultancySlug, combinationPublicId);
+    if (res.ok) {
+      setVersion((prev) => ({
+        ...prev,
+        blocks: prev.blocks.map((b) => ({
+          ...b,
+          combinations: (b.combinations || []).filter((c) => c.publicId !== combinationPublicId),
+          items: (b.items || []).map((it) =>
+            it.combinationPublicId === combinationPublicId
+              ? { ...it, combinationPublicId: null, combinationType: null }
+              : it
+          ),
+        })),
+      }));
+      notify("Combinação desfeita. Todos os exercícios foram preservados.");
+    } else {
+      notify(res.error || "Erro ao desfazer combinação.");
+    }
+  }
+
+  async function handleDeleteCombination(combinationPublicId: string, deleteItems?: boolean) {
+    const res = await deleteItemCombinationAction(consultancySlug, combinationPublicId, deleteItems);
+    if (res.ok) {
+      setVersion((prev) => ({
+        ...prev,
+        blocks: prev.blocks.map((b) => ({
+          ...b,
+          combinations: (b.combinations || []).filter((c) => c.publicId !== combinationPublicId),
+          items: deleteItems
+            ? (b.items || []).filter((it) => it.combinationPublicId !== combinationPublicId)
+            : (b.items || []).map((it) =>
+                it.combinationPublicId === combinationPublicId
+                  ? { ...it, combinationPublicId: null, combinationType: null }
+                  : it
+              ),
+        })),
+      }));
+      notify("Combinação excluída.");
+    } else {
+      notify(res.error || "Erro ao excluir combinação.");
+    }
+  }
+
+  async function handleDuplicateCombination(combinationPublicId: string) {
+    const res = await duplicateItemCombinationAction(consultancySlug, combinationPublicId);
+    if (res.ok && res.data) {
+      router.refresh();
+      notify("Combinação duplicada com sucesso.");
+    } else {
+      notify(res.error || "Erro ao duplicar combinação.");
+    }
+  }
+
+  async function handleMoveItemInCombination(
+    combinationPublicId: string,
+    itemPublicId: string,
+    direction: "up" | "down"
+  ) {
+    const res = await moveItemInCombinationAction(
+      consultancySlug,
+      combinationPublicId,
+      itemPublicId,
+      direction
+    );
+    if (res.ok) {
+      router.refresh();
+    } else {
+      notify(res.error || "Erro ao mover exercício na combinação.");
+    }
+  }
+
+  async function handleRemoveItemFromCombination(
+    combinationPublicId: string,
+    itemPublicId: string
+  ) {
+    const res = await removeItemFromCombinationAction(
+      consultancySlug,
+      combinationPublicId,
+      itemPublicId
+    );
+    if (res.ok) {
+      setVersion((prev) => ({
+        ...prev,
+        blocks: prev.blocks.map((b) => ({
+          ...b,
+          items: (b.items || []).map((it) =>
+            it.publicId === itemPublicId
+              ? { ...it, combinationPublicId: null, combinationType: null }
+              : it
+          ),
+          combinations: (b.combinations || []).map((c) =>
+            c.publicId === combinationPublicId
+              ? { ...c, items: (c.items || []).filter((it) => it.publicId !== itemPublicId) }
+              : c
+          ),
+        })),
+      }));
+      notify("Exercício desvinculado da combinação.");
+    } else {
+      notify(res.error || "Erro ao desvincular exercício.");
+    }
+  }
+
   // Guard for Publishing
   function handleOpenPublishDialog() {
     const hasUnresolved = (version.blocks || []).some((b) =>
-      (b.items || []).some((i) => !i.exercisePublicId)
+      (b.items || []).some((i) => !i.exercisePublicId && !i.customExercisePublicId && !i.isCustomExercise)
     );
     if (hasUnresolved) {
-      notify("Não é possível publicar: existem exercícios pendentes de revisão. Resolva-os antes de publicar.");
+      notify("Não é possível publicar: existem exercícios pendentes de revisão. Resolva-os ou personalize-os antes de publicar.");
       return;
     }
     setIsPublishDialogOpen(true);
@@ -1113,6 +1362,14 @@ export function WorkoutBuilder({
                   setResolvingItemPublicId(itemPublicId);
                   setActiveCategoryForPicker(category.publicId);
                 }}
+                onCreateCombination={handleCreateCombination}
+                onUpdateCombination={handleUpdateCombination}
+                onUngroupCombination={handleUngroupCombination}
+                onDeleteCombination={handleDeleteCombination}
+                onDuplicateCombination={handleDuplicateCombination}
+                onMoveItemInCombination={handleMoveItemInCombination}
+                onRemoveItemFromCombination={handleRemoveItemFromCombination}
+                onOpenCreateCustomExercise={handleOpenCreateCustomExercise}
               />
             ))
           )}
@@ -1302,17 +1559,26 @@ export function WorkoutBuilder({
             setResolvingItemPublicId(null);
           }}
           onSelectExercise={handleSelectExercise}
-          onOpenCustomModal={() => setIsCustomModalOpen(true)}
+          onOpenCustomModal={() => {
+            if (activeCategoryForPicker) {
+              handleOpenCreateCustomExercise(activeCategoryForPicker, activeSubBlockForPicker || undefined);
+            }
+          }}
         />
       )}
 
       {/* Custom Exercise Inline Modal */}
       {isCustomModalOpen && (
         <CustomExerciseInlineModal
+          key={customModalTarget?.convertingItemPublicId || `${customModalTarget?.categoryPublicId}-${customModalTarget?.subBlockPublicId || "root"}`}
           isOpen={true}
           consultancySlug={consultancySlug}
-          onClose={() => setIsCustomModalOpen(false)}
-          onSave={handleAddCustomExercise}
+          initialData={customModalTarget?.initialData}
+          onClose={() => {
+            setIsCustomModalOpen(false);
+            setCustomModalTarget(null);
+          }}
+          onSave={handleSaveCustomExercise}
         />
       )}
 

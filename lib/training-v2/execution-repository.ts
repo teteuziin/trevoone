@@ -179,11 +179,17 @@ export async function startOrResumeWorkoutExecution(
     }
 
     // 3. No IN_PROGRESS session: create a new session and snapshot all prescribed sets
-    const [prescribedSets] = await connection.execute<RowDataPacket[]>(
+    const [prescribedRows] = await connection.execute<RowDataPacket[]>(
       `SELECT
         wis.id AS workout_item_set_id,
         wis.block_item_id,
         wbi.public_id AS block_item_public_id,
+        wbi.block_id,
+        wbi.combination_id,
+        wic.rest_after_seconds AS combination_rest_after_seconds,
+        wic.sort_order AS combination_sort_order,
+        wbi.sort_order AS item_sort_order,
+        wb.sort_order AS block_sort_order,
         wis.set_number,
         wis.set_type,
         wis.target_reps,
@@ -192,18 +198,178 @@ export async function startOrResumeWorkoutExecution(
         wis.target_rest_seconds
        FROM workout_blocks wb
        INNER JOIN workout_block_items wbi ON wbi.block_id = wb.id
+       LEFT JOIN workout_item_combinations wic ON wic.id = wbi.combination_id
        INNER JOIN workout_item_sets wis ON wis.block_item_id = wbi.id
        WHERE wb.workout_version_id = ?
-       ORDER BY wb.sort_order ASC, wbi.sort_order ASC, wis.set_number ASC;`,
+       ORDER BY wb.sort_order ASC, COALESCE(wic.sort_order, wbi.sort_order) ASC, wbi.sort_order ASC, wis.set_number ASC;`,
       [a.workout_version_id]
     );
 
-    if (!prescribedSets || prescribedSets.length === 0) {
+    if (!prescribedRows || prescribedRows.length === 0) {
       throw new TrainingAuthorizationError(
         "A rotina prescrita não possui séries para execução.",
         "WORKOUT_HAS_NO_EXECUTABLE_SETS",
         400
       );
+    }
+
+    type ExecutionRawRow = {
+      workout_item_set_id: number;
+      block_item_id: number;
+      block_item_public_id: string;
+      set_type: string;
+      target_reps: number | null;
+      target_reps_max: number | null;
+      target_load_kg: number | null;
+      target_rest_seconds: number | null;
+      combination_id: number | null;
+      combination_rest_after_seconds: number | null;
+    };
+
+    const itemsMap = new Map<
+      number,
+      {
+        blockItemId: number;
+        blockItemPublicId: string;
+        combinationId: number | null;
+        combinationRestAfterSeconds: number | null;
+        sets: ExecutionRawRow[];
+      }
+    >();
+
+    for (const r of prescribedRows) {
+      const bId = Number(r.block_item_id);
+      if (!itemsMap.has(bId)) {
+        itemsMap.set(bId, {
+          blockItemId: bId,
+          blockItemPublicId: String(r.block_item_public_id),
+          combinationId: r.combination_id != null ? Number(r.combination_id) : null,
+          combinationRestAfterSeconds:
+            r.combination_rest_after_seconds != null ? Number(r.combination_rest_after_seconds) : null,
+          sets: [],
+        });
+      }
+      itemsMap.get(bId)!.sets.push({
+        workout_item_set_id: Number(r.workout_item_set_id),
+        block_item_id: bId,
+        block_item_public_id: String(r.block_item_public_id),
+        set_type: String(r.set_type),
+        target_reps: r.target_reps != null ? Number(r.target_reps) : null,
+        target_reps_max: r.target_reps_max != null ? Number(r.target_reps_max) : null,
+        target_load_kg: r.target_load_kg != null ? Number(r.target_load_kg) : null,
+        target_rest_seconds: r.target_rest_seconds != null ? Number(r.target_rest_seconds) : null,
+        combination_id: r.combination_id != null ? Number(r.combination_id) : null,
+        combination_rest_after_seconds:
+          r.combination_rest_after_seconds != null ? Number(r.combination_rest_after_seconds) : null,
+      });
+    }
+
+    type ExecUnit =
+      | { kind: "single"; item: (typeof itemsMap extends Map<number, infer V> ? V : never) }
+      | {
+          kind: "combination";
+          combinationId: number;
+          restAfterSeconds: number | null;
+          items: (typeof itemsMap extends Map<number, infer V> ? V : never)[];
+        };
+
+    const execUnits: ExecUnit[] = [];
+    const itemEntries = Array.from(itemsMap.values());
+    let currentCombId: number | null = null;
+    let currentCombItems: typeof itemEntries = [];
+    let currentCombRest: number | null = null;
+
+    for (const item of itemEntries) {
+      if (item.combinationId != null) {
+        if (currentCombId === item.combinationId) {
+          currentCombItems.push(item);
+        } else {
+          if (currentCombId != null && currentCombItems.length > 0) {
+            execUnits.push({
+              kind: "combination",
+              combinationId: currentCombId,
+              restAfterSeconds: currentCombRest,
+              items: currentCombItems,
+            });
+          }
+          currentCombId = item.combinationId;
+          currentCombItems = [item];
+          currentCombRest = item.combinationRestAfterSeconds;
+        }
+      } else {
+        if (currentCombId != null && currentCombItems.length > 0) {
+          execUnits.push({
+            kind: "combination",
+            combinationId: currentCombId,
+            restAfterSeconds: currentCombRest,
+            items: currentCombItems,
+          });
+          currentCombId = null;
+          currentCombItems = [];
+          currentCombRest = null;
+        }
+        execUnits.push({ kind: "single", item });
+      }
+    }
+    if (currentCombId != null && currentCombItems.length > 0) {
+      execUnits.push({
+        kind: "combination",
+        combinationId: currentCombId,
+        restAfterSeconds: currentCombRest,
+        items: currentCombItems,
+      });
+    }
+
+    type OrderedExecutionSet = {
+      workout_item_set_id: number;
+      block_item_id: number;
+      block_item_public_id: string;
+      set_type: string;
+      target_reps: number | null;
+      target_reps_max: number | null;
+      target_load_kg: number | null;
+      prescribed_rest_seconds: number | null;
+    };
+
+    const orderedSetsToSnapshot: OrderedExecutionSet[] = [];
+
+    for (const unit of execUnits) {
+      if (unit.kind === "single") {
+        for (const s of unit.item.sets) {
+          orderedSetsToSnapshot.push({
+            workout_item_set_id: s.workout_item_set_id,
+            block_item_id: s.block_item_id,
+            block_item_public_id: s.block_item_public_id,
+            set_type: s.set_type,
+            target_reps: s.target_reps,
+            target_reps_max: s.target_reps_max,
+            target_load_kg: s.target_load_kg,
+            prescribed_rest_seconds: s.target_rest_seconds,
+          });
+        }
+      } else {
+        const maxRounds = Math.max(...unit.items.map((i) => i.sets.length));
+        for (let round = 0; round < maxRounds; round++) {
+          const itemsInRound = unit.items.filter((it) => round < it.sets.length);
+          itemsInRound.forEach((it, idx) => {
+            const s = it.sets[round];
+            const isLastInRound = idx === itemsInRound.length - 1;
+            const rest = isLastInRound
+              ? (unit.restAfterSeconds ?? s.target_rest_seconds ?? 60)
+              : 0;
+            orderedSetsToSnapshot.push({
+              workout_item_set_id: s.workout_item_set_id,
+              block_item_id: s.block_item_id,
+              block_item_public_id: s.block_item_public_id,
+              set_type: s.set_type,
+              target_reps: s.target_reps,
+              target_reps_max: s.target_reps_max,
+              target_load_kg: s.target_load_kg,
+              prescribed_rest_seconds: rest,
+            });
+          });
+        }
+      }
     }
 
     const sessionPublicId = crypto.randomUUID();
@@ -223,9 +389,10 @@ export async function startOrResumeWorkoutExecution(
 
     const sessionId = insertSessionRes.insertId;
 
-    // Snapshot each prescribed set
+    // Snapshot each prescribed set with sequential set_number
     const createdSets: WorkoutExecutionSetDto[] = [];
-    for (const ps of prescribedSets) {
+    let executionSetIndex = 1;
+    for (const ps of orderedSetsToSnapshot) {
       const setPublicId = crypto.randomUUID();
       await connection.execute<ResultSetHeader>(
         `INSERT INTO workout_execution_sets (
@@ -245,12 +412,12 @@ export async function startOrResumeWorkoutExecution(
           sessionId,
           ps.workout_item_set_id,
           ps.block_item_id,
-          ps.set_number,
+          executionSetIndex,
           ps.set_type,
           ps.target_reps,
           ps.target_reps_max,
           ps.target_load_kg,
-          ps.target_rest_seconds,
+          ps.prescribed_rest_seconds,
         ]
       );
 
@@ -260,18 +427,20 @@ export async function startOrResumeWorkoutExecution(
         workoutItemSetId: Number(ps.workout_item_set_id),
         blockItemId: Number(ps.block_item_id),
         blockItemPublicId: String(ps.block_item_public_id),
-        setNumber: Number(ps.set_number),
+        setNumber: executionSetIndex,
         setType: ps.set_type as WorkoutSetType,
         prescribedReps: ps.target_reps != null ? Number(ps.target_reps) : null,
         prescribedRepsMax: ps.target_reps_max != null ? Number(ps.target_reps_max) : null,
         prescribedLoadKg: ps.target_load_kg != null ? Number(ps.target_load_kg) : null,
-        prescribedRestSeconds: ps.target_rest_seconds != null ? Number(ps.target_rest_seconds) : null,
+        prescribedRestSeconds: ps.prescribed_rest_seconds != null ? Number(ps.prescribed_rest_seconds) : null,
         actualReps: null,
         actualLoadKg: null,
         completedAt: null,
         createdAt: now,
         updatedAt: now,
       });
+
+      executionSetIndex++;
     }
 
     await connection.commit();

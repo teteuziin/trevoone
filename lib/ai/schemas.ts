@@ -7,6 +7,9 @@ export interface RawTrainingExerciseItem {
   originalText: string;
   exerciseNameCandidate: string;
   groupName?: string | null;
+  combinationType?: "BI_SET" | "TRI_SET" | "SUPERSET" | "GIANT_SET" | "CIRCUIT" | null;
+  combinationIndex?: number | null;
+  combinationRestSeconds?: number | null;
   sets: number | null;
   reps: number | null;
   repsMax?: number | null;
@@ -84,6 +87,12 @@ export const TRAINING_IMPORT_JSON_SCHEMA = {
                   originalText: { type: "string" },
                   exerciseNameCandidate: { type: "string" },
                   groupName: { type: ["string", "null"] },
+                  combinationType: {
+                    type: ["string", "null"],
+                    enum: ["BI_SET", "TRI_SET", "SUPERSET", "GIANT_SET", "CIRCUIT", null],
+                  },
+                  combinationIndex: { type: ["number", "null"] },
+                  combinationRestSeconds: { type: ["number", "null"] },
                   sets: { type: ["number", "null"] },
                   reps: { type: ["number", "null"] },
                   repsMax: { type: ["number", "null"] },
@@ -97,6 +106,9 @@ export const TRAINING_IMPORT_JSON_SCHEMA = {
                   "originalText",
                   "exerciseNameCandidate",
                   "groupName",
+                  "combinationType",
+                  "combinationIndex",
+                  "combinationRestSeconds",
                   "sets",
                   "reps",
                   "repsMax",

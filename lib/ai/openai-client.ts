@@ -32,7 +32,12 @@ DIRETRIZES DE SEGURANÇA E EXTRAÇÃO RÍGIDA:
 11. Para alternativas alimentares ('OU', 'ou', opções equivalentes): o primeiro item da opção é o alimento principal ('foods'), e as alternativas subsequentes separadas por 'OU' DEVEM ser preenchidas no campo 'substitutions' desse alimento. NUNCA coloque alternativas como itens obrigatórios na mesma refeição para não somar calorias indevidamente. Preencha 'substitutions': [] quando não houver alternativas.
 12. Para itens livres como 'Salada à vontade (tomate, pepino e folhas)': defina 'quantity': null e 'unitCandidate': 'à vontade'. NUNCA invente gramas ou macros.
 13. Para receitas ou sucos sem discriminação de ingredientes e quantidades (ex: 'Suco de mamão, ameixa e aveia'): preserve o nome no 'foodNameCandidate', mantenha 'sourceDocumentClaim': null e defina 'notes': 'NEEDS_RECIPE_DETAILS'.
-14. Textos gerais de hidratação, orientações e pesar alimentos devem ser preenchidos no campo 'notes' do plano ou da refeição, NUNCA transformados em itens alimentares.`;
+14. Textos gerais de hidratação, orientações e pesar alimentos devem ser preenchidos no campo 'notes' do plano ou da refeição, NUNCA transformados em itens alimentares.
+15. Para combinações de exercícios como BI-SET, TRI-SET, SUPER-SÉRIE, SÉRIE GIGANTE ou CIRCUITO (ex: 'Bi-set: Rosca Scott + Rosca Martelo', 'Tri-set: Elevação lateral + frontal + posterior', 'Superset', 'Série conjugada', 'Exercícios combinados sem descanso'):
+    - Preencha 'combinationType' com 'BI_SET', 'TRI_SET', 'SUPERSET', 'GIANT_SET' ou 'CIRCUIT'.
+    - Para cada grupo de exercícios combinados, use o mesmo número em 'combinationIndex' (ex: 1 para a primeira combinação, 2 para a segunda).
+    - Se houver descanso explícito após a combinação (ex: 'descanse 60s após a sequência'), preencha 'combinationRestSeconds'.
+    - Para exercícios comuns (não combinados), defina 'combinationType': null, 'combinationIndex': null, 'combinationRestSeconds': null.`;
 
 export interface DocumentInput {
   filename: string;

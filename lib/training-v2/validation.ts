@@ -196,18 +196,29 @@ export const workoutItemSetSchema = z
     }
   });
 
-// ============================================================================
-// WORKOUT SUB-BLOCK & BLOCK ITEM SCHEMAS
-// ============================================================================
+export const workoutItemCombinationSchema = z.object({
+  publicId: z.string().trim().min(1),
+  combinationType: z.enum(["BI_SET", "TRI_SET", "SUPERSET", "GIANT_SET", "CIRCUIT"]),
+  title: z.string().trim().max(100).nullable().optional(),
+  sortOrder: z.number().int().min(0),
+  rounds: z.number().int().min(1).max(50).nullable().optional(),
+  restAfterSeconds: z.number().int().min(0).max(3600).default(60),
+  restAfterUnit: z.enum(["SECONDS", "MINUTES"]).default("SECONDS"),
+});
 
 export const workoutSubBlockSchema = z.object({
   publicId: z.string().trim().min(1),
   title: z.string().trim().min(1, "Nome do grupo é obrigatório.").max(255),
   sortOrder: z.number().int().min(0),
+  combinations: z.array(workoutItemCombinationSchema).default([]).optional(),
 });
 
 export const workoutBlockItemSchema = z.object({
   exercisePublicId: z.string().trim().min(1).nullable().optional(),
+  customExercisePublicId: z.string().trim().min(1).nullable().optional(),
+  isCustomExercise: z.boolean().optional(),
+  combinationPublicId: z.string().trim().nullable().optional(),
+  combinationType: z.enum(["BI_SET", "TRI_SET", "SUPERSET", "GIANT_SET", "CIRCUIT"]).nullable().optional(),
   subBlockPublicId: z.string().trim().nullable().optional(),
   subBlockTitle: z.string().trim().nullable().optional(),
   sortOrder: z.number().int().min(0),
@@ -241,6 +252,7 @@ export const workoutBlockSchema = z
     restAfterBlockSeconds: z.number().int().min(0).max(3600).nullable().optional(),
     instructions: z.string().trim().max(2000).nullable().optional(),
     subBlocks: z.array(workoutSubBlockSchema).default([]).optional(),
+    combinations: z.array(workoutItemCombinationSchema).default([]).optional(),
     items: z.array(workoutBlockItemSchema).min(1, "O bloco deve conter ao menos 1 exercício."),
   })
   .superRefine((block, ctx) => {

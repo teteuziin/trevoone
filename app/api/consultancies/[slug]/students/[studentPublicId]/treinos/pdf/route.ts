@@ -138,6 +138,8 @@ export async function GET(request: Request, context: RouteContext) {
             notes: item.notes,
             summaryString: setsSummary.summaryString,
             setsDetail: setsSummary.setsDetail,
+            combinationType: item.combinationType || null,
+            isCustomExercise: !!item.isCustomExercise,
           };
         }),
       })),

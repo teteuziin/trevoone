@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import type {
   WorkoutBlockDto,
   WorkoutBlockItemDto,
+  WorkoutItemCombinationDto,
+  WorkoutCombinationType,
 } from "@/lib/training-v2/types";
 import type { QuickConfigInput } from "@/lib/training-v2/workout-repository";
 import { ExerciseExecutionModal } from "./exercise-execution-modal";
@@ -12,6 +14,39 @@ import {
   formatRepetitionRange,
   formatDurationNatural,
 } from "@/lib/training-v2/reps-normalizer";
+
+function ZapIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+export const COMBINATION_TYPE_LABELS: Record<WorkoutCombinationType, string> = {
+  BI_SET: "Bi-Set",
+  TRI_SET: "Tri-Set",
+  SUPERSET: "Super-Série",
+  GIANT_SET: "Série Gigante",
+  CIRCUIT: "Circuito",
+};
+
+export const COMBINATION_BADGE_STYLES: Record<WorkoutCombinationType, string> = {
+  BI_SET: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+  TRI_SET: "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30",
+  SUPERSET: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
+  GIANT_SET: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30",
+  CIRCUIT: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+};
 
 function MoreVertical({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -94,6 +129,23 @@ function Check({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function SearchIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function SparklesIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.286L13 21l-2.286-6.857L5 12l5.714-2.286L13 3z" />
+    </svg>
+  );
+}
+
 export type CategoryCardProps = {
   category: WorkoutBlockDto;
   categoryIndex: number;
@@ -120,7 +172,90 @@ export type CategoryCardProps = {
   onMoveSubBlockUp?: (categoryPublicId: string, subBlockIndex: number) => Promise<void>;
   onMoveSubBlockDown?: (categoryPublicId: string, subBlockIndex: number) => Promise<void>;
   onResolveExercise?: (itemPublicId: string) => void;
+  // Combinations (Bi-set, Tri-set, Super-série, etc.)
+  onCreateCombination?: (input: {
+    blockPublicId: string;
+    subBlockPublicId?: string;
+    combinationType: WorkoutCombinationType;
+    title?: string;
+    restAfterSeconds?: number;
+    itemPublicIds: string[];
+  }) => Promise<void>;
+  onUpdateCombination?: (
+    combinationPublicId: string,
+    input: {
+      combinationType?: WorkoutCombinationType;
+      title?: string;
+      restAfterSeconds?: number;
+    }
+  ) => Promise<void>;
+  onUngroupCombination?: (combinationPublicId: string) => Promise<void>;
+  onDeleteCombination?: (combinationPublicId: string, deleteItems?: boolean) => Promise<void>;
+  onDuplicateCombination?: (combinationPublicId: string) => Promise<void>;
+  onMoveItemInCombination?: (
+    combinationPublicId: string,
+    itemPublicId: string,
+    direction: "up" | "down"
+  ) => Promise<void>;
+  onRemoveItemFromCombination?: (
+    combinationPublicId: string,
+    itemPublicId: string
+  ) => Promise<void>;
+  onOpenCreateCustomExercise?: (
+    categoryPublicId: string,
+    subBlockPublicId?: string,
+    convertingItemPublicId?: string,
+    initialData?: { name?: string; muscleGroup?: string; equipment?: string }
+  ) => void;
 };
+
+type ContainerEntry =
+  | { type: "combination"; combination: WorkoutItemCombinationDto; sortOrder: number }
+  | { type: "item"; item: WorkoutBlockItemDto; sortOrder: number };
+
+function buildContainerEntries(
+  items: WorkoutBlockItemDto[],
+  combinations: WorkoutItemCombinationDto[],
+  subBlockPublicId: string | null
+): ContainerEntry[] {
+  // 1. Filter combinations belonging to this sub-block (or null for flat category)
+  const containerCombinations = (combinations || []).filter(
+    (c) => (c.subBlockPublicId || null) === (subBlockPublicId || null)
+  );
+
+  const combMap = new Map<string, WorkoutItemCombinationDto>();
+  for (const c of containerCombinations) {
+    const combItems = items
+      .filter((i) => i.combinationPublicId === c.publicId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    combMap.set(c.publicId, {
+      ...c,
+      items: combItems,
+    });
+  }
+
+  // 2. Standalone items (not in any combination of this container)
+  const standaloneItems = items.filter(
+    (i) => !i.combinationPublicId || !combMap.has(i.combinationPublicId)
+  );
+
+  const entries: ContainerEntry[] = [];
+
+  for (const item of standaloneItems) {
+    entries.push({ type: "item", item, sortOrder: item.sortOrder });
+  }
+
+  for (const comb of combMap.values()) {
+    const minOrder =
+      comb.items && comb.items.length > 0
+        ? Math.min(...comb.items.map((it) => it.sortOrder))
+        : comb.sortOrder * 100;
+    entries.push({ type: "combination", combination: comb, sortOrder: minOrder });
+  }
+
+  entries.sort((a, b) => a.sortOrder - b.sortOrder);
+  return entries;
+}
 
 export function WorkoutCategoryCard({
   category,
@@ -147,6 +282,14 @@ export function WorkoutCategoryCard({
   onMoveSubBlockUp,
   onMoveSubBlockDown,
   onResolveExercise,
+  onCreateCombination,
+  onUpdateCombination,
+  onUngroupCombination,
+  onDeleteCombination,
+  onDuplicateCombination,
+  onMoveItemInCombination,
+  onRemoveItemFromCombination,
+  onOpenCreateCustomExercise,
 }: CategoryCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(category.title || "");
@@ -162,11 +305,19 @@ export function WorkoutCategoryCard({
   const [subBlockTitleDraft, setSubBlockTitleDraft] = useState("");
   const [activeSubBlockMenuId, setActiveSubBlockMenuId] = useState<string | null>(null);
 
+  // Combination selection & menu state
+  const [combiningSubBlockId, setCombiningSubBlockId] = useState<string | null>(null);
+  const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
+  const [newCombType, setNewCombType] = useState<WorkoutCombinationType>("BI_SET");
+  const [newCombRest, setNewCombRest] = useState<number>(60);
+  const [activeAddMenuSubBlockId, setActiveAddMenuSubBlockId] = useState<string | null>(null);
+
   const [, startTransition] = useTransition();
 
   const items = category.items || [];
   const categoryTitle = category.title || `Treino ${categoryIndex + 1}`;
   const subBlocks = category.subBlocks || [];
+  const combinations = category.combinations || [];
   const hasSubBlocks = subBlocks.length > 0;
   const sortedSubBlocks = hasSubBlocks
     ? [...subBlocks].sort((a, b) => a.sortOrder - b.sortOrder)
@@ -200,6 +351,32 @@ export function WorkoutCategoryCard({
     startTransition(async () => {
       await onRenameSubBlock(subBlockPublicId, subBlockTitleDraft.trim());
       setEditingSubBlockId(null);
+    });
+  }
+
+  function handleToggleSelectExercise(itemPublicId: string) {
+    setSelectedExerciseIds((prev) => {
+      const exists = prev.includes(itemPublicId);
+      const next = exists ? prev.filter((id) => id !== itemPublicId) : [...prev, itemPublicId];
+      if (next.length === 2) setNewCombType("BI_SET");
+      else if (next.length === 3) setNewCombType("TRI_SET");
+      else if (next.length >= 4) setNewCombType("GIANT_SET");
+      return next;
+    });
+  }
+
+  function handleConfirmCreateCombination(targetSubBlockId?: string) {
+    if (selectedExerciseIds.length < 2 || !onCreateCombination) return;
+    startTransition(async () => {
+      await onCreateCombination({
+        blockPublicId: category.publicId,
+        subBlockPublicId: targetSubBlockId,
+        combinationType: newCombType,
+        restAfterSeconds: newCombRest,
+        itemPublicIds: selectedExerciseIds,
+      });
+      setCombiningSubBlockId(null);
+      setSelectedExerciseIds([]);
     });
   }
 
@@ -250,6 +427,7 @@ export function WorkoutCategoryCard({
               <span className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-md bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--text-secondary)] whitespace-nowrap">
                 {items.length} {items.length === 1 ? "exercício" : "exercícios"}
                 {hasSubBlocks ? ` • ${subBlocks.length} ${subBlocks.length === 1 ? "grupo" : "grupos"}` : ""}
+                {combinations.length > 0 ? ` • ${combinations.length} combinação(ões)` : ""}
               </span>
             </div>
           )}
@@ -257,15 +435,92 @@ export function WorkoutCategoryCard({
 
         {/* Category Actions */}
         {isDraft && (
-          <div className="flex items-center gap-1 shrink-0 relative">
-            <button
-              type="button"
-              onClick={() => onOpenExercisePicker(category.publicId)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline sm:inline">Exercício</span>
-            </button>
+          <div className="flex items-center gap-1.5 shrink-0 relative">
+            {/* Flat Category + Exercício Button with Popover */}
+            {!hasSubBlocks && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveAddMenuSubBlockId(activeAddMenuSubBlockId === "root" ? null : "root")
+                  }
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline sm:inline">Exercício</span>
+                </button>
+
+                {activeAddMenuSubBlockId === "root" && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30"
+                      onClick={() => setActiveAddMenuSubBlockId(null)}
+                    />
+                    <div className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 p-1.5 text-xs font-semibold text-[var(--text-primary)] space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveAddMenuSubBlockId(null);
+                          onOpenExercisePicker(category.publicId);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2.5 text-left cursor-pointer"
+                      >
+                        <SearchIcon className="w-4 h-4 text-emerald-600" />
+                        <div>
+                          <div className="font-bold">Buscar na biblioteca</div>
+                          <div className="text-[10px] text-[var(--text-tertiary)] font-normal">
+                            Milhares de exercícios catalogados
+                          </div>
+                        </div>
+                      </button>
+
+                      {onOpenCreateCustomExercise && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveAddMenuSubBlockId(null);
+                            onOpenCreateCustomExercise(category.publicId);
+                          }}
+                          className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2.5 text-left cursor-pointer"
+                        >
+                          <SparklesIcon className="w-4 h-4 text-violet-600" />
+                          <div>
+                            <div className="font-bold text-violet-700 dark:text-violet-300">
+                              Criar personalizado
+                            </div>
+                            <div className="text-[10px] text-[var(--text-tertiary)] font-normal">
+                              Fora da biblioteca, com vídeo próprio
+                            </div>
+                          </div>
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Flat Category Combinar Button */}
+            {!hasSubBlocks && onCreateCombination && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCombiningSubBlockId(combiningSubBlockId === "root" ? null : "root");
+                  setSelectedExerciseIds([]);
+                }}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer border ${
+                  combiningSubBlockId === "root"
+                    ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                    : "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
+                }`}
+                title="Combinar exercícios em Bi-set, Tri-set ou Circuito"
+              >
+                <ZapIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  {combiningSubBlockId === "root" ? "Cancelar" : "Combinar"}
+                </span>
+              </button>
+            )}
 
             {/* Menu [...] */}
             <div className="relative">
@@ -376,6 +631,12 @@ export function WorkoutCategoryCard({
               const subBlockItems = items.filter(
                 (i) => i.subBlockPublicId === subBlock.publicId
               );
+              const isCombiningThisSb = combiningSubBlockId === subBlock.publicId;
+              const entries = buildContainerEntries(
+                subBlockItems,
+                combinations,
+                subBlock.publicId
+              );
 
               return (
                 <div
@@ -433,16 +694,94 @@ export function WorkoutCategoryCard({
 
                     {/* SubBlock Actions */}
                     {isDraft && (
-                      <div className="flex items-center gap-1 shrink-0 relative">
-                        <button
-                          type="button"
-                          onClick={() => onOpenExercisePicker(category.publicId, subBlock.publicId)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors cursor-pointer"
-                        >
-                          <Plus className="w-3 h-3" />
-                          <span className="hidden xs:inline">Exercício</span>
-                        </button>
+                      <div className="flex items-center gap-1.5 shrink-0 relative">
+                        {/* + Exercício Popover */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveAddMenuSubBlockId(
+                                activeAddMenuSubBlockId === subBlock.publicId ? null : subBlock.publicId
+                              )
+                            }
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors cursor-pointer"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span className="hidden xs:inline">Exercício</span>
+                          </button>
 
+                          {activeAddMenuSubBlockId === subBlock.publicId && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-30"
+                                onClick={() => setActiveAddMenuSubBlockId(null)}
+                              />
+                              <div className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 p-1.5 text-xs font-semibold text-[var(--text-primary)] space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveAddMenuSubBlockId(null);
+                                    onOpenExercisePicker(category.publicId, subBlock.publicId);
+                                  }}
+                                  className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2.5 text-left cursor-pointer"
+                                >
+                                  <SearchIcon className="w-4 h-4 text-emerald-600" />
+                                  <div>
+                                    <div className="font-bold">Buscar na biblioteca</div>
+                                    <div className="text-[10px] text-[var(--text-tertiary)] font-normal">
+                                      Milhares de exercícios catalogados
+                                    </div>
+                                  </div>
+                                </button>
+
+                                {onOpenCreateCustomExercise && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveAddMenuSubBlockId(null);
+                                      onOpenCreateCustomExercise(category.publicId, subBlock.publicId);
+                                    }}
+                                    className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2.5 text-left cursor-pointer"
+                                  >
+                                    <SparklesIcon className="w-4 h-4 text-violet-600" />
+                                    <div>
+                                      <div className="font-bold text-violet-700 dark:text-violet-300">
+                                        Criar personalizado
+                                      </div>
+                                      <div className="text-[10px] text-[var(--text-tertiary)] font-normal">
+                                        Fora da biblioteca, com vídeo próprio
+                                      </div>
+                                    </div>
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Combinar Button */}
+                        {onCreateCombination && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCombiningSubBlockId(isCombiningThisSb ? null : subBlock.publicId);
+                              setSelectedExerciseIds([]);
+                            }}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer border ${
+                              isCombiningThisSb
+                                ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                                : "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
+                            }`}
+                            title="Combinar exercícios em Bi-set, Tri-set ou Circuito"
+                          >
+                            <ZapIcon className="w-3 h-3" />
+                            <span className="hidden xs:inline">
+                              {isCombiningThisSb ? "Cancelar" : "Combinar"}
+                            </span>
+                          </button>
+                        )}
+
+                        {/* More Menu */}
                         <div className="relative">
                           <button
                             type="button"
@@ -552,15 +891,114 @@ export function WorkoutCategoryCard({
                     )}
                   </div>
 
-                  {/* Exercises within SubBlock */}
-                  <div className="space-y-2">
-                    {subBlockItems.length === 0 ? (
+                  {/* Combination Creation Banner */}
+                  {isCombiningThisSb && (
+                    <div className="p-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 space-y-2.5 animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-xs font-bold text-[var(--text-primary)]">
+                            Selecione 2+ exercícios para combinar ({selectedExerciseIds.length} selecionados)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <select
+                            value={newCombType}
+                            onChange={(e) => setNewCombType(e.target.value as WorkoutCombinationType)}
+                            className="px-2.5 py-1 text-xs font-bold rounded-lg border border-emerald-500 bg-[var(--surface)] text-[var(--text-primary)] cursor-pointer"
+                          >
+                            <option value="BI_SET">Bi-Set (2 exercícios)</option>
+                            <option value="TRI_SET">Tri-Set (3 exercícios)</option>
+                            <option value="SUPERSET">Super-Série</option>
+                            <option value="GIANT_SET">Série Gigante (4+)</option>
+                            <option value="CIRCUIT">Circuito</option>
+                          </select>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Descanso:</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={600}
+                              step={5}
+                              value={newCombRest}
+                              onChange={(e) => setNewCombRest(parseInt(e.target.value, 10) || 0)}
+                              className="w-16 px-2 py-1 text-xs font-bold text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)]"
+                            />
+                            <span className="text-xs text-[var(--text-secondary)] font-bold">s</span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={selectedExerciseIds.length < 2}
+                            onClick={() => handleConfirmCreateCombination(subBlock.publicId)}
+                            className="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white cursor-pointer shadow-xs"
+                          >
+                            ⚡ Criar Combinação
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCombiningSubBlockId(null);
+                              setSelectedExerciseIds([]);
+                            }}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Entries within SubBlock (Combinations and Standalone Items) */}
+                  <div className="space-y-3">
+                    {entries.length === 0 ? (
                       <div className="py-4 px-3 text-center rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface)] text-[11px] text-[var(--text-tertiary)]">
                         Nenhum exercício neste grupo ainda.
                       </div>
                     ) : (
-                      subBlockItems.map((item, itemIdx) => {
+                      entries.map((entry) => {
+                        if (entry.type === "combination") {
+                          return (
+                            <CombinationCard
+                              key={entry.combination.publicId}
+                              combination={entry.combination}
+                              categoryPublicId={category.publicId}
+                              subBlockPublicId={subBlock.publicId}
+                              allCategories={allCategories}
+                              isDraft={isDraft}
+                              expandedExerciseId={expandedExerciseId}
+                              onToggleExpandExercise={(id) =>
+                                setExpandedExerciseId(expandedExerciseId === id ? null : id)
+                              }
+                              onCloseExpandExercise={() => setExpandedExerciseId(null)}
+                              activeExerciseMenuId={activeExerciseMenuId}
+                              onToggleExerciseMenu={(id) =>
+                                setActiveExerciseMenuId(activeExerciseMenuId === id ? null : id)
+                              }
+                              onCloseExerciseMenu={() => setActiveExerciseMenuId(null)}
+                              movingExerciseId={movingExerciseId}
+                              onOpenMoveExercise={(id) => setMovingExerciseId(id)}
+                              onCloseMoveExercise={() => setMovingExerciseId(null)}
+                              onDuplicateExercise={onDuplicateExercise}
+                              onDeleteExercise={onDeleteExercise}
+                              onMoveExerciseToCategory={onMoveExerciseToCategory}
+                              onUpdateExerciseQuickConfig={onUpdateExerciseQuickConfig}
+                              onResolveExercise={onResolveExercise}
+                              onOpenCreateCustomExercise={onOpenCreateCustomExercise}
+                              onUpdateCombination={onUpdateCombination}
+                              onUngroupCombination={onUngroupCombination}
+                              onDeleteCombination={onDeleteCombination}
+                              onDuplicateCombination={onDuplicateCombination}
+                              onMoveItemInCombination={onMoveItemInCombination}
+                              onRemoveItemFromCombination={onRemoveItemFromCombination}
+                            />
+                          );
+                        }
+
+                        const item = entry.item;
                         const isExpanded = expandedExerciseId === item.publicId;
+                        const itemIdx = subBlockItems.findIndex((it) => it.publicId === item.publicId);
+
                         return (
                           <ExerciseRow
                             key={item.publicId}
@@ -596,6 +1034,21 @@ export function WorkoutCategoryCard({
                               onUpdateExerciseQuickConfig(item.publicId, cfg)
                             }
                             onResolve={() => onResolveExercise?.(item.publicId)}
+                            onOpenConvertCustom={() =>
+                              onOpenCreateCustomExercise?.(
+                                category.publicId,
+                                subBlock.publicId,
+                                item.publicId,
+                                {
+                                  name: item.exerciseNameSnapshot,
+                                  muscleGroup: item.muscleGroupSnapshot || undefined,
+                                  equipment: item.equipmentSnapshot || undefined,
+                                }
+                              )
+                            }
+                            isSelectionMode={isCombiningThisSb}
+                            isSelected={selectedExerciseIds.includes(item.publicId)}
+                            onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
                           />
                         );
                       })
@@ -604,64 +1057,68 @@ export function WorkoutCategoryCard({
                 </div>
               );
             })}
-
-            {/* Unassigned Items (if any items were created without subBlock, render cleanly) */}
-            {items.some(
-              (i) => !i.subBlockPublicId || !sortedSubBlocks.some((sb) => sb.publicId === i.subBlockPublicId)
-            ) && (
-              <div className="space-y-2 pt-2 border-t border-dashed border-[var(--border-subtle)]">
-                {items
-                  .filter(
-                    (i) =>
-                      !i.subBlockPublicId ||
-                      !sortedSubBlocks.some((sb) => sb.publicId === i.subBlockPublicId)
-                  )
-                  .map((item, itemIdx, arr) => {
-                    const isExpanded = expandedExerciseId === item.publicId;
-                    return (
-                      <ExerciseRow
-                        key={item.publicId}
-                        item={item}
-                        itemIndex={itemIdx}
-                        totalItems={arr.length}
-                        isExpanded={isExpanded}
-                        isDraft={isDraft}
-                        categoryPublicId={category.publicId}
-                        allCategories={allCategories}
-                        onToggleExpand={() =>
-                          setExpandedExerciseId(isExpanded ? null : item.publicId)
-                        }
-                        onCloseExpand={() => setExpandedExerciseId(null)}
-                        isMenuOpen={activeExerciseMenuId === item.publicId}
-                        onToggleMenu={() =>
-                          setActiveExerciseMenuId(
-                            activeExerciseMenuId === item.publicId ? null : item.publicId
-                          )
-                        }
-                        onCloseMenu={() => setActiveExerciseMenuId(null)}
-                        isMovingOpen={movingExerciseId === item.publicId}
-                        onOpenMove={() => setMovingExerciseId(item.publicId)}
-                        onCloseMove={() => setMovingExerciseId(null)}
-                        onDuplicate={() => onDuplicateExercise(item.publicId)}
-                        onDelete={() => onDeleteExercise(item.publicId)}
-                        onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
-                        onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
-                        onMoveToCategory={(targetCatId) =>
-                          onMoveExerciseToCategory(item.publicId, targetCatId)
-                        }
-                        onSaveQuickConfig={(cfg) =>
-                          onUpdateExerciseQuickConfig(item.publicId, cfg)
-                        }
-                        onResolve={() => onResolveExercise?.(item.publicId)}
-                      />
-                    );
-                  })}
-              </div>
-            )}
           </div>
         ) : (
-          /* Scenario B: Flat list (No Sub-blocks) - 100% Backward Compatible */
-          <div className="space-y-2.5">
+          /* Scenario B: Flat list (No Sub-blocks) */
+          <div className="space-y-3">
+            {/* Flat Combination Creation Banner */}
+            {combiningSubBlockId === "root" && (
+              <div className="p-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 space-y-2.5 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs font-bold text-[var(--text-primary)]">
+                      Selecione 2+ exercícios para combinar ({selectedExerciseIds.length} selecionados)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={newCombType}
+                      onChange={(e) => setNewCombType(e.target.value as WorkoutCombinationType)}
+                      className="px-2.5 py-1 text-xs font-bold rounded-lg border border-emerald-500 bg-[var(--surface)] text-[var(--text-primary)] cursor-pointer"
+                    >
+                      <option value="BI_SET">Bi-Set (2 exercícios)</option>
+                      <option value="TRI_SET">Tri-Set (3 exercícios)</option>
+                      <option value="SUPERSET">Super-Série</option>
+                      <option value="GIANT_SET">Série Gigante (4+)</option>
+                      <option value="CIRCUIT">Circuito</option>
+                    </select>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Descanso:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={600}
+                        step={5}
+                        value={newCombRest}
+                        onChange={(e) => setNewCombRest(parseInt(e.target.value, 10) || 0)}
+                        className="w-16 px-2 py-1 text-xs font-bold text-center rounded-lg border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)]"
+                      />
+                      <span className="text-xs text-[var(--text-secondary)] font-bold">s</span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={selectedExerciseIds.length < 2}
+                      onClick={() => handleConfirmCreateCombination(undefined)}
+                      className="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white cursor-pointer shadow-xs"
+                    >
+                      ⚡ Criar Combinação
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCombiningSubBlockId(null);
+                        setSelectedExerciseIds([]);
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {items.length === 0 ? (
               <div className="py-6 px-4 text-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)]/40 space-y-2">
                 <p className="text-xs font-semibold text-[var(--text-secondary)]">
@@ -679,46 +1136,104 @@ export function WorkoutCategoryCard({
                 )}
               </div>
             ) : (
-              items.map((item, itemIdx) => {
-                const isExpanded = expandedExerciseId === item.publicId;
-                return (
-                  <ExerciseRow
-                    key={item.publicId}
-                    item={item}
-                    itemIndex={itemIdx}
-                    totalItems={items.length}
-                    isExpanded={isExpanded}
-                    isDraft={isDraft}
-                    categoryPublicId={category.publicId}
-                    allCategories={allCategories}
-                    onToggleExpand={() =>
-                      setExpandedExerciseId(isExpanded ? null : item.publicId)
-                    }
-                    onCloseExpand={() => setExpandedExerciseId(null)}
-                    isMenuOpen={activeExerciseMenuId === item.publicId}
-                    onToggleMenu={() =>
-                      setActiveExerciseMenuId(
-                        activeExerciseMenuId === item.publicId ? null : item.publicId
-                      )
-                    }
-                    onCloseMenu={() => setActiveExerciseMenuId(null)}
-                    isMovingOpen={movingExerciseId === item.publicId}
-                    onOpenMove={() => setMovingExerciseId(item.publicId)}
-                    onCloseMove={() => setMovingExerciseId(null)}
-                    onDuplicate={() => onDuplicateExercise(item.publicId)}
-                    onDelete={() => onDeleteExercise(item.publicId)}
-                    onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
-                    onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
-                    onMoveToCategory={(targetCatId) =>
-                      onMoveExerciseToCategory(item.publicId, targetCatId)
-                    }
-                    onSaveQuickConfig={(cfg) =>
-                      onUpdateExerciseQuickConfig(item.publicId, cfg)
-                    }
-                    onResolve={() => onResolveExercise?.(item.publicId)}
-                  />
-                );
-              })
+              (() => {
+                const flatEntries = buildContainerEntries(items, combinations, null);
+                return flatEntries.map((entry) => {
+                  if (entry.type === "combination") {
+                    return (
+                      <CombinationCard
+                        key={entry.combination.publicId}
+                        combination={entry.combination}
+                        categoryPublicId={category.publicId}
+                        allCategories={allCategories}
+                        isDraft={isDraft}
+                        expandedExerciseId={expandedExerciseId}
+                        onToggleExpandExercise={(id) =>
+                          setExpandedExerciseId(expandedExerciseId === id ? null : id)
+                        }
+                        onCloseExpandExercise={() => setExpandedExerciseId(null)}
+                        activeExerciseMenuId={activeExerciseMenuId}
+                        onToggleExerciseMenu={(id) =>
+                          setActiveExerciseMenuId(activeExerciseMenuId === id ? null : id)
+                        }
+                        onCloseExerciseMenu={() => setActiveExerciseMenuId(null)}
+                        movingExerciseId={movingExerciseId}
+                        onOpenMoveExercise={(id) => setMovingExerciseId(id)}
+                        onCloseMoveExercise={() => setMovingExerciseId(null)}
+                        onDuplicateExercise={onDuplicateExercise}
+                        onDeleteExercise={onDeleteExercise}
+                        onMoveExerciseToCategory={onMoveExerciseToCategory}
+                        onUpdateExerciseQuickConfig={onUpdateExerciseQuickConfig}
+                        onResolveExercise={onResolveExercise}
+                        onOpenCreateCustomExercise={onOpenCreateCustomExercise}
+                        onUpdateCombination={onUpdateCombination}
+                        onUngroupCombination={onUngroupCombination}
+                        onDeleteCombination={onDeleteCombination}
+                        onDuplicateCombination={onDuplicateCombination}
+                        onMoveItemInCombination={onMoveItemInCombination}
+                        onRemoveItemFromCombination={onRemoveItemFromCombination}
+                      />
+                    );
+                  }
+
+                  const item = entry.item;
+                  const isExpanded = expandedExerciseId === item.publicId;
+                  const itemIdx = items.findIndex((it) => it.publicId === item.publicId);
+
+                  return (
+                    <ExerciseRow
+                      key={item.publicId}
+                      item={item}
+                      itemIndex={itemIdx}
+                      totalItems={items.length}
+                      isExpanded={isExpanded}
+                      isDraft={isDraft}
+                      categoryPublicId={category.publicId}
+                      allCategories={allCategories}
+                      onToggleExpand={() =>
+                        setExpandedExerciseId(isExpanded ? null : item.publicId)
+                      }
+                      onCloseExpand={() => setExpandedExerciseId(null)}
+                      isMenuOpen={activeExerciseMenuId === item.publicId}
+                      onToggleMenu={() =>
+                        setActiveExerciseMenuId(
+                          activeExerciseMenuId === item.publicId ? null : item.publicId
+                        )
+                      }
+                      onCloseMenu={() => setActiveExerciseMenuId(null)}
+                      isMovingOpen={movingExerciseId === item.publicId}
+                      onOpenMove={() => setMovingExerciseId(item.publicId)}
+                      onCloseMove={() => setMovingExerciseId(null)}
+                      onDuplicate={() => onDuplicateExercise(item.publicId)}
+                      onDelete={() => onDeleteExercise(item.publicId)}
+                      onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
+                      onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
+                      onMoveToCategory={(targetCatId) =>
+                        onMoveExerciseToCategory(item.publicId, targetCatId)
+                      }
+                      onSaveQuickConfig={(cfg) =>
+                        onUpdateExerciseQuickConfig(item.publicId, cfg)
+                      }
+                      onResolve={() => onResolveExercise?.(item.publicId)}
+                      onOpenConvertCustom={() =>
+                        onOpenCreateCustomExercise?.(
+                          category.publicId,
+                          undefined,
+                          item.publicId,
+                          {
+                            name: item.exerciseNameSnapshot,
+                            muscleGroup: item.muscleGroupSnapshot || undefined,
+                            equipment: item.equipmentSnapshot || undefined,
+                          }
+                        )
+                      }
+                      isSelectionMode={combiningSubBlockId === "root"}
+                      isSelected={selectedExerciseIds.includes(item.publicId)}
+                      onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
+                    />
+                  );
+                });
+              })()
             )}
           </div>
         )}
@@ -750,7 +1265,7 @@ export function WorkoutCategoryCard({
                   <button
                     type="button"
                     onClick={handleCreateSubBlockSubmit}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors min-h-[40px] cursor-pointer"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors min-h-[40px] cursor-pointer shadow-xs"
                   >
                     Adicionar
                   </button>
@@ -795,6 +1310,402 @@ export function WorkoutCategoryCard({
   );
 }
 
+// ============================================================================
+// COMBINATION CARD COMPONENT
+// ============================================================================
+
+type CombinationCardProps = {
+  combination: WorkoutItemCombinationDto;
+  categoryPublicId: string;
+  subBlockPublicId?: string | null;
+  allCategories: { publicId: string; title: string }[];
+  isDraft: boolean;
+  expandedExerciseId: string | null;
+  onToggleExpandExercise: (itemPublicId: string) => void;
+  onCloseExpandExercise: () => void;
+  activeExerciseMenuId: string | null;
+  onToggleExerciseMenu: (itemPublicId: string) => void;
+  onCloseExerciseMenu: () => void;
+  movingExerciseId: string | null;
+  onOpenMoveExercise: (itemPublicId: string) => void;
+  onCloseMoveExercise: () => void;
+  onDuplicateExercise: (itemPublicId: string) => Promise<void>;
+  onDeleteExercise: (itemPublicId: string) => Promise<void>;
+  onMoveExerciseToCategory: (itemPublicId: string, targetCatId: string) => Promise<void>;
+  onUpdateExerciseQuickConfig: (itemPublicId: string, config: QuickConfigInput) => Promise<void>;
+  onResolveExercise?: (itemPublicId: string) => void;
+  onOpenCreateCustomExercise?: (
+    categoryPublicId: string,
+    subBlockPublicId?: string,
+    convertingItemPublicId?: string,
+    initialData?: { name?: string; muscleGroup?: string; equipment?: string }
+  ) => void;
+  onUpdateCombination?: (
+    combinationPublicId: string,
+    input: { combinationType?: WorkoutCombinationType; title?: string; restAfterSeconds?: number }
+  ) => Promise<void>;
+  onUngroupCombination?: (combinationPublicId: string) => Promise<void>;
+  onDeleteCombination?: (combinationPublicId: string, deleteItems?: boolean) => Promise<void>;
+  onDuplicateCombination?: (combinationPublicId: string) => Promise<void>;
+  onMoveItemInCombination?: (
+    combinationPublicId: string,
+    itemPublicId: string,
+    direction: "up" | "down"
+  ) => Promise<void>;
+  onRemoveItemFromCombination?: (
+    combinationPublicId: string,
+    itemPublicId: string
+  ) => Promise<void>;
+};
+
+function CombinationCard({
+  combination,
+  categoryPublicId,
+  subBlockPublicId,
+  allCategories,
+  isDraft,
+  expandedExerciseId,
+  onToggleExpandExercise,
+  onCloseExpandExercise,
+  activeExerciseMenuId,
+  onToggleExerciseMenu,
+  onCloseExerciseMenu,
+  movingExerciseId,
+  onOpenMoveExercise,
+  onCloseMoveExercise,
+  onDuplicateExercise,
+  onDeleteExercise,
+  onMoveExerciseToCategory,
+  onUpdateExerciseQuickConfig,
+  onResolveExercise,
+  onOpenCreateCustomExercise,
+  onUpdateCombination,
+  onUngroupCombination,
+  onDeleteCombination,
+  onDuplicateCombination,
+  onMoveItemInCombination,
+  onRemoveItemFromCombination,
+}: CombinationCardProps) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(combination.title || "");
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEditingRest, setIsEditingRest] = useState(false);
+  const [restDraft, setRestDraft] = useState(combination.restAfterSeconds ?? 60);
+  const [, startTransition] = useTransition();
+
+  const items = combination.items || [];
+  const badgeStyle = COMBINATION_BADGE_STYLES[combination.combinationType] || COMBINATION_BADGE_STYLES.BI_SET;
+  const label = COMBINATION_TYPE_LABELS[combination.combinationType] || "Combinação";
+
+  function handleSaveTitle() {
+    if (!onUpdateCombination) {
+      setIsEditingTitle(false);
+      return;
+    }
+    startTransition(async () => {
+      await onUpdateCombination(combination.publicId, { title: titleDraft.trim() || undefined });
+      setIsEditingTitle(false);
+    });
+  }
+
+  function handleSaveRest() {
+    if (!onUpdateCombination) {
+      setIsEditingRest(false);
+      return;
+    }
+    startTransition(async () => {
+      await onUpdateCombination(combination.publicId, { restAfterSeconds: restDraft });
+      setIsEditingRest(false);
+    });
+  }
+
+  return (
+    <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/[0.03] dark:bg-emerald-950/10 p-3 sm:p-4 space-y-3 shadow-xs transition-all">
+      {/* Combination Header */}
+      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-emerald-500/20">
+        <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+          {/* Badge */}
+          <span
+            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase border ${badgeStyle} shadow-2xs shrink-0`}
+          >
+            <ZapIcon className="w-3 h-3" />
+            <span>{label}</span>
+          </span>
+
+          {/* Title */}
+          {isEditingTitle && isDraft ? (
+            <div className="flex items-center gap-1.5 flex-1 max-w-xs">
+              <input
+                type="text"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveTitle();
+                  if (e.key === "Escape") setIsEditingTitle(false);
+                }}
+                autoFocus
+                placeholder="Nome da combinação"
+                className="w-full px-2.5 py-0.5 text-xs font-bold rounded-lg border border-emerald-500 bg-[var(--surface)] text-[var(--text-primary)] focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleSaveTitle}
+                className="p-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 min-h-[26px] min-w-[26px] flex items-center justify-center shrink-0 cursor-pointer"
+              >
+                <Check className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <h4
+              onClick={() => {
+                if (isDraft) {
+                  setTitleDraft(combination.title || "");
+                  setIsEditingTitle(true);
+                }
+              }}
+              className={`text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate ${
+                isDraft ? "cursor-pointer hover:text-emerald-600 transition-colors" : ""
+              }`}
+              title={isDraft ? "Clique para renomear combinação" : undefined}
+            >
+              {combination.title || `${label} (${items.length} exercícios)`}
+            </h4>
+          )}
+
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] shrink-0">
+            {items.length} {items.length === 1 ? "exercício" : "exercícios"}
+          </span>
+        </div>
+
+        {/* Rest Badge & Menu */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Rest Badge */}
+          {isEditingRest && isDraft ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                min={0}
+                max={600}
+                step={5}
+                value={restDraft}
+                onChange={(e) => setRestDraft(parseInt(e.target.value, 10) || 0)}
+                className="w-14 px-1.5 py-0.5 text-xs font-bold text-center rounded-lg border border-emerald-500 bg-[var(--surface)] text-[var(--text-primary)]"
+                autoFocus
+              />
+              <span className="text-xs text-[var(--text-secondary)] font-bold">s</span>
+              <button
+                type="button"
+                onClick={handleSaveRest}
+                className="p-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+              >
+                <Check className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (isDraft) {
+                  setRestDraft(combination.restAfterSeconds ?? 60);
+                  setIsEditingRest(true);
+                }
+              }}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold border transition-colors cursor-pointer ${
+                isDraft
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
+                  : "border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-secondary)]"
+              }`}
+              title={isDraft ? "Clique para editar descanso pós-série" : undefined}
+            >
+              <ClockIcon className="w-3 h-3" />
+              <span>{combination.restAfterSeconds}s pós-rodada</span>
+            </button>
+          )}
+
+          {/* Menu [...] */}
+          {isDraft && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                aria-label="Ações da combinação"
+                className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors cursor-pointer"
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
+
+              {isMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setIsMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-52 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                    <div className="p-1 space-y-0.5">
+                      {onUngroupCombination && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            startTransition(() => onUngroupCombination(combination.publicId));
+                          }}
+                          className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left text-emerald-700 dark:text-emerald-400 cursor-pointer"
+                        >
+                          <ZapIcon className="w-3.5 h-3.5" />
+                          <span>Desfazer combinação</span>
+                        </button>
+                      )}
+
+                      {onDuplicateCombination && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            startTransition(() => onDuplicateCombination(combination.publicId));
+                          }}
+                          className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-blue-500" />
+                          <span>Duplicar combinação</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Change Combination Type */}
+                    {onUpdateCombination && (
+                      <div className="p-1 space-y-0.5">
+                        <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+                          Alterar Tipo
+                        </div>
+                        {(["BI_SET", "TRI_SET", "SUPERSET", "GIANT_SET", "CIRCUIT"] as WorkoutCombinationType[]).map(
+                          (t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => {
+                                setIsMenuOpen(false);
+                                startTransition(() =>
+                                  onUpdateCombination(combination.publicId, { combinationType: t })
+                                );
+                              }}
+                              className={`w-full px-3 py-1 rounded-xl flex items-center justify-between text-left cursor-pointer ${
+                                combination.combinationType === t
+                                  ? "bg-emerald-500/10 text-emerald-600 font-bold"
+                                  : "hover:bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+                              }`}
+                            >
+                              <span>{COMBINATION_TYPE_LABELS[t]}</span>
+                              {combination.combinationType === t && <Check className="w-3 h-3" />}
+                            </button>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                    <div className="p-1">
+                      {onDeleteCombination && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            if (
+                              confirm(
+                                `Excluir a combinação "${label}" e todos os seus ${items.length} exercício(s)?`
+                              )
+                            ) {
+                              startTransition(() => onDeleteCombination(combination.publicId, true));
+                            }
+                          }}
+                          className="w-full px-3 py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Excluir combinação e itens</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Items inside Combination */}
+      <div className="space-y-2">
+        {items.map((item, itemIdx) => {
+          const isExpanded = expandedExerciseId === item.publicId;
+
+          return (
+            <div key={item.publicId}>
+              <ExerciseRow
+                item={item}
+                itemIndex={itemIdx}
+                totalItems={items.length}
+                isExpanded={isExpanded}
+                isDraft={isDraft}
+                categoryPublicId={categoryPublicId}
+                allCategories={allCategories}
+                onToggleExpand={() => onToggleExpandExercise(item.publicId)}
+                onCloseExpand={onCloseExpandExercise}
+                isMenuOpen={activeExerciseMenuId === item.publicId}
+                onToggleMenu={() => onToggleExerciseMenu(item.publicId)}
+                onCloseMenu={onCloseExerciseMenu}
+                isMovingOpen={movingExerciseId === item.publicId}
+                onOpenMove={() => onOpenMoveExercise(item.publicId)}
+                onCloseMove={onCloseMoveExercise}
+                onDuplicate={() => onDuplicateExercise(item.publicId)}
+                onDelete={() => onDeleteExercise(item.publicId)}
+                onMoveUp={() => Promise.resolve()}
+                onMoveDown={() => Promise.resolve()}
+                onMoveToCategory={(targetCatId) => onMoveExerciseToCategory(item.publicId, targetCatId)}
+                onSaveQuickConfig={(cfg) => onUpdateExerciseQuickConfig(item.publicId, cfg)}
+                onResolve={() => onResolveExercise?.(item.publicId)}
+                onOpenConvertCustom={() =>
+                  onOpenCreateCustomExercise?.(categoryPublicId, subBlockPublicId || undefined, item.publicId, {
+                    name: item.exerciseNameSnapshot,
+                    muscleGroup: item.muscleGroupSnapshot || undefined,
+                    equipment: item.equipmentSnapshot || undefined,
+                  })
+                }
+                inCombination={true}
+                isFirstInComb={itemIdx === 0}
+                isLastInComb={itemIdx === items.length - 1}
+                onMoveInCombination={(dir) =>
+                  onMoveItemInCombination?.(combination.publicId, item.publicId, dir) || Promise.resolve()
+                }
+                onRemoveFromCombination={() =>
+                  onRemoveItemFromCombination?.(combination.publicId, item.publicId) || Promise.resolve()
+                }
+              />
+
+              {/* Direct Transition Connector between Items */}
+              {itemIdx < items.length - 1 && (
+                <div className="flex items-center justify-center my-1.5">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                    <span>↓</span>
+                    <span>Transição direta (sem descanso)</span>
+                    <span>↓</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Combination Footer */}
+      <div className="flex items-center justify-center pt-1 text-center">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[10px] font-semibold text-[var(--text-secondary)]">
+          <ClockIcon className="w-3.5 h-3.5 text-emerald-500" />
+          <span>Descanso de {combination.restAfterSeconds}s após cada rodada completa</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// EXERCISE ROW COMPONENT
+// ============================================================================
+
 type ExerciseRowProps = {
   item: WorkoutBlockItemDto;
   itemIndex: number;
@@ -818,6 +1729,17 @@ type ExerciseRowProps = {
   onMoveToCategory: (targetCategoryPublicId: string) => Promise<void>;
   onSaveQuickConfig: (config: QuickConfigInput) => Promise<void>;
   onResolve?: () => void;
+  onOpenConvertCustom?: () => void;
+  // Selection mode for combinations
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+  // Inside combination
+  inCombination?: boolean;
+  onMoveInCombination?: (direction: "up" | "down") => Promise<void>;
+  onRemoveFromCombination?: () => Promise<void>;
+  isFirstInComb?: boolean;
+  isLastInComb?: boolean;
 };
 
 function ExerciseRow({
@@ -843,6 +1765,15 @@ function ExerciseRow({
   onMoveToCategory,
   onSaveQuickConfig,
   onResolve,
+  onOpenConvertCustom,
+  isSelectionMode,
+  isSelected,
+  onToggleSelect,
+  inCombination,
+  onMoveInCombination,
+  onRemoveFromCombination,
+  isFirstInComb,
+  isLastInComb,
 }: ExerciseRowProps) {
   const sets = item.sets || [];
   const initialSeriesCount = sets.length > 0 ? sets.length : 4;
@@ -897,7 +1828,10 @@ function ExerciseRow({
       if (isDuration) {
         if (parsedReps?.durationSeconds) {
           effectiveDuration = parsedReps.durationSeconds;
-          effectiveUnit = parsedReps.durationSeconds >= 60 && parsedReps.durationSeconds % 60 === 0 ? "MINUTES" : "SECONDS";
+          effectiveUnit =
+            parsedReps.durationSeconds >= 60 && parsedReps.durationSeconds % 60 === 0
+              ? "MINUTES"
+              : "SECONDS";
         } else {
           effectiveUnit = durationUnit;
           effectiveDuration =
@@ -933,17 +1867,20 @@ function ExerciseRow({
     ? formatDurationNatural(initialDuration, item.durationUnit)
     : formatRepetitionRange(initialReps, initialRepsMax);
 
-  const summaryLine = `${initialSeriesCount} ${initialSeriesCount === 1 ? "série" : "séries"} • ${repsOrDurationText} • ${initialRest}s${
-    initialLoad != null ? ` • ${initialLoad} kg` : ""
-  }`;
+  const summaryLine = `${initialSeriesCount} ${initialSeriesCount === 1 ? "série" : "séries"} • ${repsOrDurationText} • ${
+    inCombination ? "transição direta" : `${initialRest}s`
+  }${initialLoad != null ? ` • ${initialLoad} kg` : ""}`;
 
-  const isUnmatched = !item.exercisePublicId;
+  const isCustom = Boolean(item.isCustomExercise || item.customExercisePublicId);
+  const isUnmatched = !item.exercisePublicId && !isCustom;
 
   return (
     <div
       className={`rounded-2xl border transition-all ${
         isUnmatched
           ? "border-amber-500/40 bg-amber-500/5 hover:border-amber-500/60"
+          : isCustom
+          ? "border-violet-500/30 bg-violet-500/[0.02] hover:border-violet-500/50"
           : isExpanded
           ? "border-emerald-500 bg-[var(--surface)] shadow-md ring-2 ring-emerald-500/20"
           : "border-[var(--border-default)] bg-[var(--surface-sunken)]/60 hover:bg-[var(--surface)] hover:border-[var(--border-strong)]"
@@ -952,12 +1889,34 @@ function ExerciseRow({
       {/* Compact Header Row */}
       <div
         onClick={() => {
-          if (isDraft) onToggleExpand();
+          if (isSelectionMode && !inCombination) {
+            onToggleSelect?.();
+          } else if (isDraft) {
+            onToggleExpand();
+          }
         }}
         className={`p-2.5 sm:p-3 flex items-start sm:items-center justify-between gap-2.5 ${
           isDraft ? "cursor-pointer" : ""
         }`}
       >
+        {/* Selection Checkbox for Combination Mode */}
+        {isSelectionMode && !inCombination && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect?.();
+            }}
+            className="pt-0.5 sm:pt-0 shrink-0 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect?.()}
+              className="w-4 h-4 rounded border-emerald-500 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+            />
+          </div>
+        )}
+
         <div className="min-w-0 flex-1 space-y-1">
           {/* Line 1: Exercise Name & Status Badges */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -965,6 +1924,13 @@ function ExerciseRow({
               <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate max-w-[220px] sm:max-w-none">
                 {item.exerciseNameSnapshot}
               </h3>
+
+              {isCustom && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-violet-500/15 text-violet-700 dark:text-violet-300 border border-violet-500/30 whitespace-nowrap shrink-0">
+                  ✨ Personalizado
+                </span>
+              )}
+
               {isUnmatched && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 whitespace-nowrap shrink-0">
                   ⚠ Precisa revisar
@@ -973,18 +1939,35 @@ function ExerciseRow({
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
-              {isUnmatched && isDraft && onResolve && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onResolve();
-                  }}
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs shrink-0 cursor-pointer"
-                  title="Vincular a um exercício da biblioteca"
-                >
-                  Resolver
-                </button>
+              {isUnmatched && isDraft && (
+                <>
+                  {onResolve && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onResolve();
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs shrink-0 cursor-pointer"
+                      title="Vincular a um exercício da biblioteca"
+                    >
+                      Resolver
+                    </button>
+                  )}
+                  {onOpenConvertCustom && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenConvertCustom();
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-violet-700 dark:text-violet-300 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 transition-colors shrink-0 cursor-pointer"
+                      title="Salvar como exercício personalizado fora da biblioteca"
+                    >
+                      ✨ Personalizar
+                    </button>
+                  )}
+                </>
               )}
               <button
                 type="button"
@@ -1030,26 +2013,53 @@ function ExerciseRow({
         >
           {isDraft && (
             <>
-              <button
-                type="button"
-                disabled={itemIndex === 0 || isPending}
-                onClick={() => startTransition(() => onMoveUp())}
-                aria-label="Mover exercício para cima"
-                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
-                title="Mover para cima"
-              >
-                <ArrowUp className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                disabled={itemIndex === totalItems - 1 || isPending}
-                onClick={() => startTransition(() => onMoveDown())}
-                aria-label="Mover exercício para baixo"
-                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
-                title="Mover para baixo"
-              >
-                <ArrowDown className="w-3.5 h-3.5" />
-              </button>
+              {inCombination ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={isFirstInComb || isPending}
+                    onClick={() => startTransition(() => onMoveInCombination?.("up") || Promise.resolve())}
+                    aria-label="Mover para cima na combinação"
+                    className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
+                    title="Mover para cima na combinação"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isLastInComb || isPending}
+                    onClick={() => startTransition(() => onMoveInCombination?.("down") || Promise.resolve())}
+                    aria-label="Mover para baixo na combinação"
+                    className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
+                    title="Mover para baixo na combinação"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={itemIndex === 0 || isPending}
+                    onClick={() => startTransition(() => onMoveUp())}
+                    aria-label="Mover exercício para cima"
+                    className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
+                    title="Mover para cima"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={itemIndex === totalItems - 1 || isPending}
+                    onClick={() => startTransition(() => onMoveDown())}
+                    aria-label="Mover exercício para baixo"
+                    className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
+                    title="Mover para baixo"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
 
               <div className="relative">
                 <button
@@ -1064,7 +2074,7 @@ function ExerciseRow({
                 {isMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-30" onClick={onCloseMenu} />
-                    <div className="absolute right-0 top-full mt-1 w-44 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                    <div className="absolute right-0 top-full mt-1 w-48 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
                       <div className="p-1 space-y-0.5">
                         <button
                           type="button"
@@ -1075,7 +2085,7 @@ function ExerciseRow({
                           className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
                         >
                           <Edit2 className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>{isExpanded ? "Fechar edição" : "Editar"}</span>
+                          <span>{isExpanded ? "Fechar edição" : "Editar prescrição"}</span>
                         </button>
 
                         <button
@@ -1087,20 +2097,36 @@ function ExerciseRow({
                           className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
                         >
                           <Copy className="w-3.5 h-3.5 text-blue-500" />
-                          <span>Duplicar</span>
+                          <span>Duplicar exercício</span>
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onCloseMenu();
-                            onOpenMove();
-                          }}
-                          className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
-                        >
-                          <MoveIcon className="w-3.5 h-3.5 text-amber-500" />
-                          <span>Mover treino</span>
-                        </button>
+                        {!inCombination && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onCloseMenu();
+                              onOpenMove();
+                            }}
+                            className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                          >
+                            <MoveIcon className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Mover treino</span>
+                          </button>
+                        )}
+
+                        {inCombination && onRemoveFromCombination && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onCloseMenu();
+                              startTransition(() => onRemoveFromCombination());
+                            }}
+                            className="w-full px-3 py-1.5 rounded-xl hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center gap-2 text-left cursor-pointer"
+                          >
+                            <ZapIcon className="w-3.5 h-3.5" />
+                            <span>Tirar da combinação</span>
+                          </button>
+                        )}
                       </div>
 
                       <div className="p-1">
@@ -1115,7 +2141,7 @@ function ExerciseRow({
                           className="w-full px-3 py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>Remover</span>
+                          <span>Remover exercício</span>
                         </button>
                       </div>
                     </div>

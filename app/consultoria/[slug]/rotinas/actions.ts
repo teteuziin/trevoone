@@ -40,6 +40,17 @@ import {
   reorderWorkoutSubBlocks,
   deleteWorkoutSubBlock,
   duplicateWorkoutSubBlock,
+  createWorkoutItemCombination,
+  updateWorkoutItemCombination,
+  ungroupWorkoutItemCombination,
+  deleteWorkoutItemCombination,
+  addItemToCombination,
+  removeItemFromCombination,
+  reorderWorkoutItemCombination,
+  moveItemInCombination,
+  duplicateWorkoutItemCombination,
+  createCustomExerciseInWorkout,
+  convertUnresolvedToCustomExercise,
   resolveUnmatchedExerciseItem,
   publishWorkoutVersion,
   createNewDraftVersionFromPublished,
@@ -64,7 +75,10 @@ import type {
   WorkoutBlockDto,
   WorkoutSubBlockDto,
   WorkoutBlockItemDto,
+  WorkoutItemCombinationDto,
+  WorkoutCombinationType,
   WorkoutItemSetDto,
+  WorkoutSetType,
   WorkoutBlockType,
 } from "@/lib/training-v2/types";
 import { workoutBlockTypeSchema } from "@/lib/training-v2/validation";
@@ -1408,3 +1422,307 @@ export async function deleteWorkoutDraftAction(
   }
 }
 
+// ============================================================================
+// TRAINING BUILDER V3.1 — COMBINATIONS (BI-SET / TRI-SET / CIRCUITO) & CUSTOM EXERCISES
+// ============================================================================
+
+/**
+ * Creates a combination (BI_SET, TRI_SET, SUPERSET, GIANT_SET, CIRCUIT) grouping multiple items.
+ */
+export async function createItemCombinationAction(
+  slug: string,
+  input: {
+    blockPublicId: string;
+    subBlockPublicId?: string;
+    combinationType: WorkoutCombinationType;
+    title?: string;
+    restAfterSeconds?: number;
+    restAfterUnit?: "s" | "min";
+    itemPublicIds: string[];
+  }
+): Promise<ActionResponse<WorkoutItemCombinationDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    if (!input.itemPublicIds || input.itemPublicIds.length < 2) {
+      return { ok: false, error: "Selecione pelo menos 2 exercícios para criar uma combinação." };
+    }
+    const combination = await createWorkoutItemCombination(ctx, input);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: combination };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao criar combinação de exercícios.",
+    };
+  }
+}
+
+/**
+ * Updates an existing combination (type, title, rest after combination).
+ */
+export async function updateItemCombinationAction(
+  slug: string,
+  combinationPublicId: string,
+  input: {
+    combinationType?: WorkoutCombinationType;
+    title?: string;
+    restAfterSeconds?: number;
+    restAfterUnit?: "s" | "min";
+  }
+): Promise<ActionResponse<WorkoutItemCombinationDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const updated = await updateWorkoutItemCombination(ctx, combinationPublicId, input);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: updated };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao atualizar combinação.",
+    };
+  }
+}
+
+/**
+ * Ungroups a combination, returning all its exercises to individual state in the group without deleting them.
+ */
+export async function ungroupItemCombinationAction(
+  slug: string,
+  combinationPublicId: string
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await ungroupWorkoutItemCombination(ctx, combinationPublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao desagrupar combinação.",
+    };
+  }
+}
+
+/**
+ * Deletes a combination. Can either ungroup items (deleteItems = false) or delete all grouped items (deleteItems = true).
+ */
+export async function deleteItemCombinationAction(
+  slug: string,
+  combinationPublicId: string,
+  deleteItems: boolean = false
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await deleteWorkoutItemCombination(ctx, combinationPublicId, deleteItems);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao excluir combinação.",
+    };
+  }
+}
+
+/**
+ * Reorders items inside a combination.
+ */
+export async function reorderItemCombinationAction(
+  slug: string,
+  combinationPublicId: string,
+  direction: "up" | "down"
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await reorderWorkoutItemCombination(ctx, combinationPublicId, direction.toUpperCase() as "UP" | "DOWN");
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao reordenar exercícios da combinação.",
+    };
+  }
+}
+
+/**
+ * Moves an item inside a combination up or down.
+ */
+export async function moveItemInCombinationAction(
+  slug: string,
+  combinationPublicId: string,
+  itemPublicId: string,
+  direction: "up" | "down"
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await moveItemInCombination(ctx, combinationPublicId, itemPublicId, direction.toUpperCase() as "UP" | "DOWN");
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao mover exercício na combinação.",
+    };
+  }
+}
+
+/**
+ * Duplicates a combination and its items.
+ */
+export async function duplicateItemCombinationAction(
+  slug: string,
+  combinationPublicId: string
+): Promise<ActionResponse<WorkoutItemCombinationDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const duplicated = await duplicateWorkoutItemCombination(ctx, combinationPublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: duplicated };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao duplicar combinação.",
+    };
+  }
+}
+
+/**
+ * Adds an existing exercise item into an existing combination.
+ */
+export async function addItemToCombinationAction(
+  slug: string,
+  combinationPublicId: string,
+  itemPublicId: string
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await addItemToCombination(ctx, combinationPublicId, itemPublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao adicionar exercício à combinação.",
+    };
+  }
+}
+
+/**
+ * Removes an exercise item from a combination. If 1 or fewer items remain, auto-ungroups.
+ */
+export async function removeItemFromCombinationAction(
+  slug: string,
+  combinationPublicId: string,
+  itemPublicId: string
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await removeItemFromCombination(ctx, combinationPublicId, itemPublicId);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao remover exercício da combinação.",
+    };
+  }
+}
+
+/**
+ * Creates a custom exercise outside the global catalog and adds it to the workout block/sub-block.
+ */
+export async function createCustomExerciseAction(
+  slug: string,
+  categoryPublicId: string,
+  input: {
+    name: string;
+    description?: string | null;
+    muscleGroup?: string;
+    equipment?: string;
+    instructions?: string;
+    subBlockPublicId?: string;
+    customVideoUrl?: string;
+    mediaAssetPublicId?: string;
+    saveToLibrary?: boolean;
+    sets?: {
+      setType?: string;
+      targetReps?: number | null;
+      targetRepsMax?: number | null;
+      targetLoadKg?: number | null;
+      targetDurationSeconds?: number | null;
+      durationUnit?: string | null;
+      targetRestSeconds?: number;
+    }[];
+    durationUnit?: string;
+    notes?: string;
+  }
+): Promise<ActionResponse<WorkoutBlockItemDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    if (!input.name || !input.name.trim()) {
+      return { ok: false, error: "O nome do exercício é obrigatório." };
+    }
+    const item = await createCustomExerciseInWorkout(ctx, {
+      categoryPublicId,
+      subBlockPublicId: input.subBlockPublicId,
+      name: input.name,
+      description: input.description,
+      muscleGroupPrimary: input.muscleGroup,
+      equipment: input.equipment,
+      instructions: input.instructions,
+      customVideoUrl: input.customVideoUrl,
+      mediaAssetPublicId: input.mediaAssetPublicId,
+      saveToLibrary: input.saveToLibrary,
+      notes: input.notes,
+      durationUnit: input.durationUnit,
+      sets: (input.sets || []).map((s) => ({
+        setType: (s.setType as WorkoutSetType) || "NORMAL",
+        targetReps: s.targetReps ?? null,
+        targetRepsMax: s.targetRepsMax ?? null,
+        targetLoadKg: s.targetLoadKg ?? null,
+        targetDurationSeconds: s.targetDurationSeconds ?? null,
+        durationUnit: s.durationUnit || null,
+        targetRestSeconds: s.targetRestSeconds ?? 60,
+      })),
+    });
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: item };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao criar exercício personalizado.",
+    };
+  }
+}
+
+/**
+ * Converts an unresolved / needs-review exercise item into a custom exercise.
+ * Unblocks publication while preserving sets, reps, load, and order.
+ */
+export async function convertUnresolvedToCustomExerciseAction(
+  slug: string,
+  input: {
+    itemPublicId: string;
+    name: string;
+    description?: string | null;
+    muscleGroupPrimary?: string | null;
+    equipment?: string | null;
+    instructions?: string | null;
+    customVideoUrl?: string | null;
+    mediaAssetPublicId?: string | null;
+    saveToLibrary?: boolean;
+  }
+): Promise<ActionResponse<WorkoutBlockItemDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const item = await convertUnresolvedToCustomExercise(ctx, input);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: item };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao converter exercício para personalizado.",
+    };
+  }
+}

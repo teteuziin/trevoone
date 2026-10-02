@@ -15,7 +15,7 @@ async function main() {
       "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schema_migrations'"
     );
     const schemaCol = colsSchema.map(c => c.COLUMN_NAME)[0] || '*';
-    const [migs] = await pool.execute(`SELECT * FROM schema_migrations WHERE \`${schemaCol}\` LIKE '%042%'`);
+    const [migs] = await pool.execute(`SELECT * FROM schema_migrations WHERE \`${schemaCol}\` LIKE '%042%' OR \`${schemaCol}\` LIKE '%044%'`);
 
     // 2. Check nutrition_v2_foods column
     const [colCheck] = await pool.execute(
@@ -39,7 +39,7 @@ async function main() {
 
     console.log(JSON.stringify({
       database: process.env.DB_NAME,
-      migration042Record: migs.length > 0 ? migs[0] : null,
+      migrations: migs,
       auto_imported_from_reference: colCheck.length > 0 ? colCheck[0] : null,
       aliases_table_exists: tblCheck.length > 0,
       food_source_counts: sourceCounts,

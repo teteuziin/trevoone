@@ -1,0 +1,1244 @@
+{
+  "title": "Plano Alimentar Baseline",
+  "stats": {
+    "totalFoods": 114,
+    "matchedCount": 83,
+    "ambiguousCount": 30,
+    "notFoundCount": 1
+  },
+  "meals": [
+    {
+      "name": "Café da Manhã",
+      "time": null,
+      "notes": null,
+      "foods": [
+        {
+          "id": "de049ec8-13bc-4fd3-a9b8-c49a13e222d5",
+          "foodNameCandidate": "iogurte natural desnatado",
+          "foodNameSnapshot": "Iogurte, natural, desnatado",
+          "quantity": 1,
+          "unitCandidate": null,
+          "matchStatus": "MATCHED",
+          "foodPublicId": "50c5bafd-5913-478e-9bd1-21f820224cef",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 0,
+          "substitutions": []
+        },
+        {
+          "id": "28b05f9c-900b-4705-a4f8-c1c81c22475d",
+          "foodNameCandidate": "aveia em flocos",
+          "foodNameSnapshot": "Aveia, flocos, crua",
+          "quantity": 2,
+          "unitCandidate": "colheres",
+          "matchStatus": "MATCHED",
+          "foodPublicId": "0021b7c2-4423-440e-9daf-f558c7625959",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 4,
+          "substitutions": [
+            {
+              "id": "0a679831-da71-4062-962e-886a060558e5",
+              "foodNameCandidate": "chia",
+              "foodNameSnapshot": "Semente de chia",
+              "quantity": 1,
+              "unitCandidate": "colher",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "99561406-8cbb-4593-bebb-cc8551b91798",
+              "provenance": "REFERENCE_PROMOTED"
+            },
+            {
+              "id": "321a4ea0-c9d9-4d33-9411-aeb3a9edf61e",
+              "foodNameCandidate": "linhaça.",
+              "foodNameSnapshot": "Linhaça, semente",
+              "quantity": 1,
+              "unitCandidate": "colher",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "23938573-f77a-4974-bd80-e0553e543056",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "8668570a-948d-4377-b173-bc92a4a058e6",
+              "foodNameCandidate": "chia",
+              "foodNameSnapshot": "Semente de chia",
+              "quantity": 1,
+              "unitCandidate": "colher",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "99561406-8cbb-4593-bebb-cc8551b91798",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "2c60f173-7e1a-4dd3-af42-2d0ee4236f19",
+              "foodNameCandidate": "linhaça",
+              "foodNameSnapshot": "Linhaça, semente",
+              "quantity": 1,
+              "unitCandidate": "colher",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "23938573-f77a-4974-bd80-e0553e543056",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        },
+        {
+          "id": "3ea4fb55-0321-40ac-9ae6-eade82b562ca",
+          "foodNameCandidate": "mel",
+          "foodNameSnapshot": "Mel",
+          "quantity": 1,
+          "unitCandidate": "colher",
+          "matchStatus": "MATCHED",
+          "foodPublicId": "d740e2f5-8677-4d23-80cb-b48d49c626a8",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 0,
+          "substitutions": []
+        }
+      ]
+    },
+    {
+      "name": "Lanche da Manhã",
+      "time": null,
+      "notes": null,
+      "foods": [
+        {
+          "id": "c075043c-35a2-45dd-9157-4f2d3f80929f",
+          "foodNameCandidate": "pão de forma",
+          "foodNameSnapshot": "Pão de forma",
+          "quantity": 1,
+          "unitCandidate": "fatia",
+          "matchStatus": "MATCHED",
+          "foodPublicId": "e67cf9ec-8001-48e9-978d-62965372ba8a",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 10,
+          "substitutions": [
+            {
+              "id": "803a6224-e646-4c6d-a174-a9b868ce413f",
+              "foodNameCandidate": "cuscuz",
+              "foodNameSnapshot": "Cuscuz",
+              "quantity": 60,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "6ebbb6df-bb30-4e97-8f6d-881f75496029",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "a542eb99-e6e5-458f-883b-4eee1ebe820f",
+              "foodNameCandidate": "aipim",
+              "foodNameSnapshot": "Mandioca, cozida",
+              "quantity": 50,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "2751c3e6-e50a-43fe-a3bf-62419ca9f614",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "eb93194d-80bb-447c-9ba5-ba7b1ae3ee23",
+              "foodNameCandidate": "banana",
+              "foodNameSnapshot": "Banana",
+              "quantity": 50,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "afd2d920-75d6-4225-be10-b4f8146e1419",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "7be0ddfd-5103-4d7c-9d8e-1faa151a3660",
+              "foodNameCandidate": "tapioca",
+              "foodNameSnapshot": "Tapioca, com manteiga",
+              "quantity": 20,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "8e98793f-27a2-4b78-80c5-4e7c91609a11",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "5e4a09d0-7008-4ea6-945c-407589990d06",
+              "foodNameCandidate": "batata-doce.",
+              "foodNameSnapshot": "Batata Doce",
+              "quantity": 80,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "9a240510-0a06-44bc-9375-3a3dfd8e7a15",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "6eee2aac-adca-4be2-bcc1-897bdcce431d",
+              "foodNameCandidate": "cuscuz",
+              "foodNameSnapshot": "Cuscuz",
+              "quantity": 60,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "6ebbb6df-bb30-4e97-8f6d-881f75496029",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "ce0d2d55-2a14-4a14-9dc1-c9805a398bc5",
+              "foodNameCandidate": "aipim",
+              "foodNameSnapshot": "Mandioca, cozida",
+              "quantity": 50,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "2751c3e6-e50a-43fe-a3bf-62419ca9f614",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "bc270586-457d-4c2a-b418-4bf96c96ee66",
+              "foodNameCandidate": "banana",
+              "foodNameSnapshot": "Banana",
+              "quantity": 50,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "afd2d920-75d6-4225-be10-b4f8146e1419",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "c2a382c3-5d81-4528-8065-103153eb48be",
+              "foodNameCandidate": "tapioca",
+              "foodNameSnapshot": "Tapioca, com manteiga",
+              "quantity": 20,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "8e98793f-27a2-4b78-80c5-4e7c91609a11",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "69cd96d8-cdd0-46a2-b562-b92d553c463d",
+              "foodNameCandidate": "batata-doce",
+              "foodNameSnapshot": "Batata Doce",
+              "quantity": 80,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "9a240510-0a06-44bc-9375-3a3dfd8e7a15",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        },
+        {
+          "id": "4eccd6c6-aac7-4377-89fc-6894ab1c3aed",
+          "foodNameCandidate": "ovos cozidos",
+          "foodNameSnapshot": "Ovo, de galinha, inteiro, cozido/10minutos",
+          "quantity": 2,
+          "unitCandidate": "unidades",
+          "matchStatus": "MATCHED",
+          "foodPublicId": "a0cd4e60-0381-4f58-a1ad-6ab002e41583",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 4,
+          "substitutions": [
+            {
+              "id": "34804cf8-e09a-4cff-927d-060c55f41d9a",
+              "foodNameCandidate": "frango",
+              "foodNameSnapshot": "Frango, peito, sem pele, grelhado",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "d68e9574-836b-4cc5-b5d5-ccd21e578da9",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "ca9bfe6c-6fc9-455d-a533-f78cb2bb9fb8",
+              "foodNameCandidate": "carne moída.",
+              "foodNameSnapshot": "Carne Moida refogada",
+              "quantity": 90,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "944d987a-1333-4f52-9627-570df3fa6b6d",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "ff3cd009-2c47-4b6f-b074-da45271d3726",
+              "foodNameCandidate": "frango",
+              "foodNameSnapshot": "Frango, peito, sem pele, grelhado",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "d68e9574-836b-4cc5-b5d5-ccd21e578da9",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "f9a51c28-4687-4101-ba17-ab853b88529e",
+              "foodNameCandidate": "carne moída",
+              "foodNameSnapshot": "Carne Moida refogada",
+              "quantity": 90,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "944d987a-1333-4f52-9627-570df3fa6b6d",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        },
+        {
+          "id": "b67bfc16-f64b-458b-9383-9a644de08c5d",
+          "foodNameCandidate": "maçã média (152 g)",
+          "foodNameSnapshot": "maçã média (152 g)",
+          "quantity": 1,
+          "unitCandidate": "unidade",
+          "matchStatus": "AMBIGUOUS",
+          "foodPublicId": null,
+          "provenance": "NEEDS_REVIEW",
+          "candidatesCount": 2,
+          "substitutionsCount": 16,
+          "substitutions": [
+            {
+              "id": "0c564ff2-866c-4b37-9b9c-95424643f278",
+              "foodNameCandidate": "uvas médias (80 g)",
+              "foodNameSnapshot": "Uva",
+              "quantity": 10,
+              "unitCandidate": null,
+              "matchStatus": "MATCHED",
+              "foodPublicId": "b40297a0-35a7-4f91-957c-a35061ced8e6",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "7a04b384-dcd6-4e66-9a7d-61c4573e3fe3",
+              "foodNameCandidate": "grandes de melão (230 g)",
+              "foodNameSnapshot": "grandes de melão (230 g)",
+              "quantity": 2,
+              "unitCandidate": "fatias",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "6e567f40-d6b9-43a0-8dbe-2cbd76a3f0cb",
+              "foodNameCandidate": "grande de melancia (370 g)",
+              "foodNameSnapshot": "Melancia",
+              "quantity": 1,
+              "unitCandidate": "fatia",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "d98fb38e-3fd9-4512-8aba-3616f16a3d3e",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "58410179-cf24-47ec-b95f-b0d807cf3bde",
+              "foodNameCandidate": "morangos grandes (160 g)",
+              "foodNameSnapshot": "Morango",
+              "quantity": 8,
+              "unitCandidate": null,
+              "matchStatus": "MATCHED",
+              "foodPublicId": "fa2850f7-7d9b-4880-84c3-4d191f9f8159",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "1f3efec0-dfe9-4b79-81aa-0da6068a9aac",
+              "foodNameCandidate": "manga crua",
+              "foodNameSnapshot": "Manga",
+              "quantity": 80,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "157579d8-5817-4f32-a1e6-fdc5533e9b61",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "92efa6e2-2919-4fb6-b9f2-5c7716c05f05",
+              "foodNameCandidate": "tangerina média (88 g)",
+              "foodNameSnapshot": "Tangerina",
+              "quantity": 1,
+              "unitCandidate": null,
+              "matchStatus": "MATCHED",
+              "foodPublicId": "f14bf6bc-4fc7-4c7e-91d3-1aea3c36a9c5",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "2b391d3e-2236-4f62-82a8-ec596bd7a9ee",
+              "foodNameCandidate": "pequenas de abacaxi (100 g)",
+              "foodNameSnapshot": "pequenas de abacaxi (100 g)",
+              "quantity": 2,
+              "unitCandidate": "fatias",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "ae1fd7f2-d087-41c1-aaa9-6892a3fe331c",
+              "foodNameCandidate": "banana-prata.",
+              "foodNameSnapshot": "Banana",
+              "quantity": 1,
+              "unitCandidate": null,
+              "matchStatus": "MATCHED",
+              "foodPublicId": "afd2d920-75d6-4225-be10-b4f8146e1419",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "4bfe181f-2b13-4bb9-8b7b-95b2c5a18935",
+              "foodNameCandidate": "uvas médias",
+              "foodNameSnapshot": "Uva",
+              "quantity": 10,
+              "unitCandidate": "unidades",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "b40297a0-35a7-4f91-957c-a35061ced8e6",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "b452ff28-580f-436c-bbc5-90764175afcb",
+              "foodNameCandidate": "melão",
+              "foodNameSnapshot": "Melao",
+              "quantity": 2,
+              "unitCandidate": "fatias grandes",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "4eb059d1-efcb-46cb-8d40-1dbe05731524",
+              "provenance": "REFERENCE_PROMOTED"
+            },
+            {
+              "id": "ad72148c-9432-4b10-8a13-a52ab564b5c4",
+              "foodNameCandidate": "melancia",
+              "foodNameSnapshot": "Melancia",
+              "quantity": 1,
+              "unitCandidate": "fatia grande",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "d98fb38e-3fd9-4512-8aba-3616f16a3d3e",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "3a830ffe-b313-47a8-9c8b-b12cd3ed7526",
+              "foodNameCandidate": "morangos grandes",
+              "foodNameSnapshot": "Morango",
+              "quantity": 8,
+              "unitCandidate": "unidades",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "fa2850f7-7d9b-4880-84c3-4d191f9f8159",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "c25ced4f-f0cd-4811-9de5-e0bf3e460bb5",
+              "foodNameCandidate": "manga crua",
+              "foodNameSnapshot": "Manga",
+              "quantity": 80,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "157579d8-5817-4f32-a1e6-fdc5533e9b61",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "05d1ec02-3be3-42ee-b6fa-d5c147371b5e",
+              "foodNameCandidate": "tangerina média",
+              "foodNameSnapshot": "Tangerina",
+              "quantity": 1,
+              "unitCandidate": "unidade",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "f14bf6bc-4fc7-4c7e-91d3-1aea3c36a9c5",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "db328df2-a2d5-402c-b660-75e1c491971d",
+              "foodNameCandidate": "abacaxi",
+              "foodNameSnapshot": "Abacaxi, cru",
+              "quantity": 2,
+              "unitCandidate": "fatias pequenas",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "b071d117-fba2-44fd-a5c2-7ccc3c0e0f42",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "240c0a0a-e3e0-4d31-809c-bbe1e2f49b5e",
+              "foodNameCandidate": "banana-prata",
+              "foodNameSnapshot": "Banana",
+              "quantity": 1,
+              "unitCandidate": "unidade",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "afd2d920-75d6-4225-be10-b4f8146e1419",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Almoço",
+      "time": null,
+      "notes": null,
+      "foods": [
+        {
+          "id": "569fcb74-dcd4-4a3e-bcd7-d2f5895a16cc",
+          "foodNameCandidate": "escumadeira de salada cozida",
+          "foodNameSnapshot": "escumadeira de salada cozida",
+          "quantity": null,
+          "unitCandidate": "à vontade",
+          "matchStatus": "AMBIGUOUS",
+          "foodPublicId": null,
+          "provenance": "NEEDS_REVIEW",
+          "candidatesCount": 10,
+          "substitutionsCount": 1,
+          "substitutions": [
+            {
+              "id": "5aa0cdc7-0ea1-462e-89a6-26c5a6a1fa10",
+              "foodNameCandidate": "salada de folhas (tomate e pepino) à vontade.",
+              "foodNameSnapshot": "Tomate",
+              "quantity": null,
+              "unitCandidate": null,
+              "matchStatus": "MATCHED",
+              "foodPublicId": "b19b31e6-61b6-4f8f-968e-338d5595a270",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        },
+        {
+          "id": "3f568a1f-73ff-4aa7-b5bb-752f89ce4dbe",
+          "foodNameCandidate": "filé de frango",
+          "foodNameSnapshot": "Filé de frango grelhado",
+          "quantity": 120,
+          "unitCandidate": "g",
+          "matchStatus": "MATCHED",
+          "foodPublicId": "73b8c5dd-e2b2-479e-84ca-e218c2978201",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 17,
+          "substitutions": [
+            {
+              "id": "48bff01c-c28e-4f38-a31a-70382c56cea1",
+              "foodNameCandidate": "carne moída (cortes com pouca gordura)",
+              "foodNameSnapshot": "Carne Moida refogada",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "944d987a-1333-4f52-9627-570df3fa6b6d",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "c06a167b-538c-4082-a2a2-d3e46f769ed6",
+              "foodNameCandidate": "patinho",
+              "foodNameSnapshot": "Patinho grelhado",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "55da93da-da1e-40ef-946a-6ed8fb2a6c6d",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "101b8b1b-2ada-4b6c-bb62-761618c238df",
+              "foodNameCandidate": "alcatra",
+              "foodNameSnapshot": "alcatra",
+              "quantity": null,
+              "unitCandidate": null,
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "e93285a9-cfc5-46af-9505-9eabb302a313",
+              "foodNameCandidate": "peixe grelhado",
+              "foodNameSnapshot": "peixe grelhado",
+              "quantity": 180,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "cceb2a87-a827-4610-8929-281d07d0f4b3",
+              "foodNameCandidate": "atum",
+              "foodNameSnapshot": "atum",
+              "quantity": 180,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "4ae1b853-9cb0-4f8c-9c44-65f5a42b609d",
+              "foodNameCandidate": "coxas de frango",
+              "foodNameSnapshot": "coxas de frango",
+              "quantity": 2,
+              "unitCandidate": null,
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "a3e76b13-05f5-4f58-9ced-bce440feb3a6",
+              "foodNameCandidate": "sobrecoxa",
+              "foodNameSnapshot": "sobrecoxa",
+              "quantity": 1,
+              "unitCandidate": null,
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "6254a5c0-b1fc-44d1-a0b4-e095ae5278bc",
+              "foodNameCandidate": "fígado bovino",
+              "foodNameSnapshot": "Fígado bovino grelhado",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "834019e9-cabb-48be-af4b-4920f680f515",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "0c5f0f8d-84fc-4cfb-b45d-7758e46d5e91",
+              "foodNameCandidate": "pernil suíno.",
+              "foodNameSnapshot": "pernil suíno.",
+              "quantity": 70,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "7138b2ee-9fa6-494f-bc2d-49a0e63fc1b6",
+              "foodNameCandidate": "carne moída",
+              "foodNameSnapshot": "Carne Moida refogada",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "944d987a-1333-4f52-9627-570df3fa6b6d",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "e67e4c91-e2db-431e-ab7a-d06ce055c6d7",
+              "foodNameCandidate": "patinho/alcatra",
+              "foodNameSnapshot": "patinho/alcatra",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "e75b773e-80a9-4784-901e-efe0197cf8fb",
+              "foodNameCandidate": "peixe grelhado/assado",
+              "foodNameSnapshot": "peixe grelhado/assado",
+              "quantity": 180,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "b141a582-f835-454e-a511-7a243996a0be",
+              "foodNameCandidate": "atum",
+              "foodNameSnapshot": "atum",
+              "quantity": 180,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "6c23e268-8016-4b93-9c8b-00c3b10a80ba",
+              "foodNameCandidate": "coxas de frango",
+              "foodNameSnapshot": "coxas de frango",
+              "quantity": 2,
+              "unitCandidate": "unidades",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "efd31755-7229-4e88-9357-6be76f394d40",
+              "foodNameCandidate": "sobrecoxa",
+              "foodNameSnapshot": "sobrecoxa",
+              "quantity": 1,
+              "unitCandidate": "unidade",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "b213a53a-9b6e-441a-a80a-5020cc0088fa",
+              "foodNameCandidate": "fígado bovino",
+              "foodNameSnapshot": "Fígado bovino grelhado",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "834019e9-cabb-48be-af4b-4920f680f515",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "e55669b3-cbcc-45dd-91d5-c5160e7e4b7f",
+              "foodNameCandidate": "pernil suíno",
+              "foodNameSnapshot": "pernil suíno",
+              "quantity": 70,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            }
+          ]
+        },
+        {
+          "id": "c573424c-17dc-4242-8888-08cbfbf228f3",
+          "foodNameCandidate": "arroz",
+          "foodNameSnapshot": "Arroz, tipo 1, cozido",
+          "quantity": 3,
+          "unitCandidate": "colheres",
+          "matchStatus": "MATCHED",
+          "foodPublicId": "72b60c44-db18-4da0-8495-1c345ee290a0",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 8,
+          "substitutions": [
+            {
+              "id": "51d3fd30-b642-4b46-ae60-9bd8f6f55283",
+              "foodNameCandidate": "purê de batata",
+              "foodNameSnapshot": "Purê de batata",
+              "quantity": 90,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "7ebbe58e-e45d-42bc-a2d4-c3f04cdee280",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "19663ff3-4f93-48ae-86f0-2b4ddb447900",
+              "foodNameCandidate": "batata inglesa assada",
+              "foodNameSnapshot": "Batata inglesa cozida",
+              "quantity": 120,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "4dbf967a-f937-4823-91f3-da3aa6dc8226",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "1bfbc79c-8c85-4200-a46d-817bfe4e4b67",
+              "foodNameCandidate": "aipim assado",
+              "foodNameSnapshot": "Mandioca, cozida",
+              "quantity": 80,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "2751c3e6-e50a-43fe-a3bf-62419ca9f614",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "5db24eb4-89e6-40a6-91c9-0425e156af57",
+              "foodNameCandidate": "macarrão de arroz.",
+              "foodNameSnapshot": "Macarrão de arroz cozido",
+              "quantity": 90,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "b5d3d03f-1518-4c1d-9474-bdb284379815",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "90d9c4d5-c746-4f14-a0c3-b2fe296ea64c",
+              "foodNameCandidate": "purê de batata",
+              "foodNameSnapshot": "Purê de batata",
+              "quantity": 90,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "7ebbe58e-e45d-42bc-a2d4-c3f04cdee280",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "4e5fb5a1-2322-4873-95b8-244745ed0bfc",
+              "foodNameCandidate": "batata inglesa assada",
+              "foodNameSnapshot": "Batata inglesa cozida",
+              "quantity": 120,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "4dbf967a-f937-4823-91f3-da3aa6dc8226",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "774ede31-caad-4e86-a0ee-c6be628fb7ae",
+              "foodNameCandidate": "aipim assado/cozido",
+              "foodNameSnapshot": "Mandioca, cozida",
+              "quantity": 80,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "2751c3e6-e50a-43fe-a3bf-62419ca9f614",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "346e073f-9e3b-4024-ab20-10d267b432ac",
+              "foodNameCandidate": "macarrão de arroz",
+              "foodNameSnapshot": "Macarrão de arroz cozido",
+              "quantity": 90,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "b5d3d03f-1518-4c1d-9474-bdb284379815",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        },
+        {
+          "id": "e98b1d91-5e2f-4da9-a309-46b9350f8ce1",
+          "foodNameCandidate": "feijão carioca",
+          "foodNameSnapshot": "Feijão",
+          "quantity": 2,
+          "unitCandidate": "colheres",
+          "matchStatus": "MATCHED",
+          "foodPublicId": "d390ecc7-5070-4a3b-a78a-35422f767b5a",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 4,
+          "substitutions": [
+            {
+              "id": "a6cee0d5-e6fa-46b1-af8e-06caa1353263",
+              "foodNameCandidate": "feijão preto",
+              "foodNameSnapshot": "Feijão",
+              "quantity": 30,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "d390ecc7-5070-4a3b-a78a-35422f767b5a",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "e16aca13-b575-4335-bced-7ea8ad87f614",
+              "foodNameCandidate": "grão-de-bico.",
+              "foodNameSnapshot": "Grao de Bico",
+              "quantity": 20,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "ebeb88f8-88b8-4b39-a9b2-e8a2af858a34",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "d9908551-ac61-4dff-8497-6036424cf486",
+              "foodNameCandidate": "feijão preto",
+              "foodNameSnapshot": "Feijão",
+              "quantity": 30,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "d390ecc7-5070-4a3b-a78a-35422f767b5a",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "ff6a9793-cd32-4433-a31c-ef5b6739a789",
+              "foodNameCandidate": "grão-de-bico",
+              "foodNameSnapshot": "Grao de Bico",
+              "quantity": 20,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "ebeb88f8-88b8-4b39-a9b2-e8a2af858a34",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Lanche da Tarde",
+      "time": null,
+      "notes": null,
+      "foods": [
+        {
+          "id": "56f3aff5-60d6-48af-881e-5cac1ab7d5d8",
+          "foodNameCandidate": "pão de forma industrializado (25 g)",
+          "foodNameSnapshot": "pão de forma industrializado (25 g)",
+          "quantity": 1,
+          "unitCandidate": "fatia",
+          "matchStatus": "AMBIGUOUS",
+          "foodPublicId": null,
+          "provenance": "NEEDS_REVIEW",
+          "candidatesCount": 10,
+          "substitutionsCount": 5,
+          "substitutions": [
+            {
+              "id": "0f077483-f40d-4249-9a09-f18f896d4c97",
+              "foodNameCandidate": "Rap10",
+              "foodNameSnapshot": "Rap10",
+              "quantity": 1,
+              "unitCandidate": null,
+              "matchStatus": "NOT_FOUND",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "7d54a497-4011-4925-a2a7-82f717d13258",
+              "foodNameCandidate": "pão libanês",
+              "foodNameSnapshot": "Pão sírio (Pão libanês)",
+              "quantity": null,
+              "unitCandidate": null,
+              "matchStatus": "MATCHED",
+              "foodPublicId": "6711d548-705b-4f72-aed1-4228aee46041",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "7943665a-45ad-4987-ba67-af6e923c9b46",
+              "foodNameCandidate": "tapioca de goma.",
+              "foodNameSnapshot": "Tapioca, com manteiga",
+              "quantity": 20,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "8e98793f-27a2-4b78-80c5-4e7c91609a11",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "3a0926cd-0738-44b1-bb8e-aa907680f595",
+              "foodNameCandidate": "Rap10/pão libanês",
+              "foodNameSnapshot": "Pão sírio (Pão libanês)",
+              "quantity": 1,
+              "unitCandidate": "unidade",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "6711d548-705b-4f72-aed1-4228aee46041",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "60e8f819-5ea9-4080-8760-39f51b0af2d6",
+              "foodNameCandidate": "tapioca de goma",
+              "foodNameSnapshot": "Tapioca, com manteiga",
+              "quantity": 20,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "8e98793f-27a2-4b78-80c5-4e7c91609a11",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        },
+        {
+          "id": "cc5c07e4-2abf-4e77-81c7-732d2e31a7c9",
+          "foodNameCandidate": "filé de frango",
+          "foodNameSnapshot": "Filé de frango grelhado",
+          "quantity": 80,
+          "unitCandidate": "g",
+          "matchStatus": "MATCHED",
+          "foodPublicId": "73b8c5dd-e2b2-479e-84ca-e218c2978201",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 4,
+          "substitutions": [
+            {
+              "id": "c989c04e-dd61-431b-8042-1a5e175456a6",
+              "foodNameCandidate": "carne moída (cortes com pouca gordura)",
+              "foodNameSnapshot": "Carne Moida refogada",
+              "quantity": 70,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "944d987a-1333-4f52-9627-570df3fa6b6d",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "78d6e800-a2cf-462b-9bfd-3453627b33f9",
+              "foodNameCandidate": "atum em lata (ao natural).",
+              "foodNameSnapshot": "Atum, conserva em óleo",
+              "quantity": 1,
+              "unitCandidate": null,
+              "matchStatus": "MATCHED",
+              "foodPublicId": "cfbf6f83-6d10-46ab-bafc-427aaf1a7112",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "9d58f07e-8a0a-4b3b-8292-11d0c69ba203",
+              "foodNameCandidate": "carne moída",
+              "foodNameSnapshot": "Carne Moida refogada",
+              "quantity": 70,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "944d987a-1333-4f52-9627-570df3fa6b6d",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "d0e87516-a792-4d0b-a9c3-25a02f2ef49b",
+              "foodNameCandidate": "atum em lata (ao natural)",
+              "foodNameSnapshot": "Atum, conserva em óleo",
+              "quantity": 1,
+              "unitCandidate": "unidade",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "cfbf6f83-6d10-46ab-bafc-427aaf1a7112",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Jantar",
+      "time": null,
+      "notes": null,
+      "foods": [
+        {
+          "id": "1a8fc5a7-b4c7-415f-853e-bdb6cc10881b",
+          "foodNameCandidate": "escumadeira de salada cozida",
+          "foodNameSnapshot": "escumadeira de salada cozida",
+          "quantity": null,
+          "unitCandidate": "à vontade",
+          "matchStatus": "AMBIGUOUS",
+          "foodPublicId": null,
+          "provenance": "NEEDS_REVIEW",
+          "candidatesCount": 10,
+          "substitutionsCount": 1,
+          "substitutions": [
+            {
+              "id": "3297b071-8a65-4981-8e26-76cd83ce438c",
+              "foodNameCandidate": "salada de folhas (tomate e pepino) à vontade.",
+              "foodNameSnapshot": "Tomate",
+              "quantity": null,
+              "unitCandidate": null,
+              "matchStatus": "MATCHED",
+              "foodPublicId": "b19b31e6-61b6-4f8f-968e-338d5595a270",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        },
+        {
+          "id": "15ec0f29-0fa6-4271-83e3-5a67fd3eadbb",
+          "foodNameCandidate": "filé de frango",
+          "foodNameSnapshot": "Filé de frango grelhado",
+          "quantity": 120,
+          "unitCandidate": "g",
+          "matchStatus": "MATCHED",
+          "foodPublicId": "73b8c5dd-e2b2-479e-84ca-e218c2978201",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 17,
+          "substitutions": [
+            {
+              "id": "47e09169-1364-4258-9824-0da589b59156",
+              "foodNameCandidate": "carne moída (cortes com pouca gordura)",
+              "foodNameSnapshot": "Carne Moida refogada",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "944d987a-1333-4f52-9627-570df3fa6b6d",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "c06ca8ac-653a-49ea-8d8a-0bd451129e18",
+              "foodNameCandidate": "patinho",
+              "foodNameSnapshot": "Patinho grelhado",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "55da93da-da1e-40ef-946a-6ed8fb2a6c6d",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "3b96bbc8-ce52-4414-9beb-91df4fca5e07",
+              "foodNameCandidate": "alcatra",
+              "foodNameSnapshot": "alcatra",
+              "quantity": null,
+              "unitCandidate": null,
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "20af1db0-53bd-44ee-8164-4363787bd3bc",
+              "foodNameCandidate": "peixe grelhado",
+              "foodNameSnapshot": "peixe grelhado",
+              "quantity": 180,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "08c624f5-d026-4289-850f-e904886c5ac5",
+              "foodNameCandidate": "atum",
+              "foodNameSnapshot": "atum",
+              "quantity": 180,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "06048a34-e2c0-48ba-b74c-f515235114fa",
+              "foodNameCandidate": "coxas de frango",
+              "foodNameSnapshot": "coxas de frango",
+              "quantity": 2,
+              "unitCandidate": null,
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "559f75a5-2116-4f80-8ef0-8d79efda6903",
+              "foodNameCandidate": "sobrecoxa",
+              "foodNameSnapshot": "sobrecoxa",
+              "quantity": 1,
+              "unitCandidate": null,
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "c70dc78a-1581-4eab-8161-23df97d3bb69",
+              "foodNameCandidate": "fígado bovino",
+              "foodNameSnapshot": "Fígado bovino grelhado",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "834019e9-cabb-48be-af4b-4920f680f515",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "837078b6-a4f3-4783-a637-b57333170382",
+              "foodNameCandidate": "pernil suíno.",
+              "foodNameSnapshot": "pernil suíno.",
+              "quantity": 70,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "b0af49a5-4c78-44a0-b1fd-f392780c4864",
+              "foodNameCandidate": "carne moída",
+              "foodNameSnapshot": "Carne Moida refogada",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "944d987a-1333-4f52-9627-570df3fa6b6d",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "880061a1-d007-4b39-9896-fa388c297175",
+              "foodNameCandidate": "patinho/alcatra",
+              "foodNameSnapshot": "patinho/alcatra",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "fff40d67-eccd-4b00-852d-6c7e1018d95e",
+              "foodNameCandidate": "peixe grelhado/assado",
+              "foodNameSnapshot": "peixe grelhado/assado",
+              "quantity": 180,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "adcfe4fa-90d2-4d92-af76-ee689f0e628f",
+              "foodNameCandidate": "atum",
+              "foodNameSnapshot": "atum",
+              "quantity": 180,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "c1a22edb-37c6-4a56-804b-965ba5651260",
+              "foodNameCandidate": "coxas de frango",
+              "foodNameSnapshot": "coxas de frango",
+              "quantity": 2,
+              "unitCandidate": "unidades",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "d5dfa2b1-53e5-4d7e-8f75-63ec45bc7e5e",
+              "foodNameCandidate": "sobrecoxa",
+              "foodNameSnapshot": "sobrecoxa",
+              "quantity": 1,
+              "unitCandidate": "unidade",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            },
+            {
+              "id": "51ec8a6a-7d60-4699-bd6f-7008ddb7b12b",
+              "foodNameCandidate": "fígado bovino",
+              "foodNameSnapshot": "Fígado bovino grelhado",
+              "quantity": 100,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "834019e9-cabb-48be-af4b-4920f680f515",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "6dbcce1b-f736-48d8-9633-36571fb7caf4",
+              "foodNameCandidate": "pernil suíno",
+              "foodNameSnapshot": "pernil suíno",
+              "quantity": 70,
+              "unitCandidate": "g",
+              "matchStatus": "AMBIGUOUS",
+              "foodPublicId": null,
+              "provenance": "NEEDS_REVIEW"
+            }
+          ]
+        },
+        {
+          "id": "815116d2-8a3f-452b-823c-60ec899b832e",
+          "foodNameCandidate": "arroz",
+          "foodNameSnapshot": "Arroz, tipo 1, cozido",
+          "quantity": 3,
+          "unitCandidate": "colheres",
+          "matchStatus": "MATCHED",
+          "foodPublicId": "72b60c44-db18-4da0-8495-1c345ee290a0",
+          "provenance": "LOCAL_MATCHED",
+          "candidatesCount": 1,
+          "substitutionsCount": 8,
+          "substitutions": [
+            {
+              "id": "df534ddd-1ec4-4c62-b871-89bd5b58a41f",
+              "foodNameCandidate": "purê de batata",
+              "foodNameSnapshot": "Purê de batata",
+              "quantity": 90,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "7ebbe58e-e45d-42bc-a2d4-c3f04cdee280",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "8ef2d9ec-4c80-4b7c-b817-5706f21fa7f4",
+              "foodNameCandidate": "batata inglesa assada",
+              "foodNameSnapshot": "Batata inglesa cozida",
+              "quantity": 120,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "4dbf967a-f937-4823-91f3-da3aa6dc8226",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "68905237-7aba-4912-a4d0-2674ae1c0dd6",
+              "foodNameCandidate": "aipim assado",
+              "foodNameSnapshot": "Mandioca, cozida",
+              "quantity": 80,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "2751c3e6-e50a-43fe-a3bf-62419ca9f614",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "faffbbf1-ec48-48c3-b9ce-2b894b540f2e",
+              "foodNameCandidate": "macarrão de arroz.",
+              "foodNameSnapshot": "Macarrão de arroz cozido",
+              "quantity": 90,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "b5d3d03f-1518-4c1d-9474-bdb284379815",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "ef57d521-1043-4caa-86cf-3f06a453666f",
+              "foodNameCandidate": "purê de batata",
+              "foodNameSnapshot": "Purê de batata",
+              "quantity": 90,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "7ebbe58e-e45d-42bc-a2d4-c3f04cdee280",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "e3d60aee-5934-4074-9a7f-50bc234939b3",
+              "foodNameCandidate": "batata inglesa assada",
+              "foodNameSnapshot": "Batata inglesa cozida",
+              "quantity": 120,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "4dbf967a-f937-4823-91f3-da3aa6dc8226",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "ee769976-33b4-40c3-84b7-67f017323318",
+              "foodNameCandidate": "aipim assado/cozido",
+              "foodNameSnapshot": "Mandioca, cozida",
+              "quantity": 80,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "2751c3e6-e50a-43fe-a3bf-62419ca9f614",
+              "provenance": "LOCAL_MATCHED"
+            },
+            {
+              "id": "2c31b35d-ce13-412a-989e-d7f2bc8824d3",
+              "foodNameCandidate": "macarrão de arroz",
+              "foodNameSnapshot": "Macarrão de arroz cozido",
+              "quantity": 90,
+              "unitCandidate": "g",
+              "matchStatus": "MATCHED",
+              "foodPublicId": "b5d3d03f-1518-4c1d-9474-bdb284379815",
+              "provenance": "LOCAL_MATCHED"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

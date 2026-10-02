@@ -45,6 +45,7 @@ export interface PresentedPlanTotals {
   fatG: number | null;
   fatFormatted: string;
   hasAnyMacro: boolean;
+  isPartial?: boolean;
 }
 
 export interface PresentedMicronutrientItem {
@@ -191,6 +192,7 @@ export function presentNutritionPlan(
     fatG: totals.fatG,
     fatFormatted: formatMacroGram(totals.fatG),
     hasAnyMacro,
+    isPartial: Boolean(totals.hasIncompleteData),
   };
 
   // Format meals and items (strictly preserving sort_order)

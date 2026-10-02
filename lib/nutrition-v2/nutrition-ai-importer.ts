@@ -98,6 +98,13 @@ export interface ResolvedNutritionProposal {
     fatG: number | null;
     fiberG: number | null;
   };
+  knownSubtotalsAuthoritative?: {
+    caloriesKcal: number | null;
+    proteinG: number | null;
+    carbsG: number | null;
+    fatG: number | null;
+    fiberG: number | null;
+  };
   status: "READY" | "NEEDS_REVIEW";
 }
 
@@ -2002,6 +2009,13 @@ export async function processNutritionAiImport(params: {
       fatG: hasUnknownFat ? null : Math.round(totalFat * 10) / 10,
       fiberG: hasUnknownFiber ? null : Math.round(totalFiber * 10) / 10,
     },
+    knownSubtotalsAuthoritative: {
+      caloriesKcal: totalCalories > 0 ? Math.round(totalCalories * 10) / 10 : null,
+      proteinG: totalProtein > 0 ? Math.round(totalProtein * 10) / 10 : null,
+      carbsG: totalCarbs > 0 ? Math.round(totalCarbs * 10) / 10 : null,
+      fatG: totalFat > 0 ? Math.round(totalFat * 10) / 10 : null,
+      fiberG: totalFiber > 0 ? Math.round(totalFiber * 10) / 10 : null,
+    },
     status: proposalStatus,
   };
 
@@ -2046,6 +2060,42 @@ export async function processNutritionAiImport(params: {
   });
 
   return resolvedProposal;
+}
+
+/**
+ * Normalizes prescribed units into standard canonical codes for publication validation
+ * while preserving custom descriptions in the display label.
+ */
+export function normalizePrescribedUnitCode(unitRaw: string | null | undefined): string | null {
+  if (!unitRaw) return null;
+  const trimmed = unitRaw.trim();
+  if (!trimmed) return null;
+  const upper = trimmed.toUpperCase();
+  const norm = trimmed.toLowerCase();
+
+  if (["G", "KG", "ML", "L", "UNIDADE", "FATIA", "COLHER_SOPA", "COLHER_CHA", "XICARA", "SCOOP", "PORCAO"].includes(upper)) {
+    return upper;
+  }
+
+  if (norm === "g" || norm === "gr" || norm === "grama" || norm === "gramas") return "G";
+  if (norm === "kg" || norm === "quilo" || norm === "quilos" || norm === "quilograma" || norm === "quilogramas") return "KG";
+  if (norm === "ml" || norm === "mililitro" || norm === "mililitros") return "ML";
+  if (norm === "l" || norm === "litro" || norm === "litros") return "L";
+  if (norm === "un" || norm === "und" || norm === "unidade" || norm === "unidades" || norm === "uni") return "UNIDADE";
+  if (norm === "fatia" || norm === "fatias") return "FATIA";
+  if (
+    norm.includes("sopa") ||
+    norm === "colher" ||
+    norm === "colheres" ||
+    norm === "cs" ||
+    norm === "c.s."
+  ) return "COLHER_SOPA";
+  if (norm.includes("cha") || norm.includes("chá") || norm === "cc" || norm === "c.c.") return "COLHER_CHA";
+  if (norm.includes("xicara") || norm.includes("xícara") || norm === "xic" || norm === "copo" || norm === "copos") return "XICARA";
+  if (norm.includes("scoop") || norm.includes("dosador")) return "SCOOP";
+  if (norm.includes("porcao") || norm.includes("porção") || norm.includes("pedaco") || norm.includes("pedaço") || norm.includes("pote") || norm.includes("prato") || norm.includes("vontade") || norm.includes("gosto")) return "PORCAO";
+
+  return "PORCAO";
 }
 
 /**
@@ -2158,7 +2208,7 @@ export async function confirmNutritionAiImport(params: {
         let refUnit = f.unitCandidate || "G";
 
         if (f.foodPublicId) {
-          const [foodRows] = await db.query<RowDataPacket[]>(
+          let [foodRows] = await db.query<RowDataPacket[]>(
             `SELECT
               id, public_id, COALESCE(display_name_pt_br, name) AS display_name,
               calories_kcal, protein_g, carbohydrate_g, fat_g, reference_amount, reference_unit_code
@@ -2166,6 +2216,20 @@ export async function confirmNutritionAiImport(params: {
              WHERE public_id = ? LIMIT 1`,
             [f.foodPublicId]
           );
+
+          if (foodRows.length === 0 && f.foodNameCandidate) {
+            const matchRes = await matchFoodCandidate(consultancyId, f.foodNameCandidate);
+            if (matchRes.status === "MATCHED" && matchRes.matched?.foodPublicId) {
+              [foodRows] = await db.query<RowDataPacket[]>(
+                `SELECT
+                  id, public_id, COALESCE(display_name_pt_br, name) AS display_name,
+                  calories_kcal, protein_g, carbohydrate_g, fat_g, reference_amount, reference_unit_code
+                 FROM nutrition_v2_foods
+                 WHERE public_id = ? LIMIT 1`,
+                [matchRes.matched.foodPublicId]
+              );
+            }
+          }
 
           if (foodRows.length > 0) {
             const foodDb = foodRows[0];
@@ -2217,6 +2281,9 @@ export async function confirmNutritionAiImport(params: {
           }
         }
 
+        const finalUnitCode = normalizePrescribedUnitCode(f.unitCandidate) || normalizePrescribedUnitCode(refUnit) || "G";
+        const finalUnitLabel = f.unitCandidate || refUnit || "g";
+
         const [itemRes] = await db.query<ResultSetHeader>(
           `INSERT INTO nutrition_v2_meal_items (
             public_id, meal_id, food_id, sort_order, food_name_snapshot,
@@ -2231,8 +2298,8 @@ export async function confirmNutritionAiImport(params: {
             itemSort,
             displayName,
             f.quantity,
-            f.unitCandidate || refUnit,
-            f.unitCandidate || refUnit,
+            finalUnitCode,
+            finalUnitLabel,
             cal,
             p,
             c,
@@ -2257,12 +2324,24 @@ export async function confirmNutritionAiImport(params: {
             let subUnit = sub.unitCandidate || "G";
 
             if (sub.foodPublicId) {
-              const [sFoodRows] = await db.query<RowDataPacket[]>(
+              let [sFoodRows] = await db.query<RowDataPacket[]>(
                 `SELECT id, public_id, COALESCE(display_name_pt_br, name) AS display_name,
                   calories_kcal, protein_g, carbohydrate_g, fat_g, reference_amount, reference_unit_code
                  FROM nutrition_v2_foods WHERE public_id = ? LIMIT 1`,
                 [sub.foodPublicId]
               );
+
+              if (sFoodRows.length === 0 && sub.foodNameCandidate) {
+                const sMatchRes = await matchFoodCandidate(consultancyId, sub.foodNameCandidate);
+                if (sMatchRes.status === "MATCHED" && sMatchRes.matched?.foodPublicId) {
+                  [sFoodRows] = await db.query<RowDataPacket[]>(
+                    `SELECT id, public_id, COALESCE(display_name_pt_br, name) AS display_name,
+                      calories_kcal, protein_g, carbohydrate_g, fat_g, reference_amount, reference_unit_code
+                     FROM nutrition_v2_foods WHERE public_id = ? LIMIT 1`,
+                    [sMatchRes.matched.foodPublicId]
+                  );
+                }
+              }
               if (sFoodRows.length > 0) {
                 const sDb = sFoodRows[0];
                 subFoodId = sDb.id;
@@ -2312,6 +2391,9 @@ export async function confirmNutritionAiImport(params: {
               }
             }
 
+            const finalSubUnitCode = normalizePrescribedUnitCode(sub.unitCandidate) || normalizePrescribedUnitCode(subUnit) || "G";
+            const finalSubUnitLabel = sub.unitCandidate || subUnit || "g";
+
             await db.query(
               `INSERT INTO nutrition_v2_item_substitutions (
                 public_id, meal_item_id, food_id, sort_order, food_name_snapshot,
@@ -2326,8 +2408,8 @@ export async function confirmNutritionAiImport(params: {
                 subSort,
                 subDisplayName,
                 sub.quantity,
-                sub.unitCandidate || subUnit,
-                sub.unitCandidate || subUnit,
+                finalSubUnitCode,
+                finalSubUnitLabel,
                 subCal,
                 subP,
                 subC,

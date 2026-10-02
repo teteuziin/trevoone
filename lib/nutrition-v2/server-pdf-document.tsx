@@ -391,7 +391,9 @@ export function ServerPdfDocument({ plan }: ServerPdfDocumentProps) {
         {/* Nutritional Summary (Rendered ONLY if at least one macro exists) */}
         {plan.totals.hasAnyMacro && (
           <View style={styles.macroBox}>
-            <Text style={styles.macroTitle}>Metas Nutricionais Estimadas</Text>
+            <Text style={styles.macroTitle}>
+              {plan.totals.isPartial ? "Metas Nutricionais Estimadas (Total Parcial)" : "Metas Nutricionais Estimadas"}
+            </Text>
             <View style={styles.macroRow}>
               <View style={styles.macroItem}>
                 <Text style={styles.macroItemLabel}>Calorias</Text>
@@ -410,6 +412,11 @@ export function ServerPdfDocument({ plan }: ServerPdfDocumentProps) {
                 <Text style={styles.macroItemValue}>{plan.totals.fatFormatted}</Text>
               </View>
             </View>
+            {plan.totals.isPartial && (
+              <Text style={{ fontSize: 7, color: "#64748b", marginTop: 4, fontStyle: "italic" }}>
+                * Subtotal dos itens com dados conhecidos. Alguns alimentos estão pendentes de revisão ou sem composição na tabela.
+              </Text>
+            )}
           </View>
         )}
 

@@ -13,7 +13,14 @@ interface NutritionItemEditorProps {
   slug: string;
   item: MealItemWithSubstitutionsDto;
   readOnly?: boolean;
-  onUpdateItem: (data: { prescribedQuantity?: number | null; prescribedUnitCode?: string | null; notes?: string | null }) => Promise<void>;
+  onUpdateItem: (data: {
+    foodPublicId?: string;
+    portionPublicId?: string | null;
+    prescribedQuantity?: number | null;
+    prescribedUnitCode?: string | null;
+    prescribedUnitLabel?: string | null;
+    notes?: string | null;
+  }) => Promise<void>;
   onRemoveItem: () => Promise<void>;
   onMoveUp?: () => Promise<void>;
   onMoveDown?: () => Promise<void>;
@@ -47,6 +54,7 @@ export function NutritionItemEditor({
   const [notes, setNotes] = useState(item.notes || "");
   const [isSaving, setIsSaving] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isResolvePickerOpen, setIsResolvePickerOpen] = useState(false);
   const [isEquivalentsOpen, setIsEquivalentsOpen] = useState(false);
   const [showMicro, setShowMicro] = useState(false);
 
@@ -80,9 +88,17 @@ export function NutritionItemEditor({
         <div className="min-w-0 flex-1 space-y-0.5">
           {/* Line 1: Food name and calories */}
           <div className="flex items-baseline justify-between gap-2">
-            <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
-              {item.foodNameSnapshot}
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
+                {item.foodNameSnapshot}
+              </span>
+              {item.foodId == null && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Pendente de revisão
+                </span>
+              )}
+            </div>
             <span className="font-bold text-xs text-amber-600 dark:text-amber-400 font-mono shrink-0">
               {item.caloriesKcalSnapshot != null ? `${item.caloriesKcalSnapshot} kcal` : "— kcal"}
             </span>
@@ -101,6 +117,23 @@ export function NutritionItemEditor({
             <span>C {item.carbohydrateGSnapshot != null ? `${item.carbohydrateGSnapshot}g` : "—"}</span>
             <span>•</span>
             <span>G {item.fatGSnapshot != null ? `${item.fatGSnapshot}g` : "—"}</span>
+
+            {!readOnly && item.foodId == null && (
+              <>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={() => setIsResolvePickerOpen(true)}
+                  className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer"
+                  title="Vincular a um alimento da tabela nutricional"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <span>Vincular alimento</span>
+                </button>
+              </>
+            )}
 
             {item.notes && <span className="text-[var(--text-muted)] italic">· {item.notes}</span>}
 
@@ -235,6 +268,7 @@ export function NutritionItemEditor({
               {item.substitutions.map((sub, idx) => (
                 <NutritionSubstitutionEditor
                   key={sub.publicId}
+                  slug={slug}
                   substitution={sub}
                   readOnly={readOnly}
                   isFirst={idx === 0}
@@ -308,6 +342,24 @@ export function NutritionItemEditor({
         prescribedItem={item}
         onAddSubstitution={onAddSubstitution}
         initialFoods={initialFoodsForEquivalents}
+      />
+
+      {/* Food Picker for Resolving Pending Item */}
+      <NutritionFoodPicker
+        slug={slug}
+        isOpen={isResolvePickerOpen}
+        onClose={() => setIsResolvePickerOpen(false)}
+        onSelect={async (selection) => {
+          await onUpdateItem({
+            foodPublicId: selection.foodPublicId || undefined,
+            portionPublicId: selection.portionPublicId || null,
+            prescribedQuantity: selection.prescribedQuantity ?? item.prescribedQuantity,
+            prescribedUnitCode: selection.prescribedUnitCode ?? item.prescribedUnitCode,
+            prescribedUnitLabel: selection.prescribedUnitLabel ?? item.prescribedUnitLabel,
+          });
+          setIsResolvePickerOpen(false);
+        }}
+        title={`Vincular Alimento para "${item.foodNameSnapshot}"`}
       />
     </div>
   );

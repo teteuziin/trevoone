@@ -73,6 +73,13 @@ interface ResolvedNutritionProposal {
     fatG: number | null;
     fiberG: number | null;
   };
+  knownSubtotalsAuthoritative?: {
+    caloriesKcal: number | null;
+    proteinG: number | null;
+    carbsG: number | null;
+    fatG: number | null;
+    fiberG: number | null;
+  };
   status: 'READY' | 'NEEDS_REVIEW';
 }
 
@@ -350,6 +357,13 @@ export function NutritionAiImportModal({
         fatG: hasUnknownFat ? null : Math.round(totalFat * 10) / 10,
         fiberG: hasUnknownFiber ? null : Math.round(totalFiber * 10) / 10,
       },
+      knownSubtotalsAuthoritative: {
+        caloriesKcal: totalCalories > 0 ? Math.round(totalCalories * 10) / 10 : null,
+        proteinG: totalProtein > 0 ? Math.round(totalProtein * 10) / 10 : null,
+        carbsG: totalCarbs > 0 ? Math.round(totalCarbs * 10) / 10 : null,
+        fatG: totalFat > 0 ? Math.round(totalFat * 10) / 10 : null,
+        fiberG: totalFiber > 0 ? Math.round(totalFiber * 10) / 10 : null,
+      },
       status: ambiguousCount === 0 && notFoundCount === 0 ? 'READY' : 'NEEDS_REVIEW',
     });
   }
@@ -421,9 +435,9 @@ export function NutritionAiImportModal({
   // Confirm import
   async function handleConfirmImport() {
     if (!proposal) return;
-    if (proposal.stats.ambiguousCount > 0 || proposal.stats.notFoundCount > 0) {
+    if (proposal.meals.length === 0 || proposal.stats.totalFoods === 0) {
       setErrorMessage(
-        'Todos os alimentos precisam ser selecionados ou removidos antes de salvar o rascunho.'
+        'O plano alimentar precisa conter pelo menos um alimento para ser salvo.'
       );
       return;
     }
@@ -805,15 +819,26 @@ export function NutritionAiImportModal({
                     </div>
 
                     <div className="text-right text-xs shrink-0">
-                      <span className="text-[var(--text-muted)] block">Total Nutricional Real:</span>
+                      <span className="text-[var(--text-muted)] block">
+                        {proposal.stats.ambiguousCount > 0 || proposal.stats.notFoundCount > 0 || proposal.totalNutrientsAuthoritative.caloriesKcal === null
+                          ? 'Total nutricional parcial:'
+                          : 'Total Nutricional Real:'}
+                      </span>
                       <span className="font-bold text-[var(--text-primary)] text-sm">
                         {proposal.totalNutrientsAuthoritative.caloriesKcal !== null
                           ? `${proposal.totalNutrientsAuthoritative.caloriesKcal} kcal`
-                          : '— kcal'}
+                          : proposal.knownSubtotalsAuthoritative?.caloriesKcal != null
+                            ? `~${proposal.knownSubtotalsAuthoritative.caloriesKcal} kcal`
+                            : '— kcal'}
                       </span>
                       <span className="text-[var(--text-secondary)] block text-[11px]">
-                        P: {proposal.totalNutrientsAuthoritative.proteinG !== null ? `${proposal.totalNutrientsAuthoritative.proteinG}g` : '—'} | C: {proposal.totalNutrientsAuthoritative.carbsG !== null ? `${proposal.totalNutrientsAuthoritative.carbsG}g` : '—'} | G: {proposal.totalNutrientsAuthoritative.fatG !== null ? `${proposal.totalNutrientsAuthoritative.fatG}g` : '—'}
+                        P: {proposal.totalNutrientsAuthoritative.proteinG !== null ? `${proposal.totalNutrientsAuthoritative.proteinG}g` : proposal.knownSubtotalsAuthoritative?.proteinG != null ? `~${proposal.knownSubtotalsAuthoritative.proteinG}g` : '—'} | C: {proposal.totalNutrientsAuthoritative.carbsG !== null ? `${proposal.totalNutrientsAuthoritative.carbsG}g` : proposal.knownSubtotalsAuthoritative?.carbsG != null ? `~${proposal.knownSubtotalsAuthoritative.carbsG}g` : '—'} | G: {proposal.totalNutrientsAuthoritative.fatG !== null ? `${proposal.totalNutrientsAuthoritative.fatG}g` : proposal.knownSubtotalsAuthoritative?.fatG != null ? `~${proposal.knownSubtotalsAuthoritative.fatG}g` : '—'}
                       </span>
+                      {(proposal.stats.ambiguousCount > 0 || proposal.stats.notFoundCount > 0) && (
+                        <span className="text-[10px] text-amber-500/90 font-medium block">
+                          * Itens pendentes de revisão não somados
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -823,7 +848,7 @@ export function NutritionAiImportModal({
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                       </svg>
                       <span>
-                        Selecione o alimento correto para os itens ambíguos ou remova-os para habilitar a criação do plano.
+                        Existem alimentos que ainda precisam de revisão. Você pode criar o plano agora e revisá-los depois.
                       </span>
                     </div>
                   ) : null}
@@ -1035,8 +1060,8 @@ export function NutritionAiImportModal({
                         disabled={
                           isConfirming ||
                           confirmSuccess ||
-                          proposal.stats.ambiguousCount > 0 ||
-                          proposal.stats.notFoundCount > 0
+                          proposal.meals.length === 0 ||
+                          proposal.stats.totalFoods === 0
                         }
                         onClick={handleConfirmImport}
                         className="font-bold min-h-[44px] shadow-sm flex items-center gap-2"

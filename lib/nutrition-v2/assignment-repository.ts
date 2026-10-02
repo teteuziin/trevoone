@@ -144,6 +144,7 @@ export type StudentAssignedPlanTreeDto = {
     proteinG: number | null;
     carbohydrateG: number | null;
     fatG: number | null;
+    hasIncompleteData?: boolean;
     micronutrients?: MicronutrientTotalsSummary | null;
   };
 };
@@ -1067,12 +1068,16 @@ async function loadFrozenTreeForAssignment(
 
   // Calculate totals from main items (if any macros are null, total can still reflect known or null)
   let hasAnyKnown = false;
+  let hasIncompleteData = false;
   let cal = 0;
   let prot = 0;
   let carb = 0;
   let fat = 0;
 
   for (const it of itemRows) {
+    if (it.food_id == null || it.calories_kcal_snapshot == null) {
+      hasIncompleteData = true;
+    }
     if (it.calories_kcal_snapshot != null) {
       cal += Number(it.calories_kcal_snapshot);
       hasAnyKnown = true;
@@ -1096,6 +1101,7 @@ async function loadFrozenTreeForAssignment(
     proteinG: hasAnyKnown ? Math.round(prot * 10) / 10 : null,
     carbohydrateG: hasAnyKnown ? Math.round(carb * 10) / 10 : null,
     fatG: hasAnyKnown ? Math.round(fat * 10) / 10 : null,
+    hasIncompleteData,
     micronutrients: dailyMicronutrientTotals.empty ? null : dailyMicronutrientTotals,
   };
 

@@ -96,7 +96,9 @@ export function NutritionPublishDialog({
           <div className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/50 space-y-1 text-xs">
             <div className="flex items-center justify-between font-semibold text-[var(--text-primary)]">
               <span>Totais Diários:</span>
-              <span className="text-amber-600 dark:text-amber-400">{tree.dailyTotals.caloriesKcal} kcal</span>
+              <span className="text-amber-600 dark:text-amber-400">
+                {tree.dailyTotals.caloriesKcal} kcal {tree.dailyTotals.hasIncompleteData ? "(parcial)" : ""}
+              </span>
             </div>
             <div className="flex items-center justify-between text-[var(--text-secondary)] text-[11px]">
               <span>P: {tree.dailyTotals.proteinG}g · C: {tree.dailyTotals.carbohydrateG}g · G: {tree.dailyTotals.fatG}g</span>
@@ -105,6 +107,15 @@ export function NutritionPublishDialog({
               )}
             </div>
           </div>
+
+          {(tree.dailyTotals.hasIncompleteData || tree.meals.some((m) => m.items.some((i) => i.foodId == null || i.substitutions.some((s) => s.foodId == null)))) && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2">
+              <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>Este plano contém itens pendentes de revisão. Os totais nutricionais podem estar incompletos.</span>
+            </div>
+          )}
 
           {/* Error message banner */}
           {errorMessage && (

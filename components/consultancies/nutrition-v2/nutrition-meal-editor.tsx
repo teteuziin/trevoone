@@ -17,11 +17,25 @@ interface NutritionMealEditorProps {
   onMoveUp?: () => Promise<void>;
   onMoveDown?: () => Promise<void>;
   onAddItem: (payload: FoodSelectionResult) => Promise<void>;
-  onUpdateItem: (itemPublicId: string, data: { prescribedQuantity?: number | null; notes?: string | null }) => Promise<void>;
+  onUpdateItem: (itemPublicId: string, data: {
+    foodPublicId?: string;
+    portionPublicId?: string | null;
+    prescribedQuantity?: number | null;
+    prescribedUnitCode?: string | null;
+    prescribedUnitLabel?: string | null;
+    notes?: string | null;
+  }) => Promise<void>;
   onRemoveItem: (itemPublicId: string) => Promise<void>;
   onReorderItems: (orderedItemPublicIds: string[]) => Promise<void>;
   onAddSubstitution: (itemPublicId: string, payload: FoodSelectionResult) => Promise<void>;
-  onUpdateSubstitution: (subPublicId: string, data: { prescribedQuantity?: number | null; notes?: string | null }) => Promise<void>;
+  onUpdateSubstitution: (subPublicId: string, data: {
+    foodPublicId?: string;
+    portionPublicId?: string | null;
+    prescribedQuantity?: number | null;
+    prescribedUnitCode?: string | null;
+    prescribedUnitLabel?: string | null;
+    notes?: string | null;
+  }) => Promise<void>;
   onRemoveSubstitution: (subPublicId: string) => Promise<void>;
   onReorderSubstitutions: (itemPublicId: string, orderedSubPublicIds: string[]) => Promise<void>;
 }

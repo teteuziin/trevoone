@@ -174,23 +174,32 @@ export function StudentNutritionV2Print({
 
             {/* Nutrition Totals / Macros */}
             {plan.totals.hasAnyMacro && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
-                  <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Calorias</div>
-                  <div className="text-sm font-bold text-slate-900 mt-0.5">{plan.totals.caloriesFormatted}</div>
+              <div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                      Calorias {plan.totals.isPartial ? "(parcial)" : ""}
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 mt-0.5">{plan.totals.caloriesFormatted}</div>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Proteínas</div>
+                    <div className="text-sm font-bold text-slate-900 mt-0.5">{plan.totals.proteinFormatted}</div>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Carboidratos</div>
+                    <div className="text-sm font-bold text-slate-900 mt-0.5">{plan.totals.carbohydrateFormatted}</div>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Gorduras</div>
+                    <div className="text-sm font-bold text-slate-900 mt-0.5">{plan.totals.fatFormatted}</div>
+                  </div>
                 </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
-                  <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Proteínas</div>
-                  <div className="text-sm font-bold text-slate-900 mt-0.5">{plan.totals.proteinFormatted}</div>
-                </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
-                  <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Carboidratos</div>
-                  <div className="text-sm font-bold text-slate-900 mt-0.5">{plan.totals.carbohydrateFormatted}</div>
-                </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
-                  <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Gorduras</div>
-                  <div className="text-sm font-bold text-slate-900 mt-0.5">{plan.totals.fatFormatted}</div>
-                </div>
+                {plan.totals.isPartial && (
+                  <div className="text-[10px] text-slate-500 italic pt-1 text-center sm:text-left">
+                    * Total parcial: o plano possui alimentos em revisão ou sem dados nutricionais completos.
+                  </div>
+                )}
               </div>
             )}
 

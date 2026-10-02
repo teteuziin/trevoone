@@ -1103,7 +1103,7 @@ export function WorkoutBuilder({
                 type="button"
                 disabled={isPending}
                 onClick={handleSaveMetadata}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 cursor-pointer"
               >
                 <CheckIcon className="w-4 h-4" />
                 <span>Salvar</span>
@@ -1114,9 +1114,9 @@ export function WorkoutBuilder({
               <button
                 type="button"
                 onClick={handleOpenPublishDialog}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 cursor-pointer"
               >
-                <SendIcon className="w-3.5 h-3.5" />
+                <SendIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                 <span>Publicar</span>
               </button>
             )}
@@ -1125,7 +1125,7 @@ export function WorkoutBuilder({
               <button
                 type="button"
                 onClick={() => setIsAssignModalOpen(true)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 cursor-pointer"
               >
                 <UserCheckIcon className="w-4 h-4" />
                 <span>Atribuir ao aluno</span>
@@ -1136,9 +1136,9 @@ export function WorkoutBuilder({
               <button
                 type="button"
                 onClick={handleCreateNewVersion}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 cursor-pointer"
               >
-                <PlusIcon className="w-3.5 h-3.5" />
+                <PlusIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                 <span>Editar (novo rascunho)</span>
               </button>
             )}
@@ -1148,7 +1148,7 @@ export function WorkoutBuilder({
               <button
                 type="button"
                 onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
-                className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                className="p-2.5 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
                 title="Mais opções do treino"
               >
                 <span className="font-extrabold tracking-widest leading-none">•••</span>
@@ -1164,7 +1164,7 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           handleDuplicateFicha();
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                        className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
                       >
                         <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
                         <span>Duplicar treino</span>
@@ -1175,7 +1175,7 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           handleSaveAsModel();
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                        className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
                       >
                         <BookmarkIcon className="w-3.5 h-3.5 text-amber-500" />
                         <span>Salvar como modelo</span>
@@ -1188,7 +1188,7 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           setIsDeleteDialogOpen(true);
                         }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer"
+                        className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
                       >
                         <TrashIcon className="w-3.5 h-3.5" />
                         <span>{isDraft ? "Excluir rascunho" : "Excluir treino"}</span>

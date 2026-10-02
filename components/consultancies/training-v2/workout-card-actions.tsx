@@ -90,7 +90,7 @@ export function WorkoutCardActions({
     <div className="flex items-center gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--border-subtle)] justify-end relative">
       <Link
         href={`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`}
-        className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] hover:border-[var(--border-strong)] transition-all min-h-[34px] cursor-pointer"
+        className="inline-flex items-center justify-center px-4 py-2 sm:px-3.5 sm:py-1.5 rounded-xl text-xs font-bold sm:font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] hover:border-[var(--border-strong)] transition-all min-h-[44px] sm:min-h-[34px] cursor-pointer"
       >
         Abrir →
       </Link>
@@ -100,7 +100,7 @@ export function WorkoutCardActions({
           type="button"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Opções do treino"
-          className="p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent hover:border-[var(--border-default)] transition-colors min-h-[34px] min-w-[34px] flex items-center justify-center cursor-pointer"
+          className="p-2 sm:p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent hover:border-[var(--border-default)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center cursor-pointer"
         >
           <MoreVertical className="w-4 h-4" />
         </button>
@@ -113,7 +113,7 @@ export function WorkoutCardActions({
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`}
                   onClick={() => setIsMenuOpen(false)}
-                  className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                  className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
                 >
                   <ExternalIcon className="w-3.5 h-3.5 text-emerald-500" />
                   <span>Abrir treino</span>
@@ -123,7 +123,7 @@ export function WorkoutCardActions({
                   type="button"
                   disabled={isPending}
                   onClick={handleDuplicate}
-                  className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer disabled:opacity-50"
+                  className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer disabled:opacity-50 min-h-[40px] sm:min-h-[32px]"
                 >
                   <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
                   <span>Duplicar treino</span>
@@ -137,7 +137,7 @@ export function WorkoutCardActions({
                     setIsMenuOpen(false);
                     setIsDeleteDialogOpen(true);
                   }}
-                  className="w-full px-3 py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer"
+                  className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
                 >
                   <TrashIcon className="w-3.5 h-3.5" />
                   <span>{isDraft ? "Excluir rascunho" : "Excluir treino"}</span>

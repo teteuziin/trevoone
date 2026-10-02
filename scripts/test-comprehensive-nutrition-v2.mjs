@@ -221,16 +221,65 @@ async function runTests() {
 
   // 12. Reference Catalog Auto-Promotion & Idempotency
   await asyncTest("Reference Catalog Promotion: Pão de forma promotes and re-match is local", async () => {
-    const searchRes = await searchReferenceCatalogCandidate("pão de forma");
-    assert.ok(searchRes.status === "HIGH_CONFIDENCE_MATCH" || searchRes.status === "AMBIGUOUS");
-    if (searchRes.status === "HIGH_CONFIDENCE_MATCH" && searchRes.candidate) {
-      const promoteRes = await autoPromoteReferenceFood(searchRes.candidate);
-      assert.equal(promoteRes.success, true);
+    const db = await getDbConnection();
+    let originalFoodState = null;
+    let originalAliases = [];
+    let promotedFoodId = null;
 
-      // Re-run match to verify second import matches locally without duplicates
-      const localRes = await matchFoodCandidate(1, "pão de forma");
-      assert.equal(localRes.status, "MATCHED");
-      assert.equal(localRes.provenance, "LOCAL_MATCHED");
+    try {
+      const searchRes = await searchReferenceCatalogCandidate("pão de forma");
+      assert.ok(searchRes.status === "HIGH_CONFIDENCE_MATCH" || searchRes.status === "AMBIGUOUS");
+      if (searchRes.status === "HIGH_CONFIDENCE_MATCH" && searchRes.candidate) {
+        promotedFoodId = searchRes.candidate.foodId;
+
+        // Snapshot original food state
+        const [fRows] = await db.query(
+          "SELECT auto_imported_from_reference, display_name_pt_br, normalized_display_name_pt_br FROM nutrition_v2_foods WHERE id = ?",
+          [promotedFoodId]
+        );
+        if (fRows.length > 0) {
+          originalFoodState = fRows[0];
+        }
+
+        // Snapshot original aliases
+        const [aRows] = await db.query(
+          "SELECT id, alias, normalized_alias FROM nutrition_v2_food_aliases WHERE food_id = ?",
+          [promotedFoodId]
+        );
+        originalAliases = aRows;
+
+        const promoteRes = await autoPromoteReferenceFood(searchRes.candidate);
+        assert.equal(promoteRes.success, true);
+
+        // Re-run match to verify second import matches locally without duplicates
+        const localRes = await matchFoodCandidate(1, "pão de forma");
+        assert.equal(localRes.status, "MATCHED");
+        assert.equal(localRes.provenance, "LOCAL_MATCHED");
+      }
+    } finally {
+      // Revert test mutations cleanly so test leaves 0 side effects
+      if (promotedFoodId && originalFoodState) {
+        await db.query(
+          "UPDATE nutrition_v2_foods SET auto_imported_from_reference = ?, display_name_pt_br = ?, normalized_display_name_pt_br = ? WHERE id = ?",
+          [
+            originalFoodState.auto_imported_from_reference,
+            originalFoodState.display_name_pt_br,
+            originalFoodState.normalized_display_name_pt_br,
+            promotedFoodId,
+          ]
+        );
+
+        if (originalAliases.length > 0) {
+          const keepIds = originalAliases.map((a) => a.id);
+          await db.query(
+            `DELETE FROM nutrition_v2_food_aliases WHERE food_id = ? AND id NOT IN (${keepIds.join(",")})`,
+            [promotedFoodId]
+          );
+        } else {
+          await db.query("DELETE FROM nutrition_v2_food_aliases WHERE food_id = ?", [promotedFoodId]);
+        }
+      }
+      db.release();
     }
   });
 
@@ -294,6 +343,55 @@ async function runTests() {
     } finally {
       db.release();
     }
+  });
+
+  // 15. Semantic Identity Stability: Prevent Corrupt Cross-Matching
+  await asyncTest("Semantic Identity: leite integral, chia, linhaça, pão de forma, aipim resolve to legitimate food identities", async () => {
+    // 1. Leite integral MUST resolve to dairy milk, NEVER fish / anchovies / trout
+    const leite = await matchFoodCandidate(1, "leite integral");
+    assert.equal(leite.status, "MATCHED");
+    const leiteName = (leite.matched?.name || "").toLowerCase();
+    assert.ok(
+      leiteName.includes("leite") || leiteName.includes("milk"),
+      `leite integral must resolve to milk, got: ${leite.matched?.name}`
+    );
+    assert.ok(
+      !leiteName.includes("anchov") && !leiteName.includes("fish") && !leiteName.includes("peixe"),
+      "leite integral must NEVER resolve to fish or anchovies"
+    );
+
+    // 2. Chia MUST resolve to chia seed
+    const chia = await matchFoodCandidate(1, "chia");
+    assert.equal(chia.status, "MATCHED");
+    const chiaName = (chia.matched?.name || "").toLowerCase();
+    assert.ok(chiaName.includes("chia"), `chia must resolve to chia, got: ${chia.matched?.name}`);
+
+    // 3. Linhaça MUST resolve to flaxseed / linhaça
+    const linhaca = await matchFoodCandidate(1, "linhaça");
+    assert.equal(linhaca.status, "MATCHED");
+    const linhacaName = (linhaca.matched?.name || "").toLowerCase();
+    assert.ok(
+      linhacaName.includes("linha") || linhacaName.includes("flax"),
+      `linhaça must resolve to linhaça/flax, got: ${linhaca.matched?.name}`
+    );
+
+    // 4. Pão de forma MUST resolve to bread
+    const pao = await matchFoodCandidate(1, "pão de forma");
+    assert.equal(pao.status, "MATCHED");
+    const paoName = (pao.matched?.name || "").toLowerCase();
+    assert.ok(
+      paoName.includes("pao") || paoName.includes("bread") || paoName.includes("pão"),
+      `pão de forma must resolve to bread, got: ${pao.matched?.name}`
+    );
+
+    // 5. Aipim MUST resolve to cassava/mandioca/aipim
+    const aipim = await matchFoodCandidate(1, "aipim");
+    assert.equal(aipim.status, "MATCHED");
+    const aipimName = (aipim.matched?.name || "").toLowerCase();
+    assert.ok(
+      aipimName.includes("mandioca") || aipimName.includes("aipim") || aipimName.includes("cassava") || aipimName.includes("macaxeira"),
+      `aipim must resolve to mandioca/aipim, got: ${aipim.matched?.name}`
+    );
   });
 
   console.log(`\n==================================================`);

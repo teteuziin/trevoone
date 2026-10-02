@@ -72,7 +72,6 @@ export interface CanonicalReferenceSpec {
   sourceFilter: {
     sourceKey?: string;
     nameLike?: string;
-    id?: number;
   };
   canonicalDisplayName: string;
   aliases: string[];
@@ -564,9 +563,6 @@ export async function searchReferenceCatalogCandidate(
       if (matchedSpec.sourceFilter.nameLike) {
         querySql += " AND (f.name LIKE ? OR f.display_name_pt_br LIKE ?)";
         params.push(matchedSpec.sourceFilter.nameLike, matchedSpec.sourceFilter.nameLike);
-      } else if (matchedSpec.sourceFilter.id) {
-        querySql += " AND f.id = ?";
-        params.push(matchedSpec.sourceFilter.id);
       }
       querySql += " LIMIT 1";
 

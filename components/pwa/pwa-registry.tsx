@@ -1,50 +1,76 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import {
+  checkForAppUpdate,
+  applyAppUpdate,
+  isSafeToAutoReload,
+  shouldAllowReload,
+  isIOSDevice,
+} from "@/lib/pwa/update-checker";
 
 /**
  * PwaRegistry — Client Component for Service Worker registration and controlled update management.
  *
  * Responsibilities:
  * - Feature detect navigator.serviceWorker in production runtime.
- * - Register /sw.js with updateViaCache: "none".
- * - Detect waiting Service Workers (updates) while ignoring first-time installations.
- * - Surface a discreet, accessible update notification to the user.
- * - Send SKIP_WAITING message ONLY upon explicit user confirmation.
- * - Eliminate reload race conditions: controllerchange only reloads if user explicitly confirmed the update.
- * - Moderate update checks on boot and on document visibility return (no aggressive polling).
+ * - P0 iOS Safe Mode: Prevents Service Worker navigation interception on iOS while
+ *   actively running version update checks on resume (visibilitychange, pageshow, focus).
+ * - Multi-platform version checking against /api/version for instant release detection.
+ * - Loop-protected, non-disruptive auto-updates when client is idle and safe.
+ * - Non-blocking, accessible update prompt when client has unsaved form data or active workout.
+ * - Zero session loss: cookies, localStorage and IndexedDB data are strictly preserved.
  */
-function isIOSDevice(): boolean {
-  if (typeof window === "undefined" || !navigator) return false;
-  const ua = navigator.userAgent || "";
-  return (
-    /iPhone|iPad|iPod/i.test(ua) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
-}
-
 export function PwaRegistry() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [pendingServerVersion, setPendingServerVersion] = useState<string | null>(null);
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
   const userTriggeredUpdateRef = useRef(false);
 
   useEffect(() => {
-    // Only register in production environment
-    if (process.env.NODE_ENV !== "production") {
+    // Only register in browser production environment
+    if (typeof window === "undefined" || process.env.NODE_ENV !== "production") {
       return;
     }
 
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
-      return;
-    }
+    let isSubscribed = true;
+    let activeRegistration: ServiceWorkerRegistration | null = null;
+    let refreshing = false;
 
-    // P0 iOS Safe Mode: Completely disable SW on iOS to guarantee online reliability.
+    /**
+     * Checks for application updates from the server.
+     * Evaluates dirty state and reload loop guard before triggering reload or prompt.
+     */
+    const runVersionUpdateCheck = async () => {
+      try {
+        const result = await checkForAppUpdate();
+        if (!isSubscribed || !result.hasUpdate || !result.serverVersion) {
+          return;
+        }
+
+        setPendingServerVersion(result.serverVersion);
+
+        // Safe auto-update path: idle, no active form/workout, and reload allowed by guard
+        if (isSafeToAutoReload() && shouldAllowReload(result.serverVersion)) {
+          applyAppUpdate(result.serverVersion);
+          return;
+        }
+
+        // Dirty or loop-guarded state: present non-blocking notification prompt
+        setShowUpdatePrompt(true);
+      } catch {
+        // Non-blocking update failure
+      }
+    };
+
+    // P0 iOS Safe Mode: Completely disable SW on iOS to guarantee native WebKit navigation reliability.
     // Self-heal: If an existing SW is registered or controlling, unregister it and clear Trevo SW caches once.
     if (isIOSDevice()) {
       const RECOVERY_KEY = "trevo_ios_sw_recovery_v1";
 
       const performIOSCleanup = async () => {
         try {
+          if (!("serviceWorker" in navigator)) return;
           const hasRecoveryRun = Boolean(sessionStorage.getItem(RECOVERY_KEY));
           const registrations = await navigator.serviceWorker.getRegistrations();
           const trevoRegistrations = registrations.filter((reg) => {
@@ -70,7 +96,7 @@ export function PwaRegistry() {
             await Promise.all(trevoCaches.map((name) => caches.delete(name)));
           }
 
-          // One-time safe reload guard: only reload if an existing SW/controller was active and recovery hasn't run
+          // One-time safe reload guard: only reload if an existing SW was active and recovery hasn't run
           if (hasActiveWorker && !hasRecoveryRun) {
             sessionStorage.setItem(RECOVERY_KEY, "1");
             window.location.replace(
@@ -83,79 +109,95 @@ export function PwaRegistry() {
       };
 
       void performIOSCleanup();
-      return;
+    } else if ("serviceWorker" in navigator) {
+      // Non-iOS: Register Service Worker
+      const handleControllerChange = () => {
+        if (userTriggeredUpdateRef.current && !refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      };
+
+      navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+
+      navigator.serviceWorker
+        .register("/sw.js", {
+          scope: "/",
+          updateViaCache: "none",
+        })
+        .then((registration) => {
+          if (!isSubscribed) return;
+          activeRegistration = registration;
+
+          // Safe lightweight update check on initialization
+          registration.update().catch(() => {});
+
+          // Case 1: An updated worker is already waiting in background
+          if (registration.waiting && navigator.serviceWorker.controller) {
+            setWaitingWorker(registration.waiting);
+            setShowUpdatePrompt(true);
+          }
+
+          // Case 2: An update is found and installed during the current session
+          registration.addEventListener("updatefound", () => {
+            const installingWorker = registration.installing;
+            if (!installingWorker) return;
+
+            installingWorker.addEventListener("statechange", () => {
+              if (
+                installingWorker.state === "installed" &&
+                navigator.serviceWorker.controller
+              ) {
+                setWaitingWorker(installingWorker);
+                setShowUpdatePrompt(true);
+              }
+            });
+          });
+        })
+        .catch((error) => {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[PWA] Service Worker registration failed:", error);
+          }
+        });
     }
 
-    let refreshing = false;
-    let activeRegistration: ServiceWorkerRegistration | null = null;
-
-    // Controlled reload guard: ONLY reload if user explicitly confirmed the update
-    const handleControllerChange = () => {
-      if (userTriggeredUpdateRef.current && !refreshing) {
-        refreshing = true;
-        window.location.reload();
+    // App Resume Listeners: Trigger update check on foreground return, tab focus, or BFCache pageshow
+    const handleForegroundResume = () => {
+      if (activeRegistration) {
+        activeRegistration.update().catch(() => {});
       }
+      void runVersionUpdateCheck();
     };
 
-    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
-
-    navigator.serviceWorker
-      .register("/sw.js", {
-        scope: "/",
-        updateViaCache: "none",
-      })
-      .then((registration) => {
-        activeRegistration = registration;
-
-        // Safe lightweight update check on initialization
-        registration.update().catch(() => {
-          // Non-blocking update check error
-        });
-
-        // Case 1: An updated worker is already waiting in background
-        if (registration.waiting && navigator.serviceWorker.controller) {
-          setWaitingWorker(registration.waiting);
-          setShowUpdatePrompt(true);
-        }
-
-        // Case 2: An update is found and installed during the current session
-        registration.addEventListener("updatefound", () => {
-          const installingWorker = registration.installing;
-          if (!installingWorker) return;
-
-          installingWorker.addEventListener("statechange", () => {
-            // Only prompt if state is installed AND an active controller already exists (not first-ever install)
-            if (
-              installingWorker.state === "installed" &&
-              navigator.serviceWorker.controller
-            ) {
-              setWaitingWorker(installingWorker);
-              setShowUpdatePrompt(true);
-            }
-          });
-        });
-      })
-      .catch((error) => {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[PWA] Service Worker registration failed:", error);
-        }
-      });
-
-    // Moderate update check on focus/visibility change (tab return)
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && activeRegistration) {
-        activeRegistration.update().catch(() => {});
+      if (document.visibilityState === "visible") {
+        handleForegroundResume();
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pageshow", handleForegroundResume);
+    window.addEventListener("focus", handleForegroundResume);
+
+    // Initial check after 2 seconds (allows initial paint and hydration to complete)
+    const initialTimer = window.setTimeout(() => {
+      void runVersionUpdateCheck();
+    }, 2000);
+
+    // Periodic check every 10 minutes while application is actively in foreground
+    const periodicTimer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        handleForegroundResume();
+      }
+    }, 10 * 60 * 1000);
 
     return () => {
-      navigator.serviceWorker.removeEventListener(
-        "controllerchange",
-        handleControllerChange
-      );
+      isSubscribed = false;
+      window.clearTimeout(initialTimer);
+      window.clearInterval(periodicTimer);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pageshow", handleForegroundResume);
+      window.removeEventListener("focus", handleForegroundResume);
     };
   }, []);
 
@@ -163,6 +205,13 @@ export function PwaRegistry() {
     if (waitingWorker) {
       userTriggeredUpdateRef.current = true;
       waitingWorker.postMessage({ type: "SKIP_WAITING" });
+      return;
+    }
+
+    if (pendingServerVersion) {
+      applyAppUpdate(pendingServerVersion, { force: true });
+    } else {
+      window.location.reload();
     }
   };
 

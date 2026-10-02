@@ -72,6 +72,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   ...(deploymentId ? { deploymentId } : {}),
+  env: {
+    NEXT_PUBLIC_APP_VERSION: deploymentId || "0.1.0",
+  },
   async headers() {
     return [
       {

@@ -1014,11 +1014,11 @@ export function buildWhereClause(
     const brKeysSql = APPROVED_BR_SOURCE_KEYS.map(() => "?").join(", ");
     if (consultancyId != null) {
       conditions.push(
-        `(f.source_key IN (${brKeysSql}) OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ?))`
+        `(f.source_key IN (${brKeysSql}) OR f.auto_imported_from_reference = 1 OR (f.scope = 'CONSULTANCY' AND f.consultancy_id = ?))`
       );
       params.push(...APPROVED_BR_SOURCE_KEYS, consultancyId);
     } else {
-      conditions.push(`f.source_key IN (${brKeysSql})`);
+      conditions.push(`(f.source_key IN (${brKeysSql}) OR f.auto_imported_from_reference = 1)`);
       params.push(...APPROVED_BR_SOURCE_KEYS);
     }
 
@@ -1053,8 +1053,8 @@ export function buildWhereClause(
     for (const group of tokenGroups) {
       const orClauses: string[] = [];
       for (const variant of group) {
-        orClauses.push("(f.normalized_name LIKE ? OR f.normalized_display_name_pt_br LIKE ?)");
-        params.push(`%${variant}%`, `%${variant}%`);
+        orClauses.push("(f.normalized_name LIKE ? OR f.normalized_display_name_pt_br LIKE ? OR EXISTS (SELECT 1 FROM nutrition_v2_food_aliases fa WHERE fa.food_id = f.id AND fa.normalized_alias LIKE ?))");
+        params.push(`%${variant}%`, `%${variant}%`, `%${variant}%`);
       }
       conditions.push(`(${orClauses.join(" OR ")})`);
     }
@@ -1122,6 +1122,7 @@ export function buildSelectFoodsQuery(
     f.status,
     f.source_type,
     f.source_key,
+    f.auto_imported_from_reference,
     f.created_at,
     f.updated_at
   `;
@@ -1323,6 +1324,7 @@ export function mapFoodRow(r: Record<string, unknown>): FoodListItemDto {
     sourceImportedAt,
     lastVerifiedAt,
     sourceUid,
+    autoImportedFromReference: Boolean(r.auto_imported_from_reference),
     createdByUserId,
     createdByMembershipId,
     createdAt,

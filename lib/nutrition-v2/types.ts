@@ -97,6 +97,7 @@ export interface NutritionV2FoodDto {
   sourceImportedAt: string | null;
   lastVerifiedAt?: string | null;
   sourceUid: string | null;
+  autoImportedFromReference?: boolean;
   createdByUserId: string | null;
   createdByMembershipId: string | null;
   createdAt: string;

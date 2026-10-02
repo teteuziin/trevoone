@@ -243,6 +243,7 @@ export function WorkoutBuilder({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [activeMobileCategoryIndex, setActiveMobileCategoryIndex] = useState<number>(0);
 
   const categories = useMemo(() => version.blocks || [], [version.blocks]);
   const totalExercises = categories.reduce(
@@ -1064,139 +1065,180 @@ export function WorkoutBuilder({
           </div>
 
           {/* Primary Top Actions (Mobile & Desktop) */}
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsMetadataExpanded(!isMetadataExpanded)}
-              className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] flex items-center gap-1.5 cursor-pointer"
-              title="Editar dados da ficha"
-            >
-              <SlidersIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">
-                {isMetadataExpanded ? "Ocultar dados" : "Dados da ficha"}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsPreviewOpen(true)}
-              className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] flex items-center gap-1.5 cursor-pointer"
-              title="Pré-visualizar como aluno"
-            >
-              <EyeIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">Pré-visualizar</span>
-            </button>
-
-            <a
-              href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer shadow-xs"
-              title="Baixar ficha de treino em PDF"
-            >
-              <DownloadIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
-              <span>Baixar PDF</span>
-            </a>
-
-            {isDraft && (
+          <div className="flex items-center gap-2 flex-wrap shrink-0 w-full sm:w-auto">
+            {/* Desktop Only Inline Actions */}
+            <div className="hidden sm:flex items-center gap-2">
               <button
                 type="button"
-                disabled={isPending}
-                onClick={handleSaveMetadata}
-                className="px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                onClick={() => setIsMetadataExpanded(!isMetadataExpanded)}
+                className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                title="Editar dados da ficha"
               >
-                <CheckIcon className="w-4 h-4" />
-                <span>Salvar</span>
+                <SlidersIcon className="w-4 h-4" />
+                <span>{isMetadataExpanded ? "Ocultar dados" : "Dados da ficha"}</span>
               </button>
-            )}
 
-            {isDraft && (
               <button
                 type="button"
-                onClick={handleOpenPublishDialog}
-                className="px-4 py-2.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                onClick={() => setIsPreviewOpen(true)}
+                className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                title="Pré-visualizar como aluno"
               >
-                <SendIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                <span>Publicar</span>
+                <EyeIcon className="w-4 h-4" />
+                <span>Pré-visualizar</span>
               </button>
-            )}
 
-            {!isDraft && (
-              <button
-                type="button"
-                onClick={() => setIsAssignModalOpen(true)}
-                className="px-4 py-2.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+              <a
+                href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer shadow-xs"
+                title="Baixar ficha de treino em PDF"
               >
-                <UserCheckIcon className="w-4 h-4" />
-                <span>Atribuir ao aluno</span>
-              </button>
-            )}
+                <DownloadIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+                <span>Baixar PDF</span>
+              </a>
+            </div>
 
-            {!isDraft && (
-              <button
-                type="button"
-                onClick={handleCreateNewVersion}
-                className="px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 cursor-pointer"
-              >
-                <PlusIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                <span>Editar (novo rascunho)</span>
-              </button>
-            )}
-
-            {/* More actions menu */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
-                className="p-2.5 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
-                title="Mais opções do treino"
-              >
-                <span className="font-extrabold tracking-widest leading-none">•••</span>
-              </button>
-              {isHeaderMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-30" onClick={() => setIsHeaderMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1.5 w-48 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
-                    <div className="p-1 space-y-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsHeaderMenuOpen(false);
-                          handleDuplicateFicha();
-                        }}
-                        className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
-                      >
-                        <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
-                        <span>Duplicar treino</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsHeaderMenuOpen(false);
-                          handleSaveAsModel();
-                        }}
-                        className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
-                      >
-                        <BookmarkIcon className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Salvar como modelo</span>
-                      </button>
-                    </div>
-                    <div className="p-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsHeaderMenuOpen(false);
-                          setIsDeleteDialogOpen(true);
-                        }}
-                        className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
-                      >
-                        <TrashIcon className="w-3.5 h-3.5" />
-                        <span>{isDraft ? "Excluir rascunho" : "Excluir treino"}</span>
-                      </button>
-                    </div>
-                  </div>
-                </>
+            {/* Core Action Buttons (Mobile: full width row / Desktop: inline) */}
+            <div data-testid="mobile-builder-header" className="flex items-center gap-2 flex-1 sm:flex-initial">
+              {isDraft && (
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleSaveMetadata}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <CheckIcon className="w-4 h-4" />
+                  <span>Salvar</span>
+                </button>
               )}
+
+              {isDraft && (
+                <button
+                  type="button"
+                  onClick={handleOpenPublishDialog}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <SendIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                  <span>Publicar</span>
+                </button>
+              )}
+
+              {!isDraft && (
+                <button
+                  type="button"
+                  onClick={() => setIsAssignModalOpen(true)}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <UserCheckIcon className="w-4 h-4" />
+                  <span>Atribuir ao aluno</span>
+                </button>
+              )}
+
+              {!isDraft && (
+                <button
+                  type="button"
+                  onClick={handleCreateNewVersion}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <PlusIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                  <span>Editar (novo rascunho)</span>
+                </button>
+              )}
+
+              {/* More actions menu button */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+                  aria-label="Mais opções do treino"
+                  className="p-2.5 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
+                  title="Mais opções do treino"
+                >
+                  <span className="font-extrabold tracking-widest leading-none">•••</span>
+                </button>
+                {isHeaderMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setIsHeaderMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                      {/* Mobile-Only Quick Access Actions */}
+                      <div className="p-1 space-y-0.5 sm:hidden">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            setIsMetadataExpanded(!isMetadataExpanded);
+                          }}
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                        >
+                          <SlidersIcon className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>{isMetadataExpanded ? "Ocultar dados da ficha" : "Dados da ficha"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            setIsPreviewOpen(true);
+                          }}
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                        >
+                          <EyeIcon className="w-3.5 h-3.5 text-teal-500" />
+                          <span>Pré-visualizar como aluno</span>
+                        </button>
+                        <a
+                          href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setIsHeaderMenuOpen(false)}
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                        >
+                          <DownloadIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+                          <span>Baixar PDF</span>
+                        </a>
+                      </div>
+
+                      <div className="p-1 space-y-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            handleDuplicateFicha();
+                          }}
+                          className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                        >
+                          <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
+                          <span>Duplicar treino</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            handleSaveAsModel();
+                          }}
+                          className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                        >
+                          <BookmarkIcon className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Salvar como modelo</span>
+                        </button>
+                      </div>
+                      <div className="p-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                          className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                          <span>{isDraft ? "Excluir rascunho" : "Excluir treino"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1329,49 +1371,97 @@ export function WorkoutBuilder({
               )}
             </div>
           ) : (
-            categories.map((category, catIdx) => (
-              <WorkoutCategoryCard
-                key={category.publicId}
-                category={category}
-                categoryIndex={catIdx}
-                totalCategories={categories.length}
-                allCategories={allCategoriesSimple}
-                isDraft={isDraft}
-                onOpenExercisePicker={(catId, subBlockId) => {
-                  setActiveCategoryForPicker(catId);
-                  setActiveSubBlockForPicker(subBlockId || null);
-                }}
-                onRenameCategory={handleRenameCategory}
-                onDuplicateCategory={handleDuplicateCategory}
-                onDeleteCategory={handleDeleteCategory}
-                onMoveCategoryUp={(idx) => handleMoveCategory(idx, "up")}
-                onMoveCategoryDown={(idx) => handleMoveCategory(idx, "down")}
-                onDuplicateExercise={handleDuplicateExercise}
-                onMoveExerciseToCategory={handleMoveExerciseToCategory}
-                onDeleteExercise={handleDeleteExercise}
-                onMoveExerciseUp={(catId, idx) => handleMoveExercise(catId, idx, "up")}
-                onMoveExerciseDown={(catId, idx) => handleMoveExercise(catId, idx, "down")}
-                onUpdateExerciseQuickConfig={handleUpdateExerciseQuickConfig}
-                onCreateSubBlock={handleCreateSubBlock}
-                onRenameSubBlock={handleRenameSubBlock}
-                onDuplicateSubBlock={handleDuplicateSubBlock}
-                onDeleteSubBlock={handleDeleteSubBlock}
-                onMoveSubBlockUp={(catId, idx) => handleMoveSubBlock(catId, idx, "up")}
-                onMoveSubBlockDown={(catId, idx) => handleMoveSubBlock(catId, idx, "down")}
-                onResolveExercise={(itemPublicId) => {
-                  setResolvingItemPublicId(itemPublicId);
-                  setActiveCategoryForPicker(category.publicId);
-                }}
-                onCreateCombination={handleCreateCombination}
-                onUpdateCombination={handleUpdateCombination}
-                onUngroupCombination={handleUngroupCombination}
-                onDeleteCombination={handleDeleteCombination}
-                onDuplicateCombination={handleDuplicateCombination}
-                onMoveItemInCombination={handleMoveItemInCombination}
-                onRemoveItemFromCombination={handleRemoveItemFromCombination}
-                onOpenCreateCustomExercise={handleOpenCreateCustomExercise}
-              />
-            ))
+            <>
+              {/* Mobile Category / Day Tabs (md:hidden) */}
+              {categories.length > 1 && (
+                <div
+                  data-testid="mobile-category-tabs"
+                  className="md:hidden flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none"
+                >
+                  {categories.map((cat, idx) => (
+                    <button
+                      key={cat.publicId}
+                      type="button"
+                      onClick={() => setActiveMobileCategoryIndex(idx)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                        activeMobileCategoryIndex === idx
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)]"
+                      }`}
+                    >
+                      <span>{cat.title || `Treino ${idx + 1}`}</span>
+                      <span className="text-[10px] opacity-75">({cat.items?.length || 0})</span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setActiveMobileCategoryIndex(-1)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all shrink-0 cursor-pointer ${
+                      activeMobileCategoryIndex === -1
+                        ? "bg-emerald-600 text-white shadow-xs"
+                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)]"
+                    }`}
+                  >
+                    Ver todos
+                  </button>
+                </div>
+              )}
+
+              {categories.map((category, catIdx) => {
+                const isHiddenOnMobile =
+                  activeMobileCategoryIndex !== -1 &&
+                  activeMobileCategoryIndex !== catIdx &&
+                  activeMobileCategoryIndex < categories.length;
+
+                return (
+                  <div
+                    key={category.publicId}
+                    className={isHiddenOnMobile ? "hidden md:block" : "block"}
+                  >
+                    <WorkoutCategoryCard
+                      category={category}
+                      categoryIndex={catIdx}
+                      totalCategories={categories.length}
+                      allCategories={allCategoriesSimple}
+                      isDraft={isDraft}
+                      onOpenExercisePicker={(catId, subBlockId) => {
+                        setActiveCategoryForPicker(catId);
+                        setActiveSubBlockForPicker(subBlockId || null);
+                      }}
+                      onRenameCategory={handleRenameCategory}
+                      onDuplicateCategory={handleDuplicateCategory}
+                      onDeleteCategory={handleDeleteCategory}
+                      onMoveCategoryUp={(idx) => handleMoveCategory(idx, "up")}
+                      onMoveCategoryDown={(idx) => handleMoveCategory(idx, "down")}
+                      onDuplicateExercise={handleDuplicateExercise}
+                      onMoveExerciseToCategory={handleMoveExerciseToCategory}
+                      onDeleteExercise={handleDeleteExercise}
+                      onMoveExerciseUp={(catId, idx) => handleMoveExercise(catId, idx, "up")}
+                      onMoveExerciseDown={(catId, idx) => handleMoveExercise(catId, idx, "down")}
+                      onUpdateExerciseQuickConfig={handleUpdateExerciseQuickConfig}
+                      onCreateSubBlock={handleCreateSubBlock}
+                      onRenameSubBlock={handleRenameSubBlock}
+                      onDuplicateSubBlock={handleDuplicateSubBlock}
+                      onDeleteSubBlock={handleDeleteSubBlock}
+                      onMoveSubBlockUp={(catId, idx) => handleMoveSubBlock(catId, idx, "up")}
+                      onMoveSubBlockDown={(catId, idx) => handleMoveSubBlock(catId, idx, "down")}
+                      onResolveExercise={(itemPublicId) => {
+                        setResolvingItemPublicId(itemPublicId);
+                        setActiveCategoryForPicker(category.publicId);
+                      }}
+                      onCreateCombination={handleCreateCombination}
+                      onUpdateCombination={handleUpdateCombination}
+                      onUngroupCombination={handleUngroupCombination}
+                      onDeleteCombination={handleDeleteCombination}
+                      onDuplicateCombination={handleDuplicateCombination}
+                      onMoveItemInCombination={handleMoveItemInCombination}
+                      onRemoveItemFromCombination={handleRemoveItemFromCombination}
+                      onOpenCreateCustomExercise={handleOpenCreateCustomExercise}
+                    />
+                  </div>
+                );
+              })}
+            </>
           )}
 
           {/* New Category Button / Inline Form */}

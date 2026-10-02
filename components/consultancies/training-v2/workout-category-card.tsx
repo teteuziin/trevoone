@@ -14,6 +14,33 @@ import {
   formatRepetitionRange,
   formatDurationNatural,
 } from "@/lib/training-v2/reps-normalizer";
+import { BottomSheet } from "@/components/ui/design-system";
+
+export function parseActiveRest(title?: string | null): { isActive: boolean; activity: string } {
+  if (!title) return { isActive: false, activity: "" };
+  const match = title.match(/Descanso Ativo:\s*([^•]+)/i) || title.match(/Ativo:\s*([^•]+)/i);
+  if (match) {
+    return { isActive: true, activity: match[1].trim() };
+  }
+  return { isActive: false, activity: "" };
+}
+
+export function formatActiveRestTitle(
+  isRestActive: boolean,
+  activityName: string,
+  userCustomTitle?: string
+): string | undefined {
+  if (userCustomTitle && userCustomTitle.trim()) {
+    if (isRestActive && activityName.trim()) {
+      return `${userCustomTitle.trim()} • Descanso Ativo: ${activityName.trim()}`;
+    }
+    return userCustomTitle.trim();
+  }
+  if (isRestActive && activityName.trim()) {
+    return `Descanso Ativo: ${activityName.trim()}`;
+  }
+  return undefined;
+}
 
 function ZapIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -154,6 +181,15 @@ function SparklesIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function VideoIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <polygon points="23 7 16 12 23 17 23 7" />
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    </svg>
+  );
+}
+
 export type CategoryCardProps = {
   category: WorkoutBlockDto;
   categoryIndex: number;
@@ -273,8 +309,12 @@ function CombinationFloatingActionBar({
   selectedCount,
   combinationType,
   restSeconds,
+  isRestActive,
+  activeRestActivity,
   onChangeType,
   onChangeRest,
+  onToggleRestActive,
+  onChangeActiveRestActivity,
   onConfirm,
   onCancel,
   targetName,
@@ -282,12 +322,18 @@ function CombinationFloatingActionBar({
   selectedCount: number;
   combinationType: WorkoutCombinationType;
   restSeconds: number;
+  isRestActive: boolean;
+  activeRestActivity: string;
   onChangeType: (type: WorkoutCombinationType) => void;
   onChangeRest: (rest: number) => void;
+  onToggleRestActive: (active: boolean) => void;
+  onChangeActiveRestActivity: (act: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
   targetName?: string;
 }) {
+  const ACTIVITY_PRESETS = ["Caminhada leve", "Polichinelo", "Prancha", "Mobilidade"];
+
   return (
     <div
       data-testid="combination-floating-bar"
@@ -321,59 +367,118 @@ function CombinationFloatingActionBar({
           </button>
         </div>
 
-        {/* Controls Row: Type Selector Pills + Rest Stepper */}
-        <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-          {/* Combination Type Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto">
-            {(["BI_SET", "TRI_SET", "SUPERSET", "GIANT_SET", "CIRCUIT"] as WorkoutCombinationType[]).map((t) => {
-              const isActive = combinationType === t;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => onChangeType(t)}
-                  aria-pressed={isActive}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all min-h-[44px] sm:min-h-[40px] flex items-center gap-1 cursor-pointer shrink-0 ${
-                    isActive
-                      ? "bg-emerald-600 text-white shadow-xs scale-102"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)]"
-                  }`}
-                >
-                  <span>{COMBINATION_TYPE_LABELS[t]}</span>
-                  {t === "BI_SET" && <span className="opacity-80 text-[10px]">(2)</span>}
-                  {t === "TRI_SET" && <span className="opacity-80 text-[10px]">(3)</span>}
-                  {t === "GIANT_SET" && <span className="opacity-80 text-[10px]">(4+)</span>}
-                </button>
-              );
-            })}
+        {/* Controls Row: Type Selector Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full">
+          {(["BI_SET", "TRI_SET", "SUPERSET", "GIANT_SET", "CIRCUIT"] as WorkoutCombinationType[]).map((t) => {
+            const isActive = combinationType === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => onChangeType(t)}
+                aria-pressed={isActive}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all min-h-[44px] sm:min-h-[40px] flex items-center gap-1 cursor-pointer shrink-0 ${
+                  isActive
+                    ? "bg-emerald-600 text-white shadow-xs scale-102"
+                    : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)]"
+                }`}
+              >
+                <span>{COMBINATION_TYPE_LABELS[t]}</span>
+                {t === "BI_SET" && <span className="opacity-80 text-[10px]">(2)</span>}
+                {t === "TRI_SET" && <span className="opacity-80 text-[10px]">(3)</span>}
+                {t === "GIANT_SET" && <span className="opacity-80 text-[10px]">(4+)</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Rest Mode Selection: Passivo vs Ativo + Stepper */}
+        <div className="space-y-2 p-2.5 rounded-2xl bg-[var(--surface-subtle)]/70 border border-[var(--border-default)]">
+          <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+            {/* Passivo vs Ativo Toggle */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase mr-1">
+                Descanso:
+              </span>
+              <button
+                type="button"
+                onClick={() => onToggleRestActive(false)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold min-h-[40px] transition-all cursor-pointer ${
+                  !isRestActive
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
+                }`}
+              >
+                ⏸️ Passivo
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleRestActive(true)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold min-h-[40px] transition-all cursor-pointer ${
+                  isRestActive
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
+                }`}
+              >
+                🏃 Ativo
+              </button>
+            </div>
+
+            {/* Stepper for duration */}
+            <div className="flex items-center gap-2 bg-[var(--surface)] px-2.5 py-1 rounded-xl border border-[var(--border-default)] shrink-0">
+              <button
+                type="button"
+                onClick={() => onChangeRest(Math.max(0, restSeconds - 15))}
+                aria-label="Diminuir descanso em 15s"
+                className="w-10 h-10 rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] font-black text-lg flex items-center justify-center transition-colors cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px]"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <div className="w-14 text-center">
+                <span className="text-sm font-extrabold text-[var(--text-primary)]">{restSeconds}</span>
+                <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-0.5">s</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onChangeRest(Math.min(600, restSeconds + 15))}
+                aria-label="Aumentar descanso em 15s"
+                className="w-10 h-10 rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] font-black text-lg flex items-center justify-center transition-colors cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px]"
+              >
+                +
+              </button>
+            </div>
           </div>
 
-          {/* Rest Stepper: [ - ] 60s [ + ] */}
-          <div className="flex items-center gap-2 bg-[var(--surface-subtle)] px-3 py-1.5 rounded-2xl border border-[var(--border-default)] shrink-0">
-            <span className="text-[11px] font-bold text-[var(--text-secondary)] hidden xs:inline">
-              Descanso:
-            </span>
-            <button
-              type="button"
-              onClick={() => onChangeRest(Math.max(0, restSeconds - 15))}
-              aria-label="Diminuir descanso em 15s"
-              className="w-10 h-10 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] font-black text-lg flex items-center justify-center transition-colors cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[40px] sm:min-w-[40px]"
-            >
-              <Minus className="w-4 h-4" />
-            </button>
-            <div className="w-14 text-center">
-              <span className="text-sm font-extrabold text-[var(--text-primary)]">{restSeconds}</span>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-0.5">s</span>
+          {/* If Active Rest: Activity input & quick suggestions */}
+          {isRestActive && (
+            <div className="pt-1 space-y-1.5 animate-in fade-in duration-150">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={activeRestActivity}
+                  onChange={(e) => onChangeActiveRestActivity(e.target.value)}
+                  placeholder="Atividade (ex: Caminhada leve, polichinelo...)"
+                  className="flex-1 px-3 py-2 text-xs sm:text-sm font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] min-h-[44px] focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {ACTIVITY_PRESETS.map((act) => (
+                  <button
+                    key={act}
+                    type="button"
+                    onClick={() => onChangeActiveRestActivity(act)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer min-h-[32px] ${
+                      activeRestActivity === act
+                        ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40 font-bold"
+                        : "bg-[var(--surface)] text-[var(--text-secondary)] border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    {act}
+                  </button>
+                ))}
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => onChangeRest(Math.min(600, restSeconds + 15))}
-              aria-label="Aumentar descanso em 15s"
-              className="w-10 h-10 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] font-black text-lg flex items-center justify-center transition-colors cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[40px] sm:min-w-[40px]"
-            >
-              +
-            </button>
-          </div>
+          )}
         </div>
 
         {/* CTA Buttons */}
@@ -457,7 +562,24 @@ export function WorkoutCategoryCard({
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
   const [newCombType, setNewCombType] = useState<WorkoutCombinationType>("BI_SET");
   const [newCombRest, setNewCombRest] = useState<number>(60);
+  const [isCombRestActive, setIsCombRestActive] = useState<boolean>(false);
+  const [combRestActivity, setCombRestActivity] = useState<string>("");
   const [activeAddMenuSubBlockId, setActiveAddMenuSubBlockId] = useState<string | null>(null);
+
+  // Mobile Bottom Sheets & Modals state
+  const [quickEditingItem, setQuickEditingItem] = useState<WorkoutBlockItemDto | null>(null);
+  const [editingCombination, setEditingCombination] = useState<WorkoutItemCombinationDto | null>(null);
+  const [mobileAddSheetTarget, setMobileAddSheetTarget] = useState<{
+    isOpen: boolean;
+    subBlockPublicId?: string;
+  }>({ isOpen: false });
+  const [actionsSheetItem, setActionsSheetItem] = useState<{
+    item: WorkoutBlockItemDto;
+    index: number;
+    total: number;
+    subBlockPublicId?: string;
+  } | null>(null);
+  const [executionModalItem, setExecutionModalItem] = useState<WorkoutBlockItemDto | null>(null);
 
   const [, startTransition] = useTransition();
 
@@ -514,16 +636,20 @@ export function WorkoutCategoryCard({
 
   function handleConfirmCreateCombination(targetSubBlockId?: string) {
     if (selectedExerciseIds.length < 2 || !onCreateCombination) return;
+    const formattedTitle = formatActiveRestTitle(isCombRestActive, combRestActivity);
     startTransition(async () => {
       await onCreateCombination({
         blockPublicId: category.publicId,
         subBlockPublicId: targetSubBlockId,
         combinationType: newCombType,
+        title: formattedTitle,
         restAfterSeconds: newCombRest,
         itemPublicIds: selectedExerciseIds,
       });
       setCombiningSubBlockId(null);
       setSelectedExerciseIds([]);
+      setIsCombRestActive(false);
+      setCombRestActivity("");
     });
   }
 
@@ -1073,39 +1199,65 @@ export function WorkoutCategoryCard({
                       entries.map((entry) => {
                         if (entry.type === "combination") {
                           return (
-                            <CombinationCard
-                              key={entry.combination.publicId}
-                              combination={entry.combination}
-                              categoryPublicId={category.publicId}
-                              subBlockPublicId={subBlock.publicId}
-                              allCategories={allCategories}
-                              isDraft={isDraft}
-                              expandedExerciseId={expandedExerciseId}
-                              onToggleExpandExercise={(id) =>
-                                setExpandedExerciseId(expandedExerciseId === id ? null : id)
-                              }
-                              onCloseExpandExercise={() => setExpandedExerciseId(null)}
-                              activeExerciseMenuId={activeExerciseMenuId}
-                              onToggleExerciseMenu={(id) =>
-                                setActiveExerciseMenuId(activeExerciseMenuId === id ? null : id)
-                              }
-                              onCloseExerciseMenu={() => setActiveExerciseMenuId(null)}
-                              movingExerciseId={movingExerciseId}
-                              onOpenMoveExercise={(id) => setMovingExerciseId(id)}
-                              onCloseMoveExercise={() => setMovingExerciseId(null)}
-                              onDuplicateExercise={onDuplicateExercise}
-                              onDeleteExercise={onDeleteExercise}
-                              onMoveExerciseToCategory={onMoveExerciseToCategory}
-                              onUpdateExerciseQuickConfig={onUpdateExerciseQuickConfig}
-                              onResolveExercise={onResolveExercise}
-                              onOpenCreateCustomExercise={onOpenCreateCustomExercise}
-                              onUpdateCombination={onUpdateCombination}
-                              onUngroupCombination={onUngroupCombination}
-                              onDeleteCombination={onDeleteCombination}
-                              onDuplicateCombination={onDuplicateCombination}
-                              onMoveItemInCombination={onMoveItemInCombination}
-                              onRemoveItemFromCombination={onRemoveItemFromCombination}
-                            />
+                            <div key={entry.combination.publicId}>
+                              {/* Mobile View: Dedicated MobileCombinationBlock */}
+                              <div className="md:hidden">
+                                <MobileCombinationBlock
+                                  combination={entry.combination}
+                                  categoryPublicId={category.publicId}
+                                  subBlockPublicId={subBlock.publicId}
+                                  isDraft={isDraft}
+                                  onOpenEditCombination={(c) => setEditingCombination(c)}
+                                  onOpenQuickEdit={(it) => setQuickEditingItem(it)}
+                                  onOpenActions={(it, idx, tot) =>
+                                    setActionsSheetItem({
+                                      item: it,
+                                      index: idx,
+                                      total: tot,
+                                      subBlockPublicId: subBlock.publicId,
+                                    })
+                                  }
+                                  onOpenExecutionModal={(it) => setExecutionModalItem(it)}
+                                  onUngroupCombination={onUngroupCombination}
+                                  onDeleteCombination={onDeleteCombination}
+                                />
+                              </div>
+                              {/* Desktop View: Preserved CombinationCard */}
+                              <div className="hidden md:block">
+                                <CombinationCard
+                                  combination={entry.combination}
+                                  categoryPublicId={category.publicId}
+                                  subBlockPublicId={subBlock.publicId}
+                                  allCategories={allCategories}
+                                  isDraft={isDraft}
+                                  expandedExerciseId={expandedExerciseId}
+                                  onToggleExpandExercise={(id) =>
+                                    setExpandedExerciseId(expandedExerciseId === id ? null : id)
+                                  }
+                                  onCloseExpandExercise={() => setExpandedExerciseId(null)}
+                                  activeExerciseMenuId={activeExerciseMenuId}
+                                  onToggleExerciseMenu={(id) =>
+                                    setActiveExerciseMenuId(activeExerciseMenuId === id ? null : id)
+                                  }
+                                  onCloseExerciseMenu={() => setActiveExerciseMenuId(null)}
+                                  movingExerciseId={movingExerciseId}
+                                  onOpenMoveExercise={(id) => setMovingExerciseId(id)}
+                                  onCloseMoveExercise={() => setMovingExerciseId(null)}
+                                  onDuplicateExercise={onDuplicateExercise}
+                                  onDeleteExercise={onDeleteExercise}
+                                  onMoveExerciseToCategory={onMoveExerciseToCategory}
+                                  onUpdateExerciseQuickConfig={onUpdateExerciseQuickConfig}
+                                  onResolveExercise={onResolveExercise}
+                                  onOpenCreateCustomExercise={onOpenCreateCustomExercise}
+                                  onUpdateCombination={onUpdateCombination}
+                                  onUngroupCombination={onUngroupCombination}
+                                  onDeleteCombination={onDeleteCombination}
+                                  onDuplicateCombination={onDuplicateCombination}
+                                  onMoveItemInCombination={onMoveItemInCombination}
+                                  onRemoveItemFromCombination={onRemoveItemFromCombination}
+                                />
+                              </div>
+                            </div>
                           );
                         }
 
@@ -1114,56 +1266,86 @@ export function WorkoutCategoryCard({
                         const itemIdx = subBlockItems.findIndex((it) => it.publicId === item.publicId);
 
                         return (
-                          <ExerciseRow
-                            key={item.publicId}
-                            item={item}
-                            itemIndex={itemIdx}
-                            totalItems={subBlockItems.length}
-                            isExpanded={isExpanded}
-                            isDraft={isDraft}
-                            categoryPublicId={category.publicId}
-                            allCategories={allCategories}
-                            onToggleExpand={() =>
-                              setExpandedExerciseId(isExpanded ? null : item.publicId)
-                            }
-                            onCloseExpand={() => setExpandedExerciseId(null)}
-                            isMenuOpen={activeExerciseMenuId === item.publicId}
-                            onToggleMenu={() =>
-                              setActiveExerciseMenuId(
-                                activeExerciseMenuId === item.publicId ? null : item.publicId
-                              )
-                            }
-                            onCloseMenu={() => setActiveExerciseMenuId(null)}
-                            isMovingOpen={movingExerciseId === item.publicId}
-                            onOpenMove={() => setMovingExerciseId(item.publicId)}
-                            onCloseMove={() => setMovingExerciseId(null)}
-                            onDuplicate={() => onDuplicateExercise(item.publicId)}
-                            onDelete={() => onDeleteExercise(item.publicId)}
-                            onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
-                            onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
-                            onMoveToCategory={(targetCatId) =>
-                              onMoveExerciseToCategory(item.publicId, targetCatId)
-                            }
-                            onSaveQuickConfig={(cfg) =>
-                              onUpdateExerciseQuickConfig(item.publicId, cfg)
-                            }
-                            onResolve={() => onResolveExercise?.(item.publicId)}
-                            onOpenConvertCustom={() =>
-                              onOpenCreateCustomExercise?.(
-                                category.publicId,
-                                subBlock.publicId,
-                                item.publicId,
-                                {
-                                  name: item.exerciseNameSnapshot,
-                                  muscleGroup: item.muscleGroupSnapshot || undefined,
-                                  equipment: item.equipmentSnapshot || undefined,
+                          <div key={item.publicId}>
+                            {/* Mobile View: Dedicated MobileExerciseCard */}
+                            <div className="md:hidden">
+                              <MobileExerciseCard
+                                item={item}
+                                itemIndex={itemIdx}
+                                totalItems={subBlockItems.length}
+                                isDraft={isDraft}
+                                categoryPublicId={category.publicId}
+                                allCategories={allCategories}
+                                isSelectionMode={isCombiningThisSb}
+                                isSelected={selectedExerciseIds.includes(item.publicId)}
+                                onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
+                                onOpenQuickEdit={() => setQuickEditingItem(item)}
+                                onOpenActions={() =>
+                                  setActionsSheetItem({
+                                    item,
+                                    index: itemIdx,
+                                    total: subBlockItems.length,
+                                    subBlockPublicId: subBlock.publicId,
+                                  })
                                 }
-                              )
-                            }
-                            isSelectionMode={isCombiningThisSb}
-                            isSelected={selectedExerciseIds.includes(item.publicId)}
-                            onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
-                          />
+                                onOpenExecutionModal={() => setExecutionModalItem(item)}
+                                onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
+                                onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
+                              />
+                            </div>
+                            {/* Desktop View: Preserved ExerciseRow */}
+                            <div className="hidden md:block">
+                              <ExerciseRow
+                                item={item}
+                                itemIndex={itemIdx}
+                                totalItems={subBlockItems.length}
+                                isExpanded={isExpanded}
+                                isDraft={isDraft}
+                                categoryPublicId={category.publicId}
+                                allCategories={allCategories}
+                                onToggleExpand={() =>
+                                  setExpandedExerciseId(isExpanded ? null : item.publicId)
+                                }
+                                onCloseExpand={() => setExpandedExerciseId(null)}
+                                isMenuOpen={activeExerciseMenuId === item.publicId}
+                                onToggleMenu={() =>
+                                  setActiveExerciseMenuId(
+                                    activeExerciseMenuId === item.publicId ? null : item.publicId
+                                  )
+                                }
+                                onCloseMenu={() => setActiveExerciseMenuId(null)}
+                                isMovingOpen={movingExerciseId === item.publicId}
+                                onOpenMove={() => setMovingExerciseId(item.publicId)}
+                                onCloseMove={() => setMovingExerciseId(null)}
+                                onDuplicate={() => onDuplicateExercise(item.publicId)}
+                                onDelete={() => onDeleteExercise(item.publicId)}
+                                onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
+                                onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
+                                onMoveToCategory={(targetCatId) =>
+                                  onMoveExerciseToCategory(item.publicId, targetCatId)
+                                }
+                                onSaveQuickConfig={(cfg) =>
+                                  onUpdateExerciseQuickConfig(item.publicId, cfg)
+                                }
+                                onResolve={() => onResolveExercise?.(item.publicId)}
+                                onOpenConvertCustom={() =>
+                                  onOpenCreateCustomExercise?.(
+                                    category.publicId,
+                                    subBlock.publicId,
+                                    item.publicId,
+                                    {
+                                      name: item.exerciseNameSnapshot,
+                                      muscleGroup: item.muscleGroupSnapshot || undefined,
+                                      equipment: item.equipmentSnapshot || undefined,
+                                    }
+                                  )
+                                }
+                                isSelectionMode={isCombiningThisSb}
+                                isSelected={selectedExerciseIds.includes(item.publicId)}
+                                onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
+                              />
+                            </div>
+                          </div>
                         );
                       })
                     )}
@@ -1222,38 +1404,58 @@ export function WorkoutCategoryCard({
                 return flatEntries.map((entry) => {
                   if (entry.type === "combination") {
                     return (
-                      <CombinationCard
-                        key={entry.combination.publicId}
-                        combination={entry.combination}
-                        categoryPublicId={category.publicId}
-                        allCategories={allCategories}
-                        isDraft={isDraft}
-                        expandedExerciseId={expandedExerciseId}
-                        onToggleExpandExercise={(id) =>
-                          setExpandedExerciseId(expandedExerciseId === id ? null : id)
-                        }
-                        onCloseExpandExercise={() => setExpandedExerciseId(null)}
-                        activeExerciseMenuId={activeExerciseMenuId}
-                        onToggleExerciseMenu={(id) =>
-                          setActiveExerciseMenuId(activeExerciseMenuId === id ? null : id)
-                        }
-                        onCloseExerciseMenu={() => setActiveExerciseMenuId(null)}
-                        movingExerciseId={movingExerciseId}
-                        onOpenMoveExercise={(id) => setMovingExerciseId(id)}
-                        onCloseMoveExercise={() => setMovingExerciseId(null)}
-                        onDuplicateExercise={onDuplicateExercise}
-                        onDeleteExercise={onDeleteExercise}
-                        onMoveExerciseToCategory={onMoveExerciseToCategory}
-                        onUpdateExerciseQuickConfig={onUpdateExerciseQuickConfig}
-                        onResolveExercise={onResolveExercise}
-                        onOpenCreateCustomExercise={onOpenCreateCustomExercise}
-                        onUpdateCombination={onUpdateCombination}
-                        onUngroupCombination={onUngroupCombination}
-                        onDeleteCombination={onDeleteCombination}
-                        onDuplicateCombination={onDuplicateCombination}
-                        onMoveItemInCombination={onMoveItemInCombination}
-                        onRemoveItemFromCombination={onRemoveItemFromCombination}
-                      />
+                      <div key={entry.combination.publicId}>
+                        {/* Mobile View: Dedicated MobileCombinationBlock */}
+                        <div className="md:hidden">
+                          <MobileCombinationBlock
+                            combination={entry.combination}
+                            categoryPublicId={category.publicId}
+                            isDraft={isDraft}
+                            onOpenEditCombination={(c) => setEditingCombination(c)}
+                            onOpenQuickEdit={(it) => setQuickEditingItem(it)}
+                            onOpenActions={(it, idx, tot) =>
+                              setActionsSheetItem({ item: it, index: idx, total: tot })
+                            }
+                            onOpenExecutionModal={(it) => setExecutionModalItem(it)}
+                            onUngroupCombination={onUngroupCombination}
+                            onDeleteCombination={onDeleteCombination}
+                          />
+                        </div>
+                        {/* Desktop View: Preserved CombinationCard */}
+                        <div className="hidden md:block">
+                          <CombinationCard
+                            combination={entry.combination}
+                            categoryPublicId={category.publicId}
+                            allCategories={allCategories}
+                            isDraft={isDraft}
+                            expandedExerciseId={expandedExerciseId}
+                            onToggleExpandExercise={(id) =>
+                              setExpandedExerciseId(expandedExerciseId === id ? null : id)
+                            }
+                            onCloseExpandExercise={() => setExpandedExerciseId(null)}
+                            activeExerciseMenuId={activeExerciseMenuId}
+                            onToggleExerciseMenu={(id) =>
+                              setActiveExerciseMenuId(activeExerciseMenuId === id ? null : id)
+                            }
+                            onCloseExerciseMenu={() => setActiveExerciseMenuId(null)}
+                            movingExerciseId={movingExerciseId}
+                            onOpenMoveExercise={(id) => setMovingExerciseId(id)}
+                            onCloseMoveExercise={() => setMovingExerciseId(null)}
+                            onDuplicateExercise={onDuplicateExercise}
+                            onDeleteExercise={onDeleteExercise}
+                            onMoveExerciseToCategory={onMoveExerciseToCategory}
+                            onUpdateExerciseQuickConfig={onUpdateExerciseQuickConfig}
+                            onResolveExercise={onResolveExercise}
+                            onOpenCreateCustomExercise={onOpenCreateCustomExercise}
+                            onUpdateCombination={onUpdateCombination}
+                            onUngroupCombination={onUngroupCombination}
+                            onDeleteCombination={onDeleteCombination}
+                            onDuplicateCombination={onDuplicateCombination}
+                            onMoveItemInCombination={onMoveItemInCombination}
+                            onRemoveItemFromCombination={onRemoveItemFromCombination}
+                          />
+                        </div>
+                      </div>
                     );
                   }
 
@@ -1262,56 +1464,81 @@ export function WorkoutCategoryCard({
                   const itemIdx = items.findIndex((it) => it.publicId === item.publicId);
 
                   return (
-                    <ExerciseRow
-                      key={item.publicId}
-                      item={item}
-                      itemIndex={itemIdx}
-                      totalItems={items.length}
-                      isExpanded={isExpanded}
-                      isDraft={isDraft}
-                      categoryPublicId={category.publicId}
-                      allCategories={allCategories}
-                      onToggleExpand={() =>
-                        setExpandedExerciseId(isExpanded ? null : item.publicId)
-                      }
-                      onCloseExpand={() => setExpandedExerciseId(null)}
-                      isMenuOpen={activeExerciseMenuId === item.publicId}
-                      onToggleMenu={() =>
-                        setActiveExerciseMenuId(
-                          activeExerciseMenuId === item.publicId ? null : item.publicId
-                        )
-                      }
-                      onCloseMenu={() => setActiveExerciseMenuId(null)}
-                      isMovingOpen={movingExerciseId === item.publicId}
-                      onOpenMove={() => setMovingExerciseId(item.publicId)}
-                      onCloseMove={() => setMovingExerciseId(null)}
-                      onDuplicate={() => onDuplicateExercise(item.publicId)}
-                      onDelete={() => onDeleteExercise(item.publicId)}
-                      onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
-                      onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
-                      onMoveToCategory={(targetCatId) =>
-                        onMoveExerciseToCategory(item.publicId, targetCatId)
-                      }
-                      onSaveQuickConfig={(cfg) =>
-                        onUpdateExerciseQuickConfig(item.publicId, cfg)
-                      }
-                      onResolve={() => onResolveExercise?.(item.publicId)}
-                      onOpenConvertCustom={() =>
-                        onOpenCreateCustomExercise?.(
-                          category.publicId,
-                          undefined,
-                          item.publicId,
-                          {
-                            name: item.exerciseNameSnapshot,
-                            muscleGroup: item.muscleGroupSnapshot || undefined,
-                            equipment: item.equipmentSnapshot || undefined,
+                    <div key={item.publicId}>
+                      {/* Mobile View: Dedicated MobileExerciseCard */}
+                      <div className="md:hidden">
+                        <MobileExerciseCard
+                          item={item}
+                          itemIndex={itemIdx}
+                          totalItems={items.length}
+                          isDraft={isDraft}
+                          categoryPublicId={category.publicId}
+                          allCategories={allCategories}
+                          isSelectionMode={combiningSubBlockId === "root"}
+                          isSelected={selectedExerciseIds.includes(item.publicId)}
+                          onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
+                          onOpenQuickEdit={() => setQuickEditingItem(item)}
+                          onOpenActions={() =>
+                            setActionsSheetItem({ item, index: itemIdx, total: items.length })
                           }
-                        )
-                      }
-                      isSelectionMode={combiningSubBlockId === "root"}
-                      isSelected={selectedExerciseIds.includes(item.publicId)}
-                      onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
-                    />
+                          onOpenExecutionModal={() => setExecutionModalItem(item)}
+                          onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
+                          onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
+                        />
+                      </div>
+                      {/* Desktop View: Preserved ExerciseRow */}
+                      <div className="hidden md:block">
+                        <ExerciseRow
+                          item={item}
+                          itemIndex={itemIdx}
+                          totalItems={items.length}
+                          isExpanded={isExpanded}
+                          isDraft={isDraft}
+                          categoryPublicId={category.publicId}
+                          allCategories={allCategories}
+                          onToggleExpand={() =>
+                            setExpandedExerciseId(isExpanded ? null : item.publicId)
+                          }
+                          onCloseExpand={() => setExpandedExerciseId(null)}
+                          isMenuOpen={activeExerciseMenuId === item.publicId}
+                          onToggleMenu={() =>
+                            setActiveExerciseMenuId(
+                              activeExerciseMenuId === item.publicId ? null : item.publicId
+                            )
+                          }
+                          onCloseMenu={() => setActiveExerciseMenuId(null)}
+                          isMovingOpen={movingExerciseId === item.publicId}
+                          onOpenMove={() => setMovingExerciseId(item.publicId)}
+                          onCloseMove={() => setMovingExerciseId(null)}
+                          onDuplicate={() => onDuplicateExercise(item.publicId)}
+                          onDelete={() => onDeleteExercise(item.publicId)}
+                          onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
+                          onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
+                          onMoveToCategory={(targetCatId) =>
+                            onMoveExerciseToCategory(item.publicId, targetCatId)
+                          }
+                          onSaveQuickConfig={(cfg) =>
+                            onUpdateExerciseQuickConfig(item.publicId, cfg)
+                          }
+                          onResolve={() => onResolveExercise?.(item.publicId)}
+                          onOpenConvertCustom={() =>
+                            onOpenCreateCustomExercise?.(
+                              category.publicId,
+                              undefined,
+                              item.publicId,
+                              {
+                                name: item.exerciseNameSnapshot,
+                                muscleGroup: item.muscleGroupSnapshot || undefined,
+                                equipment: item.equipmentSnapshot || undefined,
+                              }
+                            )
+                          }
+                          isSelectionMode={combiningSubBlockId === "root"}
+                          isSelected={selectedExerciseIds.includes(item.publicId)}
+                          onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
+                        />
+                      </div>
+                    </div>
                   );
                 });
               })()
@@ -1366,7 +1593,13 @@ export function WorkoutCategoryCard({
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => onOpenExercisePicker(category.publicId)}
+                  onClick={() => {
+                    if (typeof window !== "undefined" && window.innerWidth < 768) {
+                      setMobileAddSheetTarget({ isOpen: true });
+                    } else {
+                      onOpenExercisePicker(category.publicId);
+                    }
+                  }}
                   className="flex-1 py-3 px-4 rounded-xl sm:rounded-2xl border border-dashed border-emerald-500/40 hover:border-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all min-h-[48px] sm:min-h-[44px] cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
@@ -1394,8 +1627,12 @@ export function WorkoutCategoryCard({
           selectedCount={selectedExerciseIds.length}
           combinationType={newCombType}
           restSeconds={newCombRest}
+          isRestActive={isCombRestActive}
+          activeRestActivity={combRestActivity}
           onChangeType={setNewCombType}
           onChangeRest={setNewCombRest}
+          onToggleRestActive={setIsCombRestActive}
+          onChangeActiveRestActivity={setCombRestActivity}
           onConfirm={() =>
             handleConfirmCreateCombination(
               combiningSubBlockId === "root" ? undefined : combiningSubBlockId
@@ -1404,12 +1641,144 @@ export function WorkoutCategoryCard({
           onCancel={() => {
             setCombiningSubBlockId(null);
             setSelectedExerciseIds([]);
+            setIsCombRestActive(false);
+            setCombRestActivity("");
           }}
           targetName={
             combiningSubBlockId === "root"
               ? categoryTitle
               : subBlocks.find((sb) => sb.publicId === combiningSubBlockId)?.title || categoryTitle
           }
+        />
+      )}
+
+      {/* Mobile Quick Edit Exercise Sheet */}
+      {quickEditingItem && (
+        <QuickEditExerciseSheet
+          isOpen={true}
+          item={quickEditingItem}
+          onClose={() => setQuickEditingItem(null)}
+          onSave={async (config) => {
+            await onUpdateExerciseQuickConfig(quickEditingItem.publicId, config);
+            setQuickEditingItem(null);
+          }}
+        />
+      )}
+
+      {/* Mobile Edit Combination Sheet */}
+      {editingCombination && (
+        <EditCombinationSheet
+          isOpen={true}
+          combination={editingCombination}
+          onClose={() => setEditingCombination(null)}
+          onSave={async (input) => {
+            if (onUpdateCombination) {
+              await onUpdateCombination(editingCombination.publicId, input);
+            }
+            setEditingCombination(null);
+          }}
+          onUngroup={async () => {
+            if (onUngroupCombination) {
+              await onUngroupCombination(editingCombination.publicId);
+            }
+            setEditingCombination(null);
+          }}
+          onMoveItem={onMoveItemInCombination}
+          onRemoveItem={onRemoveItemFromCombination}
+        />
+      )}
+
+      {/* Mobile Add Exercise Sheet */}
+      {mobileAddSheetTarget.isOpen && (
+        <AddExerciseActionSheet
+          isOpen={true}
+          onClose={() => setMobileAddSheetTarget({ isOpen: false })}
+          onSelectLibrary={() => {
+            const subId = mobileAddSheetTarget.subBlockPublicId;
+            setMobileAddSheetTarget({ isOpen: false });
+            onOpenExercisePicker(category.publicId, subId);
+          }}
+          onSelectCustom={() => {
+            const subId = mobileAddSheetTarget.subBlockPublicId;
+            setMobileAddSheetTarget({ isOpen: false });
+            onOpenCreateCustomExercise?.(category.publicId, subId);
+          }}
+        />
+      )}
+
+      {/* Mobile Exercise Actions Menu Sheet */}
+      {actionsSheetItem && (
+        <ExerciseActionsSheet
+          isOpen={true}
+          item={actionsSheetItem.item}
+          itemIndex={actionsSheetItem.index}
+          totalItems={actionsSheetItem.total}
+          allCategories={allCategories}
+          categoryPublicId={category.publicId}
+          onClose={() => setActionsSheetItem(null)}
+          onOpenQuickEdit={() => {
+            const it = actionsSheetItem.item;
+            setActionsSheetItem(null);
+            setQuickEditingItem(it);
+          }}
+          onOpenExecutionModal={() => {
+            const it = actionsSheetItem.item;
+            setActionsSheetItem(null);
+            setExecutionModalItem(it);
+          }}
+          onDuplicate={async () => {
+            const id = actionsSheetItem.item.publicId;
+            setActionsSheetItem(null);
+            await onDuplicateExercise(id);
+          }}
+          onDelete={async () => {
+            const id = actionsSheetItem.item.publicId;
+            setActionsSheetItem(null);
+            await onDeleteExercise(id);
+          }}
+          onMoveUp={async () => {
+            const idx = actionsSheetItem.index;
+            setActionsSheetItem(null);
+            await onMoveExerciseUp(category.publicId, idx);
+          }}
+          onMoveDown={async () => {
+            const idx = actionsSheetItem.index;
+            setActionsSheetItem(null);
+            await onMoveExerciseDown(category.publicId, idx);
+          }}
+          onMoveToCategory={async (targetCatId) => {
+            const id = actionsSheetItem.item.publicId;
+            setActionsSheetItem(null);
+            await onMoveExerciseToCategory(id, targetCatId);
+          }}
+          onOpenConvertCustom={() => {
+            const it = actionsSheetItem.item;
+            const subId = actionsSheetItem.subBlockPublicId;
+            setActionsSheetItem(null);
+            onOpenCreateCustomExercise?.(
+              category.publicId,
+              subId,
+              it.publicId,
+              {
+                name: it.exerciseNameSnapshot,
+                muscleGroup: it.muscleGroupSnapshot || undefined,
+                equipment: it.equipmentSnapshot || undefined,
+              }
+            );
+          }}
+        />
+      )}
+
+      {/* Execution Modal */}
+      {executionModalItem && (
+        <ExerciseExecutionModal
+          isOpen={true}
+          onClose={() => setExecutionModalItem(null)}
+          exerciseName={executionModalItem.exerciseNameSnapshot}
+          exercisePublicId={executionModalItem.exercisePublicId}
+          pinnedMedia={executionModalItem.pinnedMedia}
+          customVideoUrl={executionModalItem.customVideoUrl}
+          instructions={executionModalItem.instructionsSnapshot}
         />
       )}
     </div>
@@ -2595,5 +2964,1103 @@ function ExerciseRow({
         instructions={item.instructionsSnapshot}
       />
     </div>
+  );
+}
+
+// ============================================================================
+// MOBILE-NATIVE COMPONENTS (TOUCH-FIRST / THUMB ZONE / ZERO DRAG)
+// ============================================================================
+
+function getItemPrescriptionSummary(item: WorkoutBlockItemDto) {
+  const sets = item.sets || [];
+  const seriesCount = sets.length > 0 ? sets.length : 3;
+  const firstSet = sets[0];
+  const duration = firstSet?.targetDurationSeconds ?? null;
+  const isDuration = duration != null && duration > 0 && (!firstSet?.targetReps || firstSet?.targetReps === 0);
+  const reps = firstSet?.targetReps ?? 10;
+  const repsMax = firstSet?.targetRepsMax ?? null;
+  const repsText = isDuration
+    ? formatDurationNatural(duration, item.durationUnit || firstSet?.durationUnit)
+    : formatRepetitionRange(reps, repsMax);
+  const loadKg = firstSet?.targetLoadKg ?? null;
+  const restSeconds = firstSet?.targetRestSeconds ?? 60;
+  const repsDraft = reps != null
+    ? repsMax != null
+      ? `${reps}-${repsMax}`
+      : `${reps}`
+    : "10";
+
+  return {
+    seriesCount,
+    isDuration,
+    reps,
+    repsMax,
+    repsText,
+    repsDraft,
+    loadKg,
+    restSeconds,
+  };
+}
+
+export function MobileCombinationBlock({
+  combination,
+  isDraft,
+  onOpenEditCombination,
+  onOpenQuickEdit,
+  onOpenActions,
+  onUngroupCombination,
+}: {
+  combination: WorkoutItemCombinationDto;
+  categoryPublicId: string;
+  subBlockPublicId?: string | null;
+  allCategories?: { publicId: string; title: string }[];
+  isDraft: boolean;
+  onOpenEditCombination: (combination: WorkoutItemCombinationDto) => void;
+  onOpenQuickEdit: (item: WorkoutBlockItemDto) => void;
+  onOpenActions: (item: WorkoutBlockItemDto, index: number, total: number) => void;
+  onOpenExecutionModal?: (item: WorkoutBlockItemDto) => void;
+  onMoveItemInCombination?: (combinationPublicId: string, itemPublicId: string, direction: "up" | "down") => Promise<void>;
+  onRemoveItemFromCombination?: (combinationPublicId: string, itemPublicId: string) => Promise<void>;
+  onUngroupCombination?: (combinationPublicId: string) => Promise<void>;
+  onDeleteCombination?: (combinationPublicId: string, deleteItems?: boolean) => Promise<void>;
+}) {
+  const items = combination.items || [];
+  const typeLabel = COMBINATION_TYPE_LABELS[combination.combinationType] || combination.combinationType;
+  const badgeStyle = COMBINATION_BADGE_STYLES[combination.combinationType] || "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
+  const activeRest = parseActiveRest(combination.title);
+  const restSec = combination.restAfterSeconds ?? 60;
+  const [, startTransition] = useTransition();
+
+  const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
+  return (
+    <div
+      data-testid="mobile-combination-block"
+      className="rounded-2xl border-2 border-emerald-500/30 dark:border-emerald-500/40 bg-[var(--surface)] shadow-xs overflow-hidden transition-all"
+    >
+      {/* Block Header */}
+      <div className="px-4 py-3 bg-[var(--surface-subtle)]/70 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className={`px-2.5 py-1 rounded-xl text-xs font-black tracking-wide border uppercase ${badgeStyle}`}>
+            {typeLabel}
+          </span>
+          <span className="text-xs font-bold text-[var(--text-secondary)]">
+            {items[0]?.sets?.length || 3} rodadas
+          </span>
+        </div>
+
+        {/* Rest Badge: Active Rest highlighted or Passive Rest */}
+        {activeRest.isActive ? (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+            <span>🏃</span>
+            <span>Descanso ativo • {restSec}s • {activeRest.activity}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] text-xs font-semibold">
+            <span>⏸️</span>
+            <span>{restSec}s descanso</span>
+          </div>
+        )}
+      </div>
+
+      {/* Items list inside combination */}
+      <div className="p-3 space-y-2">
+        {items.map((item, idx) => {
+          const letter = LETTERS[idx] || `${idx + 1}`;
+          const summary = getItemPrescriptionSummary(item);
+
+          return (
+            <div key={item.publicId} className="space-y-2">
+              <div className="p-3 rounded-xl bg-[var(--surface-subtle)]/40 border border-[var(--border-subtle)] flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                    {letter}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
+                      {item.exerciseNameSnapshot}
+                    </h4>
+                    <p className="text-[11px] font-semibold text-[var(--text-secondary)] truncate">
+                      {summary.seriesCount} séries • {summary.repsText}
+                      {summary.loadKg != null ? ` • ${summary.loadKg}kg` : ""}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Direct quick action buttons */}
+                {isDraft && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => onOpenQuickEdit(item)}
+                      aria-label={`Editar ${item.exerciseNameSnapshot}`}
+                      className="px-3 py-1.5 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] transition-colors min-h-[44px] flex items-center gap-1 cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Editar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenActions(item, idx, items.length)}
+                      aria-label="Ações do exercício"
+                      className="w-11 h-11 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Transition connector between exercises */}
+              {idx < items.length - 1 && (
+                <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 py-0.5">
+                  <span>↓ Transição direta (sem descanso)</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Block Footer Actions */}
+      {isDraft && (
+        <div className="px-3 py-2.5 bg-[var(--surface-subtle)]/40 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenEditCombination(combination)}
+            className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors min-h-[44px] cursor-pointer shadow-xs"
+          >
+            <span>Editar combinação</span>
+          </button>
+          {onUngroupCombination && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm(`Desfazer este ${typeLabel} e manter os exercícios separados?`)) {
+                  startTransition(() => onUngroupCombination(combination.publicId));
+                }
+              }}
+              className="py-2.5 px-3 rounded-xl border border-[var(--border-default)] hover:bg-rose-500/10 hover:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold text-xs transition-colors min-h-[44px] cursor-pointer"
+            >
+              Desfazer
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function MobileExerciseCard({
+  item,
+  itemIndex,
+  totalItems,
+  isDraft,
+  isSelectionMode,
+  isSelected,
+  onToggleSelect,
+  onOpenQuickEdit,
+  onOpenActions,
+  onOpenExecutionModal,
+  onMoveUp,
+  onMoveDown,
+}: {
+  item: WorkoutBlockItemDto;
+  itemIndex: number;
+  totalItems: number;
+  isDraft: boolean;
+  categoryPublicId: string;
+  allCategories?: { publicId: string; title: string }[];
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+  onOpenQuickEdit: () => void;
+  onOpenActions: () => void;
+  onOpenExecutionModal: () => void;
+  onMoveUp: () => Promise<void>;
+  onMoveDown: () => Promise<void>;
+}) {
+  const [, startTransition] = useTransition();
+  const summary = getItemPrescriptionSummary(item);
+  const hasMedia = !!(item.customVideoUrl || item.pinnedMedia);
+
+  // If in selection mode: entire card is touch-target for selecting
+  if (isSelectionMode) {
+    return (
+      <div
+        data-testid="mobile-exercise-card-selectable"
+        onClick={onToggleSelect}
+        className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
+          isSelected
+            ? "border-emerald-500 bg-emerald-500/10 shadow-xs"
+            : "border-[var(--border-default)] bg-[var(--surface)] hover:border-emerald-500/40"
+        }`}
+      >
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div
+            className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center shrink-0 transition-colors ${
+              isSelected
+                ? "border-emerald-600 bg-emerald-600 text-white"
+                : "border-[var(--border-strong)] bg-[var(--surface-subtle)]"
+            }`}
+          >
+            {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
+              {item.exerciseNameSnapshot}
+            </h4>
+            <p className="text-[11px] font-semibold text-[var(--text-secondary)] truncate">
+              {summary.seriesCount} séries • {summary.repsText}
+              {summary.loadKg != null ? ` • ${summary.loadKg}kg` : ""}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Normal Mobile Card
+  return (
+    <div
+      data-testid="mobile-exercise-card"
+      className="p-3.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--border-strong)] transition-all space-y-2.5"
+    >
+      {/* Header: Name, Muscle group & video button */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-extrabold text-[var(--text-primary)] leading-snug">
+            {item.exerciseNameSnapshot}
+          </h4>
+          {(item.muscleGroupSnapshot || item.equipmentSnapshot) && (
+            <p className="text-[11px] font-semibold text-[var(--text-tertiary)] pt-0.5 truncate">
+              {[item.muscleGroupSnapshot, item.equipmentSnapshot].filter(Boolean).join(" • ")}
+            </p>
+          )}
+        </div>
+
+        {hasMedia && (
+          <button
+            type="button"
+            onClick={onOpenExecutionModal}
+            aria-label="Ver vídeo do exercício"
+            className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+          >
+            <VideoIcon className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Prescription Highlights: Big & Easy to read */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-black text-[var(--text-primary)]">
+          {summary.seriesCount} {summary.seriesCount === 1 ? "série" : "séries"}
+        </span>
+        <span className="px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-primary)]">
+          {summary.repsText}
+        </span>
+        {summary.loadKg != null && (
+          <span className="px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-primary)]">
+            {summary.loadKg} kg
+          </span>
+        )}
+        <span className="px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-secondary)]">
+          {summary.restSeconds}s descanso
+        </span>
+      </div>
+
+      {/* Notes preview if any */}
+      {item.notes && (
+        <p className="text-xs text-[var(--text-secondary)] italic bg-[var(--surface-subtle)]/40 p-2 rounded-xl border border-[var(--border-subtle)] line-clamp-2">
+          {item.notes}
+        </p>
+      )}
+
+      {/* Mobile Actions Toolbar: Large 44x44 Touch Targets */}
+      {isDraft && (
+        <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-[var(--border-subtle)]">
+          {/* Large Edit Prescription CTA */}
+          <button
+            type="button"
+            onClick={onOpenQuickEdit}
+            className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors min-h-[44px] cursor-pointer shadow-xs"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+            <span>Editar</span>
+          </button>
+
+          {/* Quick Reorder Touch Steppers (No Drag Required) */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              disabled={itemIndex === 0}
+              onClick={() => startTransition(() => onMoveUp())}
+              aria-label="Mover para cima"
+              className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <ArrowUp className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              disabled={itemIndex === totalItems - 1}
+              onClick={() => startTransition(() => onMoveDown())}
+              aria-label="Mover para baixo"
+              className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <ArrowDown className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Contextual More Button */}
+          <button
+            type="button"
+            onClick={onOpenActions}
+            aria-label="Mais opções"
+            className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function QuickEditExerciseSheet({
+  isOpen,
+  item,
+  onClose,
+  onSave,
+}: {
+  isOpen: boolean;
+  item: WorkoutBlockItemDto;
+  onClose: () => void;
+  onSave: (config: QuickConfigInput) => Promise<void>;
+}) {
+  const summary = getItemPrescriptionSummary(item);
+  const [sets, setSets] = useState<number>(summary.seriesCount);
+  const [repsDraft, setRepsDraft] = useState<string>(summary.repsDraft);
+  const [load, setLoad] = useState<string>(
+    summary.loadKg != null ? String(summary.loadKg) : ""
+  );
+  const [rest, setRest] = useState<number>(summary.restSeconds);
+  const [notes, setNotes] = useState<string>(item.notes || "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const REPS_CHIPS = ["8-10", "10-12", "12-15", "Falha"];
+  const REST_CHIPS = [30, 45, 60, 90, 120];
+
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      const parsedReps = parseRepsInput(repsDraft);
+      const numLoad = load.trim() !== "" && !isNaN(Number(load)) ? Number(load) : null;
+      await onSave({
+        seriesCount: Math.max(1, Math.min(20, sets)),
+        reps: parsedReps?.repsMin ?? 10,
+        targetRepsMax: parsedReps?.repsMax ?? null,
+        restSeconds: Math.max(0, rest),
+        loadKg: numLoad,
+        notes: notes.trim() || null,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <div className="space-y-0.5">
+          <div className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
+            Editar Prescrição
+          </div>
+          <div className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] truncate max-w-xs">
+            {item.exerciseNameSnapshot}
+          </div>
+        </div>
+      }
+      footer={
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={handleSave}
+            className="flex-1 py-3 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all min-h-[48px] flex items-center justify-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+          >
+            {isSaving ? "Salvando..." : "Salvar Alterações"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="py-3 px-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] font-bold text-sm min-h-[48px] cursor-pointer"
+          >
+            Cancelar
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-5 pb-2">
+        {/* Séries Stepper */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+            Séries
+          </label>
+          <div className="flex items-center justify-between p-2 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
+            <button
+              type="button"
+              onClick={() => setSets((s) => Math.max(1, s - 1))}
+              aria-label="Diminuir séries"
+              className="w-12 h-12 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+            >
+              -
+            </button>
+            <div className="text-center">
+              <span className="text-2xl font-black text-[var(--text-primary)]">{sets}</span>
+              <span className="text-xs font-bold text-[var(--text-secondary)] ml-1">séries</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSets((s) => Math.min(20, s + 1))}
+              aria-label="Aumentar séries"
+              className="w-12 h-12 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        {/* Repetições */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+            Repetições
+          </label>
+          <input
+            type="text"
+            value={repsDraft}
+            onChange={(e) => setRepsDraft(e.target.value)}
+            placeholder="Ex: 10, 8-12, Falha"
+            className="w-full px-4 py-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] text-base font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[48px]"
+          />
+          <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+            {REPS_CHIPS.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => setRepsDraft(chip)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer min-h-[36px] ${
+                  repsDraft === chip
+                    ? "bg-emerald-600 text-white border-emerald-600"
+                    : "bg-[var(--surface)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]"
+                }`}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Carga (kg) */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+            Carga (kg)
+          </label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const cur = Number(load) || 0;
+                setLoad(String(Math.max(0, cur - 2.5)));
+              }}
+              className="px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] font-bold text-xs min-h-[44px] cursor-pointer"
+            >
+              -2.5 kg
+            </button>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={load}
+              onChange={(e) => setLoad(e.target.value)}
+              placeholder="0"
+              className="flex-1 px-4 py-3 text-center rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] text-base font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[48px]"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const cur = Number(load) || 0;
+                setLoad(String(cur + 2.5));
+              }}
+              className="px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] font-bold text-xs min-h-[44px] cursor-pointer"
+            >
+              +2.5 kg
+            </button>
+          </div>
+        </div>
+
+        {/* Descanso */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+            Descanso entre séries
+          </label>
+          <div className="flex items-center justify-between p-2 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
+            <button
+              type="button"
+              onClick={() => setRest((r) => Math.max(0, r - 15))}
+              aria-label="Diminuir descanso"
+              className="w-12 h-12 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+            >
+              -
+            </button>
+            <div className="text-center">
+              <span className="text-2xl font-black text-[var(--text-primary)]">{rest}</span>
+              <span className="text-xs font-bold text-[var(--text-secondary)] ml-1">segundos</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRest((r) => Math.min(600, r + 15))}
+              aria-label="Aumentar descanso"
+              className="w-12 h-12 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+            >
+              +
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+            {REST_CHIPS.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => setRest(chip)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer min-h-[36px] ${
+                  rest === chip
+                    ? "bg-emerald-600 text-white border-emerald-600"
+                    : "bg-[var(--surface)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]"
+                }`}
+              >
+                {chip}s
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Observações */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+            Observações / Método (opcional)
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder="Ex: Drop-set na última, cadência 3010..."
+            className="w-full px-3 py-2 text-xs sm:text-sm font-medium rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+          />
+        </div>
+      </div>
+    </BottomSheet>
+  );
+}
+
+export function EditCombinationSheet({
+  isOpen,
+  combination,
+  onClose,
+  onSave,
+  onUngroup,
+  onMoveItem,
+}: {
+  isOpen: boolean;
+  combination: WorkoutItemCombinationDto;
+  onClose: () => void;
+  onSave: (input: {
+    combinationType?: WorkoutCombinationType;
+    title?: string;
+    restAfterSeconds?: number;
+  }) => Promise<void>;
+  onUngroup: () => Promise<void>;
+  onMoveItem?: (combinationPublicId: string, itemPublicId: string, direction: "up" | "down") => Promise<void>;
+  onRemoveItem?: (combinationPublicId: string, itemPublicId: string) => Promise<void>;
+}) {
+  const parsedRest = parseActiveRest(combination.title);
+  const [combType, setCombType] = useState<WorkoutCombinationType>(combination.combinationType);
+  const [rest, setRest] = useState<number>(combination.restAfterSeconds ?? 60);
+  const [isRestActive, setIsRestActive] = useState<boolean>(parsedRest.isActive);
+  const [activeActivity, setActiveActivity] = useState<string>(parsedRest.activity);
+  const [customTitle] = useState<string>(
+    combination.title ? combination.title.replace(/•?\s*Descanso Ativo:.*$/i, "").trim() : ""
+  );
+  const [isSaving, setIsSaving] = useState(false);
+  const [, startTransition] = useTransition();
+
+  const ACTIVITY_PRESETS = ["Caminhada leve", "Polichinelo", "Prancha", "Mobilidade"];
+  const items = combination.items || [];
+
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      const formattedTitle = formatActiveRestTitle(isRestActive, activeActivity, customTitle);
+      await onSave({
+        combinationType: combType,
+        title: formattedTitle,
+        restAfterSeconds: rest,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <div className="space-y-0.5">
+          <div className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
+            Editar Combinação
+          </div>
+          <div className="text-sm sm:text-base font-extrabold text-[var(--text-primary)]">
+            {COMBINATION_TYPE_LABELS[combType]} ({items.length} exercícios)
+          </div>
+        </div>
+      }
+      footer={
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={handleSave}
+            className="flex-1 py-3 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all min-h-[48px] flex items-center justify-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+          >
+            {isSaving ? "Salvando..." : "Salvar Alterações"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="py-3 px-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] font-bold text-sm min-h-[48px] cursor-pointer"
+          >
+            Cancelar
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-5 pb-2">
+        {/* Tipo da Combinação */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+            Tipo
+          </label>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {(["BI_SET", "TRI_SET", "SUPERSET", "GIANT_SET", "CIRCUIT"] as WorkoutCombinationType[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setCombType(t)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all min-h-[44px] cursor-pointer ${
+                  combType === t
+                    ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                    : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-default)]"
+                }`}
+              >
+                {COMBINATION_TYPE_LABELS[t]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Descanso Passivo vs Ativo */}
+        <div className="space-y-2 p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
+          <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+            Descanso após a rodada
+          </label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsRestActive(false)}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold min-h-[44px] transition-all cursor-pointer ${
+                !isRestActive
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
+              }`}
+            >
+              ⏸️ Passivo
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsRestActive(true)}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold min-h-[44px] transition-all cursor-pointer ${
+                isRestActive
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
+              }`}
+            >
+              🏃 Ativo
+            </button>
+          </div>
+
+          {/* Stepper */}
+          <div className="flex items-center justify-between p-2 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={() => setRest((r) => Math.max(0, r - 15))}
+              className="w-11 h-11 rounded-lg bg-[var(--surface-subtle)] text-[var(--text-primary)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+            >
+              -
+            </button>
+            <div className="text-center">
+              <span className="text-xl font-black text-[var(--text-primary)]">{rest}</span>
+              <span className="text-xs font-bold text-[var(--text-secondary)] ml-1">segundos</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRest((r) => Math.min(600, r + 15))}
+              className="w-11 h-11 rounded-lg bg-[var(--surface-subtle)] text-[var(--text-primary)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Atividade se Ativo */}
+          {isRestActive && (
+            <div className="space-y-1.5 pt-1">
+              <input
+                type="text"
+                value={activeActivity}
+                onChange={(e) => setActiveActivity(e.target.value)}
+                placeholder="Atividade (ex: Caminhada leve, polichinelo...)"
+                className="w-full px-3 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-xs font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px]"
+              />
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {ACTIVITY_PRESETS.map((act) => (
+                  <button
+                    key={act}
+                    type="button"
+                    onClick={() => setActiveActivity(act)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer min-h-[32px] ${
+                      activeActivity === act
+                        ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40 font-bold"
+                        : "bg-[var(--surface)] text-[var(--text-secondary)] border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    {act}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Ordem dos Exercícios */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">
+            Exercícios na combinação
+          </label>
+          <div className="space-y-1.5">
+            {items.map((it, idx) => (
+              <div
+                key={it.publicId}
+                className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between gap-2"
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                    {String.fromCharCode(65 + idx)}
+                  </span>
+                  <span className="text-xs font-bold text-[var(--text-primary)] truncate">
+                    {it.exerciseNameSnapshot}
+                  </span>
+                </div>
+
+                {onMoveItem && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => startTransition(() => onMoveItem(combination.publicId, it.publicId, "up"))}
+                      className="w-9 h-9 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] flex items-center justify-center disabled:opacity-30 cursor-pointer min-h-[36px] min-w-[36px]"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === items.length - 1}
+                      onClick={() => startTransition(() => onMoveItem(combination.publicId, it.publicId, "down"))}
+                      className="w-9 h-9 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] flex items-center justify-center disabled:opacity-30 cursor-pointer min-h-[36px] min-w-[36px]"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Desfazer Combinação */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm("Desfazer combinação e manter exercícios como individuais?")) {
+                onUngroup();
+              }
+            }}
+            className="w-full py-3 px-4 rounded-xl border border-rose-500/30 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold text-xs transition-colors min-h-[44px] cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Desfazer Combinação</span>
+          </button>
+        </div>
+      </div>
+    </BottomSheet>
+  );
+}
+
+export function AddExerciseActionSheet({
+  isOpen,
+  onClose,
+  onSelectLibrary,
+  onSelectCustom,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectLibrary: () => void;
+  onSelectCustom: () => void;
+}) {
+  return (
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Adicionar Exercício"
+      footer={
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-3 px-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] font-bold text-sm min-h-[48px] cursor-pointer"
+        >
+          Cancelar
+        </button>
+      }
+    >
+      <div className="space-y-3 pb-2">
+        <button
+          type="button"
+          onClick={onSelectLibrary}
+          className="w-full p-4 rounded-2xl border-2 border-emerald-500/30 hover:border-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 transition-all text-left flex items-center gap-3.5 min-h-[64px] cursor-pointer"
+        >
+          <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <SearchIcon className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-bold text-[var(--text-primary)]">
+              Buscar na Biblioteca
+            </h4>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Mais de 1.000 exercícios catalogados com vídeos e orientações
+            </p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={onSelectCustom}
+          className="w-full p-4 rounded-2xl border border-[var(--border-default)] hover:border-violet-500/50 bg-[var(--surface-subtle)] hover:bg-violet-500/5 transition-all text-left flex items-center gap-3.5 min-h-[64px] cursor-pointer"
+        >
+          <div className="w-12 h-12 rounded-xl bg-violet-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <SparklesIcon className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-bold text-[var(--text-primary)]">
+              Exercício Personalizado
+            </h4>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Crie seu próprio exercício com vídeo ou orientações personalizadas
+            </p>
+          </div>
+        </button>
+      </div>
+    </BottomSheet>
+  );
+}
+
+export function ExerciseActionsSheet({
+  isOpen,
+  item,
+  itemIndex,
+  totalItems,
+  allCategories,
+  categoryPublicId,
+  onClose,
+  onOpenQuickEdit,
+  onOpenExecutionModal,
+  onDuplicate,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  onMoveToCategory,
+  onOpenConvertCustom,
+}: {
+  isOpen: boolean;
+  item: WorkoutBlockItemDto;
+  itemIndex: number;
+  totalItems: number;
+  allCategories?: { publicId: string; title: string }[];
+  categoryPublicId: string;
+  onClose: () => void;
+  onOpenQuickEdit: () => void;
+  onOpenExecutionModal: () => void;
+  onDuplicate: () => Promise<void>;
+  onDelete: () => Promise<void>;
+  onMoveUp: () => Promise<void>;
+  onMoveDown: () => Promise<void>;
+  onMoveToCategory: (targetCatId: string) => Promise<void>;
+  onOpenConvertCustom: () => void;
+}) {
+  const [isMovingCategory, setIsMovingCategory] = useState(false);
+  const otherCategories = (allCategories || []).filter((c) => c.publicId !== categoryPublicId);
+
+  return (
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <div className="space-y-0.5">
+          <div className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
+            Ações do Exercício
+          </div>
+          <div className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] truncate max-w-xs">
+            {item.exerciseNameSnapshot}
+          </div>
+        </div>
+      }
+      footer={
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-3 px-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] font-bold text-sm min-h-[48px] cursor-pointer"
+        >
+          Fechar
+        </button>
+      }
+    >
+      {isMovingCategory ? (
+        <div className="space-y-2 pb-2">
+          <div className="flex items-center justify-between pb-1">
+            <span className="text-xs font-bold text-[var(--text-secondary)]">
+              Selecione o treino de destino:
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsMovingCategory(false)}
+              className="text-xs font-bold text-emerald-600 cursor-pointer"
+            >
+              Voltar
+            </button>
+          </div>
+          {otherCategories.length === 0 ? (
+            <p className="text-xs text-[var(--text-tertiary)] py-4 text-center">
+              Não há outros treinos nesta ficha.
+            </p>
+          ) : (
+            otherCategories.map((cat) => (
+              <button
+                key={cat.publicId}
+                type="button"
+                onClick={() => onMoveToCategory(cat.publicId)}
+                className="w-full px-4 py-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] hover:bg-emerald-500/10 text-left text-xs font-bold text-[var(--text-primary)] flex items-center justify-between min-h-[48px] cursor-pointer"
+              >
+                <span>{cat.title}</span>
+                <span className="text-xs text-emerald-600">Mover →</span>
+              </button>
+            ))
+          )}
+        </div>
+      ) : (
+        <div className="space-y-1 pb-2">
+          <button
+            type="button"
+            onClick={onOpenQuickEdit}
+            className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] cursor-pointer"
+          >
+            <Edit2 className="w-4 h-4 text-emerald-600" />
+            <span>Editar Prescrição</span>
+          </button>
+
+          {(item.customVideoUrl || item.pinnedMedia) && (
+            <button
+              type="button"
+              onClick={onOpenExecutionModal}
+              className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] cursor-pointer"
+            >
+              <VideoIcon className="w-4 h-4 text-blue-600" />
+              <span>Ver Execução / Vídeo</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onDuplicate}
+            className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] cursor-pointer"
+          >
+            <Copy className="w-4 h-4 text-blue-500" />
+            <span>Duplicar Exercício</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={itemIndex === 0}
+            onClick={onMoveUp}
+            className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] disabled:opacity-40 cursor-pointer"
+          >
+            <ArrowUp className="w-4 h-4 text-amber-500" />
+            <span>Mover para Cima</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={itemIndex === totalItems - 1}
+            onClick={onMoveDown}
+            className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] disabled:opacity-40 cursor-pointer"
+          >
+            <ArrowDown className="w-4 h-4 text-amber-500" />
+            <span>Mover para Baixo</span>
+          </button>
+
+          {otherCategories.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsMovingCategory(true)}
+              className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] cursor-pointer"
+            >
+              <MoveIcon className="w-4 h-4 text-teal-600" />
+              <span>Mover para Outro Treino</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onOpenConvertCustom}
+            className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-violet-600 dark:text-violet-400 min-h-[48px] cursor-pointer"
+          >
+            <SparklesIcon className="w-4 h-4" />
+            <span>Converter em Personalizado</span>
+          </button>
+
+          <div className="pt-1 border-t border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm(`Excluir "${item.exerciseNameSnapshot}"?`)) {
+                  onDelete();
+                }
+              }}
+              className="w-full px-4 py-3 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-3 text-left font-bold text-xs sm:text-sm min-h-[48px] cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Excluir Exercício</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </BottomSheet>
   );
 }

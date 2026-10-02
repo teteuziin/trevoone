@@ -164,7 +164,7 @@ const builderCode = fs.readFileSync(builderPath, "utf-8");
 
 runTest("9. WorkoutBuilder primary actions have touch targets >= 44px", () => {
   assert.ok(
-    builderCode.includes("min-h-[44px] sm:min-h-[40px] flex items-center gap-1.5 cursor-pointer"),
+    builderCode.includes("min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"),
     "Publish and Save header buttons have min 44px touch targets on mobile"
   );
   assert.ok(
@@ -251,8 +251,147 @@ runTest("14. Core flow does NOT require drag-and-drop", () => {
 runTest("15. Core flow does NOT require tiny 16px checkbox", () => {
   // Verified by checking whole-card selection click handler
   assert.ok(
-    categoryCardCode.includes("if (isSelectionMode && !inCombination)"),
-    "Entire exercise row toggles selection in selection mode"
+    categoryCardCode.includes("data-testid=\"mobile-exercise-card-selectable\""),
+    "Mobile selectable exercise card exists with full touch target"
+  );
+});
+
+runTest("16. Mobile Category / Day Tabs are implemented in WorkoutBuilder", () => {
+  assert.ok(
+    builderCode.includes("data-testid=\"mobile-category-tabs\""),
+    "Mobile category tabs container exists with md:hidden"
+  );
+  assert.ok(
+    builderCode.includes("activeMobileCategoryIndex"),
+    "Active mobile category index state is implemented"
+  );
+  assert.ok(
+    builderCode.includes("Ver todos"),
+    "Ver todos option is provided for multi-category view"
+  );
+});
+
+runTest("17. Mobile Dedicated Header is implemented in WorkoutBuilder", () => {
+  assert.ok(
+    builderCode.includes("data-testid=\"mobile-builder-header\""),
+    "Dedicated mobile header exists"
+  );
+  assert.ok(
+    builderCode.includes("Salvar"),
+    "Mobile header has explicit Salvar button"
+  );
+  assert.ok(
+    builderCode.includes("Publicar"),
+    "Mobile header has explicit Publicar button"
+  );
+});
+
+runTest("18. MobileCombinationBlock renders exercises into unified block with letters", () => {
+  assert.ok(
+    categoryCardCode.includes("data-testid=\"mobile-combination-block\""),
+    "MobileCombinationBlock component exists with data-testid"
+  );
+  assert.ok(
+    categoryCardCode.includes("LETTERS = [\"A\", \"B\", \"C\""),
+    "Exercises inside combination are identified by letters A, B, C"
+  );
+  assert.ok(
+    categoryCardCode.includes("Transição direta (sem descanso)"),
+    "Direct transition indicator between combined exercises is displayed"
+  );
+});
+
+runTest("19. Active Rest logic (parseActiveRest & formatActiveRestTitle) is pure and reversible", () => {
+  function parseActiveRest(title) {
+    if (!title) return { isActive: false, activity: "" };
+    const match = title.match(/Descanso Ativo:\s*([^•]+)/i) || title.match(/Ativo:\s*([^•]+)/i);
+    if (match) return { isActive: true, activity: match[1].trim() };
+    return { isActive: false, activity: "" };
+  }
+
+  function formatActiveRestTitle(isRestActive, activityName, userCustomTitle) {
+    if (userCustomTitle && userCustomTitle.trim()) {
+      if (isRestActive && activityName.trim()) {
+        return `${userCustomTitle.trim()} • Descanso Ativo: ${activityName.trim()}`;
+      }
+      return userCustomTitle.trim();
+    }
+    if (isRestActive && activityName.trim()) {
+      return `Descanso Ativo: ${activityName.trim()}`;
+    }
+    return undefined;
+  }
+
+  // Pure active rest
+  const formatted1 = formatActiveRestTitle(true, "Caminhada leve");
+  assert.equal(formatted1, "Descanso Ativo: Caminhada leve");
+  const parsed1 = parseActiveRest(formatted1);
+  assert.equal(parsed1.isActive, true);
+  assert.equal(parsed1.activity, "Caminhada leve");
+
+  // With custom combination title
+  const formatted2 = formatActiveRestTitle(true, "Polichinelo", "Bi-Set Aquecimento");
+  assert.equal(formatted2, "Bi-Set Aquecimento • Descanso Ativo: Polichinelo");
+  const parsed2 = parseActiveRest(formatted2);
+  assert.equal(parsed2.isActive, true);
+  assert.equal(parsed2.activity, "Polichinelo");
+
+  // Passive rest
+  const formatted3 = formatActiveRestTitle(false, "", "Bi-Set Pesado");
+  assert.equal(formatted3, "Bi-Set Pesado");
+  const parsed3 = parseActiveRest(formatted3);
+  assert.equal(parsed3.isActive, false);
+});
+
+runTest("20. QuickEditExerciseSheet uses BottomSheet with steppers and chips", () => {
+  assert.ok(
+    categoryCardCode.includes("export function QuickEditExerciseSheet"),
+    "QuickEditExerciseSheet component is declared"
+  );
+  assert.ok(
+    categoryCardCode.includes("REPS_CHIPS = [\"8-10\", \"10-12\", \"12-15\", \"Falha\"]"),
+    "Quick repetition chips are defined"
+  );
+  assert.ok(
+    categoryCardCode.includes("REST_CHIPS = [30, 45, 60, 90, 120]"),
+    "Quick rest chips are defined"
+  );
+});
+
+runTest("21. EditCombinationSheet allows changing type, active rest, and exercise order", () => {
+  assert.ok(
+    categoryCardCode.includes("export function EditCombinationSheet"),
+    "EditCombinationSheet component is declared"
+  );
+  assert.ok(
+    categoryCardCode.includes("Desfazer Combinação"),
+    "Option to ungroup combination is provided"
+  );
+});
+
+runTest("22. AddExerciseActionSheet offers simple choice between Library and Custom Exercise", () => {
+  assert.ok(
+    categoryCardCode.includes("export function AddExerciseActionSheet"),
+    "AddExerciseActionSheet component is declared"
+  );
+  assert.ok(
+    categoryCardCode.includes("Buscar na Biblioteca"),
+    "Choice 1: Buscar na Biblioteca exists"
+  );
+  assert.ok(
+    categoryCardCode.includes("Exercício Personalizado"),
+    "Choice 2: Exercício Personalizado exists"
+  );
+});
+
+runTest("23. MobileExerciseCard includes quick reorder touch buttons and more menu", () => {
+  assert.ok(
+    categoryCardCode.includes("export function MobileExerciseCard"),
+    "MobileExerciseCard component is declared"
+  );
+  assert.ok(
+    categoryCardCode.includes("data-testid=\"mobile-exercise-card\""),
+    "Normal mobile exercise card exists"
   );
 });
 

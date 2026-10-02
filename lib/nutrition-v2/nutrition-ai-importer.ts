@@ -101,30 +101,281 @@ export interface ResolvedNutritionProposal {
   status: "READY" | "NEEDS_REVIEW";
 }
 
-const COOKING_PREPARATIONS = [
+export const COOKING_PREPARATIONS = [
   "cozido",
+  "cozidos",
   "cozida",
+  "cozidas",
+  "mexido",
+  "mexidos",
+  "mexida",
+  "mexidas",
   "grelhado",
+  "grelhados",
   "grelhada",
+  "grelhadas",
   "frito",
+  "fritos",
   "frita",
+  "fritas",
   "assado",
+  "assados",
   "assada",
+  "assadas",
   "cru",
+  "crus",
   "crua",
+  "cruas",
   "refogado",
+  "refogados",
   "refogada",
+  "refogadas",
   "vapor",
+  "ao vapor",
   "ensopado",
+  "ensopados",
   "ensopada",
+  "ensopadas",
+  "picado",
+  "picados",
+  "picada",
+  "picadas",
+  "ralado",
+  "ralados",
+  "ralada",
+  "raladas",
+  "desfiado",
+  "desfiados",
+  "desfiada",
+  "desfiadas",
+  "moido",
+  "moidos",
+  "moida",
+  "moidas",
 ];
+
+const COOKING_PREPARATIONS_SET = new Set(COOKING_PREPARATIONS);
 
 export const INHERENTLY_GENERIC_FOODS = new Set([
   "peixe",
   "folhas",
   "salada de verduras",
-  "carne moida",
+  "carne",
+  "queijo",
+  "suplemento",
 ]);
+
+export const KNOWN_FOOD_BRANDS = new Set([
+  "wickbold", "pullman", "nutrella", "seven boys", "plus vita", "visconti",
+  "growth", "growth supplements", "max titanium", "integralmedica", "probiotica", "dux", "dark lab",
+  "nestle", "itambe", "piracanjuba", "batavo", "danone", "vigor", "italac", "molico", "tirol",
+  "yoki", "camil", "tio joao", "kicaldo",
+  "sadia", "perdigao", "seara", "aurora",
+  "quaker", "nesfit", "bauducco", "maizena", "dr oetker"
+]);
+
+export function isPurePreparation(text: string): boolean {
+  if (!text) return false;
+  const clean = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/^ou\s+/i, "")
+    .replace(/[^a-z\s]/g, " ")
+    .trim();
+  if (COOKING_PREPARATIONS_SET.has(clean)) return true;
+  const words = clean.split(/\s+/).filter(Boolean);
+  return (
+    words.length > 0 &&
+    words.every(
+      (w) =>
+        COOKING_PREPARATIONS_SET.has(w) ||
+        w === "ao" ||
+        w === "em" ||
+        w === "ou" ||
+        w === "com" ||
+        w === "sem" ||
+        w === "de"
+    )
+  );
+}
+
+export function parseQuantityAndUnit(segment: string): {
+  quantity: number | null;
+  unit: string | null;
+  foodName: string;
+  rawText: string;
+} {
+  const trimmed = segment.trim();
+  const regex =
+    /^(\d+(?:[.,]\d+)?|\d+\/\d+)?\s*(colheres(?:\s+de\s+(?:sopa|sobremesa|cha|chá|cafe|café))?|colher(?:\s+de\s+(?:sopa|sobremesa|cha|chá|cafe|café))?|fatias?|xícaras?|xicaras?|copos?|potes?|pedacos?|pedaços?|unidades?|unid\.?|un\.?|doses?|scoops?|dosador(?:es)?|gramas?|g|kg|ml|litros?|l)?\s*(?:de\s+|da\s+|do\s+)?(.*)$/i;
+
+  const match = trimmed.match(regex);
+  if (!match) {
+    return { quantity: null, unit: null, foodName: trimmed, rawText: trimmed };
+  }
+
+  let qty: number | null = null;
+  if (match[1]) {
+    if (match[1].includes("/")) {
+      const [num, den] = match[1].split("/");
+      qty = Number(num) / Number(den);
+    } else {
+      qty = Number(match[1].replace(",", "."));
+    }
+  }
+
+  const unit = match[2] ? match[2].trim() : null;
+  let foodName = match[3] ? match[3].trim() : trimmed;
+  foodName = foodName.replace(/^(?:de|da|do|dos|das)\s+/i, "").trim();
+
+  return {
+    quantity: qty,
+    unit,
+    foodName: foodName || trimmed,
+    rawText: trimmed,
+  };
+}
+
+export function parseAlternativesFromText(rawText: string): Array<{
+  quantity: number | null;
+  unit: string | null;
+  foodName: string;
+  rawText: string;
+  isPreparationOnly: boolean;
+  preparationNotes: string | null;
+}> {
+  if (!rawText) return [];
+  const segments = rawText
+    .split(/\s+\b(?:ou|opção|opcao)\b:?\s+|\s*\/\s*(?!\d)/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (segments.length <= 1) {
+    const parsed = parseQuantityAndUnit(rawText);
+    return [
+      {
+        ...parsed,
+        isPreparationOnly: isPurePreparation(parsed.foodName),
+        preparationNotes: null,
+      },
+    ];
+  }
+
+  const result: Array<{
+    quantity: number | null;
+    unit: string | null;
+    foodName: string;
+    rawText: string;
+    isPreparationOnly: boolean;
+    preparationNotes: string | null;
+  }> = [];
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const parsed = parseQuantityAndUnit(seg);
+    const isPrep = isPurePreparation(seg) || isPurePreparation(parsed.foodName);
+
+    if (isPrep && result.length > 0 && parsed.quantity === null) {
+      const prev = result[result.length - 1];
+      prev.preparationNotes = prev.preparationNotes
+        ? `${prev.preparationNotes} ou ${seg}`
+        : `preparo: ${seg}`;
+      prev.rawText = `${prev.rawText} ou ${seg}`;
+    } else {
+      result.push({
+        ...parsed,
+        isPreparationOnly: false,
+        preparationNotes: null,
+      });
+    }
+  }
+
+  return result;
+}
+
+export interface GroupableFoodItem {
+  originalText?: string;
+  foodNameCandidate: string;
+  quantity: number | null;
+  unitCandidate: string | null;
+  notes: string | null;
+  sourceDocumentClaim?: unknown;
+  substitutions?: unknown[];
+}
+
+export function groupMealFoodsAndAlternatives<T extends GroupableFoodItem>(rawFoods: T[]): Array<{
+  primary: T;
+  substitutions: T[];
+}> {
+  const groupedFoods: Array<{ primary: T; substitutions: T[] }> = [];
+
+  for (const f of rawFoods) {
+    const isLeadingAlternative =
+      /^\s*(ou|opção|opcao)\b/i.test(f.originalText || "") ||
+      /^\s*(ou|opção|opcao)\b/i.test(f.foodNameCandidate) ||
+      (f.notes && /^\s*(ou|opção|opcao)\b/i.test(f.notes));
+
+    // Also check for compound alternatives inside the text
+    const textToInspect = f.originalText || f.foodNameCandidate || "";
+    const parsedAlts = parseAlternativesFromText(textToInspect);
+
+    if (parsedAlts.length > 1) {
+      // Line contains multiple alternatives (e.g. "A ou B ou C")
+      const primaryAlt = parsedAlts[0];
+      const primaryItem = {
+        ...f,
+        foodNameCandidate: primaryAlt.foodName,
+        quantity: primaryAlt.quantity ?? f.quantity,
+        unitCandidate: primaryAlt.unit ?? f.unitCandidate,
+        notes: primaryAlt.preparationNotes
+          ? (f.notes ? `${f.notes}; ${primaryAlt.preparationNotes}` : primaryAlt.preparationNotes)
+          : f.notes,
+        originalText: primaryAlt.rawText,
+      } as T;
+
+      const subs: T[] = [];
+      for (let i = 1; i < parsedAlts.length; i++) {
+        const alt = parsedAlts[i];
+        subs.push({
+          ...f,
+          originalText: alt.rawText,
+          foodNameCandidate: alt.foodName,
+          quantity: alt.quantity,
+          unitCandidate: alt.unit,
+          notes: alt.preparationNotes,
+          sourceDocumentClaim: null,
+          substitutions: [],
+        } as unknown as T);
+      }
+
+      if (Array.isArray(f.substitutions)) {
+        subs.push(...(f.substitutions as T[]));
+      }
+
+      groupedFoods.push({
+        primary: primaryItem,
+        substitutions: subs,
+      });
+    } else if (isLeadingAlternative && groupedFoods.length > 0) {
+      const cleanName = f.foodNameCandidate.replace(/^\s*(ou|opção|opcao)\s*:?\s*/i, "").trim();
+      const existingSubs = Array.isArray(f.substitutions) ? ([...f.substitutions] as T[]) : [];
+      groupedFoods[groupedFoods.length - 1].substitutions.push({
+        ...f,
+        foodNameCandidate: cleanName || f.foodNameCandidate,
+        substitutions: existingSubs,
+      });
+    } else {
+      const existingSubs = Array.isArray(f.substitutions) ? ([...f.substitutions] as T[]) : [];
+      groupedFoods.push({
+        primary: f,
+        substitutions: existingSubs,
+      });
+    }
+  }
+
+  return groupedFoods;
+}
 
 // Secondary recipe words that indicate a composite preparation rather than the base food
 const COMPOSITE_RECIPE_PREFIXES = [
@@ -257,6 +508,34 @@ export async function matchFoodCandidate(
       };
     }
 
+    // Branded Food Safety: Check if candidate explicitly specifies a commercial brand
+    const candidateWords = cleanCandidate.split(/\s+/);
+    const specifiedBrand = candidateWords.find((w) => KNOWN_FOOD_BRANDS.has(w));
+    if (specifiedBrand) {
+      // Find branded record that contains this brand
+      const brandedMatch = rows.find((r) => {
+        const d = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        const o = cleanPunctuation(normalizeSearchText(String(r.original_name || "")));
+        return (
+          (d.includes(specifiedBrand) || o.includes(specifiedBrand)) &&
+          candidateWords.some((cw) => cw !== specifiedBrand && (d.includes(cw) || o.includes(cw)))
+        );
+      });
+
+      if (brandedMatch) {
+        const matched = mapCandidateObj(brandedMatch);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+
+      // If no exact branded record exists, NEVER silently fallback to generic!
+      // Return AMBIGUOUS with status NEEDS_REVIEW, preserving the candidate name.
+      return {
+        status: "AMBIGUOUS",
+        candidates: [],
+        provenance: "NEEDS_REVIEW",
+      };
+    }
+
     // 2. TIER 0: REGISTERED CANONICAL ALIASES (nutrition_v2_food_aliases)
     const [aliasDbRows] = await db.query<RowDataPacket[]>(
       `SELECT fa.food_id FROM nutrition_v2_food_aliases fa
@@ -360,8 +639,11 @@ export async function matchFoodCandidate(
       if (cleanDb.length <= 2) continue;
 
       const matchesTerm = searchTerms.some((st) => {
-        if (st.length >= 3 && cleanDb.includes(st)) return true;
-        if (cleanDb.length >= 4 && new RegExp(`\\b${cleanDb}\\b`).test(st)) return true;
+        if (st.length >= 3) {
+          if (new RegExp(`\\b${st}\\b`, "i").test(cleanDb)) return true;
+          if (cleanDb === st) return true;
+        }
+        if (cleanDb.length >= 4 && new RegExp(`\\b${cleanDb}\\b`, "i").test(st)) return true;
         return false;
       });
 
@@ -408,6 +690,18 @@ export async function matchFoodCandidate(
       }
     }
 
+    // Pão integral
+    if (cleanCandidate === "pao integral" || cleanCandidate === "pao de forma integral") {
+      const paoInt = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("pao de forma integral") || c.startsWith("pao integral");
+      });
+      if (paoInt) {
+        const matched = mapCandidateObj(paoInt);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
     // Aveia
     if (cleanCandidate === "aveia" || cleanCandidate === "aveia em flocos" || cleanCandidate === "flocos de aveia") {
       const oat = poolRows.find((r) => {
@@ -420,11 +714,189 @@ export async function matchFoodCandidate(
       }
     }
 
-    // Ovos
-    if (cleanCandidate === "ovos" || cleanCandidate === "ovo") {
-      const egg = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("ovo de galinha inteiro cozido"));
+    // Ovos (cozidos, mexidos, inteiros)
+    if (
+      cleanCandidate === "ovos" ||
+      cleanCandidate === "ovo" ||
+      cleanCandidate === "ovos cozidos" ||
+      cleanCandidate === "ovo cozido" ||
+      cleanCandidate === "ovos mexidos" ||
+      cleanCandidate === "ovo mexido" ||
+      cleanCandidate === "ovos de galinha" ||
+      cleanCandidate === "ovo de galinha"
+    ) {
+      const egg = poolRows.find((r) =>
+        cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("ovo de galinha inteiro cozido")
+      ) || poolRows.find((r) =>
+        cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("ovo de galinha")
+      );
       if (egg) {
         const matched = mapCandidateObj(egg);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Frango / Peito de frango / Frango grelhado
+    if (
+      cleanCandidate === "frango" ||
+      cleanCandidate === "peito de frango" ||
+      cleanCandidate === "frango grelhado" ||
+      cleanCandidate === "peito de frango grelhado" ||
+      cleanCandidate === "file de frango" ||
+      cleanCandidate === "file de frango grelhado" ||
+      cleanCandidate === "file de peito de frango"
+    ) {
+      const chicken = poolRows.find((r) =>
+        cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("peito de frango sem pele grelhado") ||
+        cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("frango peito sem pele grelhado") ||
+        cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("peito de frango grelhado") ||
+        cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("file de frango grelhado")
+      ) || poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.includes("frango") && c.includes("peito") && c.includes("grelhado");
+      });
+      if (chicken) {
+        const matched = mapCandidateObj(chicken);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Carne moída / Patinho / Patinho moído
+    if (
+      cleanCandidate === "patinho" ||
+      cleanCandidate === "patinho moido" ||
+      cleanCandidate === "carne moida" ||
+      cleanCandidate === "patinho grelhado"
+    ) {
+      const patinho =
+        poolRows.find((r) => {
+          const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+          return (
+            c.startsWith("patinho sem gordura grelhado") ||
+            c.startsWith("patinho grelhado") ||
+            c.includes("carne moida") ||
+            c.includes("patinho moido")
+          );
+        }) ||
+        rows.find((r) => {
+          const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+          return c.startsWith("patinho sem gordura grelhado") || c.startsWith("patinho grelhado");
+        });
+      if (patinho) {
+        const matched = mapCandidateObj(patinho);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Leite integral / Leite
+    if (
+      cleanCandidate === "leite" ||
+      cleanCandidate === "leite integral" ||
+      cleanCandidate === "leite de vaca integral" ||
+      cleanCandidate === "leite de vaca"
+    ) {
+      const milk = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("leite integral") || c.startsWith("leite de vaca integral");
+      });
+      if (milk) {
+        const matched = mapCandidateObj(milk);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Leite desnatado
+    if (
+      cleanCandidate === "leite desnatado" ||
+      cleanCandidate === "leite de vaca desnatado"
+    ) {
+      const skim = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return (
+          c.startsWith("leite desnatado") ||
+          c.startsWith("leite zero gordura desnatado") ||
+          c.startsWith("leite de vaca desnatado")
+        );
+      });
+      if (skim) {
+        const matched = mapCandidateObj(skim);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Maçã (strictly distinct from macarrão)
+    if (
+      cleanCandidate === "maca" ||
+      cleanCandidate === "maca argentina" ||
+      cleanCandidate === "maca gala" ||
+      cleanCandidate === "maca fuji" ||
+      cleanCandidate === "maca com casca"
+    ) {
+      const apple = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return (
+          c.startsWith("maca argentina com casca crua") ||
+          c.startsWith("maca fuji com casca crua") ||
+          c.startsWith("maca gala com casca crua") ||
+          c.startsWith("maca com casca")
+        );
+      }) || poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return (
+          c.startsWith("maca") &&
+          !c.includes("macarrao") &&
+          !c.includes("macauba")
+        );
+      });
+      if (apple) {
+        const matched = mapCandidateObj(apple);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Chia / Semente de chia
+    if (cleanCandidate === "chia" || cleanCandidate === "semente de chia" || cleanCandidate === "sementes de chia") {
+      const chia = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("chia sementes") || c.startsWith("semente de chia");
+      });
+      if (chia) {
+        const matched = mapCandidateObj(chia);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Linhaça / Semente de linhaça
+    if (cleanCandidate === "linhaca" || cleanCandidate === "semente de linhaca" || cleanCandidate === "sementes de linhaca") {
+      const flax = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("linhaca semente") || c.startsWith("semente de linhaca");
+      });
+      if (flax) {
+        const matched = mapCandidateObj(flax);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Iogurte natural desnatado
+    if (cleanCandidate === "iogurte natural desnatado" || cleanCandidate === "iogurte desnatado") {
+      const yogurtDesn = poolRows.find((r) =>
+        cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("iogurte natural desnatado")
+      );
+      if (yogurtDesn) {
+        const matched = mapCandidateObj(yogurtDesn);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Iogurte natural
+    if (cleanCandidate === "iogurte natural" || cleanCandidate === "iogurte integral") {
+      const yogurtNat = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("iogurte natural") && !c.includes("desnatado");
+      });
+      if (yogurtNat) {
+        const matched = mapCandidateObj(yogurtNat);
         return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
       }
     }
@@ -438,9 +910,87 @@ export async function matchFoodCandidate(
       }
     }
 
-    // Banana Prata
-    if (cleanCandidate === "banana prata") {
-      const prata = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("banana prata"));
+    // Muçarela / Mussarela
+    if (
+      cleanCandidate === "mussarela" ||
+      cleanCandidate === "mucarela" ||
+      cleanCandidate === "queijo mussarela" ||
+      cleanCandidate === "queijo mucarela"
+    ) {
+      const mussarela = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("mucarela") || c.startsWith("queijo mucarela");
+      });
+      if (mussarela) {
+        const matched = mapCandidateObj(mussarela);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Cuscuz de milho
+    if (cleanCandidate === "cuscuz" || cleanCandidate === "cuscuz de milho" || cleanCandidate === "cuscuz cozido") {
+      const cuscuz = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return (
+          c.startsWith("cuscuz de milho cozido") ||
+          c.startsWith("cuscuz cozido") ||
+          c === "cuscuz"
+        );
+      });
+      if (cuscuz) {
+        const matched = mapCandidateObj(cuscuz);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Batata-doce
+    if (cleanCandidate === "batata doce" || cleanCandidate === "batata doce cozida") {
+      const batata = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("batata doce cozida") || c.startsWith("batata doce");
+      });
+      if (batata) {
+        const matched = mapCandidateObj(batata);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Granola
+    if (cleanCandidate === "granola" || cleanCandidate === "granola tradicional") {
+      const granola = poolRows.find((r) =>
+        cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("granola")
+      );
+      if (granola) {
+        const matched = mapCandidateObj(granola);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Whey Protein
+    if (cleanCandidate === "whey protein" || cleanCandidate === "whey" || cleanCandidate === "whey protein concentrado") {
+      const whey = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return (
+          c.includes("whey protein concentrado natural") ||
+          c.includes("whey protein concentrado") ||
+          c.includes("whey protein")
+        );
+      });
+      if (whey) {
+        const matched = mapCandidateObj(whey);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Banana Prata / Banana
+    if (cleanCandidate === "banana prata" || cleanCandidate === "banana") {
+      const prata = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("banana prata crua") || c.startsWith("banana prata");
+      }) || poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("banana") && !c.includes("doce");
+      });
       if (prata) {
         const matched = mapCandidateObj(prata);
         return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
@@ -452,6 +1002,30 @@ export async function matchFoodCandidate(
       const terra = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("banana da terra crua") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("banana terra cru"));
       if (terra) {
         const matched = mapCandidateObj(terra);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Mamão
+    if (cleanCandidate === "mamao" || cleanCandidate === "mamao papaya") {
+      const mamao = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("mamao papaya cru") || c.startsWith("mamao");
+      });
+      if (mamao) {
+        const matched = mapCandidateObj(mamao);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Laranja
+    if (cleanCandidate === "laranja" || cleanCandidate === "laranja pera") {
+      const laranja = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("laranja pera crua") || c.startsWith("laranja");
+      });
+      if (laranja) {
+        const matched = mapCandidateObj(laranja);
         return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
       }
     }
@@ -479,15 +1053,6 @@ export async function matchFoodCandidate(
       const paoSirio = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).includes("pao sirio") && !cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("torradinhas"));
       if (paoSirio) {
         const matched = mapCandidateObj(paoSirio);
-        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
-      }
-    }
-
-    // Meats: Patinho
-    if (cleanCandidate === "patinho") {
-      const patinho = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("patinho sem gordura grelhado") || cleanPunctuation(normalizeSearchText(String(r.display_name))).startsWith("patinho grelhado"));
-      if (patinho) {
-        const matched = mapCandidateObj(patinho);
         return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
       }
     }
@@ -528,11 +1093,26 @@ export async function matchFoodCandidate(
       }
     }
 
-    // Arroz
-    if (cleanCandidate === "arroz") {
-      const arroz = poolRows.find((r) => cleanPunctuation(normalizeSearchText(String(r.display_name))) === "arroz tipo 1 cozido" || cleanPunctuation(normalizeSearchText(String(r.display_name))) === "arroz cozido");
+    // Arroz branco
+    if (cleanCandidate === "arroz" || cleanCandidate === "arroz branco" || cleanCandidate === "arroz branco cozido") {
+      const arroz = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("arroz tipo 1 cozido") || c.startsWith("arroz cozido") || c === "arroz cozido";
+      });
       if (arroz) {
         const matched = mapCandidateObj(arroz);
+        return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
+      }
+    }
+
+    // Arroz integral
+    if (cleanCandidate === "arroz integral" || cleanCandidate === "arroz integral cozido") {
+      const arrozI = poolRows.find((r) => {
+        const c = cleanPunctuation(normalizeSearchText(String(r.display_name)));
+        return c.startsWith("arroz integral cozido") || c.startsWith("arroz tipo 1 polido cozido");
+      });
+      if (arrozI) {
+        const matched = mapCandidateObj(arrozI);
         return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
       }
     }
@@ -643,14 +1223,14 @@ export async function matchFoodCandidate(
 
       const candWords = cleanCandidate.split(/\s+/).filter((w) => w.length >= 3);
       if (candWords.length <= 1) {
-        if (normSingle.includes(cleanCandidate) || cleanCandidate.includes(normSingle)) {
+        if (new RegExp(`\\b${cleanCandidate}\\b`, "i").test(normSingle) || cleanCandidate === normSingle) {
           const matched = mapCandidateObj(singleCandidate);
           return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
         }
       } else {
-        const matchingCandWords = candWords.filter((w) => singleWords.has(w) || normSingle.includes(w));
+        const matchingCandWords = candWords.filter((w) => singleWords.has(w) || new RegExp(`\\b${w}\\b`, "i").test(normSingle));
         const overlapRatio = matchingCandWords.length / candWords.length;
-        if (overlapRatio >= 0.5 || normSingle.includes(cleanCandidate) || cleanCandidate.includes(normSingle)) {
+        if (overlapRatio >= 0.5 || new RegExp(`\\b${cleanCandidate}\\b`, "i").test(normSingle) || cleanCandidate === normSingle) {
           const matched = mapCandidateObj(singleCandidate);
           return { status: "MATCHED", matched, candidates: [matched], provenance: "LOCAL_MATCHED" };
         }
@@ -1141,32 +1721,8 @@ export async function processNutritionAiImport(params: {
   for (const m of rawProposal.meals || []) {
     const resolvedFoods: ResolvedNutritionFoodItem[] = [];
 
-    // Group alternatives ("OU") into substitutions
-    const groupedFoods: Array<{
-      primary: NonNullable<typeof m.foods>[0];
-      substitutions: NonNullable<typeof m.foods>[0][];
-    }> = [];
-
-    for (const f of m.foods || []) {
-      const isAlternative =
-        /^\s*(ou|opção|opcao)\b/i.test(f.originalText) ||
-        /^\s*(ou|opção|opcao)\b/i.test(f.foodNameCandidate) ||
-        (f.notes && /^\s*(ou|opção|opcao)\b/i.test(f.notes));
-
-      if (isAlternative && groupedFoods.length > 0) {
-        const cleanName = f.foodNameCandidate.replace(/^\s*(ou|opção|opcao)\s*:?\s*/i, "").trim();
-        groupedFoods[groupedFoods.length - 1].substitutions.push({
-          ...f,
-          foodNameCandidate: cleanName || f.foodNameCandidate,
-        });
-      } else {
-        const existingSubs = Array.isArray(f.substitutions) ? [...f.substitutions] : [];
-        groupedFoods.push({
-          primary: f,
-          substitutions: existingSubs,
-        });
-      }
-    }
+    // Group alternatives ("OU") into substitutions using defensive Brazilian parser
+    const groupedFoods = groupMealFoodsAndAlternatives(m.foods || []);
 
     for (const grouped of groupedFoods) {
       const f = grouped.primary;

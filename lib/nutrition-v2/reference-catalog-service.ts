@@ -55,7 +55,6 @@ export const INHERENTLY_AMBIGUOUS_CONCEPTS = new Set([
   "folhas",
   "salada de folhas",
   "salada de verduras",
-  "carne moida",
   "carne de boi",
   "carne",
   "legumes",
@@ -97,7 +96,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "pao de forma fatiado",
     sourceFilter: {
       sourceKey: "IBGE_POF_2008_2009",
-      id: 7867,
+      nameLike: "%Pao de Forma Industrializado%",
     },
     canonicalDisplayName: "Pão de forma",
     aliases: [
@@ -127,7 +126,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "queijo tipo cottage",
     sourceFilter: {
       sourceKey: "USDA_FOUNDATION",
-      id: 591,
+      nameLike: "%Cottage%",
     },
     canonicalDisplayName: "Queijo cottage",
     aliases: ["queijo cottage", "cottage", "cottage cheese", "queijo tipo cottage"],
@@ -145,8 +144,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "pao de forma integral" ||
       clean === "pao forma integral",
     sourceFilter: {
-      sourceKey: "IBGE_POF_2008_2009",
-      id: 7869,
+      nameLike: "%Pao Integral%",
     },
     canonicalDisplayName: "Pão integral",
     aliases: ["pão integral", "pao integral", "pão de forma integral", "pao de forma integral"],
@@ -165,7 +163,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "granola de cereais",
     sourceFilter: {
       sourceKey: "IBGE_POF_2008_2009",
-      id: 6612,
+      nameLike: "%Granola%",
     },
     canonicalDisplayName: "Granola",
     aliases: ["granola", "granola tradicional", "granola de cereais"],
@@ -185,7 +183,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "grego natural",
     sourceFilter: {
       sourceKey: "USDA_FOUNDATION",
-      id: 738,
+      nameLike: "%Yogurt, Greek, plain, whole milk%",
     },
     canonicalDisplayName: "Iogurte grego natural",
     aliases: ["iogurte grego", "iogurte grego natural", "iogurte tipo grego", "grego natural"],
@@ -203,7 +201,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "arroz parboilizado cozido",
     sourceFilter: {
       sourceKey: "IBGE_POF_2008_2009",
-      id: 6432,
+      nameLike: "%Parboilizado%",
     },
     canonicalDisplayName: "Arroz parboilizado cozido",
     aliases: ["arroz parboilizado", "arroz parboilizado cozido"],
@@ -223,7 +221,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "pita",
     sourceFilter: {
       sourceKey: "USDA_FNDDS",
-      id: 3118,
+      nameLike: "%Bread, pita%",
     },
     canonicalDisplayName: "Pão sírio (Pão libanês)",
     aliases: ["pão libanês", "pao libanes", "pão sírio", "pao sirio", "pão pita", "pao pita"],
@@ -243,7 +241,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "bifum cozido",
     sourceFilter: {
       sourceKey: "USDA_FNDDS",
-      id: 3858,
+      nameLike: "%Rice noodles, cooked%",
     },
     canonicalDisplayName: "Macarrão de arroz cozido",
     aliases: ["macarrão de arroz", "macarrao de arroz", "bifum", "bifum cozido"],
@@ -258,7 +256,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "moela",
     sourceFilter: {
       sourceKey: "IBGE_POF_2008_2009",
-      id: 7686,
+      nameLike: "%Moela de Galinha ou Frango%",
     },
     canonicalDisplayName: "Moela de frango cozida",
     aliases: ["moela de frango", "moela de frango cozida", "moela cozida", "moela"],
@@ -271,7 +269,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "ricota cremosa" ||
       clean === "queijo creme de ricota",
     sourceFilter: {
-      id: 429, // TACO Queijo, ricota
+      nameLike: "%Queijo, ricota%",
     },
     canonicalDisplayName: "Creme de ricota",
     aliases: ["creme de ricota", "ricota cremosa", "queijo creme de ricota"],
@@ -290,7 +288,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "gelatina de fruta" ||
       clean === "gelatina sobremesa",
     sourceFilter: {
-      id: 5813, // Gelatin dessert with fruit
+      nameLike: "%Gelatin dessert with fruit%",
     },
     canonicalDisplayName: "Gelatina de frutas",
     aliases: ["gelatina de frutas", "gelatina com frutas", "gelatina sobremesa com fruta"],
@@ -308,7 +306,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "file frango" ||
       clean === "file de frango grelhado",
     sourceFilter: {
-      id: 7682,
+      nameLike: "%Frango, Peito, Filé, Sem Pele, Grelhado%",
     },
     canonicalDisplayName: "Filé de frango grelhado",
     aliases: ["file de frango", "file de peito de frango", "file de frango grelhado"],
@@ -323,7 +321,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
   {
     queryMatch: (norm, clean) => clean === "pure de batata" || clean === "pure de batatas",
     sourceFilter: {
-      id: 7886,
+      nameLike: "%Purê de batata%",
     },
     canonicalDisplayName: "Purê de batata",
     aliases: ["pure de batata", "pure de batatas"],
@@ -341,7 +339,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "figado bovino grelhado" ||
       clean === "figado",
     sourceFilter: {
-      id: 7635,
+      nameLike: "%Fígado bovino%",
     },
     canonicalDisplayName: "Fígado bovino grelhado",
     aliases: ["figado bovino", "bife de figado", "figado bovino grelhado"],
@@ -359,7 +357,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       clean === "lombo suino" ||
       clean === "file mignon suino",
     sourceFilter: {
-      id: 7660,
+      nameLike: "%Lombo/filé suíno%",
     },
     canonicalDisplayName: "Filé suíno grelhado",
     aliases: ["file suino", "lombo suino", "file mignon suino"],
@@ -374,7 +372,7 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
   {
     queryMatch: (norm, clean) => clean === "doce de leite" || clean === "doce de leite pastoso",
     sourceFilter: {
-      id: 7306,
+      nameLike: "%Doce de leite%",
     },
     canonicalDisplayName: "Doce de leite",
     aliases: ["doce de leite", "doce de leite pastoso"],
@@ -382,6 +380,98 @@ export const CANONICAL_REFERENCE_SPECS: CanonicalReferenceSpec[] = [
       unitMatch: /colher|colheres/i,
       label: "1 Colher de sopa",
       equivalentReferenceAmount: 20.0,
+    },
+  },
+
+  // 17. Chia / Semente de Chia (USDA Foundation: Chia seeds, dry, raw)
+  {
+    queryMatch: (norm, clean) =>
+      clean === "chia" ||
+      clean === "semente de chia" ||
+      clean === "sementes de chia",
+    sourceFilter: {
+      sourceKey: "USDA_FOUNDATION",
+      nameLike: "%Chia seeds, dry, raw%",
+    },
+    canonicalDisplayName: "Semente de chia",
+    aliases: ["chia", "semente de chia", "sementes de chia"],
+    defaultPortion: {
+      unitMatch: /colher|colheres/i,
+      label: "1 Colher de sopa",
+      equivalentReferenceAmount: 15.0,
+    },
+  },
+
+  // 18. Linhaça / Semente de Linhaça (TACO: Linhaça, semente)
+  {
+    queryMatch: (norm, clean) =>
+      clean === "linhaca" ||
+      clean === "semente de linhaca" ||
+      clean === "sementes de linhaca",
+    sourceFilter: {
+      nameLike: "%Linhaça, semente%",
+    },
+    canonicalDisplayName: "Semente de linhaça",
+    aliases: ["linhaça", "linhaca", "semente de linhaça", "semente de linhaca"],
+    defaultPortion: {
+      unitMatch: /colher|colheres/i,
+      label: "1 Colher de sopa",
+      equivalentReferenceAmount: 15.0,
+    },
+  },
+
+  // 19. Cuscuz de milho (TACO: Cuscuz, de milho, cozido com sal)
+  {
+    queryMatch: (norm, clean) =>
+      clean === "cuscuz" ||
+      clean === "cuscuz de milho" ||
+      clean === "cuscuz cozido",
+    sourceFilter: {
+      nameLike: "%Cuscuz, de milho%",
+    },
+    canonicalDisplayName: "Cuscuz de milho cozido",
+    aliases: ["cuscuz", "cuscuz de milho", "cuscuz cozido"],
+    defaultPortion: {
+      unitMatch: /colher|colheres|pedaco|fatia/i,
+      label: "1 Pedaço médio",
+      equivalentReferenceAmount: 80.0,
+    },
+  },
+
+  // 20. Maçã com casca (TACO: Maçã, Argentina, com casca, crua)
+  {
+    queryMatch: (norm, clean) =>
+      clean === "maca" ||
+      clean === "maca gala" ||
+      clean === "maca fuji" ||
+      clean === "maca argentina" ||
+      clean === "maca com casca",
+    sourceFilter: {
+      nameLike: "%Maçã, Argentina%",
+    },
+    canonicalDisplayName: "Maçã com casca",
+    aliases: ["maçã", "maca", "maçã gala", "maçã fuji", "maçã argentina"],
+    defaultPortion: {
+      unitMatch: /unidade|unid/i,
+      label: "1 Unidade média",
+      equivalentReferenceAmount: 130.0,
+    },
+  },
+
+  // 21. Batata-doce cozida (TACO: Batata, doce, cozida)
+  {
+    queryMatch: (norm, clean) =>
+      clean === "batata doce" ||
+      clean === "batata doce cozida",
+    sourceFilter: {
+      nameLike: "%Batata, doce, cozida%",
+    },
+    canonicalDisplayName: "Batata-doce cozida",
+    aliases: ["batata doce", "batata-doce", "batata doce cozida", "batata-doce cozida"],
+    defaultPortion: {
+      unitMatch: /unidade|pedaco|fatia/i,
+      label: "1 Pedaço médio",
+      equivalentReferenceAmount: 100.0,
     },
   },
 ];
@@ -467,18 +557,16 @@ export async function searchReferenceCatalogCandidate(
       `;
       const params: (string | number)[] = [];
 
-      if (matchedSpec.sourceFilter.id) {
+      if (matchedSpec.sourceFilter.sourceKey) {
+        querySql += " AND f.source_key = ?";
+        params.push(matchedSpec.sourceFilter.sourceKey);
+      }
+      if (matchedSpec.sourceFilter.nameLike) {
+        querySql += " AND (f.name LIKE ? OR f.display_name_pt_br LIKE ?)";
+        params.push(matchedSpec.sourceFilter.nameLike, matchedSpec.sourceFilter.nameLike);
+      } else if (matchedSpec.sourceFilter.id) {
         querySql += " AND f.id = ?";
         params.push(matchedSpec.sourceFilter.id);
-      } else {
-        if (matchedSpec.sourceFilter.sourceKey) {
-          querySql += " AND f.source_key = ?";
-          params.push(matchedSpec.sourceFilter.sourceKey);
-        }
-        if (matchedSpec.sourceFilter.nameLike) {
-          querySql += " AND f.name LIKE ?";
-          params.push(matchedSpec.sourceFilter.nameLike);
-        }
       }
       querySql += " LIMIT 1";
 

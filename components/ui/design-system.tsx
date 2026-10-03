@@ -604,3 +604,8 @@ export function StatusBadge({
     </Badge>
   );
 }
+
+// ==========================================
+// 13. MOBILE UX PRIMITIVES RE-EXPORT
+// ==========================================
+export * from "./mobile";

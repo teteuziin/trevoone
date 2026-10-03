@@ -240,6 +240,62 @@ const styles = StyleSheet.create({
     fontSize: 7.5,
     color: "#94a3b8",
   },
+  pdfCombinationCard: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1.5,
+    borderColor: "#10b981",
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 6,
+  },
+  pdfCombHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#cbd5e1",
+    paddingBottom: 4,
+    marginBottom: 5,
+  },
+  pdfCombTitle: {
+    fontSize: 8.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#0f172a",
+  },
+  pdfCombRest: {
+    fontSize: 7.5,
+    color: "#059669",
+    fontFamily: "Helvetica-Bold",
+  },
+  pdfCombRow: {
+    paddingVertical: 3,
+  },
+  pdfCombDivider: {
+    borderTopWidth: 0.5,
+    borderTopColor: "#e2e8f0",
+    marginTop: 3,
+    paddingTop: 4,
+  },
+  pdfCombLetter: {
+    fontSize: 8.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#ffffff",
+    backgroundColor: "#059669",
+    width: 13,
+    height: 13,
+    textAlign: "center",
+    borderRadius: 6.5,
+    marginRight: 6,
+  },
+  pdfTransitionText: {
+    fontSize: 7,
+    fontFamily: "Helvetica",
+    color: "#059669",
+    fontStyle: "italic",
+    textAlign: "center",
+    marginTop: 2,
+    marginBottom: 2,
+  },
 });
 
 export interface PresentedTrainingPlan {
@@ -263,6 +319,7 @@ export interface PresentedTrainingPlan {
       equipment?: string | null;
       notes?: string | null;
       summaryString: string;
+      combinationId?: string | null;
       combinationType?: string | null;
       combinationTitle?: string | null;
       combinationRestSeconds?: number | null;
@@ -406,40 +463,154 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
               )}
             </View>
 
-            {block.exercises.map((ex, eIdx) => (
-              <View key={`e-${eIdx}`} style={styles.exerciseCard} wrap={false}>
-                <View style={styles.exerciseHeader}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
-                    {ex.combinationType && (
-                      <Text style={styles.combBadge}>
-                        {ex.combinationType.replace("_", "-")}
-                      </Text>
-                    )}
-                    {ex.isCustomExercise && (
-                      <Text style={styles.customBadge}>Personalizado</Text>
-                    )}
-                    <Text style={styles.exerciseName}>{ex.name}</Text>
+            {(() => {
+              type PdfUnit =
+                | { type: "single"; ex: (typeof block.exercises)[0]; idx: number }
+                | {
+                    type: "combination";
+                    combType: string;
+                    combTitle?: string | null;
+                    restSeconds?: number | null;
+                    items: Array<(typeof block.exercises)[0]>;
+                  };
+
+              const units: PdfUnit[] = [];
+              let currentComb: {
+                combType: string;
+                combTitle?: string | null;
+                restSeconds?: number | null;
+                combId?: string | null;
+                items: Array<(typeof block.exercises)[0]>;
+              } | null = null;
+
+              for (let idx = 0; idx < block.exercises.length; idx++) {
+                const ex = block.exercises[idx];
+                if (ex.combinationType) {
+                  const key = ex.combinationId || ex.combinationType;
+                  if (currentComb && currentComb.combId === key) {
+                    currentComb.items.push(ex);
+                  } else {
+                    if (currentComb) {
+                      units.push({
+                        type: "combination",
+                        combType: currentComb.combType,
+                        combTitle: currentComb.combTitle,
+                        restSeconds: currentComb.restSeconds,
+                        items: currentComb.items,
+                      });
+                    }
+                    currentComb = {
+                      combType: ex.combinationType,
+                      combTitle: ex.combinationTitle,
+                      restSeconds: ex.combinationRestSeconds ?? 60,
+                      combId: key,
+                      items: [ex],
+                    };
+                  }
+                } else {
+                  if (currentComb) {
+                    units.push({
+                      type: "combination",
+                      combType: currentComb.combType,
+                      combTitle: currentComb.combTitle,
+                      restSeconds: currentComb.restSeconds,
+                      items: currentComb.items,
+                    });
+                    currentComb = null;
+                  }
+                  units.push({ type: "single", ex, idx });
+                }
+              }
+              if (currentComb) {
+                units.push({
+                  type: "combination",
+                  combType: currentComb.combType,
+                  combTitle: currentComb.combTitle,
+                  restSeconds: currentComb.restSeconds,
+                  items: currentComb.items,
+                });
+              }
+
+              const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
+              return units.map((u, uIdx) => {
+                if (u.type === "single") {
+                  const ex = u.ex;
+                  return (
+                    <View key={`e-${uIdx}`} style={styles.exerciseCard} wrap={false}>
+                      <View style={styles.exerciseHeader}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
+                          {ex.isCustomExercise && (
+                            <Text style={styles.customBadge}>Personalizado</Text>
+                          )}
+                          <Text style={styles.exerciseName}>{ex.name}</Text>
+                        </View>
+                        {(ex.muscleGroup || ex.equipment) && (
+                          <Text style={styles.exerciseMetaBadge}>
+                            {[ex.muscleGroup, ex.equipment].filter(Boolean).join(" • ")}
+                          </Text>
+                        )}
+                      </View>
+
+                      {/* Sets Summary */}
+                      <View style={styles.setRow}>
+                        <Text style={styles.setItem}>
+                          <Text style={styles.setItemBold}>{ex.summaryString}</Text>
+                        </Text>
+                      </View>
+
+                      {/* Exercise Notes (ONLY if present) */}
+                      {ex.notes && ex.notes.trim().length > 0 && (
+                        <Text style={styles.exerciseNotes}>{ex.notes.trim()}</Text>
+                      )}
+                    </View>
+                  );
+                }
+
+                // Combination Group Block
+                const label = u.combType.replace("_", "-");
+                return (
+                  <View key={`comb-${uIdx}`} style={styles.pdfCombinationCard} wrap={false}>
+                    <View style={styles.pdfCombHeader}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={styles.combBadge}>{label}</Text>
+                        {u.combTitle && <Text style={styles.pdfCombTitle}>{u.combTitle}</Text>}
+                      </View>
+                      <Text style={styles.pdfCombRest}>Descanso pós-rodada: {u.restSeconds ?? 60}s</Text>
+                    </View>
+
+                    {u.items.map((it, itIdx) => (
+                      <View
+                        key={`c-item-${itIdx}`}
+                        style={[styles.pdfCombRow, itIdx > 0 ? styles.pdfCombDivider : {}]}
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
+                          <Text style={styles.pdfCombLetter}>{LETTERS[itIdx] || `${itIdx + 1}`}</Text>
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 2 }}>
+                              {it.isCustomExercise && <Text style={styles.customBadge}>Personalizado</Text>}
+                              <Text style={styles.exerciseName}>{it.name}</Text>
+                              {(it.muscleGroup || it.equipment) && (
+                                <Text style={styles.exerciseMetaBadge}>
+                                  {[it.muscleGroup, it.equipment].filter(Boolean).join(" • ")}
+                                </Text>
+                              )}
+                            </View>
+                            <Text style={styles.setItemBold}>{it.summaryString}</Text>
+                            {it.notes && it.notes.trim().length > 0 && (
+                              <Text style={styles.exerciseNotes}>{it.notes.trim()}</Text>
+                            )}
+                          </View>
+                        </View>
+                        {itIdx < u.items.length - 1 && (
+                          <Text style={styles.pdfTransitionText}>↓ Transição direta (sem descanso)</Text>
+                        )}
+                      </View>
+                    ))}
                   </View>
-                  {(ex.muscleGroup || ex.equipment) && (
-                    <Text style={styles.exerciseMetaBadge}>
-                      {[ex.muscleGroup, ex.equipment].filter(Boolean).join(" • ")}
-                    </Text>
-                  )}
-                </View>
-
-                {/* Sets Summary */}
-                <View style={styles.setRow}>
-                  <Text style={styles.setItem}>
-                    <Text style={styles.setItemBold}>{ex.summaryString}</Text>
-                  </Text>
-                </View>
-
-                {/* Exercise Notes (ONLY if present) */}
-                {ex.notes && ex.notes.trim().length > 0 && (
-                  <Text style={styles.exerciseNotes}>{ex.notes.trim()}</Text>
-                )}
-              </View>
-            ))}
+                );
+              });
+            })()}
           </View>
         ))}
 

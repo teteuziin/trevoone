@@ -207,6 +207,7 @@ export type CategoryCardProps = {
   onDeleteExercise: (itemPublicId: string) => Promise<void>;
   onMoveExerciseUp: (categoryPublicId: string, itemIndex: number) => Promise<void>;
   onMoveExerciseDown: (categoryPublicId: string, itemIndex: number) => Promise<void>;
+  onReorderExercises?: (categoryPublicId: string, itemPublicIds: string[]) => Promise<void>;
   onUpdateExerciseQuickConfig: (itemPublicId: string, config: QuickConfigInput) => Promise<void>;
   // Sub-blocks (Grupos)
   onCreateSubBlock?: (categoryPublicId: string, title: string) => Promise<void>;
@@ -262,25 +263,34 @@ function buildContainerEntries(
   combinations: WorkoutItemCombinationDto[],
   subBlockPublicId: string | null
 ): ContainerEntry[] {
-  // 1. Filter combinations belonging to this sub-block (or null for flat category)
-  const containerCombinations = (combinations || []).filter(
-    (c) => (c.subBlockPublicId || null) === (subBlockPublicId || null)
-  );
+  const normSubBlock = subBlockPublicId || null;
+
+  // Set of all active combinations
+  const activeCombinationIds = new Set((combinations || []).map((c) => c.publicId));
+
+  // Combinations for this container: matching subBlock OR containing items from this container
+  const containerCombinations = (combinations || []).filter((c) => {
+    const matchesSb = (c.subBlockPublicId || null) === normSubBlock;
+    const hasItemsInContainer = items.some((i) => i.combinationPublicId === c.publicId);
+    return matchesSb || hasItemsInContainer;
+  });
 
   const combMap = new Map<string, WorkoutItemCombinationDto>();
   for (const c of containerCombinations) {
-    const combItems = items
-      .filter((i) => i.combinationPublicId === c.publicId)
-      .sort((a, b) => a.sortOrder - b.sortOrder);
+    const matchedItems = items.filter((i) => i.combinationPublicId === c.publicId);
+    const fallbackItems = c.items && c.items.length > 0 ? c.items : [];
+    const combItems = (matchedItems.length > 0 ? matchedItems : fallbackItems).slice();
+    combItems.sort((a, b) => a.sortOrder - b.sortOrder);
+
     combMap.set(c.publicId, {
       ...c,
       items: combItems,
     });
   }
 
-  // 2. Standalone items (not in any combination of this container)
+  // IRONCLAD: An item is standalone ONLY if it has no active combination
   const standaloneItems = items.filter(
-    (i) => !i.combinationPublicId || !combMap.has(i.combinationPublicId)
+    (i) => !i.combinationPublicId || !activeCombinationIds.has(i.combinationPublicId)
   );
 
   const entries: ContainerEntry[] = [];
@@ -293,7 +303,7 @@ function buildContainerEntries(
     const minOrder =
       comb.items && comb.items.length > 0
         ? Math.min(...comb.items.map((it) => it.sortOrder))
-        : comb.sortOrder * 100;
+        : (comb.sortOrder ?? 1);
     entries.push({ type: "combination", combination: comb, sortOrder: minOrder });
   }
 
@@ -526,6 +536,7 @@ export function WorkoutCategoryCard({
   onDeleteExercise,
   onMoveExerciseUp,
   onMoveExerciseDown,
+  onReorderExercises,
   onUpdateExerciseQuickConfig,
   onCreateSubBlock,
   onRenameSubBlock,
@@ -538,7 +549,6 @@ export function WorkoutCategoryCard({
   onUpdateCombination,
   onUngroupCombination,
   onDeleteCombination,
-  onDuplicateCombination,
   onMoveItemInCombination,
   onRemoveItemFromCombination,
   onOpenCreateCustomExercise,
@@ -651,6 +661,58 @@ export function WorkoutCategoryCard({
       setIsCombRestActive(false);
       setCombRestActivity("");
     });
+  }
+
+  // Reorder entries (standalone exercises or whole combination blocks)
+  function handleMoveEntryInContainer(
+    containerEntries: ContainerEntry[],
+    entryIdx: number,
+    direction: "up" | "down",
+    subBlockPublicId?: string | null
+  ) {
+    const targetIdx = direction === "up" ? entryIdx - 1 : entryIdx + 1;
+    if (targetIdx < 0 || targetIdx >= containerEntries.length) return;
+
+    const newEntries = [...containerEntries];
+    const [moved] = newEntries.splice(entryIdx, 1);
+    newEntries.splice(targetIdx, 0, moved);
+
+    // Flatten new entries into item public IDs
+    const reorderedContainerItemIds: string[] = [];
+    for (const entry of newEntries) {
+      if (entry.type === "item") {
+        reorderedContainerItemIds.push(entry.item.publicId);
+      } else {
+        const cItems = entry.combination.items || [];
+        for (const cit of cItems) {
+          reorderedContainerItemIds.push(cit.publicId);
+        }
+      }
+    }
+
+    let allBlockItemIds: string[];
+    if (hasSubBlocks && subBlockPublicId) {
+      const fullList: string[] = [];
+      for (const sb of sortedSubBlocks) {
+        if (sb.publicId === subBlockPublicId) {
+          fullList.push(...reorderedContainerItemIds);
+        } else {
+          const otherItems = items.filter((i) => i.subBlockPublicId === sb.publicId);
+          fullList.push(...otherItems.map((i) => i.publicId));
+        }
+      }
+      const unassigned = items.filter((i) => !i.subBlockPublicId);
+      fullList.push(...unassigned.map((i) => i.publicId));
+      allBlockItemIds = fullList;
+    } else {
+      allBlockItemIds = reorderedContainerItemIds;
+    }
+
+    if (onReorderExercises) {
+      startTransition(async () => {
+        await onReorderExercises(category.publicId, allBlockItemIds);
+      });
+    }
   }
 
   return (
@@ -1196,68 +1258,35 @@ export function WorkoutCategoryCard({
                         Nenhum exercício neste grupo ainda.
                       </div>
                     ) : (
-                      entries.map((entry) => {
+                      entries.map((entry, entryIdx) => {
                         if (entry.type === "combination") {
                           return (
-                            <div key={entry.combination.publicId}>
-                              {/* Mobile View: Dedicated MobileCombinationBlock */}
-                              <div className="md:hidden">
-                                <MobileCombinationBlock
-                                  combination={entry.combination}
-                                  categoryPublicId={category.publicId}
-                                  subBlockPublicId={subBlock.publicId}
-                                  isDraft={isDraft}
-                                  onOpenEditCombination={(c) => setEditingCombination(c)}
-                                  onOpenQuickEdit={(it) => setQuickEditingItem(it)}
-                                  onOpenActions={(it, idx, tot) =>
-                                    setActionsSheetItem({
-                                      item: it,
-                                      index: idx,
-                                      total: tot,
-                                      subBlockPublicId: subBlock.publicId,
-                                    })
-                                  }
-                                  onOpenExecutionModal={(it) => setExecutionModalItem(it)}
-                                  onUngroupCombination={onUngroupCombination}
-                                  onDeleteCombination={onDeleteCombination}
-                                />
-                              </div>
-                              {/* Desktop View: Preserved CombinationCard */}
-                              <div className="hidden md:block">
-                                <CombinationCard
-                                  combination={entry.combination}
-                                  categoryPublicId={category.publicId}
-                                  subBlockPublicId={subBlock.publicId}
-                                  allCategories={allCategories}
-                                  isDraft={isDraft}
-                                  expandedExerciseId={expandedExerciseId}
-                                  onToggleExpandExercise={(id) =>
-                                    setExpandedExerciseId(expandedExerciseId === id ? null : id)
-                                  }
-                                  onCloseExpandExercise={() => setExpandedExerciseId(null)}
-                                  activeExerciseMenuId={activeExerciseMenuId}
-                                  onToggleExerciseMenu={(id) =>
-                                    setActiveExerciseMenuId(activeExerciseMenuId === id ? null : id)
-                                  }
-                                  onCloseExerciseMenu={() => setActiveExerciseMenuId(null)}
-                                  movingExerciseId={movingExerciseId}
-                                  onOpenMoveExercise={(id) => setMovingExerciseId(id)}
-                                  onCloseMoveExercise={() => setMovingExerciseId(null)}
-                                  onDuplicateExercise={onDuplicateExercise}
-                                  onDeleteExercise={onDeleteExercise}
-                                  onMoveExerciseToCategory={onMoveExerciseToCategory}
-                                  onUpdateExerciseQuickConfig={onUpdateExerciseQuickConfig}
-                                  onResolveExercise={onResolveExercise}
-                                  onOpenCreateCustomExercise={onOpenCreateCustomExercise}
-                                  onUpdateCombination={onUpdateCombination}
-                                  onUngroupCombination={onUngroupCombination}
-                                  onDeleteCombination={onDeleteCombination}
-                                  onDuplicateCombination={onDuplicateCombination}
-                                  onMoveItemInCombination={onMoveItemInCombination}
-                                  onRemoveItemFromCombination={onRemoveItemFromCombination}
-                                />
-                              </div>
-                            </div>
+                            <UnifiedCombinationBlock
+                              key={entry.combination.publicId}
+                              combination={entry.combination}
+                              categoryPublicId={category.publicId}
+                              subBlockPublicId={subBlock.publicId}
+                              entryIndex={entryIdx}
+                              totalEntries={entries.length}
+                              isDraft={isDraft}
+                              onMoveEntryUp={() => handleMoveEntryInContainer(entries, entryIdx, "up", subBlock.publicId)}
+                              onMoveEntryDown={() => handleMoveEntryInContainer(entries, entryIdx, "down", subBlock.publicId)}
+                              onOpenEditCombination={(c) => setEditingCombination(c)}
+                              onOpenQuickEdit={(it) => setQuickEditingItem(it)}
+                              onOpenActions={(it, idx, tot) =>
+                                setActionsSheetItem({
+                                  item: it,
+                                  index: idx,
+                                  total: tot,
+                                  subBlockPublicId: subBlock.publicId,
+                                })
+                              }
+                              onOpenExecutionModal={(it) => setExecutionModalItem(it)}
+                              onMoveItemInCombination={onMoveItemInCombination}
+                              onRemoveItemFromCombination={onRemoveItemFromCombination}
+                              onUngroupCombination={onUngroupCombination}
+                              onDeleteCombination={onDeleteCombination}
+                            />
                           );
                         }
 
@@ -1265,14 +1294,22 @@ export function WorkoutCategoryCard({
                         const isExpanded = expandedExerciseId === item.publicId;
                         const itemIdx = subBlockItems.findIndex((it) => it.publicId === item.publicId);
 
+                        const handleItemMoveUp = onReorderExercises
+                          ? async () => { await handleMoveEntryInContainer(entries, entryIdx, "up", subBlock.publicId); }
+                          : () => onMoveExerciseUp(category.publicId, itemIdx);
+
+                        const handleItemMoveDown = onReorderExercises
+                          ? async () => { await handleMoveEntryInContainer(entries, entryIdx, "down", subBlock.publicId); }
+                          : () => onMoveExerciseDown(category.publicId, itemIdx);
+
                         return (
                           <div key={item.publicId}>
                             {/* Mobile View: Dedicated MobileExerciseCard */}
                             <div className="md:hidden">
                               <MobileExerciseCard
                                 item={item}
-                                itemIndex={itemIdx}
-                                totalItems={subBlockItems.length}
+                                itemIndex={entryIdx}
+                                totalItems={entries.length}
                                 isDraft={isDraft}
                                 categoryPublicId={category.publicId}
                                 allCategories={allCategories}
@@ -1283,22 +1320,22 @@ export function WorkoutCategoryCard({
                                 onOpenActions={() =>
                                   setActionsSheetItem({
                                     item,
-                                    index: itemIdx,
-                                    total: subBlockItems.length,
+                                    index: entryIdx,
+                                    total: entries.length,
                                     subBlockPublicId: subBlock.publicId,
                                   })
                                 }
                                 onOpenExecutionModal={() => setExecutionModalItem(item)}
-                                onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
-                                onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
+                                onMoveUp={handleItemMoveUp}
+                                onMoveDown={handleItemMoveDown}
                               />
                             </div>
                             {/* Desktop View: Preserved ExerciseRow */}
                             <div className="hidden md:block">
                               <ExerciseRow
                                 item={item}
-                                itemIndex={itemIdx}
-                                totalItems={subBlockItems.length}
+                                itemIndex={entryIdx}
+                                totalItems={entries.length}
                                 isExpanded={isExpanded}
                                 isDraft={isDraft}
                                 categoryPublicId={category.publicId}
@@ -1319,8 +1356,8 @@ export function WorkoutCategoryCard({
                                 onCloseMove={() => setMovingExerciseId(null)}
                                 onDuplicate={() => onDuplicateExercise(item.publicId)}
                                 onDelete={() => onDeleteExercise(item.publicId)}
-                                onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
-                                onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
+                                onMoveUp={handleItemMoveUp}
+                                onMoveDown={handleItemMoveDown}
                                 onMoveToCategory={(targetCatId) =>
                                   onMoveExerciseToCategory(item.publicId, targetCatId)
                                 }
@@ -1401,61 +1438,30 @@ export function WorkoutCategoryCard({
             ) : (
               (() => {
                 const flatEntries = buildContainerEntries(items, combinations, null);
-                return flatEntries.map((entry) => {
+                return flatEntries.map((entry, entryIdx) => {
                   if (entry.type === "combination") {
                     return (
-                      <div key={entry.combination.publicId}>
-                        {/* Mobile View: Dedicated MobileCombinationBlock */}
-                        <div className="md:hidden">
-                          <MobileCombinationBlock
-                            combination={entry.combination}
-                            categoryPublicId={category.publicId}
-                            isDraft={isDraft}
-                            onOpenEditCombination={(c) => setEditingCombination(c)}
-                            onOpenQuickEdit={(it) => setQuickEditingItem(it)}
-                            onOpenActions={(it, idx, tot) =>
-                              setActionsSheetItem({ item: it, index: idx, total: tot })
-                            }
-                            onOpenExecutionModal={(it) => setExecutionModalItem(it)}
-                            onUngroupCombination={onUngroupCombination}
-                            onDeleteCombination={onDeleteCombination}
-                          />
-                        </div>
-                        {/* Desktop View: Preserved CombinationCard */}
-                        <div className="hidden md:block">
-                          <CombinationCard
-                            combination={entry.combination}
-                            categoryPublicId={category.publicId}
-                            allCategories={allCategories}
-                            isDraft={isDraft}
-                            expandedExerciseId={expandedExerciseId}
-                            onToggleExpandExercise={(id) =>
-                              setExpandedExerciseId(expandedExerciseId === id ? null : id)
-                            }
-                            onCloseExpandExercise={() => setExpandedExerciseId(null)}
-                            activeExerciseMenuId={activeExerciseMenuId}
-                            onToggleExerciseMenu={(id) =>
-                              setActiveExerciseMenuId(activeExerciseMenuId === id ? null : id)
-                            }
-                            onCloseExerciseMenu={() => setActiveExerciseMenuId(null)}
-                            movingExerciseId={movingExerciseId}
-                            onOpenMoveExercise={(id) => setMovingExerciseId(id)}
-                            onCloseMoveExercise={() => setMovingExerciseId(null)}
-                            onDuplicateExercise={onDuplicateExercise}
-                            onDeleteExercise={onDeleteExercise}
-                            onMoveExerciseToCategory={onMoveExerciseToCategory}
-                            onUpdateExerciseQuickConfig={onUpdateExerciseQuickConfig}
-                            onResolveExercise={onResolveExercise}
-                            onOpenCreateCustomExercise={onOpenCreateCustomExercise}
-                            onUpdateCombination={onUpdateCombination}
-                            onUngroupCombination={onUngroupCombination}
-                            onDeleteCombination={onDeleteCombination}
-                            onDuplicateCombination={onDuplicateCombination}
-                            onMoveItemInCombination={onMoveItemInCombination}
-                            onRemoveItemFromCombination={onRemoveItemFromCombination}
-                          />
-                        </div>
-                      </div>
+                      <UnifiedCombinationBlock
+                        key={entry.combination.publicId}
+                        combination={entry.combination}
+                        categoryPublicId={category.publicId}
+                        subBlockPublicId={undefined}
+                        entryIndex={entryIdx}
+                        totalEntries={flatEntries.length}
+                        isDraft={isDraft}
+                        onMoveEntryUp={() => handleMoveEntryInContainer(flatEntries, entryIdx, "up", null)}
+                        onMoveEntryDown={() => handleMoveEntryInContainer(flatEntries, entryIdx, "down", null)}
+                        onOpenEditCombination={(c) => setEditingCombination(c)}
+                        onOpenQuickEdit={(it) => setQuickEditingItem(it)}
+                        onOpenActions={(it, idx, tot) =>
+                          setActionsSheetItem({ item: it, index: idx, total: tot })
+                        }
+                        onOpenExecutionModal={(it) => setExecutionModalItem(it)}
+                        onMoveItemInCombination={onMoveItemInCombination}
+                        onRemoveItemFromCombination={onRemoveItemFromCombination}
+                        onUngroupCombination={onUngroupCombination}
+                        onDeleteCombination={onDeleteCombination}
+                      />
                     );
                   }
 
@@ -1463,14 +1469,22 @@ export function WorkoutCategoryCard({
                   const isExpanded = expandedExerciseId === item.publicId;
                   const itemIdx = items.findIndex((it) => it.publicId === item.publicId);
 
+                  const handleItemMoveUp = onReorderExercises
+                    ? async () => { await handleMoveEntryInContainer(flatEntries, entryIdx, "up", null); }
+                    : () => onMoveExerciseUp(category.publicId, itemIdx);
+
+                  const handleItemMoveDown = onReorderExercises
+                    ? async () => { await handleMoveEntryInContainer(flatEntries, entryIdx, "down", null); }
+                    : () => onMoveExerciseDown(category.publicId, itemIdx);
+
                   return (
                     <div key={item.publicId}>
                       {/* Mobile View: Dedicated MobileExerciseCard */}
                       <div className="md:hidden">
                         <MobileExerciseCard
                           item={item}
-                          itemIndex={itemIdx}
-                          totalItems={items.length}
+                          itemIndex={entryIdx}
+                          totalItems={flatEntries.length}
                           isDraft={isDraft}
                           categoryPublicId={category.publicId}
                           allCategories={allCategories}
@@ -1482,16 +1496,16 @@ export function WorkoutCategoryCard({
                             setActionsSheetItem({ item, index: itemIdx, total: items.length })
                           }
                           onOpenExecutionModal={() => setExecutionModalItem(item)}
-                          onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
-                          onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
+                          onMoveUp={handleItemMoveUp}
+                          onMoveDown={handleItemMoveDown}
                         />
                       </div>
                       {/* Desktop View: Preserved ExerciseRow */}
                       <div className="hidden md:block">
                         <ExerciseRow
                           item={item}
-                          itemIndex={itemIdx}
-                          totalItems={items.length}
+                          itemIndex={entryIdx}
+                          totalItems={flatEntries.length}
                           isExpanded={isExpanded}
                           isDraft={isDraft}
                           categoryPublicId={category.publicId}
@@ -1512,8 +1526,8 @@ export function WorkoutCategoryCard({
                           onCloseMove={() => setMovingExerciseId(null)}
                           onDuplicate={() => onDuplicateExercise(item.publicId)}
                           onDelete={() => onDeleteExercise(item.publicId)}
-                          onMoveUp={() => onMoveExerciseUp(category.publicId, itemIdx)}
-                          onMoveDown={() => onMoveExerciseDown(category.publicId, itemIdx)}
+                          onMoveUp={handleItemMoveUp}
+                          onMoveDown={handleItemMoveDown}
                           onMoveToCategory={(targetCatId) =>
                             onMoveExerciseToCategory(item.publicId, targetCatId)
                           }
@@ -1789,7 +1803,7 @@ export function WorkoutCategoryCard({
 // COMBINATION CARD COMPONENT
 // ============================================================================
 
-type CombinationCardProps = {
+export type LegacyCombinationCardProps = {
   combination: WorkoutItemCombinationDto;
   categoryPublicId: string;
   subBlockPublicId?: string | null;
@@ -1833,7 +1847,7 @@ type CombinationCardProps = {
   ) => Promise<void>;
 };
 
-function CombinationCard({
+export function LegacyCombinationCard({
   combination,
   categoryPublicId,
   subBlockPublicId,
@@ -1860,7 +1874,7 @@ function CombinationCard({
   onDuplicateCombination,
   onMoveItemInCombination,
   onRemoveItemFromCombination,
-}: CombinationCardProps) {
+}: LegacyCombinationCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(combination.title || "");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -3002,28 +3016,46 @@ function getItemPrescriptionSummary(item: WorkoutBlockItemDto) {
   };
 }
 
-export function MobileCombinationBlock({
-  combination,
-  isDraft,
-  onOpenEditCombination,
-  onOpenQuickEdit,
-  onOpenActions,
-  onUngroupCombination,
-}: {
+export type UnifiedCombinationBlockProps = {
   combination: WorkoutItemCombinationDto;
   categoryPublicId: string;
   subBlockPublicId?: string | null;
+  entryIndex?: number;
+  totalEntries?: number;
   allCategories?: { publicId: string; title: string }[];
   isDraft: boolean;
+  onMoveEntryUp?: () => void;
+  onMoveEntryDown?: () => void;
   onOpenEditCombination: (combination: WorkoutItemCombinationDto) => void;
   onOpenQuickEdit: (item: WorkoutBlockItemDto) => void;
   onOpenActions: (item: WorkoutBlockItemDto, index: number, total: number) => void;
   onOpenExecutionModal?: (item: WorkoutBlockItemDto) => void;
-  onMoveItemInCombination?: (combinationPublicId: string, itemPublicId: string, direction: "up" | "down") => Promise<void>;
-  onRemoveItemFromCombination?: (combinationPublicId: string, itemPublicId: string) => Promise<void>;
+  onMoveItemInCombination?: (
+    combinationPublicId: string,
+    itemPublicId: string,
+    direction: "up" | "down"
+  ) => Promise<void>;
+  onRemoveItemFromCombination?: (
+    combinationPublicId: string,
+    itemPublicId: string
+  ) => Promise<void>;
   onUngroupCombination?: (combinationPublicId: string) => Promise<void>;
   onDeleteCombination?: (combinationPublicId: string, deleteItems?: boolean) => Promise<void>;
-}) {
+};
+
+export function UnifiedCombinationBlock({
+  combination,
+  entryIndex = 0,
+  totalEntries = 1,
+  isDraft,
+  onMoveEntryUp,
+  onMoveEntryDown,
+  onOpenEditCombination,
+  onOpenQuickEdit,
+  onOpenActions,
+  onMoveItemInCombination,
+  onUngroupCombination,
+}: UnifiedCombinationBlockProps) {
   const items = combination.items || [];
   const typeLabel = COMBINATION_TYPE_LABELS[combination.combinationType] || combination.combinationType;
   const badgeStyle = COMBINATION_BADGE_STYLES[combination.combinationType] || "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
@@ -3036,76 +3068,149 @@ export function MobileCombinationBlock({
   return (
     <div
       data-testid="mobile-combination-block"
-      className="rounded-2xl border-2 border-emerald-500/30 dark:border-emerald-500/40 bg-[var(--surface)] shadow-xs overflow-hidden transition-all"
+      data-block-type="unified-combination-block"
+      className="rounded-2xl border-2 border-emerald-500/35 dark:border-emerald-500/40 bg-[var(--surface)] shadow-xs overflow-hidden transition-all"
     >
       {/* Block Header */}
-      <div className="px-4 py-3 bg-[var(--surface-subtle)]/70 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className={`px-2.5 py-1 rounded-xl text-xs font-black tracking-wide border uppercase ${badgeStyle}`}>
+      <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 bg-[var(--surface-subtle)]/70 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className={`px-2.5 py-1 rounded-xl text-xs font-black tracking-wide border uppercase shrink-0 ${badgeStyle}`}>
             {typeLabel}
           </span>
-          <span className="text-xs font-bold text-[var(--text-secondary)]">
+          <span className="text-xs font-bold text-[var(--text-secondary)] whitespace-nowrap">
             {items[0]?.sets?.length || 3} rodadas
           </span>
+          {combination.title && (
+            <span className="text-xs font-bold text-[var(--text-primary)] truncate max-w-xs" title={combination.title}>
+              • {combination.title.replace(/•?\s*Descanso Ativo:.*$/i, "").trim()}
+            </span>
+          )}
         </div>
 
-        {/* Rest Badge: Active Rest highlighted or Passive Rest */}
-        {activeRest.isActive ? (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
-            <span>🏃</span>
-            <span>Descanso ativo • {restSec}s • {activeRest.activity}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] text-xs font-semibold">
-            <span>⏸️</span>
-            <span>{restSec}s descanso</span>
-          </div>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Rest indicator badge in header */}
+          {activeRest.isActive ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+              <span>🏃</span>
+              <span className="truncate max-w-[160px] sm:max-w-none">
+                Ativo • {restSec}s • {activeRest.activity}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] text-xs font-semibold">
+              <ClockIcon className="w-3.5 h-3.5" />
+              <span>{restSec}s descanso</span>
+            </div>
+          )}
+
+          {/* Block-level Move Controls (↑ / ↓) */}
+          {isDraft && onMoveEntryUp && onMoveEntryDown && (
+            <div className="flex items-center gap-1 pl-1">
+              <button
+                type="button"
+                disabled={entryIndex === 0}
+                onClick={onMoveEntryUp}
+                aria-label="Mover bloco para cima"
+                title="Mover bloco para cima"
+                className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] transition-colors"
+              >
+                <ArrowUp className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                disabled={entryIndex >= totalEntries - 1}
+                onClick={onMoveEntryDown}
+                aria-label="Mover bloco para baixo"
+                title="Mover bloco para baixo"
+                className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] transition-colors"
+              >
+                <ArrowDown className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Items list inside combination */}
-      <div className="p-3 space-y-2">
+      {/* Internal Exercise Rows (Clean rows, NOT nested heavy cards) */}
+      <div className="p-3 sm:p-3.5 space-y-2">
         {items.map((item, idx) => {
-          const letter = LETTERS[idx] || `${idx + 1}`;
+          const letter = LETTERS[idx] || String.fromCharCode(65 + idx);
           const summary = getItemPrescriptionSummary(item);
 
           return (
             <div key={item.publicId} className="space-y-2">
-              <div className="p-3 rounded-xl bg-[var(--surface-subtle)]/40 border border-[var(--border-subtle)] flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+              <div className="p-2.5 sm:p-3 rounded-xl bg-[var(--surface-subtle)]/45 border border-[var(--border-subtle)] flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/70 transition-colors">
+                {/* Left: Letter Badge + Info */}
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-600 text-white font-black text-xs sm:text-sm flex items-center justify-center shrink-0 shadow-2xs">
                     {letter}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
-                      {item.exerciseNameSnapshot}
-                    </h4>
-                    <p className="text-[11px] font-semibold text-[var(--text-secondary)] truncate">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
+                        {item.exerciseNameSnapshot}
+                      </h4>
+                      {item.isCustomExercise && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20">
+                          Personalizado
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] sm:text-xs font-semibold text-[var(--text-secondary)] truncate">
                       {summary.seriesCount} séries • {summary.repsText}
                       {summary.loadKg != null ? ` • ${summary.loadKg}kg` : ""}
                     </p>
                   </div>
                 </div>
 
-                {/* Direct quick action buttons */}
+                {/* Right: Internal Order (↑ / ↓) + Quick Edit + Actions */}
                 {isDraft && (
                   <div className="flex items-center gap-1 shrink-0">
+                    {/* Internal reorder touch buttons */}
+                    {onMoveItemInCombination && (
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => onMoveItemInCombination(combination.publicId, item.publicId, "up")}
+                          aria-label={`Mover ${item.exerciseNameSnapshot} para cima`}
+                          title="Mover para cima na combinação"
+                          className="w-9 h-9 sm:w-7 sm:h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px]"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === items.length - 1}
+                          onClick={() => onMoveItemInCombination(combination.publicId, item.publicId, "down")}
+                          aria-label={`Mover ${item.exerciseNameSnapshot} para baixo`}
+                          title="Mover para baixo na combinação"
+                          className="w-9 h-9 sm:w-7 sm:h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px]"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Quick Edit button */}
                     <button
                       type="button"
                       onClick={() => onOpenQuickEdit(item)}
                       aria-label={`Editar ${item.exerciseNameSnapshot}`}
-                      className="px-3 py-1.5 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] transition-colors min-h-[44px] flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] transition-colors min-h-[44px] sm:min-h-[30px] flex items-center gap-1 cursor-pointer"
                     >
                       <Edit2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Editar</span>
+                      <span className="hidden xs:inline sm:inline">Editar</span>
                     </button>
+
+                    {/* Item Actions */}
                     <button
                       type="button"
                       onClick={() => onOpenActions(item, idx, items.length)}
                       aria-label="Ações do exercício"
-                      className="w-11 h-11 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+                      className="w-11 h-11 sm:w-8 sm:h-8 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px] cursor-pointer"
                     >
-                      <MoreVertical className="w-4 h-4" />
+                      <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
                   </div>
                 )}
@@ -3113,7 +3218,7 @@ export function MobileCombinationBlock({
 
               {/* Transition connector between exercises */}
               {idx < items.length - 1 && (
-                <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 py-0.5">
+                <div className="flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 py-0.5">
                   <span>↓ Transição direta (sem descanso)</span>
                 </div>
               )}
@@ -3124,12 +3229,13 @@ export function MobileCombinationBlock({
 
       {/* Block Footer Actions */}
       {isDraft && (
-        <div className="px-3 py-2.5 bg-[var(--surface-subtle)]/40 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
+        <div className="px-3.5 py-2.5 bg-[var(--surface-subtle)]/50 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => onOpenEditCombination(combination)}
-            className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors min-h-[44px] cursor-pointer shadow-xs"
+            className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors min-h-[44px] cursor-pointer shadow-xs"
           >
+            <ZapIcon className="w-3.5 h-3.5" />
             <span>Editar combinação</span>
           </button>
           {onUngroupCombination && (
@@ -3140,7 +3246,7 @@ export function MobileCombinationBlock({
                   startTransition(() => onUngroupCombination(combination.publicId));
                 }
               }}
-              className="py-2.5 px-3 rounded-xl border border-[var(--border-default)] hover:bg-rose-500/10 hover:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold text-xs transition-colors min-h-[44px] cursor-pointer"
+              className="py-2.5 px-3 rounded-xl border border-[var(--border-default)] hover:bg-rose-500/10 hover:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold text-xs sm:text-sm transition-colors min-h-[44px] cursor-pointer"
             >
               Desfazer
             </button>
@@ -3150,6 +3256,10 @@ export function MobileCombinationBlock({
     </div>
   );
 }
+
+// Aliases for backwards compatibility
+export const MobileCombinationBlock = UnifiedCombinationBlock;
+export const CombinationCard = UnifiedCombinationBlock;
 
 export function MobileExerciseCard({
   item,
@@ -3569,6 +3679,7 @@ export function EditCombinationSheet({
   onSave,
   onUngroup,
   onMoveItem,
+  onRemoveItem,
 }: {
   isOpen: boolean;
   combination: WorkoutItemCombinationDto;
@@ -3770,26 +3881,45 @@ export function EditCombinationSheet({
                   </span>
                 </div>
 
-                {onMoveItem && (
-                  <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
+                  {onMoveItem && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => startTransition(() => onMoveItem(combination.publicId, it.publicId, "up"))}
+                        aria-label="Mover para cima"
+                        className="w-9 h-9 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] flex items-center justify-center disabled:opacity-30 cursor-pointer min-h-[36px] min-w-[36px]"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === items.length - 1}
+                        onClick={() => startTransition(() => onMoveItem(combination.publicId, it.publicId, "down"))}
+                        aria-label="Mover para baixo"
+                        className="w-9 h-9 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] flex items-center justify-center disabled:opacity-30 cursor-pointer min-h-[36px] min-w-[36px]"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                  {onRemoveItem && items.length > 2 && (
                     <button
                       type="button"
-                      disabled={idx === 0}
-                      onClick={() => startTransition(() => onMoveItem(combination.publicId, it.publicId, "up"))}
-                      className="w-9 h-9 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] flex items-center justify-center disabled:opacity-30 cursor-pointer min-h-[36px] min-w-[36px]"
+                      onClick={() => {
+                        if (confirm(`Remover "${it.exerciseNameSnapshot}" desta combinação?`)) {
+                          startTransition(() => onRemoveItem(combination.publicId, it.publicId));
+                        }
+                      }}
+                      aria-label="Remover da combinação"
+                      title="Remover da combinação"
+                      className="w-9 h-9 rounded-lg bg-[var(--surface)] hover:bg-rose-500/10 text-[var(--text-tertiary)] hover:text-rose-600 border border-[var(--border-subtle)] flex items-center justify-center cursor-pointer min-h-[36px] min-w-[36px] transition-colors"
                     >
-                      <ArrowUp className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      type="button"
-                      disabled={idx === items.length - 1}
-                      onClick={() => startTransition(() => onMoveItem(combination.publicId, it.publicId, "down"))}
-                      className="w-9 h-9 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] flex items-center justify-center disabled:opacity-30 cursor-pointer min-h-[36px] min-w-[36px]"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ))}
           </div>

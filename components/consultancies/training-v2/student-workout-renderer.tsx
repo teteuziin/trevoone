@@ -1433,38 +1433,49 @@ function ItemOrCombinationList({
             </div>
 
             <div className="space-y-3">
-              {unit.items.map((cItem, cIdx) => (
-                <div key={cItem.publicId} className="space-y-2">
-                  <ItemCard
-                    item={cItem}
-                    blockType={blockType}
-                    itemIndex={cIdx}
-                    totalItems={unit.items.length}
-                    activeSession={activeSession}
-                    loadingSetPublicId={loadingSetPublicId}
-                    setErrors={setErrors}
-                    onCompleteSet={onCompleteSet}
-                    activeRest={activeRest}
-                    onSkipRest={onSkipRest}
-                    expandedFutureSets={expandedFutureSets}
-                    onToggleExpandSet={onToggleExpandSet}
-                    sessionDrafts={sessionDrafts}
-                    onDraftChange={onDraftChange}
-                    activeSubstitutions={activeSubstitutions}
-                    remainingSwaps={remainingSwaps}
-                    onOpenSwapModal={onOpenSwapModal}
-                  />
-                  {cIdx < unit.items.length - 1 && (
-                    <div className="flex items-center justify-center py-1">
-                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">
-                        <span>↓</span>
-                        <span>Transição direta (sem descanso)</span>
-                        <span>↓</span>
-                      </div>
+              {unit.items.map((cItem, cIdx) => {
+                const letter = String.fromCharCode(65 + cIdx);
+                return (
+                  <div key={cItem.publicId} className="space-y-2">
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                        {letter}
+                      </span>
+                      <span className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider">
+                        {combLabel} • Exercício {letter}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
+                    <ItemCard
+                      item={cItem}
+                      blockType={blockType}
+                      itemIndex={cIdx}
+                      totalItems={unit.items.length}
+                      activeSession={activeSession}
+                      loadingSetPublicId={loadingSetPublicId}
+                      setErrors={setErrors}
+                      onCompleteSet={onCompleteSet}
+                      activeRest={activeRest}
+                      onSkipRest={onSkipRest}
+                      expandedFutureSets={expandedFutureSets}
+                      onToggleExpandSet={onToggleExpandSet}
+                      sessionDrafts={sessionDrafts}
+                      onDraftChange={onDraftChange}
+                      activeSubstitutions={activeSubstitutions}
+                      remainingSwaps={remainingSwaps}
+                      onOpenSwapModal={onOpenSwapModal}
+                    />
+                    {cIdx < unit.items.length - 1 && (
+                      <div className="flex items-center justify-center py-1">
+                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">
+                          <span>↓</span>
+                          <span>Transição direta (sem descanso)</span>
+                          <span>↓</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         );

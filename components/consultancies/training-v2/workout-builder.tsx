@@ -8,6 +8,7 @@ import type {
   WorkoutBlockItemDto,
   DifficultyLevel,
   WorkoutCombinationType,
+  WorkoutItemCombinationDto,
 } from "@/lib/training-v2/types";
 import type {
   WorkoutVersionSummaryDto,
@@ -631,6 +632,50 @@ export function WorkoutBuilder({
     }
   }
 
+  // Reorder all exercises in a category (supports moving combination blocks and standalone exercises as units)
+  async function handleReorderExercises(categoryPublicId: string, itemPublicIds: string[]) {
+    setVersion((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((b) => {
+        if (b.publicId !== categoryPublicId) return b;
+        const itemMap = new Map((b.items || []).map((it) => [it.publicId, it]));
+        const newItems = itemPublicIds
+          .map((id, idx) => {
+            const it = itemMap.get(id);
+            return it ? { ...it, sortOrder: idx } : null;
+          })
+          .filter(Boolean) as WorkoutBlockItemDto[];
+
+        const newCombs = (b.combinations || []).map((c) => {
+          const combItems = newItems
+            .filter((i) => i.combinationPublicId === c.publicId)
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+          const minOrder =
+            combItems.length > 0 ? Math.min(...combItems.map((i) => i.sortOrder)) : c.sortOrder;
+          return { ...c, sortOrder: minOrder, items: combItems };
+        });
+
+        const newSubBlocks = (b.subBlocks || []).map((sb) => ({
+          ...sb,
+          items: newItems.filter((i) => i.subBlockPublicId === sb.publicId),
+          combinations: newCombs.filter((c) => c.subBlockPublicId === sb.publicId),
+        }));
+
+        return {
+          ...b,
+          items: newItems,
+          combinations: newCombs,
+          subBlocks: newSubBlocks,
+        };
+      }),
+    }));
+
+    const res = await reorderExercisesAction(consultancySlug, categoryPublicId, itemPublicIds);
+    if (!res.ok) {
+      notify(res.error || "Erro ao reordenar exercícios.");
+    }
+  }
+
   // Update Exercise Quick Config
   async function handleUpdateExerciseQuickConfig(
     itemPublicId: string,
@@ -839,14 +884,32 @@ export function WorkoutBuilder({
                   ...it,
                   combinationPublicId: newComb.publicId,
                   combinationType: newComb.combinationType,
+                  subBlockPublicId: newComb.subBlockPublicId ?? it.subBlockPublicId,
                 }
               : it
           );
-          const updatedCombs = [...(b.combinations || []), newComb];
+          const combItems = updatedItems
+            .filter((it) => input.itemPublicIds.includes(it.publicId))
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+          const fullNewComb: WorkoutItemCombinationDto = {
+            ...newComb,
+            items: combItems,
+          };
+          const updatedCombs = [
+            ...(b.combinations || []).filter((c) => c.publicId !== newComb.publicId),
+            fullNewComb,
+          ];
+          const updatedSubBlocks = (b.subBlocks || []).map((sb) => ({
+            ...sb,
+            items: updatedItems.filter((it) => it.subBlockPublicId === sb.publicId),
+            combinations: updatedCombs.filter((c) => c.subBlockPublicId === sb.publicId),
+          }));
+
           return {
             ...b,
             items: updatedItems,
             combinations: updatedCombs,
+            subBlocks: updatedSubBlocks,
           };
         }),
       }));
@@ -895,15 +958,25 @@ export function WorkoutBuilder({
     if (res.ok) {
       setVersion((prev) => ({
         ...prev,
-        blocks: prev.blocks.map((b) => ({
-          ...b,
-          combinations: (b.combinations || []).filter((c) => c.publicId !== combinationPublicId),
-          items: (b.items || []).map((it) =>
+        blocks: prev.blocks.map((b) => {
+          const updatedItems = (b.items || []).map((it) =>
             it.combinationPublicId === combinationPublicId
               ? { ...it, combinationPublicId: null, combinationType: null }
               : it
-          ),
-        })),
+          );
+          const updatedCombs = (b.combinations || []).filter((c) => c.publicId !== combinationPublicId);
+          const updatedSubBlocks = (b.subBlocks || []).map((sb) => ({
+            ...sb,
+            items: updatedItems.filter((it) => it.subBlockPublicId === sb.publicId),
+            combinations: updatedCombs.filter((c) => c.subBlockPublicId === sb.publicId),
+          }));
+          return {
+            ...b,
+            items: updatedItems,
+            combinations: updatedCombs,
+            subBlocks: updatedSubBlocks,
+          };
+        }),
       }));
       notify("Combinação desfeita. Todos os exercícios foram preservados.");
     } else {
@@ -949,15 +1022,48 @@ export function WorkoutBuilder({
     itemPublicId: string,
     direction: "up" | "down"
   ) {
+    // Optimistic swap
+    setVersion((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((b) => {
+        const comb = (b.combinations || []).find((c) => c.publicId === combinationPublicId);
+        if (!comb) return b;
+        const combItems = (b.items || []).filter(
+          (it) => it.combinationPublicId === combinationPublicId
+        );
+        const idx = combItems.findIndex((it) => it.publicId === itemPublicId);
+        if (idx === -1) return b;
+        const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+        if (targetIdx < 0 || targetIdx >= combItems.length) return b;
+
+        const itemA = combItems[idx];
+        const itemB = combItems[targetIdx];
+        const updatedItems = (b.items || []).map((it) => {
+          if (it.publicId === itemA.publicId) return { ...it, sortOrder: itemB.sortOrder };
+          if (it.publicId === itemB.publicId) return { ...it, sortOrder: itemA.sortOrder };
+          return it;
+        });
+        const newCombItems = updatedItems
+          .filter((it) => it.combinationPublicId === combinationPublicId)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        const updatedCombs = (b.combinations || []).map((c) =>
+          c.publicId === combinationPublicId ? { ...c, items: newCombItems } : c
+        );
+        return {
+          ...b,
+          items: updatedItems,
+          combinations: updatedCombs,
+        };
+      }),
+    }));
+
     const res = await moveItemInCombinationAction(
       consultancySlug,
       combinationPublicId,
       itemPublicId,
       direction
     );
-    if (res.ok) {
-      router.refresh();
-    } else {
+    if (!res.ok) {
       notify(res.error || "Erro ao mover exercício na combinação.");
     }
   }
@@ -974,19 +1080,32 @@ export function WorkoutBuilder({
     if (res.ok) {
       setVersion((prev) => ({
         ...prev,
-        blocks: prev.blocks.map((b) => ({
-          ...b,
-          items: (b.items || []).map((it) =>
-            it.publicId === itemPublicId
-              ? { ...it, combinationPublicId: null, combinationType: null }
-              : it
-          ),
-          combinations: (b.combinations || []).map((c) =>
-            c.publicId === combinationPublicId
-              ? { ...c, items: (c.items || []).filter((it) => it.publicId !== itemPublicId) }
-              : c
-          ),
-        })),
+        blocks: prev.blocks.map((b) => {
+          const remainingItems = (b.items || []).filter(
+            (it) => it.combinationPublicId === combinationPublicId && it.publicId !== itemPublicId
+          );
+          const shouldAutoUngroup = remainingItems.length <= 1;
+
+          return {
+            ...b,
+            items: (b.items || []).map((it) => {
+              if (it.publicId === itemPublicId) {
+                return { ...it, combinationPublicId: null, combinationType: null };
+              }
+              if (shouldAutoUngroup && it.combinationPublicId === combinationPublicId) {
+                return { ...it, combinationPublicId: null, combinationType: null };
+              }
+              return it;
+            }),
+            combinations: shouldAutoUngroup
+              ? (b.combinations || []).filter((c) => c.publicId !== combinationPublicId)
+              : (b.combinations || []).map((c) =>
+                  c.publicId === combinationPublicId
+                    ? { ...c, items: (c.items || []).filter((it) => it.publicId !== itemPublicId) }
+                    : c
+                ),
+          };
+        }),
       }));
       notify("Exercício desvinculado da combinação.");
     } else {
@@ -1439,6 +1558,7 @@ export function WorkoutBuilder({
                       onDeleteExercise={handleDeleteExercise}
                       onMoveExerciseUp={(catId, idx) => handleMoveExercise(catId, idx, "up")}
                       onMoveExerciseDown={(catId, idx) => handleMoveExercise(catId, idx, "down")}
+                      onReorderExercises={handleReorderExercises}
                       onUpdateExerciseQuickConfig={handleUpdateExerciseQuickConfig}
                       onCreateSubBlock={handleCreateSubBlock}
                       onRenameSubBlock={handleRenameSubBlock}

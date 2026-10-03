@@ -3390,6 +3390,19 @@ export async function reorderItemsInDraft(
       );
     }
 
+    // Step 3: Keep workout_item_combinations sort_order in sync with min(sort_order) of their items
+    await connection.execute(
+      `UPDATE workout_item_combinations wic
+       JOIN (
+         SELECT combination_id, MIN(sort_order) AS min_order
+         FROM workout_block_items
+         WHERE block_id = ? AND combination_id IS NOT NULL
+         GROUP BY combination_id
+       ) items_agg ON items_agg.combination_id = wic.id
+       SET wic.sort_order = items_agg.min_order, wic.updated_at = NOW(3);`,
+      [b.id]
+    );
+
     await connection.commit();
     return true;
   } catch (err) {
@@ -5545,6 +5558,7 @@ export async function createWorkoutItemCombination(
 
     // 2. Fetch subBlockId if provided
     let subBlockId: number | null = null;
+    let effectiveSubBlockPublicId: string | null = input.subBlockPublicId || null;
     if (input.subBlockPublicId) {
       const [sbRows] = await connection.execute<RowDataPacket[]>(
         `SELECT id FROM workout_sub_blocks WHERE public_id = ? AND block_id = ? LIMIT 1;`,
@@ -5557,7 +5571,8 @@ export async function createWorkoutItemCombination(
 
     // 3. Fetch items to group
     const [items] = await connection.execute<RowDataPacket[]>(
-      `SELECT id, public_id, sub_block_id, sort_order
+      `SELECT id, public_id, sub_block_id, sort_order, exercise_name_snapshot, muscle_group_snapshot,
+              equipment_snapshot, instructions_snapshot, prescription_mode, duration_unit, notes
        FROM workout_block_items
        WHERE public_id IN (${input.itemPublicIds.map(() => "?").join(",")}) AND block_id = ?;`,
       [...input.itemPublicIds, b.id]
@@ -5569,6 +5584,21 @@ export async function createWorkoutItemCombination(
         "VALIDATION_FAILED",
         400
       );
+    }
+
+    // If subBlockId was not explicitly given, check if all selected items belong to a sub-block
+    if (!subBlockId) {
+      const itemWithSb = items.find((i) => i.sub_block_id != null);
+      if (itemWithSb && itemWithSb.sub_block_id) {
+        subBlockId = Number(itemWithSb.sub_block_id);
+        const [sbPubRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT public_id FROM workout_sub_blocks WHERE id = ? LIMIT 1;`,
+          [subBlockId]
+        );
+        if (sbPubRows.length > 0) {
+          effectiveSubBlockPublicId = String(sbPubRows[0].public_id);
+        }
+      }
     }
 
     // Determine sort_order: minimum sort_order of selected items
@@ -5596,28 +5626,63 @@ export async function createWorkoutItemCombination(
     );
     const combinationId = combRes.insertId;
 
-    // 5. Update items to point to combination_id (and sub_block_id if specified)
-    const itemIds = items.map((i) => i.id);
-    await connection.execute(
-      `UPDATE workout_block_items
-       SET combination_id = ?, updated_at = NOW(3)
-       WHERE id IN (${itemIds.map(() => "?").join(",")});`,
-      [combinationId, ...itemIds]
-    );
+    // 5. Update items to point to combination_id, contiguous sort_order, and sub_block_id
+    for (let idx = 0; idx < input.itemPublicIds.length; idx++) {
+      const pId = input.itemPublicIds[idx];
+      const it = items.find((i) => i.public_id === pId);
+      if (it) {
+        await connection.execute(
+          `UPDATE workout_block_items
+           SET combination_id = ?, sort_order = ?, sub_block_id = ?, updated_at = NOW(3)
+           WHERE id = ?;`,
+          [combinationId, minSortOrder + idx, subBlockId, it.id]
+        );
+      }
+    }
 
     await connection.commit();
+
+    const mappedItems: WorkoutBlockItemDto[] = input.itemPublicIds
+      .map((pId, idx) => {
+        const it = items.find((i) => i.public_id === pId);
+        if (!it) return null;
+        return {
+          publicId: String(it.public_id),
+          exercisePublicId: null,
+          customExercisePublicId: null,
+          combinationPublicId,
+          combinationType: input.combinationType,
+          subBlockPublicId: effectiveSubBlockPublicId,
+          sortOrder: minSortOrder + idx,
+          exerciseNameSnapshot: String(it.exercise_name_snapshot),
+          muscleGroupSnapshot: it.muscle_group_snapshot ? String(it.muscle_group_snapshot) : null,
+          equipmentSnapshot: it.equipment_snapshot ? String(it.equipment_snapshot) : null,
+          instructionsSnapshot: it.instructions_snapshot ? String(it.instructions_snapshot) : null,
+          prescriptionMode: it.prescription_mode as PrescriptionMode,
+          durationUnit: it.duration_unit ? String(it.duration_unit) : null,
+          targetCadence: null,
+          targetRpe: null,
+          targetRir: null,
+          methodConfig: null,
+          customVideoUrl: null,
+          notes: it.notes ? String(it.notes) : null,
+          pinnedMedia: [],
+          sets: [],
+        };
+      })
+      .filter(Boolean) as WorkoutBlockItemDto[];
 
     return {
       publicId: combinationPublicId,
       blockPublicId: input.blockPublicId,
-      subBlockPublicId: input.subBlockPublicId || null,
+      subBlockPublicId: effectiveSubBlockPublicId,
       combinationType: input.combinationType,
       title: input.title?.trim() || null,
       sortOrder: minSortOrder,
       rounds: null,
       restAfterSeconds: restAfter,
       restAfterUnit: restUnit,
-      items: [],
+      items: mappedItems,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

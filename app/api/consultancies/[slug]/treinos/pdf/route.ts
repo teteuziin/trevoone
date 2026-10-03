@@ -75,23 +75,30 @@ export async function GET(request: Request, context: RouteContext) {
     notes: workoutView.notesForStudent,
     isDraft: false,
     versionNumber: workoutView.versionNumber,
-    blocks: workoutView.blocks.map((b) => ({
-      name: b.title || "Geral",
-      instructions: b.instructions,
-      exercises: (b.items || []).map((item) => {
-        const setsSummary = formatExerciseSetsSummary(item.sets || []);
-        return {
-          name: item.exerciseNameSnapshot,
-          muscleGroup: item.muscleGroupSnapshot,
-          equipment: item.equipmentSnapshot,
-          notes: item.notes,
-          summaryString: setsSummary.summaryString,
-          setsDetail: setsSummary.setsDetail,
-          combinationType: item.combinationType || null,
-          isCustomExercise: !!item.isCustomExercise,
-        };
-      }),
-    })),
+    blocks: workoutView.blocks.map((b) => {
+      const combMap = new Map((b.combinations || []).map((c) => [c.publicId, c]));
+      return {
+        name: b.title || "Geral",
+        instructions: b.instructions,
+        exercises: (b.items || []).map((item) => {
+          const setsSummary = formatExerciseSetsSummary(item.sets || []);
+          const comb = item.combinationPublicId ? combMap.get(item.combinationPublicId) : undefined;
+          return {
+            name: item.exerciseNameSnapshot,
+            muscleGroup: item.muscleGroupSnapshot,
+            equipment: item.equipmentSnapshot,
+            notes: item.notes,
+            summaryString: setsSummary.summaryString,
+            setsDetail: setsSummary.setsDetail,
+            combinationId: item.combinationPublicId || null,
+            combinationType: comb?.combinationType || item.combinationType || null,
+            combinationTitle: comb?.title || null,
+            combinationRestSeconds: comb?.restAfterSeconds ?? null,
+            isCustomExercise: !!item.isCustomExercise,
+          };
+        }),
+      };
+    }),
   };
 
   // 4. Generate vector PDF

@@ -57,6 +57,8 @@ import {
   duplicateWorkout,
   saveWorkoutAsTemplate,
   createWorkoutFromTemplate,
+  assignTemplateToStudent,
+  getTemplatePreview,
   listWorkoutVersions,
   listPublishedTemplatesForPicker,
   type CreateWorkoutInput,
@@ -69,6 +71,8 @@ import {
   type UpdateWarmupConfigurationInput,
   type WorkoutVersionSummaryDto,
   type TemplatePickerItemDto,
+  type AssignTemplateToStudentInput,
+  type TemplatePreviewDto,
 } from "@/lib/training-v2/workout-repository";
 import type {
   WorkoutVersionDto,
@@ -144,6 +148,7 @@ export async function createWorkoutDraftAction(
       objective: input.objective?.trim() || null,
       estimatedDurationMinutes: input.estimatedDurationMinutes ? Number(input.estimatedDurationMinutes) : null,
       difficultyLevel: input.difficultyLevel || "INTERMEDIATE",
+      isTemplate: Boolean(input.isTemplate),
       notes: input.notes?.trim() || null,
     });
 
@@ -807,7 +812,7 @@ export async function duplicateWorkoutAction(
   slug: string,
   workoutPublicId: string,
   versionPublicId?: string,
-  options?: { title?: string }
+  options?: { title?: string; isTemplate?: boolean }
 ): Promise<ActionResponse<{ workoutPublicId: string; versionPublicId: string }>> {
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
@@ -873,7 +878,7 @@ export async function saveWorkoutAsTemplateAction(
 export async function createWorkoutFromTemplateAction(
   slug: string,
   templatePublicId: string,
-  options?: { title?: string }
+  options?: { title?: string; targetStudentMembershipPublicId?: string }
 ): Promise<ActionResponse<{ workoutPublicId: string; versionPublicId: string }>> {
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
@@ -891,6 +896,73 @@ export async function createWorkoutFromTemplateAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao criar treino a partir do modelo.",
+    };
+  }
+}
+
+/**
+ * Assigns a PUBLISHED workout template directly to a student.
+ * Creates an independent workout copy (Copy-On-Assign), publishes Version 1,
+ * and links the student via workout_assignments.
+ */
+export async function assignTemplateToStudentAction(
+  slug: string,
+  templatePublicId: string,
+  studentMembershipPublicId: string,
+  options?: AssignTemplateToStudentInput
+): Promise<
+  ActionResponse<{
+    workoutPublicId: string;
+    versionPublicId: string;
+    assignmentPublicId: string;
+  }>
+> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const result = await assignTemplateToStudent(
+      ctx,
+      templatePublicId,
+      studentMembershipPublicId,
+      options
+    );
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidatePath(`/consultoria/${slug}/progresso/alunos/${studentMembershipPublicId}`);
+
+    return {
+      ok: true,
+      data: {
+        workoutPublicId: result.workout.publicId,
+        versionPublicId: result.version.publicId,
+        assignmentPublicId: result.assignmentPublicId,
+      },
+    };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao atribuir modelo ao aluno.",
+    };
+  }
+}
+
+/**
+ * Retrieves a preview summary of a published template (categories and exercises).
+ */
+export async function getTemplatePreviewAction(
+  slug: string,
+  templatePublicId: string
+): Promise<ActionResponse<TemplatePreviewDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const preview = await getTemplatePreview(ctx, templatePublicId);
+    if (!preview) {
+      return { ok: false, error: "Modelo não encontrado ou ainda não publicado." };
+    }
+    return { ok: true, data: preview };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao carregar prévia do modelo.",
     };
   }
 }

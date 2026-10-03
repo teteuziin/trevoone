@@ -15,6 +15,7 @@ import {
   type ActionSheetOption,
 } from "@/components/ui/mobile";
 import { PersonalRequestModal, type RequestModalType } from "./personal-request-modal";
+import { StudentNewWorkoutSheet } from "./student-new-workout-sheet";
 import type { StudentEvaluationResult } from "@/lib/monitoring/evaluator";
 import type {
   PersonalStudentDetail,
@@ -150,6 +151,7 @@ export function PersonalStudentDetailView({
 
   const [selectedFormForModal, setSelectedFormForModal] = useState<StudentFormAnswer | null>(null);
   const [isMobileActionSheetOpen, setIsMobileActionSheetOpen] = useState(false);
+  const [isNewWorkoutSheetOpen, setIsNewWorkoutSheetOpen] = useState(false);
   const [requestModal, setRequestModal] = useState<{ isOpen: boolean; type: RequestModalType }>({
     isOpen: false,
     type: "PHOTOS",
@@ -188,7 +190,7 @@ export function PersonalStudentDetailView({
             id: "new-workout",
             label: "Criar novo treino",
             icon: <DumbbellIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
-            onClick: () => router.push(createWorkoutHref),
+            onClick: () => setIsNewWorkoutSheetOpen(true),
           },
         ]
       : []),
@@ -313,13 +315,14 @@ export function PersonalStudentDetailView({
                 <span>+ Criar plano alimentar</span>
               </Link>
             ) : (
-              <Link
-                href={createWorkoutHref}
+              <button
+                type="button"
+                onClick={() => setIsNewWorkoutSheetOpen(true)}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs sm:text-sm text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[48px] shadow-sm depth-interactive cursor-pointer"
               >
                 <PlusIcon className="w-4 h-4" />
                 <span>+ Criar treino</span>
-              </Link>
+              </button>
             )}
 
             <button
@@ -450,13 +453,14 @@ export function PersonalStudentDetailView({
                   <p className="text-xs text-[var(--text-secondary)]">
                     Nenhum treino prescrito no momento.
                   </p>
-                  <Link
-                    href={createWorkoutHref}
-                    className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => setIsNewWorkoutSheetOpen(true)}
+                    className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] transition-colors cursor-pointer"
                   >
                     <PlusIcon className="w-3.5 h-3.5" />
                     <span>+ Prescrever treino</span>
-                  </Link>
+                  </button>
                 </div>
               )}
             </MobileCard>
@@ -545,13 +549,14 @@ export function PersonalStudentDetailView({
               <h2 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
                 Rotinas de Treino ({workouts.length})
               </h2>
-              <Link
-                href={createWorkoutHref}
+              <button
+                type="button"
+                onClick={() => setIsNewWorkoutSheetOpen(true)}
                 className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer"
               >
                 <PlusIcon className="w-3.5 h-3.5" />
                 <span>+ Criar treino</span>
-              </Link>
+              </button>
             </div>
 
             {workouts.length === 0 ? (
@@ -560,13 +565,14 @@ export function PersonalStudentDetailView({
                 description="Monte o primeiro treino personalizado do aluno usando o Criador Modular."
                 icon={<DumbbellIcon className="w-7 h-7 text-[var(--brand)]" />}
                 action={
-                  <Link
-                    href={createWorkoutHref}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[48px]"
+                  <button
+                    type="button"
+                    onClick={() => setIsNewWorkoutSheetOpen(true)}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[48px] cursor-pointer"
                   >
                     <PlusIcon className="w-4 h-4" />
                     <span>Criar primeiro treino</span>
-                  </Link>
+                  </button>
                 }
               />
             ) : (
@@ -1000,13 +1006,14 @@ export function PersonalStudentDetailView({
               <span>Ver treinos</span>
             </button>
 
-            <Link
-              href={createWorkoutHref}
+            <button
+              type="button"
+              onClick={() => setIsNewWorkoutSheetOpen(true)}
               className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all min-h-[44px] shadow-sm depth-interactive cursor-pointer"
             >
               <PlusIcon className="w-4 h-4" />
               <span>+ Criar treino</span>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -1597,13 +1604,14 @@ export function PersonalStudentDetailView({
               <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
                 Treinos Atribuídos ao Aluno
               </h2>
-              <Link
-                href={createWorkoutHref}
+              <button
+                type="button"
+                onClick={() => setIsNewWorkoutSheetOpen(true)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] shadow-xs cursor-pointer"
               >
                 <PlusIcon className="w-3.5 h-3.5" />
                 <span>+ Criar treino</span>
-              </Link>
+              </button>
             </div>
 
             {workouts.length === 0 ? (
@@ -1619,11 +1627,14 @@ export function PersonalStudentDetailView({
                     Monte a primeira rotina de treino personalizada do zero com o Criador Modular.
                   </p>
                 </div>
-                <Link href={createWorkoutHref}>
-                  <Button variant="primary" size="sm" className="font-bold min-h-[44px]">
-                    Criar primeiro treino
-                  </Button>
-                </Link>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsNewWorkoutSheetOpen(true)}
+                  className="font-bold min-h-[44px] cursor-pointer"
+                >
+                  Criar primeiro treino
+                </Button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1837,6 +1848,15 @@ export function PersonalStudentDetailView({
           </div>
         </div>
       )}
+
+      {/* Sheet to choose between new workout from scratch or reusable template */}
+      <StudentNewWorkoutSheet
+        isOpen={isNewWorkoutSheetOpen}
+        onClose={() => setIsNewWorkoutSheetOpen(false)}
+        consultancySlug={consultancySlug}
+        studentMembershipPublicId={student.membershipPublicId}
+        studentName={student.name}
+      />
     </div>
   );
 }

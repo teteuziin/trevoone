@@ -1461,7 +1461,7 @@ export async function duplicateWorkout(
   ctx: TrainingAccessContext,
   sourceWorkoutPublicId: string,
   sourceVersionPublicId: string,
-  options?: { title?: string }
+  options?: { title?: string; isTemplate?: boolean }
 ): Promise<{ workout: WorkoutRootDto; version: WorkoutVersionDto }> {
   assertCanAuthorTraining(ctx);
 
@@ -1473,7 +1473,7 @@ export async function duplicateWorkout(
 
     // 1. Resolve source workout and source version with strict combination check
     const [sourceRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT w.id AS workout_id, w.consultancy_id, w.created_by_membership_id, w.status AS workout_status,
+      `SELECT w.id AS workout_id, w.consultancy_id, w.created_by_membership_id, w.status AS workout_status, w.is_template,
               wv.id AS version_id, wv.version_number, wv.status AS version_status,
               wv.title AS version_title, wv.subtitle AS version_subtitle,
               wv.objective AS version_objective, wv.estimated_duration_minutes AS version_duration,
@@ -1502,13 +1502,17 @@ export async function duplicateWorkout(
     const newWorkoutPublicId = crypto.randomUUID();
     const newVersionPublicId = crypto.randomUUID();
     const newTitle = options?.title?.trim() || `Cópia de ${source.version_title}`;
+    const targetIsTemplate =
+      options?.isTemplate !== undefined
+        ? Boolean(options.isTemplate)
+        : Boolean(source.is_template);
 
-    // 2. Insert new workout root (is_template = false)
+    // 2. Insert new workout root (is_template preserved from source or override)
     const [wRes] = await connection.execute<ResultSetHeader>(
       `INSERT INTO workouts (
         public_id, consultancy_id, created_by_membership_id, title, subtitle,
         objective, estimated_duration_minutes, difficulty_level, is_template, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'ACTIVE');`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE');`,
       [
         newWorkoutPublicId,
         ctx.consultancyId!,
@@ -1518,6 +1522,7 @@ export async function duplicateWorkout(
         source.version_objective,
         source.version_duration,
         source.version_difficulty || "INTERMEDIATE",
+        targetIsTemplate ? 1 : 0,
       ]
     );
     const newWorkoutId = wRes.insertId;
@@ -1558,7 +1563,7 @@ export async function duplicateWorkout(
       objective: source.version_objective,
       estimatedDurationMinutes: source.version_duration != null ? Number(source.version_duration) : null,
       difficultyLevel: source.version_difficulty || "INTERMEDIATE",
-      isTemplate: false,
+      isTemplate: targetIsTemplate,
       status: "ACTIVE",
       currentPublishedVersion: null,
       createdAt: new Date(),
@@ -1708,7 +1713,7 @@ export async function saveWorkoutAsTemplate(
 export async function createWorkoutFromTemplate(
   ctx: TrainingAccessContext,
   templatePublicId: string,
-  options?: { title?: string }
+  options?: { title?: string; targetStudentMembershipPublicId?: string }
 ): Promise<{ workout: WorkoutRootDto; version: WorkoutVersionDto }> {
   assertCanAuthorTraining(ctx);
 
@@ -1834,6 +1839,317 @@ export async function createWorkoutFromTemplate(
     throw err;
   } finally {
     connection.release();
+  }
+}
+
+export type AssignTemplateToStudentInput = {
+  startsOn?: string;
+  endsOn?: string | null;
+  notesForStudent?: string | null;
+  customTitle?: string;
+};
+
+/**
+ * Assigns a PUBLISHED workout template directly to a student.
+ *
+ * CORE CONTRACT (COPY-ON-ASSIGN):
+ * 1. Creates a brand NEW normal workout root (is_template = false) for the student.
+ * 2. Creates Version 1 PUBLISHED on that workout root.
+ * 3. Deep-clones the complete template tree (blocks, combinations, items, media, sets) into the new version.
+ * 4. Links the student to this independent copy in workout_assignments.
+ * 5. The template and the student copy are 100% ISOLATED:
+ *    - Future edits to the student's copy NEVER alter the template or other students.
+ *    - Future edits to the template NEVER alter existing student assignments.
+ */
+export async function assignTemplateToStudent(
+  ctx: TrainingAccessContext,
+  templatePublicId: string,
+  studentMembershipPublicId: string,
+  options?: AssignTemplateToStudentInput
+): Promise<{
+  workout: WorkoutRootDto;
+  version: WorkoutVersionDto;
+  assignmentPublicId: string;
+}> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Resolve template root
+    const [tRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, consultancy_id, created_by_membership_id, title, subtitle,
+              objective, estimated_duration_minutes, difficulty_level
+       FROM workouts
+       WHERE public_id = ? AND is_template = 1 AND deleted_at IS NULL
+       FOR UPDATE;`,
+      [templatePublicId]
+    );
+
+    if (!tRows || tRows.length === 0) {
+      throw new TrainingAuthorizationError("Modelo de treino não encontrado.", "NOT_FOUND", 404);
+    }
+    const t = tRows[0];
+
+    // Tenancy check
+    if (Number(t.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado ao modelo de outra consultoria.", "FORBIDDEN", 403);
+    }
+    // Access check: creator or consultancy admin
+    if (!ctx.canManageConsultancy && Number(t.created_by_membership_id) !== ctx.membershipId) {
+      throw new TrainingAuthorizationError("Acesso restrito ao criador do modelo.", "FORBIDDEN", 403);
+    }
+
+    // 2. Resolve template's current PUBLISHED version
+    const [pubRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, title, subtitle, objective, estimated_duration_minutes,
+              difficulty_level, notes, version_number
+       FROM workout_versions
+       WHERE workout_id = ? AND status = 'PUBLISHED'
+       ORDER BY version_number DESC
+       LIMIT 1;`,
+      [t.id]
+    );
+
+    if (!pubRows || pubRows.length === 0) {
+      throw new TrainingAuthorizationError(
+        "O modelo selecionado precisa estar publicado para ser atribuído a alunos.",
+        "TEMPLATE_NOT_PUBLISHED",
+        400
+      );
+    }
+    const templateVer = pubRows[0];
+
+    // 3. Resolve and lock student membership in consultancy
+    const [studentRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT cm.id, cm.public_id, u.full_name
+       FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id AND cmr.role = 'STUDENT'
+       WHERE cm.public_id = ? AND cm.consultancy_id = ? AND cm.status = 'ACTIVE'
+       LIMIT 1
+       FOR UPDATE;`,
+      [studentMembershipPublicId, ctx.consultancyId!]
+    );
+
+    if (!studentRows || studentRows.length === 0) {
+      throw new TrainingAuthorizationError(
+        "Aluno não encontrado ou não pertence a esta consultoria.",
+        "STUDENT_NOT_FOUND",
+        404
+      );
+    }
+    const student = studentRows[0];
+
+    const newWorkoutPublicId = crypto.randomUUID();
+    const newVersionPublicId = crypto.randomUUID();
+    const assignmentPublicId = crypto.randomUUID();
+    const newTitle = options?.customTitle?.trim() || templateVer.title;
+
+    // 4. Insert NEW normal workout root (is_template = false)
+    const [wRes] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO workouts (
+        public_id, consultancy_id, created_by_membership_id, title, subtitle,
+        objective, estimated_duration_minutes, difficulty_level, is_template, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'ACTIVE');`,
+      [
+        newWorkoutPublicId,
+        ctx.consultancyId!,
+        ctx.membershipId!,
+        newTitle,
+        templateVer.subtitle,
+        templateVer.objective,
+        templateVer.estimated_duration_minutes,
+        templateVer.difficulty_level || "INTERMEDIATE",
+      ]
+    );
+    const newWorkoutId = wRes.insertId;
+
+    // 5. Insert Version 1 PUBLISHED (ready for student execution)
+    const [vRes] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO workout_versions (
+        public_id, workout_id, version_number, status, published_at,
+        title, subtitle, objective, estimated_duration_minutes, difficulty_level,
+        notes, created_by_membership_id
+      ) VALUES (?, ?, 1, 'PUBLISHED', NOW(3), ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        newVersionPublicId,
+        newWorkoutId,
+        newTitle,
+        templateVer.subtitle,
+        templateVer.objective,
+        templateVer.estimated_duration_minutes,
+        templateVer.difficulty_level || "INTERMEDIATE",
+        templateVer.notes,
+        ctx.membershipId!,
+      ]
+    );
+    const newVersionId = vRes.insertId;
+
+    // 6. Deep clone tree from template version into newVersionId
+    await cloneVersionTree(connection, Number(templateVer.id), newVersionId);
+
+    // 7. Insert workout assignment
+    const startsOn = options?.startsOn?.trim() || new Date().toISOString().slice(0, 10);
+    const endsOn = options?.endsOn?.trim() || null;
+    const notesForStudent = options?.notesForStudent?.trim() || null;
+
+    await connection.execute<ResultSetHeader>(
+      `INSERT INTO workout_assignments (
+        public_id, consultancy_id, student_membership_id, workout_version_id,
+        assigned_by_membership_id, starts_on, ends_on, status, notes_for_student
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?);`,
+      [
+        assignmentPublicId,
+        ctx.consultancyId!,
+        student.id,
+        newVersionId,
+        ctx.membershipId!,
+        startsOn,
+        endsOn,
+        notesForStudent,
+      ]
+    );
+
+    // 8. Record audit activity
+    await recordConsultancyActivity({
+      consultancyId: ctx.consultancyId!,
+      actorUserId: ctx.userId,
+      actorMembershipId: ctx.membershipId,
+      actorRole: ctx.roles.includes("PERSONAL") ? "PERSONAL" : (ctx.roles[0] || "PERSONAL"),
+      action: "WORKOUT_ASSIGNED",
+      module: "PERSONAL",
+      resourceType: "workout",
+      resourcePublicId: newWorkoutPublicId,
+      summary: `Plano "${newTitle}" atribuído ao aluno a partir do modelo "${templateVer.title}"`,
+      metadata: {
+        templatePublicId,
+        templateVersionNumber: Number(templateVer.version_number),
+        studentMembershipPublicId,
+        assignmentPublicId,
+      },
+      connection,
+    }).catch(() => {});
+
+    await connection.commit();
+
+    const newVersionTree = await getWorkoutVersionTree(ctx, newVersionPublicId);
+
+    const workoutDto: WorkoutRootDto = {
+      publicId: newWorkoutPublicId,
+      consultancyPublicId: ctx.consultancyPublicId!,
+      title: newTitle,
+      subtitle: templateVer.subtitle,
+      objective: templateVer.objective,
+      estimatedDurationMinutes: templateVer.estimated_duration_minutes != null ? Number(templateVer.estimated_duration_minutes) : null,
+      difficultyLevel: templateVer.difficulty_level || "INTERMEDIATE",
+      isTemplate: false,
+      status: "ACTIVE",
+      currentPublishedVersion: newVersionTree,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    return { workout: workoutDto, version: newVersionTree!, assignmentPublicId };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+export type TemplatePreviewBlockSummary = {
+  title: string;
+  itemsCount: number;
+};
+
+export type TemplatePreviewDto = {
+  publicId: string;
+  title: string;
+  subtitle: string | null;
+  objective: string | null;
+  difficultyLevel: string;
+  estimatedDurationMinutes: number | null;
+  publishedVersionNumber: number;
+  blocks: TemplatePreviewBlockSummary[];
+  categoryCount: number;
+  totalExercises: number;
+  notes: string | null;
+  updatedAt: Date;
+};
+
+/**
+ * Retrieves a lightweight preview summary of a published template's structure.
+ * Used for pre-assignment modal preview (Section 32).
+ */
+export async function getTemplatePreview(
+  ctx: TrainingAccessContext,
+  templatePublicId: string
+): Promise<TemplatePreviewDto | null> {
+  assertCanAuthorTraining(ctx);
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+
+    // 1. Resolve template root and latest published version
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT w.public_id, wv.id AS version_id, wv.title, wv.subtitle, wv.objective,
+              wv.difficulty_level, wv.estimated_duration_minutes, wv.notes,
+              wv.version_number, wv.updated_at
+       FROM workouts w
+       INNER JOIN workout_versions wv ON wv.workout_id = w.id
+            AND wv.id = (
+               SELECT wv2.id FROM workout_versions wv2
+               WHERE wv2.workout_id = w.id AND wv2.status = 'PUBLISHED'
+               ORDER BY wv2.version_number DESC
+               LIMIT 1
+            )
+       WHERE w.public_id = ? AND w.consultancy_id = ? AND w.is_template = 1 AND w.deleted_at IS NULL
+       LIMIT 1;`,
+      [templatePublicId, ctx.consultancyId!]
+    );
+
+    if (!rows || rows.length === 0) return null;
+    const r = rows[0];
+
+    // 2. Fetch blocks summary with item counts
+    const [blockRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wb.title,
+              (SELECT COUNT(*) FROM workout_block_items wbi WHERE wbi.block_id = wb.id) AS items_count
+       FROM workout_blocks wb
+       WHERE wb.workout_version_id = ?
+       ORDER BY wb.sort_order ASC;`,
+      [r.version_id]
+    );
+
+    const blocks: TemplatePreviewBlockSummary[] = (blockRows || []).map((b, idx) => ({
+      title: String(b.title || `Categoria ${idx + 1}`),
+      itemsCount: Number(b.items_count || 0),
+    }));
+
+    const totalExercises = blocks.reduce((acc, b) => acc + b.itemsCount, 0);
+
+    return {
+      publicId: String(r.public_id),
+      title: String(r.title),
+      subtitle: r.subtitle ? String(r.subtitle) : null,
+      objective: r.objective ? String(r.objective) : null,
+      difficultyLevel: String(r.difficulty_level || "INTERMEDIATE"),
+      estimatedDurationMinutes: r.estimated_duration_minutes != null ? Number(r.estimated_duration_minutes) : null,
+      publishedVersionNumber: Number(r.version_number),
+      blocks,
+      categoryCount: blocks.length,
+      totalExercises,
+      notes: r.notes ? String(r.notes) : null,
+      updatedAt: new Date(r.updated_at),
+    };
+  } finally {
+    if (connection) connection.release();
   }
 }
 

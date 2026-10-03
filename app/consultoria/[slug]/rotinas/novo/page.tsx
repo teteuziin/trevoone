@@ -42,12 +42,14 @@ interface PageProps {
   }>;
   searchParams: Promise<{
     student?: string;
+    isTemplate?: string;
   }>;
 }
 
 export default async function NewWorkoutPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
-  const { student: studentMembershipPublicId } = await searchParams;
+  const { student: studentMembershipPublicId, isTemplate: isTemplateQuery } = await searchParams;
+  const isTemplate = isTemplateQuery === "true";
 
   const session = await getCurrentSession();
   if (!session) {
@@ -91,6 +93,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
     const difficultyLevel = String(formData.get("difficultyLevel") || "INTERMEDIATE");
     const estimatedDuration = formData.get("estimatedDurationMinutes");
     const notes = String(formData.get("notes") || "").trim() || undefined;
+    const isTemplateVal = formData.get("isTemplate") === "true";
     const targetStudentMembershipPublicId = String(formData.get("targetStudentMembershipPublicId") || "").trim() || studentMembershipPublicId;
 
     const res = await createWorkoutDraftAction(slug, {
@@ -99,6 +102,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
       difficultyLevel,
       estimatedDurationMinutes: estimatedDuration ? Number(estimatedDuration) : null,
       notes,
+      isTemplate: isTemplateVal,
     });
 
     if (res.ok && res.data) {
@@ -126,13 +130,19 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
           href={
             preselectedStudent
               ? `/consultoria/${slug}/progresso/alunos/${preselectedStudent.student.membershipPublicId}`
+              : isTemplate
+              ? `/consultoria/${slug}/rotinas?tab=templates`
               : `/consultoria/${slug}/rotinas`
           }
           className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"
         >
           <ArrowLeftIcon className="w-4 h-4" />
           <span>
-            {preselectedStudent ? "Voltar para Central do Aluno" : "Voltar para Treinos"}
+            {preselectedStudent
+              ? "Voltar para Central do Aluno"
+              : isTemplate
+              ? "Voltar para Modelos de Treino"
+              : "Voltar para Treinos"}
           </span>
         </Link>
 
@@ -142,15 +152,17 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
               <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
                 Módulo de Treinamento
               </span>
-              <Badge variant="brand" size="sm">
-                Novo Treino do Zero
+              <Badge variant={isTemplate ? "neutral" : "brand"} size="sm">
+                {isTemplate ? "Modelo Reutilizável" : "Novo Treino do Zero"}
               </Badge>
             </div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-              Nova Ficha de Treino
+              {isTemplate ? "Novo Modelo de Treino" : "Nova Ficha de Treino"}
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium leading-relaxed">
-              Defina o nome e os dados da ficha. Em seguida, você adicionará as categorias e exercícios.
+              {isTemplate
+                ? "Defina o nome e os dados do modelo padrão. Em seguida, você adicionará as categorias e exercícios no criador modular."
+                : "Defina o nome e os dados da ficha. Em seguida, você adicionará as categorias e exercícios."}
             </p>
           </div>
 
@@ -192,10 +204,17 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                 value={preselectedStudent.student.membershipPublicId}
               />
             )}
+            {isTemplate && (
+              <input
+                type="hidden"
+                name="isTemplate"
+                value="true"
+              />
+            )}
 
             <div className="space-y-1.5">
               <label htmlFor="title" className="block text-xs font-bold text-[var(--text-primary)]">
-                Nome da ficha *
+                {isTemplate ? "Nome do modelo padrão *" : "Nome da ficha *"}
               </label>
               <input
                 id="title"
@@ -203,7 +222,9 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                 type="text"
                 required
                 placeholder={
-                  preselectedStudent
+                  isTemplate
+                    ? "Ex: Hipertrofia Intermediária — ABC"
+                    : preselectedStudent
                     ? `Ex: Treino A — Peito e Tríceps (${preselectedStudent.student.name.split(" ")[0]})`
                     : "Ex: Treino A — Peito e Tríceps"
                 }

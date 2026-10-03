@@ -55,6 +55,7 @@ import {
 } from "./custom-exercise-inline-modal";
 import { WorkoutPublishDialog } from "./workout-publish-dialog";
 import { WorkoutAssignModal } from "./workout-assign-modal";
+import { TemplateAssignModal } from "./template-assign-modal";
 import { StudentWorkoutRenderer } from "./student-workout-renderer";
 
 function DownloadIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -1686,21 +1687,39 @@ export function WorkoutBuilder({
         }}
       />
 
-      {/* Workout Assign Modal */}
-      <WorkoutAssignModal
-        isOpen={isAssignModalOpen}
-        onClose={() => setIsAssignModalOpen(false)}
-        slug={consultancySlug}
-        workoutTitle={title}
-        workoutPublicId={workout.publicId}
-        versionPublicId={version.publicId}
-        versionNumber={version.versionNumber}
-        initialStudentPublicId={initialStudentPublicId}
-        onAssigned={() => {
-          setIsAssignModalOpen(false);
-          notify("Ficha prescrita com sucesso ao aluno!");
-        }}
-      />
+      {/* Workout or Template Assign Modal */}
+      {workout.isTemplate ? (
+        <TemplateAssignModal
+          isOpen={isAssignModalOpen}
+          onClose={() => setIsAssignModalOpen(false)}
+          slug={consultancySlug}
+          templatePublicId={workout.publicId}
+          templateTitle={title}
+          initialStudentMembershipPublicId={initialStudentPublicId}
+          onAssigned={(assignedWorkoutPublicId: string) => {
+            setIsAssignModalOpen(false);
+            notify("Modelo atribuído com sucesso! Uma cópia independente foi criada para o aluno.");
+            if (assignedWorkoutPublicId) {
+              router.push(`/consultoria/${consultancySlug}/rotinas/${assignedWorkoutPublicId}`);
+            }
+          }}
+        />
+      ) : (
+        <WorkoutAssignModal
+          isOpen={isAssignModalOpen}
+          onClose={() => setIsAssignModalOpen(false)}
+          slug={consultancySlug}
+          workoutTitle={title}
+          workoutPublicId={workout.publicId}
+          versionPublicId={version.publicId}
+          versionNumber={version.versionNumber}
+          initialStudentPublicId={initialStudentPublicId}
+          onAssigned={() => {
+            setIsAssignModalOpen(false);
+            notify("Ficha prescrita com sucesso ao aluno!");
+          }}
+        />
+      )}
 
       {/* Student View Preview Modal */}
       {isPreviewOpen && (

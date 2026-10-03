@@ -161,10 +161,13 @@ export default async function ConsultancyWorkoutsPage({
               </>
             )}
             {!isAssignmentsTab && (
-              <Link href={`/consultoria/${slug}/rotinas/novo`} className="w-full sm:w-auto">
+              <Link
+                href={isTemplatesTab ? `/consultoria/${slug}/rotinas/novo?isTemplate=true` : `/consultoria/${slug}/rotinas/novo`}
+                className="w-full sm:w-auto"
+              >
                 <Button variant="primary" size="md" className="w-full sm:w-auto font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2">
                   <PlusIcon className="w-4 h-4" />
-                  <span>Nova ficha</span>
+                  <span>{isTemplatesTab ? "Novo modelo" : "Nova ficha"}</span>
                 </Button>
               </Link>
             )}
@@ -290,10 +293,12 @@ export default async function ConsultancyWorkoutsPage({
                   {!isTemplatesTab && (
                     <WorkoutTemplatePickerTrigger consultancySlug={slug} />
                   )}
-                  <Link href={`/consultoria/${slug}/rotinas/novo`}>
+                  <Link
+                    href={isTemplatesTab ? `/consultoria/${slug}/rotinas/novo?isTemplate=true` : `/consultoria/${slug}/rotinas/novo`}
+                  >
                     <Button variant="primary" size="sm" className="font-bold min-h-[44px] flex items-center gap-1.5 shadow-sm">
                       <PlusIcon className="w-4 h-4" />
-                      <span>Criar ficha</span>
+                      <span>{isTemplatesTab ? "Criar modelo" : "Criar ficha"}</span>
                     </Button>
                   </Link>
                 </div>
@@ -372,6 +377,7 @@ export default async function ConsultancyWorkoutsPage({
                         workoutPublicId={w.publicId}
                         workoutTitle={w.title}
                         isDraft={Boolean(w.hasActiveDraft)}
+                        isTemplate={Boolean(w.isTemplate)}
                       />
                     </div>
                   );

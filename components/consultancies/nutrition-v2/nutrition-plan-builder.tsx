@@ -33,6 +33,7 @@ import { NutritionVersionHistory } from "./nutrition-version-history";
 import { NutritionAssignModal } from "./nutrition-assign-modal";
 import { NutritionAssignmentsList } from "./nutrition-assignments-list";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
+import { MobileActionSheet } from "@/components/ui/mobile";
 import type { AssignmentListItemDto } from "@/lib/nutrition-v2/assignment-repository";
 import type { FoodSelectionResult } from "./nutrition-food-picker";
 
@@ -188,6 +189,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
   // Assignments state
   const [assignments, setAssignments] = useState<AssignmentListItemDto[]>(initialAssignments);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isMobileActionSheetOpen, setIsMobileActionSheetOpen] = useState(false);
 
   const refreshAssignments = async () => {
     const res = await listPlanAssignmentsAction(slug, tree.plan.publicId);
@@ -350,8 +352,8 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
             <span>Voltar para Planos Alimentares</span>
           </Link>
 
-          {/* Action Controls & Version Badges */}
-          <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Desktop Action Controls & Version Badges */}
+          <div className="hidden sm:flex items-center gap-2.5 flex-wrap">
             <button
               type="button"
               onClick={handleOpenHistory}
@@ -445,6 +447,26 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
                 <span>{isCreatingVersion ? "Criando versão..." : "Criar Nova Versão"}</span>
               </Button>
             )}
+          </div>
+
+          {/* Mobile Badge Only */}
+          <div className="sm:hidden flex items-center gap-2 shrink-0">
+            <Badge
+              variant={
+                tree.version.status === "PUBLISHED"
+                  ? "success"
+                  : tree.version.status === "DRAFT"
+                  ? "warning"
+                  : "neutral"
+              }
+              size="md"
+            >
+              {tree.version.status === "DRAFT"
+                ? `Rascunho (V${tree.version.versionNumber})`
+                : tree.version.status === "PUBLISHED"
+                ? `Publicada (V${tree.version.versionNumber})`
+                : `Arquivada (V${tree.version.versionNumber})`}
+            </Badge>
           </div>
         </div>
 
@@ -1073,6 +1095,105 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
           onSuccess={refreshAssignments}
         />
       </div>
+
+      {/* Mobile Sticky Bottom Action Bar */}
+      <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-default)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-lg flex items-center justify-between gap-2.5">
+        <button
+          type="button"
+          aria-label="Mais ações do plano"
+          onClick={() => setIsMobileActionSheetOpen(true)}
+          className="min-h-[48px] min-w-[48px] rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] active:scale-95 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center shrink-0 cursor-pointer"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="12" cy="5" r="1" />
+            <circle cx="12" cy="19" r="1" />
+          </svg>
+        </button>
+
+        {tree.version.status === "DRAFT" && (
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => {
+              setPublishError(null);
+              setIsPublishDialogOpen(true);
+            }}
+            className="flex-1 font-bold min-h-[48px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
+          >
+            <CheckIcon className="w-4 h-4" />
+            <span>Publicar Versão</span>
+          </Button>
+        )}
+
+        {tree.version.status === "PUBLISHED" && (
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => setIsAssignModalOpen(true)}
+            className="flex-1 font-bold min-h-[48px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
+          >
+            <UserPlusIcon className="w-4 h-4" />
+            <span>Prescrever ao Aluno</span>
+          </Button>
+        )}
+
+        {tree.version.status !== "DRAFT" && tree.version.status !== "PUBLISHED" && (
+          <Button
+            variant="primary"
+            size="md"
+            disabled={isCreatingVersion}
+            onClick={handleCreateNextVersion}
+            className="flex-1 font-bold min-h-[48px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
+          >
+            <PlusIcon className="w-4 h-4" />
+            <span>{isCreatingVersion ? "Criando versão..." : "Criar Nova Versão"}</span>
+          </Button>
+        )}
+      </div>
+
+      {/* Mobile Action Sheet for secondary actions */}
+      <MobileActionSheet
+        isOpen={isMobileActionSheetOpen}
+        onClose={() => setIsMobileActionSheetOpen(false)}
+        title={tree.version.title}
+        options={[
+          {
+            id: "history",
+            label: "Histórico de Versões",
+            icon: <HistoryIcon className="w-4 h-4 text-[var(--text-secondary)]" />,
+            onClick: () => handleOpenHistory(),
+          },
+          {
+            id: "pdf",
+            label: "Baixar plano em PDF",
+            icon: (
+              <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            ),
+            onClick: () => {
+              window.open(`/api/consultancies/${slug}/nutricao/pdf?planPublicId=${initialTree.plan.publicId}`, "_blank");
+            },
+          },
+          {
+            id: "template",
+            label: "Salvar como modelo",
+            icon: (
+              <svg className="w-4 h-4 text-[var(--text-secondary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+            ),
+            onClick: () => setIsSaveTemplateDialogOpen(true),
+          },
+          ...(!isReadOnly ? [{
+            id: "edit-meta",
+            label: "Editar Informações do Plano",
+            icon: <EditIcon className="w-4 h-4 text-[var(--brand)]" />,
+            onClick: () => setIsEditingMetadata(true),
+          }] : []),
+        ]}
+      />
     </div>
   );
 }

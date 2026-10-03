@@ -9,7 +9,8 @@ import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NutritionWorkspaceNav } from "@/components/consultancies/nutrition-v2/nutrition-workspace-nav";
-import { NutritionAiImportModal } from "@/components/consultancies/nutrition-v2/nutrition-ai-import-modal";
+import { NutritionPlanCreationSheet } from "@/components/consultancies/nutrition-v2/nutrition-plan-creation-sheet";
+import { NutritionPlanCardActions } from "@/components/consultancies/nutrition-v2/nutrition-plan-card-actions";
 
 interface PlanosV2PageProps {
   params: Promise<{ slug: string }>;
@@ -144,15 +145,7 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
           </div>
 
           {ctx.canAuthorNutrition ? (
-            <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
-              <NutritionAiImportModal consultancySlug={slug} />
-              <Link href={`/consultoria/${slug}/planos-v2/novo`} className="shrink-0">
-                <Button variant="primary" size="md" className="font-bold min-h-[44px] shadow-sm">
-                  <PlusIcon className="w-4 h-4 mr-1.5" />
-                  <span>Criar plano</span>
-                </Button>
-              </Link>
-            </div>
+            <NutritionPlanCreationSheet consultancySlug={slug} />
           ) : (
             <Badge variant="neutral" size="sm" className="font-bold">
               Modo Visualização (Administrador)
@@ -173,12 +166,12 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
                 className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
               />
             </div>
-            <Button type="submit" variant="secondary" size="md" className="font-semibold px-4 min-h-[42px]">
+            <Button type="submit" variant="secondary" size="md" className="font-semibold px-4 min-h-[44px]">
               Buscar
             </Button>
             {query && (
               <Link href={`/consultoria/${slug}/planos-v2`}>
-                <Button variant="ghost" size="md" className="font-semibold px-3 min-h-[42px]">
+                <Button variant="ghost" size="md" className="font-semibold px-3 min-h-[44px]">
                   Limpar
                 </Button>
               </Link>
@@ -188,7 +181,7 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
 
         {/* Plan List */}
         {items.length === 0 ? (
-          <div className="p-10 sm:p-12 text-center rounded-2xl sm:rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface)] space-y-4 shadow-xs">
+          <div className="p-8 sm:p-12 text-center rounded-2xl sm:rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface)] space-y-4 shadow-xs">
             <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center mx-auto shadow-2xs">
               <MealPlanIcon className="w-6 h-6" />
             </div>
@@ -202,25 +195,46 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
                   : "Crie um plano alimentar para montar refeições, alimentos, porções e substituições."}
               </p>
             </div>
-            <Link href={`/consultoria/${slug}/planos-v2/novo`}>
-              <Button variant="primary" size="sm" className="font-semibold min-h-[44px]">
+            <Link href={`/consultoria/${slug}/planos-v2/novo`} className="inline-block">
+              <Button variant="primary" size="md" className="font-bold min-h-[48px] px-5 shadow-sm">
                 <PlusIcon className="w-4 h-4 mr-1.5" />
                 <span>Criar Primeiro Plano</span>
               </Button>
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {items.map((plan) => (
-              <div
-                key={plan.publicId}
-                className="p-5 sm:p-6 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] transition-all flex flex-col justify-between gap-4"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-bold text-base sm:text-lg text-[var(--text-primary)] leading-snug">
-                      {plan.currentVersion?.title || "Plano sem título"}
-                    </h3>
+          <>
+            {/* MOBILE LIST (sm:hidden): Native touch cards */}
+            <div className="sm:hidden space-y-3">
+              {items.map((plan) => (
+                <div
+                  key={`mobile-${plan.publicId}`}
+                  className="p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs flex flex-col gap-3"
+                >
+                  {/* Top Line: Title & Status */}
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <h3 className="font-bold text-base text-[var(--text-primary)] leading-snug line-clamp-1">
+                        {plan.currentVersion?.title || "Plano sem título"}
+                      </h3>
+                      <p className="text-xs text-[var(--text-secondary)] font-medium flex items-center gap-1.5 flex-wrap">
+                        {plan.assignedStudentName ? (
+                          <span className="text-[var(--text-primary)] font-semibold">
+                            {plan.assignedStudentName}
+                          </span>
+                        ) : (
+                          <span className="text-amber-500 font-medium">Sem paciente</span>
+                        )}
+                        <span>•</span>
+                        <span>
+                          {plan.currentVersion?.status === "PUBLISHED"
+                            ? "Publicado"
+                            : plan.currentVersion?.status === "DRAFT"
+                            ? "Rascunho"
+                            : "Arquivado"}
+                        </span>
+                      </p>
+                    </div>
                     <Badge
                       variant={
                         plan.currentVersion?.status === "PUBLISHED"
@@ -230,53 +244,126 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
                           : "neutral"
                       }
                       size="sm"
+                      className="shrink-0 font-semibold text-[10px]"
                     >
                       {plan.currentVersion?.status === "DRAFT"
                         ? `V${plan.currentVersion.versionNumber} · Rascunho`
                         : plan.currentVersion?.status === "PUBLISHED"
                         ? `V${plan.currentVersion.versionNumber} · Publicada`
-                        : `V${plan.currentVersion?.versionNumber || 1} · Arquivada`}
+                        : `V${plan.currentVersion?.versionNumber || 1}`}
                     </Badge>
                   </div>
 
-                  {plan.currentVersion?.subtitle && (
-                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
-                      {plan.currentVersion.subtitle}
-                    </p>
-                  )}
-
-                  {!plan.isTemplate && (
-                    <div className="pt-0.5">
-                      {(plan.activeAssignmentsCount ?? 0) === 0 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                          Sem paciente atribuído
-                        </span>
-                      ) : plan.assignedStudentName ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                          Paciente: {plan.assignedStudentName}
-                        </span>
-                      ) : null}
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2 pt-1 text-[11px] text-[var(--text-tertiary)] font-medium">
+                  {/* Middle Line: Meals count & updated date */}
+                  <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)] font-medium pt-0.5">
+                    <span className="font-semibold text-[var(--text-secondary)]">
+                      {plan.mealsCount
+                        ? `${plan.mealsCount} ${plan.mealsCount === 1 ? "refeição" : "refeições"}`
+                        : "Sem refeições"}
+                    </span>
                     <span>
                       Atualizado em {new Date(plan.updatedAt).toLocaleDateString("pt-BR")}
                     </span>
                   </div>
-                </div>
 
-                <div className="flex items-center justify-end pt-3 border-t border-[var(--border-subtle)]">
-                  <Link href={`/consultoria/${slug}/planos-v2/${plan.publicId}`}>
-                    <Button variant="secondary" size="sm" className="font-semibold text-xs min-h-[38px] group">
-                      <span>Abrir Editor</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 ml-1 text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] group-hover:translate-x-0.5 transition-all" />
-                    </Button>
-                  </Link>
+                  {/* Bottom Line: Primary CTA [ Abrir plano ] + [•••] */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                    <Link
+                      href={`/consultoria/${slug}/planos-v2/${plan.publicId}`}
+                      className="flex-1"
+                    >
+                      <Button
+                        variant="primary"
+                        size="md"
+                        className="w-full font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-1.5 text-xs"
+                      >
+                        <span>Abrir plano</span>
+                        <ChevronRightIcon className="w-3.5 h-3.5" />
+                      </Button>
+                    </Link>
+
+                    <NutritionPlanCardActions
+                      consultancySlug={slug}
+                      planPublicId={plan.publicId}
+                      planTitle={plan.currentVersion?.title || "Plano alimentar"}
+                      isDraft={plan.currentVersion?.status === "DRAFT"}
+                      assignedStudentName={plan.assignedStudentName}
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* DESKTOP GRID (hidden sm:grid): 2-column cards */}
+            <div className="hidden sm:grid sm:grid-cols-1 md:grid-cols-2 gap-4">
+              {items.map((plan) => (
+                <div
+                  key={plan.publicId}
+                  className="p-5 sm:p-6 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--brand-soft-border)] transition-all flex flex-col justify-between gap-4"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="font-bold text-base sm:text-lg text-[var(--text-primary)] leading-snug">
+                        {plan.currentVersion?.title || "Plano sem título"}
+                      </h3>
+                      <Badge
+                        variant={
+                          plan.currentVersion?.status === "PUBLISHED"
+                            ? "success"
+                            : plan.currentVersion?.status === "DRAFT"
+                            ? "warning"
+                            : "neutral"
+                        }
+                        size="sm"
+                      >
+                        {plan.currentVersion?.status === "DRAFT"
+                          ? `V${plan.currentVersion.versionNumber} · Rascunho`
+                          : plan.currentVersion?.status === "PUBLISHED"
+                          ? `V${plan.currentVersion.versionNumber} · Publicada`
+                          : `V${plan.currentVersion?.versionNumber || 1} · Arquivada`}
+                      </Badge>
+                    </div>
+
+                    {plan.currentVersion?.subtitle && (
+                      <p className="text-xs sm:text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
+                        {plan.currentVersion.subtitle}
+                      </p>
+                    )}
+
+                    {!plan.isTemplate && (
+                      <div className="pt-0.5">
+                        {(plan.activeAssignmentsCount ?? 0) === 0 ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                            Sem paciente atribuído
+                          </span>
+                        ) : plan.assignedStudentName ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            Paciente: {plan.assignedStudentName}
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 pt-1 text-[11px] text-[var(--text-tertiary)] font-medium">
+                      <span>
+                        {plan.mealsCount ? `${plan.mealsCount} refeições · ` : ""}
+                        Atualizado em {new Date(plan.updatedAt).toLocaleDateString("pt-BR")}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end pt-3 border-t border-[var(--border-subtle)]">
+                    <Link href={`/consultoria/${slug}/planos-v2/${plan.publicId}`}>
+                      <Button variant="secondary" size="sm" className="font-semibold text-xs min-h-[38px] group">
+                        <span>Abrir Editor</span>
+                        <ChevronRightIcon className="w-3.5 h-3.5 ml-1 text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] group-hover:translate-x-0.5 transition-all" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Pagination */}

@@ -188,10 +188,14 @@ export function NutritionFoodPicker({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl sm:rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden depth-surface">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-3xl w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden depth-surface">
+        {/* Mobile Drag Handle */}
+        <div className="pt-2.5 pb-1 flex justify-center sm:hidden bg-[var(--surface)]">
+          <div className="w-10 h-1.5 rounded-full bg-[var(--border-strong)]" />
+        </div>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between px-5 py-3 sm:py-4 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center shrink-0">
               <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -661,14 +665,41 @@ export function NutritionFoodPicker({
                     <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
                       {selectedPortionId ? `Número de porções (${activePortion?.label}):` : "Quantidade prescrita:"}
                     </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0.01"
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        aria-label="Diminuir quantidade"
+                        onClick={() => {
+                          const cur = parseFloat(quantity.replace(",", ".")) || 0;
+                          const step = selectedPortionId ? 0.5 : 10;
+                          const next = Math.max(step, cur - step);
+                          setQuantity(String(Math.round(next * 10) / 10));
+                        }}
+                        className="w-11 h-11 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:scale-95 text-base font-bold text-[var(--text-primary)] flex items-center justify-center shrink-0 min-h-[44px] min-w-[44px] cursor-pointer"
+                      >
+                        –
+                      </button>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={quantity}
+                        onChange={(e) => setQuantity(e.target.value)}
+                        className="flex-1 px-3 py-2 text-center text-sm font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Aumentar quantidade"
+                        onClick={() => {
+                          const cur = parseFloat(quantity.replace(",", ".")) || 0;
+                          const step = selectedPortionId ? 0.5 : 10;
+                          const next = cur + step;
+                          setQuantity(String(Math.round(next * 10) / 10));
+                        }}
+                        className="w-11 h-11 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] active:scale-95 text-base font-bold text-[var(--text-primary)] flex items-center justify-center shrink-0 min-h-[44px] min-w-[44px] cursor-pointer"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                   {!selectedPortionId && (
                     <div>
@@ -829,13 +860,13 @@ export function NutritionFoodPicker({
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)]/30">
+        <div className="flex items-center justify-between sm:justify-end gap-2.5 px-5 py-3.5 border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)]/70 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
           <Button
             type="button"
             variant="secondary"
-            size="sm"
+            size="md"
             onClick={handleClose}
-            className="font-semibold min-h-[38px]"
+            className="font-semibold min-h-[44px]"
           >
             Cancelar
           </Button>
@@ -843,10 +874,10 @@ export function NutritionFoodPicker({
             <Button
               type="button"
               variant="primary"
-              size="sm"
+              size="md"
               disabled={parseFloat(quantity.replace(",", ".")) <= 0 || isNaN(parseFloat(quantity.replace(",", ".")))}
               onClick={handleConfirmLibraryFood}
-              className="font-bold min-h-[38px] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="font-bold min-h-[48px] px-6 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-initial"
             >
               Adicionar ao Plano
             </Button>
@@ -855,9 +886,9 @@ export function NutritionFoodPicker({
             <Button
               type="button"
               variant="primary"
-              size="sm"
+              size="md"
               onClick={handleConfirmCustom}
-              className="font-bold min-h-[38px] shadow-sm"
+              className="font-bold min-h-[48px] px-6 shadow-sm flex-1 sm:flex-initial"
             >
               Adicionar Customizado
             </Button>

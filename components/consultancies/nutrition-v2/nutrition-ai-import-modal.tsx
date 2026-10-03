@@ -87,15 +87,23 @@ interface NutritionAiImportModalProps {
   consultancySlug: string;
   defaultPatientMembershipId?: number;
   onSuccess?: (planPublicId: string) => void;
+  isOpenControlled?: boolean;
+  onCloseControlled?: () => void;
+  hideTrigger?: boolean;
 }
 
 export function NutritionAiImportModal({
   consultancySlug,
   defaultPatientMembershipId,
   onSuccess,
+  isOpenControlled,
+  onCloseControlled,
+  hideTrigger = false,
 }: NutritionAiImportModalProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const isControlled = isOpenControlled !== undefined;
+  const showModal = isControlled ? Boolean(isOpenControlled) : isOpen;
   const [activeTab, setActiveTab] = useState<'file' | 'text'>('file');
 
   // Quota status
@@ -135,6 +143,13 @@ export function NutritionAiImportModal({
   const [isSearching, setIsSearching] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isControlled && isOpenControlled) {
+      handleOpen();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isControlled, isOpenControlled]);
 
   function handleOpen() {
     setIsOpen(true);
@@ -177,6 +192,9 @@ export function NutritionAiImportModal({
 
   function handleClose() {
     if (isLoading || isConfirming) return;
+    if (isControlled && onCloseControlled) {
+      onCloseControlled();
+    }
     setIsOpen(false);
     setProposal(null);
   }
@@ -484,31 +502,37 @@ export function NutritionAiImportModal({
 
   return (
     <>
-      <Button
-        variant="secondary"
-        size="md"
-        onClick={handleOpen}
-        className="font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2 border-[var(--border-default)] hover:border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
-        title="Importar plano alimentar a partir de PDF ou texto"
-      >
-        <svg
-          className="w-4 h-4 text-[var(--text-secondary)]"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
+      {!hideTrigger && (
+        <Button
+          variant="secondary"
+          size="md"
+          onClick={handleOpen}
+          className="font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2 border-[var(--border-default)] hover:border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
+          title="Importar plano alimentar a partir de PDF ou texto"
         >
-          <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-        </svg>
-        <span>Importar plano</span>
-      </Button>
+          <svg
+            className="w-4 h-4 text-[var(--text-secondary)]"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span>Importar plano</span>
+        </Button>
+      )}
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-          <div className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-[var(--surface)] border-t sm:border border-[var(--border-strong)] rounded-t-3xl sm:rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-0 sm:my-auto">
+            {/* Mobile Drag Handle */}
+            <div className="pt-2.5 pb-1 flex justify-center sm:hidden bg-[var(--surface-subtle)]/50">
+              <div className="w-10 h-1.5 rounded-full bg-[var(--border-strong)]" />
+            </div>
             {/* Header */}
             <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--surface-subtle)]/50 shrink-0">
               <div className="flex items-center gap-3">
@@ -1043,12 +1067,13 @@ export function NutritionAiImportModal({
                   )}
 
                   {/* Confirmation Bottom Bar */}
-                  <div className="pt-4 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="pt-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <Button
                       type="button"
                       variant="ghost"
                       onClick={() => setProposal(null)}
                       disabled={isConfirming}
+                      className="min-h-[44px]"
                     >
                       Voltar ao upload
                     </Button>
@@ -1064,7 +1089,7 @@ export function NutritionAiImportModal({
                           proposal.stats.totalFoods === 0
                         }
                         onClick={handleConfirmImport}
-                        className="font-bold min-h-[44px] shadow-sm flex items-center gap-2"
+                        className="font-bold min-h-[48px] w-full sm:w-auto shadow-sm flex items-center justify-center gap-2"
                       >
                         {isConfirming ? (
                           <>

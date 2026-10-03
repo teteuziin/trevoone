@@ -33,10 +33,14 @@ export function NutritionPublishDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[var(--surface-primary)] border border-[var(--border)] rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full sm:max-w-md bg-[var(--surface-primary)] border-t sm:border border-[var(--border)] rounded-t-3xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+        {/* Mobile Drag Handle */}
+        <div className="pt-2.5 pb-1 flex justify-center sm:hidden bg-[var(--surface-primary)]">
+          <div className="w-10 h-1.5 rounded-full bg-[var(--border-strong)]" />
+        </div>
         {/* Header */}
-        <div className="p-5 border-b border-[var(--border)] flex items-start justify-between gap-3">
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
           <div className="space-y-1">
             <h3 className="font-bold text-lg text-[var(--text-primary)] leading-snug">
               Publicar Plano Alimentar
@@ -129,12 +133,12 @@ export function NutritionPublishDialog({
         </div>
 
         {/* Footer actions */}
-        <div className="p-4 border-t border-[var(--border)] bg-[var(--surface-secondary)]/30 flex items-center justify-end gap-2.5">
+        <div className="p-4 border-t border-[var(--border)] bg-[var(--surface-secondary)]/30 flex items-center justify-between sm:justify-end gap-2.5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
           <button
             type="button"
             disabled={isPublishing}
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
+            className="px-4 py-2.5 text-xs font-semibold rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] min-h-[44px]"
           >
             Voltar ao Editor
           </button>
@@ -142,11 +146,11 @@ export function NutritionPublishDialog({
             type="button"
             disabled={isPublishing}
             onClick={onConfirm}
-            className="px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm flex items-center gap-1.5 transition-colors"
+            className="flex-1 sm:flex-initial px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm flex items-center justify-center gap-2 min-h-[48px] transition-colors"
           >
             {isPublishing ? (
               <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>

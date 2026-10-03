@@ -340,12 +340,12 @@ export function NutritionMealEditor({
           <button
             type="button"
             onClick={() => setIsPickerOpen(true)}
-            className="w-full py-2.5 px-4 rounded-xl border border-dashed border-[var(--border)] hover:border-[var(--brand)] bg-[var(--surface-secondary)]/40 hover:bg-[var(--brand)]/5 text-xs font-semibold text-[var(--brand)] transition-colors flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
+            className="w-full py-3 px-4 rounded-xl border-2 border-dashed border-[var(--brand)]/30 hover:border-[var(--brand)] bg-[var(--brand)]/5 hover:bg-[var(--brand)]/10 text-xs sm:text-sm font-bold text-[var(--brand)] transition-colors flex items-center justify-center gap-2 min-h-[46px] sm:min-h-[42px] cursor-pointer active:scale-[0.99]"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            <span>+ Alimento</span>
+            <span>+ Adicionar Alimento</span>
           </button>
         )}
       </div>

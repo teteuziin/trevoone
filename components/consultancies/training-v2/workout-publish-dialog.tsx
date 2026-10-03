@@ -81,7 +81,7 @@ export function WorkoutPublishDialog({
 
   const handleConfirmPublish = () => {
     if (!isDraft) {
-      setErrorMessage("Apenas versões em rascunho (DRAFT) podem ser publicadas.");
+      setErrorMessage("Apenas versões em rascunho podem ser publicadas.");
       return;
     }
     if (!inspection.canPublish) {
@@ -101,29 +101,34 @@ export function WorkoutPublishDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl bg-[var(--surface)] border-t sm:border border-[var(--border-default)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-6 duration-200 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
+        {/* Mobile Drag Handle */}
+        <div className="pt-2.5 pb-1 flex justify-center sm:hidden">
+          <div className="w-12 h-1.5 rounded-full bg-[var(--border-strong)]" />
+        </div>
+
         {/* Header */}
-        <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+        <div className="px-5 py-3.5 border-b border-[var(--border-subtle)] flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-bold text-[var(--foreground)]">
-                {isDraft ? "Publicar Treino" : "Visualizar Versão"}
+                {isDraft ? "Publicar Treino" : "Versão Publicada"}
               </h3>
               <p className="text-xs text-[var(--foreground-muted)]">
                 {isDraft
                   ? `Versão ${version.versionNumber} • Rascunho pronto para publicação`
-                  : `Versão ${version.versionNumber} • Snapshot imutável (Já publicada)`}
+                  : `Versão ${version.versionNumber} • Disponível para os alunos`}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={isPending}
-            className="p-2 rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-subtle)] transition-colors"
+            className="p-2 rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -132,7 +137,7 @@ export function WorkoutPublishDialog({
         {/* Content */}
         <div className="p-5 space-y-4 overflow-y-auto">
           {/* Workout Summary Card */}
-          <div className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] space-y-3">
+          <div className="p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-sunken)] space-y-3">
             <div>
               <h4 className="text-sm font-semibold text-[var(--foreground)]">
                 {version.title}
@@ -145,15 +150,15 @@ export function WorkoutPublishDialog({
             </div>
 
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--border-subtle)] text-center">
-              <div className="p-2 rounded-lg bg-[var(--surface)]">
+              <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)]">
                 <span className="text-[11px] text-[var(--foreground-muted)] block">Categorias</span>
                 <span className="text-sm font-bold text-[var(--foreground)]">{totalBlocks}</span>
               </div>
-              <div className="p-2 rounded-lg bg-[var(--surface)]">
+              <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)]">
                 <span className="text-[11px] text-[var(--foreground-muted)] block">Exercícios</span>
                 <span className="text-sm font-bold text-[var(--foreground)]">{totalItems}</span>
               </div>
-              <div className="p-2 rounded-lg bg-[var(--surface)]">
+              <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)]">
                 <span className="text-[11px] text-[var(--foreground-muted)] block">Duração</span>
                 <span className="text-sm font-bold text-[var(--foreground)]">
                   {version.estimatedDurationMinutes ? `${version.estimatedDurationMinutes}m` : "—"}
@@ -171,7 +176,7 @@ export function WorkoutPublishDialog({
                   {version.blocks.map((b, idx) => (
                     <span
                       key={b.publicId || idx}
-                      className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-[var(--surface-subtle)] text-[var(--foreground)] border border-[var(--border-subtle)]"
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[var(--surface-subtle)] text-[var(--foreground)] border border-[var(--border-subtle)]"
                     >
                       {BLOCK_METHOD_LABELS[b.blockType] || b.blockType}
                     </span>
@@ -181,10 +186,9 @@ export function WorkoutPublishDialog({
             )}
           </div>
 
-          {/* Unresolved Exercises Alert Notice */}
           {/* Fatal Structural Errors (Blocks Publication) */}
           {inspection.fatalErrors.length > 0 && (
-            <div className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5">
+            <div className="p-3.5 rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="font-semibold">Pendências que impedem a publicação</p>
@@ -199,7 +203,7 @@ export function WorkoutPublishDialog({
 
           {/* Non-Blocking Warnings (Publication Allowed) */}
           {inspection.warnings.length > 0 && (
-            <div className="p-3.5 rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2.5">
+            <div className="p-3.5 rounded-2xl border border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
               <div className="space-y-1">
                 <p className="font-semibold">Avisos encontrados (a publicação prosseguirá normalmente)</p>
@@ -217,22 +221,22 @@ export function WorkoutPublishDialog({
 
           {/* Immutability Alert Notice */}
           {isDraft ? (
-            <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2.5">
+            <div className="p-3.5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2.5">
               <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
               <div>
                 <p className="font-semibold">Tudo pronto para publicação</p>
                 <p className="mt-0.5 leading-relaxed text-[11px] opacity-90">
-                  Ao confirmar, esta versão se tornará a versão ativa publicada para prescrição a alunos. O snapshot publicado preserva o histórico com segurança.
+                  Ao confirmar, esta versão se tornará a versão ativa publicada para prescrição aos alunos com segurança e rastreabilidade total.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2.5">
+            <div className="p-3.5 rounded-2xl border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold">Versão já publicada (Snapshot imutável)</p>
+                <p className="font-semibold">Versão já publicada</p>
                 <p className="mt-0.5 leading-relaxed text-[11px] opacity-90">
-                  Esta versão já está finalizada e não pode ser publicada novamente nem editada diretamente. Para realizar novas alterações, crie ou edite um novo rascunho.
+                  Esta versão já está finalizada para os alunos. Para realizar novas alterações, edite o treino para gerar um novo rascunho.
                 </p>
               </div>
             </div>
@@ -240,7 +244,7 @@ export function WorkoutPublishDialog({
 
           {/* Error Banner if publication fails server-side */}
           {errorMessage && (
-            <div className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5">
+            <div className="p-3.5 rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold">Erro ao publicar</p>
@@ -251,12 +255,12 @@ export function WorkoutPublishDialog({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-end gap-2">
+        <div className="px-5 py-3.5 border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
             disabled={isPending}
-            className="px-4 py-2 text-xs font-semibold rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] border border-transparent hover:border-[var(--border-default)] transition-colors disabled:opacity-50"
+            className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] border border-transparent hover:border-[var(--border-default)] transition-colors disabled:opacity-50 min-h-[44px] flex items-center justify-center cursor-pointer"
           >
             {isDraft ? "Cancelar" : "Fechar"}
           </button>
@@ -265,17 +269,17 @@ export function WorkoutPublishDialog({
               type="button"
               onClick={handleConfirmPublish}
               disabled={isPending || !inspection.canPublish}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-40"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xs disabled:opacity-40 min-h-[46px] cursor-pointer"
             >
               {isPending ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Validando e Publicando...
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Validando e Publicando...</span>
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Confirmar Publicação
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Publicar treino</span>
                 </>
               )}
             </button>

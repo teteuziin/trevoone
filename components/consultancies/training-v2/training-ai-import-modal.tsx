@@ -12,11 +12,27 @@ import { formatDurationNatural } from "@/lib/training-v2/reps-normalizer";
 interface Props {
   consultancySlug: string;
   targetStudentMembershipId?: number;
+  isOpenControlled?: boolean;
+  onCloseControlled?: () => void;
+  hideTrigger?: boolean;
 }
 
-export function TrainingAiImportModal({ consultancySlug, targetStudentMembershipId }: Props) {
+export function TrainingAiImportModal({
+  consultancySlug,
+  targetStudentMembershipId,
+  isOpenControlled,
+  onCloseControlled,
+  hideTrigger = false,
+}: Props) {
   const router = useRouter();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = isOpenControlled !== undefined ? isOpenControlled : internalIsOpen;
+  const setIsOpen = (val: boolean) => {
+    setInternalIsOpen(val);
+    if (!val && onCloseControlled) {
+      onCloseControlled();
+    }
+  };
   const [mode, setMode] = useState<"FILE" | "TEXT">("FILE");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pastedText, setPastedText] = useState("");
@@ -198,16 +214,18 @@ export function TrainingAiImportModal({ consultancySlug, targetStudentMembership
   return (
     <>
       {/* Trigger Button */}
-      <button
-        type="button"
-        onClick={handleOpen}
-        className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition shadow-2xs min-h-[42px]"
-      >
-        <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-        </svg>
-        <span>Importar treino</span>
-      </button>
+      {!hideTrigger && (
+        <button
+          type="button"
+          onClick={handleOpen}
+          className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition shadow-2xs min-h-[42px]"
+        >
+          <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span>Importar treino</span>
+        </button>
+      )}
 
       {/* Modal */}
       {isOpen && (

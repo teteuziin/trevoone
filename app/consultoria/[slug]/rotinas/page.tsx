@@ -7,10 +7,10 @@ import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { listWorkoutsForProfessional } from "@/lib/training-v2/workout-repository";
 import { listAssignmentsForProfessional } from "@/lib/training-v2/assignment-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
-import { WorkoutTemplatePickerTrigger } from "@/components/consultancies/training-v2/workout-template-picker";
 import { WorkoutAssignmentsList } from "@/components/consultancies/training-v2/workout-assignments-list";
-import { TrainingAiImportModal } from "@/components/consultancies/training-v2/training-ai-import-modal";
 import { WorkoutCardActions } from "@/components/consultancies/training-v2/workout-card-actions";
+import { WorkoutCreationSheet } from "@/components/consultancies/training-v2/workout-creation-sheet";
+import { WorkoutTemplatePickerTrigger } from "@/components/consultancies/training-v2/workout-template-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -153,25 +153,7 @@ export default async function ConsultancyWorkoutsPage({
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-            {!isTemplatesTab && !isAssignmentsTab && (
-              <>
-                <TrainingAiImportModal consultancySlug={slug} />
-                <WorkoutTemplatePickerTrigger consultancySlug={slug} />
-              </>
-            )}
-            {!isAssignmentsTab && (
-              <Link
-                href={isTemplatesTab ? `/consultoria/${slug}/rotinas/novo?isTemplate=true` : `/consultoria/${slug}/rotinas/novo`}
-                className="w-full sm:w-auto"
-              >
-                <Button variant="primary" size="md" className="w-full sm:w-auto font-bold min-h-[44px] shadow-sm flex items-center justify-center gap-2">
-                  <PlusIcon className="w-4 h-4" />
-                  <span>{isTemplatesTab ? "Novo modelo" : "Nova ficha"}</span>
-                </Button>
-              </Link>
-            )}
-          </div>
+          <WorkoutCreationSheet consultancySlug={slug} isTemplatesTab={isTemplatesTab} />
         </div>
 
         {/* View Mode Navigation Tabs: Treinos vs Modelos vs Prescrições */}
@@ -304,82 +286,167 @@ export default async function ConsultancyWorkoutsPage({
                 </div>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {items.map((w) => {
                   return (
-                    <div
-                      key={w.publicId}
-                      className="p-3.5 sm:p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-2xs hover:border-[var(--border-strong)] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
-                            {w.title}
-                          </h3>
-                          {/* Status Badge */}
-                          {w.hasActiveDraft ? (
-                            <Badge variant="warning" size="sm">
-                              Rascunho V{w.draftVersionNumber}
-                            </Badge>
-                          ) : w.publishedVersionNumber != null ? (
-                            <Badge variant="success" size="sm">
-                              Publicado V{w.publishedVersionNumber}
-                            </Badge>
-                          ) : (
-                            <Badge variant="neutral" size="sm">
-                              Arquivado
-                            </Badge>
+                    <React.Fragment key={w.publicId}>
+                      {/* MOBILE CARD (sm:hidden) */}
+                      <div className="sm:hidden p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-2xs space-y-3 depth-surface">
+                        <div className="space-y-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="text-base font-bold text-[var(--text-primary)] leading-snug">
+                              {w.title}
+                            </h3>
+                            {w.hasActiveDraft ? (
+                              <Badge variant="warning" size="sm">
+                                Rascunho V{w.draftVersionNumber}
+                              </Badge>
+                            ) : w.publishedVersionNumber != null ? (
+                              <Badge variant="success" size="sm">
+                                Publicado V{w.publishedVersionNumber}
+                              </Badge>
+                            ) : (
+                              <Badge variant="neutral" size="sm">
+                                Arquivado
+                              </Badge>
+                            )}
+                          </div>
+
+                          {w.objective && (
+                            <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
+                              {w.objective}
+                            </p>
                           )}
-                          {w.isTemplate && (
-                            <Badge variant="brand" size="sm">
-                              Modelo
-                            </Badge>
-                          )}
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)] pt-0.5">
+                            {w.isTemplate ? (
+                              <span className="font-semibold text-purple-600 dark:text-purple-400">
+                                Modelo • {w.blocksCount} {w.blocksCount === 1 ? "categoria" : "categorias"}
+                              </span>
+                            ) : (
+                              <>
+                                {(w.activeAssignmentsCount ?? 0) === 0 ? (
+                                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                                    Sem aluno atribuído
+                                  </span>
+                                ) : w.assignedStudentName ? (
+                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                    Aluno: {w.assignedStudentName}
+                                  </span>
+                                ) : null}
+                                <span>•</span>
+                                <span>{w.blocksCount} {w.blocksCount === 1 ? "categoria" : "categorias"}</span>
+                              </>
+                            )}
+                            {w.estimatedDurationMinutes != null && (
+                              <>
+                                <span>•</span>
+                                <span>~{w.estimatedDurationMinutes} min</span>
+                              </>
+                            )}
+                          </div>
+
+                          <p className="text-[11px] text-[var(--text-tertiary)] pt-0.5">
+                            Atualizado em {new Date(w.updatedAt).toLocaleDateString("pt-BR")}
+                          </p>
                         </div>
 
-                        {w.objective && (
-                          <p className="text-xs text-[var(--text-secondary)] truncate">
-                            {w.objective}
-                          </p>
-                        )}
+                        <div className="pt-2.5 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2.5">
+                          <Link
+                            href={`/consultoria/${slug}/rotinas/${w.publicId}`}
+                            className="flex-1 block"
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full font-bold min-h-[44px] justify-center text-xs shadow-2xs hover:bg-[var(--surface-hover)] hover:border-[var(--border-strong)]"
+                            >
+                              {w.isTemplate ? "Abrir modelo" : "Abrir treino"}
+                            </Button>
+                          </Link>
 
-                        <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-[var(--text-tertiary)]">
-                          {!w.isTemplate && (
-                            <>
-                              {(w.activeAssignmentsCount ?? 0) === 0 ? (
-                                <span className="font-medium text-amber-600 dark:text-amber-400">
-                                  Sem aluno atribuído
-                                </span>
-                              ) : w.assignedStudentName ? (
-                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                                  Aluno: {w.assignedStudentName}
-                                </span>
-                              ) : null}
-                              <span>•</span>
-                            </>
-                          )}
-                          <span>
-                            {w.blocksCount} {w.blocksCount === 1 ? "categoria" : "categorias"}
-                          </span>
-                          {w.estimatedDurationMinutes != null && (
-                            <>
-                              <span>•</span>
-                              <span>~{w.estimatedDurationMinutes} min</span>
-                            </>
-                          )}
-                          <span>•</span>
-                          <span>Atualizado em {new Date(w.updatedAt).toLocaleDateString("pt-BR")}</span>
+                          <WorkoutCardActions
+                            consultancySlug={slug}
+                            workoutPublicId={w.publicId}
+                            workoutTitle={w.title}
+                            isDraft={Boolean(w.hasActiveDraft)}
+                            isTemplate={Boolean(w.isTemplate)}
+                          />
                         </div>
                       </div>
 
-                      <WorkoutCardActions
-                        consultancySlug={slug}
-                        workoutPublicId={w.publicId}
-                        workoutTitle={w.title}
-                        isDraft={Boolean(w.hasActiveDraft)}
-                        isTemplate={Boolean(w.isTemplate)}
-                      />
-                    </div>
+                      {/* DESKTOP ROW (hidden sm:flex) */}
+                      <div className="hidden sm:flex p-3.5 sm:p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-2xs hover:border-[var(--border-strong)] transition-all flex-row items-center justify-between gap-3">
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                              {w.title}
+                            </h3>
+                            {/* Status Badge */}
+                            {w.hasActiveDraft ? (
+                              <Badge variant="warning" size="sm">
+                                Rascunho V{w.draftVersionNumber}
+                              </Badge>
+                            ) : w.publishedVersionNumber != null ? (
+                              <Badge variant="success" size="sm">
+                                Publicado V{w.publishedVersionNumber}
+                              </Badge>
+                            ) : (
+                              <Badge variant="neutral" size="sm">
+                                Arquivado
+                              </Badge>
+                            )}
+                            {w.isTemplate && (
+                              <Badge variant="brand" size="sm">
+                                Modelo
+                              </Badge>
+                            )}
+                          </div>
+
+                          {w.objective && (
+                            <p className="text-xs text-[var(--text-secondary)] truncate">
+                              {w.objective}
+                            </p>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-[var(--text-tertiary)]">
+                            {!w.isTemplate && (
+                              <>
+                                {(w.activeAssignmentsCount ?? 0) === 0 ? (
+                                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                                    Sem aluno atribuído
+                                  </span>
+                                ) : w.assignedStudentName ? (
+                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                    Aluno: {w.assignedStudentName}
+                                  </span>
+                                ) : null}
+                                <span>•</span>
+                              </>
+                            )}
+                            <span>
+                              {w.blocksCount} {w.blocksCount === 1 ? "categoria" : "categorias"}
+                            </span>
+                            {w.estimatedDurationMinutes != null && (
+                              <>
+                                <span>•</span>
+                                <span>~{w.estimatedDurationMinutes} min</span>
+                              </>
+                            )}
+                            <span>•</span>
+                            <span>Atualizado em {new Date(w.updatedAt).toLocaleDateString("pt-BR")}</span>
+                          </div>
+                        </div>
+
+                        <WorkoutCardActions
+                          consultancySlug={slug}
+                          workoutPublicId={w.publicId}
+                          workoutTitle={w.title}
+                          isDraft={Boolean(w.hasActiveDraft)}
+                          isTemplate={Boolean(w.isTemplate)}
+                        />
+                      </div>
+                    </React.Fragment>
                   );
                 })}
               </div>

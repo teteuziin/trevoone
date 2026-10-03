@@ -8,6 +8,7 @@ import {
   duplicateWorkoutAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import { TemplateAssignModal } from "./template-assign-modal";
+import { MobileActionSheet, MobileConfirmSheet, type ActionSheetOption } from "@/components/ui/mobile";
 
 function MoreVertical({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -110,6 +111,46 @@ export function WorkoutCardActions({
     });
   };
 
+  const mobileOptions: ActionSheetOption[] = [
+    {
+      id: "open",
+      label: isTemplate ? "Abrir modelo" : "Abrir treino",
+      icon: <ExternalIcon className="w-4 h-4 text-emerald-500" />,
+      onClick: () => {
+        router.push(`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`);
+      },
+    },
+    ...(isTemplate
+      ? [
+          {
+            id: "assign",
+            label: "Atribuir a um aluno",
+            icon: <UserCheckIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />,
+            onClick: () => {
+              setIsAssignModalOpen(true);
+            },
+          },
+        ]
+      : []),
+    {
+      id: "duplicate",
+      label: isTemplate ? "Duplicar modelo" : "Duplicar treino",
+      icon: <CopyIcon className="w-4 h-4 text-blue-500" />,
+      onClick: handleDuplicate,
+      disabled: isPending,
+    },
+    {
+      id: "delete",
+      label: isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Excluir treino",
+      icon: <TrashIcon className="w-4 h-4 text-rose-500" />,
+      variant: "danger" as const,
+      onClick: () => {
+        setIsDeleteDialogOpen(true);
+      },
+      disabled: isPending,
+    },
+  ];
+
   return (
     <div className="flex items-center gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--border-subtle)] justify-end relative">
       {isTemplate ? (
@@ -140,15 +181,16 @@ export function WorkoutCardActions({
           <MoreVertical className="w-4 h-4" />
         </button>
 
+        {/* DESKTOP DROPDOWN */}
         {isMenuOpen && (
-          <>
+          <div className="hidden sm:block">
             <div className="fixed inset-0 z-30" onClick={() => setIsMenuOpen(false)} />
             <div className="absolute right-0 top-full mt-1 w-48 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
               <div className="p-1 space-y-0.5">
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`}
                   onClick={() => setIsMenuOpen(false)}
-                  className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
+                  className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
                 >
                   <ExternalIcon className="w-3.5 h-3.5 text-emerald-500" />
                   <span>{isTemplate ? "Abrir modelo" : "Abrir treino"}</span>
@@ -161,7 +203,7 @@ export function WorkoutCardActions({
                       setIsMenuOpen(false);
                       setIsAssignModalOpen(true);
                     }}
-                    className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px] text-purple-600 dark:text-purple-400"
+                    className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px] text-purple-600 dark:text-purple-400"
                   >
                     <UserCheckIcon className="w-3.5 h-3.5" />
                     <span>Atribuir a um aluno</span>
@@ -172,7 +214,7 @@ export function WorkoutCardActions({
                   type="button"
                   disabled={isPending}
                   onClick={handleDuplicate}
-                  className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer disabled:opacity-50 min-h-[40px] sm:min-h-[32px]"
+                  className="w-full px-3 py-1.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer disabled:opacity-50 min-h-[40px] sm:min-h-[32px]"
                 >
                   <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
                   <span>{isTemplate ? "Duplicar modelo" : "Duplicar treino"}</span>
@@ -186,20 +228,49 @@ export function WorkoutCardActions({
                     setIsMenuOpen(false);
                     setIsDeleteDialogOpen(true);
                   }}
-                  className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
+                  className="w-full px-3 py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
                 >
                   <TrashIcon className="w-3.5 h-3.5" />
                   <span>{isTemplate ? "Excluir modelo" : isDraft ? "Excluir rascunho" : "Excluir treino"}</span>
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 
-      {/* Confirmation Modal */}
+      {/* MOBILE ACTION SHEET */}
+      <div className="sm:hidden">
+        <MobileActionSheet
+          isOpen={isMenuOpen}
+          onClose={() => setIsMenuOpen(false)}
+          title={workoutTitle}
+          options={mobileOptions}
+        />
+      </div>
+
+      {/* MOBILE CONFIRM SHEET FOR DELETE */}
+      <div className="sm:hidden">
+        <MobileConfirmSheet
+          isOpen={isDeleteDialogOpen}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          onConfirm={handleConfirmDelete}
+          title={isTemplate ? "Excluir modelo?" : "Excluir treino?"}
+          description={
+            isTemplate
+              ? `Esta ação removerá este modelo padrão (${workoutTitle}). Alunos que já receberam este plano continuarão com suas rotinas 100% intactas.`
+              : `Esta ação removerá este ${isDraft ? "rascunho" : "treino"} (${workoutTitle}). O histórico de treinos concluídos pelos alunos é 100% preservado.`
+          }
+          confirmLabel={isPending ? "Excluindo..." : "Excluir"}
+          cancelLabel="Cancelar"
+          variant="danger"
+          isLoading={isPending}
+        />
+      </div>
+
+      {/* DESKTOP CONFIRMATION MODAL */}
       {isDeleteDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="hidden sm:flex fixed inset-0 z-50 items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="w-full max-w-sm rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-5 space-y-4">
             <div className="space-y-1.5">
               <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center">

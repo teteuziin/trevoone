@@ -28,6 +28,7 @@ import {
   markRestTimerSkipped,
   type ActiveRestState,
 } from "./rest-timer";
+import { StudentRuntimeFocusedView } from "./student-runtime-focused-view";
 import { formatDurationToMinutes, formatDurationNatural } from "@/lib/training-v2/reps-normalizer";
 
 function Check({ className = "w-3 h-3" }: { className?: string }) {
@@ -359,6 +360,7 @@ export function StudentWorkoutRenderer({
   const [activeSession, setActiveSession] = useState<WorkoutExecutionSessionDto | null>(
     initialExecution || null
   );
+  const [mobileViewMode, setMobileViewMode] = useState<"FOCUSED" | "OVERVIEW">("FOCUSED");
   const [completedSessions, setCompletedSessions] = useState<WorkoutExecutionHistorySessionDto[]>([]);
 
   const [activeContext, setActiveContext] = useState<{
@@ -980,13 +982,42 @@ export function StudentWorkoutRenderer({
   }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto pb-16">
-      {/* Workout Header Card */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--foreground)]">
-            {workout.title}
-          </h1>
+    <>
+      {/* MOBILE PROGRESSIVE FOCUS RUNTIME */}
+      {activeSession && activeSession.status === "IN_PROGRESS" && mobileViewMode === "FOCUSED" && (
+        <div className="sm:hidden">
+          <StudentRuntimeFocusedView
+            workout={workout}
+            activeSession={activeSession}
+            onCompleteSet={handleCompleteSet}
+            loadingSetPublicId={loadingSetPublicId}
+            activeRest={activeRest}
+            onSkipRest={handleSkipRest}
+            onCompleteWorkout={handleCompleteWorkout}
+            isCompleting={isCompleting}
+            completeError={completeError}
+            history={history}
+            consultancySlug={consultancySlug || ""}
+            onToggleOverview={() => setMobileViewMode("OVERVIEW")}
+            isOffline={isOffline}
+          />
+        </div>
+      )}
+
+      {/* FULL WORKOUT OVERVIEW / DESKTOP VIEW */}
+      <div
+        className={`space-y-6 max-w-3xl mx-auto pb-16 ${
+          activeSession && activeSession.status === "IN_PROGRESS" && mobileViewMode === "FOCUSED"
+            ? "hidden sm:block"
+            : "block"
+        }`}
+      >
+        {/* Workout Header Card */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--foreground)]">
+              {workout.title}
+            </h1>
           {workout.subtitle && (
             <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mt-0.5">
               {workout.subtitle}
@@ -1267,6 +1298,20 @@ export function StudentWorkoutRenderer({
       {/* Execution History */}
       <WorkoutExecutionHistorySection history={history} />
     </div>
+
+    {/* Sticky Button to return to Focused Runtime when in Overview on mobile */}
+    {activeSession && activeSession.status === "IN_PROGRESS" && mobileViewMode === "OVERVIEW" && (
+      <div className="sm:hidden fixed bottom-4 left-4 right-4 z-40 pb-[env(safe-area-inset-bottom,0px)]">
+        <button
+          type="button"
+          onClick={() => setMobileViewMode("FOCUSED")}
+          className="w-full min-h-[50px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-sm shadow-xl shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer transition-all"
+        >
+          <span>⚡ Voltar ao Modo Foco (Executar)</span>
+        </button>
+      </div>
+    )}
+  </>
   );
 }
 

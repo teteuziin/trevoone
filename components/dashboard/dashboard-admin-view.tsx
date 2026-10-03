@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Section, CompactCard, ListRow } from "@/components/ui/design-system";
 import { ConsultancyPhotoEditor } from "@/components/consultancies/consultancy-photo-editor";
+import { MobileDashboardCockpit } from "./mobile-dashboard-cockpit";
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
 
@@ -28,8 +29,166 @@ export function DashboardAdminView({
   const isInGrace = platformAccess && platformAccess.effectiveStatus === "GRACE";
 
   return (
-    <div className="space-y-5 sm:space-y-6 max-w-5xl mx-auto animate-in fade-in duration-150">
-      {/* 1. Alertas Críticos de Assinatura da Plataforma */}
+    <>
+      {/* MOBILE NATIVE COCKPIT (< 768px) */}
+      <div className="md:hidden">
+        <MobileDashboardCockpit
+          role="ADMIN"
+          consultancySlug={consultancySlug}
+          consultancyName={consultancyName}
+          urgentAlert={
+            isSuspendedOrCanceled ? (
+              <div className="p-4 rounded-2xl border border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold">
+                  <Badge variant="danger" size="sm">Bloqueada</Badge>
+                  <span>Assinatura Suspensa</span>
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)]">A assinatura da consultoria está pendente.</p>
+                <Link href={`/consultoria/${consultancySlug}/assinatura`}>
+                  <Button variant="danger" size="sm" className="w-full min-h-[44px] font-bold text-xs mt-1">
+                    Regularizar Assinatura →
+                  </Button>
+                </Link>
+              </div>
+            ) : isInGrace ? (
+              <div className="p-3.5 rounded-2xl border border-amber-500/20 bg-amber-500/10 flex items-center justify-between gap-3 text-xs">
+                <div>
+                  <Badge variant="warning" size="sm">Carência</Badge>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-200 mt-0.5">Regularize sua fatura para manter os recursos ativos.</p>
+                </div>
+                <Link href={`/consultoria/${consultancySlug}/assinatura`}>
+                  <span className="font-bold text-[var(--brand)]">Ver →</span>
+                </Link>
+              </div>
+            ) : null
+          }
+          heroActionCard={
+            <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand)]">
+                  Painel de Gestão
+                </span>
+                <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                  {overview?.students || 0} alunos ativos
+                </span>
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[var(--text-primary)]">
+                  Visão Geral da Consultoria
+                </h2>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Gerencie alunos, equipe profissional e cobranças.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <Link
+                  href={`/consultoria/${consultancySlug}/financeiro/nova-cobranca`}
+                  className="min-h-[48px] rounded-xl font-bold text-xs bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98] transition-transform"
+                >
+                  <span>+ Nova Cobrança</span>
+                </Link>
+                <Link
+                  href={`/consultoria/${consultancySlug}/membros`}
+                  className="min-h-[48px] rounded-xl font-bold text-xs bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
+                >
+                  <span>Ver Membros</span>
+                </Link>
+              </div>
+            </div>
+          }
+          quickActions={[
+            {
+              id: "members",
+              label: "Membros",
+              subtitle: `${overview?.activeMembers || 0} na equipe`,
+              href: `/consultoria/${consultancySlug}/membros`,
+              highlight: true,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              ),
+            },
+            {
+              id: "finance",
+              label: "Financeiro",
+              subtitle: "Cobranças e faturas",
+              href: `/consultoria/${consultancySlug}/financeiro`,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ),
+            },
+            {
+              id: "operations",
+              label: "Operações",
+              subtitle: "Gestão do negócio",
+              href: `/consultoria/${consultancySlug}/operacoes`,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              ),
+            },
+            {
+              id: "activity",
+              label: "Atividades",
+              subtitle: "Registro de ações",
+              href: `/consultoria/${consultancySlug}/atividades`,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              ),
+            },
+          ]}
+          metrics={[
+            {
+              title: "Alunos Ativos",
+              value: overview?.students ?? 0,
+              subtitle: "Total na consultoria",
+              href: `/consultoria/${consultancySlug}/membros`,
+            },
+            {
+              title: "Membros da Equipe",
+              value: overview?.activeMembers ?? 0,
+              subtitle: "Personais e nutricionistas",
+              href: `/consultoria/${consultancySlug}/membros`,
+            },
+          ]}
+          recentSection={{
+            title: "Módulos Administrativos",
+            subtitle: "Configurações da consultoria",
+            viewAllHref: `/consultoria/${consultancySlug}/operacoes`,
+            items: [
+              {
+                id: "membros",
+                title: "Equipe e Alunos",
+                subtitle: `${overview?.students || 0} alunos vinculados`,
+                href: `/consultoria/${consultancySlug}/membros`,
+              },
+              {
+                id: "financeiro",
+                title: "Cobranças e Recebíveis",
+                subtitle: "Histórico financeiro completo",
+                href: `/consultoria/${consultancySlug}/financeiro`,
+              },
+              {
+                id: "assinatura",
+                title: "Plano da Consultoria",
+                subtitle: "Assinatura Trevo One",
+                href: `/consultoria/${consultancySlug}/assinatura`,
+              },
+            ],
+          }}
+        />
+      </div>
+
+      {/* DESKTOP VIEW (>= 768px) — 100% PRESERVED */}
+      <div className="hidden md:block space-y-5 sm:space-y-6 max-w-5xl mx-auto animate-in fade-in duration-150">
+        {/* 1. Alertas Críticos de Assinatura da Plataforma */}
       {isSuspendedOrCanceled && (
         <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300 space-y-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -217,6 +376,7 @@ export function DashboardAdminView({
           <span className="text-sm text-[var(--brand)] font-bold">→</span>
         </Link>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

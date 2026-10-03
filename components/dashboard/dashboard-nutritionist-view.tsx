@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Section, CompactCard, ListRow, StatusBadge } from "@/components/ui/design-system";
+import { MobileDashboardCockpit } from "./mobile-dashboard-cockpit";
 
 export interface NutritionistPlanSummaryItem {
   publicId: string;
@@ -26,9 +27,142 @@ export function DashboardNutritionistView({
   totalPlans = 0,
 }: DashboardNutritionistViewProps) {
   return (
-    <div className="space-y-5 sm:space-y-6 max-w-5xl mx-auto animate-in fade-in duration-150">
-      {/* 1. HEADER & PRIMARY ACTIONS */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
+    <>
+      {/* MOBILE NATIVE COCKPIT (< 768px) */}
+      <div className="md:hidden">
+        <MobileDashboardCockpit
+          role="NUTRITIONIST"
+          consultancySlug={consultancySlug}
+          consultancyName="Área de Nutrição"
+          heroActionCard={
+            <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  Prescrição Alimentar
+                </span>
+                <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                  {totalPlans} planos cadastrados
+                </span>
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[var(--text-primary)]">
+                  Prescrever Plano Alimentar
+                </h2>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Crie planos com tabelas TACO/IBGE ou importe cardápios.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <Link
+                  href={`/consultoria/${consultancySlug}/planos-v2/novo`}
+                  className="min-h-[48px] rounded-xl font-bold text-xs bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98] transition-transform"
+                >
+                  <span>+ Novo Plano</span>
+                </Link>
+                <Link
+                  href={`/consultoria/${consultancySlug}/planos-v2?action=import`}
+                  className="min-h-[48px] rounded-xl font-bold text-xs bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
+                >
+                  <span>Importar</span>
+                </Link>
+              </div>
+            </div>
+          }
+          quickActions={[
+            {
+              id: "patients",
+              label: "Pacientes",
+              subtitle: "Prontuários e metas",
+              href: `/consultoria/${consultancySlug}/progresso/alunos`,
+              highlight: true,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ),
+            },
+            {
+              id: "plans",
+              label: "Planos",
+              subtitle: `${totalPlans} cadastrados`,
+              href: `/consultoria/${consultancySlug}/planos-v2`,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              ),
+            },
+            {
+              id: "foods",
+              label: "Alimentos",
+              subtitle: "Tabela nutricional",
+              href: `/consultoria/${consultancySlug}/alimentos-v2`,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ),
+            },
+            {
+              id: "consultations",
+              label: "Consultas",
+              subtitle: "Atendimento 1:1",
+              href: `/consultoria/${consultancySlug}/consultas`,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              ),
+            },
+          ]}
+          metrics={[
+            {
+              title: "Planos Alimentares",
+              value: totalPlans,
+              subtitle: "Dietas ativas na consultoria",
+              href: `/consultoria/${consultancySlug}/planos-v2`,
+            },
+            {
+              title: "Pacientes",
+              value: "Acessar",
+              subtitle: "Ver prontuários e metas",
+              href: `/consultoria/${consultancySlug}/progresso/alunos`,
+            },
+          ]}
+          recentSection={
+            recentPlans && recentPlans.length > 0
+              ? {
+                  title: "Planos Recentes",
+                  subtitle: "Últimas dietas criadas ou atualizadas",
+                  viewAllHref: `/consultoria/${consultancySlug}/planos-v2`,
+                  items: recentPlans.slice(0, 4).map((plan) => ({
+                    id: plan.publicId,
+                    title: plan.title,
+                    subtitle: plan.studentName ? `Paciente: ${plan.studentName}` : undefined,
+                    caption: plan.mealsCount ? `${plan.mealsCount} refeições` : undefined,
+                    href: `/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`,
+                    statusBadge: (
+                      <StatusBadge
+                        status={
+                          plan.status === "ACTIVE" || plan.status === "PUBLISHED"
+                            ? "active"
+                            : plan.status === "ARCHIVED"
+                            ? "archived"
+                            : "draft"
+                        }
+                      />
+                    ),
+                  })),
+                }
+              : undefined
+          }
+        />
+      </div>
+
+      {/* DESKTOP VIEW (>= 768px) — 100% PRESERVED */}
+      <div className="hidden md:block space-y-5 sm:space-y-6 max-w-5xl mx-auto animate-in fade-in duration-150">
+        {/* 1. HEADER & PRIMARY ACTIONS */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
         <div>
           <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
             Área de Nutrição
@@ -187,6 +321,7 @@ export function DashboardNutritionistView({
           <span className="text-sm text-emerald-600 font-bold">→</span>
         </Link>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

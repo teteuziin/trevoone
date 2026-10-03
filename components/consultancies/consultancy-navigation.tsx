@@ -910,14 +910,14 @@ export function ConsultancyNavigation({
                 aria-current={active ? "page" : undefined}
                 className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                   active
-                    ? "text-[var(--text-primary)]"
+                    ? "text-[var(--brand)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 <div
                   className={`p-1.5 rounded-xl transition-all duration-150 ${
                     active
-                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-2xs"
+                      ? "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
                       : "group-hover:bg-[var(--surface-hover)]"
                   }`}
                 >
@@ -926,13 +926,13 @@ export function ConsultancyNavigation({
                 <div className="flex items-center gap-1 mt-0.5">
                   <span
                     className={`text-[10px] tracking-tight truncate max-w-full leading-tight ${
-                      active ? "font-semibold text-[var(--text-primary)]" : "font-medium text-[var(--text-tertiary)]"
+                      active ? "font-bold text-[var(--brand)]" : "font-medium text-[var(--text-tertiary)]"
                     }`}
                   >
                     {item.mobileLabel || item.label}
                   </span>
                   {active && (
-                    <span className="w-1 h-1 rounded-full bg-[var(--brand)] shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
                   )}
                 </div>
               </Link>
@@ -948,14 +948,14 @@ export function ConsultancyNavigation({
             aria-controls="mobile-navigation-drawer"
             className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
               isMoreActive
-                ? "text-[var(--text-primary)]"
+                ? "text-[var(--brand)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             <div
               className={`p-1.5 rounded-xl relative transition-all duration-150 ${
                 isMoreActive
-                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-2xs"
+                  ? "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
                   : "group-hover:bg-[var(--surface-hover)]"
               }`}
             >
@@ -980,13 +980,13 @@ export function ConsultancyNavigation({
             <div className="flex items-center gap-1 mt-0.5">
               <span
                 className={`text-[10px] tracking-tight truncate leading-tight ${
-                  isMoreActive ? "font-semibold text-[var(--text-primary)]" : "font-medium text-[var(--text-tertiary)]"
+                  isMoreActive ? "font-bold text-[var(--brand)]" : "font-medium text-[var(--text-tertiary)]"
                 }`}
               >
                 Mais
               </span>
               {isMoreActive && (
-                <span className="w-1 h-1 rounded-full bg-[var(--brand)] shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
               )}
             </div>
           </button>
@@ -1067,7 +1067,7 @@ export function ConsultancyNavigation({
                               prefetch={false}
                               onClick={() => setMobileMenuOpen(false)}
                               aria-current={active ? "page" : undefined}
-                              className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
+                              className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[48px] depth-interactive ${
                                 active
                                   ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                                   : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
@@ -1103,7 +1103,7 @@ export function ConsultancyNavigation({
                               prefetch={false}
                               onClick={() => setMobileMenuOpen(false)}
                               aria-current={active ? "page" : undefined}
-                              className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
+                              className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[48px] depth-interactive ${
                                 active
                                   ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                                   : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
@@ -1138,7 +1138,7 @@ export function ConsultancyNavigation({
                           prefetch={false}
                           onClick={() => setMobileMenuOpen(false)}
                           aria-current={active ? "page" : undefined}
-                          className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
+                          className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[48px] depth-interactive ${
                             active
                               ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                               : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"

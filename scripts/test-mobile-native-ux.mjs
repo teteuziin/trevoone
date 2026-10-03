@@ -143,6 +143,111 @@ assert(
   "18. Responsive breakout utilities are present for tablet/desktop coexistence"
 );
 
+// ============================================================================
+// PHASE 1 — DASHBOARD + PRIMARY MOBILE NAVIGATION CONTRACTS
+// ============================================================================
+const cockpitFile = path.resolve("components/dashboard/mobile-dashboard-cockpit.tsx");
+assert(fs.existsSync(cockpitFile), "19. MobileDashboardCockpit component exists");
+const cockpitContent = fs.readFileSync(cockpitFile, "utf-8");
+
+assert(
+  cockpitContent.includes("export function MobileDashboardCockpit"),
+  "20. MobileDashboardCockpit is exported as a React component"
+);
+
+assert(
+  cockpitContent.includes("quickActions") &&
+  cockpitContent.includes("min-h-[72px]") &&
+  cockpitContent.includes("grid-cols-2"),
+  "21. MobileDashboardCockpit provides large 72px touch targets in a 2-column quick action grid"
+);
+
+assert(
+  cockpitContent.includes("heroActionCard") &&
+  cockpitContent.includes("data-testid=\"cockpit-hero-focus\""),
+  "22. MobileDashboardCockpit features dedicated Hero Action Card for primary daily focus"
+);
+
+assert(
+  cockpitContent.includes("urgentAlert") &&
+  cockpitContent.includes("data-testid=\"cockpit-urgent-alert\""),
+  "23. MobileDashboardCockpit supports urgent/priority notification alerts"
+);
+
+// Dashboard Views Responsive Composition Tests
+const studentViewFile = path.resolve("components/dashboard/dashboard-student-view.tsx");
+const studentViewContent = fs.readFileSync(studentViewFile, "utf-8");
+assert(
+  studentViewContent.includes("md:hidden") &&
+  studentViewContent.includes("hidden md:block") &&
+  studentViewContent.includes("MobileDashboardCockpit"),
+  "24. DashboardStudentView implements responsive composition (md:hidden cockpit + hidden md:block desktop)"
+);
+
+const personalViewFile = path.resolve("components/dashboard/dashboard-personal-view.tsx");
+const personalViewContent = fs.readFileSync(personalViewFile, "utf-8");
+assert(
+  personalViewContent.includes("md:hidden") &&
+  personalViewContent.includes("hidden md:block") &&
+  personalViewContent.includes("MobileDashboardCockpit"),
+  "25. DashboardPersonalView implements responsive composition (md:hidden cockpit + hidden md:block desktop)"
+);
+
+const nutritionistViewFile = path.resolve("components/dashboard/dashboard-nutritionist-view.tsx");
+const nutritionistViewContent = fs.readFileSync(nutritionistViewFile, "utf-8");
+assert(
+  nutritionistViewContent.includes("md:hidden") &&
+  nutritionistViewContent.includes("hidden md:block") &&
+  nutritionistViewContent.includes("MobileDashboardCockpit"),
+  "26. DashboardNutritionistView implements responsive composition (md:hidden cockpit + hidden md:block desktop)"
+);
+
+const adminViewFile = path.resolve("components/dashboard/dashboard-admin-view.tsx");
+const adminViewContent = fs.readFileSync(adminViewFile, "utf-8");
+assert(
+  adminViewContent.includes("md:hidden") &&
+  adminViewContent.includes("hidden md:block") &&
+  adminViewContent.includes("MobileDashboardCockpit"),
+  "27. DashboardAdminView implements responsive composition (md:hidden cockpit + hidden md:block desktop)"
+);
+
+// Navigation Contracts
+const navFile = path.resolve("components/consultancies/consultancy-navigation.tsx");
+const navContent = fs.readFileSync(navFile, "utf-8");
+
+assert(
+  navContent.includes("min-h-[48px]") && navContent.includes("primaryNavItems.map"),
+  "28. Mobile bottom navigation primary links enforce touch targets >= 48px"
+);
+
+assert(
+  navContent.includes("min-h-[48px]") && navContent.includes("Mais opções de navegação"),
+  "29. Mobile bottom navigation 'Mais' button enforces touch target >= 48px"
+);
+
+assert(
+  navContent.includes("bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"),
+  "30. Mobile bottom navigation active state features high-contrast brand pill highlight"
+);
+
+assert(
+  navContent.includes("min-h-[48px] depth-interactive") && navContent.includes("mobile-navigation-drawer"),
+  "31. Mobile drawer links enforce touch targets >= 48px"
+);
+
+assert(
+  navContent.includes("pb-[env(safe-area-inset-bottom,0px)]"),
+  "32. Mobile bottom navigation strictly enforces safe-area-inset-bottom for iOS"
+);
+
+// App Shell Clearance Contract
+const shellFile = path.resolve("components/consultancies/consultancy-app-shell.tsx");
+const shellContent = fs.readFileSync(shellFile, "utf-8");
+assert(
+  shellContent.includes("pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8"),
+  "33. ConsultancyAppShell provides automatic bottom clearance above 64px bottom nav"
+);
+
 console.log("==================================================");
 console.log(`TEST RESULTS: ${passed} passed, ${failed} failed`);
 console.log("==================================================");

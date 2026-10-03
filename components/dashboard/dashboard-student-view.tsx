@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DailyCheckinWidget } from "@/components/checkin/daily-checkin-widget";
 import { Section, CompactCard, ListRow } from "@/components/ui/design-system";
+import { MobileDashboardCockpit } from "./mobile-dashboard-cockpit";
 import type { DailyCheckinRecord } from "@/lib/checkins/service";
 
 export interface StudentWorkoutRoutineSummary {
@@ -143,11 +144,174 @@ export function DashboardStudentView({
         : [];
 
   return (
-    <div className="space-y-5 sm:space-y-6 max-w-5xl mx-auto animate-in fade-in duration-150">
+    <>
       {/* ==================================================================== */}
-      {/* 1. HEADER LIMPO & STATUS                                             */}
+      {/* MOBILE NATIVE COCKPIT (< 768px)                                      */}
       {/* ==================================================================== */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
+      <div className="md:hidden">
+        <MobileDashboardCockpit
+          role="STUDENT"
+          consultancySlug={consultancySlug}
+          consultancyName={consultancyName}
+          userName={userName}
+          urgentAlert={
+            hasIncompleteOnboarding ? (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-300">
+                  <span>⚠</span>
+                  <span>Anamnese Pendente ({onboarding?.confirmedRequirements || 0}/{onboarding?.totalRequirements || 0} etapas)</span>
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                  Complete suas respostas para que sua prescrição seja personalizada.
+                </p>
+                <Link href={`/consultoria/${consultancySlug}/onboarding`}>
+                  <Button variant="primary" size="sm" className="w-full min-h-[44px] font-bold text-xs mt-1">
+                    Completar Anamnese →
+                  </Button>
+                </Link>
+              </div>
+            ) : pendingPhotoEvaluation ? (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                  <span className="font-bold text-amber-700 dark:text-amber-300">Avaliação física pendente</span>
+                </div>
+                <Link href={`/consultoria/${consultancySlug}/progresso`}>
+                  <span className="font-bold text-[var(--brand)]">Ver →</span>
+                </Link>
+              </div>
+            ) : null
+          }
+          todayCheckin={todayCheckin}
+          heroActionCard={
+            hasTraining && routineList.length > 0 ? (
+              <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand)]">
+                    Rotina Principal
+                  </span>
+                  {routineList[0].estimatedDurationMinutes && (
+                    <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                      ⏱ {routineList[0].estimatedDurationMinutes} min
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-[var(--text-primary)]">
+                    {routineList[0].title}
+                  </h2>
+                  {routineList[0].subtitle && (
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                      {routineList[0].subtitle}
+                    </p>
+                  )}
+                </div>
+                <Link
+                  href={`/consultoria/${consultancySlug}/treinos`}
+                  className="w-full min-h-[48px] rounded-xl font-bold text-xs bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center gap-2 shadow-xs active:scale-[0.98] transition-transform"
+                >
+                  <span>Iniciar Treino de Hoje</span>
+                  <span>→</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-2 text-center">
+                <div className="w-10 h-10 mx-auto rounded-xl bg-[var(--surface-subtle)] flex items-center justify-center text-[var(--text-tertiary)]">
+                  🏋️
+                </div>
+                <h2 className="text-xs font-bold text-[var(--text-primary)]">Nenhum treino publicado</h2>
+                <p className="text-[11px] text-[var(--text-secondary)]">Seu treinador está preparando sua prescrição personalizada.</p>
+              </div>
+            )
+          }
+          quickActions={[
+            {
+              id: "training",
+              label: "Treinos",
+              subtitle: hasTraining ? `${workoutCount} rotinas ativas` : "Ver fichas",
+              href: `/consultoria/${consultancySlug}/treinos`,
+              highlight: true,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              ),
+            },
+            {
+              id: "nutrition",
+              label: "Nutrição",
+              subtitle: hasNutrition ? `${mealCount} refeições` : "Ver plano",
+              href: `/consultoria/${consultancySlug}/nutricao`,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ),
+            },
+            {
+              id: "progress",
+              label: "Evolução",
+              subtitle: latestProgress?.weightKg ? `${latestProgress.weightKg} kg` : "Ver medidas",
+              href: `/consultoria/${consultancySlug}/progresso`,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              ),
+            },
+            {
+              id: "consultations",
+              label: "Consultas",
+              subtitle: "Atendimento 1:1",
+              href: `/consultoria/${consultancySlug}/consultas`,
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              ),
+            },
+          ]}
+          metrics={[
+            {
+              title: "Peso Atual",
+              value: latestProgress?.weightKg ? `${latestProgress.weightKg} kg` : "—",
+              subtitle: weightDelta !== null ? `${weightDelta > 0 ? "+" : ""}${weightDelta} kg vs anterior` : "Sem registros",
+              href: `/consultoria/${consultancySlug}/progresso`,
+            },
+            {
+              title: "Plano Alimentar",
+              value: hasNutrition ? `${mealCount} refeições` : "Pendente",
+              subtitle: firstMealTime ? `1ª às ${firstMealTime}` : "Cardápio do dia",
+              href: `/consultoria/${consultancySlug}/nutricao`,
+            },
+          ]}
+          recentSection={
+            routineList.length > 0
+              ? {
+                  title: "Fichas de Treino",
+                  subtitle: "Rotinas prescritas pelo seu personal",
+                  viewAllHref: `/consultoria/${consultancySlug}/treinos`,
+                  items: routineList.map((r, i) => ({
+                    id: r.publicId || String(i),
+                    title: r.title,
+                    subtitle: r.subtitle || undefined,
+                    caption: r.estimatedDurationMinutes ? `⏱ ${r.estimatedDurationMinutes} min` : undefined,
+                    href: `/consultoria/${consultancySlug}/treinos`,
+                  })),
+                }
+              : undefined
+          }
+        />
+      </div>
+
+      {/* ==================================================================== */}
+      {/* DESKTOP VIEW (>= 768px) — 100% PRESERVED                             */}
+      {/* ==================================================================== */}
+      <div className="hidden md:block space-y-5 sm:space-y-6 max-w-5xl mx-auto animate-in fade-in duration-150">
+        {/* ==================================================================== */}
+        {/* 1. HEADER LIMPO & STATUS                                             */}
+        {/* ==================================================================== */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
         <div>
           <div className="text-[11px] font-semibold text-[var(--brand)] uppercase tracking-wider">
             {consultancyName || "Acompanhamento"}
@@ -431,6 +595,7 @@ export function DashboardStudentView({
           </div>
         </Section>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

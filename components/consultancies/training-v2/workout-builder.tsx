@@ -204,12 +204,13 @@ export function WorkoutBuilder({
   consultancySlug,
   workout,
   initialVersion,
-  isDraft,
-  /* allVersions and isConsultancyAdmin available in props */
+  /* isDraft, allVersions and isConsultancyAdmin available in props */
   initialStudentPublicId,
 }: WorkoutBuilderProps) {
   const router = useRouter();
   const [version, setVersion] = useState<WorkoutVersionDto>(initialVersion);
+  const isDraft = version.status === "DRAFT";
+
   const [isPending, startTransition] = useTransition();
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
@@ -732,6 +733,7 @@ export function WorkoutBuilder({
     startTransition(async () => {
       const res = await createNewWorkoutVersionAction(consultancySlug, workout.publicId);
       if (res.ok && res.data) {
+        setVersion(res.data);
         notify("Novo rascunho de versão criado!");
         router.push(
           `/consultoria/${consultancySlug}/rotinas/${workout.publicId}?version=${res.data.publicId}`
@@ -871,6 +873,10 @@ export function WorkoutBuilder({
     restAfterSeconds?: number;
     itemPublicIds: string[];
   }) {
+    if (!isDraft) {
+      notify("Crie um novo rascunho antes de adicionar combinações.");
+      return;
+    }
     const res = await createItemCombinationAction(consultancySlug, input);
     if (res.ok && res.data) {
       const newComb = res.data;
@@ -1115,6 +1121,10 @@ export function WorkoutBuilder({
 
   // Guard for Publishing
   function handleOpenPublishDialog() {
+    if (version.status !== "DRAFT") {
+      notify("Apenas versões em rascunho podem ser publicadas.");
+      return;
+    }
     const hasUnresolved = (version.blocks || []).some((b) =>
       (b.items || []).some((i) => !i.exercisePublicId && !i.customExercisePublicId && !i.isCustomExercise)
     );
@@ -1803,7 +1813,9 @@ export function WorkoutBuilder({
           setVersion(pubVersion);
           setIsPublishDialogOpen(false);
           notify("Ficha publicada com sucesso!");
-          router.refresh();
+          router.push(
+            `/consultoria/${consultancySlug}/rotinas/${workout.publicId}?version=${pubVersion.publicId}`
+          );
         }}
       />
 

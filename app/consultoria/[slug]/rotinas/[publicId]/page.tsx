@@ -101,6 +101,7 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
         </div>
 
         <WorkoutBuilder
+          key={version.publicId}
           consultancySlug={slug}
           workout={workout}
           initialVersion={version}

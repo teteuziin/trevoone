@@ -72,6 +72,7 @@ export function WorkoutPublishDialog({
 
   if (!isOpen) return null;
 
+  const isDraft = version.status === "DRAFT";
   const totalBlocks = version.blocks?.length || 0;
   const totalItems = version.blocks?.reduce((acc, b) => acc + (b.items?.length || 0), 0) || 0;
   const unresolvedItemsCount =
@@ -81,6 +82,10 @@ export function WorkoutPublishDialog({
     ) || 0;
 
   const handleConfirmPublish = () => {
+    if (!isDraft) {
+      setErrorMessage("Apenas versões em rascunho (DRAFT) podem ser publicadas.");
+      return;
+    }
     if (unresolvedItemsCount > 0) {
       setErrorMessage(
         `Existem ${unresolvedItemsCount} exercício(s) pendente(s) de revisão. Resolva-os antes de publicar.`
@@ -110,10 +115,12 @@ export function WorkoutPublishDialog({
             </div>
             <div>
               <h3 className="text-base font-bold text-[var(--foreground)]">
-                Publicar Treino
+                {isDraft ? "Publicar Treino" : "Visualizar Versão"}
               </h3>
               <p className="text-xs text-[var(--foreground-muted)]">
-                Versão {version.versionNumber} • Snapshot imutável
+                {isDraft
+                  ? `Versão ${version.versionNumber} • Rascunho pronto para publicação`
+                  : `Versão ${version.versionNumber} • Snapshot imutável (Já publicada)`}
               </p>
             </div>
           </div>
@@ -192,15 +199,27 @@ export function WorkoutPublishDialog({
           )}
 
           {/* Immutability Alert Notice */}
-          <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold">Atenção sobre imutabilidade histórica</p>
-              <p className="mt-0.5 leading-relaxed text-[11px] opacity-90">
-                Uma vez publicada, esta versão não poderá ser editada diretamente. Para realizar novas alterações, será necessário criar uma nova versão em rascunho.
-              </p>
+          {isDraft ? (
+            <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Atenção sobre imutabilidade histórica</p>
+                <p className="mt-0.5 leading-relaxed text-[11px] opacity-90">
+                  Uma vez publicada, esta versão não poderá ser editada diretamente. Para realizar novas alterações futuras, será necessário criar uma nova versão em rascunho.
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Versão já publicada (Snapshot imutável)</p>
+                <p className="mt-0.5 leading-relaxed text-[11px] opacity-90">
+                  Esta versão já está finalizada e não pode ser publicada novamente nem editada diretamente. Para realizar novas alterações, crie ou edite um novo rascunho.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Error Banner if publication fails server-side */}
           {errorMessage && (
@@ -222,26 +241,28 @@ export function WorkoutPublishDialog({
             disabled={isPending}
             className="px-4 py-2 text-xs font-semibold rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] border border-transparent hover:border-[var(--border-default)] transition-colors disabled:opacity-50"
           >
-            Cancelar
+            {isDraft ? "Cancelar" : "Fechar"}
           </button>
-          <button
-            type="button"
-            onClick={handleConfirmPublish}
-            disabled={isPending || unresolvedItemsCount > 0}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-40"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Validando e Publicando...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Confirmar Publicação
-              </>
-            )}
-          </button>
+          {isDraft && (
+            <button
+              type="button"
+              onClick={handleConfirmPublish}
+              disabled={isPending || unresolvedItemsCount > 0}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-40"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Validando e Publicando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Confirmar Publicação
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

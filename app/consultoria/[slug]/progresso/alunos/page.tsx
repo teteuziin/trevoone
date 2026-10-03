@@ -72,6 +72,8 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
         <PersonalStudentList
           consultancySlug={slug}
           students={students}
+          effectiveMode={effectiveMode}
+          userRoles={context.roles}
         />
       </div>
     </ConsultancyAppShell>

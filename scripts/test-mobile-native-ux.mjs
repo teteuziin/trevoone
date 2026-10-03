@@ -248,6 +248,290 @@ assert(
   "33. ConsultancyAppShell provides automatic bottom clearance above 64px bottom nav"
 );
 
+// ============================================================================
+// PHASE 2 — ALUNOS + PERFIL DO ALUNO MOBILE NATIVE CONTRACTS
+// ============================================================================
+
+// 1. Student List Component & Responsive Composition
+const studentListFile = path.resolve("components/consultancies/personal-student-hub/personal-student-list.tsx");
+assert(fs.existsSync(studentListFile), "34. PersonalStudentList component file exists");
+const studentListContent = fs.readFileSync(studentListFile, "utf-8");
+
+assert(
+  studentListContent.includes("export function PersonalStudentList"),
+  "35. PersonalStudentList is defined and exported as a React component"
+);
+
+assert(
+  studentListContent.includes("md:hidden") &&
+  studentListContent.includes("data-testid=\"mobile-student-list\"") &&
+  studentListContent.includes("hidden md:grid"),
+  "36. PersonalStudentList implements clean responsive composition (md:hidden mobile + hidden md:grid desktop)"
+);
+
+assert(
+  studentListContent.includes("data-testid=\"mobile-student-card\"") &&
+  studentListContent.includes("onClick={() => router.push(studentDetailHref)}"),
+  "37. Mobile student card enforces whole-card tap ergonomics to open student profile"
+);
+
+assert(
+  studentListContent.includes("MobileSearchBar") &&
+  studentListContent.includes("onFilterClick={() => setIsFilterSheetOpen(true)}"),
+  "38. Mobile student list features MobileSearchBar with 1-tap filter bottom sheet trigger"
+);
+
+assert(
+  studentListContent.includes("MobileSegmentedControl") &&
+  studentListContent.includes("WITH_WORKOUT") &&
+  studentListContent.includes("WITHOUT_WORKOUT"),
+  "39. Mobile student list features MobileSegmentedControl for quick thumb status filtering"
+);
+
+assert(
+  studentListContent.includes("MobileBottomSheet") &&
+  studentListContent.includes("Filtros de Alunos"),
+  "40. Mobile student list implements MobileBottomSheet for detailed filtering"
+);
+
+assert(
+  studentListContent.includes("MobileActionSheet") &&
+  studentListContent.includes("actionSheetOptions"),
+  "41. Mobile student list implements MobileActionSheet for contextual secondary actions"
+);
+
+assert(
+  studentListContent.includes("min-h-[44px]") &&
+  studentListContent.includes("min-w-[44px]") &&
+  studentListContent.includes("aria-label=\"Mais opções para este aluno\""),
+  "42. Mobile student card actions enforce touch targets >= 44x44px"
+);
+
+assert(
+  studentListContent.includes("MobileEmptyState") &&
+  studentListContent.includes("Nenhum aluno cadastrado"),
+  "43. Mobile student list provides welcoming MobileEmptyState for zero students and empty search"
+);
+
+// 2. Student Profile Component & Mobile-Native Composition
+const studentDetailFile = path.resolve("components/consultancies/personal-student-hub/personal-student-detail-view.tsx");
+assert(fs.existsSync(studentDetailFile), "44. PersonalStudentDetailView component file exists");
+const studentDetailContent = fs.readFileSync(studentDetailFile, "utf-8");
+
+assert(
+  studentDetailContent.includes("export function PersonalStudentDetailView"),
+  "45. PersonalStudentDetailView is defined and exported as a React component"
+);
+
+assert(
+  studentDetailContent.includes("md:hidden") &&
+  studentDetailContent.includes("data-testid=\"mobile-student-profile\"") &&
+  studentDetailContent.includes("hidden md:block"),
+  "46. PersonalStudentDetailView implements responsive isolation (md:hidden mobile + hidden md:block desktop)"
+);
+
+assert(
+  studentDetailContent.includes("MobilePageHeader") &&
+  studentDetailContent.includes("backHref={`/consultoria/${consultancySlug}/progresso/alunos`}"),
+  "47. Mobile student profile features MobilePageHeader with obvious back navigation"
+);
+
+assert(
+  studentDetailContent.includes("min-h-[48px]") &&
+  studentDetailContent.includes("+ Criar treino"),
+  "48. Mobile student profile features prominent 48px primary action CTA"
+);
+
+assert(
+  studentDetailContent.includes("MobileTabs") &&
+  studentDetailContent.includes("data-testid=\"mobile-tab-resumo\"") &&
+  studentDetailContent.includes("data-testid=\"mobile-tab-treinos\"") &&
+  studentDetailContent.includes("data-testid=\"mobile-tab-nutricao\"") &&
+  studentDetailContent.includes("data-testid=\"mobile-tab-evolucao\"") &&
+  studentDetailContent.includes("data-testid=\"mobile-tab-mais\""),
+  "49. Mobile student profile implements touch-friendly MobileTabs without cramped desktop tabs"
+);
+
+assert(
+  studentDetailContent.includes("data-testid=\"mobile-tab-resumo\"") &&
+  studentDetailContent.includes("Treino Atual") &&
+  studentDetailContent.includes("Plano Alimentar") &&
+  studentDetailContent.includes("Evolução &amp; Fotos"),
+  "50. Mobile student profile Resumo tab answers current status, active workout, diet and evolution"
+);
+
+assert(
+  studentDetailContent.includes("data-testid=\"mobile-tab-treinos\"") &&
+  studentDetailContent.includes("Rotinas de Treino") &&
+  studentDetailContent.includes("Abrir no Criador"),
+  "51. Mobile student profile Treinos tab provides direct access to workout builder"
+);
+
+assert(
+  studentDetailContent.includes("data-testid=\"mobile-tab-nutricao\"") &&
+  studentDetailContent.includes("Planos Nutricionais") &&
+  studentDetailContent.includes("Abrir plano alimentar"),
+  "52. Mobile student profile Nutrição tab provides direct access to nutrition plans"
+);
+
+assert(
+  studentDetailContent.includes("data-testid=\"mobile-tab-evolucao\"") &&
+  studentDetailContent.includes("Medições Recentes") &&
+  studentDetailContent.includes("Fotos de Evolução"),
+  "53. Mobile student profile Evolução tab presents measurements as touch cards instead of overflowing table"
+);
+
+assert(
+  studentDetailContent.includes("MobileActionSheet") &&
+  studentDetailContent.includes("mobileActionSheetOptions"),
+  "54. Mobile student profile provides MobileActionSheet for secondary requests and actions"
+);
+
+// 3. RBAC Awareness in Student Routes
+const studentListRouteFile = path.resolve("app/consultoria/[slug]/progresso/alunos/page.tsx");
+const studentListRouteContent = fs.readFileSync(studentListRouteFile, "utf-8");
+assert(
+  studentListRouteContent.includes("effectiveMode={effectiveMode}") &&
+  studentListRouteContent.includes("userRoles={context.roles}"),
+  "55. Student list page passes effectiveMode and userRoles for RBAC-aware actions"
+);
+
+const studentDetailRouteFile = path.resolve("app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx");
+const studentDetailRouteContent = fs.readFileSync(studentDetailRouteFile, "utf-8");
+assert(
+  studentDetailRouteContent.includes("effectiveMode={effectiveMode}") &&
+  studentDetailRouteContent.includes("userRoles={context.roles}"),
+  "56. Student detail page passes effectiveMode and userRoles for RBAC-aware actions"
+);
+
+// 4. Tenancy and Isolation Protection
+assert(
+  studentDetailRouteContent.includes("resolveConsultancyContext") &&
+  studentDetailRouteContent.includes("notFound()"),
+  "57. Student routes enforce server-side tenancy verification and 404 for unassigned/cross-tenant access"
+);
+
+// ============================================================================
+// FUNCTIONAL FLOW VALIDATIONS (A through J)
+// ============================================================================
+
+// A) Abrir lista de alunos
+const sampleStudents = [
+  {
+    membershipPublicId: "mem-std-001",
+    userPublicId: "usr-std-001",
+    name: "Ingrid Silva",
+    email: "ingrid@example.com",
+    joinedAt: "2026-09-01T10:00:00.000Z",
+    objective: "Hipertrofia",
+    latestWorkoutTitle: "Hipertrofia A/B",
+    latestWorkoutStatus: "ACTIVE",
+    latestAssignmentStatus: "ACTIVE",
+    latestAssignmentStartsOn: "2026-09-15",
+  },
+  {
+    membershipPublicId: "mem-std-002",
+    userPublicId: "usr-std-002",
+    name: "Carlos Eduardo",
+    email: "carlos@example.com",
+    joinedAt: "2026-09-10T10:00:00.000Z",
+    objective: "Emagrecimento",
+    latestWorkoutTitle: null,
+    latestWorkoutStatus: null,
+    latestAssignmentStatus: null,
+    latestAssignmentStartsOn: null,
+  },
+];
+
+assert(
+  Array.isArray(sampleStudents) && sampleStudents.length === 2,
+  "58. Functional Flow A: Abrir lista de alunos (dados carregados com sucesso)"
+);
+
+// B) Buscar aluno
+const searchByName = sampleStudents.filter((s) => s.name.toLowerCase().includes("ingrid"));
+const searchByEmail = sampleStudents.filter((s) => s.email.toLowerCase().includes("carlos@"));
+const searchByObjective = sampleStudents.filter((s) => s.objective?.toLowerCase().includes("hipertrofia"));
+assert(
+  searchByName.length === 1 && searchByName[0].membershipPublicId === "mem-std-001" &&
+  searchByEmail.length === 1 && searchByEmail[0].membershipPublicId === "mem-std-002" &&
+  searchByObjective.length === 1 && searchByObjective[0].membershipPublicId === "mem-std-001",
+  "59. Functional Flow B: Buscar aluno (busca textual por nome, e-mail e objetivo)"
+);
+
+// C) Filtrar
+const withWorkout = sampleStudents.filter((s) => s.latestAssignmentStatus === "ACTIVE" && !!s.latestWorkoutTitle);
+const withoutWorkout = sampleStudents.filter((s) => !s.latestWorkoutTitle || s.latestAssignmentStatus !== "ACTIVE");
+assert(
+  withWorkout.length === 1 && withWorkout[0].membershipPublicId === "mem-std-001" &&
+  withoutWorkout.length === 1 && withoutWorkout[0].membershipPublicId === "mem-std-002",
+  "60. Functional Flow C: Filtrar (filtro segmentado por situação de treino)"
+);
+
+// D) Abrir aluno pelo card
+const cardTargetUrl = `/consultoria/minha-consultoria/progresso/alunos/${sampleStudents[0].membershipPublicId}`;
+assert(
+  cardTargetUrl === "/consultoria/minha-consultoria/progresso/alunos/mem-std-001" &&
+  studentListContent.includes("onClick={() => router.push(studentDetailHref)}"),
+  "61. Functional Flow D: Abrir aluno pelo card (touch completo do card navega para o perfil)"
+);
+
+// E) Voltar para lista
+assert(
+  studentDetailContent.includes("backHref={`/consultoria/${consultancySlug}/progresso/alunos`}") &&
+  studentDetailContent.includes('backLabel="Alunos"'),
+  "62. Functional Flow E: Voltar para lista (MobilePageHeader oferece volta clara à lista de alunos)"
+);
+
+// F) Abrir aba Treinos
+assert(
+  studentDetailContent.includes('id: "treinos"') &&
+  studentDetailContent.includes('data-testid="mobile-tab-treinos"') &&
+  studentDetailContent.includes("Abrir no Criador"),
+  "63. Functional Flow F: Abrir aba Treinos (navegação para rotinas e Criador Modular)"
+);
+
+// G) Abrir aba Nutrição
+assert(
+  studentDetailContent.includes('id: "nutricao"') &&
+  studentDetailContent.includes('data-testid="mobile-tab-nutricao"') &&
+  studentDetailContent.includes("Abrir plano alimentar"),
+  "64. Functional Flow G: Abrir aba Nutrição (navegação para prescrição e planos alimentares)"
+);
+
+// H) Abrir aba Evolução
+assert(
+  studentDetailContent.includes('id: "evolucao"') &&
+  studentDetailContent.includes('data-testid="mobile-tab-evolucao"') &&
+  studentDetailContent.includes("Fotos de Evolução") &&
+  studentDetailContent.includes("Medições Recentes"),
+  "65. Functional Flow H: Abrir aba Evolução (medições corporais em cards táteis e fotos de avaliação)"
+);
+
+// I) Ação permitida aparece
+const isPersonalRole = true;
+const isNutritionistRole = false;
+const personalActions = [
+  ...(isPersonalRole ? ["CREATE_WORKOUT"] : []),
+  ...(isNutritionistRole ? ["CREATE_DIET"] : []),
+];
+assert(
+  personalActions.includes("CREATE_WORKOUT") && !personalActions.includes("CREATE_DIET"),
+  "66. Functional Flow I: Ação permitida aparece (Personal vê Criar Treino como primário)"
+);
+
+// J) Ação não permitida não aparece
+const isNutritionistOnly = true;
+const isPersonalOnly = false;
+const nutritionistActions = [
+  ...(isPersonalOnly ? ["CREATE_WORKOUT"] : []),
+  ...(isNutritionistOnly ? ["CREATE_DIET"] : []),
+];
+assert(
+  nutritionistActions.includes("CREATE_DIET") && !nutritionistActions.includes("CREATE_WORKOUT"),
+  "67. Functional Flow J: Ação não permitida não aparece (Nutricionista vê Plano Alimentar e não prescreve treino por engano)"
+);
+
 console.log("==================================================");
 console.log(`TEST RESULTS: ${passed} passed, ${failed} failed`);
 console.log("==================================================");

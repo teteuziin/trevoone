@@ -40,6 +40,8 @@ export interface PersonalStudentOverview {
   hasAnamnesis: boolean;
   hasPhotos: boolean;
   hasForms: boolean;
+  latestNutritionTitle?: string | null;
+  activeNutritionCount?: number;
   hasPendingPhotos?: boolean;
   hasPendingAnamnesis?: boolean;
   hasPendingAssessment?: boolean;
@@ -120,6 +122,19 @@ export interface PhysicalMeasurement {
   note: string | null;
 }
 
+export interface StudentNutritionItem {
+  assignmentPublicId: string;
+  planPublicId: string;
+  versionPublicId: string;
+  title: string;
+  versionNumber: number;
+  status: "ACTIVE" | "ENDED";
+  startsOn: string;
+  endsOn: string | null;
+  notesForStudent: string | null;
+  assignedAt: string;
+}
+
 export interface PersonalStudentDetail {
   student: PersonalStudentProfile;
   overview: PersonalStudentOverview;
@@ -129,6 +144,7 @@ export interface PersonalStudentDetail {
   workouts: StudentWorkoutItem[];
   completedSessions: CompletedWorkoutSession[];
   measurements: PhysicalMeasurement[];
+  nutrition?: StudentNutritionItem[];
 }
 
 /**
@@ -739,6 +755,47 @@ export async function getPersonalStudentDetail(params: {
       anamnesis.push({ title: "Estilo de Vida & Hábitos", items: lifestyleItems });
     }
 
+    // 8.5. Fetch Prescribed Nutrition V2 Plans
+    let nutritionPlans: StudentNutritionItem[] = [];
+    try {
+      const [nutritionRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT
+          na.public_id AS assignment_public_id,
+          na.status AS assignment_status,
+          na.starts_on,
+          na.ends_on,
+          na.notes_for_student,
+          na.created_at AS assigned_at,
+          p.public_id AS plan_public_id,
+          COALESCE(nv.title, p.title) AS plan_title,
+          nv.public_id AS version_public_id,
+          nv.version_number
+         FROM nutrition_v2_assignments na
+         INNER JOIN nutrition_v2_plan_versions nv ON nv.id = na.nutrition_plan_version_id
+         INNER JOIN nutrition_v2_plans p ON p.id = nv.nutrition_plan_id
+         WHERE na.consultancy_id = ?
+           AND na.student_membership_id = ?
+           AND na.deleted_at IS NULL
+         ORDER BY na.status = 'ACTIVE' DESC, na.created_at DESC;`,
+        [consultancyId, membershipId]
+      );
+
+      nutritionPlans = (nutritionRows || []).map((r) => ({
+        assignmentPublicId: String(r.assignment_public_id),
+        planPublicId: String(r.plan_public_id),
+        versionPublicId: String(r.version_public_id),
+        title: String(r.plan_title),
+        versionNumber: Number(r.version_number || 1),
+        status: (r.assignment_status as "ACTIVE" | "ENDED") || "ACTIVE",
+        startsOn: String(r.starts_on),
+        endsOn: r.ends_on ? String(r.ends_on) : null,
+        notesForStudent: r.notes_for_student ? String(r.notes_for_student) : null,
+        assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : new Date().toISOString(),
+      }));
+    } catch {
+      nutritionPlans = [];
+    }
+
     // 9. Overview Metrics
     const latestWorkout = workouts.length > 0 ? workouts[0] : null;
     const activeWorkoutsCount = workouts.filter((w) => w.status === "ACTIVE").length;
@@ -758,6 +815,8 @@ export async function getPersonalStudentDetail(params: {
       hasAnamnesis: anamnesis.length > 0,
       hasPhotos: photos.length > 0,
       hasForms: forms.length > 0,
+      latestNutritionTitle: nutritionPlans.length > 0 ? nutritionPlans[0].title : null,
+      activeNutritionCount: nutritionPlans.filter((n) => n.status === "ACTIVE").length,
       hasPendingPhotos: photos.some((p) => p.status === "PENDING"),
       hasPendingAnamnesis: Array.isArray(customForms) && customForms.some((r) => String(r.template_title).toLowerCase().includes("anamnes") && r.status === "PENDING"),
       hasPendingAssessment: Array.isArray(customForms) && customForms.some((r) => (String(r.template_title).toLowerCase().includes("avalia") || String(r.template_title).toLowerCase().includes("medid")) && r.status === "PENDING"),
@@ -772,6 +831,7 @@ export async function getPersonalStudentDetail(params: {
       workouts,
       completedSessions,
       measurements,
+      nutrition: nutritionPlans,
     };
   } finally {
     if (connection) {

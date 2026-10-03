@@ -122,6 +122,8 @@ export default async function ProfessionalStudentProgressDetailPage({
           consultancySlug={slug}
           detail={detail}
           studentMonitoring={studentMonitoring}
+          effectiveMode={effectiveMode}
+          userRoles={context.roles}
         />
       </ConsultancyAppShell>
     );

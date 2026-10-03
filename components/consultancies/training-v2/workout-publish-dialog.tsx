@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import type { WorkoutVersionDto } from "@/lib/training-v2/types";
+import { inspectWorkoutVersionForPublish } from "@/lib/training-v2/validation";
 import { publishWorkoutAction } from "@/app/consultoria/[slug]/rotinas/actions";
 
 function AlertCircle({ className = "w-4 h-4" }: { className?: string }) {
@@ -70,26 +71,21 @@ export function WorkoutPublishDialog({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  const inspection = useMemo(() => inspectWorkoutVersionForPublish(version), [version]);
+
   if (!isOpen) return null;
 
   const isDraft = version.status === "DRAFT";
   const totalBlocks = version.blocks?.length || 0;
   const totalItems = version.blocks?.reduce((acc, b) => acc + (b.items?.length || 0), 0) || 0;
-  const unresolvedItemsCount =
-    version.blocks?.reduce(
-      (acc, b) => acc + (b.items?.filter((i) => !i.exercisePublicId).length || 0),
-      0
-    ) || 0;
 
   const handleConfirmPublish = () => {
     if (!isDraft) {
       setErrorMessage("Apenas versões em rascunho (DRAFT) podem ser publicadas.");
       return;
     }
-    if (unresolvedItemsCount > 0) {
-      setErrorMessage(
-        `Existem ${unresolvedItemsCount} exercício(s) pendente(s) de revisão. Resolva-os antes de publicar.`
-      );
+    if (!inspection.canPublish) {
+      setErrorMessage(inspection.fatalErrors.join(" | "));
       return;
     }
     setErrorMessage(null);
@@ -186,13 +182,34 @@ export function WorkoutPublishDialog({
           </div>
 
           {/* Unresolved Exercises Alert Notice */}
-          {unresolvedItemsCount > 0 && (
+          {/* Fatal Structural Errors (Blocks Publication) */}
+          {inspection.fatalErrors.length > 0 && (
             <div className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold">Exercícios pendentes de revisão</p>
-                <p className="mt-0.5 leading-relaxed text-[11px]">
-                  Existem {unresolvedItemsCount} exercício(s) sem vínculo com a biblioteca oficial. Resolva-os antes de publicar.
+              <div className="space-y-1">
+                <p className="font-semibold">Pendências que impedem a publicação</p>
+                <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                  {inspection.fatalErrors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Non-Blocking Warnings (Publication Allowed) */}
+          {inspection.warnings.length > 0 && (
+            <div className="p-3.5 rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+              <div className="space-y-1">
+                <p className="font-semibold">Avisos encontrados (a publicação prosseguirá normalmente)</p>
+                <ul className="list-disc pl-4 space-y-0.5 text-[11px] opacity-90">
+                  {inspection.warnings.map((warn, i) => (
+                    <li key={i}>{warn}</li>
+                  ))}
+                </ul>
+                <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80 pt-0.5">
+                  Campos opcionais inválidos serão saneados automaticamente e o treino será disponibilizado para o aluno sem erros.
                 </p>
               </div>
             </div>
@@ -200,12 +217,12 @@ export function WorkoutPublishDialog({
 
           {/* Immutability Alert Notice */}
           {isDraft ? (
-            <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2.5">
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
               <div>
-                <p className="font-semibold">Atenção sobre imutabilidade histórica</p>
+                <p className="font-semibold">Tudo pronto para publicação</p>
                 <p className="mt-0.5 leading-relaxed text-[11px] opacity-90">
-                  Uma vez publicada, esta versão não poderá ser editada diretamente. Para realizar novas alterações futuras, será necessário criar uma nova versão em rascunho.
+                  Ao confirmar, esta versão se tornará a versão ativa publicada para prescrição a alunos. O snapshot publicado preserva o histórico com segurança.
                 </p>
               </div>
             </div>
@@ -226,7 +243,7 @@ export function WorkoutPublishDialog({
             <div className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold">Erro de validação ao publicar</p>
+                <p className="font-semibold">Erro ao publicar</p>
                 <p className="mt-0.5 leading-relaxed text-[11px]">{errorMessage}</p>
               </div>
             </div>
@@ -247,7 +264,7 @@ export function WorkoutPublishDialog({
             <button
               type="button"
               onClick={handleConfirmPublish}
-              disabled={isPending || unresolvedItemsCount > 0}
+              disabled={isPending || !inspection.canPublish}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-40"
             >
               {isPending ? (

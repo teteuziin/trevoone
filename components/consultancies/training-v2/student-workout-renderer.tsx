@@ -1802,6 +1802,14 @@ function ItemCard({
           )}
         </div>
 
+        {/* Method / Observation: Prominently displayed under exercise title */}
+        {item.notes && item.notes.trim() && (
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-xs font-bold w-fit">
+            <span>⚡ Método:</span>
+            <span>{item.notes.trim()}</span>
+          </div>
+        )}
+
         {isSubstituted && (
           <div className="p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs space-y-1">
             <div className="text-[var(--foreground-muted)] text-[11px]">
@@ -1817,12 +1825,6 @@ function ItemCard({
               <span><strong className="text-[var(--foreground)]">Origem:</strong> Sugestão inteligente TREVO ONE</span>
             </div>
           </div>
-        )}
-
-        {item.notes && (
-          <p className="text-xs text-[var(--foreground-muted)] italic">
-            Obs: {item.notes}
-          </p>
         )}
 
         {/* SWAP EXERCISE ACTION AREA */}

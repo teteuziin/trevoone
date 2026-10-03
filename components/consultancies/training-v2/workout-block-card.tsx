@@ -860,6 +860,13 @@ export function WorkoutBlockCard({
                           </>
                         )}
                       </div>
+
+                      {item.notes && item.notes.trim() && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-[11px] font-bold w-fit mt-1">
+                          <span>⚡ Método / Obs:</span>
+                          <span>{item.notes.trim()}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

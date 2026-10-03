@@ -2507,6 +2507,14 @@ function ExerciseRow({
             </div>
           </div>
 
+          {/* Method / Observation: Prominently displayed under the exercise title, above prescription */}
+          {item.notes && item.notes.trim() && (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-[11px] font-bold w-fit">
+              <span>⚡ Método:</span>
+              <span>{item.notes.trim()}</span>
+            </div>
+          )}
+
           {/* Line 2: Prescription Summary */}
           <div className="flex items-center gap-2 text-[11px] sm:text-xs text-[var(--text-secondary)] font-medium">
             <span>{summaryLine}</span>
@@ -2519,13 +2527,6 @@ function ExerciseRow({
               </>
             )}
           </div>
-
-          {/* Line 3: Optional notes preview */}
-          {item.notes && (
-            <p className="text-[10px] sm:text-[11px] text-[var(--text-tertiary)] italic line-clamp-1">
-              Obs: {item.notes}
-            </p>
-          )}
         </div>
 
         {/* Action Controls */}
@@ -2880,13 +2881,13 @@ function ExerciseRow({
 
             <div className="space-y-1">
               <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase">
-                Observação <span className="font-normal text-[10px] text-[var(--text-tertiary)]">(opcional)</span>
+                Método / Observação <span className="font-normal text-[10px] text-[var(--text-tertiary)]">(opcional)</span>
               </label>
               <input
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ex: Pegada aberta, cadência controlada"
+                placeholder="Ex: Execução em dois tempos, Rest pause, Isometria final..."
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
               />
             </div>
@@ -3156,6 +3157,12 @@ export function UnifiedCombinationBlock({
                         </span>
                       )}
                     </div>
+                    {item.notes && item.notes.trim() && (
+                      <div className="my-0.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-[11px] font-bold">
+                        <span>⚡ Método:</span>
+                        <span className="truncate max-w-[220px] sm:max-w-none">{item.notes.trim()}</span>
+                      </div>
+                    )}
                     <p className="text-[11px] sm:text-xs font-semibold text-[var(--text-secondary)] truncate">
                       {summary.seriesCount} séries • {summary.repsText}
                       {summary.loadKg != null ? ` • ${summary.loadKg}kg` : ""}
@@ -3320,6 +3327,11 @@ export function MobileExerciseCard({
             <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
               {item.exerciseNameSnapshot}
             </h4>
+            {item.notes && item.notes.trim() && (
+              <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 truncate">
+                ⚡ Método: {item.notes.trim()}
+              </p>
+            )}
             <p className="text-[11px] font-semibold text-[var(--text-secondary)] truncate">
               {summary.seriesCount} séries • {summary.repsText}
               {summary.loadKg != null ? ` • ${summary.loadKg}kg` : ""}
@@ -3361,6 +3373,14 @@ export function MobileExerciseCard({
         )}
       </div>
 
+      {/* Method / Observation: Prominent on mobile above prescription */}
+      {item.notes && item.notes.trim() && (
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-xs font-bold w-fit">
+          <span>⚡ Método:</span>
+          <span>{item.notes.trim()}</span>
+        </div>
+      )}
+
       {/* Prescription Highlights: Big & Easy to read */}
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-black text-[var(--text-primary)]">
@@ -3378,13 +3398,6 @@ export function MobileExerciseCard({
           {summary.restSeconds}s descanso
         </span>
       </div>
-
-      {/* Notes preview if any */}
-      {item.notes && (
-        <p className="text-xs text-[var(--text-secondary)] italic bg-[var(--surface-subtle)]/40 p-2 rounded-xl border border-[var(--border-subtle)] line-clamp-2">
-          {item.notes}
-        </p>
-      )}
 
       {/* Mobile Actions Toolbar: Large 44x44 Touch Targets */}
       {isDraft && (

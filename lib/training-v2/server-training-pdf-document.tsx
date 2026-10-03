@@ -226,6 +226,24 @@ const styles = StyleSheet.create({
     borderTopColor: "#f1f5f9",
     paddingTop: 3,
   },
+  methodBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef3c7",
+    borderWidth: 0.5,
+    borderColor: "#fde68a",
+    borderRadius: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 1.5,
+    marginTop: 2,
+    marginBottom: 3,
+    alignSelf: "flex-start",
+  },
+  methodBadgeText: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#92400e",
+  },
   footer: {
     position: "absolute",
     bottom: 20,
@@ -552,17 +570,19 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
                         )}
                       </View>
 
+                      {/* Method / Observation (ONLY if present) - displayed prominently ABOVE prescription */}
+                      {ex.notes && ex.notes.trim().length > 0 && (
+                        <View style={styles.methodBadge}>
+                          <Text style={styles.methodBadgeText}>Método / Obs: {ex.notes.trim()}</Text>
+                        </View>
+                      )}
+
                       {/* Sets Summary */}
                       <View style={styles.setRow}>
                         <Text style={styles.setItem}>
                           <Text style={styles.setItemBold}>{ex.summaryString}</Text>
                         </Text>
                       </View>
-
-                      {/* Exercise Notes (ONLY if present) */}
-                      {ex.notes && ex.notes.trim().length > 0 && (
-                        <Text style={styles.exerciseNotes}>{ex.notes.trim()}</Text>
-                      )}
                     </View>
                   );
                 }
@@ -596,10 +616,15 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
                                 </Text>
                               )}
                             </View>
-                            <Text style={styles.setItemBold}>{it.summaryString}</Text>
+
+                            {/* Method / Observation (ONLY if present) - displayed prominently ABOVE prescription */}
                             {it.notes && it.notes.trim().length > 0 && (
-                              <Text style={styles.exerciseNotes}>{it.notes.trim()}</Text>
+                              <View style={styles.methodBadge}>
+                                <Text style={styles.methodBadgeText}>Método: {it.notes.trim()}</Text>
+                              </View>
                             )}
+
+                            <Text style={styles.setItemBold}>{it.summaryString}</Text>
                           </View>
                         </View>
                         {itIdx < u.items.length - 1 && (

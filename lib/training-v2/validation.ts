@@ -213,6 +213,38 @@ export const workoutSubBlockSchema = z.object({
   combinations: z.array(workoutItemCombinationSchema).default([]).optional(),
 });
 
+// Helper to safely validate HTTP/HTTPS URLs without throwing
+export function isValidHttpUrl(str: string | null | undefined): boolean {
+  if (!str || typeof str !== "string") return false;
+  const trimmed = str.trim();
+  if (!trimmed) return false;
+  try {
+    const candidate = trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`;
+    const url = new URL(candidate);
+    return (url.protocol === "http:" || url.protocol === "https:") && Boolean(url.hostname && url.hostname.includes("."));
+  } catch {
+    return false;
+  }
+}
+
+// Helper to sanitize video URLs: returns valid normalized URL or null if completely invalid
+export function sanitizeVideoUrl(val: unknown): string | null {
+  if (val === null || val === undefined) return null;
+  if (typeof val !== "string") return null;
+  const trimmed = val.trim();
+  if (!trimmed) return null;
+  try {
+    const candidate = trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`;
+    const url = new URL(candidate);
+    if ((url.protocol === "http:" || url.protocol === "https:") && Boolean(url.hostname && url.hostname.includes("."))) {
+      return url.toString();
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export const workoutBlockItemSchema = z.object({
   exercisePublicId: z.string().trim().min(1).nullable().optional(),
   customExercisePublicId: z.string().trim().min(1).nullable().optional(),
@@ -232,7 +264,14 @@ export const workoutBlockItemSchema = z.object({
   targetRir: z.number().int().min(0).max(10).nullable().optional(),
   durationUnit: z.enum(["SECONDS", "MINUTES"]).nullable().optional(),
   methodConfig: z.record(z.string(), z.unknown()).nullable().optional(),
-  customVideoUrl: z.string().url("URL de vídeo inválida.").max(1000).nullable().optional(),
+  customVideoUrl: z
+    .preprocess((val) => {
+      if (val === null || val === undefined || val === "") return null;
+      if (typeof val === "string") {
+        return sanitizeVideoUrl(val);
+      }
+      return null;
+    }, z.string().max(1000).nullable().optional()),
   notes: z.string().trim().max(2000).nullable().optional(),
   sets: z.array(workoutItemSetSchema).default([]),
 });
@@ -474,3 +513,121 @@ export const workoutAssignmentSchema = z
       });
     }
   });
+
+// ============================================================================
+// TOLERANT PUBLISH INSPECTION (FATAL ERRORS VS NON-BLOCKING WARNINGS)
+// ============================================================================
+
+export type WorkoutPublishInspectionResult = {
+  fatalErrors: string[];
+  warnings: string[];
+  canPublish: boolean;
+};
+
+export function inspectWorkoutVersionForPublish(tree: {
+  blocks?: Array<{
+    blockType: string;
+    title?: string | null;
+    items?: Array<{
+      exercisePublicId?: string | null;
+      customExercisePublicId?: string | null;
+      exerciseNameSnapshot?: string;
+      customVideoUrl?: string | null;
+      pinnedMedia?: unknown[];
+      notes?: string | null;
+      sets?: Array<{ setType?: string; targetDurationSeconds?: number | null; targetDistanceMeters?: number | null }>;
+      methodConfig?: Record<string, unknown> | null;
+    }>;
+  }>;
+}): WorkoutPublishInspectionResult {
+  const fatalErrors: string[] = [];
+  const warnings: string[] = [];
+
+  const blocks = tree.blocks || [];
+  if (blocks.length === 0) {
+    fatalErrors.push("O treino deve conter ao menos 1 bloco de exercícios para ser publicado.");
+    return { fatalErrors, warnings, canPublish: false };
+  }
+
+  let unresolvedCount = 0;
+  for (const block of blocks) {
+    const items = block.items || [];
+    const count = items.length;
+
+    if (count === 0) {
+      fatalErrors.push(`O bloco "${block.title || block.blockType}" deve conter ao menos 1 exercício.`);
+      continue;
+    }
+
+    // Methodological structural constraints (Fatal errors)
+    switch (block.blockType) {
+      case "SINGLE":
+        if (count !== 1) fatalErrors.push(`Bloco de Série Simples deve conter exatamente 1 exercício (recebeu ${count}).`);
+        break;
+      case "BI_SET":
+        if (count !== 2) fatalErrors.push(`Bloco Bi-Set deve conter exatamente 2 exercícios (recebeu ${count}).`);
+        break;
+      case "TRI_SET":
+        if (count !== 3) fatalErrors.push(`Bloco Tri-Set deve conter exatamente 3 exercícios (recebeu ${count}).`);
+        break;
+      case "SUPER_SET":
+        if (count !== 2) fatalErrors.push(`Bloco Super-Série deve conter exatamente 2 exercícios (recebeu ${count}).`);
+        break;
+      case "CIRCUIT":
+        if (count < 2) fatalErrors.push(`Bloco de Circuito deve conter ao menos 2 exercícios (recebeu ${count}).`);
+        break;
+      case "COMBINED_SET":
+        if (count < 2) fatalErrors.push(`Bloco Combinado deve conter ao menos 2 exercícios (recebeu ${count}).`);
+        break;
+      case "DROP_SET":
+        if (count !== 1) {
+          fatalErrors.push(`Bloco Drop-Set deve conter exatamente 1 exercício principal (recebeu ${count}).`);
+        } else {
+          const hasDropStage = items[0].sets?.some((s) => s.setType === "DROP_STAGE");
+          if (!hasDropStage) fatalErrors.push("Bloco Drop-Set deve conter ao menos uma série do tipo DROP_STAGE.");
+        }
+        break;
+      case "REST_PAUSE":
+        if (count !== 1) {
+          fatalErrors.push(`Bloco Rest-Pause deve conter exatamente 1 exercício (recebeu ${count}).`);
+        } else {
+          const hasMiniSet = items[0].sets?.some((s) => s.setType === "REST_PAUSE_MINI");
+          if (!hasMiniSet) fatalErrors.push("Bloco Rest-Pause deve conter ao menos uma mini-série do tipo REST_PAUSE_MINI.");
+        }
+        break;
+      case "CARDIO":
+        if (count !== 1) {
+          fatalErrors.push(`Bloco de Cardio deve conter exatamente 1 exercício (recebeu ${count}).`);
+        }
+        break;
+      case "WARMUP":
+      case "CUSTOM":
+        if (count < 1) fatalErrors.push(`Bloco deve conter ao menos 1 exercício.`);
+        break;
+    }
+
+    // Inspect items
+    for (const item of items) {
+      if (!item.exercisePublicId && !item.customExercisePublicId) {
+        unresolvedCount++;
+      }
+
+      // Check optional video URL (Warning only, non-blocking)
+      if (item.customVideoUrl && item.customVideoUrl.trim().length > 0) {
+        if (!isValidHttpUrl(item.customVideoUrl)) {
+          warnings.push(`URL de vídeo inválida no exercício "${item.exerciseNameSnapshot || 'Exercício'}" será desconsiderada na publicação.`);
+        }
+      }
+    }
+  }
+
+  if (unresolvedCount > 0) {
+    fatalErrors.push(`${unresolvedCount} exercício(s) precisa(m) ser revisado(s) antes da publicação.`);
+  }
+
+  return {
+    fatalErrors,
+    warnings,
+    canPublish: fatalErrors.length === 0,
+  };
+}

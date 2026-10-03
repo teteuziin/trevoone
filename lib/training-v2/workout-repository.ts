@@ -12,7 +12,11 @@ import {
   type TrainingAccessContext,
   assertCanAuthorTraining,
 } from "./access";
-import { workoutVersionSchema, workoutBlockTypeSchema } from "./validation";
+import {
+  workoutBlockTypeSchema,
+  inspectWorkoutVersionForPublish,
+  sanitizeVideoUrl,
+} from "./validation";
 import type {
   WorkoutRootDto,
   WorkoutVersionDto,
@@ -1004,8 +1008,9 @@ export type WorkoutVersionSummaryDto = {
 /**
  * Authoritative server-side validation for publishing a workout version.
  * Requires at least 1 block and complete structural validity of all 11 methods.
+ * Tolerant to optional/secondary fields (e.g. invalid video URL, empty observations).
  */
-export function validateWorkoutVersionForPublish(tree: WorkoutVersionDto): void {
+export function validateWorkoutVersionForPublish(tree: WorkoutVersionDto): { warnings: string[] } {
   if (!tree.blocks || tree.blocks.length === 0) {
     throw new TrainingAuthorizationError(
       "O treino deve conter ao menos 1 bloco de exercícios para ser publicado.",
@@ -1031,15 +1036,15 @@ export function validateWorkoutVersionForPublish(tree: WorkoutVersionDto): void 
     );
   }
 
-  const validationResult = workoutVersionSchema.safeParse(tree);
-  if (!validationResult.success) {
-    const errorDetails = validationResult.error.issues.map((i) => i.message).join(" | ");
+  const inspection = inspectWorkoutVersionForPublish(tree);
+  if (inspection.fatalErrors.length > 0) {
     throw new TrainingAuthorizationError(
-      `Estrutura do treino inválida para publicação: ${errorDetails}`,
+      `Estrutura do treino inválida para publicação: ${inspection.fatalErrors.join(" | ")}`,
       "VALIDATION_FAILED",
       400
     );
   }
+  return { warnings: inspection.warnings };
 }
 
 /**
@@ -1315,7 +1320,27 @@ export async function publishWorkoutVersion(
       throw new TrainingAuthorizationError("Falha ao carregar estrutura persistida do treino.", "INTERNAL_ERROR", 500);
     }
 
-    // 3. Domain validation for publishing (at least 1 block + 11 methods validation)
+    // 2.5 Tolerant sanitization of optional fields before publish
+    for (const block of tree.blocks || []) {
+      for (const item of block.items || []) {
+        if (item.customVideoUrl) {
+          const sanitized = sanitizeVideoUrl(item.customVideoUrl);
+          if (sanitized !== item.customVideoUrl) {
+            item.customVideoUrl = sanitized;
+            await connection.execute<ResultSetHeader>(
+              `UPDATE workout_block_items SET custom_video_url = ? WHERE public_id = ?;`,
+              [sanitized, item.publicId]
+            );
+          }
+        }
+        if (item.notes) {
+          const trimmed = item.notes.trim();
+          item.notes = trimmed.length > 0 ? trimmed : null;
+        }
+      }
+    }
+
+    // 3. Domain validation for publishing (at least 1 block + 11 methods validation; tolerant to optional fields)
     validateWorkoutVersionForPublish(tree);
 
     // 4. Archive any prior PUBLISHED version of this workout

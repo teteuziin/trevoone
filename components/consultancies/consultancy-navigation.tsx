@@ -393,13 +393,93 @@ export function ConsultancyNavigation({
 
   const baseSlugHref = `/consultoria/${consultancySlug}`;
 
+  // Keyboard awareness on mobile devices (prevents bottom nav floating above keyboard)
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (window.visualViewport) {
+      const handleResize = () => {
+        if (!window.visualViewport) return;
+        const heightDiff = window.innerHeight - window.visualViewport.height;
+        setIsKeyboardOpen(heightDiff > 150);
+      };
+      const vv = window.visualViewport;
+      vv.addEventListener("resize", handleResize);
+      return () => {
+        vv.removeEventListener("resize", handleResize);
+      };
+    }
+
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        setIsKeyboardOpen(true);
+      }
+    };
+    const handleFocusOut = () => {
+      setIsKeyboardOpen(false);
+    };
+
+    window.addEventListener("focusin", handleFocusIn);
+    window.addEventListener("focusout", handleFocusOut);
+    return () => {
+      window.removeEventListener("focusin", handleFocusIn);
+      window.removeEventListener("focusout", handleFocusOut);
+    };
+  }, []);
+
+  // Focused fullscreen workflows where mobile bottom nav should not compete with primary CTAs:
+  // 1. Student active workout runtime (/treinos/[assignmentPublicId]) -> focus on CONCLUIR SÉRIE
+  // 2. Workout builder editor (/rotinas/[publicId] or /rotinas/novo)
+  // 3. Nutrition plan builder editor (/planos-v2/[planPublicId] or /planos-v2/novo)
+  const isStudentRuntime =
+    Boolean(pathname) &&
+    pathname.startsWith(`${baseSlugHref}/treinos/`) &&
+    pathname !== `${baseSlugHref}/treinos`;
+
+  const isWorkoutBuilder =
+    Boolean(pathname) &&
+    (pathname.startsWith(`${baseSlugHref}/rotinas/novo`) ||
+      (pathname.startsWith(`${baseSlugHref}/rotinas/`) &&
+        pathname !== `${baseSlugHref}/rotinas`));
+
+  const isNutritionBuilder =
+    Boolean(pathname) &&
+    (pathname.startsWith(`${baseSlugHref}/planos-v2/novo`) ||
+      (pathname.startsWith(`${baseSlugHref}/planos-v2/`) &&
+        pathname !== `${baseSlugHref}/planos-v2` &&
+        !pathname.startsWith(`${baseSlugHref}/planos-v2/prontuario`)));
+
+  const shouldHideMobileBottomNav =
+    isStudentRuntime || isWorkoutBuilder || isNutritionBuilder || isKeyboardOpen;
+
   function isItemActive(itemHref?: string | null): boolean {
     if (!pathname || !itemHref) return false;
     if (itemHref === baseSlugHref) {
       return pathname === baseSlugHref;
     }
-    const cleanItemHref = itemHref.split("#")[0];
-    return pathname === cleanItemHref || pathname.startsWith(cleanItemHref + "/");
+    const cleanItemHref = itemHref.split("#")[0].split("?")[0];
+    if (pathname === cleanItemHref) return true;
+
+    // Subroute matching with explicit boundary
+    if (pathname.startsWith(cleanItemHref + "/")) {
+      // Disambiguate /progresso (Evolução Aluno) vs /progresso/alunos (Alunos Personal):
+      if (
+        cleanItemHref === `${baseSlugHref}/progresso` &&
+        pathname.startsWith(`${baseSlugHref}/progresso/alunos`)
+      ) {
+        return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -669,7 +749,7 @@ export function ConsultancyNavigation({
         <div className="p-3.5 border-t border-[var(--border-default)] space-y-3 bg-[var(--surface)]">
                     {/* User Info Card */}
           <Link
-            href="/conta/perfil"
+            href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
             className="flex items-center gap-2.5 px-1 py-1 rounded-xl hover:bg-[var(--surface-subtle)] transition-colors min-w-0 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
             title="Ver perfil"
           >
@@ -723,7 +803,7 @@ export function ConsultancyNavigation({
             </Link>
 
             <Link
-              href="/conta/perfil"
+              href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
               prefetch={false}
               className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === "/conta/perfil"
@@ -895,103 +975,105 @@ export function ConsultancyNavigation({
       {/* =========================================================================
           4. MOBILE BOTTOM NAVIGATION (< 768px)
           ========================================================================= */}
-      <nav
-        aria-label="Navegação rápida móvel"
-        className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-lg print:hidden transition-colors border-specular-t"
-      >
-        <div className="flex items-center justify-around h-16 px-1">
-          {primaryNavItems.map((item) => {
-            const active = isItemActive(item.href);
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                prefetch={false}
-                aria-current={active ? "page" : undefined}
-                className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
-                  active
-                    ? "text-[var(--brand)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                <div
-                  className={`p-1.5 rounded-xl transition-all duration-150 ${
+      {!shouldHideMobileBottomNav && (
+        <nav
+          aria-label="Navegação rápida móvel"
+          className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-lg print:hidden transition-all duration-150 border-specular-t"
+        >
+          <div className="flex items-center justify-around h-16 px-1">
+            {primaryNavItems.map((item) => {
+              const active = isItemActive(item.href);
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  prefetch={false}
+                  aria-current={active ? "page" : undefined}
+                  className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                     active
-                      ? "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
-                      : "group-hover:bg-[var(--surface-hover)]"
+                      ? "text-[var(--brand)]"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
-                  <NavIcon name={item.iconName} />
-                </div>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span
-                    className={`text-[10px] tracking-tight truncate max-w-full leading-tight ${
-                      active ? "font-bold text-[var(--brand)]" : "font-medium text-[var(--text-tertiary)]"
+                  <div
+                    className={`p-1.5 rounded-xl transition-all duration-150 ${
+                      active
+                        ? "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
+                        : "group-hover:bg-[var(--surface-hover)]"
                     }`}
                   >
-                    {item.mobileLabel || item.label}
-                  </span>
-                  {active && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
-                  )}
-                </div>
-              </Link>
-            );
-          })}
+                    <NavIcon name={item.iconName} />
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span
+                      className={`text-[10px] tracking-tight truncate max-w-full leading-tight ${
+                        active ? "font-bold text-[var(--brand)]" : "font-medium text-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      {item.mobileLabel || item.label}
+                    </span>
+                    {active && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
 
-          {/* "Mais" button */}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Mais opções de navegação"
-            aria-expanded={mobileMenuOpen}
-            aria-controls="mobile-navigation-drawer"
-            className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
-              isMoreActive
-                ? "text-[var(--brand)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            <div
-              className={`p-1.5 rounded-xl relative transition-all duration-150 ${
+            {/* "Mais" button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Mais opções de navegação"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-navigation-drawer"
+              className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                 isMoreActive
-                  ? "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
-                  : "group-hover:bg-[var(--surface-hover)]"
+                  ? "text-[var(--brand)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              <svg
-                className="w-5 h-5 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth={1.8}
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
-                />
-              </svg>
-              {unreadNotificationsCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--brand)] ring-2 ring-[var(--surface)]" />
-              )}
-            </div>
-            <div className="flex items-center gap-1 mt-0.5">
-              <span
-                className={`text-[10px] tracking-tight truncate leading-tight ${
-                  isMoreActive ? "font-bold text-[var(--brand)]" : "font-medium text-[var(--text-tertiary)]"
+              <div
+                className={`p-1.5 rounded-xl relative transition-all duration-150 ${
+                  isMoreActive
+                    ? "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
+                    : "group-hover:bg-[var(--surface-hover)]"
                 }`}
               >
-                Mais
-              </span>
-              {isMoreActive && (
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
-              )}
-            </div>
-          </button>
-        </div>
-      </nav>
+                <svg
+                  className="w-5 h-5 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.8}
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
+                  />
+                </svg>
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--brand)] ring-2 ring-[var(--surface)]" />
+                )}
+              </div>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span
+                  className={`text-[10px] tracking-tight truncate leading-tight ${
+                    isMoreActive ? "font-bold text-[var(--brand)]" : "font-medium text-[var(--text-tertiary)]"
+                  }`}
+                >
+                  Mais
+                </span>
+                {isMoreActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
+                )}
+              </div>
+            </button>
+          </div>
+        </nav>
+      )}
 
       {/* =========================================================================
           5. DRAWER MENU (For Mobile & Tablet)
@@ -1016,7 +1098,7 @@ export function ConsultancyNavigation({
                         {/* Header Handle & Close */}
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
               <Link
-                href="/conta/perfil"
+                href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-3 min-w-0 group cursor-pointer"
                 title="Ver perfil"
@@ -1214,25 +1296,6 @@ export function ConsultancyNavigation({
                 </Link>
 
                 <Link
-                  href="/conta/perfil"
-                  prefetch={false}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
-                    pathname === "/conta/perfil"
-                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <svg className="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                    </svg>
-                    <span>Meu perfil</span>
-                  </div>
-                  <span className="text-xs text-[var(--text-tertiary)]">→</span>
-                </Link>
-
-                <Link
                   href={`/consultoria/${consultancySlug}/ajuda`}
                   prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
@@ -1250,7 +1313,7 @@ export function ConsultancyNavigation({
                 </Link>
 
                 <Link
-                  href="/conta/seguranca"
+                  href={`/conta/seguranca?returnTo=${encodeURIComponent(pathname)}`}
                   prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${

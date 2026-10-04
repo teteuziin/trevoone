@@ -71,6 +71,7 @@ export function DashboardCombinedPersonalAdminView({
           recentPlans={recentPlans}
           totalPlans={totalPlans}
           totalStudents={overview?.students}
+          hideRoleBadge={true}
         />
       ) : (
         <DashboardAdminView
@@ -79,6 +80,7 @@ export function DashboardCombinedPersonalAdminView({
           consultancyLogoUrl={consultancyLogoUrl}
           overview={overview}
           platformAccess={platformAccess}
+          hideRoleBadge={true}
         />
       )}
     </div>

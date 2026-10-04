@@ -8,6 +8,7 @@ interface DashboardContextProps {
   roles: ConsultancyRole[];
   subtitle?: string;
   activeMode?: string;
+  hideRoleBadges?: boolean;
 }
 
 function getDefaultSubtitle(roles: ConsultancyRole[]): string {
@@ -40,6 +41,7 @@ export function DashboardContext({
   userName,
   roles,
   subtitle,
+  hideRoleBadges = false,
 }: DashboardContextProps) {
   const safeRoles = Array.isArray(roles) ? roles : [];
   const firstName = userName ? userName.trim().split(" ")[0] : "";
@@ -61,39 +63,41 @@ export function DashboardContext({
           {displaySubtitle}
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-        {/* STUDENT FIRST: Aluno é o papel prioritário */}
-        {isStudent && (
-          <Badge variant="brand" size="sm">
-            Aluno
-          </Badge>
-        )}
-        {isPersonal && (
-          <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
-            Personal Trainer
-          </Badge>
-        )}
-        {isNutritionist && (
-          <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
-            Nutricionista
-          </Badge>
-        )}
-        {isAdmin && (
-          <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
-            Administrador da consultoria
-          </Badge>
-        )}
-        {isInfluencer && (
-          <>
-            <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
-              Influenciador
+      {!hideRoleBadges && (
+        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+          {/* STUDENT FIRST: Aluno é o papel prioritário */}
+          {isStudent && (
+            <Badge variant="brand" size="sm">
+              Aluno
             </Badge>
+          )}
+          {isPersonal && (
             <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
-              VIP
+              Personal Trainer
             </Badge>
-          </>
-        )}
-      </div>
+          )}
+          {isNutritionist && (
+            <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
+              Nutricionista
+            </Badge>
+          )}
+          {isAdmin && (
+            <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
+              Administrador da consultoria
+            </Badge>
+          )}
+          {isInfluencer && (
+            <>
+              <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
+                Influenciador
+              </Badge>
+              <Badge variant={isStudent ? "neutral" : "brand"} size="sm">
+                VIP
+              </Badge>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

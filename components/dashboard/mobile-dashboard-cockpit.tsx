@@ -51,6 +51,7 @@ export interface MobileDashboardCockpitProps {
     emptyText?: string;
   };
   todayCheckin?: DailyCheckinRecord | null;
+  hideRoleBadge?: boolean;
   className?: string;
 }
 
@@ -87,6 +88,7 @@ export function MobileDashboardCockpit({
   actionLayout = "list",
   recentSection,
   todayCheckin,
+  hideRoleBadge = false,
   className = "",
 }: MobileDashboardCockpitProps) {
   const firstName = getFirstName(userName);
@@ -96,21 +98,23 @@ export function MobileDashboardCockpit({
   return (
     <div
       data-testid="mobile-dashboard-cockpit"
-      className={`space-y-4 pb-6 select-none ${className}`.trim()}
+      className={`space-y-4 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] select-none ${className}`.trim()}
     >
       {/* 1. COCKPIT HEADER: Saudação e contexto direto sem camadas redundantes */}
       <div className="pt-1 px-1 flex items-baseline justify-between gap-2">
-        <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+        <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight font-sans">
           {greeting}{firstName ? `, ${firstName}` : ""}
         </h1>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-[var(--text-tertiary)] font-medium">
-            {roleLabel}
-          </span>
+          {!hideRoleBadge && (
+            <span className="text-xs text-[var(--text-tertiary)] font-medium font-sans">
+              {roleLabel}
+            </span>
+          )}
           {consultancyName && (
             <>
-              <span className="text-xs text-[var(--text-muted)]">•</span>
-              <span className="text-xs text-[var(--text-tertiary)] font-medium truncate max-w-[120px]">
+              {!hideRoleBadge && <span className="text-xs text-[var(--text-muted)]">•</span>}
+              <span className="text-xs text-[var(--text-tertiary)] font-medium truncate max-w-[120px] font-sans">
                 {consultancyName}
               </span>
             </>

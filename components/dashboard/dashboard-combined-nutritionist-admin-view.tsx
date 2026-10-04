@@ -73,6 +73,7 @@ export function DashboardCombinedNutritionistAdminView({
           recentPlans={recentPlans}
           totalPlans={totalPlans}
           totalStudents={overview?.students}
+          hideRoleBadge={true}
         />
       ) : (
         <DashboardAdminView
@@ -81,6 +82,7 @@ export function DashboardCombinedNutritionistAdminView({
           consultancyLogoUrl={consultancyLogoUrl}
           overview={overview}
           platformAccess={platformAccess}
+          hideRoleBadge={true}
         />
       )}
     </div>

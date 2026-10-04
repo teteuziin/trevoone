@@ -23,6 +23,7 @@ export interface DashboardNutritionistViewProps {
   recentPlans?: NutritionistPlanSummaryItem[];
   totalPlans?: number;
   totalStudents?: number;
+  hideRoleBadge?: boolean;
 }
 
 export function DashboardNutritionistView({
@@ -30,6 +31,7 @@ export function DashboardNutritionistView({
   recentPlans = [],
   totalPlans = 0,
   totalStudents,
+  hideRoleBadge,
 }: DashboardNutritionistViewProps) {
   return (
     <>
@@ -38,6 +40,7 @@ export function DashboardNutritionistView({
         <MobileDashboardCockpit
           role="NUTRITIONIST"
           consultancySlug={consultancySlug}
+          hideRoleBadge={hideRoleBadge}
           heroActionCard={
             <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
               <div className="flex items-center justify-between">

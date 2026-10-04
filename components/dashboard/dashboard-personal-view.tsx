@@ -21,6 +21,7 @@ export interface DashboardPersonalViewProps {
   recentPlans?: PersonalWorkoutSummaryItem[];
   totalPlans?: number;
   totalStudents?: number;
+  hideRoleBadge?: boolean;
 }
 
 export function DashboardPersonalView({
@@ -28,6 +29,7 @@ export function DashboardPersonalView({
   recentPlans = [],
   totalPlans = 0,
   totalStudents,
+  hideRoleBadge,
 }: DashboardPersonalViewProps) {
   return (
     <>
@@ -36,6 +38,7 @@ export function DashboardPersonalView({
         <MobileDashboardCockpit
           role="PERSONAL"
           consultancySlug={consultancySlug}
+          hideRoleBadge={hideRoleBadge}
           heroActionCard={
             <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
               <div className="flex items-center justify-between">

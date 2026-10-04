@@ -16,6 +16,7 @@ interface DashboardAdminViewProps {
   consultancyLogoUrl?: string | null;
   overview: ConsultancyAdminOverview | null;
   platformAccess?: PlatformEffectiveAccessState;
+  hideRoleBadge?: boolean;
 }
 
 export function DashboardAdminView({
@@ -24,6 +25,7 @@ export function DashboardAdminView({
   consultancyLogoUrl,
   overview,
   platformAccess,
+  hideRoleBadge,
 }: DashboardAdminViewProps) {
   const isSuspendedOrCanceled = platformAccess && !platformAccess.isOperationalAllowed;
   const isInGrace = platformAccess && platformAccess.effectiveStatus === "GRACE";
@@ -35,6 +37,7 @@ export function DashboardAdminView({
         <MobileDashboardCockpit
           role="ADMIN"
           consultancySlug={consultancySlug}
+          hideRoleBadge={hideRoleBadge}
           urgentAlert={
             isSuspendedOrCanceled ? (
               <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300 space-y-2">

@@ -301,11 +301,17 @@ export default async function ConsultancyPage({ params }: PageProps) {
       maxWidth="full"
     >
       <div className="w-full max-w-[1536px] 2xl:max-w-[1680px] space-y-6 sm:space-y-8">
-        {/* Context Header Compacto */}
+        {/* Context Header Compacto (oculta badges redundantes quando há seletor de papel ativo) */}
         <DashboardContext
           userName={session.fullName}
           consultancyName={context.consultancyName}
           roles={context.roles}
+          hideRoleBadges={
+            !effectiveState.isPreview && (
+              (isPersonal && isConsultancyAdmin) ||
+              (isNutritionist && isConsultancyAdmin && !isPersonal)
+            )
+          }
         />
 
         {/* 1. Visão Combinada Personal + Admin (quando possui ambos os papéis e não está em preview manual) */}

@@ -124,67 +124,65 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      maxWidth="full"
     >
-      <div className="w-full max-w-2xl mx-auto space-y-6 pb-12">
-        <Link
-          href={
-            preselectedStudent
-              ? `/consultoria/${slug}/progresso/alunos/${preselectedStudent.student.membershipPublicId}`
-              : isTemplate
-              ? `/consultoria/${slug}/rotinas?tab=templates`
-              : `/consultoria/${slug}/rotinas`
-          }
-          className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"
-        >
-          <ArrowLeftIcon className="w-4 h-4" />
-          <span>
-            {preselectedStudent
-              ? "Voltar para Central do Aluno"
-              : isTemplate
-              ? "Voltar para Modelos de Treino"
-              : "Voltar para Treinos"}
-          </span>
-        </Link>
+      <div className="w-full max-w-[1536px] 2xl:max-w-[1680px] space-y-6 sm:space-y-8 pb-12">
+        {/* Navigation Breadcrumb / Back Action */}
+        <div>
+          <Link
+            href={
+              preselectedStudent
+                ? `/consultoria/${slug}/progresso/alunos/${preselectedStudent.student.membershipPublicId}`
+                : isTemplate
+                ? `/consultoria/${slug}/rotinas?tab=templates`
+                : `/consultoria/${slug}/rotinas`
+            }
+            className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors min-h-[44px] py-1 font-sans group cursor-pointer"
+          >
+            <ArrowLeftIcon className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] transition-colors" />
+            <span>
+              {preselectedStudent
+                ? "Voltar para Central do Aluno"
+                : isTemplate
+                ? "Voltar para Modelos de Treino"
+                : "Voltar para Treinos"}
+            </span>
+          </Link>
+        </div>
 
-        <div className="p-6 sm:p-8 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-6 depth-surface">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
-                Módulo de Treinamento
-              </span>
-              <Badge variant={isTemplate ? "neutral" : "brand"} size="sm">
-                {isTemplate ? "Modelo Reutilizável" : "Novo Treino do Zero"}
-              </Badge>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-              {isTemplate ? "Novo Modelo de Treino" : "Nova Ficha de Treino"}
+        {/* WORKFLOW CONTAINER: Integrado ao fluxo da página (~760–840px), alinhado com Dashboard */}
+        <div className="w-full max-w-3xl lg:max-w-[820px] space-y-6 sm:space-y-8 animate-in fade-in duration-150">
+          {/* Header limpo sem redundâncias */}
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight font-sans">
+              {isTemplate ? "Novo modelo de treino" : "Nova ficha de treino"}
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium leading-relaxed">
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-sans">
               {isTemplate
-                ? "Defina o nome e os dados do modelo padrão. Em seguida, você adicionará as categorias e exercícios no criador modular."
-                : "Defina o nome e os dados da ficha. Em seguida, você adicionará as categorias e exercícios."}
+                ? "Defina as informações básicas do modelo. Você adicionará as categorias e exercícios na próxima etapa."
+                : "Defina as informações básicas. Você adicionará os exercícios na próxima etapa."}
             </p>
           </div>
 
-          {/* Banner do aluno pré-selecionado */}
+          {/* Banner do aluno pré-selecionado (se aplicável) */}
           {preselectedStudent && (
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-3">
+            <div className="p-3.5 sm:p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shrink-0 font-sans">
                   {preselectedStudent.student.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <UserCheckIcon className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                    <UserCheckIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider font-sans">
                       Prescrição Direta
                     </span>
                   </div>
-                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                  <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-sans">
                     {preselectedStudent.student.name}
                   </p>
                   {preselectedStudent.overview.objective && (
-                    <p className="text-xs text-[var(--text-secondary)] truncate">
+                    <p className="text-[11px] text-[var(--text-secondary)] truncate font-sans">
                       Objetivo: {preselectedStudent.overview.objective}
                     </p>
                   )}
@@ -196,7 +194,11 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
             </div>
           )}
 
-          <form action={handleCreate} className="space-y-4.5">
+          {/* Formulário integrado à página */}
+          <form
+            action={handleCreate}
+            className="p-5 sm:p-7 rounded-2xl bg-[var(--surface-subtle)]/40 sm:bg-[var(--surface)] border border-[var(--border-subtle)] sm:border-[var(--border-default)] space-y-6 sm:space-y-7 shadow-2xs"
+          >
             {preselectedStudent && (
               <input
                 type="hidden"
@@ -212,10 +214,17 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
               />
             )}
 
+            {/* 1. CAMPO PRINCIPAL: Nome da Ficha */}
             <div className="space-y-1.5">
-              <label htmlFor="title" className="block text-xs font-bold text-[var(--text-primary)]">
-                {isTemplate ? "Nome do modelo padrão *" : "Nome da ficha *"}
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="title" className="block text-xs sm:text-sm font-bold text-[var(--text-primary)] font-sans">
+                  {isTemplate ? "Nome do modelo padrão" : "Nome da ficha"}
+                  <span className="text-[var(--brand)] ml-1">*</span>
+                </label>
+                <span className="text-[11px] text-[var(--text-tertiary)] font-medium font-sans">
+                  Obrigatório
+                </span>
+              </div>
               <input
                 id="title"
                 name="title"
@@ -228,80 +237,101 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                     ? `Ex: Treino A — Peito e Tríceps (${preselectedStudent.student.name.split(" ")[0]})`
                     : "Ex: Treino A — Peito e Tríceps"
                 }
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px]"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[46px] shadow-2xs font-sans"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="objective" className="block text-xs font-bold text-[var(--text-primary)]">
-                Objetivo principal
-              </label>
-              <input
-                id="objective"
-                name="objective"
-                type="text"
-                defaultValue={preselectedStudent?.overview.objective || ""}
-                placeholder="Ex: Hipertrofia, Força, Resistência muscular..."
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px]"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="difficultyLevel" className="block text-xs font-bold text-[var(--text-primary)]">
-                  Nível de dificuldade
-                </label>
-                <select
-                  id="difficultyLevel"
-                  name="difficultyLevel"
-                  defaultValue="INTERMEDIATE"
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text-primary)] transition-all min-h-[44px]"
-                >
-                  <option value="BEGINNER">Iniciante</option>
-                  <option value="INTERMEDIATE">Intermediário</option>
-                  <option value="ADVANCED">Avançado</option>
-                </select>
+            {/* 2. AGRUPAMENTO: Informações do Treino */}
+            <div className="space-y-4 pt-1 border-t border-[var(--border-subtle)]">
+              <div className="pt-2">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-sans">
+                  Informações do Treino
+                </h2>
               </div>
 
+              {/* Objetivo principal */}
               <div className="space-y-1.5">
-                <label htmlFor="estimatedDurationMinutes" className="block text-xs font-bold text-[var(--text-primary)]">
-                  Duração estimada (min)
+                <label htmlFor="objective" className="block text-xs sm:text-sm font-semibold text-[var(--text-primary)] font-sans">
+                  Objetivo principal
                 </label>
                 <input
-                  id="estimatedDurationMinutes"
-                  name="estimatedDurationMinutes"
-                  type="number"
-                  min="5"
-                  max="240"
-                  defaultValue="50"
-                  placeholder="Ex: 50"
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px]"
+                  id="objective"
+                  name="objective"
+                  type="text"
+                  defaultValue={preselectedStudent?.overview.objective || ""}
+                  placeholder="Ex: Hipertrofia, Força, Resistência muscular..."
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px] font-sans"
                 />
+              </div>
+
+              {/* Dificuldade + Duração (Desktop lado a lado: 58%/42%, Mobile empilhado) */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 sm:gap-4">
+                <div className="sm:col-span-7 space-y-1.5">
+                  <label htmlFor="difficultyLevel" className="block text-xs sm:text-sm font-semibold text-[var(--text-primary)] font-sans">
+                    Nível de dificuldade
+                  </label>
+                  <select
+                    id="difficultyLevel"
+                    name="difficultyLevel"
+                    defaultValue="INTERMEDIATE"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] transition-all min-h-[44px] font-sans"
+                  >
+                    <option value="BEGINNER">Iniciante</option>
+                    <option value="INTERMEDIATE">Intermediário</option>
+                    <option value="ADVANCED">Avançado</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-5 space-y-1.5">
+                  <label htmlFor="estimatedDurationMinutes" className="block text-xs sm:text-sm font-semibold text-[var(--text-primary)] font-sans">
+                    Duração estimada (min)
+                  </label>
+                  <input
+                    id="estimatedDurationMinutes"
+                    name="estimatedDurationMinutes"
+                    type="number"
+                    min="5"
+                    max="240"
+                    defaultValue="50"
+                    placeholder="Ex: 50"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px] font-sans"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="notes" className="block text-xs font-bold text-[var(--text-primary)]">
-                Observações gerais / Recomendações
+            {/* 3. OBSERVAÇÕES: Secundário */}
+            <div className="space-y-1.5 pt-1 border-t border-[var(--border-subtle)]">
+              <label htmlFor="notes" className="block text-xs sm:text-sm font-medium text-[var(--text-secondary)] font-sans pt-2">
+                Observações gerais / Recomendações <span className="text-[11px] text-[var(--text-tertiary)] font-normal">(opcional)</span>
               </label>
               <textarea
                 id="notes"
                 name="notes"
                 rows={3}
                 placeholder="Orientações pré-treino, recomendações de aquecimento..."
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all font-sans resize-y"
               />
             </div>
 
-            <div className="pt-4 border-t border-[var(--border-default)] flex items-center justify-end gap-2.5">
+            {/* 4. ACTIONS: Alinhadas no fluxo natural, sem sticky footer */}
+            <div className="pt-4 border-t border-[var(--border-subtle)] flex flex-col-reverse sm:flex-row items-stretch sm:items-center sm:justify-end gap-2.5">
               <Link
                 href={
                   preselectedStudent
                     ? `/consultoria/${slug}/progresso/alunos/${preselectedStudent.student.membershipPublicId}`
+                    : isTemplate
+                    ? `/consultoria/${slug}/rotinas?tab=templates`
                     : `/consultoria/${slug}/rotinas`
                 }
+                className="w-full sm:w-auto"
               >
-                <Button variant="secondary" size="md" className="font-semibold min-h-[44px]">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="md"
+                  className="w-full sm:w-auto font-semibold min-h-[44px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-sans"
+                >
                   Cancelar
                 </Button>
               </Link>
@@ -309,10 +339,10 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                 type="submit"
                 variant="primary"
                 size="md"
-                className="font-bold min-h-[44px] flex items-center gap-2 shadow-sm"
+                className="w-full sm:w-auto font-bold min-h-[44px] flex items-center justify-center gap-2 shadow-xs hover:brightness-105 active:scale-[0.98] transition-all font-sans"
               >
                 <DumbbellIcon className="w-4 h-4" />
-                <span>Criar Ficha de Treino</span>
+                <span>{isTemplate ? "Criar Modelo de Treino" : "Criar Ficha de Treino"}</span>
               </Button>
             </div>
           </form>

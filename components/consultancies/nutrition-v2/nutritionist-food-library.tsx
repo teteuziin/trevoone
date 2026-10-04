@@ -20,6 +20,7 @@ import type {
 } from "@/lib/nutrition-v2/food-repository";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MobileFoodCockpit } from "./mobile-food-cockpit";
 
 interface NutritionistFoodLibraryProps {
   slug: string;
@@ -295,8 +296,20 @@ export function NutritionistFoodLibrary({
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
-      {/* Header Cockpit */}
+    <>
+      {/* Mobile-Native Food Library Cockpit */}
+      <div className="sm:hidden">
+        <MobileFoodCockpit
+          slug={slug}
+          initialResult={initialResult}
+          initialSourceTab={initialSourceTab}
+          canAuthorNutrition={canAuthorNutrition}
+        />
+      </div>
+
+      {/* Desktop Food Library (100% Preserved) */}
+      <div className="hidden sm:block w-full max-w-6xl mx-auto space-y-6 pb-12">
+        {/* Header Cockpit */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -1003,6 +1016,7 @@ export function NutritionistFoodLibrary({
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

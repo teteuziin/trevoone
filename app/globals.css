@@ -80,13 +80,13 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
   --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.04);
 
-  /* Brand Wallpaper Signature Tokens (Light Mode - Enhanced Visibility) */
-  --wallpaper-aura-top: rgba(0, 168, 89, 0.075);
-  --wallpaper-aura-bottom: rgba(0, 168, 89, 0.045);
+  /* Brand Wallpaper Signature Tokens (Light Mode - Subtle Atmosphere) */
+  --wallpaper-aura-top: rgba(0, 168, 89, 0.04);
+  --wallpaper-aura-bottom: rgba(0, 168, 89, 0.025);
   --wallpaper-pattern-color: #090a0d;
-  --wallpaper-pattern-opacity: 0.062;
+  --wallpaper-pattern-opacity: 0;
   --wallpaper-watermark-color: #090a0d;
-  --wallpaper-watermark-opacity: 0.058;
+  --wallpaper-watermark-opacity: 0.025;
 }
 
 :root[data-theme="dark"] {
@@ -168,13 +168,13 @@
   --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.75), 0 4px 8px -4px rgba(0, 0, 0, 0.6);
   --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.6);
 
-  /* Brand Wallpaper Signature Tokens (Emerald & Dark Depth) */
-  --wallpaper-aura-top: rgba(0, 168, 89, 0.08);
-  --wallpaper-aura-bottom: rgba(0, 168, 89, 0.05);
+  /* Brand Wallpaper Signature Tokens (Emerald & Dark Depth - Subtle Atmosphere) */
+  --wallpaper-aura-top: rgba(0, 168, 89, 0.05);
+  --wallpaper-aura-bottom: rgba(0, 168, 89, 0.03);
   --wallpaper-pattern-color: #34d399;
-  --wallpaper-pattern-opacity: 0.06;
+  --wallpaper-pattern-opacity: 0;
   --wallpaper-watermark-color: #34d399;
-  --wallpaper-watermark-opacity: 0.065;
+  --wallpaper-watermark-opacity: 0.03;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -257,13 +257,13 @@
     --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.75), 0 4px 8px -4px rgba(0, 0, 0, 0.6);
     --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.6);
 
-    /* Brand Wallpaper Signature Tokens (Emerald & Dark Depth) */
-    --wallpaper-aura-top: rgba(0, 168, 89, 0.08);
-    --wallpaper-aura-bottom: rgba(0, 168, 89, 0.05);
+    /* Brand Wallpaper Signature Tokens (Emerald & Dark Depth - Subtle Atmosphere) */
+    --wallpaper-aura-top: rgba(0, 168, 89, 0.05);
+    --wallpaper-aura-bottom: rgba(0, 168, 89, 0.03);
     --wallpaper-pattern-color: #34d399;
-    --wallpaper-pattern-opacity: 0.06;
+    --wallpaper-pattern-opacity: 0;
     --wallpaper-watermark-color: #34d399;
-    --wallpaper-watermark-opacity: 0.065;
+    --wallpaper-watermark-opacity: 0.03;
   }
 }
 

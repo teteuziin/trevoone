@@ -154,9 +154,9 @@ export function CompactCard({
     </div>
   );
 
-  const containerClasses = `p-3.5 sm:p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs transition-all duration-150 ${
+  const containerClasses = `p-3.5 sm:p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-2xs transition-all duration-150 ${
     onClick || href
-      ? "hover:border-[var(--border-hover)] hover:shadow-sm cursor-pointer select-none"
+      ? "hover:border-[var(--border-strong)] hover:shadow-2xs cursor-pointer select-none"
       : ""
   } ${className}`.trim();
 

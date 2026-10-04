@@ -39,7 +39,7 @@ export function LoginBrandPanel() {
       <div className="relative z-10 my-auto py-3 space-y-5">
         {/* Hero Headings with Editorial Serif Typography */}
         <div className="space-y-2 max-w-xl">
-          <h1 className="text-3xl sm:text-4xl lg:text-[44px] xl:text-[50px] font-bold tracking-tight text-white font-editorial leading-[1.12]">
+          <h1 className="text-3xl sm:text-4xl lg:text-[44px] xl:text-[50px] font-extrabold tracking-tight text-white font-heading leading-[1.12]">
             Sua evolução{" "}
             <span className="text-[#00E676] drop-shadow-[0_0_25px_rgba(0,230,118,0.25)]">
               começa aqui.

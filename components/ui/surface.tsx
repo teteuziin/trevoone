@@ -10,17 +10,17 @@ export interface SurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const variantStyles: Record<SurfaceVariant, string> = {
   default:
-    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs rounded-2xl relative",
+    "bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs rounded-xl relative",
   subtle:
-    "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-2xl relative",
+    "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-xl relative",
   elevated:
-    "bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-sm rounded-2xl relative",
+    "bg-[var(--surface-elevated)] border border-[var(--border-default)] shadow-xs rounded-xl relative",
   interactive:
-    "bg-[var(--surface)] border border-[var(--border-default)] shadow-xs hover:border-[var(--border-hover)] hover:shadow-sm hover:-translate-y-px active:scale-[0.99] transition-all duration-150 ease-out cursor-pointer rounded-2xl relative select-none",
+    "bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs hover:border-[var(--border-hover)] hover:shadow-xs active:scale-[0.99] transition-all duration-150 ease-out cursor-pointer rounded-xl relative select-none",
   sunken:
-    "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] shadow-inner rounded-2xl relative",
+    "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] rounded-xl relative",
   overlay:
-    "bg-[var(--surface-elevated)] border border-[var(--border-strong)] shadow-md rounded-2xl relative",
+    "bg-[var(--surface-elevated)] border border-[var(--border-strong)] shadow-lg rounded-2xl relative",
 };
 
 const paddingStyles: Record<SurfacePadding, string> = {

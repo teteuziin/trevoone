@@ -207,7 +207,7 @@ export default async function ConsultancyExercisesPage({
           </div>
 
           {/* Filters Bar */}
-          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs space-y-4 depth-surface">
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 sm:p-5 shadow-xs space-y-4 depth-surface">
             <form method="GET" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <input type="hidden" name="tab" value={tab} />
 
@@ -317,7 +317,7 @@ export default async function ConsultancyExercisesPage({
                   return (
                     <div
                       key={ex.publicId}
-                      className="bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 depth-surface"
+                      className="bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] rounded-xl p-4 sm:p-5 shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 depth-surface"
                     >
                       <div className="space-y-1.5 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">

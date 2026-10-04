@@ -13,49 +13,12 @@ interface LoginShellV2Props {
 export function LoginShellV2({ returnTo, resetSuccess }: LoginShellV2Props) {
   return (
     <main className="min-h-dvh w-full flex flex-col lg:flex-row bg-[#060709] text-white selection:bg-[#00E676]/20 selection:text-[#00E676] relative overflow-x-hidden">
-      {/* Editorial Serif font injection + Hide beta watermark on login */}
+      {/* Hide beta watermark on login */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&display=swap');
-        .font-editorial {
-          font-family: 'Playfair Display', Georgia, Cambria, 'Times New Roman', Times, serif;
-          letter-spacing: -0.02em;
-        }
         [data-trevo-beta-watermark] {
           display: none !important;
         }
       `}</style>
-
-      {/* Abstract Glowing Emerald Orbital Arc across the background */}
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none opacity-25 hidden lg:block"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path
-          d="M -100,200 Q 600,-50 900,450 T 1800,400"
-          stroke="url(#arcGreenGrad)"
-          strokeWidth="1.5"
-          strokeDasharray="4 4"
-        />
-        <path
-          d="M 200,800 Q 800,700 1100,300 T 1900,100"
-          stroke="url(#arcGreenGrad2)"
-          strokeWidth="1.2"
-        />
-        <defs>
-          <linearGradient id="arcGreenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#00E676" stopOpacity="0.4" />
-            <stop offset="50%" stopColor="#00E676" stopOpacity="0.15" />
-            <stop offset="100%" stopColor="#00E676" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="arcGreenGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#00E676" stopOpacity="0" />
-            <stop offset="50%" stopColor="#00E676" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#00E676" stopOpacity="0.05" />
-          </linearGradient>
-        </defs>
-      </svg>
 
       {/* ------------------------------------------------------------- */}
       {/* DESKTOP BRAND EXPERIENCE (58-60% Left Panel)                  */}
@@ -92,7 +55,7 @@ export function LoginShellV2({ returnTo, resetSuccess }: LoginShellV2Props) {
 
         {/* Centered Login Card */}
         <div className="relative z-10 w-full max-w-[430px] mx-auto my-auto py-6">
-          <div className="rounded-3xl bg-[#0c0d12]/95 border border-white/[0.08] p-8 sm:p-10 shadow-2xl shadow-black/90 backdrop-blur-xl">
+          <div className="rounded-2xl bg-[#0c0d12]/95 border border-white/[0.08] p-8 sm:p-10 shadow-2xl shadow-black/90 backdrop-blur-xl">
             <LoginForm returnTo={returnTo} resetSuccess={resetSuccess} />
           </div>
         </div>
@@ -140,7 +103,7 @@ export function LoginShellV2({ returnTo, resetSuccess }: LoginShellV2Props) {
             </span>
           </div>
 
-          <h1 className="text-[clamp(28px,7.5vw,36px)] font-bold tracking-tight text-white font-editorial leading-[1.14]">
+          <h1 className="text-[clamp(28px,7.5vw,36px)] font-extrabold tracking-tight text-white font-heading leading-[1.14]">
             Sua evolução{" "}
             <span className="text-[#00E676] drop-shadow-[0_0_15px_rgba(0,230,118,0.25)]">
               começa aqui.
@@ -159,7 +122,7 @@ export function LoginShellV2({ returnTo, resetSuccess }: LoginShellV2Props) {
 
         {/* 4. Mobile Login Card */}
         <div className="relative z-10 w-full max-w-[430px] mx-auto py-3">
-          <div className="rounded-2xl sm:rounded-3xl bg-[#0c0d12]/95 border border-white/[0.08] p-5 sm:p-8 shadow-2xl shadow-black/90 backdrop-blur-xl">
+          <div className="rounded-2xl bg-[#0c0d12]/95 border border-white/[0.08] p-5 sm:p-8 shadow-2xl shadow-black/90 backdrop-blur-xl">
             <LoginForm returnTo={returnTo} resetSuccess={resetSuccess} />
           </div>
         </div>

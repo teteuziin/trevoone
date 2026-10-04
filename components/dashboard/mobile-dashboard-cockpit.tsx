@@ -155,7 +155,6 @@ export function MobileDashboardCockpit({
       <div className="space-y-2">
         <MobileSectionHeader
           title="Atalhos Rápidos"
-          subtitle="Acesse as principais áreas com um toque"
         />
 
         <div className="grid grid-cols-2 gap-2.5">
@@ -164,7 +163,7 @@ export function MobileDashboardCockpit({
               key={action.id}
               href={action.href}
               data-testid={`cockpit-action-${action.id}`}
-              className={`p-3.5 rounded-2xl border transition-all duration-150 flex flex-col justify-between min-h-[72px] active:scale-[0.98] select-none ${
+              className={`p-3.5 rounded-xl border transition-all duration-150 flex flex-col justify-between min-h-[72px] active:scale-[0.98] select-none ${
                 action.highlight
                   ? "bg-[var(--brand)]/10 border-[var(--brand)]/30 hover:border-[var(--brand)]"
                   : "bg-[var(--surface)] border-[var(--border-default)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] shadow-2xs"
@@ -172,10 +171,10 @@ export function MobileDashboardCockpit({
             >
               <div className="flex items-center justify-between gap-2">
                 <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
                     action.highlight
                       ? "bg-[var(--brand)] text-[var(--text-inverse)]"
-                      : "bg-[var(--surface-subtle)] text-[var(--brand)] border border-[var(--border-subtle)]"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
                   }`}
                 >
                   {action.icon}
@@ -223,7 +222,7 @@ export function MobileDashboardCockpit({
               <Link
                 key={idx}
                 href={metric.href}
-                className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] active:scale-[0.98] transition-all duration-150 flex flex-col justify-between min-h-[72px] shadow-2xs group"
+                className="p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--border-strong)] active:scale-[0.98] transition-all duration-150 flex flex-col justify-between min-h-[72px] shadow-2xs group"
               >
                 <div className="flex items-center justify-between gap-1 text-[11px] font-semibold text-[var(--text-secondary)]">
                   <span className="truncate">{metric.title}</span>

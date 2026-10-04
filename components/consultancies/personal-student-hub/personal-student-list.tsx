@@ -193,7 +193,7 @@ export function PersonalStudentList({
       opts.push({
         id: "create-workout",
         label: "Criar treino personalizado",
-        icon: <DumbbellIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
+        icon: <DumbbellIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
         onClick: () => router.push(newWorkoutHref),
       });
     }
@@ -202,7 +202,7 @@ export function PersonalStudentList({
       opts.push({
         id: "create-nutrition",
         label: "Criar plano alimentar",
-        icon: <AppleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />,
+        icon: <AppleIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
         onClick: () => router.push(newPlanHref),
       });
     }
@@ -210,7 +210,7 @@ export function PersonalStudentList({
     opts.push({
       id: "view-evolution",
       label: "Evolução do aluno",
-      icon: <ChartIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
+      icon: <ChartIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
       onClick: () => router.push(studentProfileHref),
     });
 
@@ -253,7 +253,7 @@ export function PersonalStudentList({
         </div>
 
         {/* Preserved desktop container */}
-        <div className="hidden md:block p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
+        <div className="hidden md:block p-8 sm:p-12 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
           <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
             <UserIcon className="w-6 h-6" />
           </div>
@@ -344,7 +344,7 @@ export function PersonalStudentList({
       {/* =========================================================================
           DESKTOP-PRESERVED SEARCH HEADER BAR (hidden md:flex)
           ========================================================================= */}
-      <div className="hidden md:flex flex-row items-center justify-between gap-3 bg-[var(--surface)] p-3 sm:p-4 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] shadow-xs depth-surface">
+      <div className="hidden md:flex flex-row items-center justify-between gap-3 bg-[var(--surface)] p-3 sm:p-4 rounded-xl border border-[var(--border-default)] shadow-xs depth-surface">
         <div className="relative flex-1">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)]">
             <SearchIcon className="w-4 h-4" />
@@ -389,7 +389,7 @@ export function PersonalStudentList({
           </div>
 
           {/* Desktop empty state */}
-          <div className="hidden md:block p-8 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-2 shadow-xs depth-surface">
+          <div className="hidden md:block p-8 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-2 shadow-xs depth-surface">
             <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
               Nenhum aluno corresponde aos critérios de busca
             </p>
@@ -424,7 +424,7 @@ export function PersonalStudentList({
                   key={student.membershipPublicId}
                   data-testid="mobile-student-card"
                   onClick={() => router.push(studentDetailHref)}
-                  className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 active:scale-[0.99] transition-all cursor-pointer depth-surface select-none"
+                  className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 active:scale-[0.99] transition-all cursor-pointer depth-surface select-none"
                 >
                   {/* Card Top: Avatar, Name, Email, Status Badge */}
                   <div className="flex items-start justify-between gap-3">
@@ -550,7 +550,7 @@ export function PersonalStudentList({
               return (
                 <div
                   key={student.membershipPublicId}
-                  className="group p-5 sm:p-5.5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] shadow-xs transition-all flex flex-col justify-between space-y-4 depth-surface"
+                  className="group p-5 sm:p-5.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] shadow-xs transition-all flex flex-col justify-between space-y-4 depth-surface"
                 >
                   {/* Header: Avatar, Name, Email, Status */}
                   <div className="flex items-start justify-between gap-3">

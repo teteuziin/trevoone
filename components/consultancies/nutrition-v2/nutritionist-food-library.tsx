@@ -478,7 +478,7 @@ export function NutritionistFoodLibrary({
         </div>
 
         {data.items.length === 0 ? (
-          <div className="p-12 text-center bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-2xl sm:rounded-3xl space-y-2 shadow-xs depth-surface">
+          <div className="p-12 text-center bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-xl space-y-2 shadow-xs depth-surface">
             <p className="text-sm font-bold text-[var(--text-primary)]">
               Nenhum alimento encontrado
             </p>
@@ -493,7 +493,7 @@ export function NutritionistFoodLibrary({
               return (
                 <div
                   key={food.publicId}
-                  className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[var(--brand-soft-border)] transition-all flex flex-col justify-between gap-3 depth-surface"
+                  className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 sm:p-5 shadow-xs hover:border-[var(--brand-soft-border)] transition-all flex flex-col justify-between gap-3 depth-surface"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">

@@ -189,7 +189,7 @@ export function PersonalStudentDetailView({
           {
             id: "new-workout",
             label: "Criar novo treino",
-            icon: <DumbbellIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
+            icon: <DumbbellIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
             onClick: () => setIsNewWorkoutSheetOpen(true),
           },
         ]
@@ -199,7 +199,7 @@ export function PersonalStudentDetailView({
           {
             id: "new-plan",
             label: "Criar plano alimentar",
-            icon: <AppleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />,
+            icon: <AppleIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
             onClick: () => router.push(createPlanHref),
           },
         ]
@@ -207,25 +207,25 @@ export function PersonalStudentDetailView({
     {
       id: "view-evolution",
       label: "Abrir Cockpit de Evolução 360°",
-      icon: <ScaleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
+      icon: <ScaleIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
       onClick: () => router.push(`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`),
     },
     {
       id: "req-photos",
       label: "Solicitar fotos de evolução",
-      icon: <PhotoIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
+      icon: <PhotoIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
       onClick: () => setRequestModal({ isOpen: true, type: "PHOTOS" }),
     },
     {
       id: "req-anamnesis",
       label: "Solicitar anamnese",
-      icon: <ClipboardCheckIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />,
+      icon: <ClipboardCheckIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
       onClick: () => setRequestModal({ isOpen: true, type: "ANAMNESIS" }),
     },
     {
       id: "req-form",
       label: "Solicitar questionário / formulário",
-      icon: <FileTextIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
+      icon: <FileTextIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
       onClick: () => setRequestModal({ isOpen: true, type: "FORM" }),
     },
     ...(student.email
@@ -233,7 +233,7 @@ export function PersonalStudentDetailView({
           {
             id: "email-student",
             label: "Enviar e-mail para o aluno",
-            icon: <span className="text-base">✉</span>,
+            icon: <span className="text-base text-[var(--text-secondary)]">✉</span>,
             onClick: () => {
               window.location.href = `mailto:${student.email}`;
             },
@@ -269,7 +269,7 @@ export function PersonalStudentDetailView({
         />
 
         {/* Mobile Student Hero Card */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3.5 depth-surface">
+        <div className="p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3.5 depth-surface">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3.5 min-w-0 flex-1">
               <UserAvatar

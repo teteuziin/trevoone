@@ -5,6 +5,8 @@ import {
   searchActiveStudentsAction,
   getActiveStudentByMembershipAction,
   assignWorkoutVersionAction,
+  getStudentActiveWorkoutAssignmentAction,
+  updateWorkoutAssignmentVersionAction,
 } from "@/app/consultoria/[slug]/rotinas/actions";
 import type { StudentSearchResult } from "@/lib/training-v2/assignment-repository";
 
@@ -76,6 +78,15 @@ export function WorkoutAssignModal({
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [existingAssignment, setExistingAssignment] = useState<{
+    assignmentPublicId: string;
+    versionPublicId: string;
+    versionNumber: number;
+    startsOn: string;
+    endsOn: string | null;
+  } | null>(null);
+  const [isCheckingExisting, setIsCheckingExisting] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Load students on open or query change
@@ -117,6 +128,28 @@ export function WorkoutAssignModal({
       clearTimeout(timer);
     };
   }, [isOpen, slug, searchQuery, initialStudentPublicId, selectedStudent]);
+
+  // Check if selected student already has this workout assigned
+  useEffect(() => {
+    if (!isOpen || !selectedStudent) return;
+
+    let cancelled = false;
+    getStudentActiveWorkoutAssignmentAction(slug, workoutPublicId, selectedStudent.membershipPublicId)
+      .then((res) => {
+        if (!cancelled && res.ok && res.data) {
+          setExistingAssignment(res.data);
+        } else if (!cancelled) {
+          setExistingAssignment(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsCheckingExisting(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, slug, workoutPublicId, selectedStudent]);
 
   if (!isOpen) return null;
 
@@ -165,19 +198,54 @@ export function WorkoutAssignModal({
     });
   }
 
+  function handleUpgradeVersion() {
+    if (!existingAssignment) return;
+    setIsUpgrading(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    startTransition(async () => {
+      const res = await updateWorkoutAssignmentVersionAction(
+        slug,
+        existingAssignment.assignmentPublicId,
+        versionPublicId
+      );
+      setIsUpgrading(false);
+      if (!res.ok) {
+        setErrorMessage(res.error || "Erro ao atualizar treino do aluno.");
+        return;
+      }
+      setSuccessMessage(`Treino do aluno atualizado com sucesso para a Versão ${versionNumber}!`);
+      setTimeout(() => {
+        onAssigned?.(existingAssignment.assignmentPublicId);
+        onClose();
+      }, 1200);
+    });
+  }
+
+  const hasExistingOlderVersion =
+    existingAssignment && existingAssignment.versionNumber < versionNumber;
+  const hasExistingSameOrNewerVersion =
+    existingAssignment && existingAssignment.versionNumber >= versionNumber;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={(e) => {
-        if (e.target === e.currentTarget && !isPending) onClose();
+        if (e.target === e.currentTarget && !isPending && !isUpgrading) onClose();
       }}
     >
       <div
-        className="w-full max-w-lg rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+        className="w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl bg-[var(--surface)] border-t sm:border border-[var(--border-default)] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-0"
         role="dialog"
         aria-modal="true"
         aria-labelledby="assign-modal-title"
       >
+        {/* Mobile Drag Handle */}
+        <div className="pt-2.5 pb-1 flex justify-center sm:hidden">
+          <div className="w-12 h-1.5 rounded-full bg-[var(--border-strong)]" />
+        </div>
+
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)] bg-[var(--surface-subtle)]">
           <div className="flex items-center gap-2.5">
@@ -196,8 +264,8 @@ export function WorkoutAssignModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={isPending}
-            className="p-2 rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors"
+            disabled={isPending || isUpgrading}
+            className="p-2 rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
             aria-label="Fechar modal"
           >
             <XIcon className="w-4 h-4" />
@@ -234,8 +302,8 @@ export function WorkoutAssignModal({
                 placeholder="Buscar por nome ou e-mail..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                disabled={isPending}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-emerald-500 transition-colors"
+                disabled={isPending || isUpgrading}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-emerald-500 transition-colors min-h-[44px]"
               />
             </div>
 
@@ -257,8 +325,8 @@ export function WorkoutAssignModal({
                       key={student.membershipPublicId}
                       type="button"
                       onClick={() => setSelectedStudent(student)}
-                      className={`w-full px-4 py-2.5 flex items-center justify-between text-left hover:bg-[var(--surface-subtle)] transition-colors ${
-                        isSelected ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : ""
+                      className={`w-full px-4 py-2.5 flex items-center justify-between text-left hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] cursor-pointer ${
+                        isSelected ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold" : ""
                       }`}
                     >
                       <div className="min-w-0 pr-2">
@@ -277,54 +345,105 @@ export function WorkoutAssignModal({
             </div>
 
             {selectedStudent && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                Selecionado: <span className="font-semibold">{selectedStudent.name}</span>
-              </p>
+              <div className="pt-1 flex items-center justify-between">
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                  Selecionado: <span className="font-semibold">{selectedStudent.name}</span>
+                </p>
+                {isCheckingExisting && (
+                  <span className="text-[11px] text-[var(--foreground-muted)]">
+                    Verificando prescrições ativas...
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Dates */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[var(--foreground)]">
-                Início da Prescrição <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={startsOn}
-                onChange={(e) => setStartsOn(e.target.value)}
-                disabled={isPending}
-                className="w-full px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--foreground)] focus:outline-none focus:border-emerald-500 transition-colors"
-              />
+          {/* Existing Assignment Banner — Clear Version Update UX (Rule 28 & 61) */}
+          {hasExistingOlderVersion && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2.5">
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-xs">
+                <UserCheck className="w-4 h-4 shrink-0" />
+                <span>Este aluno já utiliza este treino</span>
+              </div>
+              <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                O aluno já possui uma prescrição ativa deste treino na{" "}
+                <strong className="text-[var(--foreground)]">Versão {existingAssignment.versionNumber}</strong>.
+                Você pode atualizar para a{" "}
+                <strong className="text-emerald-600 dark:text-emerald-400">Versão {versionNumber}</strong> com
+                1 toque sem duplicar a rotina.
+              </p>
+              <button
+                type="button"
+                disabled={isUpgrading || isPending}
+                onClick={handleUpgradeVersion}
+                className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition-all min-h-[48px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isUpgrading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Atualizando treino do aluno...</span>
+                  </>
+                ) : (
+                  <span>Atualizar treino do aluno</span>
+                )}
+              </button>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[var(--foreground)]">
-                Término (Opcional)
-              </label>
-              <input
-                type="date"
-                value={endsOn}
-                onChange={(e) => setEndsOn(e.target.value)}
-                disabled={isPending}
-                className="w-full px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--foreground)] focus:outline-none focus:border-emerald-500 transition-colors"
-              />
-            </div>
-          </div>
+          )}
 
-          {/* Notes for Student */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[var(--foreground)]">
-              Orientações para o Aluno (Opcional)
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Ex: Realizar este treino às segundas e quintas. Focar na cadência..."
-              value={notesForStudent}
-              onChange={(e) => setNotesForStudent(e.target.value)}
-              disabled={isPending}
-              className="w-full px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-emerald-500 transition-colors resize-none"
-            />
-          </div>
+          {hasExistingSameOrNewerVersion && (
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium flex items-center gap-2">
+              <Check className="w-4 h-4 shrink-0" />
+              <span>Este aluno já está utilizando a Versão {existingAssignment.versionNumber} deste treino.</span>
+            </div>
+          )}
+
+          {/* Form Options (only when creating new assignment) */}
+          {!existingAssignment && (
+            <>
+              {/* Dates */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[var(--foreground)]">
+                    Início da Prescrição <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={startsOn}
+                    onChange={(e) => setStartsOn(e.target.value)}
+                    disabled={isPending}
+                    className="w-full px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--foreground)] focus:outline-none focus:border-emerald-500 transition-colors min-h-[44px]"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[var(--foreground)]">
+                    Término (Opcional)
+                  </label>
+                  <input
+                    type="date"
+                    value={endsOn}
+                    onChange={(e) => setEndsOn(e.target.value)}
+                    disabled={isPending}
+                    className="w-full px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--foreground)] focus:outline-none focus:border-emerald-500 transition-colors min-h-[44px]"
+                  />
+                </div>
+              </div>
+
+              {/* Notes for Student */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[var(--foreground)]">
+                  Orientações para o Aluno (Opcional)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Ex: Realizar este treino às segundas e quintas. Focar na cadência..."
+                  value={notesForStudent}
+                  onChange={(e) => setNotesForStudent(e.target.value)}
+                  disabled={isPending}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Modal Footer */}
@@ -332,26 +451,28 @@ export function WorkoutAssignModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={isPending}
-            className="px-4 py-2 rounded-xl text-xs font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors"
+            disabled={isPending || isUpgrading}
+            className="px-4 py-2.5 rounded-xl text-xs font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors min-h-[44px] cursor-pointer"
           >
-            Cancelar
+            {existingAssignment ? "Fechar" : "Cancelar"}
           </button>
-          <button
-            type="button"
-            onClick={handleAssign}
-            disabled={isPending || !selectedStudent}
-            className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-          >
-            {isPending ? (
-              <>
-                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Prescrevendo...</span>
-              </>
-            ) : (
-              <span>Confirmar Prescrição</span>
-            )}
-          </button>
+          {!existingAssignment && (
+            <button
+              type="button"
+              onClick={handleAssign}
+              disabled={isPending || !selectedStudent || isCheckingExisting}
+              className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 min-h-[48px] cursor-pointer"
+            >
+              {isPending ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Prescrevendo...</span>
+                </>
+              ) : (
+                <span>Confirmar Prescrição</span>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

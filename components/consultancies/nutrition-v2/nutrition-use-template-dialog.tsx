@@ -59,8 +59,13 @@ export function NutritionUseTemplateDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full sm:max-w-md bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-3xl shadow-xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
+        {/* Mobile Drag Handle */}
+        <div className="pt-2.5 pb-1 flex justify-center sm:hidden">
+          <div className="w-12 h-1.5 rounded-full bg-[var(--border-strong)]" />
+        </div>
+
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-[var(--border-default)] flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -75,7 +80,7 @@ export function NutritionUseTemplateDialog({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50"
+            className="p-2 rounded-xl text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
             aria-label="Fechar"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -146,7 +151,7 @@ export function NutritionUseTemplateDialog({
               size="md"
               onClick={onClose}
               disabled={isSubmitting}
-              className="min-h-[40px]"
+              className="min-h-[44px] cursor-pointer"
             >
               Cancelar
             </Button>
@@ -155,7 +160,7 @@ export function NutritionUseTemplateDialog({
               variant="primary"
               size="md"
               disabled={isSubmitting || !title.trim()}
-              className="font-bold min-h-[40px] shadow-sm"
+              className="font-bold min-h-[48px] px-5 shadow-sm cursor-pointer"
             >
               {isSubmitting ? "Criando plano..." : "Criar Plano Rascunho"}
             </Button>

@@ -3057,7 +3057,11 @@ function formatPrescribedSet(set: WorkoutExecutionHistorySetDto): string {
   }
 
   if (set.prescribedLoadKg != null) {
-    parts.push(`${formatLoadNumber(set.prescribedLoadKg)} kg`);
+    if (Number(set.prescribedLoadKg) > 0) {
+      parts.push(`${formatLoadNumber(set.prescribedLoadKg)} kg`);
+    } else {
+      parts.push("Livre");
+    }
   }
 
   if (set.prescribedRestSeconds != null && set.prescribedRestSeconds > 0) {
@@ -3080,9 +3084,13 @@ function formatActualSet(set: WorkoutExecutionHistorySetDto) {
   const parts: string[] = [];
   parts.push(`${set.actualReps} reps`);
 
-  // STRICT RULE: actual_load_kg = NULL → não mostrar "0 kg". actual_load_kg = 0.00 → mostrar "0 kg"
+  // STRICT RULE 18: Never show "0 kg". If load is zero or bodyweight, show "Livre"
   if (set.actualLoadKg != null) {
-    parts.push(`${formatLoadNumber(set.actualLoadKg)} kg`);
+    if (Number(set.actualLoadKg) > 0) {
+      parts.push(`${formatLoadNumber(set.actualLoadKg)} kg`);
+    } else {
+      parts.push("Livre");
+    }
   }
 
   return <span className="font-semibold text-[var(--foreground)]">{parts.join(" · ")}</span>;

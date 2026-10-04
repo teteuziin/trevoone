@@ -883,6 +883,52 @@ export async function repointAssignmentToNewVersion(
 }
 
 /**
+ * Looks up an active assignment for a given student membership and workout root.
+ * Used for pre-assignment checks to offer 1-tap version updates without duplicate assignments.
+ */
+export async function getActiveAssignmentForStudentAndWorkout(
+  ctx: TrainingAccessContext,
+  workoutPublicId: string,
+  studentMembershipPublicId: string
+): Promise<{
+  assignmentPublicId: string;
+  versionPublicId: string;
+  versionNumber: number;
+  startsOn: string;
+  endsOn: string | null;
+} | null> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT wa.public_id, wv.public_id AS version_public_id, wv.version_number,
+            DATE_FORMAT(wa.starts_on, '%Y-%m-%d') AS starts_on,
+            DATE_FORMAT(wa.ends_on, '%Y-%m-%d') AS ends_on
+     FROM workout_assignments wa
+     INNER JOIN workout_versions wv ON wv.id = wa.workout_version_id
+     INNER JOIN workouts w ON w.id = wv.workout_id
+     INNER JOIN consultancy_members cm ON cm.id = wa.student_membership_id
+     WHERE wa.consultancy_id = ?
+       AND cm.public_id = ?
+       AND w.public_id = ?
+       AND wa.status = 'ACTIVE'
+       AND wa.deleted_at IS NULL
+     LIMIT 1;`,
+    [ctx.consultancyId!, studentMembershipPublicId.trim(), workoutPublicId.trim()]
+  );
+
+  if (!rows || rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    assignmentPublicId: String(r.public_id),
+    versionPublicId: String(r.version_public_id),
+    versionNumber: Number(r.version_number),
+    startsOn: String(r.starts_on),
+    endsOn: r.ends_on ? String(r.ends_on) : null,
+  };
+}
+
+/**
  * Terminates an assignment (Encerrar prescrição).
  * Sets status = 'ENDED', ends_on = requested date or CURRENT_DATE().
  * deleted_at remains NULL. Historical version rows remain intact.

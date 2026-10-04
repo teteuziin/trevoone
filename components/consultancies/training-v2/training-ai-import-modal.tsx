@@ -230,13 +230,18 @@ export function TrainingAiImportModal({
       {/* Modal */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
           onClick={handleClose}
         >
           <div
-            className="w-full max-w-2xl bg-card border border-border rounded-2xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto"
+            className="w-full sm:max-w-2xl bg-card border-t sm:border border-border rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xl animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-150 max-h-[92vh] sm:max-h-[90vh] overflow-y-auto pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-6"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Mobile Drag Handle */}
+            <div className="pb-1 flex justify-center sm:hidden">
+              <div className="w-12 h-1.5 rounded-full bg-[var(--border-strong)]" />
+            </div>
+
             {/* Header */}
             <div className="flex items-start justify-between border-b border-border/40 pb-4">
               <div>
@@ -256,7 +261,8 @@ export function TrainingAiImportModal({
                 type="button"
                 disabled={state === "ANALYZING" || state === "SAVING"}
                 onClick={handleClose}
-                className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground text-sm"
+                className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground text-sm min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                aria-label="Fechar"
               >
                 ✕
               </button>
@@ -277,8 +283,18 @@ export function TrainingAiImportModal({
             )}
 
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
-                {errorMsg}
+              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center justify-between gap-3">
+                <span className="font-semibold">{errorMsg}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMsg(null);
+                    setState("IDLE");
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 transition cursor-pointer shrink-0 min-h-[36px]"
+                >
+                  Tentar novamente
+                </button>
               </div>
             )}
 
@@ -377,7 +393,7 @@ export function TrainingAiImportModal({
                   <button
                     type="button"
                     onClick={handleClose}
-                    className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-medium transition"
+                    className="px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-semibold transition min-h-[44px] cursor-pointer"
                   >
                     Cancelar
                   </button>
@@ -385,7 +401,7 @@ export function TrainingAiImportModal({
                     type="button"
                     onClick={handleStartAnalysis}
                     disabled={quota?.remainingToday === 0}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs flex items-center gap-2 min-h-[48px] cursor-pointer"
                   >
                     <span>✨</span>
                     <span>Analisar treino com IA</span>
@@ -583,7 +599,7 @@ export function TrainingAiImportModal({
                   <button
                     type="button"
                     onClick={() => setState("IDLE")}
-                    className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-medium transition"
+                    className="px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-xs font-semibold transition min-h-[44px] cursor-pointer"
                   >
                     Voltar / Refazer
                   </button>
@@ -592,7 +608,7 @@ export function TrainingAiImportModal({
                     type="button"
                     disabled={state === "SAVING" || totalExercisesCount === 0}
                     onClick={handleConfirmImport}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs flex items-center gap-2 min-h-[48px] cursor-pointer"
                   >
                     <span>
                       {state === "SAVING"

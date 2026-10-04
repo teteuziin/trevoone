@@ -8,6 +8,7 @@ import {
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import { Button } from "@/components/ui/button";
 import type { NutritionV2PlanTemplateListItemDto } from "@/lib/nutrition-v2/types";
+import { MobileConfirmSheet } from "@/components/ui/mobile";
 import { NutritionUseTemplateDialog } from "./nutrition-use-template-dialog";
 
 interface NutritionTemplatesModalProps {
@@ -37,6 +38,7 @@ export function NutritionTemplatesModal({
 
   // Archive state
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [pendingArchiveTemplate, setPendingArchiveTemplate] = useState<NutritionV2PlanTemplateListItemDto | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -116,10 +118,14 @@ export function NutritionTemplatesModal({
     }
   }
 
-  async function handleArchive(publicId: string) {
-    const confirmArchive = window.confirm("Deseja realmente arquivar este modelo?");
-    if (!confirmArchive) return;
+  function handleRequestArchive(tmpl: NutritionV2PlanTemplateListItemDto) {
+    setPendingArchiveTemplate(tmpl);
+  }
 
+  async function handleConfirmArchive() {
+    if (!pendingArchiveTemplate) return;
+    const publicId = pendingArchiveTemplate.publicId;
+    setPendingArchiveTemplate(null);
     setArchivingId(publicId);
     try {
       const res = await archiveTemplateAction(consultancySlug, publicId);
@@ -137,8 +143,13 @@ export function NutritionTemplatesModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-        <div className="w-full max-w-3xl bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="w-full sm:max-w-3xl bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
+          {/* Mobile Drag Handle */}
+          <div className="pt-2.5 pb-1 flex justify-center sm:hidden">
+            <div className="w-12 h-1.5 rounded-full bg-[var(--border-strong)]" />
+          </div>
+
           {/* Header */}
           <div className="p-5 sm:p-6 border-b border-[var(--border-default)] flex items-center justify-between gap-4">
             <div className="space-y-1">
@@ -160,7 +171,7 @@ export function NutritionTemplatesModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
+              className="p-2 rounded-xl text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               aria-label="Fechar"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -280,20 +291,20 @@ export function NutritionTemplatesModal({
                         </div>
 
                         {/* Actions Row */}
-                        <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap">
+                        <div className="pt-2.5 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2.5 flex-wrap">
                           <div className="flex items-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => handleStartRename(tmpl)}
-                              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors"
+                              className="px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors min-h-[44px] cursor-pointer"
                             >
                               Renomear
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleArchive(tmpl.publicId)}
+                              onClick={() => handleRequestArchive(tmpl)}
                               disabled={archivingId === tmpl.publicId}
-                              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-500 hover:text-red-600 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                              className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors disabled:opacity-50 min-h-[44px] cursor-pointer"
                             >
                               {archivingId === tmpl.publicId ? "Arquivando..." : "Arquivar"}
                             </button>
@@ -303,9 +314,9 @@ export function NutritionTemplatesModal({
                             variant="primary"
                             size="sm"
                             onClick={() => handleOpenUse(tmpl)}
-                            className="font-bold shadow-xs min-h-[36px]"
+                            className="font-bold shadow-xs min-h-[44px] px-4"
                           >
-                            <svg className="w-3.5 h-3.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
+                            <svg className="w-3.5 h-3.5 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
                               <path d="M12 5v14m-7-7h14" />
                             </svg>
                             <span>Usar modelo</span>
@@ -321,7 +332,7 @@ export function NutritionTemplatesModal({
 
           {/* Footer */}
           <div className="p-4 sm:p-5 border-t border-[var(--border-default)] bg-[var(--surface-subtle)] flex items-center justify-end">
-            <Button variant="secondary" size="md" onClick={onClose} className="min-h-[40px] px-5">
+            <Button variant="secondary" size="md" onClick={onClose} className="min-h-[44px] px-5">
               Fechar
             </Button>
           </div>
@@ -333,14 +344,26 @@ export function NutritionTemplatesModal({
         <NutritionUseTemplateDialog
           key={templateToUse.publicId}
           isOpen={isUseDialogOpen}
-        onClose={() => {
-          setIsUseDialogOpen(false);
-          setTemplateToUse(null);
-        }}
-        consultancySlug={consultancySlug}
-        template={templateToUse}
+          onClose={() => {
+            setIsUseDialogOpen(false);
+            setTemplateToUse(null);
+          }}
+          consultancySlug={consultancySlug}
+          template={templateToUse}
         />
       )}
+
+      {/* Mobile Confirm Sheet for Archiving (Rule 39) */}
+      <MobileConfirmSheet
+        isOpen={Boolean(pendingArchiveTemplate)}
+        onClose={() => setPendingArchiveTemplate(null)}
+        onConfirm={handleConfirmArchive}
+        title="Arquivar modelo de plano"
+        description={`Deseja arquivar o modelo "${pendingArchiveTemplate?.name}"? Ele deixará de aparecer na lista para novos planos, preservando todos os planos de alunos já gerados.`}
+        confirmLabel={archivingId ? "Arquivando..." : "Arquivar modelo"}
+        variant="danger"
+        isLoading={Boolean(archivingId)}
+      />
     </>
   );
 }

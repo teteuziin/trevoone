@@ -89,6 +89,7 @@ import { workoutBlockTypeSchema } from "@/lib/training-v2/validation";
 import {
   createAssignment,
   repointAssignmentToNewVersion,
+  getActiveAssignmentForStudentAndWorkout,
   terminateAssignment,
   searchActiveStudents,
   getActiveStudentByMembershipPublicId,
@@ -1090,6 +1091,36 @@ export async function updateWorkoutAssignmentVersionAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao atualizar versão da prescrição.",
+    };
+  }
+}
+
+/**
+ * Checks if a student already has an active assignment for a workout routine.
+ */
+export async function getStudentActiveWorkoutAssignmentAction(
+  slug: string,
+  workoutPublicId: string,
+  studentMembershipPublicId: string
+): Promise<ActionResponse<{
+  assignmentPublicId: string;
+  versionPublicId: string;
+  versionNumber: number;
+  startsOn: string;
+  endsOn: string | null;
+} | null>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const existing = await getActiveAssignmentForStudentAndWorkout(
+      ctx,
+      workoutPublicId,
+      studentMembershipPublicId
+    );
+    return { ok: true, data: existing };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao verificar prescrição existente.",
     };
   }
 }

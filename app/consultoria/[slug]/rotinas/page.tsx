@@ -351,20 +351,8 @@ export default async function ConsultancyWorkoutsPage({
                           </p>
                         </div>
 
-                        <div className="pt-2.5 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2.5">
-                          <Link
-                            href={`/consultoria/${slug}/rotinas/${w.publicId}`}
-                            className="flex-1 block"
-                          >
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full font-bold min-h-[44px] justify-center text-xs shadow-2xs hover:bg-[var(--surface-hover)] hover:border-[var(--border-strong)]"
-                            >
-                              {w.isTemplate ? "Abrir modelo" : "Abrir treino"}
-                            </Button>
-                          </Link>
-
+                        {/* Mobile Primary Action (Abrir treino / Usar modelo) & Secondary Actions (min-h-[44px]) */}
+                        <div className="pt-2.5 border-t border-[var(--border-subtle)] min-h-[44px]">
                           <WorkoutCardActions
                             consultancySlug={slug}
                             workoutPublicId={w.publicId}

@@ -70,6 +70,7 @@ export function DashboardCombinedPersonalAdminView({
           consultancySlug={consultancySlug}
           recentPlans={recentPlans}
           totalPlans={totalPlans}
+          totalStudents={overview?.students}
         />
       ) : (
         <DashboardAdminView

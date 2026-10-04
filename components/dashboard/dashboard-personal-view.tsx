@@ -20,12 +20,14 @@ export interface DashboardPersonalViewProps {
   consultancySlug: string;
   recentPlans?: PersonalWorkoutSummaryItem[];
   totalPlans?: number;
+  totalStudents?: number;
 }
 
 export function DashboardPersonalView({
   consultancySlug,
   recentPlans = [],
   totalPlans = 0,
+  totalStudents,
 }: DashboardPersonalViewProps) {
   return (
     <>
@@ -37,7 +39,7 @@ export function DashboardPersonalView({
           heroActionCard={
             <div className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs space-y-2.5">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+                <h2 className="text-sm font-semibold text-[var(--text-primary)] font-sans">
                   Prescrever treino
                 </h2>
                 <span className="text-xs text-[var(--text-tertiary)] font-medium">
@@ -47,13 +49,13 @@ export function DashboardPersonalView({
               <div className="grid grid-cols-2 gap-2">
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas/novo`}
-                  className="min-h-[44px] rounded-lg font-semibold text-xs bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-[var(--text-inverse)] flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] transition-all"
+                  className="min-h-[44px] rounded-lg font-semibold text-xs bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-[var(--text-inverse)] flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] transition-all font-sans"
                 >
                   <span>+ Nova Ficha</span>
                 </Link>
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas?action=import`}
-                  className="min-h-[44px] rounded-lg font-semibold text-xs bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all"
+                  className="min-h-[44px] rounded-lg font-semibold text-xs bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all font-sans"
                 >
                   <span>Importar</span>
                 </Link>
@@ -108,20 +110,37 @@ export function DashboardPersonalView({
               ),
             },
           ]}
-          metrics={[
-            {
-              title: "Fichas de Treino",
-              value: totalPlans,
-              subtitle: "Rotinas ativas no catálogo",
-              href: `/consultoria/${consultancySlug}/rotinas`,
-            },
-            {
-              title: "Alunos",
-              value: "Acessar",
-              subtitle: "Ver fichas e avaliações",
-              href: `/consultoria/${consultancySlug}/progresso/alunos`,
-            },
-          ]}
+          metrics={
+            totalStudents !== undefined && totalStudents !== null
+              ? [
+                  {
+                    title: "Fichas de Treino",
+                    value: totalPlans,
+                    subtitle: "Rotinas cadastradas",
+                    href: `/consultoria/${consultancySlug}/rotinas`,
+                  },
+                  {
+                    title: "Alunos",
+                    value: totalStudents,
+                    subtitle: "Alunos vinculados",
+                    href: `/consultoria/${consultancySlug}/progresso/alunos`,
+                  },
+                ]
+              : [
+                  {
+                    title: "Fichas de Treino",
+                    value: totalPlans,
+                    subtitle: "Rotinas no catálogo",
+                    href: `/consultoria/${consultancySlug}/rotinas`,
+                  },
+                  {
+                    title: "Fichas Recentes",
+                    value: recentPlans.length,
+                    subtitle: "Em acompanhamento",
+                    href: `/consultoria/${consultancySlug}/rotinas`,
+                  },
+                ]
+          }
           recentSection={
             recentPlans && recentPlans.length > 0
               ? {
@@ -137,11 +156,11 @@ export function DashboardPersonalView({
                       caption: plan.blocksCount ? `${plan.blocksCount} blocos de treino` : undefined,
                       href: `/consultoria/${consultancySlug}/rotinas/${plan.publicId}`,
                       statusBadge: isArchived ? (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)] font-sans">
                           Arquivado
                         </span>
                       ) : isDraft ? (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-sans">
                           Rascunho
                         </span>
                       ) : undefined,
@@ -158,19 +177,19 @@ export function DashboardPersonalView({
         {/* 1. HEADER & PRIMARY ACTIONS */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
           <div>
-            <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
+            <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight font-sans">
               Gestão de Treinos & Alunos
             </h2>
           </div>
 
           <div className="flex items-center gap-2">
             <Link href={`/consultoria/${consultancySlug}/rotinas?action=import`}>
-              <Button variant="secondary" size="sm" className="font-semibold rounded-lg">
+              <Button variant="secondary" size="sm" className="font-semibold rounded-lg font-sans">
                 Importar Treino
               </Button>
             </Link>
             <Link href={`/consultoria/${consultancySlug}/rotinas/novo`}>
-              <Button variant="primary" size="sm" className="font-semibold rounded-lg">
+              <Button variant="primary" size="sm" className="font-semibold rounded-lg font-sans">
                 + Nova Ficha
               </Button>
             </Link>
@@ -184,12 +203,14 @@ export function DashboardPersonalView({
             title="Alunos"
             className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium">Alunos</span>
+            <span className="text-xs text-[var(--text-tertiary)] font-medium font-sans">Alunos</span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                Acessar
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans">
+                {totalStudents !== undefined && totalStudents !== null ? totalStudents : "Gestão"}
               </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Ver fichas e avaliações</span>
+              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline font-sans">
+                {totalStudents !== undefined && totalStudents !== null ? "Alunos vinculados" : "Ver fichas e avaliações"}
+              </span>
             </div>
           </Link>
 
@@ -197,12 +218,12 @@ export function DashboardPersonalView({
             href={`/consultoria/${consultancySlug}/rotinas`}
             className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium">Fichas de Treino</span>
+            <span className="text-xs text-[var(--text-tertiary)] font-medium font-sans">Fichas de Treino</span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans">
                 {totalPlans}
               </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Rotinas cadastradas</span>
+              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline font-sans">Rotinas cadastradas</span>
             </div>
           </Link>
 
@@ -236,7 +257,7 @@ export function DashboardPersonalView({
         {/* 3. TREINOS RECENTES: Lista operacional limpa sem card-in-card */}
         <div className="rounded-xl bg-[var(--surface)] border border-[var(--border-default)] overflow-hidden shadow-2xs">
           <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)]">
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">
+            <h3 className="text-sm font-bold text-[var(--text-primary)] font-sans">
               Fichas de Treino Recentes
             </h3>
             <Link href={`/consultoria/${consultancySlug}/rotinas`}>

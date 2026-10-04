@@ -72,6 +72,7 @@ export function DashboardCombinedNutritionistAdminView({
           consultancySlug={consultancySlug}
           recentPlans={recentPlans}
           totalPlans={totalPlans}
+          totalStudents={overview?.students}
         />
       ) : (
         <DashboardAdminView

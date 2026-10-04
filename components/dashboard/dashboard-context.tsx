@@ -54,7 +54,7 @@ export function DashboardContext({
   return (
     <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border-subtle)]">
       <div className="space-y-0.5 sm:space-y-1">
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)] font-sans">
           {firstName ? `Olá, ${firstName}` : "Olá!"}
         </h1>
         <p className="text-xs sm:text-sm text-[var(--text-secondary)]">

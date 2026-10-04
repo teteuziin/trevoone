@@ -22,12 +22,14 @@ export interface DashboardNutritionistViewProps {
   consultancySlug: string;
   recentPlans?: NutritionistPlanSummaryItem[];
   totalPlans?: number;
+  totalStudents?: number;
 }
 
 export function DashboardNutritionistView({
   consultancySlug,
   recentPlans = [],
   totalPlans = 0,
+  totalStudents,
 }: DashboardNutritionistViewProps) {
   return (
     <>
@@ -109,20 +111,37 @@ export function DashboardNutritionistView({
               ),
             },
           ]}
-          metrics={[
-            {
-              title: "Planos Alimentares",
-              value: totalPlans,
-              subtitle: "Dietas cadastradas",
-              href: `/consultoria/${consultancySlug}/planos-v2`,
-            },
-            {
-              title: "Pacientes",
-              value: "Acessar",
-              subtitle: "Ver prontuários",
-              href: `/consultoria/${consultancySlug}/progresso/alunos`,
-            },
-          ]}
+          metrics={
+            totalStudents !== undefined && totalStudents !== null
+              ? [
+                  {
+                    title: "Planos Alimentares",
+                    value: totalPlans,
+                    subtitle: "Dietas cadastradas",
+                    href: `/consultoria/${consultancySlug}/planos-v2`,
+                  },
+                  {
+                    title: "Pacientes",
+                    value: totalStudents,
+                    subtitle: "Alunos vinculados",
+                    href: `/consultoria/${consultancySlug}/progresso/alunos`,
+                  },
+                ]
+              : [
+                  {
+                    title: "Planos Alimentares",
+                    value: totalPlans,
+                    subtitle: "Dietas cadastradas",
+                    href: `/consultoria/${consultancySlug}/planos-v2`,
+                  },
+                  {
+                    title: "Planos Recentes",
+                    value: recentPlans.length,
+                    subtitle: "Em acompanhamento",
+                    href: `/consultoria/${consultancySlug}/planos-v2`,
+                  },
+                ]
+          }
           recentSection={
             recentPlans && recentPlans.length > 0
               ? {
@@ -184,12 +203,14 @@ export function DashboardNutritionistView({
             href={`/consultoria/${consultancySlug}/progresso/alunos`}
             className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium">Pacientes</span>
+            <span className="text-xs text-[var(--text-tertiary)] font-medium font-sans">Pacientes</span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                Acessar
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans">
+                {totalStudents !== undefined && totalStudents !== null ? totalStudents : "Gestão"}
               </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Ver prontuários e metas</span>
+              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline font-sans">
+                {totalStudents !== undefined && totalStudents !== null ? "Alunos vinculados" : "Ver prontuários e metas"}
+              </span>
             </div>
           </Link>
 
@@ -197,12 +218,12 @@ export function DashboardNutritionistView({
             href={`/consultoria/${consultancySlug}/planos-v2`}
             className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium">Planos Alimentares</span>
+            <span className="text-xs text-[var(--text-tertiary)] font-medium font-sans">Planos Alimentares</span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans">
                 {totalPlans}
               </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Dietas cadastradas</span>
+              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline font-sans">Dietas cadastradas</span>
             </div>
           </Link>
 

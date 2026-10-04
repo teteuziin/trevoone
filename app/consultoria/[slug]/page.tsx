@@ -298,8 +298,9 @@ export default async function ConsultancyPage({ params }: PageProps) {
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={effectiveState}
       unreadAnnouncements={unreadAnnouncements}
+      maxWidth="full"
     >
-      <div className="max-w-7xl mx-auto w-full space-y-6 sm:space-y-8">
+      <div className="w-full max-w-[1536px] 2xl:max-w-[1680px] space-y-6 sm:space-y-8">
         {/* Context Header Compacto */}
         <DashboardContext
           userName={session.fullName}
@@ -307,7 +308,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
           roles={context.roles}
         />
 
-                {/* 1. Visão Combinada Personal + Admin (quando possui ambos os papéis e não está em preview manual) */}
+        {/* 1. Visão Combinada Personal + Admin (quando possui ambos os papéis e não está em preview manual) */}
         {!effectiveState.isPreview && isPersonal && isConsultancyAdmin && (
           <DashboardCombinedPersonalAdminView
             consultancySlug={context.consultancySlug}
@@ -374,6 +375,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             consultancySlug={context.consultancySlug}
             recentPlans={personalPlansResult?.items || []}
             totalPlans={personalPlansResult?.total}
+            totalStudents={adminOverview?.students}
           />
         )}
 
@@ -383,6 +385,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
             consultancySlug={context.consultancySlug}
             recentPlans={nutritionPlansResult?.items || []}
             totalPlans={nutritionPlansResult?.total}
+            totalStudents={adminOverview?.students}
           />
         )}
 

@@ -299,7 +299,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
       viewModeState={effectiveState}
       unreadAnnouncements={unreadAnnouncements}
     >
-      <div className="max-w-[1120px] mx-auto w-full space-y-6 sm:space-y-8">
+      <div className="max-w-7xl mx-auto w-full space-y-6 sm:space-y-8">
         {/* Context Header Compacto */}
         <DashboardContext
           userName={session.fullName}

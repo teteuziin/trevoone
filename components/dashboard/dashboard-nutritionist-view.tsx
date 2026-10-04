@@ -3,21 +3,24 @@
 import React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Section, CompactCard, ListRow, StatusBadge } from "@/components/ui/design-system";
 import { MobileDashboardCockpit } from "./mobile-dashboard-cockpit";
 
 export interface NutritionistPlanSummaryItem {
   publicId: string;
   title: string;
   studentName?: string | null;
-  status: string;
-  versionNumber?: number | null;
+  subtitle?: string | null;
+  status: "ACTIVE" | "ARCHIVED" | "DRAFT" | "PUBLISHED" | string;
+  versionNumber?: number;
+  updatedAt?: Date;
   mealsCount?: number;
 }
 
-interface DashboardNutritionistViewProps {
+export type NutritionPlanSummaryItem = NutritionistPlanSummaryItem;
+
+export interface DashboardNutritionistViewProps {
   consultancySlug: string;
-  recentPlans: NutritionistPlanSummaryItem[];
+  recentPlans?: NutritionistPlanSummaryItem[];
   totalPlans?: number;
 }
 
@@ -33,35 +36,26 @@ export function DashboardNutritionistView({
         <MobileDashboardCockpit
           role="NUTRITIONIST"
           consultancySlug={consultancySlug}
-          consultancyName="Área de Nutrição"
           heroActionCard={
-            <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+            <div className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                  Prescrição Alimentar
-                </span>
-                <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+                  Prescrever plano alimentar
+                </h2>
+                <span className="text-xs text-[var(--text-tertiary)] font-medium">
                   {totalPlans} planos cadastrados
                 </span>
               </div>
-              <div>
-                <h2 className="text-base font-bold text-[var(--text-primary)]">
-                  Prescrever Plano Alimentar
-                </h2>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Crie planos com tabelas TACO/IBGE ou importe cardápios.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="grid grid-cols-2 gap-2">
                 <Link
                   href={`/consultoria/${consultancySlug}/planos-v2/novo`}
-                  className="min-h-[48px] rounded-xl font-bold text-xs bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98] transition-transform"
+                  className="min-h-[44px] rounded-lg font-semibold text-xs bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-[var(--text-inverse)] flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] transition-all"
                 >
                   <span>+ Novo Plano</span>
                 </Link>
                 <Link
                   href={`/consultoria/${consultancySlug}/planos-v2?action=import`}
-                  className="min-h-[48px] rounded-xl font-bold text-xs bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
+                  className="min-h-[44px] rounded-lg font-semibold text-xs bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all"
                 >
                   <span>Importar</span>
                 </Link>
@@ -72,44 +66,44 @@ export function DashboardNutritionistView({
             {
               id: "patients",
               label: "Pacientes",
-              subtitle: "Prontuários e metas",
+              subtitle: "Acompanhamento",
               href: `/consultoria/${consultancySlug}/progresso/alunos`,
               highlight: true,
               icon: (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               ),
             },
             {
               id: "plans",
-              label: "Planos",
-              subtitle: `${totalPlans} cadastrados`,
+              label: "Dietas",
+              subtitle: `${totalPlans} cadastradas`,
               href: `/consultoria/${consultancySlug}/planos-v2`,
               icon: (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               ),
             },
             {
               id: "foods",
               label: "Alimentos",
-              subtitle: "Tabela nutricional",
+              subtitle: "Tabelas e rótulos",
               href: `/consultoria/${consultancySlug}/alimentos-v2`,
               icon: (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               ),
             },
             {
               id: "consultations",
               label: "Consultas",
-              subtitle: "Atendimento 1:1",
+              subtitle: "Atendimentos e retornos",
               href: `/consultoria/${consultancySlug}/consultas`,
               icon: (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               ),
@@ -119,13 +113,13 @@ export function DashboardNutritionistView({
             {
               title: "Planos Alimentares",
               value: totalPlans,
-              subtitle: "Dietas ativas na consultoria",
+              subtitle: "Dietas cadastradas",
               href: `/consultoria/${consultancySlug}/planos-v2`,
             },
             {
               title: "Pacientes",
               value: "Acessar",
-              subtitle: "Ver prontuários e metas",
+              subtitle: "Ver prontuários",
               href: `/consultoria/${consultancySlug}/progresso/alunos`,
             },
           ]}
@@ -133,193 +127,214 @@ export function DashboardNutritionistView({
             recentPlans && recentPlans.length > 0
               ? {
                   title: "Planos Recentes",
-                  subtitle: "Últimas dietas criadas ou atualizadas",
                   viewAllHref: `/consultoria/${consultancySlug}/planos-v2`,
-                  items: recentPlans.slice(0, 4).map((plan) => ({
-                    id: plan.publicId,
-                    title: plan.title,
-                    subtitle: plan.studentName ? `Paciente: ${plan.studentName}` : undefined,
-                    caption: plan.mealsCount ? `${plan.mealsCount} refeições` : undefined,
-                    href: `/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`,
-                    statusBadge: (
-                      <StatusBadge
-                        status={
-                          plan.status === "ACTIVE" || plan.status === "PUBLISHED"
-                            ? "active"
-                            : plan.status === "ARCHIVED"
-                            ? "archived"
-                            : "draft"
-                        }
-                      />
-                    ),
-                  })),
+                  items: recentPlans.slice(0, 4).map((plan) => {
+                    const isArchived = plan.status === "ARCHIVED";
+                    const isDraft = plan.status === "DRAFT";
+                    return {
+                      id: plan.publicId,
+                      title: plan.title,
+                      subtitle: plan.subtitle || undefined,
+                      caption: plan.mealsCount ? `${plan.mealsCount} refeições configuradas` : undefined,
+                      href: `/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`,
+                      statusBadge: isArchived ? (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
+                          Arquivado
+                        </span>
+                      ) : isDraft ? (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          Rascunho
+                        </span>
+                      ) : undefined,
+                    };
+                  }),
                 }
               : undefined
           }
         />
       </div>
 
-      {/* DESKTOP VIEW (>= 768px) — 100% PRESERVED */}
-      <div className="hidden md:block space-y-5 sm:space-y-6 max-w-5xl mx-auto animate-in fade-in duration-150">
+      {/* DESKTOP VIEW (>= 768px) */}
+      <div className="hidden md:block space-y-6 w-full animate-in fade-in duration-150">
         {/* 1. HEADER & PRIMARY ACTIONS */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
-        <div>
-          <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-            Área de Nutrição
+          <div>
+            <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
+              Gestão de Dietas & Pacientes
+            </h2>
           </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight font-heading">
-            Gestão de Dietas & Pacientes
-          </h1>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <Link href={`/consultoria/${consultancySlug}/planos-v2?action=import`}>
-            <Button variant="secondary" size="sm">
-              Importar Plano
-            </Button>
-          </Link>
-          <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`}>
-            <Button variant="primary" size="sm">
-              + Novo Plano
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* 2. OPERATIONAL COCKPIT STATS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-        <CompactCard
-          title="Pacientes"
-          value="Acessar"
-          subtitle="Ver prontuários e metas"
-          href={`/consultoria/${consultancySlug}/progresso/alunos`}
-          icon={
-            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          }
-        />
-        <CompactCard
-          title="Planos Alimentares"
-          value={totalPlans}
-          subtitle="Dietas cadastradas"
-          href={`/consultoria/${consultancySlug}/planos-v2`}
-          icon={
-            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          }
-        />
-        <CompactCard
-          title="Alimentos"
-          value="Biblioteca V3"
-          subtitle="Tabelas e rótulos"
-          href={`/consultoria/${consultancySlug}/alimentos-v2`}
-          icon={
-            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          }
-        />
-        <CompactCard
-          title="Consultas"
-          value="Agenda"
-          subtitle="Atendimentos e retornos"
-          href={`/consultoria/${consultancySlug}/consultas`}
-          icon={
-            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          }
-        />
-      </div>
-
-      {/* 3. PLANOS RECENTES */}
-      <Section
-        title="Planos Alimentares Recentes"
-        action={
-          <Link href={`/consultoria/${consultancySlug}/planos-v2`}>
-            <Button variant="ghost" size="sm">
-              Ver todos ({totalPlans}) →
-            </Button>
-          </Link>
-        }
-      >
-        {recentPlans && recentPlans.length > 0 ? (
-          <div className="space-y-2">
-            {recentPlans.slice(0, 6).map((plan) => {
-              const status =
-                plan.status === "ACTIVE" || plan.status === "PUBLISHED"
-                  ? "active"
-                  : plan.status === "ARCHIVED"
-                  ? "archived"
-                  : "draft";
-
-              return (
-                <ListRow
-                  key={plan.publicId}
-                  title={plan.title}
-                  subtitle={plan.studentName ? `Paciente: ${plan.studentName}` : "Sem paciente vinculado (Modelo)"}
-                  caption={plan.mealsCount ? `${plan.mealsCount} refeições diárias` : undefined}
-                  href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
-                  trailing={
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={status} />
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hidden sm:inline">
-                        Editar →
-                      </span>
-                    </div>
-                  }
-                />
-              );
-            })}
-          </div>
-        ) : (
-          <div className="p-6 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center space-y-3">
-            <p className="text-xs text-[var(--text-secondary)]">
-              Nenhum plano alimentar cadastrado ainda. Crie seu primeiro plano para prescrever aos pacientes.
-            </p>
+          <div className="flex items-center gap-2">
+            <Link href={`/consultoria/${consultancySlug}/planos-v2?action=import`}>
+              <Button variant="secondary" size="sm" className="font-semibold rounded-lg">
+                Importar Plano
+              </Button>
+            </Link>
             <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`}>
-              <Button variant="primary" size="sm">
-                + Criar Primeiro Plano
+              <Button variant="primary" size="sm" className="font-semibold rounded-lg">
+                + Novo Plano
               </Button>
             </Link>
           </div>
-        )}
-      </Section>
+        </div>
 
-      {/* 4. ATALHOS DIRETOS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Link
-          href={`/consultoria/${consultancySlug}/planos-v2?tab=templates`}
-          className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-emerald-500 transition-all flex items-center justify-between group"
-        >
-          <div>
-            <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-              Modelos de Cardápio (Templates)
-            </h4>
-            <p className="text-xs text-[var(--text-secondary)]">
-              Dietas base hipertróficas, de emagrecimento e manutenção para clonar
-            </p>
-          </div>
-          <span className="text-sm text-emerald-600 font-bold">→</span>
-        </Link>
+        {/* 2. OPERATIONAL SUMMARY STRIP */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)] overflow-hidden shadow-2xs">
+          <Link
+            href={`/consultoria/${consultancySlug}/progresso/alunos`}
+            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+          >
+            <span className="text-xs text-[var(--text-tertiary)] font-medium">Pacientes</span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+                Acessar
+              </span>
+              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Ver prontuários e metas</span>
+            </div>
+          </Link>
 
-        <Link
-          href={`/consultoria/${consultancySlug}/planos-v2/prontuario`}
-          className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-emerald-500 transition-all flex items-center justify-between group"
-        >
-          <div>
-            <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-              Prontuários Nutricionais
-            </h4>
-            <p className="text-xs text-[var(--text-secondary)]">
-              Anamneses clínicas, recordatórios e histórico de adesão
-            </p>
+          <Link
+            href={`/consultoria/${consultancySlug}/planos-v2`}
+            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+          >
+            <span className="text-xs text-[var(--text-tertiary)] font-medium">Planos Alimentares</span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+                {totalPlans}
+              </span>
+              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Dietas cadastradas</span>
+            </div>
+          </Link>
+
+          <Link
+            href={`/consultoria/${consultancySlug}/alimentos-v2`}
+            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+          >
+            <span className="text-xs text-[var(--text-tertiary)] font-medium">Alimentos</span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+                Biblioteca
+              </span>
+              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Tabelas e rótulos</span>
+            </div>
+          </Link>
+
+          <Link
+            href={`/consultoria/${consultancySlug}/consultas`}
+            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+          >
+            <span className="text-xs text-[var(--text-tertiary)] font-medium">Consultas</span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+                Agenda
+              </span>
+              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Atendimentos e retornos</span>
+            </div>
+          </Link>
+        </div>
+
+        {/* 3. PLANOS RECENTES: Lista operacional limpa sem card-in-card */}
+        <div className="rounded-xl bg-[var(--surface)] border border-[var(--border-default)] overflow-hidden shadow-2xs">
+          <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)]">
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">
+              Planos Alimentares Recentes
+            </h3>
+            <Link href={`/consultoria/${consultancySlug}/planos-v2`}>
+              <Button variant="ghost" size="sm" className="text-xs text-[var(--brand)] font-semibold hover:bg-[var(--surface-hover)]">
+                Ver todos ({totalPlans}) →
+              </Button>
+            </Link>
           </div>
-          <span className="text-sm text-emerald-600 font-bold">→</span>
-        </Link>
-      </div>
+
+          {recentPlans && recentPlans.length > 0 ? (
+            <div className="divide-y divide-[var(--border-subtle)]">
+              {recentPlans.slice(0, 6).map((plan) => {
+                const isArchived = plan.status === "ARCHIVED";
+                const isDraft = plan.status === "DRAFT";
+
+                return (
+                  <Link
+                    key={plan.publicId}
+                    href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
+                    className="flex items-center justify-between p-3.5 sm:px-4 sm:py-3.5 hover:bg-[var(--surface-hover)] transition-colors group cursor-pointer"
+                  >
+                    <div className="min-w-0 flex-1 space-y-0.5 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                          {plan.title}
+                        </span>
+                        {isArchived && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
+                            Arquivado
+                          </span>
+                        )}
+                        {isDraft && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                            Rascunho
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                        {plan.subtitle && <span className="truncate">{plan.subtitle}</span>}
+                        {plan.subtitle && plan.mealsCount ? <span>•</span> : null}
+                        {plan.mealsCount ? <span>{plan.mealsCount} refeições configuradas</span> : null}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-[var(--brand)] font-semibold group-hover:translate-x-0.5 transition-transform">
+                        Editar →
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="p-6 text-center space-y-3">
+              <p className="text-xs text-[var(--text-secondary)]">
+                Nenhum plano cadastrado ainda. Crie seu primeiro plano alimentar para prescrever aos pacientes.
+              </p>
+              <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`}>
+                <Button variant="primary" size="sm" className="font-semibold rounded-lg">
+                  + Criar Primeiro Plano
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* 4. ATALHOS DIRETOS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Link
+            href={`/consultoria/${consultancySlug}/planos-v2?tab=templates`}
+            className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] transition-all flex items-center justify-between group shadow-2xs"
+          >
+            <div className="space-y-0.5">
+              <h4 className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+                Modelos Reutilizáveis (Templates)
+              </h4>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Estruturas de cardápio prontas para clonar e prescrever rapidamente
+              </p>
+            </div>
+            <span className="text-sm text-[var(--brand)] font-bold group-hover:translate-x-0.5 transition-transform shrink-0 ml-3">→</span>
+          </Link>
+
+          <Link
+            href={`/consultoria/${consultancySlug}/planos-v2?tab=assignments`}
+            className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] transition-all flex items-center justify-between group shadow-2xs"
+          >
+            <div className="space-y-0.5">
+              <h4 className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+                Prescrições Ativas de Pacientes
+              </h4>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Acompanhe quem está seguindo qual plano alimentar no momento
+              </p>
+            </div>
+            <span className="text-sm text-[var(--brand)] font-bold group-hover:translate-x-0.5 transition-transform shrink-0 ml-3">→</span>
+          </Link>
+        </div>
       </div>
     </>
   );

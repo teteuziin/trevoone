@@ -744,10 +744,10 @@ export function ConsultancyNavigation({
           ========================================================================= */}
       <aside
         aria-label="Barra lateral de navegação"
-        className="hidden lg:flex fixed top-0 bottom-0 left-0 w-64 bg-[var(--surface)] border-r border-[var(--border-default)] z-30 flex-col justify-between overflow-y-auto select-none print:hidden transition-colors"
+        className="hidden lg:flex fixed top-0 bottom-0 left-0 w-64 lg:w-72 bg-[var(--surface)] border-r border-[var(--border-default)] z-30 flex-col justify-between overflow-y-auto select-none print:hidden transition-colors"
       >
         {/* Top: Brand Header & Navigation Sections */}
-        <div className="flex flex-col space-y-4 p-4">
+        <div className="flex flex-col space-y-5 p-4 sm:p-5">
           {/* Consultancy Branding */}
           <Link
             href={baseSlugHref}
@@ -757,7 +757,7 @@ export function ConsultancyNavigation({
             <ConsultancyLogo
               logoUrl={consultancyLogoUrl}
               name={consultancyName}
-              size={36}
+              size={38}
             />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-[var(--text-primary)] truncate leading-tight group-hover:text-[var(--text-primary)] transition-colors">
@@ -798,10 +798,10 @@ export function ConsultancyNavigation({
             {desktopSections.map((section, sIdx) => (
               <div
                 key={section.title || sIdx}
-                className={`space-y-1 ${sIdx > 0 ? "pt-2 border-t border-[var(--border-subtle)]" : ""}`}
+                className={`space-y-1 ${sIdx > 0 ? "pt-3 border-t border-[var(--border-subtle)]" : ""}`}
               >
                 {section.title && (
-                  <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-3 mb-1.5 font-heading">
+                  <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-3.5 mb-2 font-heading">
                     {section.title}
                   </p>
                 )}
@@ -813,13 +813,13 @@ export function ConsultancyNavigation({
                       href={item.href}
                       prefetch={false}
                       aria-current={active ? "page" : undefined}
-                      className={`flex items-center justify-between px-3 py-2 text-xs rounded-xl border transition-all depth-interactive ${
+                      className={`flex items-center justify-between px-3.5 py-2.5 text-[13px] rounded-xl border transition-all depth-interactive ${
                         active
                           ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                           : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0">
                         <NavIcon name={item.iconName} />
                         <span className="truncate">{item.label}</span>
                       </div>
@@ -835,11 +835,11 @@ export function ConsultancyNavigation({
         </div>
 
         {/* Bottom: User Card, Theme & Actions */}
-        <div className="p-3.5 border-t border-[var(--border-default)] space-y-3 bg-[var(--surface)]">
-                    {/* User Info Card */}
+        <div className="p-4 border-t border-[var(--border-default)] space-y-3.5 bg-[var(--surface)]">
+          {/* User Info Card */}
           <Link
             href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
-            className="flex items-center gap-2.5 px-1 py-1 rounded-xl hover:bg-[var(--surface-subtle)] transition-colors min-w-0 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+            className="flex items-center gap-3 px-1.5 py-1 rounded-xl hover:bg-[var(--surface-subtle)] transition-colors min-w-0 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
             title="Ver perfil"
           >
             <UserAvatar
@@ -852,11 +852,11 @@ export function ConsultancyNavigation({
               size="sm"
             />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate leading-tight">
+              <p className="text-[13px] font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate leading-tight">
                 {identity.fullName}
               </p>
               {identity.email && (
-                <p className="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
+                <p className="text-xs text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
                   {identity.email}
                 </p>
               )}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DailyCheckinWidget } from "@/components/checkin/daily-checkin-widget";
-import { Section, CompactCard, ListRow } from "@/components/ui/design-system";
+import { Section, ListRow } from "@/components/ui/design-system";
 import { MobileDashboardCockpit } from "./mobile-dashboard-cockpit";
 import type { DailyCheckinRecord } from "@/lib/checkins/service";
 
@@ -307,18 +307,18 @@ export function DashboardStudentView({
       {/* ==================================================================== */}
       {/* DESKTOP VIEW (>= 768px) — 100% PRESERVED                             */}
       {/* ==================================================================== */}
-      <div className="hidden md:block space-y-5 sm:space-y-6 max-w-5xl mx-auto animate-in fade-in duration-150">
+      <div className="hidden md:block space-y-6 w-full animate-in fade-in duration-150">
         {/* ==================================================================== */}
         {/* 1. HEADER LIMPO & STATUS                                             */}
         {/* ==================================================================== */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
         <div>
-          <div className="text-[11px] font-semibold text-[var(--brand)] uppercase tracking-wider">
-            {consultancyName || "Acompanhamento"}
-          </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight font-heading">
+          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
             {firstName ? `Olá, ${firstName}` : "Meu Painel"}
-          </h1>
+          </h2>
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+            {consultancyName || "Acompanhamento de Treino e Saúde"}
+          </p>
         </div>
 
         {pendingPhotoEvaluation && (
@@ -341,7 +341,7 @@ export function DashboardStudentView({
             </p>
           </div>
           <Link href={`/consultoria/${consultancySlug}/onboarding`}>
-            <Button variant="primary" size="sm" className="whitespace-nowrap">
+            <Button variant="primary" size="sm" className="whitespace-nowrap rounded-lg font-semibold">
               Completar anamnese →
             </Button>
           </Link>
@@ -357,59 +357,70 @@ export function DashboardStudentView({
       />
 
       {/* ==================================================================== */}
-      {/* 3. METRICAS / STATUS RÁPIDO DO DIA                                   */}
+      {/* 3. METRICAS / STATUS RÁPIDO DO DIA (Unified Metric Strip)             */}
       {/* ==================================================================== */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-        <CompactCard
-          title="Treino Ativo"
-          value={hasTraining ? `${workoutCount} rotinas` : "Nenhum"}
-          subtitle={hasTraining && totalExercises ? `${totalExercises} exercícios` : "Aguardando"}
+      <div className="grid grid-cols-2 sm:grid-cols-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)] overflow-hidden shadow-2xs">
+        <Link
           href={`/consultoria/${consultancySlug}/treinos`}
-          icon={
-            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-          }
-        />
-        <CompactCard
-          title="Plano Alimentar"
-          value={hasNutrition ? `${mealCount} refeições` : "Nenhum"}
-          subtitle={firstMealTime ? `1ª refeição às ${firstMealTime}` : "Aguardando"}
+          className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+        >
+          <span className="text-xs text-[var(--text-tertiary)] font-medium">Treino Ativo</span>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+              {hasTraining ? `${workoutCount} rotinas` : "Nenhum"}
+            </span>
+            <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">
+              {hasTraining && totalExercises ? `${totalExercises} exercícios` : "Aguardando"}
+            </span>
+          </div>
+        </Link>
+
+        <Link
           href={`/consultoria/${consultancySlug}/nutricao`}
-          icon={
-            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          }
-        />
-        <CompactCard
-          title="Peso Atual"
-          value={latestProgress?.weightKg ? `${latestProgress.weightKg} kg` : "—"}
-          subtitle={
-            weightDelta !== null
-              ? `${weightDelta > 0 ? "+" : ""}${weightDelta} kg vs anterior`
-              : latestProgress?.recordedOn
-              ? formatDate(latestProgress.recordedOn)
-              : "Sem registros"
-          }
+          className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+        >
+          <span className="text-xs text-[var(--text-tertiary)] font-medium">Plano Alimentar</span>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+              {hasNutrition ? `${mealCount} refeições` : "Nenhum"}
+            </span>
+            <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">
+              {firstMealTime ? `1ª refeição às ${firstMealTime}` : "Aguardando"}
+            </span>
+          </div>
+        </Link>
+
+        <Link
           href={`/consultoria/${consultancySlug}/progresso`}
-          icon={
-            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-          }
-        />
-        <CompactCard
-          title="Atendimento"
-          value="Consultas"
-          subtitle="Agendamentos & chat"
+          className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+        >
+          <span className="text-xs text-[var(--text-tertiary)] font-medium">Peso Atual</span>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+              {latestProgress?.weightKg ? `${latestProgress.weightKg} kg` : "—"}
+            </span>
+            <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">
+              {weightDelta !== null
+                ? `${weightDelta > 0 ? "+" : ""}${weightDelta} kg vs anterior`
+                : latestProgress?.recordedOn
+                ? formatDate(latestProgress.recordedOn)
+                : "Sem registros"}
+            </span>
+          </div>
+        </Link>
+
+        <Link
           href={`/consultoria/${consultancySlug}/consultas`}
-          icon={
-            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          }
-        />
+          className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+        >
+          <span className="text-xs text-[var(--text-tertiary)] font-medium">Atendimento</span>
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+              Consultas
+            </span>
+            <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Agendamentos & chat</span>
+          </div>
+        </Link>
       </div>
 
       {/* ==================================================================== */}

@@ -39,44 +39,8 @@ export function BrandWallpaper() {
 
 
 
-      {/* 3. Marca d'Água Focal Orgânica (Bespoke Watermark) */}
-      {/* No mobile (390px) posicionada com precisão no terço superior direito */}
-      {/* No desktop escala harmoniosamente sem invadir os cards centrais */}
-      <div className="absolute top-10 right-[-30px] sm:right-6 lg:right-16 w-[260px] sm:w-[320px] lg:w-[420px] h-[260px] sm:h-[320px] lg:h-[420px] pointer-events-none">
-        <svg
-          viewBox="0 0 200 200"
-          className="w-full h-full transform -rotate-12 transition-opacity duration-300"
-          style={{
-            color: "var(--wallpaper-watermark-color, #18181b)",
-            opacity: "var(--wallpaper-watermark-opacity, 0.05)",
-          }}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.2"
-        >
-          {/* Folhas orgânicas contornadas */}
-          <path d="M 100,100 C 75,65 60,35 100,20 C 140,35 125,65 100,100" />
-          <path d="M 100,100 C 135,75 165,60 180,100 C 165,140 135,125 100,100" />
-          <path d="M 100,100 C 125,135 140,165 100,180 C 60,165 75,135 100,100" />
-          <path d="M 100,100 C 65,125 35,140 20,100 C 35,60 65,75 100,100" />
-          {/* Halo geométrico interno */}
-          <circle cx="100" cy="100" r="14" strokeWidth="0.8" strokeDasharray="2 3" />
-          <circle cx="100" cy="100" r="3.5" fill="currentColor" stroke="none" />
-        </svg>
-      </div>
+      {/* 3. Marca d'água focal removida para eliminar aparência de template decorativo */}
 
-      {/* 4. Selo de Canto / Rodapé Arquitetural (Desktop / Tablet) */}
-      <div
-        className="hidden sm:flex absolute bottom-6 right-8 items-center gap-2 font-mono tracking-[0.22em] text-[9.5px] font-bold uppercase transition-opacity duration-300"
-        style={{
-          color: "var(--wallpaper-watermark-color, #18181b)",
-          opacity: "var(--wallpaper-watermark-opacity, 0.05)",
-        }}
-      >
-        <div className="w-1.5 h-1.5 rounded-full bg-current" />
-        <span>TREVO ONE</span>
-        <span className="text-[8px] opacity-60">SYSTEM</span>
-      </div>
     </div>
   );
 }

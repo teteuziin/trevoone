@@ -532,10 +532,10 @@ export function ConsultancyAppShell({
     ? "max-w-7xl"
     : maxWidth === "narrow"
     ? "max-w-3xl"
-    : "max-w-6xl";
+    : "max-w-7xl";
 
   return (
-    <div className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col lg:pl-64 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
+    <div className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col lg:pl-72 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
       {/* Session Scope & Offline Isolation Guard */}
       {userPublicId && consultancyPublicId && (
         <>

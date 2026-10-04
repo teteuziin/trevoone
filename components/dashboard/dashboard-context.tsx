@@ -52,12 +52,12 @@ export function DashboardContext({
   const isAdmin = safeRoles.includes("CONSULTANCY_ADMIN");
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
+    <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border-subtle)]">
       <div className="space-y-0.5 sm:space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] font-heading">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
           {firstName ? `Olá, ${firstName}` : "Olá!"}
         </h1>
-        <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
+        <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
           {displaySubtitle}
         </p>
       </div>

@@ -6,6 +6,7 @@ import { EvolutionTimeline } from "./evolution-timeline";
 import { EvolutionComparator } from "./evolution-comparator";
 import { EvolutionCharts } from "./evolution-charts";
 import { StudentProgressForm } from "@/components/consultancies/student-progress-form";
+import { MobileEvolutionCockpit } from "./mobile-evolution-cockpit";
 import { StudentPhotoEvaluationHub } from "@/components/consultancies/photos/student-photo-evaluation-hub";
 import { ProfessionalPhotoEvaluationHub } from "@/components/consultancies/photos/professional-photo-evaluation-hub";
 import {
@@ -49,6 +50,8 @@ export function Evolution360Hub({
   initialComparisonData,
   isStudent = false,
   isPersonal = false,
+  isNutritionist = false,
+  isAdmin = false,
   studentPublicId,
   rawPhotoData,
   userPublicId: initialUserPublicId,
@@ -159,8 +162,25 @@ export function Evolution360Hub({
   const hasMultipleMilestones = milestones.length > 1;
 
   return (
-    <div className="space-y-6">
-      {/* Top 360° Evolution Summary Banner */}
+    <>
+      {/* MOBILE NATIVE EVOLUTION COCKPIT (sm:hidden) */}
+      <div className="sm:hidden">
+        <MobileEvolutionCockpit
+          consultancySlug={consultancySlug}
+          hubData={hubData}
+          initialComparisonData={initialComparisonData}
+          isStudent={isStudent}
+          isPersonal={isPersonal}
+          isNutritionist={isNutritionist}
+          isAdmin={isAdmin}
+          studentPublicId={studentPublicId}
+          onOpenPhotosTab={() => handleSelectTab("fotos")}
+        />
+      </div>
+
+      {/* DESKTOP 360° EVOLUTION SURFACE (hidden sm:block) */}
+      <div className="hidden sm:block space-y-6">
+        {/* Top 360° Evolution Summary Banner */}
       <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 border-specular-t depth-surface">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
           <div>
@@ -447,6 +467,7 @@ export function Evolution360Hub({
           />
         )
       )}
-    </div>
+      </div>
+    </>
   );
 }

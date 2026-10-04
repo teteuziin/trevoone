@@ -11,43 +11,27 @@ import {
   type PhotoEvaluationStatus,
   type PhotoEvaluationImageDto,
 } from "./photo-evaluations";
-import type {
-  EvolutionHubDataDto,
-  EvolutionMilestoneDto,
-  StudentProgressMetricsDto,
-  MilestonePhotoEvaluationDto,
-  MetricDeltaDto,
-  StudentEvolutionSummaryDto,
-  EvolutionChartSeriesDto,
-  EvolutionComparisonDataDto,
-  MetricComparisonItemDto,
-  MetricChangeDirection,
+import {
+  type EvolutionHubDataDto,
+  type EvolutionMilestoneDto,
+  type StudentProgressMetricsDto,
+  type MilestonePhotoEvaluationDto,
+  type MetricDeltaDto,
+  type StudentEvolutionSummaryDto,
+  type EvolutionChartSeriesDto,
+  type EvolutionComparisonDataDto,
+  type MetricComparisonItemDto,
+  type MetricChangeDirection,
+  formatIsoDateToBr,
+  formatShortDateBr,
+  formatMetricNumber,
 } from "@/types/evolution";
 
-// --- Date and Formatting Utilities ---
-
-export function formatIsoDateToBr(dateStr: string | null): string {
-  if (!dateStr) return "";
-  const clean = dateStr.split("T")[0];
-  const parts = clean.split("-");
-  if (parts.length !== 3) return dateStr;
-  const [y, m, d] = parts;
-  return `${d}/${m}/${y}`;
-}
-
-export function formatShortDateBr(dateStr: string | null): string {
-  if (!dateStr) return "";
-  const clean = dateStr.split("T")[0];
-  const parts = clean.split("-");
-  if (parts.length !== 3) return dateStr;
-  const [, m, d] = parts;
-  return `${d}/${m}`;
-}
-
-export function formatMetricNumber(val: number | null, unit: string): string {
-  if (val === null || val === undefined) return "—";
-  return `${val.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} ${unit}`;
-}
+export {
+  formatIsoDateToBr,
+  formatShortDateBr,
+  formatMetricNumber,
+};
 
 export function calculateMetricDelta(
   prev: number | null | undefined,

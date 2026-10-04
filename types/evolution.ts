@@ -149,3 +149,27 @@ export interface EvolutionHubDataDto {
     hasMeasurement: boolean;
   }>;
 }
+
+// Client-safe formatters
+export function formatIsoDateToBr(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const clean = dateStr.split("T")[0];
+  const parts = clean.split("-");
+  if (parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  return `${d}/${m}/${y}`;
+}
+
+export function formatShortDateBr(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const clean = dateStr.split("T")[0];
+  const parts = clean.split("-");
+  if (parts.length !== 3) return dateStr;
+  const [, m, d] = parts;
+  return `${d}/${m}`;
+}
+
+export function formatMetricNumber(val: number | null | undefined, unit: string): string {
+  if (val === null || val === undefined) return "—";
+  return `${val.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} ${unit}`;
+}

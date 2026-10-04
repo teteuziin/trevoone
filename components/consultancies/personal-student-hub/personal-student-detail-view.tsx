@@ -205,6 +205,12 @@ export function PersonalStudentDetailView({
         ]
       : []),
     {
+      id: "view-evolution",
+      label: "Abrir Cockpit de Evolução 360°",
+      icon: <ScaleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
+      onClick: () => router.push(`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`),
+    },
+    {
       id: "req-photos",
       label: "Solicitar fotos de evolução",
       icon: <PhotoIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
@@ -731,15 +737,45 @@ export function PersonalStudentDetailView({
               <h2 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
                 Evolução &amp; Avaliações
               </h2>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
-                className="font-bold min-h-[44px] text-xs"
-              >
-                + Solicitar fotos
-              </Button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer"
+                >
+                  <ScaleIcon className="w-3.5 h-3.5" />
+                  <span>Cockpit 360°</span>
+                </Link>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
+                  className="font-bold min-h-[44px] text-xs"
+                >
+                  + Fotos
+                </Button>
+              </div>
             </div>
+
+            {/* Banner card linking directly to the full mobile evolution cockpit */}
+            <Link
+              href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
+              className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:border-[var(--brand)] transition-colors flex items-center justify-between gap-3 min-h-[48px] block shadow-2xs"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center shrink-0">
+                  <ScaleIcon className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="font-heading text-xs font-bold text-[var(--text-primary)]">
+                    Ver Cockpit de Evolução Completo
+                  </p>
+                  <p className="text-[11px] text-[var(--text-secondary)]">
+                    Comparações de datas, gráficos táteis e fotos de progresso
+                  </p>
+                </div>
+              </div>
+              <ChevronRightIcon className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
+            </Link>
 
             {/* Medições corporais (Individual touch cards, no broken horizontal table) */}
             {measurements.length > 0 && (
@@ -1724,43 +1760,72 @@ export function PersonalStudentDetailView({
         )}
 
         {/* TAB 6: AVALIAÇÕES (MEASUREMENTS) */}
-        {activeTab === "avaliacoes" && measurements.length > 0 && (
+        {activeTab === "avaliacoes" && (
           <div className="space-y-4">
-            <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-4">
-              <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                Medições Corporais Registradas
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] border-b border-[var(--border-subtle)]">
-                    <tr>
-                      <th className="py-2 pr-3">Data</th>
-                      <th className="py-2 px-3">Peso (kg)</th>
-                      <th className="py-2 px-3">Cintura</th>
-                      <th className="py-2 px-3">Abdômen</th>
-                      <th className="py-2 px-3">Quadril</th>
-                      <th className="py-2 px-3">Braço</th>
-                      <th className="py-2 px-3">Coxa</th>
-                      <th className="py-2 pl-3">Notas</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--border-subtle)]">
-                    {measurements.map((m, idx) => (
-                      <tr key={`${m.recordedOn}-${idx}`} className="text-[var(--text-primary)]">
-                        <td className="py-2.5 pr-3 font-semibold">{m.recordedOn}</td>
-                        <td className="py-2.5 px-3">{m.weightKg != null ? `${m.weightKg} kg` : "—"}</td>
-                        <td className="py-2.5 px-3">{m.waistCm != null ? `${m.waistCm} cm` : "—"}</td>
-                        <td className="py-2.5 px-3">{m.abdomenCm != null ? `${m.abdomenCm} cm` : "—"}</td>
-                        <td className="py-2.5 px-3">{m.hipCm != null ? `${m.hipCm} cm` : "—"}</td>
-                        <td className="py-2.5 px-3">{m.armCm != null ? `${m.armCm} cm` : "—"}</td>
-                        <td className="py-2.5 px-3">{m.thighCm != null ? `${m.thighCm} cm` : "—"}</td>
-                        <td className="py-2.5 pl-3 text-[var(--text-secondary)]">{m.note || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs">
+              <div className="space-y-0.5">
+                <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                  Cockpit de Evolução 360° do Aluno
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Compare datas, avalie composição corporal e acompanhe gráficos de evolução.
+                </p>
               </div>
+              <Link
+                href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] shadow-xs cursor-pointer shrink-0"
+              >
+                <ScaleIcon className="w-4 h-4" />
+                <span>Abrir Cockpit 360° de Evolução</span>
+              </Link>
             </div>
+
+            {measurements.length > 0 ? (
+              <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-4">
+                <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                  Medições Corporais Registradas
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] border-b border-[var(--border-subtle)]">
+                      <tr>
+                        <th className="py-2 pr-3">Data</th>
+                        <th className="py-2 px-3">Peso (kg)</th>
+                        <th className="py-2 px-3">Cintura</th>
+                        <th className="py-2 px-3">Abdômen</th>
+                        <th className="py-2 px-3">Quadril</th>
+                        <th className="py-2 px-3">Braço</th>
+                        <th className="py-2 px-3">Coxa</th>
+                        <th className="py-2 pl-3">Notas</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-subtle)]">
+                      {measurements.map((m, idx) => (
+                        <tr key={`${m.recordedOn}-${idx}`} className="text-[var(--text-primary)]">
+                          <td className="py-2.5 pr-3 font-semibold">{m.recordedOn}</td>
+                          <td className="py-2.5 px-3">{m.weightKg != null ? `${m.weightKg} kg` : "—"}</td>
+                          <td className="py-2.5 px-3">{m.waistCm != null ? `${m.waistCm} cm` : "—"}</td>
+                          <td className="py-2.5 px-3">{m.abdomenCm != null ? `${m.abdomenCm} cm` : "—"}</td>
+                          <td className="py-2.5 px-3">{m.hipCm != null ? `${m.hipCm} cm` : "—"}</td>
+                          <td className="py-2.5 px-3">{m.armCm != null ? `${m.armCm} cm` : "—"}</td>
+                          <td className="py-2.5 px-3">{m.thighCm != null ? `${m.thighCm} cm` : "—"}</td>
+                          <td className="py-2.5 pl-3 text-[var(--text-secondary)]">{m.note || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] text-center space-y-2">
+                <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                  Nenhuma medição corporal registrada
+                </p>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Acesse o Cockpit de Evolução para registrar novas avaliações e medições.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>

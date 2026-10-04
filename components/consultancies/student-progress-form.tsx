@@ -11,17 +11,36 @@ type Props = {
   consultancySlug: string;
   studentPublicId?: string; // If provided, this is a professional registering for a student
   onSuccess?: () => void;
+  isOpenControlled?: boolean;
+  onCloseControlled?: () => void;
+  hideTrigger?: boolean;
 };
 
 export function StudentProgressForm({
   consultancySlug,
   studentPublicId,
   onSuccess,
+  isOpenControlled,
+  onCloseControlled,
+  hideTrigger = false,
 }: Props) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const isControlled = isOpenControlled !== undefined;
+  const showModal = isControlled ? isOpenControlled : internalIsOpen;
+
+  const handleClose = () => {
+    if (isControlled && onCloseControlled) {
+      onCloseControlled();
+    } else {
+      setInternalIsOpen(false);
+    }
+    setError(null);
+    setSuccessMessage(null);
+  };
 
   // Default to today's local date (YYYY-MM-DD)
   const todayIso = new Date().toISOString().split("T")[0];
@@ -51,8 +70,7 @@ export function StudentProgressForm({
         setSuccessMessage("Medição registrada com sucesso!");
         setError(null);
         setTimeout(() => {
-          setIsOpen(false);
-          setSuccessMessage(null);
+          handleClose();
           if (onSuccess) onSuccess();
         }, 1200);
       }
@@ -60,69 +78,74 @@ export function StudentProgressForm({
   }
 
   return (
-    <div className="w-full">
-      {!isOpen ? (
+    <>
+      {!hideTrigger && !showModal && (
         <button
           type="button"
           onClick={() => {
-            setIsOpen(true);
+            setInternalIsOpen(true);
             setError(null);
             setSuccessMessage(null);
           }}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:opacity-90 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:opacity-90 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] min-h-[44px]"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Registrar evolução
         </button>
-      ) : (
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-                Nova Medição Corporal
-              </h2>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
-                Preencha a data e pelo menos uma das medidas corporais abaixo.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                setError(null);
-                setSuccessMessage(null);
-              }}
-              disabled={isPending}
-              className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors cursor-pointer"
-              aria-label="Fechar formulário"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+      )}
 
-          {error && (
-            <div
-              role="alert"
-              className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-xs sm:text-sm text-rose-700 dark:text-rose-300 font-medium"
-            >
-              {error}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full sm:max-w-2xl bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+            {/* Mobile Drag Handle */}
+            <div className="pt-2.5 pb-1 flex justify-center sm:hidden bg-[var(--surface-subtle)]/50 shrink-0">
+              <div className="w-10 h-1.5 rounded-full bg-[var(--border-strong)]" />
             </div>
-          )}
 
-          {successMessage && (
-            <div
-              role="status"
-              className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 font-medium"
-            >
-              {successMessage}
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)] shrink-0 bg-[var(--surface-subtle)]/50">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                  Nova Medição Corporal
+                </h2>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Preencha a data e pelo menos uma das medidas corporais abaixo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={isPending}
+                className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
+                aria-label="Fechar formulário"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Scrollable Form */}
+            <form id="progress-form" onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-5 space-y-5">
+              {error && (
+                <div
+                  role="alert"
+                  className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-xs sm:text-sm text-rose-700 dark:text-rose-300 font-medium"
+                >
+                  {error}
+                </div>
+              )}
+
+              {successMessage && (
+                <div
+                  role="status"
+                  className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 font-medium"
+                >
+                  {successMessage}
+                </div>
+              )}
             {/* Recorded Date */}
             <div className="space-y-1.5 max-w-xs">
               <label htmlFor="recordedOn" className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
@@ -284,24 +307,20 @@ export function StudentProgressForm({
               />
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-2">
+            {/* Action Buttons in Sticky Bottom Footer */}
+            <div className="px-5 py-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))] border-t border-[var(--border-subtle)] flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 bg-[var(--surface-subtle)]/70 shrink-0">
               <button
                 type="button"
-                onClick={() => {
-                  setIsOpen(false);
-                  setError(null);
-                  setSuccessMessage(null);
-                }}
+                onClick={handleClose}
                 disabled={isPending}
-                className="px-4 py-2 text-xs sm:text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-hover)] rounded-xl transition-colors cursor-pointer"
+                className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 text-xs sm:text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors cursor-pointer text-center"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={isPending}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2 bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:opacity-90 disabled:opacity-50 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors cursor-pointer"
+                className="w-full sm:w-auto min-h-[48px] sm:min-h-0 inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:opacity-90 disabled:opacity-50 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors cursor-pointer"
               >
                 {isPending ? (
                   <>
@@ -315,7 +334,8 @@ export function StudentProgressForm({
             </div>
           </form>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    )}
+  </>
+);
 }

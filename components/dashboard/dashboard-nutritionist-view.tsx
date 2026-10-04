@@ -39,25 +39,30 @@ export function DashboardNutritionistView({
           role="NUTRITIONIST"
           consultancySlug={consultancySlug}
           heroActionCard={
-            <div className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs space-y-2.5">
+            <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-                  Prescrever plano alimentar
-                </h2>
-                <span className="text-xs text-[var(--text-tertiary)] font-medium">
-                  {totalPlans} planos cadastrados
+                <div>
+                  <h2 className="text-base font-bold text-[var(--text-primary)] font-sans">
+                    Prescrever plano alimentar
+                  </h2>
+                  <p className="text-[11px] text-[var(--text-tertiary)] font-sans">
+                    Prescreva e acompanhe dietas dos seus pacientes
+                  </p>
+                </div>
+                <span className="text-[11px] text-[var(--brand)] font-semibold px-2 py-0.5 rounded-full bg-[var(--brand-surface)] border border-[var(--brand-soft-border)] font-sans">
+                  {totalPlans} ativas
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 pt-0.5">
                 <Link
                   href={`/consultoria/${consultancySlug}/planos-v2/novo`}
-                  className="min-h-[44px] rounded-lg font-semibold text-xs bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-[var(--text-inverse)] flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.98] transition-all"
+                  className="min-h-[46px] rounded-xl font-bold text-xs bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-[var(--text-inverse)] flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98] transition-all font-sans"
                 >
                   <span>+ Novo Plano</span>
                 </Link>
                 <Link
                   href={`/consultoria/${consultancySlug}/planos-v2?action=import`}
-                  className="min-h-[44px] rounded-lg font-semibold text-xs bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all"
+                  className="min-h-[46px] rounded-xl font-semibold text-xs bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all font-sans"
                 >
                   <span>Importar</span>
                 </Link>
@@ -175,186 +180,240 @@ export function DashboardNutritionistView({
 
       {/* DESKTOP VIEW (>= 768px) */}
       <div className="hidden md:block space-y-6 w-full animate-in fade-in duration-150">
-        {/* 1. HEADER & PRIMARY ACTIONS */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
-          <div>
-            <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
+        {/* 1. NÍVEL 1 — AÇÃO PRINCIPAL */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-1">
+          <div className="space-y-0.5">
+            <h2 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight font-sans">
               Gestão de Dietas & Pacientes
             </h2>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-sans">
+              Prescreva e acompanhe os planos alimentares dos seus pacientes.
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link href={`/consultoria/${consultancySlug}/planos-v2?action=import`}>
-              <Button variant="secondary" size="sm" className="font-semibold rounded-lg">
-                Importar Plano
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`}>
+              <Button
+                variant="primary"
+                size="md"
+                className="font-bold text-sm rounded-xl px-5 shadow-xs hover:brightness-105 active:scale-[0.98] transition-all font-sans"
+              >
+                + Novo Plano
               </Button>
             </Link>
-            <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`}>
-              <Button variant="primary" size="sm" className="font-semibold rounded-lg">
-                + Novo Plano
+            <Link href={`/consultoria/${consultancySlug}/planos-v2?action=import`}>
+              <Button
+                variant="secondary"
+                size="md"
+                className="font-semibold text-sm rounded-xl px-4 hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-all font-sans"
+              >
+                Importar Plano
               </Button>
             </Link>
           </div>
         </div>
 
-        {/* 2. OPERATIONAL SUMMARY STRIP */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)] overflow-hidden shadow-2xs">
+        {/* 2. NÍVEL 2 — RESUMO OPERACIONAL (Faixa leve sem cards individuais, sem sombras, sem icon boxes) */}
+        <div className="py-3 px-4 sm:px-6 rounded-xl bg-[var(--surface-subtle)]/50 border border-[var(--border-subtle)] grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)] text-center sm:text-left">
           <Link
             href={`/consultoria/${consultancySlug}/progresso/alunos`}
-            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+            className="p-2 sm:px-4 sm:py-1 hover:text-[var(--brand)] transition-colors group flex flex-col justify-center"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium font-sans">Pacientes</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans">
-                {totalStudents !== undefined && totalStudents !== null ? totalStudents : "Gestão"}
-              </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline font-sans">
-                {totalStudents !== undefined && totalStudents !== null ? "Alunos vinculados" : "Ver prontuários e metas"}
-              </span>
-            </div>
+            <span className="text-lg sm:text-xl font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans tabular-nums">
+              {totalStudents !== undefined && totalStudents !== null ? totalStudents : "Gestão"}
+            </span>
+            <span className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold font-sans mt-0.5">
+              Pacientes
+            </span>
           </Link>
 
           <Link
             href={`/consultoria/${consultancySlug}/planos-v2`}
-            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+            className="p-2 sm:px-4 sm:py-1 hover:text-[var(--brand)] transition-colors group flex flex-col justify-center"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium font-sans">Planos Alimentares</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans">
-                {totalPlans}
-              </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline font-sans">Dietas cadastradas</span>
-            </div>
+            <span className="text-lg sm:text-xl font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans tabular-nums">
+              {totalPlans}
+            </span>
+            <span className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold font-sans mt-0.5">
+              Planos Alimentares
+            </span>
           </Link>
 
           <Link
             href={`/consultoria/${consultancySlug}/alimentos-v2`}
-            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+            className="p-2 sm:px-4 sm:py-1 hover:text-[var(--brand)] transition-colors group flex flex-col justify-center"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium">Alimentos</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                Biblioteca
-              </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Tabelas e rótulos</span>
-            </div>
+            <span className="text-lg sm:text-xl font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans">
+              Biblioteca
+            </span>
+            <span className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold font-sans mt-0.5">
+              Alimentos
+            </span>
           </Link>
 
           <Link
             href={`/consultoria/${consultancySlug}/consultas`}
-            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+            className="p-2 sm:px-4 sm:py-1 hover:text-[var(--brand)] transition-colors group flex flex-col justify-center"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium">Consultas</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                Agenda
-              </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Atendimentos e retornos</span>
-            </div>
+            <span className="text-lg sm:text-xl font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans">
+              Agenda
+            </span>
+            <span className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold font-sans mt-0.5">
+              Consultas 1:1
+            </span>
           </Link>
         </div>
 
-        {/* 3. PLANOS RECENTES: Lista operacional limpa sem card-in-card */}
-        <div className="rounded-xl bg-[var(--surface)] border border-[var(--border-default)] overflow-hidden shadow-2xs">
-          <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)]">
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">
-              Planos Alimentares Recentes
-            </h3>
-            <Link href={`/consultoria/${consultancySlug}/planos-v2`}>
-              <Button variant="ghost" size="sm" className="text-xs text-[var(--brand)] font-semibold hover:bg-[var(--surface-hover)]">
-                Ver todos ({totalPlans}) →
-              </Button>
-            </Link>
-          </div>
-
-          {recentPlans && recentPlans.length > 0 ? (
-            <div className="divide-y divide-[var(--border-subtle)]">
-              {recentPlans.slice(0, 6).map((plan) => {
-                const isArchived = plan.status === "ARCHIVED";
-                const isDraft = plan.status === "DRAFT";
-
-                return (
-                  <Link
-                    key={plan.publicId}
-                    href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
-                    className="flex items-center justify-between p-3.5 sm:px-4 sm:py-3.5 hover:bg-[var(--surface-hover)] transition-colors group cursor-pointer"
-                  >
-                    <div className="min-w-0 flex-1 space-y-0.5 pr-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                          {plan.title}
-                        </span>
-                        {isArchived && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
-                            Arquivado
-                          </span>
-                        )}
-                        {isDraft && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                            Rascunho
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
-                        {plan.subtitle && <span className="truncate">{plan.subtitle}</span>}
-                        {plan.subtitle && plan.mealsCount ? <span>•</span> : null}
-                        {plan.mealsCount ? <span>{plan.mealsCount} refeições configuradas</span> : null}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-[var(--brand)] font-semibold group-hover:translate-x-0.5 transition-transform">
-                        Editar →
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="p-6 text-center space-y-3">
-              <p className="text-xs text-[var(--text-secondary)]">
-                Nenhum plano cadastrado ainda. Crie seu primeiro plano alimentar para prescrever aos pacientes.
-              </p>
-              <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`}>
-                <Button variant="primary" size="sm" className="font-semibold rounded-lg">
-                  + Criar Primeiro Plano
-                </Button>
+        {/* 3. GRID DESKTOP: CONTEÚDO PRINCIPAL (75%) + ATALHOS SECUNDÁRIOS (25%) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* COLUNA ESQUERDA (75%): PLANOS RECENTES = CONTEÚDO PRINCIPAL */}
+          <div className="lg:col-span-8 xl:col-span-9 space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-sans tracking-tight">
+                Planos Alimentares Recentes
+              </h3>
+              <Link href={`/consultoria/${consultancySlug}/planos-v2`}>
+                <span className="text-xs text-[var(--brand)] font-semibold hover:underline font-sans cursor-pointer">
+                  Ver todos ({totalPlans}) →
+                </span>
               </Link>
             </div>
-          )}
-        </div>
 
-        {/* 4. ATALHOS DIRETOS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Link
-            href={`/consultoria/${consultancySlug}/planos-v2?tab=templates`}
-            className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] transition-all flex items-center justify-between group shadow-2xs"
-          >
-            <div className="space-y-0.5">
-              <h4 className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                Modelos Reutilizáveis (Templates)
-              </h4>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Estruturas de cardápio prontas para clonar e prescrever rapidamente
-              </p>
-            </div>
-            <span className="text-sm text-[var(--brand)] font-bold group-hover:translate-x-0.5 transition-transform shrink-0 ml-3">→</span>
-          </Link>
+            <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] divide-y divide-[var(--border-subtle)] overflow-hidden shadow-2xs">
+              {recentPlans && recentPlans.length > 0 ? (
+                recentPlans.slice(0, 6).map((plan) => {
+                  const isArchived = plan.status === "ARCHIVED";
+                  const isDraft = plan.status === "DRAFT";
 
-          <Link
-            href={`/consultoria/${consultancySlug}/planos-v2?tab=assignments`}
-            className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] transition-all flex items-center justify-between group shadow-2xs"
-          >
-            <div className="space-y-0.5">
-              <h4 className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
-                Prescrições Ativas de Pacientes
-              </h4>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Acompanhe quem está seguindo qual plano alimentar no momento
-              </p>
+                  return (
+                    <Link
+                      key={plan.publicId}
+                      href={`/consultoria/${consultancySlug}/planos-v2/${plan.publicId}`}
+                      className="flex items-center justify-between p-4 sm:px-5 sm:py-4 hover:bg-[var(--surface-hover)] transition-colors group cursor-pointer"
+                    >
+                      <div className="min-w-0 flex-1 space-y-1 pr-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm sm:text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate font-sans">
+                            {plan.title}
+                          </span>
+                          {isArchived && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)] font-sans">
+                              Arquivado
+                            </span>
+                          )}
+                          {isDraft && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-sans">
+                              Rascunho
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-sans">
+                          {plan.subtitle && <span className="truncate">{plan.subtitle}</span>}
+                          {plan.subtitle && plan.mealsCount ? <span>•</span> : null}
+                          {plan.mealsCount ? <span>{plan.mealsCount} refeições configuradas</span> : null}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs text-[var(--brand)] font-semibold group-hover:translate-x-0.5 transition-transform font-sans">
+                          Editar →
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center space-y-3">
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-sans">
+                    Nenhum plano cadastrado ainda. Crie seu primeiro plano alimentar para prescrever aos pacientes.
+                  </p>
+                  <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`}>
+                    <Button variant="primary" size="sm" className="font-semibold rounded-lg font-sans">
+                      + Criar Primeiro Plano
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
-            <span className="text-sm text-[var(--brand)] font-bold group-hover:translate-x-0.5 transition-transform shrink-0 ml-3">→</span>
-          </Link>
+          </div>
+
+          {/* COLUNA DIREITA (25%): RECURSOS SECUNDÁRIOS LEVES (NÍVEL 3) */}
+          <div className="lg:col-span-4 xl:col-span-3 space-y-3">
+            <div className="px-1">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-sans">
+                Recursos Rápidos
+              </h3>
+            </div>
+
+            <div className="rounded-xl bg-[var(--surface-subtle)]/40 border border-[var(--border-subtle)] divide-y divide-[var(--border-subtle)] overflow-hidden">
+              <Link
+                href={`/consultoria/${consultancySlug}/planos-v2?tab=templates`}
+                className="p-3.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between group cursor-pointer"
+              >
+                <div className="space-y-0.5 min-w-0 pr-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate font-sans">
+                    Modelos Reutilizáveis
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-tertiary)] truncate font-sans">
+                    Templates para prescrição ágil
+                  </p>
+                </div>
+                <span className="text-xs text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all font-bold shrink-0">
+                  →
+                </span>
+              </Link>
+
+              <Link
+                href={`/consultoria/${consultancySlug}/planos-v2?tab=assignments`}
+                className="p-3.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between group cursor-pointer"
+              >
+                <div className="space-y-0.5 min-w-0 pr-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate font-sans">
+                    Prescrições Ativas
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-tertiary)] truncate font-sans">
+                    Dietas em uso por pacientes
+                  </p>
+                </div>
+                <span className="text-xs text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all font-bold shrink-0">
+                  →
+                </span>
+              </Link>
+
+              <Link
+                href={`/consultoria/${consultancySlug}/alimentos-v2`}
+                className="p-3.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between group cursor-pointer"
+              >
+                <div className="space-y-0.5 min-w-0 pr-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate font-sans">
+                    Tabela de Alimentos
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-tertiary)] truncate font-sans">
+                    Rótulos e tabelas nutricionais
+                  </p>
+                </div>
+                <span className="text-xs text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all font-bold shrink-0">
+                  →
+                </span>
+              </Link>
+
+              <Link
+                href={`/consultoria/${consultancySlug}/consultas`}
+                className="p-3.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between group cursor-pointer"
+              >
+                <div className="space-y-0.5 min-w-0 pr-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate font-sans">
+                    Agenda de Consultas
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-tertiary)] truncate font-sans">
+                    Atendimentos e retornos 1:1
+                  </p>
+                </div>
+                <span className="text-xs text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all font-bold shrink-0">
+                  →
+                </span>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </>

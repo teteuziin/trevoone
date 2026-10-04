@@ -142,19 +142,19 @@ export function MobileDashboardCockpit({
         </div>
       )}
 
-      {/* 5. RESUMO / INDICADORES: Faixa operacional compacta em linha */}
+      {/* 5. RESUMO / INDICADORES: Faixa operacional leve inline (NÍVEL 2 — Telemetria) */}
       {metrics.length > 0 && (
-        <div className="p-2.5 sm:p-3 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs flex items-center justify-around divide-x divide-[var(--border-subtle)]">
+        <div className="py-2.5 px-3 rounded-xl bg-[var(--surface-subtle)]/60 border border-[var(--border-subtle)] flex items-center justify-around divide-x divide-[var(--border-subtle)]">
           {metrics.map((metric, idx) => (
             <Link
               key={idx}
               href={metric.href}
-              className="flex items-center justify-center gap-2 px-2 py-1 flex-1 text-center min-h-[40px] hover:bg-[var(--surface-hover)] rounded-lg transition-colors group"
+              className="flex items-center justify-center gap-2 px-3 py-1 flex-1 text-center min-h-[38px] hover:text-[var(--brand)] transition-colors group"
             >
-              <span className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+              <span className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors font-sans tabular-nums">
                 {metric.value}
               </span>
-              <span className="text-xs text-[var(--text-secondary)] font-medium truncate">
+              <span className="text-xs text-[var(--text-secondary)] font-medium truncate font-sans">
                 {metric.title}
               </span>
             </Link>
@@ -162,10 +162,80 @@ export function MobileDashboardCockpit({
         </div>
       )}
 
-      {/* 6. ACESSOS RÁPIDOS: Lista nativa de software moderno (touch >= 48px, divisores sutis) */}
-      <div className="space-y-1.5">
+      {/* 6. CONTEÚDO RECENTE: Lista operacional com destaque e surface próprio (NÍVEL 2 — Conteúdo) */}
+      {recentSection && (
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between px-1">
+            <div className="space-y-0.5">
+              <h2 className="text-sm sm:text-base font-bold text-[var(--text-primary)] tracking-tight font-sans">
+                {recentSection.title}
+              </h2>
+              {recentSection.subtitle && (
+                <p className="text-[11px] text-[var(--text-tertiary)] font-sans">
+                  {recentSection.subtitle}
+                </p>
+              )}
+            </div>
+            <Link
+              href={recentSection.viewAllHref}
+              className="text-xs font-semibold text-[var(--brand)] hover:underline min-h-[44px] flex items-center px-1 cursor-pointer font-sans"
+            >
+              Ver todos →
+            </Link>
+          </div>
+
+          {recentSection.items.length > 0 ? (
+            <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] divide-y divide-[var(--border-subtle)] overflow-hidden shadow-2xs">
+              {recentSection.items.slice(0, 4).map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className="flex items-center justify-between p-3.5 hover:bg-[var(--surface-hover)] active:bg-[var(--surface-subtle)] transition-colors group cursor-pointer"
+                >
+                  <div className="min-w-0 flex-1 space-y-0.5 pr-2">
+                    <span className="block text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate font-sans">
+                      {item.title}
+                    </span>
+                    {(item.subtitle || item.caption) && (
+                      <span className="block text-[11px] text-[var(--text-tertiary)] truncate font-sans">
+                        {item.subtitle || item.caption}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {item.statusBadge}
+                    <svg
+                      className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:translate-x-0.5 transition-all"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <MobileEmptyState
+              title={recentSection.title}
+              description={recentSection.emptyText || "Nenhum item recente encontrado."}
+              action={
+                <Link href={recentSection.viewAllHref}>
+                  <Button variant="secondary" size="sm" className="font-semibold min-h-[44px] font-sans">
+                    Explorar
+                  </Button>
+                </Link>
+              }
+            />
+          )}
+        </div>
+      )}
+
+      {/* 7. ACESSOS RÁPIDOS: Navegação secundária leve (NÍVEL 3 — Atalhos auxiliares) */}
+      <div className="space-y-1 pt-1">
         <div className="px-1 flex items-center justify-between">
-          <span className="text-xs font-semibold text-[var(--text-secondary)]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-sans">
             Acesso rápido
           </span>
         </div>
@@ -194,17 +264,17 @@ export function MobileDashboardCockpit({
                     {action.icon}
                   </div>
                   {action.badge !== undefined && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--surface-subtle)] text-[var(--brand)] border border-[var(--border-subtle)]">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--surface-subtle)] text-[var(--brand)] border border-[var(--border-subtle)] font-sans">
                       {action.badge}
                     </span>
                   )}
                 </div>
                 <div className="space-y-0.5 pt-2">
-                  <span className="block text-xs font-bold text-[var(--text-primary)] leading-tight truncate">
+                  <span className="block text-xs font-bold text-[var(--text-primary)] leading-tight truncate font-sans">
                     {action.label}
                   </span>
                   {action.subtitle && (
-                    <span className="block text-[10px] text-[var(--text-tertiary)] leading-tight truncate">
+                    <span className="block text-[10px] text-[var(--text-tertiary)] leading-tight truncate font-sans">
                       {action.subtitle}
                     </span>
                   )}
@@ -213,37 +283,37 @@ export function MobileDashboardCockpit({
             ))}
           </div>
         ) : (
-          <div className="rounded-xl bg-[var(--surface)] border border-[var(--border-default)] divide-y divide-[var(--border-subtle)] overflow-hidden shadow-2xs">
+          <div className="divide-y divide-[var(--border-subtle)]/70">
             {quickActions.map((action) => (
               <Link
                 key={action.id}
                 href={action.href}
                 data-testid={`cockpit-action-${action.id}`}
-                className="flex items-center justify-between px-3.5 py-3 min-h-[48px] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-subtle)] transition-colors group select-none"
+                className="flex items-center justify-between py-2.5 px-1 min-h-[46px] hover:text-[var(--brand)] active:bg-[var(--surface-subtle)]/40 rounded-lg transition-colors group select-none"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] group-hover:text-[var(--brand)] transition-colors shrink-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-md bg-[var(--surface-subtle)]/80 flex items-center justify-center text-[var(--text-secondary)] group-hover:text-[var(--brand)] transition-colors shrink-0">
                     {action.icon}
                   </div>
                   <div className="min-w-0">
-                    <span className="block text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors leading-tight truncate">
+                    <span className="block text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate font-sans">
                       {action.label}
                     </span>
-                    {action.subtitle && (
-                      <span className="block text-[10px] text-[var(--text-tertiary)] leading-tight truncate mt-0.5">
-                        {action.subtitle}
-                      </span>
-                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {action.subtitle && (
+                    <span className="text-[11px] text-[var(--text-tertiary)] hidden xs:inline font-sans">
+                      {action.subtitle}
+                    </span>
+                  )}
                   {action.badge !== undefined && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--surface-subtle)] text-[var(--brand)] border border-[var(--border-subtle)]">
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[var(--surface-subtle)] text-[var(--brand)] border border-[var(--border-subtle)] font-sans">
                       {action.badge}
                     </span>
                   )}
                   <svg
-                    className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:translate-x-0.5 transition-all"
+                    className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:translate-x-0.5 transition-all"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -256,76 +326,6 @@ export function MobileDashboardCockpit({
           </div>
         )}
       </div>
-
-      {/* 7. CONTEÚDO RECENTE: Lista limpa sem card-in-card */}
-      {recentSection && (
-        <div className="space-y-2 pt-1">
-          <div className="flex items-center justify-between px-1">
-            <div className="space-y-0.5">
-              <h2 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] tracking-tight">
-                {recentSection.title}
-              </h2>
-              {recentSection.subtitle && (
-                <p className="text-[11px] text-[var(--text-tertiary)]">
-                  {recentSection.subtitle}
-                </p>
-              )}
-            </div>
-            <Link
-              href={recentSection.viewAllHref}
-              className="text-xs font-semibold text-[var(--brand)] hover:underline min-h-[44px] flex items-center px-2 cursor-pointer"
-            >
-              Ver todos →
-            </Link>
-          </div>
-
-          {recentSection.items.length > 0 ? (
-            <div className="rounded-xl bg-[var(--surface)] border border-[var(--border-default)] divide-y divide-[var(--border-subtle)] overflow-hidden shadow-2xs">
-              {recentSection.items.slice(0, 4).map((item) => (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  className="flex items-center justify-between p-3.5 hover:bg-[var(--surface-hover)] active:bg-[var(--surface-subtle)] transition-colors group cursor-pointer"
-                >
-                  <div className="min-w-0 flex-1 space-y-0.5 pr-2">
-                    <span className="block text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                      {item.title}
-                    </span>
-                    {(item.subtitle || item.caption) && (
-                      <span className="block text-[11px] text-[var(--text-tertiary)] truncate">
-                        {item.subtitle || item.caption}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {item.statusBadge}
-                    <svg
-                      className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:translate-x-0.5 transition-all"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <MobileEmptyState
-              title={recentSection.title}
-              description={recentSection.emptyText || "Nenhum item recente encontrado."}
-              action={
-                <Link href={recentSection.viewAllHref}>
-                  <Button variant="secondary" size="sm" className="font-semibold min-h-[44px]">
-                    Explorar
-                  </Button>
-                </Link>
-              }
-            />
-          )}
-        </div>
-      )}
     </div>
   );
 }

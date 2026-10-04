@@ -562,6 +562,72 @@ export function ConsultancyNavigation({
     pathname === "/conta/seguranca";
 
   const isMoreActive = !isAnyPrimaryActive && isAnySecondaryActive;
+  const isMoreButtonActive = isMoreActive || mobileMenuOpen;
+
+  // Drawer Secondary Navigation Groups (Mobile & Tablet "Mais" Screen)
+  // GESTÃO: Consultas, Membros, Missões de Gestão, Prontuários, Atendimento de Alunos/Treinos/Planos (se secundários)
+  const drawerManagementIds = new Set([
+    "atendimento-consultas",
+    "student-consultas",
+    "admin-membros",
+    "admin-missoes",
+    "nutritionist-prontuario",
+    "atendimento-alunos",
+    "personal-rotinas",
+    "nutritionist-planos",
+    "student-formularios",
+  ]);
+
+  // NEGÓCIO: Financeiro, Pagamentos, Indicações/Afiliados, Assinatura, Comissões, Missões VIP
+  const drawerBusinessIds = new Set([
+    "admin-financeiro",
+    "student-pagamentos",
+    "admin-indicacoes",
+    "influencer-indicacoes",
+    "influencer-comissoes",
+    "admin-assinatura",
+    "influencer-missoes",
+  ]);
+
+  // SISTEMA: Cotas IA, Central de Atividades, Exercícios, Alimentos, Operações
+  const drawerSystemIds = new Set([
+    "admin-ia",
+    "admin-atividades",
+    "personal-exercicios",
+    "nutritionist-alimentos",
+    "admin-operacoes",
+  ]);
+
+  const secondaryManagementItems = secondaryNavItems.filter((i) => drawerManagementIds.has(i.id));
+  const secondaryBusinessItems = secondaryNavItems.filter((i) => drawerBusinessIds.has(i.id));
+  const secondarySystemItems = secondaryNavItems.filter((i) => drawerSystemIds.has(i.id));
+  const secondaryOtherItems = secondaryNavItems.filter(
+    (i) => !drawerManagementIds.has(i.id) && !drawerBusinessIds.has(i.id) && !drawerSystemIds.has(i.id)
+  );
+
+  const drawerItemDescriptions: Record<string, string> = {
+    "admin-membros": "Gestão de profissionais e alunos",
+    "atendimento-consultas": "Agendamentos e salas ao vivo",
+    "student-consultas": "Agendamentos e videochamadas",
+    "admin-missoes": "Metas, desafios e embaixadores",
+    "influencer-missoes": "Missões ativas e recompensas",
+    "nutritionist-prontuario": "Histórico e evolução clínica",
+    "student-formularios": "Anamnese e questionários",
+    "atendimento-alunos": "Acompanhamento de alunos",
+    "personal-rotinas": "Treinos e rotinas prescritas",
+    "nutritionist-planos": "Planos e prescrições alimentares",
+    "admin-financeiro": "Cobranças, faturas e fluxo de caixa",
+    "student-pagamentos": "Faturas e comprovantes",
+    "admin-indicacoes": "Programa de afiliados e comissões",
+    "influencer-indicacoes": "Links de divulgação e ganhos",
+    "influencer-comissoes": "Histórico de repasses e comissões",
+    "admin-assinatura": "Plano e licença Trevo One",
+    "admin-ia": "Cotas e inteligência artificial",
+    "admin-atividades": "Registro de auditoria e ações",
+    "personal-exercicios": "Catálogo de vídeos e execuções",
+    "nutritionist-alimentos": "Tabela TACO e alimentos",
+    "admin-operacoes": "Rotinas e governança do negócio",
+  };
 
   // MULTI-ROLE UNIFIED EXPERIENCE: Group items into clear semantic sections
   type NavSection = {
@@ -1048,14 +1114,14 @@ export function ConsultancyNavigation({
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation-drawer"
               className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] h-full py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
-                isMoreActive
+                isMoreButtonActive
                   ? "text-[var(--brand)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               <div
                 className={`px-3 py-1 rounded-full relative flex items-center justify-center transition-all duration-150 ${
-                  isMoreActive
+                  isMoreButtonActive
                     ? "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
                     : "border border-transparent group-hover:bg-[var(--surface-hover)]"
                 }`}
@@ -1076,7 +1142,7 @@ export function ConsultancyNavigation({
               </div>
               <span
                 className={`text-[11px] tracking-tight truncate max-w-full leading-tight mt-1 text-center transition-colors duration-150 ${
-                  isMoreActive
+                  isMoreButtonActive
                     ? "font-semibold text-[var(--brand)]"
                     : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                 }`}
@@ -1089,7 +1155,7 @@ export function ConsultancyNavigation({
       )}
 
       {/* =========================================================================
-          5. DRAWER MENU (For Mobile & Tablet)
+          5. DRAWER MENU (For Mobile & Tablet "Mais" Screen)
           ========================================================================= */}
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
@@ -1108,12 +1174,12 @@ export function ConsultancyNavigation({
             aria-modal="true"
             className="relative w-full max-h-[85vh] overflow-y-auto bg-[var(--surface)] border-t border-[var(--border-default)] rounded-t-3xl p-5 shadow-2xl z-10 animate-in slide-in-from-bottom-6 duration-200 space-y-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] border-specular-t"
           >
-                        {/* Header Handle & Close */}
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+            {/* Header Handle & User Account Card */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-[var(--border-subtle)]">
               <Link
                 href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 min-w-0 group cursor-pointer"
+                className="flex items-center gap-3 min-w-0 group cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-0.5"
                 title="Ver perfil"
               >
                 <UserAvatar
@@ -1126,8 +1192,21 @@ export function ConsultancyNavigation({
                   size="md"
                 />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">{identity.fullName}</p>
-                  {identity.email && <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{identity.email}</p>}
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
+                      {identity.fullName}
+                    </p>
+                    {primaryRoleLabel && (
+                      <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
+                        {primaryRoleLabel}
+                      </span>
+                    )}
+                  </div>
+                  {identity.email && (
+                    <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
+                      {identity.email}
+                    </p>
+                  )}
                 </div>
               </Link>
               <button
@@ -1142,90 +1221,18 @@ export function ConsultancyNavigation({
               </button>
             </div>
 
-            {/* Section 1: All / Secondary Navigation Links */}
+            {/* Secondary Navigation Groups (Deduplicated from Bottom Nav) */}
             <div className="space-y-4">
-              {isStudentNavigation ? (
-                <>
-                  {/* Seção 1: Parceria VIP no Drawer */}
-                  {partnershipItems.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
-                        Benefícios VIP & Parceria
-                      </p>
-                      <nav aria-label="Benefícios VIP" className="grid grid-cols-2 gap-2">
-                        {partnershipItems.map((item) => {
-                          const active = isItemActive(item.href);
-                          return (
-                            <Link
-                              key={item.id}
-                              href={item.href}
-                              prefetch={false}
-                              onClick={() => setMobileMenuOpen(false)}
-                              aria-current={active ? "page" : undefined}
-                              className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[48px] depth-interactive ${
-                                active
-                                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <NavIcon name={item.iconName} />
-                                <span className="truncate">{item.label}</span>
-                              </div>
-                              {active && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
-                              )}
-                            </Link>
-                          );
-                        })}
-                      </nav>
-                    </div>
-                  )}
-
-                  {/* Seção 2: Serviços do Aluno no Drawer */}
-                  {servicesItems.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
-                        Serviços do Aluno
-                      </p>
-                      <nav aria-label="Serviços do Aluno" className="grid grid-cols-2 gap-2">
-                        {servicesItems.map((item) => {
-                          const active = isItemActive(item.href);
-                          return (
-                            <Link
-                              key={item.id}
-                              href={item.href}
-                              prefetch={false}
-                              onClick={() => setMobileMenuOpen(false)}
-                              aria-current={active ? "page" : undefined}
-                              className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[48px] depth-interactive ${
-                                active
-                                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <NavIcon name={item.iconName} />
-                                <span className="truncate">{item.label}</span>
-                              </div>
-                              {active && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
-                              )}
-                            </Link>
-                          );
-                        })}
-                      </nav>
-                    </div>
-                  )}
-                </>
-              ) : (
+              {/* Group 1: Gestão */}
+              {secondaryManagementItems.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
-                    Navegação completa
+                  <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+                    Gestão
                   </p>
-                  <nav aria-label="Todos os módulos" className="grid grid-cols-2 gap-2">
-                    {items.map((item) => {
+                  <nav aria-label="Gestão" className="flex flex-col gap-1.5">
+                    {secondaryManagementItems.map((item) => {
                       const active = isItemActive(item.href);
+                      const description = drawerItemDescriptions[item.id];
                       return (
                         <Link
                           key={item.id}
@@ -1233,19 +1240,270 @@ export function ConsultancyNavigation({
                           prefetch={false}
                           onClick={() => setMobileMenuOpen(false)}
                           aria-current={active ? "page" : undefined}
-                          className={`flex items-center justify-between p-3 text-xs rounded-xl border transition-all min-h-[48px] depth-interactive ${
+                          className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
                             active
-                              ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                              : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
+                              ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs"
+                              : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
                           }`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <NavIcon name={item.iconName} />
-                            <span className="truncate">{item.label}</span>
+                          <div className="flex items-center gap-3 min-w-0 pr-2">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                active
+                                  ? "bg-[var(--brand)]/15 text-[var(--brand)]"
+                                  : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
+                              }`}
+                            >
+                              <NavIcon name={item.iconName} className="w-5 h-5 shrink-0" />
+                            </div>
+                            <div className="min-w-0 flex flex-col text-left">
+                              <span
+                                className={`text-[13px] sm:text-sm truncate leading-snug ${
+                                  active
+                                    ? "font-semibold text-[var(--text-primary)]"
+                                    : "font-medium text-[var(--text-primary)]"
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+                              {description && (
+                                <span className="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
+                                  {description}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          {active && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
-                          )}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {active && (
+                              <span className="w-2 h-2 rounded-full bg-[var(--brand)] shrink-0" />
+                            )}
+                            <svg
+                              className="w-4 h-4 text-[var(--text-tertiary)] shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                </div>
+              )}
+
+              {/* Group 2: Negócio */}
+              {secondaryBusinessItems.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+                    Negócio
+                  </p>
+                  <nav aria-label="Negócio" className="flex flex-col gap-1.5">
+                    {secondaryBusinessItems.map((item) => {
+                      const active = isItemActive(item.href);
+                      const description = drawerItemDescriptions[item.id];
+                      return (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          prefetch={false}
+                          onClick={() => setMobileMenuOpen(false)}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
+                            active
+                              ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs"
+                              : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 pr-2">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                active
+                                  ? "bg-[var(--brand)]/15 text-[var(--brand)]"
+                                  : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
+                              }`}
+                            >
+                              <NavIcon name={item.iconName} className="w-5 h-5 shrink-0" />
+                            </div>
+                            <div className="min-w-0 flex flex-col text-left">
+                              <span
+                                className={`text-[13px] sm:text-sm truncate leading-snug ${
+                                  active
+                                    ? "font-semibold text-[var(--text-primary)]"
+                                    : "font-medium text-[var(--text-primary)]"
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+                              {description && (
+                                <span className="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
+                                  {description}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {active && (
+                              <span className="w-2 h-2 rounded-full bg-[var(--brand)] shrink-0" />
+                            )}
+                            <svg
+                              className="w-4 h-4 text-[var(--text-tertiary)] shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                </div>
+              )}
+
+              {/* Group 3: Sistema */}
+              {secondarySystemItems.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+                    Sistema
+                  </p>
+                  <nav aria-label="Sistema" className="flex flex-col gap-1.5">
+                    {secondarySystemItems.map((item) => {
+                      const active = isItemActive(item.href);
+                      const description = drawerItemDescriptions[item.id];
+                      return (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          prefetch={false}
+                          onClick={() => setMobileMenuOpen(false)}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
+                            active
+                              ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs"
+                              : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 pr-2">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                active
+                                  ? "bg-[var(--brand)]/15 text-[var(--brand)]"
+                                  : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
+                              }`}
+                            >
+                              <NavIcon name={item.iconName} className="w-5 h-5 shrink-0" />
+                            </div>
+                            <div className="min-w-0 flex flex-col text-left">
+                              <span
+                                className={`text-[13px] sm:text-sm truncate leading-snug ${
+                                  active
+                                    ? "font-semibold text-[var(--text-primary)]"
+                                    : "font-medium text-[var(--text-primary)]"
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+                              {description && (
+                                <span className="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
+                                  {description}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {active && (
+                              <span className="w-2 h-2 rounded-full bg-[var(--brand)] shrink-0" />
+                            )}
+                            <svg
+                              className="w-4 h-4 text-[var(--text-tertiary)] shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                </div>
+              )}
+
+              {/* Group 4: Outros Módulos (Fallback if any item not categorized) */}
+              {secondaryOtherItems.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+                    Outros módulos
+                  </p>
+                  <nav aria-label="Outros módulos" className="flex flex-col gap-1.5">
+                    {secondaryOtherItems.map((item) => {
+                      const active = isItemActive(item.href);
+                      const description = drawerItemDescriptions[item.id];
+                      return (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          prefetch={false}
+                          onClick={() => setMobileMenuOpen(false)}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
+                            active
+                              ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs"
+                              : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 pr-2">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                active
+                                  ? "bg-[var(--brand)]/15 text-[var(--brand)]"
+                                  : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
+                              }`}
+                            >
+                              <NavIcon name={item.iconName} className="w-5 h-5 shrink-0" />
+                            </div>
+                            <div className="min-w-0 flex flex-col text-left">
+                              <span
+                                className={`text-[13px] sm:text-sm truncate leading-snug ${
+                                  active
+                                    ? "font-semibold text-[var(--text-primary)]"
+                                    : "font-medium text-[var(--text-primary)]"
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+                              {description && (
+                                <span className="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
+                                  {description}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {active && (
+                              <span className="w-2 h-2 rounded-full bg-[var(--brand)] shrink-0" />
+                            )}
+                            <svg
+                              className="w-4 h-4 text-[var(--text-tertiary)] shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                          </div>
                         </Link>
                       );
                     })}
@@ -1254,9 +1512,112 @@ export function ConsultancyNavigation({
               )}
             </div>
 
-            {/* Section 2: Appearance & Theme */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+            {/* Preferências do usuário */}
+            <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
+              <p className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
+                Preferências
+              </p>
+              <nav aria-label="Preferências do usuário" className="flex flex-col gap-1.5">
+                <Link
+                  href="/notificacoes"
+                  prefetch={false}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
+                    pathname === "/notificacoes"
+                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                      <svg className="w-5 h-5 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex flex-col text-left">
+                      <span className="text-[13px] sm:text-sm font-medium text-[var(--text-primary)] truncate leading-snug">
+                        Central de notificações
+                      </span>
+                      <span className="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
+                        Alertas, mensagens e avisos
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {unreadNotificationsCount > 0 && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--brand)] text-[var(--text-inverse)]">
+                        {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+                      </span>
+                    )}
+                    <svg className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </div>
+                </Link>
+
+                <Link
+                  href={`/consultoria/${consultancySlug}/ajuda`}
+                  prefetch={false}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
+                    pathname === `/consultoria/${consultancySlug}/ajuda`
+                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                      <HelpCircle className="w-5 h-5 text-[var(--brand)]" strokeWidth={1.8} />
+                    </div>
+                    <div className="min-w-0 flex flex-col text-left">
+                      <span className="text-[13px] sm:text-sm font-medium text-[var(--text-primary)] truncate leading-snug">
+                        Ajuda & Suporte
+                      </span>
+                      <span className="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
+                        Manuais, tutoriais e atendimento
+                      </span>
+                    </div>
+                  </div>
+                  <svg className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </Link>
+
+                <Link
+                  href={`/conta/seguranca?returnTo=${encodeURIComponent(pathname)}`}
+                  prefetch={false}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[52px] depth-interactive ${
+                    pathname === "/conta/seguranca"
+                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs"
+                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)]"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                      <svg className="w-5 h-5 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex flex-col text-left">
+                      <span className="text-[13px] sm:text-sm font-medium text-[var(--text-primary)] truncate leading-snug">
+                        Conta e segurança
+                      </span>
+                      <span className="text-[11px] text-[var(--text-tertiary)] truncate leading-tight mt-0.5">
+                        Senha e dados de acesso
+                      </span>
+                    </div>
+                  </div>
+                  <svg className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </Link>
+              </nav>
+            </div>
+
+            {/* Aparência & Tema */}
+            <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
+              <span className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
                 Aparência
               </span>
               <AppearanceSegmentedControl
@@ -1266,9 +1627,9 @@ export function ConsultancyNavigation({
               />
             </div>
 
-            {/* Section 3: View Mode Selector (if multi-mode available) */}
+            {/* Alternar Perfil (se multi-role disponível) */}
             {viewModeState && viewModeState.allowedOptions.length > 1 && (
-              <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
+              <div className="pt-2 border-t border-[var(--border-subtle)]">
                 <ViewModeSelector
                   consultancySlug={consultancySlug}
                   effectiveMode={viewModeState.effectiveMode}
@@ -1279,86 +1640,19 @@ export function ConsultancyNavigation({
               </div>
             )}
 
-            {/* Section 4: Direct User Preferences */}
-            <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
-              <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-1">
-                Preferências
-              </p>
-              <nav aria-label="Preferências do usuário" className="space-y-1.5">
-                <Link
-                  href="/notificacoes"
-                  prefetch={false}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
-                    pathname === "/notificacoes"
-                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <svg className="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                    </svg>
-                    <span>Central de notificações</span>
-                  </div>
-                  {unreadNotificationsCount > 0 && (
-                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--brand)] text-[var(--text-inverse)]">
-                      {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
-                    </span>
-                  )}
-                </Link>
-
-                <Link
-                  href={`/consultoria/${consultancySlug}/ajuda`}
-                  prefetch={false}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
-                    pathname === `/consultoria/${consultancySlug}/ajuda`
-                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <HelpCircle className="w-4 h-4 text-[var(--brand)] shrink-0" strokeWidth={1.8} />
-                    <span>Ajuda & Suporte</span>
-                  </div>
-                  <span className="text-xs text-[var(--text-tertiary)]">→</span>
-                </Link>
-
-                <Link
-                  href={`/conta/seguranca?returnTo=${encodeURIComponent(pathname)}`}
-                  prefetch={false}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl border transition-all min-h-[44px] depth-interactive ${
-                    pathname === "/conta/seguranca"
-                      ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <svg className="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                    </svg>
-                    <span>Conta e segurança</span>
-                  </div>
-                  <span className="text-xs text-[var(--text-tertiary)]">→</span>
-                </Link>
-              </nav>
-            </div>
-
-            {/* Section 5: Actions */}
+            {/* Ações de Conta */}
             <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
               <Link
                 href="/selecionar-consultoria"
                 prefetch={false}
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-all min-h-[44px] shadow-2xs depth-interactive"
+                className="flex items-center justify-center w-full py-3 px-4 text-xs font-semibold text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] rounded-xl transition-all min-h-[48px] shadow-2xs depth-interactive"
               >
                 Trocar consultoria
               </Link>
               <LogoutButton
                 logoutAction={logoutFromConsultancyArea}
-                className="flex items-center justify-center w-full py-2.5 px-4 text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] bg-[var(--surface-subtle)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)] rounded-xl transition-all cursor-pointer min-h-[44px] depth-interactive"
+                className="flex items-center justify-center w-full py-3 px-4 text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] bg-[var(--surface-subtle)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)] rounded-xl transition-all cursor-pointer min-h-[48px] depth-interactive"
               >
                 Sair da conta
               </LogoutButton>

@@ -50,7 +50,7 @@ export function ViewModeSelector({
     <div className={`space-y-2 ${className}`.trim()}>
       <div className="flex items-center justify-between px-1">
         <label className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-          Alternar visualização
+          Alternar perfil
         </label>
         {effectiveMode !== defaultMode && (
           <button
@@ -67,7 +67,7 @@ export function ViewModeSelector({
       <div
         role="radiogroup"
         aria-label="Selecionar modo de experiência da consultoria"
-        className="space-y-1.5"
+        className="space-y-2"
       >
         {allowedOptions.map((opt) => {
           const isSelected = effectiveMode === opt.mode;
@@ -79,31 +79,39 @@ export function ViewModeSelector({
               aria-checked={isSelected}
               disabled={isPending}
               onClick={() => handleSelectMode(opt.mode)}
-              className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all cursor-pointer min-h-[44px] select-none text-left ${
+              className={`w-full flex items-center justify-between p-3 rounded-2xl border text-xs transition-all cursor-pointer min-h-[48px] select-none text-left depth-interactive ${
                 isSelected
-                  ? "bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                  ? "bg-[var(--brand)]/10 text-[var(--text-primary)] border-[var(--brand)]/40 shadow-xs font-semibold"
                   : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
               }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
-                    isSelected ? "bg-[var(--brand)] ring-2 ring-[var(--brand-soft)]" : "bg-[var(--border-strong)]"
+                  className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                    isSelected
+                      ? "bg-[var(--brand)] text-[var(--text-inverse)] shadow-2xs"
+                      : "border border-[var(--border-strong)] bg-[var(--surface)]"
                   }`}
-                />
-                <span className="truncate">{opt.label}</span>
+                >
+                  {isSelected && (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
+                </div>
+                <span className="truncate text-sm">{opt.label}</span>
               </div>
 
               <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 border ${
-                  opt.isRealRole
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 border ${
+                  isSelected
+                    ? "bg-[var(--brand)]/15 text-[var(--brand)] border-[var(--brand)]/30"
+                    : opt.isRealRole
                     ? "bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border-[var(--border-subtle)]"
-                    : isSelected
-                    ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)]"
                     : "bg-[var(--surface)] text-[var(--text-secondary)] border-[var(--border-default)]"
                 }`}
               >
-                {opt.isRealRole ? "Seu papel" : "Demonstração"}
+                {opt.isRealRole ? "Seu perfil" : "Demonstração"}
               </span>
             </button>
           );

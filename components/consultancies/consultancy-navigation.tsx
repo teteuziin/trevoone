@@ -57,19 +57,25 @@ export interface ConsultancyNavigationProps {
 
 type ThemeMode = "light" | "dark" | "system";
 
-function NavIcon({ name }: { name: NavItemConfig["iconName"] }) {
+function NavIcon({
+  name,
+  className = "w-5 h-5 shrink-0",
+}: {
+  name: NavItemConfig["iconName"];
+  className?: string;
+}) {
   switch (name) {
     case "overview":
       // Clean home cockpit architecture
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 9.75L12 3l9 6.75M4.5 10.5V20.25a.75.75 0 00.75.75H9v-5.25a.75.75 0 01.75-.75h4.5a.75.75 0 01.75.75V21h3.75a.75.75 0 00.75-.75V10.5" />
         </svg>
       );
     case "training":
       // Unmistakable gym barbell / dumbbell
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 9l3-3 2 2-3 3z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 20l3-3 2 2-3 3z" />
@@ -82,7 +88,7 @@ function NavIcon({ name }: { name: NavItemConfig["iconName"] }) {
     case "nutrition":
       // Organic nutrition leaf & apple silhouette
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 2c1.8 2.2 1.5 4 0 5.5" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 7C5.2 7.5 3 10.5 3 14c0 4 3 6.5 5.5 6.5 2 0 2.5-.8 3.5-.8s1.5.8 3.5.8c2.5 0 5.5-2.5 5.5-6.5 0-3.5-2.2-6.5-5.5-7-1.2-.2-2.3.4-3.5.4S9.7 6.8 8.5 7z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v5" />
@@ -91,7 +97,7 @@ function NavIcon({ name }: { name: NavItemConfig["iconName"] }) {
     case "progress":
       // Body metrics & progress growth chart with tracking milestone
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 20h18M3.5 15.5l5.5-5.5 4 4 7-7.5" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 6.5H20V11" />
           <circle cx="13" cy="14" r="1.25" fill="currentColor" />
@@ -100,14 +106,14 @@ function NavIcon({ name }: { name: NavItemConfig["iconName"] }) {
     case "prescriptions":
       // Clinical prescription sheet with lines
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       );
     case "exercises":
       // Exercises library rack / weights
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <rect x="3" y="4" width="18" height="16" rx="2" strokeLinecap="round" strokeLinejoin="round" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M8 10v10M16 10v10" />
         </svg>
@@ -115,58 +121,75 @@ function NavIcon({ name }: { name: NavItemConfig["iconName"] }) {
     case "members":
       // Team members multi-person silhouette
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0112 15a6.062 6.062 0 015.963 4.416zM15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
         </svg>
       );
     case "onboarding":
       // Checkmark checklist / intake form
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
         </svg>
       );
     case "finance":
       // Executive wallet with card slot and coin
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 110-6h3.75A2.25 2.25 0 0121 6v12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18V6a2.25 2.25 0 012.25-2.25H15M18 13.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
         </svg>
       );
     case "subscription":
       // SaaS Platform Subscription / Shield
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
         </svg>
       );
     case "missions":
       // VIP Ambassador Trophy / Badge
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.504-1.125-1.125-1.125h-6.75c-.621 0-1.125.504-1.125 1.125V18.75m10.5-12.75h1.875a3.375 3.375 0 013.375 3.375c0 1.63-1.162 2.986-2.705 3.284A6.002 6.002 0 0116.5 15V6zm-9 0H5.625A3.375 3.375 0 002.25 9.375c0 1.63 1.162 2.986 2.705 3.284A6.002 6.002 0 007.5 15V6zm0 0v9m9-9v9" />
         </svg>
       );
     case "activity":
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       );
     case "consultations":
       // Video Teleconsultation Camera / Schedule
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+        </svg>
+      );
+    case "operations":
+      // Executive operations & business control center
+      return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      );
+    case "referrals":
+      // Referral network & affiliates
+      return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
         </svg>
       );
     case "ai":
       // Sparkles AI / Automation
       return (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
         </svg>
       );
+    default:
+      return null;
   }
 }
 
@@ -989,33 +1012,30 @@ export function ConsultancyNavigation({
                   href={item.href}
                   prefetch={false}
                   aria-current={active ? "page" : undefined}
-                  className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
+                  className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] h-full py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                     active
                       ? "text-[var(--brand)]"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <div
-                    className={`p-1.5 rounded-xl transition-all duration-150 ${
+                    className={`px-3 py-1 rounded-full relative flex items-center justify-center transition-all duration-150 ${
                       active
                         ? "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
-                        : "group-hover:bg-[var(--surface-hover)]"
+                        : "border border-transparent group-hover:bg-[var(--surface-hover)]"
                     }`}
                   >
-                    <NavIcon name={item.iconName} />
+                    <NavIcon name={item.iconName} className="w-[22px] h-[22px] shrink-0" />
                   </div>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span
-                      className={`text-[10px] tracking-tight truncate max-w-full leading-tight ${
-                        active ? "font-bold text-[var(--brand)]" : "font-medium text-[var(--text-tertiary)]"
-                      }`}
-                    >
-                      {item.mobileLabel || item.label}
-                    </span>
-                    {active && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
-                    )}
-                  </div>
+                  <span
+                    className={`text-[11px] tracking-tight truncate max-w-full leading-tight mt-1 text-center transition-colors duration-150 ${
+                      active
+                        ? "font-semibold text-[var(--brand)]"
+                        : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {item.mobileLabel || item.label}
+                  </span>
                 </Link>
               );
             })}
@@ -1027,49 +1047,42 @@ export function ConsultancyNavigation({
               aria-label="Mais opções de navegação"
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation-drawer"
-              className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
+              className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] h-full py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                 isMoreActive
                   ? "text-[var(--brand)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               <div
-                className={`p-1.5 rounded-xl relative transition-all duration-150 ${
+                className={`px-3 py-1 rounded-full relative flex items-center justify-center transition-all duration-150 ${
                   isMoreActive
                     ? "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
-                    : "group-hover:bg-[var(--surface-hover)]"
+                    : "border border-transparent group-hover:bg-[var(--surface-hover)]"
                 }`}
               >
                 <svg
-                  className="w-5 h-5 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
+                  className="w-[22px] h-[22px] shrink-0"
+                  fill="currentColor"
                   viewBox="0 0 24 24"
-                  strokeWidth={1.8}
                   aria-hidden="true"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
-                  />
+                  <circle cx="5" cy="12" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="19" cy="12" r="2" />
                 </svg>
                 {unreadNotificationsCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--brand)] ring-2 ring-[var(--surface)]" />
                 )}
               </div>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span
-                  className={`text-[10px] tracking-tight truncate leading-tight ${
-                    isMoreActive ? "font-bold text-[var(--brand)]" : "font-medium text-[var(--text-tertiary)]"
-                  }`}
-                >
-                  Mais
-                </span>
-                {isMoreActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
-                )}
-              </div>
+              <span
+                className={`text-[11px] tracking-tight truncate max-w-full leading-tight mt-1 text-center transition-colors duration-150 ${
+                  isMoreActive
+                    ? "font-semibold text-[var(--brand)]"
+                    : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Mais
+              </span>
             </button>
           </div>
         </nav>

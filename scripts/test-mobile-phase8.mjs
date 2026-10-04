@@ -116,14 +116,65 @@ runTest("Parte A: Touch targets on bottom navigation meet or exceed 48px", () =>
   );
 });
 
-runTest("Parte A: Active state indicator has pill/background + brand color + dot indicator", () => {
+runTest("Parte A: Active state indicator has pill/background + brand color with clean non-redundant hierarchy", () => {
   assert.ok(
-    consultancyNavCode.includes("bg-[var(--brand)]/15 text-[var(--brand)]"),
+    consultancyNavCode.includes("bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"),
     "Active bottom nav item must feature highlighted brand pill"
   );
   assert.ok(
-    consultancyNavCode.includes("rounded-full bg-[var(--brand)] shrink-0"),
-    "Active item must have high-contrast dot indicator"
+    consultancyNavCode.includes("font-semibold text-[var(--brand)]"),
+    "Active bottom nav item must feature brand bold/semibold label"
+  );
+  // Redundant dot next to label has been removed from mobile bottom nav to avoid 3 conflicting indicators and preserve label symmetry:
+  const mobileNavMatch = consultancyNavCode.match(/aria-label="Navegação rápida móvel"[\s\S]*?<\/nav>/);
+  assert.ok(mobileNavMatch, "Mobile bottom nav section must exist");
+  assert.ok(
+    !mobileNavMatch[0].includes("w-1.5 h-1.5 rounded-full"),
+    "Redundant dot indicator removed from bottom nav for clean native app appearance"
+  );
+});
+
+runTest("Parte A: Bottom nav icons are 22-24px visual size and consistent across all items", () => {
+  assert.ok(
+    consultancyNavCode.includes('className="w-[22px] h-[22px] shrink-0"'),
+    "Bottom navigation icons must use 22px visual size (w-[22px] h-[22px])"
+  );
+  assert.ok(
+    consultancyNavCode.includes('case "operations":'),
+    "NavIcon must define dedicated operations center icon for Operações"
+  );
+});
+
+runTest("Parte A: Bottom nav labels are 11-12px font-medium for comfortable mobile reading", () => {
+  assert.ok(
+    consultancyNavCode.includes("text-[11px]"),
+    "Bottom navigation labels must be 11px font size"
+  );
+  assert.ok(
+    consultancyNavCode.includes("font-medium text-[var(--text-secondary)]"),
+    "Inactive labels must be readable with font-medium and text-secondary contrast"
+  );
+});
+
+runTest("Parte A: All items including 'Mais' share identical vertical layout and pill structure", () => {
+  assert.ok(
+    consultancyNavCode.includes('px-3 py-1 rounded-full relative flex items-center justify-center'),
+    "Items and 'Mais' button must share identical pill container structure"
+  );
+  assert.ok(
+    consultancyNavCode.includes('<circle cx="5" cy="12" r="2" />'),
+    "'Mais' button must feature solid, balanced vector circles matching optical weight"
+  );
+});
+
+runTest("Parte A: Responsive layout supports 320px to 430px viewports without horizontal overflow", () => {
+  assert.ok(
+    consultancyNavCode.includes("flex-1 min-w-0"),
+    "Each item must have flex-1 min-w-0 for even distribution"
+  );
+  assert.ok(
+    consultancyNavCode.includes("truncate max-w-full"),
+    "Labels must truncate with max-w-full to prevent any horizontal overflow on narrow screens"
   );
 });
 

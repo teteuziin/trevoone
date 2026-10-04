@@ -176,7 +176,7 @@ export function UserProfileForm({ initialProfile }: UserProfileFormProps) {
       {/* Photo & Identity Section */}
       <section
         aria-labelledby="profile-photo-heading"
-        className="p-5 sm:p-7 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-6"
+        className="p-5 sm:p-7 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-6"
       >
         <div className="space-y-1">
           <h2
@@ -274,7 +274,7 @@ export function UserProfileForm({ initialProfile }: UserProfileFormProps) {
       {/* Username Configuration Section */}
       <section
         aria-labelledby="username-heading"
-        className="p-5 sm:p-7 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-5"
+        className="p-5 sm:p-7 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-5"
       >
         <div className="space-y-1">
           <h2
@@ -350,7 +350,7 @@ export function UserProfileForm({ initialProfile }: UserProfileFormProps) {
       {/* Account Info & Security Link */}
       <section
         aria-labelledby="account-info-heading"
-        className="p-5 sm:p-7 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4"
+        className="p-5 sm:p-7 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4"
       >
         <div className="space-y-1">
           <h2

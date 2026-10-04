@@ -155,7 +155,7 @@ export function MobileCard({
   selected = false,
 }: MobileCardProps) {
   const isInteractive = Boolean(onClick || href);
-  const baseClasses = `p-4 rounded-2xl bg-[var(--surface)] border transition-all duration-150 ${
+  const baseClasses = `p-4 rounded-xl bg-[var(--surface)] border transition-all duration-150 ${
     selected
       ? "border-[var(--brand)] bg-[var(--brand)]/5 ring-1 ring-[var(--brand)] shadow-sm"
       : "border-[var(--border-default)] shadow-2xs hover:border-[var(--border-strong)]"
@@ -258,7 +258,7 @@ export function MobileListItem({
     </div>
   );
 
-  const containerClasses = `flex items-center min-h-[52px] p-3.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] transition-all duration-150 ${
+  const containerClasses = `flex items-center min-h-[52px] p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] transition-all duration-150 ${
     isInteractive
       ? "cursor-pointer active:scale-[0.99] hover:bg-[var(--surface-hover)] hover:border-[var(--border-default)] select-none"
       : ""
@@ -342,7 +342,7 @@ export function MobileBottomSheet({
         role="dialog"
         aria-modal="true"
         aria-label={typeof title === "string" ? title : "Painel"}
-        className={`w-full sm:max-w-lg bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8 duration-200 ${className}`.trim()}
+        className={`w-full sm:max-w-lg bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-2xl sm:rounded-xl shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8 duration-200 ${className}`.trim()}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle */}
@@ -423,7 +423,7 @@ export function MobileActionSheet({
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-md bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-3xl shadow-2xl p-4 space-y-3 animate-in slide-in-from-bottom-8 duration-200 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))]"
+        className="w-full sm:max-w-md bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-2xl sm:rounded-xl shadow-2xl p-4 space-y-3 animate-in slide-in-from-bottom-8 duration-200 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="pt-1 pb-1 flex justify-center sm:hidden">
@@ -510,7 +510,7 @@ export function MobileConfirmSheet({
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-md bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 space-y-4 animate-in slide-in-from-bottom-8 duration-200 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
+        className="w-full sm:max-w-md bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-2xl sm:rounded-xl shadow-2xl p-5 space-y-4 animate-in slide-in-from-bottom-8 duration-200 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="pt-1 pb-1 flex justify-center sm:hidden">
@@ -519,7 +519,7 @@ export function MobileConfirmSheet({
 
         <div className="text-center space-y-2 pt-2">
           <div
-            className={`w-12 h-12 mx-auto rounded-2xl flex items-center justify-center ${
+            className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center ${
               variant === "danger"
                 ? "bg-red-500/10 text-red-600 dark:text-red-400"
                 : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
@@ -621,7 +621,7 @@ export function MobileFormSection({
   return (
     <div
       data-testid="mobile-form-section"
-      className={`p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-4 ${className}`.trim()}
+      className={`p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] space-y-4 ${className}`.trim()}
     >
       {(title || subtitle) && (
         <div className="space-y-0.5 pb-1 border-b border-[var(--border-subtle)]">
@@ -754,9 +754,9 @@ export function MobileEmptyState({
   return (
     <div
       data-testid="mobile-empty-state"
-      className={`p-6 sm:p-8 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] text-center space-y-3.5 shadow-2xs ${className}`.trim()}
+      className={`p-6 sm:p-8 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-center space-y-3.5 shadow-2xs ${className}`.trim()}
     >
-      <div className="w-12 h-12 mx-auto rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-tertiary)]">
+      <div className="w-12 h-12 mx-auto rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-tertiary)]">
         {icon || (
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <circle cx="12" cy="12" r="10" />
@@ -805,7 +805,7 @@ export function MobileLoadingState({
       {Array.from({ length: cardsCount }).map((_, i) => (
         <div
           key={i}
-          className="h-20 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] animate-pulse"
+          className="h-20 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] animate-pulse"
         />
       ))}
     </div>
@@ -897,7 +897,7 @@ export function MobileSegmentedControl({
   return (
     <div
       data-testid="mobile-segmented-control"
-      className={`flex items-center p-1 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] select-none ${className}`.trim()}
+      className={`flex items-center p-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] select-none ${className}`.trim()}
     >
       {options.map((opt) => {
         const isSelected = opt.id === value;

@@ -144,7 +144,7 @@ export function NutritionTemplatesModal({
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-        <div className="w-full sm:max-w-3xl bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
+        <div className="w-full sm:max-w-3xl bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
           {/* Mobile Drag Handle */}
           <div className="pt-2.5 pb-1 flex justify-center sm:hidden">
             <div className="w-12 h-1.5 rounded-full bg-[var(--border-strong)]" />
@@ -195,7 +195,7 @@ export function NutritionTemplatesModal({
               </div>
             ) : templates.length === 0 ? (
               <div className="py-16 text-center space-y-3 px-4">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] flex items-center justify-center mx-auto">
                   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
@@ -214,7 +214,7 @@ export function NutritionTemplatesModal({
                 {templates.map((tmpl) => (
                   <div
                     key={tmpl.publicId}
-                    className="p-4 sm:p-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:border-[var(--brand-soft-border)] transition-all flex flex-col justify-between gap-3 depth-surface"
+                    className="p-4 sm:p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:border-[var(--brand-soft-border)] transition-all flex flex-col justify-between gap-3 depth-surface"
                   >
                     {editingTemplateId === tmpl.publicId ? (
                       <div className="space-y-3">

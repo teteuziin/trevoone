@@ -471,7 +471,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
         </div>
 
         {/* Mobile Compact Totals Bar / Accordion */}
-        <div className="lg:hidden p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+        <div className="lg:hidden p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Total Diário</span>
@@ -523,7 +523,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
           {/* LEFT / MAIN WORKSPACE: Plan Header & Meals */}
           <div className="lg:col-span-8 space-y-6">
             {/* Plan Header Card */}
-        <div className="p-5 sm:p-6 md:p-7 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-5 depth-surface">
+        <div className="p-5 sm:p-6 md:p-7 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-5 depth-surface">
           {!isEditingMetadata ? (
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2 min-w-0">
@@ -694,7 +694,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
 
           {/* Add Meal Form */}
           {!isReadOnly && isAddingMeal && (
-            <div className="p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--brand)]/40 shadow-sm space-y-4 depth-surface">
+            <div className="p-5 sm:p-6 rounded-xl bg-[var(--surface)] border border-[var(--brand)]/40 shadow-sm space-y-4 depth-surface">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">Nova Refeição</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2">
@@ -759,8 +759,8 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
 
           {/* Empty state */}
           {tree.meals.length === 0 && !isAddingMeal && (
-            <div className="text-center py-16 px-4 bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-2xl space-y-3 depth-surface">
-              <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center mx-auto shadow-2xs">
+            <div className="text-center py-16 px-4 bg-[var(--surface)] border border-dashed border-[var(--border-default)] rounded-xl space-y-3 depth-surface">
+              <div className="w-12 h-12 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] flex items-center justify-center mx-auto shadow-2xs">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
@@ -878,7 +878,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
         </div>
 
         {/* Alunos Prescritos Section */}
-        <div className="p-5 sm:p-6 md:p-7 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface">
+        <div className="p-5 sm:p-6 md:p-7 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="space-y-0.5">
               <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
@@ -914,7 +914,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
       {/* RIGHT / STICKY PANEL: Nutritional Analysis */}
       <div className="hidden lg:block lg:col-span-4 lg:sticky lg:top-6 space-y-4">
         {/* Daily Totals Cockpit */}
-        <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4">
+        <div className="p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
@@ -1011,7 +1011,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
               <button
                 type="button"
                 onClick={() => setIsAddingMeal(true)}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] active:scale-98 transition-all min-h-[44px] cursor-pointer"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] active:scale-98 transition-all min-h-[44px] cursor-pointer"
               >
                 <PlusIcon className="w-4 h-4 text-[var(--brand)] shrink-0" />
                 <span>+ Refeição</span>
@@ -1019,7 +1019,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
               <button
                 type="button"
                 onClick={() => setIsPublishDialogOpen(true)}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs font-bold shadow-sm active:scale-98 transition-all min-h-[44px] cursor-pointer"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-4 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs font-bold shadow-sm active:scale-98 transition-all min-h-[44px] cursor-pointer"
               >
                 <CheckIcon className="w-4 h-4 shrink-0" />
                 <span>Publicar Plano</span>
@@ -1031,7 +1031,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
                 <button
                   type="button"
                   onClick={() => setIsAssignModalOpen(true)}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs font-bold shadow-sm active:scale-98 transition-all min-h-[44px] cursor-pointer"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white text-xs font-bold shadow-sm active:scale-98 transition-all min-h-[44px] cursor-pointer"
                 >
                   <UserPlusIcon className="w-4 h-4 shrink-0" />
                   <span>Prescrever</span>
@@ -1042,7 +1042,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
                   type="button"
                   onClick={handleCreateNextVersion}
                   disabled={isCreatingVersion}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] active:scale-98 transition-all min-h-[44px] cursor-pointer disabled:opacity-50"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] active:scale-98 transition-all min-h-[44px] cursor-pointer disabled:opacity-50"
                 >
                   <PlusIcon className="w-4 h-4 shrink-0" />
                   <span>{isCreatingVersion ? "Criando..." : "Nova Versão"}</span>

@@ -68,11 +68,11 @@ export const COMBINATION_TYPE_LABELS: Record<WorkoutCombinationType, string> = {
 };
 
 export const COMBINATION_BADGE_STYLES: Record<WorkoutCombinationType, string> = {
-  BI_SET: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-  TRI_SET: "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30",
-  SUPERSET: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
-  GIANT_SET: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30",
-  CIRCUIT: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+  BI_SET: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
+  TRI_SET: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
+  SUPERSET: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
+  GIANT_SET: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
+  CIRCUIT: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
 };
 
 function MoreVertical({ className = "w-4 h-4" }: { className?: string }) {

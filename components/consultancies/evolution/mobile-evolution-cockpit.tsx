@@ -224,7 +224,7 @@ export function MobileEvolutionCockpit({
             <img
               src={zoomImage.url}
               alt={zoomImage.title}
-              className="max-h-[80vh] w-auto rounded-2xl object-contain border border-white/20 shadow-2xl"
+              className="max-h-[80vh] w-auto rounded-xl object-contain border border-white/20 shadow-2xl"
             />
           </div>
         </div>
@@ -246,7 +246,7 @@ export function MobileEvolutionCockpit({
           1. HEADER CONTEXT & TOP HERO CARD
           Answers: "Como estou agora? O que mudou? Qual foi minha última avaliação?"
           ========================================================================= */}
-      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 space-y-3.5 shadow-2xs depth-surface">
+      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 space-y-3.5 shadow-2xs depth-surface">
         <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[var(--brand)]" />
@@ -268,7 +268,7 @@ export function MobileEvolutionCockpit({
         {/* STATE A: ZERO EVALUATIONS */}
         {milestones.length === 0 && (
           <div className="py-6 px-3 text-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] mx-auto flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--brand)] mx-auto flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
@@ -491,7 +491,7 @@ export function MobileEvolutionCockpit({
           2. PENDING PHOTO BANNER (if active request exists)
           ========================================================================= */}
       {activePendingPhotoRequest && (
-        <div className="p-3.5 rounded-2xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] space-y-2">
+        <div className="p-3.5 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] space-y-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-[var(--brand-foreground)]">
               Fotos de Avaliação: {activePendingPhotoRequest.statusLabel}
@@ -521,7 +521,7 @@ export function MobileEvolutionCockpit({
           3. COMPARISON VIEW (When user clicks "Comparar avaliações")
           ========================================================================= */}
       {isComparing && milestones.length >= 2 && (
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 space-y-4 shadow-xs animate-in fade-in">
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 space-y-4 shadow-xs animate-in fade-in">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
@@ -754,7 +754,7 @@ export function MobileEvolutionCockpit({
           "Um gráfico por contexto. Seletor de métrica. Sem overflow horizontal."
           ========================================================================= */}
       {milestones.length >= 2 && (
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 space-y-3.5 shadow-2xs depth-surface">
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 space-y-3.5 shadow-2xs depth-surface">
           {/* Header & Period Filter Chips */}
           <div className="flex items-center justify-between gap-2 flex-wrap border-b border-[var(--border-subtle)] pb-2.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
@@ -972,7 +972,7 @@ export function MobileEvolutionCockpit({
           5. RECENT EVOLUTION PHOTOS CAROUSEL / GRID
           ========================================================================= */}
       {latestMilestone?.photos && (
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 space-y-3 shadow-2xs depth-surface">
+        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 space-y-3 shadow-2xs depth-surface">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
@@ -1054,7 +1054,7 @@ export function MobileEvolutionCockpit({
               return (
                 <div
                   key={m.id}
-                  className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 space-y-2.5 shadow-2xs depth-surface"
+                  className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 space-y-2.5 shadow-2xs depth-surface"
                 >
                   {/* Card Header */}
                   <div className="flex items-center justify-between">

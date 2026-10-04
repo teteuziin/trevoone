@@ -173,7 +173,7 @@ export function StudentNutritionV2({
       {/* MOBILE NATIVE STUDENT COCKPIT (< sm) */}
       <div className="sm:hidden space-y-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">
         {/* Context & Plan Header Card */}
-        <div className="bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-2xl p-4 space-y-3 shadow-2xs">
+        <div className="bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-xl p-4 space-y-3 shadow-2xs">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] uppercase font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
               {plan.consultancyName}
@@ -205,7 +205,7 @@ export function StudentNutritionV2({
 
         {/* Daily Macros Grid */}
         {plan.totals.hasAnyMacro && (
-          <div className="bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-2xl p-3.5 space-y-2 shadow-2xs">
+          <div className="bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-xl p-3.5 space-y-2 shadow-2xs">
             <div className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
               Metas Nutricionais Diárias
             </div>
@@ -245,7 +245,7 @@ export function StudentNutritionV2({
 
         {/* Current / Next Meal Highlight Card */}
         {nextMeal && (
-          <div className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent border border-emerald-500/30 rounded-2xl p-4 space-y-3 shadow-xs">
+          <div className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent border border-emerald-500/30 rounded-xl p-4 space-y-3 shadow-xs">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 <span className="relative flex h-2 w-2">
@@ -374,7 +374,7 @@ export function StudentNutritionV2({
         {/* All Meals Cards */}
         <div className="space-y-3 pt-1">
           {plan.meals.length === 0 ? (
-            <div className="py-12 text-center text-xs text-[var(--text-tertiary)] bg-[var(--surface-elevated)] rounded-2xl border border-[var(--border-default)]">
+            <div className="py-12 text-center text-xs text-[var(--text-tertiary)] bg-[var(--surface-elevated)] rounded-xl border border-[var(--border-default)]">
               Nenhuma refeição cadastrada para este plano alimentar.
             </div>
           ) : (
@@ -382,7 +382,7 @@ export function StudentNutritionV2({
               <div
                 key={meal.id}
                 id={`meal-mobile-${meal.id}`}
-                className="bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-2xl p-4 space-y-3 shadow-2xs scroll-mt-4"
+                className="bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-xl p-4 space-y-3 shadow-2xs scroll-mt-4"
               >
                 {/* Meal Header */}
                 <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
@@ -467,7 +467,7 @@ export function StudentNutritionV2({
 
         {/* Micronutrientes (Collapsible) */}
         {plan.micronutrients && plan.micronutrients.length > 0 && (
-          <details className="group bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-2xl p-4 text-xs shadow-2xs">
+          <details className="group bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-xl p-4 text-xs shadow-2xs">
             <summary className="cursor-pointer font-semibold text-[var(--text-primary)] flex items-center justify-between select-none">
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -494,7 +494,7 @@ export function StudentNutritionV2({
       </div>
 
       {/* DESKTOP CARDÁPIO CONTINUOUS SHEET (hidden sm:block) */}
-      <div className="hidden sm:block bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-2xl sm:rounded-3xl shadow-sm p-4 sm:p-9 space-y-6 text-[var(--text-primary)] transition-colors">
+      <div className="hidden sm:block bg-[var(--surface-elevated)] border border-[var(--border-default)] rounded-xl shadow-sm p-4 sm:p-9 space-y-6 text-[var(--text-primary)] transition-colors">
         {/* 3. Document Header (Editorial format) */}
         <header className="border-b border-[var(--border-subtle)] pb-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">

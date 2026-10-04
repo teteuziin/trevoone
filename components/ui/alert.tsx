@@ -76,7 +76,7 @@ export function Alert({
   return (
     <div
       role="alert"
-      className={`flex items-start gap-3 p-4 rounded-2xl border shadow-xs text-xs sm:text-sm leading-relaxed ${styles.container} ${className}`.trim()}
+      className={`flex items-start gap-3 p-4 rounded-xl border shadow-xs text-xs sm:text-sm leading-relaxed ${styles.container} ${className}`.trim()}
       {...props}
     >
       <div className={`shrink-0 mt-0.5 ${styles.icon}`}>

@@ -181,7 +181,7 @@ export function Evolution360Hub({
       {/* DESKTOP 360° EVOLUTION SURFACE (hidden sm:block) */}
       <div className="hidden sm:block space-y-6">
         {/* Top 360° Evolution Summary Banner */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 border-specular-t depth-surface">
+      <div className="p-5 sm:p-6 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4 border-specular-t depth-surface">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -217,7 +217,7 @@ export function Evolution360Hub({
 
         {/* 4 Summary Stat Cards (Rule 6: NULL handling, no fake zero) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+          <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
             <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block">
               Ponto de Partida
             </span>
@@ -233,7 +233,7 @@ export function Evolution360Hub({
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+          <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
             <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block">
               Ponto Atual
             </span>
@@ -249,7 +249,7 @@ export function Evolution360Hub({
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+          <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
             <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block">
               Variação Total
             </span>
@@ -273,7 +273,7 @@ export function Evolution360Hub({
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+          <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
             <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase block">
               Marcos no Tempo
             </span>
@@ -291,7 +291,7 @@ export function Evolution360Hub({
 
       {/* Dynamic Pending Action Banner */}
       {activePendingPhotoRequest && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[var(--brand)] animate-pulse" />
@@ -403,7 +403,7 @@ export function Evolution360Hub({
             onClose={() => handleSelectTab("timeline")}
           />
         ) : (
-          <div className="p-8 text-center space-y-3 bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl">
+          <div className="p-8 text-center space-y-3 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl">
             <h4 className="text-base font-bold text-[var(--text-primary)]">
               Comparação indisponível no momento
             </h4>
@@ -425,7 +425,7 @@ export function Evolution360Hub({
       {activeTab === "fotos" && (
         isLoadingPhotos ? (
           <div
-            className="p-8 sm:p-12 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-6 animate-pulse"
+            className="p-8 sm:p-12 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-6 animate-pulse"
             aria-busy="true"
             aria-label="Carregando fotos corporais"
           >
@@ -437,7 +437,7 @@ export function Evolution360Hub({
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="aspect-3/4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center"
+                  className="aspect-3/4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center"
                 >
                   <div className="h-4 w-16 bg-[var(--border-default)] rounded-md" />
                 </div>
@@ -445,7 +445,7 @@ export function Evolution360Hub({
             </div>
           </div>
         ) : photoError ? (
-          <div className="p-8 text-center space-y-4 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs">
+          <div className="p-8 text-center space-y-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs">
             <p className="text-sm font-medium text-[var(--text-secondary)]">{photoError}</p>
             <Button type="button" size="sm" onClick={loadPhotos} variant="outline">
               Tentar novamente

@@ -1139,14 +1139,14 @@ export function WorkoutBuilder({
     <div className="space-y-6">
       {/* Toast Feedback Notification */}
       {feedbackMessage && (
-        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl bg-[var(--surface)] border border-emerald-500 shadow-xl text-xs sm:text-sm font-bold text-[var(--text-primary)] flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200">
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-[var(--surface)] border border-emerald-500 shadow-xl text-xs sm:text-sm font-bold text-[var(--text-primary)] flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200">
           <div className="w-2 h-2 rounded-full bg-emerald-500" />
           <span>{feedbackMessage}</span>
         </div>
       )}
 
       {/* Top Header Card */}
-      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-4">
+      <div className="p-4 sm:p-6 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           {/* Ficha Title and Sub-details */}
           <div className="space-y-1.5 flex-1 min-w-0">
@@ -1166,7 +1166,7 @@ export function WorkoutBuilder({
                   : `Publicado V${version.versionNumber}`}
               </span>
               {workout.isTemplate && (
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
                   Modelo
                 </span>
               )}
@@ -1291,7 +1291,7 @@ export function WorkoutBuilder({
                 {isHeaderMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-30" onClick={() => setIsHeaderMenuOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                    <div className="absolute right-0 top-full mt-1.5 w-52 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
                       {/* Mobile-Only Quick Access Actions */}
                       <div className="p-1 space-y-0.5 sm:hidden">
                         <button
@@ -1477,8 +1477,8 @@ export function WorkoutBuilder({
         {/* Central Categories List (12 cols on mobile, 9 cols on desktop) */}
         <div className="lg:col-span-8 xl:col-span-9 space-y-4">
           {categories.length === 0 ? (
-            <div className="p-8 sm:p-12 text-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface)] space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+            <div className="p-8 sm:p-12 text-center rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface)] space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                 <PlusIcon className="w-6 h-6" />
               </div>
               <div className="space-y-1 max-w-sm mx-auto">
@@ -1493,7 +1493,7 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={() => setIsCreatingCategory(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer"
                 >
                   <PlusIcon className="w-4 h-4" />
                   <span>Criar primeira categoria</span>
@@ -1599,7 +1599,7 @@ export function WorkoutBuilder({
           {isDraft && (
             <div className="pt-2">
               {isCreatingCategory ? (
-                <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-emerald-500 bg-[var(--surface)] shadow-md ring-2 ring-emerald-500/20 space-y-3.5 animate-in fade-in duration-150">
+                <div className="p-4 sm:p-5 rounded-xl border border-emerald-500 bg-[var(--surface)] shadow-md ring-2 ring-emerald-500/20 space-y-3.5 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                       Nova Categoria
@@ -1659,7 +1659,7 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={() => setIsCreatingCategory(true)}
-                  className="w-full py-3.5 sm:py-4 px-6 rounded-2xl sm:rounded-3xl border-2 border-dashed border-[var(--border-default)] hover:border-emerald-500 bg-[var(--surface)] hover:bg-emerald-500/5 text-[var(--text-primary)] hover:text-emerald-600 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-2xs min-h-[50px] cursor-pointer"
+                  className="w-full py-3.5 sm:py-4 px-6 rounded-xl border-2 border-dashed border-[var(--border-default)] hover:border-emerald-500 bg-[var(--surface)] hover:bg-emerald-500/5 text-[var(--text-primary)] hover:text-emerald-600 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-2xs min-h-[50px] cursor-pointer"
                 >
                   <PlusIcon className="w-5 h-5 text-emerald-500" />
                   <span>+ Nova categoria</span>
@@ -1671,7 +1671,7 @@ export function WorkoutBuilder({
 
         {/* Desktop Sticky Summary Panel (Hidden on mobile) */}
         <aside className="hidden lg:block lg:col-span-4 xl:col-span-3 sticky top-6 space-y-4">
-          <div className="p-5 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface">
+          <div className="p-5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
                 RESUMO DA FICHA
@@ -1900,9 +1900,9 @@ export function WorkoutBuilder({
       {/* Simple Delete Confirmation Dialog */}
       {isDeleteDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-sm rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-5 space-y-4">
+          <div className="w-full max-w-sm rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-5 space-y-4">
             <div className="space-y-1.5">
-              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
                 <TrashIcon className="w-5 h-5" />
               </div>
               <h3 className="text-base font-extrabold text-[var(--text-primary)]">

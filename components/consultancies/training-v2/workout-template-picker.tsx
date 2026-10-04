@@ -132,11 +132,11 @@ export function WorkoutTemplatePicker({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div className="relative w-full max-w-xl rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-[var(--surface-subtle)] text-[var(--foreground)] border border-[var(--border-subtle)] flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
@@ -166,7 +166,7 @@ export function WorkoutTemplatePicker({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar modelo publicado por título..."
-              className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-purple-500 text-[var(--foreground)]"
+              className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:border-[var(--brand)] text-[var(--foreground)]"
             />
           </div>
         </div>
@@ -182,7 +182,7 @@ export function WorkoutTemplatePicker({
         <div className="p-4 space-y-2.5 overflow-y-auto flex-1">
           {isLoading ? (
             <div className="py-12 flex flex-col items-center justify-center text-[var(--foreground-muted)] gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+              <Loader2 className="w-6 h-6 animate-spin text-[var(--brand)]" />
               <span className="text-xs">Carregando modelos disponíveis...</span>
             </div>
           ) : templates.length === 0 ? (
@@ -201,14 +201,14 @@ export function WorkoutTemplatePicker({
               return (
                 <div
                   key={tpl.publicId}
-                  className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-purple-500/40 hover:bg-purple-500/5 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-subtle)] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-semibold text-[var(--foreground)]">
                         {tpl.title}
                       </h4>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
                         V{tpl.publishedVersionNumber} Publicado
                       </span>
                     </div>
@@ -244,7 +244,7 @@ export function WorkoutTemplatePicker({
                     type="button"
                     onClick={() => handleSelectTemplate(tpl.publicId)}
                     disabled={isCloning}
-                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors shrink-0 disabled:opacity-50 min-h-[36px]"
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[var(--brand)] text-[var(--brand-foreground,#ffffff)] hover:brightness-105 active:scale-[0.98] transition-colors shrink-0 disabled:opacity-50 min-h-[36px]"
                   >
                     {isSelected && isCloning ? (
                       <>

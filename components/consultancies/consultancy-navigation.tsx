@@ -752,7 +752,7 @@ export function ConsultancyNavigation({
           <Link
             href={baseSlugHref}
             prefetch={false}
-            className="flex items-center gap-3 p-2 rounded-2xl hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)] transition-all group focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-interactive"
+            className="flex items-center gap-3 p-2 rounded-xl hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)] transition-all group focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-interactive"
           >
             <ConsultancyLogo
               logoUrl={consultancyLogoUrl}
@@ -780,7 +780,7 @@ export function ConsultancyNavigation({
 
           {/* View Mode Selector ONLY if explicitly in preview mode */}
           {viewModeState?.isPreview && (
-            <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+            <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
               <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-1">
                 Modo Demonstração
               </p>
@@ -879,7 +879,7 @@ export function ConsultancyNavigation({
               className={`relative flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === "/notificacoes"
                   ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
               }`}
               title="Notificações"
             >
@@ -897,7 +897,7 @@ export function ConsultancyNavigation({
               className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === "/conta/perfil"
                   ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
               }`}
               title="Meu perfil"
             >
@@ -912,7 +912,7 @@ export function ConsultancyNavigation({
               className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === `/consultoria/${consultancySlug}/ajuda`
                   ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
               }`}
               title="Central de Ajuda & Suporte"
             >
@@ -925,7 +925,7 @@ export function ConsultancyNavigation({
               className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === "/conta/seguranca"
                   ? "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-default)] font-medium"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
               }`}
               title="Conta e segurança"
             >

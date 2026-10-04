@@ -71,7 +71,7 @@ export default async function AccountSecurityPage({ searchParams }: PageProps) {
         {/* User Identity Card */}
         <section
           aria-labelledby="user-info-heading"
-          className="p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4"
+          className="p-5 sm:p-6 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4"
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5 min-w-0">
@@ -111,7 +111,7 @@ export default async function AccountSecurityPage({ searchParams }: PageProps) {
         {/* Change Password Card */}
         <section
           aria-labelledby="change-password-heading"
-          className="p-5 sm:p-6 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-5"
+          className="p-5 sm:p-6 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-5"
         >
           <div className="space-y-1">
             <h2 id="change-password-heading" className="text-base sm:text-lg font-bold tracking-tight text-[var(--text-primary)]">

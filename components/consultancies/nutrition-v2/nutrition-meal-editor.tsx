@@ -95,7 +95,7 @@ export function NutritionMealEditor({
   };
 
   return (
-    <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+    <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
       {/* Meal Header */}
       <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-2.5 min-w-0">

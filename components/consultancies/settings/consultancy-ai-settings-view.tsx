@@ -156,7 +156,7 @@ export function ConsultancyAiSettingsView({
       </div>
 
       {/* Consultancy Quota Card */}
-      <div className="bg-card/50 border border-border/50 rounded-2xl p-5 space-y-3 shadow-xs">
+      <div className="bg-card/50 border border-border/50 rounded-xl p-5 space-y-3 shadow-xs">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-emerald-500 uppercase tracking-wider">
             Teto Diário da Consultoria
@@ -199,7 +199,7 @@ export function ConsultancyAiSettingsView({
       </div>
 
       {/* Role Defaults Card */}
-      <div className="bg-card/50 border border-border/50 rounded-2xl p-5 space-y-4 shadow-xs">
+      <div className="bg-card/50 border border-border/50 rounded-xl p-5 space-y-4 shadow-xs">
         <div>
           <h2 className="text-base font-bold text-foreground">
             Limites Padrão por Função & Recursos de IA
@@ -299,7 +299,7 @@ export function ConsultancyAiSettingsView({
       </div>
 
       {/* Member Overrides Card */}
-      <div className="bg-card/50 border border-border/50 rounded-2xl p-5 space-y-4 shadow-xs">
+      <div className="bg-card/50 border border-border/50 rounded-xl p-5 space-y-4 shadow-xs">
         <div>
           <h2 className="text-base font-bold text-foreground">
             Exceções Individuais por Profissional

@@ -199,7 +199,7 @@ export default async function ConsultancyWorkoutsPage({
         ) : (
           <>
             {/* Filter Bar */}
-            <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3 depth-surface">
+            <div className="p-3.5 sm:p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3 depth-surface">
               <div className="flex flex-col sm:flex-row gap-3">
                 {/* Search Input */}
                 <form method="GET" className="relative flex-1">
@@ -249,8 +249,8 @@ export default async function ConsultancyWorkoutsPage({
 
             {/* Workouts Grid */}
             {items.length === 0 ? (
-              <div className="p-8 sm:p-12 text-center rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
+              <div className="p-8 sm:p-12 text-center rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-4">
+                <div className="w-12 h-12 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
                   <DumbbellIcon className="w-6 h-6" />
                 </div>
                 <div className="space-y-1 max-w-md mx-auto">
@@ -291,7 +291,7 @@ export default async function ConsultancyWorkoutsPage({
                   return (
                     <React.Fragment key={w.publicId}>
                       {/* MOBILE CARD (sm:hidden) */}
-                      <div className="sm:hidden p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-2xs space-y-3 depth-surface">
+                      <div className="sm:hidden p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-2xs space-y-3 depth-surface">
                         <div className="space-y-1.5">
                           <div className="flex items-start justify-between gap-2">
                             <h3 className="text-base font-bold text-[var(--text-primary)] leading-snug">
@@ -320,7 +320,7 @@ export default async function ConsultancyWorkoutsPage({
 
                           <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)] pt-0.5">
                             {w.isTemplate ? (
-                              <span className="font-semibold text-purple-600 dark:text-purple-400">
+                              <span className="font-semibold text-[var(--text-secondary)]">
                                 Modelo • {w.blocksCount} {w.blocksCount === 1 ? "categoria" : "categorias"}
                               </span>
                             ) : (

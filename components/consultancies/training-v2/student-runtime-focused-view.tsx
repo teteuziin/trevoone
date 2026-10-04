@@ -271,8 +271,8 @@ export function StudentRuntimeFocusedView({
   if (allCompleted) {
     return (
       <div className="space-y-6 pt-4 pb-20 max-w-lg mx-auto text-center px-4 animate-in fade-in duration-300">
-        <div className="w-20 h-20 mx-auto rounded-3xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-lg shadow-emerald-500/20">
-          <TrophyIcon className="w-10 h-10" />
+        <div className="w-16 h-16 mx-auto rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-sm">
+          <TrophyIcon className="w-8 h-8" />
         </div>
 
         <div className="space-y-1.5">
@@ -288,7 +288,7 @@ export function StudentRuntimeFocusedView({
         </div>
 
         {/* Summary Metric Chips */}
-        <div className="grid grid-cols-3 gap-2.5 p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs">
+        <div className="grid grid-cols-3 gap-2.5 p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs">
           <div className="space-y-0.5">
             <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">
               Duração
@@ -324,7 +324,7 @@ export function StudentRuntimeFocusedView({
             type="button"
             onClick={onCompleteWorkout}
             disabled={isCompleting}
-            className="w-full min-h-[54px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-50 text-white font-extrabold text-base shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full min-h-[50px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-50 text-white font-extrabold text-base shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             {isCompleting ? (
               <>
@@ -373,7 +373,7 @@ export function StudentRuntimeFocusedView({
   return (
     <div className="space-y-4 max-w-lg mx-auto pb-[calc(6rem+env(safe-area-inset-bottom,0px))] select-none">
       {/* RUNTIME TOP BAR: PROGRESS & OVERVIEW TOGGLE */}
-      <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-2">
+      <div className="p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-2">
         <div className="flex items-center justify-between text-xs font-semibold">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -414,7 +414,7 @@ export function StudentRuntimeFocusedView({
 
       {/* ACTIVE REST NOTIFICATION (IF CURRENTLY RESTING) */}
       {activeRest && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/30 shadow-md space-y-2.5 animate-in slide-in-from-top-3 duration-200">
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 shadow-xs space-y-2.5 animate-in slide-in-from-top-3 duration-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
@@ -436,15 +436,15 @@ export function StudentRuntimeFocusedView({
       {/* ==================================================================== */}
       {/* CURRENT EXERCISE FOCUS CARD ("O QUE EU FAÇO AGORA") */}
       {/* ==================================================================== */}
-      <div className="p-5 rounded-3xl bg-[var(--surface)] border-2 border-[var(--border-strong)] shadow-sm space-y-4 depth-surface">
+      <div className="p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-strong)] shadow-xs space-y-4 depth-surface">
         {/* Combination Badge & Header */}
         {combination ? (
           <div className="flex items-center justify-between gap-2 pb-1 border-b border-[var(--border-subtle)]">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
                 {combination.combinationType.replace("_", "-")} • Rodada {currentRoundOrSet} de {totalItemSets}
               </span>
-              <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-extrabold flex items-center justify-center shrink-0">
+              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-extrabold flex items-center justify-center shrink-0">
                 {combLetter}
               </span>
             </div>
@@ -518,7 +518,7 @@ export function StudentRuntimeFocusedView({
         {/* ================================================================== */}
         <div className="grid grid-cols-2 gap-3 pt-1">
           {/* Repetições */}
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-sunken)] border border-[var(--border-default)] space-y-2 text-center">
+          <div className="p-3.5 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-default)] space-y-2 text-center">
             <div className="space-y-0.5">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
                 Repetições
@@ -559,7 +559,7 @@ export function StudentRuntimeFocusedView({
           </div>
 
           {/* Carga (Kg) */}
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-sunken)] border border-[var(--border-default)] space-y-2 text-center">
+          <div className="p-3.5 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-default)] space-y-2 text-center">
             <div className="space-y-0.5">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
                 Carga (kg)
@@ -607,9 +607,9 @@ export function StudentRuntimeFocusedView({
         </div>
 
         {/* Next Step Information */}
-        <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+        <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
           {combination && !isLastInCombRound && nextCombItem ? (
-            <p className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-300">
+            <p className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-300">
               <span>⚡</span>
               <span>
                 Próximo na combinação: {String.fromCharCode(combLetter.charCodeAt(0) + 1)} • {nextCombItem.exerciseNameSnapshot} (sem descanso agora)
@@ -637,7 +637,7 @@ export function StudentRuntimeFocusedView({
           type="button"
           onClick={handleConfirmCurrentSet}
           disabled={Boolean(loadingSetPublicId)}
-          className="w-full min-h-[54px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-50 text-white font-extrabold text-base shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full min-h-[50px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-50 text-white font-extrabold text-base shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           {loadingSetPublicId === currentSet.publicId ? (
             <>
@@ -663,7 +663,7 @@ export function StudentRuntimeFocusedView({
         <div className="space-y-4 py-1">
           {/* Video Section (if valid video exists) */}
           {hasVideo && (
-            <div className="rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center">
+            <div className="rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
               {isValidVideoUrl(item.customVideoUrl) ? (
                 <video
                   src={item.customVideoUrl!}
@@ -686,7 +686,7 @@ export function StudentRuntimeFocusedView({
 
           {/* Instructions text */}
           {item.instructionsSnapshot && (
-            <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+            <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
                 Instruções de Execução
               </span>

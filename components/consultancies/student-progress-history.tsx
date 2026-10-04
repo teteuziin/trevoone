@@ -49,7 +49,7 @@ export function StudentProgressHistory({
     <div className="space-y-6">
       {/* Latest Entry Highlight (Shown only when latestEntry is provided, i.e. on page 1) */}
       {latestEntry && (
-        <div className="p-6 sm:p-7 rounded-3xl bg-[var(--surface)] border border-[var(--border-strong)] shadow-xs space-y-4 border-specular-t depth-surface">
+        <div className="p-6 sm:p-7 rounded-xl bg-[var(--surface)] border border-[var(--border-strong)] shadow-xs space-y-4 border-specular-t depth-surface">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-primary)] shadow-2xs">
@@ -63,7 +63,7 @@ export function StudentProgressHistory({
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
             {latestEntry.weightKg !== null && (
-              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-lg sm:rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Peso
                 </span>
@@ -74,7 +74,7 @@ export function StudentProgressHistory({
             )}
 
             {latestEntry.waistCm !== null && (
-              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-lg sm:rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Cintura
                 </span>
@@ -85,7 +85,7 @@ export function StudentProgressHistory({
             )}
 
             {latestEntry.abdomenCm !== null && (
-              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-lg sm:rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Abdômen
                 </span>
@@ -96,7 +96,7 @@ export function StudentProgressHistory({
             )}
 
             {latestEntry.hipCm !== null && (
-              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-lg sm:rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Quadril
                 </span>
@@ -107,7 +107,7 @@ export function StudentProgressHistory({
             )}
 
             {latestEntry.armCm !== null && (
-              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-lg sm:rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Braço
                 </span>
@@ -118,7 +118,7 @@ export function StudentProgressHistory({
             )}
 
             {latestEntry.thighCm !== null && (
-              <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+              <div className="p-3.5 rounded-lg sm:rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
                   Coxa
                 </span>
@@ -147,7 +147,7 @@ export function StudentProgressHistory({
           {entries.map((entry, idx) => (
             <div
               key={entry.publicId || `entry-${idx}`}
-              className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 depth-surface"
+              className="p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 depth-surface"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-[var(--border-subtle)] pb-2.5">
                 <div className="flex items-center gap-2">

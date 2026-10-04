@@ -150,8 +150,8 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
           </Link>
         </div>
 
-        {/* WORKFLOW CONTAINER: Integrado ao fluxo da página (~760–840px), alinhado com Dashboard */}
-        <div className="w-full max-w-3xl lg:max-w-[820px] space-y-6 sm:space-y-8 animate-in fade-in duration-150">
+        {/* WORKFLOW CONTAINER: Integrado diretamente na página (~900–1000px), sem card externo */}
+        <div className="w-full max-w-[920px] 2xl:max-w-[980px] space-y-8 animate-in fade-in duration-150">
           {/* Header limpo sem redundâncias */}
           <div className="space-y-1">
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight font-sans">
@@ -194,10 +194,10 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
             </div>
           )}
 
-          {/* Formulário integrado à página */}
+          {/* Formulário integrado à página (sem card envolvente, fundo da página) */}
           <form
             action={handleCreate}
-            className="p-5 sm:p-7 rounded-2xl bg-[var(--surface-subtle)]/40 sm:bg-[var(--surface)] border border-[var(--border-subtle)] sm:border-[var(--border-default)] space-y-6 sm:space-y-7 shadow-2xs"
+            className="space-y-8"
           >
             {preselectedStudent && (
               <input
@@ -215,9 +215,9 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
             )}
 
             {/* 1. CAMPO PRINCIPAL: Nome da Ficha */}
-            <div className="space-y-1.5">
+            <div className="space-y-2 pb-8 border-b border-[var(--border-subtle)]">
               <div className="flex items-center justify-between">
-                <label htmlFor="title" className="block text-xs sm:text-sm font-bold text-[var(--text-primary)] font-sans">
+                <label htmlFor="title" className="block text-sm font-bold text-[var(--text-primary)] font-sans">
                   {isTemplate ? "Nome do modelo padrão" : "Nome da ficha"}
                   <span className="text-[var(--brand)] ml-1">*</span>
                 </label>
@@ -237,13 +237,13 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                     ? `Ex: Treino A — Peito e Tríceps (${preselectedStudent.student.name.split(" ")[0]})`
                     : "Ex: Treino A — Peito e Tríceps"
                 }
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[46px] shadow-2xs font-sans"
+                className="w-full px-4 py-3 text-sm font-medium rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[46px] shadow-2xs font-sans"
               />
             </div>
 
             {/* 2. AGRUPAMENTO: Informações do Treino */}
-            <div className="space-y-4 pt-1 border-t border-[var(--border-subtle)]">
-              <div className="pt-2">
+            <div className="space-y-5 pb-8 border-b border-[var(--border-subtle)]">
+              <div>
                 <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-sans">
                   Informações do Treino
                 </h2>
@@ -260,12 +260,12 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                   type="text"
                   defaultValue={preselectedStudent?.overview.objective || ""}
                   placeholder="Ex: Hipertrofia, Força, Resistência muscular..."
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px] font-sans"
+                  className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px] font-sans"
                 />
               </div>
 
               {/* Dificuldade + Duração (Desktop lado a lado: 58%/42%, Mobile empilhado) */}
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                 <div className="sm:col-span-7 space-y-1.5">
                   <label htmlFor="difficultyLevel" className="block text-xs sm:text-sm font-semibold text-[var(--text-primary)] font-sans">
                     Nível de dificuldade
@@ -274,7 +274,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                     id="difficultyLevel"
                     name="difficultyLevel"
                     defaultValue="INTERMEDIATE"
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] transition-all min-h-[44px] font-sans"
+                    className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] transition-all min-h-[44px] font-sans"
                   >
                     <option value="BEGINNER">Iniciante</option>
                     <option value="INTERMEDIATE">Intermediário</option>
@@ -294,15 +294,15 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                     max="240"
                     defaultValue="50"
                     placeholder="Ex: 50"
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px] font-sans"
+                    className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px] font-sans"
                   />
                 </div>
               </div>
             </div>
 
             {/* 3. OBSERVAÇÕES: Secundário */}
-            <div className="space-y-1.5 pt-1 border-t border-[var(--border-subtle)]">
-              <label htmlFor="notes" className="block text-xs sm:text-sm font-medium text-[var(--text-secondary)] font-sans pt-2">
+            <div className="space-y-2 pb-8 border-b border-[var(--border-subtle)]">
+              <label htmlFor="notes" className="block text-xs sm:text-sm font-medium text-[var(--text-secondary)] font-sans">
                 Observações gerais / Recomendações <span className="text-[11px] text-[var(--text-tertiary)] font-normal">(opcional)</span>
               </label>
               <textarea
@@ -310,12 +310,12 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                 name="notes"
                 rows={3}
                 placeholder="Orientações pré-treino, recomendações de aquecimento..."
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all font-sans resize-y"
+                className="w-full px-4 py-3 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all font-sans resize-y"
               />
             </div>
 
-            {/* 4. ACTIONS: Alinhadas no fluxo natural, sem sticky footer */}
-            <div className="pt-4 border-t border-[var(--border-subtle)] flex flex-col-reverse sm:flex-row items-stretch sm:items-center sm:justify-end gap-2.5">
+            {/* 4. ACTIONS: Alinhadas no fluxo natural, sem barra ou footer de modal */}
+            <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center sm:justify-end gap-3">
               <Link
                 href={
                   preselectedStudent

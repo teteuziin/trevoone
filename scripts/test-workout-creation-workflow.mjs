@@ -20,16 +20,21 @@ const pagePath = path.resolve("app/consultoria/[slug]/rotinas/novo/page.tsx");
 assert(fs.existsSync(pagePath), "Page file app/consultoria/[slug]/rotinas/novo/page.tsx exists");
 const code = fs.readFileSync(pagePath, "utf-8");
 
-runTest("DESKTOP FORM INTEGRATED: Integrated layout without floating modal card", () => {
-  assert(!code.includes("max-w-2xl mx-auto"), "Removed isolated max-w-2xl centered modal-like wrapper");
-  assert(code.includes("max-w-[1536px]"), "Contains full-width container matching dashboard");
-  assert(code.includes("max-w-3xl") || code.includes("max-w-[820px]"), "Provides comfortable ~760-840px usable form width");
-  assert(!code.includes("rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-6 depth-surface"), "Heavy modal card container eliminated");
+runTest("FORM OUTER CARD REMOVED: No outer card/surface wrapper around the form", () => {
+  assert(!code.includes("p-5 sm:p-7"), "Removed outer card padding p-5 sm:p-7");
+  assert(!code.includes("rounded-2xl bg-[var(--surface-subtle)]"), "Removed outer card background and border");
+  assert(code.includes('action={handleCreate}') && code.includes('className="space-y-8"'), "Form sits directly on page background without outer wrapper");
 });
 
-runTest("MOBILE FORM INTEGRATED: Clean non-cardified mobile form", () => {
-  assert(code.includes("p-5 sm:p-7"), "Uses balanced padding that flows naturally on mobile and desktop");
-  assert(code.includes("rounded-2xl"), "Uses disciplined rounded-2xl container");
+runTest("DESKTOP PAGE INTEGRATED: Comfortable 900-1000px width matching page layout", () => {
+  assert(code.includes("max-w-[1536px]"), "Contains full-width container matching dashboard");
+  assert(code.includes("max-w-[920px]"), "Provides comfortable ~920-980px usable form width as requested");
+  assert(!code.includes("rounded-3xl border border-[var(--border-default)]"), "Heavy modal card container eliminated");
+});
+
+runTest("MOBILE PAGE INTEGRATED: Native app form layout with subtle section dividers", () => {
+  assert(code.includes("pb-8 border-b border-[var(--border-subtle)]"), "Sections separated by subtle horizontal dividers without cards");
+  assert(!code.includes("bg-[var(--surface)] p-"), "Form does not introduce an outer surface background");
 });
 
 runTest("REDUNDANT HEADER REMOVED: No 'Módulo de Treinamento' or 'Novo Treino do Zero'", () => {

@@ -20,16 +20,31 @@ import {
   updatePregnancyAction,
 } from "@/app/consultoria/[slug]/planos-v2/patient-actions";
 import type { ActiveNutritionPlanSummary } from "@/lib/nutrition-v2/assignment-repository";
+import type {
+  EvolutionHubDataDto,
+  EvolutionComparisonDataDto,
+} from "@/types/evolution";
+import { MobilePatientHub } from "./mobile-patient-hub";
 
 interface PatientRecordViewProps {
   slug: string;
   initialDetail: PatientRecordDetail;
   activePlan?: ActiveNutritionPlanSummary | null;
+  evolutionHubData?: EvolutionHubDataDto | null;
+  evolutionComparisonData?: EvolutionComparisonDataDto | null;
+  initialTab?: string;
 }
 
 type TabType = "resumo" | "plano" | "clinico" | "alimentar" | "estilo_vida" | "antropometria" | "gestacao" | "calculos";
 
-export function PatientRecordView({ slug, initialDetail, activePlan }: PatientRecordViewProps) {
+export function PatientRecordView({
+  slug,
+  initialDetail,
+  activePlan,
+  evolutionHubData,
+  evolutionComparisonData,
+  initialTab,
+}: PatientRecordViewProps) {
   const [detail, setDetail] = useState<PatientRecordDetail>(initialDetail);
   const [activeTab, setActiveTab] = useState<TabType>("resumo");
   const [isPending, startTransition] = useTransition();
@@ -236,8 +251,38 @@ export function PatientRecordView({ slug, initialDetail, activePlan }: PatientRe
   const trimesterLabel = deriveTrimester(pregnancyForm.gestationalWeeks ?? null);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4 py-6">
-      {/* Header Cockpit */}
+    <>
+      {/* Mobile-Native Patient Hub (md:hidden) */}
+      <div className="md:hidden">
+        <MobilePatientHub
+          slug={slug}
+          detail={detail}
+          activePlan={activePlan}
+          evolutionHubData={evolutionHubData}
+          evolutionComparisonData={evolutionComparisonData}
+          clinicalForm={clinicalForm}
+          setClinicalForm={setClinicalForm}
+          pregnancyForm={pregnancyForm}
+          setPregnancyForm={setPregnancyForm}
+          onSaveClinical={handleSaveClinicalRecord}
+          onSavePregnancy={handleSavePregnancy}
+          onAddAnthropometry={() => setShowAddAnthro(true)}
+          onDeleteAnthropometry={handleDeleteAnthropometric}
+          onCopyFromOnboarding={handleCopyFromOnboarding}
+          isPending={isPending}
+          message={message}
+          calcWeightOverride={calcWeightOverride}
+          setCalcWeightOverride={setCalcWeightOverride}
+          calcHeightOverride={calcHeightOverride}
+          setCalcHeightOverride={setCalcHeightOverride}
+          bmiResult={bmiResult}
+          initialMobileTab={initialTab}
+        />
+      </div>
+
+      {/* Preserved Desktop Patient Hub (hidden md:block) */}
+      <div className="hidden md:block space-y-6 max-w-7xl mx-auto px-4 py-6">
+        {/* Header Cockpit */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs">
         <div className="space-y-2 min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -1157,149 +1202,6 @@ export function PatientRecordView({ slug, initialDetail, activePlan }: PatientRe
               </div>
             )}
           </div>
-
-          {/* Modal / Form for adding measurement */}
-          {showAddAnthro && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-card border border-border/60 rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4">
-                <div className="flex justify-between items-center border-b border-border/30 pb-2">
-                  <h4 className="font-semibold text-foreground text-base">Nova Medição Antropométrica</h4>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddAnthro(false)}
-                    className="text-muted-foreground hover:text-foreground text-sm"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <form onSubmit={handleAddAnthropometric} className="space-y-3 text-sm">
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Data da Medição *</label>
-                    <input
-                      type="date"
-                      required
-                      value={newAnthro.measurementDate}
-                      onChange={(e) => setNewAnthro({ ...newAnthro, measurementDate: e.target.value })}
-                      className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-muted-foreground font-medium">Peso (kg)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="1"
-                        max="500"
-                        placeholder="Ex: 75.5"
-                        value={newAnthro.weightKg ?? ""}
-                        onChange={(e) =>
-                          setNewAnthro({ ...newAnthro, weightKg: e.target.value ? Number(e.target.value) : null })
-                        }
-                        className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground font-medium">Altura (cm)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="40"
-                        max="260"
-                        placeholder="Ex: 175"
-                        value={newAnthro.heightCm ?? ""}
-                        onChange={(e) =>
-                          setNewAnthro({ ...newAnthro, heightCm: e.target.value ? Number(e.target.value) : null })
-                        }
-                        className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-muted-foreground font-medium">Cintura (cm)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        placeholder="Ex: 82"
-                        value={newAnthro.waistCm ?? ""}
-                        onChange={(e) =>
-                          setNewAnthro({ ...newAnthro, waistCm: e.target.value ? Number(e.target.value) : null })
-                        }
-                        className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground font-medium">Quadril (cm)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        placeholder="Ex: 98"
-                        value={newAnthro.hipCm ?? ""}
-                        onChange={(e) =>
-                          setNewAnthro({ ...newAnthro, hipCm: e.target.value ? Number(e.target.value) : null })
-                        }
-                        className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-muted-foreground font-medium">Braço (cm)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        placeholder="Ex: 34"
-                        value={newAnthro.armCm ?? ""}
-                        onChange={(e) =>
-                          setNewAnthro({ ...newAnthro, armCm: e.target.value ? Number(e.target.value) : null })
-                        }
-                        className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground font-medium">Coxa (cm)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        placeholder="Ex: 56"
-                        value={newAnthro.thighCm ?? ""}
-                        onChange={(e) =>
-                          setNewAnthro({ ...newAnthro, thighCm: e.target.value ? Number(e.target.value) : null })
-                        }
-                        className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium">Observações</label>
-                    <input
-                      type="text"
-                      maxLength={500}
-                      placeholder="Ex: Medição pós-treino..."
-                      value={newAnthro.notes ?? ""}
-                      onChange={(e) => setNewAnthro({ ...newAnthro, notes: e.target.value || null })}
-                      className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddAnthro(false)}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit" size="sm" disabled={isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                      {isPending ? "Salvando..." : "Salvar Medição"}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -1682,6 +1584,150 @@ export function PatientRecordView({ slug, initialDetail, activePlan }: PatientRe
           </div>
         </div>
       )}
-    </div>
+      </div>
+
+      {/* Shared Anthropometric Measurement Modal (Mobile + Desktop) */}
+      {showAddAnthro && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-card border border-border/60 rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-border/30 pb-2">
+              <h4 className="font-semibold text-foreground text-base">Nova Medição Antropométrica</h4>
+              <button
+                type="button"
+                onClick={() => setShowAddAnthro(false)}
+                className="text-muted-foreground hover:text-foreground text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddAnthropometric} className="space-y-3 text-sm">
+              <div>
+                <label className="text-xs text-muted-foreground font-medium">Data da Medição *</label>
+                <input
+                  type="date"
+                  required
+                  value={newAnthro.measurementDate}
+                  onChange={(e) => setNewAnthro({ ...newAnthro, measurementDate: e.target.value })}
+                  className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium">Peso (kg)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    max="500"
+                    placeholder="Ex: 75.5"
+                    value={newAnthro.weightKg ?? ""}
+                    onChange={(e) =>
+                      setNewAnthro({ ...newAnthro, weightKg: e.target.value ? Number(e.target.value) : null })
+                    }
+                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium">Altura (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="40"
+                    max="260"
+                    placeholder="Ex: 175"
+                    value={newAnthro.heightCm ?? ""}
+                    onChange={(e) =>
+                      setNewAnthro({ ...newAnthro, heightCm: e.target.value ? Number(e.target.value) : null })
+                    }
+                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium">Cintura (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="Ex: 82"
+                    value={newAnthro.waistCm ?? ""}
+                    onChange={(e) =>
+                      setNewAnthro({ ...newAnthro, waistCm: e.target.value ? Number(e.target.value) : null })
+                    }
+                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium">Quadril (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="Ex: 98"
+                    value={newAnthro.hipCm ?? ""}
+                    onChange={(e) =>
+                      setNewAnthro({ ...newAnthro, hipCm: e.target.value ? Number(e.target.value) : null })
+                    }
+                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium">Braço (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="Ex: 34"
+                    value={newAnthro.armCm ?? ""}
+                    onChange={(e) =>
+                      setNewAnthro({ ...newAnthro, armCm: e.target.value ? Number(e.target.value) : null })
+                    }
+                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium">Coxa (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="Ex: 56"
+                    value={newAnthro.thighCm ?? ""}
+                    onChange={(e) =>
+                      setNewAnthro({ ...newAnthro, thighCm: e.target.value ? Number(e.target.value) : null })
+                    }
+                    className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-muted-foreground font-medium">Observações</label>
+                <input
+                  type="text"
+                  maxLength={500}
+                  placeholder="Ex: Medição pós-treino..."
+                  value={newAnthro.notes ?? ""}
+                  onChange={(e) => setNewAnthro({ ...newAnthro, notes: e.target.value || null })}
+                  className="w-full rounded-lg border border-border/50 bg-background p-2 mt-1"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowAddAnthro(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" size="sm" disabled={isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  {isPending ? "Salvando..." : "Salvar Medição"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

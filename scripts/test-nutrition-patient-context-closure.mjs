@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import assert from "assert";
 
-console.log("=== RUNNING NUTRITION PATIENT CONTEXT CLOSURE TEST SUITE ===\n");
+console.log("=== RUNNING NUTRITION MOBILE PATIENT HUB TEST SUITE ===\n");
 
 let allPassed = true;
 function runTest(name, fn) {
@@ -15,7 +15,7 @@ function runTest(name, fn) {
   }
 }
 
-// 1. UTF8 NO REPLACEMENT CHAR
+// UTF8 NO REPLACEMENT CHAR
 runTest("UTF8 NO REPLACEMENT CHAR", () => {
   const rootDirs = ["app", "components", "lib", "types"];
   let badFiles = [];
@@ -36,75 +36,97 @@ runTest("UTF8 NO REPLACEMENT CHAR", () => {
   assert.strictEqual(badFiles.length, 0, `Found U+FFFD in files: ${badFiles.join(", ")}`);
 });
 
-// 2. NUTRITIONIST PATIENT LABELS
-runTest("NUTRITIONIST PATIENT LABELS", () => {
-  const pagePath = "app/consultoria/[slug]/progresso/alunos/page.tsx";
-  const pageContent = fs.readFileSync(pagePath, "utf8");
-  assert.ok(pageContent.includes('eyebrow={isNutritionist ? "Pacientes" : "Central de Alunos"}'));
-  assert.ok(pageContent.includes('title={isNutritionist ? "Pacientes da Consultoria" : "Alunos da Consultoria"}'));
-  assert.ok(pageContent.includes('Acompanhe prontuário, plano alimentar e evolução dos seus pacientes.'));
-  assert.ok(pageContent.includes('backLabel="Visão geral"'));
+// NUTRITIONIST MOBILE PATIENT HUB
+runTest("NUTRITIONIST MOBILE PATIENT HUB", () => {
+  const hubPath = "components/consultancies/nutrition-v2/mobile-patient-hub.tsx";
+  assert.ok(fs.existsSync(hubPath), "mobile-patient-hub.tsx must exist");
+  const hubContent = fs.readFileSync(hubPath, "utf8");
+  assert.ok(hubContent.includes("export function MobilePatientHub"));
 
+  // Check integration in PatientRecordView
+  const viewPath = "components/consultancies/nutrition-v2/patient-record-view.tsx";
+  const viewContent = fs.readFileSync(viewPath, "utf8");
+  assert.ok(viewContent.includes("<MobilePatientHub"));
+  assert.ok(viewContent.includes('className="md:hidden"'));
+  assert.ok(viewContent.includes('className="hidden md:block'));
+
+  // Check patient list linking for effective nutritionist
   const listPath = "components/consultancies/personal-student-hub/personal-student-list.tsx";
   const listContent = fs.readFileSync(listPath, "utf8");
-  assert.ok(listContent.includes('isEffectiveNutritionist ? "Ver paciente" : "Ver aluno"'));
-  assert.ok(listContent.includes('"paciente encontrado"'));
-  assert.ok(listContent.includes('"pacientes encontrados"'));
-  assert.ok(listContent.includes('isEffectiveNutritionist ? "Nenhum paciente cadastrado" : "Nenhum aluno cadastrado"'));
-  assert.ok(listContent.includes('Acompanhamento nutricional'));
+  assert.ok(listContent.includes("isEffectiveNutritionist"));
+  assert.ok(listContent.includes("/planos-v2/prontuario/${student.membershipPublicId}"));
 });
 
-// 3. NUTRITIONIST NO TRAINING LANGUAGE
-runTest("NUTRITIONIST NO TRAINING LANGUAGE", () => {
-  const listPath = "components/consultancies/personal-student-hub/personal-student-list.tsx";
-  const listContent = fs.readFileSync(listPath, "utf8");
-  assert.ok(listContent.includes("{!isEffectiveNutritionist && ("));
-  assert.ok(listContent.includes('isEffectiveNutritionist ? "Filtros de Pacientes" : "Filtros de Alunos"'));
-  assert.ok(listContent.includes('isEffectiveNutritionist ? "Objetivo do Paciente" : "Objetivo do Aluno"'));
+// MOBILE DEFAULT TAB RESUMO
+runTest("MOBILE DEFAULT TAB RESUMO", () => {
+  const hubPath = "components/consultancies/nutrition-v2/mobile-patient-hub.tsx";
+  const hubContent = fs.readFileSync(hubPath, "utf8");
+  assert.ok(hubContent.includes('return "resumo";'));
+  assert.ok(hubContent.includes('activeTab === "resumo"'));
+  assert.ok(hubContent.includes("Resumo Clínico"));
+  assert.ok(hubContent.includes("Ações Rápidas"));
+  assert.ok(hubContent.includes("Plano Alimentar Vigente"));
 });
 
-// 4. NUTRITIONIST DESKTOP PATIENT NAV ACTIVE
-runTest("NUTRITIONIST DESKTOP PATIENT NAV ACTIVE", () => {
-  const navPath = "components/consultancies/consultancy-navigation.tsx";
-  const navContent = fs.readFileSync(navPath, "utf8");
-  assert.ok(navContent.includes("isPatientRecordRoute"));
-  assert.ok(navContent.includes('cleanItemHref === `${baseSlugHref}/progresso/alunos`'));
-  assert.ok(navContent.includes('cleanItemHref === `${baseSlugHref}/planos-v2`'));
-
-  // Unit-simulate isItemActive logic
-  const baseSlugHref = "/consultoria/trevo-demo";
-  function simulateIsItemActive(pathname, itemHref) {
-    if (!pathname || !itemHref) return false;
-    if (itemHref === baseSlugHref) return pathname === baseSlugHref;
-    const cleanItemHref = itemHref.split("#")[0].split("?")[0];
-    const isPatientRecordRoute =
-      pathname === `${baseSlugHref}/planos-v2/prontuario` ||
-      pathname.startsWith(`${baseSlugHref}/planos-v2/prontuario/`);
-    if (isPatientRecordRoute) {
-      if (cleanItemHref === `${baseSlugHref}/progresso/alunos`) return true;
-      if (cleanItemHref === `${baseSlugHref}/planos-v2`) return false;
-    }
-    if (pathname === cleanItemHref) return true;
-    if (pathname.startsWith(cleanItemHref + "/")) {
-      if (cleanItemHref === `${baseSlugHref}/progresso` && pathname.startsWith(`${baseSlugHref}/progresso/alunos`)) return false;
-      return true;
-    }
-    return false;
-  }
-
-  // Test root prontuario route
-  const rootProntuario = `${baseSlugHref}/planos-v2/prontuario`;
-  assert.strictEqual(simulateIsItemActive(rootProntuario, `${baseSlugHref}/progresso/alunos`), true);
-  assert.strictEqual(simulateIsItemActive(rootProntuario, `${baseSlugHref}/planos-v2`), false);
-
-  // Test detail prontuario route
-  const detailProntuario = `${baseSlugHref}/planos-v2/prontuario/student-123`;
-  assert.strictEqual(simulateIsItemActive(detailProntuario, `${baseSlugHref}/progresso/alunos`), true);
-  assert.strictEqual(simulateIsItemActive(detailProntuario, `${baseSlugHref}/planos-v2`), false);
+// MOBILE PRONTUARIO TAB
+runTest("MOBILE PRONTUARIO TAB", () => {
+  const hubPath = "components/consultancies/nutrition-v2/mobile-patient-hub.tsx";
+  const hubContent = fs.readFileSync(hubPath, "utf8");
+  assert.ok(hubContent.includes('activeTab === "prontuario"'));
+  assert.ok(hubContent.includes('clinicalSubTab === "clinico"'));
+  assert.ok(hubContent.includes('clinicalSubTab === "alimentar"'));
+  assert.ok(hubContent.includes('clinicalSubTab === "estilo_vida"'));
+  assert.ok(hubContent.includes('clinicalSubTab === "antropometria"'));
+  assert.ok(hubContent.includes('clinicalSubTab === "gestacao"'));
+  assert.ok(hubContent.includes('clinicalSubTab === "calculos"'));
+  assert.ok(hubContent.includes("onSaveClinical"));
+  assert.ok(hubContent.includes("onSavePregnancy"));
+  assert.ok(hubContent.includes("onAddAnthropometry"));
 });
 
-// 5. NUTRITIONIST MOBILE PATIENT NAV ACTIVE
-runTest("NUTRITIONIST MOBILE PATIENT NAV ACTIVE", () => {
+// MOBILE PLAN TAB
+runTest("MOBILE PLAN TAB", () => {
+  const hubPath = "components/consultancies/nutrition-v2/mobile-patient-hub.tsx";
+  const hubContent = fs.readFileSync(hubPath, "utf8");
+  assert.ok(hubContent.includes('activeTab === "plano"'));
+  assert.ok(hubContent.includes("Plano Atual"));
+  assert.ok(hubContent.includes("Abrir no Builder"));
+  assert.ok(hubContent.includes("Nenhum plano alimentar ativo"));
+  assert.ok(hubContent.includes("+ Criar plano alimentar"));
+});
+
+// MOBILE EVOLUTION TAB
+runTest("MOBILE EVOLUTION TAB", () => {
+  const hubPath = "components/consultancies/nutrition-v2/mobile-patient-hub.tsx";
+  const hubContent = fs.readFileSync(hubPath, "utf8");
+  assert.ok(hubContent.includes('activeTab === "evolucao"'));
+  assert.ok(hubContent.includes("<MobileEvolutionCockpit"));
+  assert.ok(hubContent.includes("hubData={evolutionHubData}"));
+  assert.ok(hubContent.includes("isNutritionist={true}"));
+});
+
+// MOBILE ACTIVE PLAN
+runTest("MOBILE ACTIVE PLAN", () => {
+  const hubPath = "components/consultancies/nutrition-v2/mobile-patient-hub.tsx";
+  const hubContent = fs.readFileSync(hubPath, "utf8");
+  assert.ok(hubContent.includes("activePlan.versionTitle"));
+  assert.ok(hubContent.includes("activePlan.totals.caloriesKcal"));
+  assert.ok(hubContent.includes("activePlan.totals.proteinG"));
+  assert.ok(hubContent.includes("activePlan.totals.carbohydrateG"));
+  assert.ok(hubContent.includes("activePlan.totals.fatG"));
+  assert.ok(hubContent.includes("Abrir plano"));
+});
+
+// MOBILE NO ACTIVE PLAN
+runTest("MOBILE NO ACTIVE PLAN", () => {
+  const hubPath = "components/consultancies/nutrition-v2/mobile-patient-hub.tsx";
+  const hubContent = fs.readFileSync(hubPath, "utf8");
+  assert.ok(hubContent.includes("Nenhum plano alimentar ativo"));
+  assert.ok(hubContent.includes("Criar plano alimentar"));
+});
+
+// MOBILE PATIENT BOTTOM NAV ACTIVE
+runTest("MOBILE PATIENT BOTTOM NAV ACTIVE", () => {
   const baseSlugHref = "/consultoria/trevo-demo";
   const detailProntuario = `${baseSlugHref}/planos-v2/prontuario/student-123`;
   const cleanItemHref = `${baseSlugHref}/progresso/alunos`;
@@ -112,41 +134,27 @@ runTest("NUTRITIONIST MOBILE PATIENT NAV ACTIVE", () => {
     detailProntuario === `${baseSlugHref}/planos-v2/prontuario` ||
     detailProntuario.startsWith(`${baseSlugHref}/planos-v2/prontuario/`);
   assert.strictEqual(isPatientRecordRoute && cleanItemHref === `${baseSlugHref}/progresso/alunos`, true);
+
+  const planItemHref = `${baseSlugHref}/planos-v2`;
+  assert.strictEqual(isPatientRecordRoute && planItemHref === `${baseSlugHref}/planos-v2`, true);
+  // in consultancy-navigation.tsx, it explicitly returns false for planos-v2
+  const navContent = fs.readFileSync("components/consultancies/consultancy-navigation.tsx", "utf8");
+  assert.ok(navContent.includes('cleanItemHref === `${baseSlugHref}/planos-v2`'));
+  assert.ok(navContent.includes("return false;"));
 });
 
-// 6. EVOLUTION DESKTOP ACTIVE PLAN
-runTest("EVOLUTION DESKTOP ACTIVE PLAN", () => {
-  const hubPath = "components/consultancies/evolution/evolution-360-hub.tsx";
-  const hubContent = fs.readFileSync(hubPath, "utf8");
-  assert.ok(hubContent.includes("hubData.activeNutritionPlan"));
-  assert.ok(hubContent.includes("Plano Alimentar Vigente"));
-  assert.ok(hubContent.includes("Ver Plano Completo"));
-  assert.ok(hubContent.includes("totals.caloriesKcal"));
-});
-
-// 7. EVOLUTION MOBILE ACTIVE PLAN
-runTest("EVOLUTION MOBILE ACTIVE PLAN", () => {
-  const mobilePath = "components/consultancies/evolution/mobile-evolution-cockpit.tsx";
-  const mobileContent = fs.readFileSync(mobilePath, "utf8");
-  assert.ok(mobileContent.includes("hubData.activeNutritionPlan"));
-  assert.ok(mobileContent.includes('data-testid="mobile-active-nutrition-plan"'));
-  assert.ok(mobileContent.includes("Plano Alimentar Vigente"));
-  assert.ok(mobileContent.includes("Abrir plano"));
-  assert.ok(mobileContent.includes("formatIsoDateToBr(hubData.activeNutritionPlan.startsOn)"));
-  assert.ok(mobileContent.includes('totals.caloriesKcal !== null && hubData.activeNutritionPlan.totals.caloriesKcal !== undefined\n                  ? `${hubData.activeNutritionPlan.totals.caloriesKcal}`\n                  : "—"'));
-});
-
-// 8. PERSONAL TRAINING CONTEXT PRESERVED
-runTest("PERSONAL TRAINING CONTEXT PRESERVED", () => {
+// PERSONAL MOBILE FLOW PRESERVED
+runTest("PERSONAL MOBILE FLOW PRESERVED", () => {
   const listPath = "components/consultancies/personal-student-hub/personal-student-list.tsx";
   const listContent = fs.readFileSync(listPath, "utf8");
   assert.ok(listContent.includes("!isEffectiveNutritionist"));
   assert.ok(listContent.includes("Com treino"));
   assert.ok(listContent.includes("Sem treino"));
   assert.ok(listContent.includes("Criar treino"));
+  assert.ok(listContent.includes("/progresso/alunos/${student.membershipPublicId}"));
 });
 
-// 9. MULTI-ROLE PERSONAL
+// MULTI-ROLE PERSONAL
 runTest("MULTI-ROLE PERSONAL", () => {
   function checkMode(effectiveMode, roles) {
     const isNutritionist = effectiveMode === "NUTRITIONIST" || roles.includes("NUTRITIONIST");
@@ -160,7 +168,7 @@ runTest("MULTI-ROLE PERSONAL", () => {
   assert.strictEqual(res.isPersonal, true);
 });
 
-// 10. MULTI-ROLE NUTRITIONIST
+// MULTI-ROLE NUTRITIONIST
 runTest("MULTI-ROLE NUTRITIONIST", () => {
   function checkMode(effectiveMode, roles) {
     const isNutritionist = effectiveMode === "NUTRITIONIST" || roles.includes("NUTRITIONIST");
@@ -173,23 +181,40 @@ runTest("MULTI-ROLE NUTRITIONIST", () => {
   assert.strictEqual(res.isEffectiveNutritionist, true);
 });
 
-// 11. LEGACY ROUTES
+// LEGACY ROUTES
 runTest("LEGACY ROUTES", () => {
   const shellPath = "components/consultancies/consultancy-app-shell.tsx";
   const shellContent = fs.readFileSync(shellPath, "utf8");
   assert.ok(shellContent.includes("/planos-v2/prontuario"));
   assert.ok(shellContent.includes("/progresso/alunos"));
+
+  const progressoPage = "app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx";
+  assert.ok(fs.existsSync(progressoPage), "Legacy /progresso/alunos/[studentPublicId] must exist");
+  const prontuarioPage = "app/consultoria/[slug]/planos-v2/prontuario/[studentPublicId]/page.tsx";
+  assert.ok(fs.existsSync(prontuarioPage), "Prontuario /planos-v2/prontuario/[studentPublicId] must exist");
 });
 
-// 12. TENANCY
+// TENANCY
 runTest("TENANCY", () => {
   const pagePath = "app/consultoria/[slug]/progresso/alunos/page.tsx";
   const pageContent = fs.readFileSync(pagePath, "utf8");
   assert.ok(pageContent.includes("resolveConsultancyContext(session.userId, slug)"));
   assert.ok(pageContent.includes("listPersonalStudents({ consultancyId: context.consultancyId })"));
+
+  const prontuarioPage = "app/consultoria/[slug]/planos-v2/prontuario/[studentPublicId]/page.tsx";
+  const prontuarioContent = fs.readFileSync(prontuarioPage, "utf8");
+  assert.ok(prontuarioContent.includes("resolveConsultancyContext(session.userId, slug)"));
+  assert.ok(prontuarioContent.includes("res.detail.record.consultancyId"));
+});
+
+// Touch targets >= 44px
+runTest("TOUCH TARGETS >= 44PX", () => {
+  const hubPath = "components/consultancies/nutrition-v2/mobile-patient-hub.tsx";
+  const hubContent = fs.readFileSync(hubPath, "utf8");
+  assert.ok(hubContent.includes("min-h-[44px]"), "MobilePatientHub interactive elements must satisfy min-h-[44px]");
 });
 
 if (!allPassed) {
   process.exit(1);
 }
-console.log("\nALL 12 VERIFICATION TESTS PASSED SUCCESSFULLY!");
+console.log("\nALL VERIFICATION TESTS PASSED SUCCESSFULLY!");

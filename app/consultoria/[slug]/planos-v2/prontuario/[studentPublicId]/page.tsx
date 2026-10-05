@@ -2,17 +2,25 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
+import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getPatientRecordDetailAction } from "../../patient-actions";
 import { getActiveNutritionPlanForStudentMembership } from "@/lib/nutrition-v2/assignment-repository";
+import {
+  getStudentEvolutionHubData,
+  getEvolutionComparisonBetweenDates,
+} from "@/lib/consultancies/evolution";
 import { PatientRecordView } from "@/components/consultancies/nutrition-v2/patient-record-view";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 
 interface PatientRecordPageProps {
   params: Promise<{ slug: string; studentPublicId: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 }
 
-export default async function PatientRecordPage({ params }: PatientRecordPageProps) {
+export default async function PatientRecordPage({ params, searchParams }: PatientRecordPageProps) {
   const { slug, studentPublicId } = await params;
+  const sp = searchParams ? await searchParams : undefined;
+  const initialTab = sp?.tab;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -25,15 +33,37 @@ export default async function PatientRecordPage({ params }: PatientRecordPagePro
     notFound();
   }
 
+  const effectiveState = await resolveEffectiveViewMode(slug, context?.roles || ctx.roles);
+  const effectiveRole = effectiveState.effectiveMode;
+
   const res = await getPatientRecordDetailAction(slug, studentPublicId);
   if (!res.success || !res.detail) {
     notFound();
   }
 
-  const activePlan = await getActiveNutritionPlanForStudentMembership(
-    res.detail.record.consultancyId,
-    res.detail.record.studentMembershipId
-  ).catch(() => null);
+  const [activePlan, evolutionHubData] = await Promise.all([
+    getActiveNutritionPlanForStudentMembership(
+      res.detail.record.consultancyId,
+      res.detail.record.studentMembershipId
+    ).catch(() => null),
+    getStudentEvolutionHubData({
+      userId: session.userId,
+      consultancySlug: slug,
+      studentPublicId,
+      effectiveRole: effectiveRole || "NUTRITIONIST",
+    }).catch(() => null),
+  ]);
+
+  let evolutionComparisonData = null;
+  if (evolutionHubData) {
+    evolutionComparisonData = await getEvolutionComparisonBetweenDates({
+      userId: session.userId,
+      consultancySlug: slug,
+      studentPublicId,
+      hubData: evolutionHubData,
+      effectiveRole: effectiveRole || "NUTRITIONIST",
+    }).catch(() => null);
+  }
 
   return (
     <ConsultancyAppShell
@@ -46,8 +76,17 @@ export default async function PatientRecordPage({ params }: PatientRecordPagePro
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      consultancyPublicId={context?.consultancyPublicId}
+      viewModeState={effectiveState}
     >
-      <PatientRecordView initialDetail={res.detail} slug={slug} activePlan={activePlan} />
+      <PatientRecordView
+        initialDetail={res.detail}
+        slug={slug}
+        activePlan={activePlan}
+        evolutionHubData={evolutionHubData}
+        evolutionComparisonData={evolutionComparisonData}
+        initialTab={initialTab}
+      />
     </ConsultancyAppShell>
   );
 }

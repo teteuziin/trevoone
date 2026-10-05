@@ -177,14 +177,19 @@ export function PersonalStudentList({
   const actionSheetOptions: ActionSheetOption[] = useMemo(() => {
     if (!actionSheetStudent) return [];
     const student = actionSheetStudent;
-    const studentProfileHref = `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
+    const studentProfileHref = isEffectiveNutritionist
+      ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
+      : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
+    const studentEvolutionHref = isEffectiveNutritionist
+      ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}?tab=evolucao`
+      : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
     const newWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
     const newPlanHref = `/consultoria/${consultancySlug}/planos-v2/novo?student=${student.membershipPublicId}`;
 
     const opts: ActionSheetOption[] = [
       {
         id: "view-profile",
-        label: "Ver perfil completo",
+        label: isEffectiveNutritionist ? "Ver paciente" : "Ver perfil completo",
         icon: <UserIcon className="w-5 h-5 text-[var(--brand)]" />,
         onClick: () => router.push(studentProfileHref),
       },
@@ -212,7 +217,7 @@ export function PersonalStudentList({
       id: "view-evolution",
       label: isEffectiveNutritionist ? "Evolução do paciente" : "Evolução do aluno",
       icon: <ChartIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
-      onClick: () => router.push(studentProfileHref),
+      onClick: () => router.push(studentEvolutionHref),
     });
 
     if (student.email) {
@@ -435,7 +440,9 @@ export function PersonalStudentList({
             {filteredStudents.map((student) => {
               const hasActiveWorkout =
                 student.latestAssignmentStatus === "ACTIVE" && !!student.latestWorkoutTitle;
-              const studentDetailHref = `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
+              const studentDetailHref = isEffectiveNutritionist
+                ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
+                : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
               const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
               const createPlanHref = `/consultoria/${consultancySlug}/planos-v2/novo?student=${student.membershipPublicId}`;
 
@@ -575,6 +582,9 @@ export function PersonalStudentList({
             {filteredStudents.map((student) => {
               const hasActiveWorkout =
                 student.latestAssignmentStatus === "ACTIVE" && !!student.latestWorkoutTitle;
+              const studentDetailHref = isEffectiveNutritionist
+                ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
+                : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
 
               return (
                 <div
@@ -592,7 +602,7 @@ export function PersonalStudentList({
                       />
                       <div className="min-w-0 space-y-0.5">
                         <Link
-                          href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
+                          href={studentDetailHref}
                           className="font-heading text-sm sm:text-base font-bold text-[var(--text-primary)] hover:text-[var(--brand)] transition-colors block truncate"
                         >
                           {student.name}
@@ -655,7 +665,7 @@ export function PersonalStudentList({
                   {/* Actions: Ver aluno/paciente & Criar treino/plano */}
                   <div className="flex items-center gap-2 pt-1">
                     <Link
-                      href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
+                      href={studentDetailHref}
                       className="flex-1 inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[44px] depth-interactive cursor-pointer"
                     >
                       <span>{isEffectiveNutritionist ? "Ver paciente" : "Ver aluno"}</span>

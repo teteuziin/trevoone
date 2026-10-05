@@ -173,7 +173,7 @@ export function WorkoutCardActions({
         <button
           type="button"
           onClick={() => setIsAssignModalOpen(true)}
-          className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs sm:text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-all min-h-[48px] sm:min-h-[34px] cursor-pointer"
+          className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs sm:text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-all min-h-[44px] sm:min-h-[34px] cursor-pointer"
         >
           <SparklesIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           <span>Usar modelo</span>
@@ -181,7 +181,7 @@ export function WorkoutCardActions({
       ) : (
         <Link
           href={`/consultoria/${consultancySlug}/rotinas/${workoutPublicId}`}
-          className="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs sm:text-xs font-bold sm:font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] hover:border-[var(--border-strong)] transition-all min-h-[48px] sm:min-h-[34px] cursor-pointer"
+          className="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs sm:text-xs font-bold sm:font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] hover:border-[var(--border-strong)] transition-all min-h-[44px] sm:min-h-[34px] cursor-pointer"
         >
           Abrir treino →
         </Link>

@@ -3,6 +3,26 @@ register('./ts-loader.mjs', import.meta.url);
 
 import assert from 'node:assert/strict';
 import mysql from 'mysql2/promise';
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Load .env.local manually if needed
+try {
+  const envContent = fs.readFileSync(path.resolve(process.cwd(), '.env.local'), 'utf8');
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+      const idx = trimmed.indexOf('=');
+      const key = trimmed.slice(0, idx).trim();
+      const val = trimmed.slice(idx + 1).trim();
+      if (!process.env[key]) {
+        process.env[key] = val;
+      }
+    }
+  }
+} catch (e) {
+  // Ignore
+}
 
 // Dynamically import TS repository functions
 const {

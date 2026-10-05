@@ -716,9 +716,9 @@ export function WorkoutCategoryCard({
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs overflow-hidden transition-all">
+    <div className="space-y-4 pb-6 border-b border-[var(--border-subtle)] last:border-b-0">
       {/* Category Header */}
-      <div className="px-4 sm:px-5 py-3 border-b border-[var(--border-subtle)] bg-[var(--surface-subtle)]/50 flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {isEditingTitle && isDraft ? (
             <div className="flex items-center gap-1.5 flex-1 max-w-sm">
@@ -744,7 +744,7 @@ export function WorkoutCategoryCard({
               </button>
             </div>
           ) : (
-            <div className="min-w-0 flex items-center gap-2 flex-wrap">
+            <div className="min-w-0 flex items-baseline gap-2.5 flex-wrap">
               <h2
                 onClick={() => {
                   if (isDraft) {
@@ -752,17 +752,17 @@ export function WorkoutCategoryCard({
                     setIsEditingTitle(true);
                   }
                 }}
-                className={`text-sm font-bold uppercase tracking-wider text-[var(--text-primary)] truncate ${
+                className={`text-base sm:text-lg font-black uppercase tracking-tight text-[var(--text-primary)] truncate ${
                   isDraft ? "cursor-pointer hover:text-emerald-600 transition-colors" : ""
                 }`}
                 title={isDraft ? "Clique para renomear" : undefined}
               >
                 {categoryTitle}
               </h2>
-              <span className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-md bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--text-secondary)] whitespace-nowrap">
+              <span className="text-xs text-[var(--text-secondary)] font-medium">
                 {items.length} {items.length === 1 ? "exercício" : "exercícios"}
-                {hasSubBlocks ? ` • ${subBlocks.length} ${subBlocks.length === 1 ? "grupo" : "grupos"}` : ""}
-                {combinations.length > 0 ? ` • ${combinations.length} combinação(ões)` : ""}
+                {hasSubBlocks ? ` · ${subBlocks.length} ${subBlocks.length === 1 ? "grupo" : "grupos"}` : ""}
+                {combinations.length > 0 ? ` · ${combinations.length} combinação(ões)` : ""}
               </span>
             </div>
           )}
@@ -958,7 +958,7 @@ export function WorkoutCategoryCard({
       </div>
 
       {/* Content Area: Sub-Blocks or Flat Exercise List */}
-      <div className="p-3 sm:p-5 space-y-4">
+      <div className="space-y-4 pt-1">
         {/* Scenario A: Has Sub-blocks (Grupos) */}
         {hasSubBlocks ? (
           <div className="space-y-4">
@@ -976,7 +976,7 @@ export function WorkoutCategoryCard({
               return (
                 <div
                   key={subBlock.publicId}
-                  className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)]/30 p-3 sm:p-4 space-y-3 transition-all"
+                  className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)]/20 p-3 sm:p-3.5 space-y-3 transition-all"
                 >
                   {/* Sub-block Header */}
                   <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--border-subtle)]">
@@ -1020,8 +1020,8 @@ export function WorkoutCategoryCard({
                           >
                             {subBlock.title}
                           </h3>
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] shrink-0">
-                            {subBlockItems.length} {subBlockItems.length === 1 ? "exercício" : "exercícios"}
+                          <span className="text-xs font-semibold text-[var(--text-tertiary)] shrink-0">
+                            ({subBlockItems.length} {subBlockItems.length === 1 ? "exercício" : "exercícios"})
                           </span>
                         </div>
                       )}
@@ -2379,7 +2379,7 @@ function ExerciseRow({
           onToggleSelect?.();
         }
       }}
-      className={`rounded-2xl border transition-all ${
+      className={`rounded-lg border transition-all ${
         isSelectionMode && !inCombination
           ? isSelected
             ? "border-2 border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/30 shadow-md ring-2 ring-emerald-500/30 scale-[1.008] cursor-pointer"
@@ -2387,10 +2387,10 @@ function ExerciseRow({
           : isUnmatched
           ? "border-amber-500/40 bg-amber-500/5 hover:border-amber-500/60"
           : isCustom
-          ? "border-violet-500/30 bg-violet-500/[0.02] hover:border-violet-500/50"
+          ? "border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--border-default)]"
           : isExpanded
           ? "border-emerald-500 bg-[var(--surface)] shadow-md ring-2 ring-emerald-500/20"
-          : "border-[var(--border-default)] bg-[var(--surface-sunken)]/60 hover:bg-[var(--surface)] hover:border-[var(--border-strong)]"
+          : "border-[var(--border-subtle)] bg-[var(--surface)] hover:bg-[var(--surface-subtle)]/30 hover:border-[var(--border-default)]"
       }`}
     >
       {/* Compact Header Row */}
@@ -2448,8 +2448,8 @@ function ExerciseRow({
               )}
 
               {isCustom && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-violet-500/15 text-violet-700 dark:text-violet-300 border border-violet-500/30 whitespace-nowrap shrink-0">
-                  ✨ Personalizado
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] whitespace-nowrap shrink-0">
+                  Personalizado
                 </span>
               )}
 
@@ -2497,21 +2497,18 @@ function ExerciseRow({
                   e.stopPropagation();
                   setIsExecutionModalOpen(true);
                 }}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors shrink-0 cursor-pointer"
                 title={`Ver execução de ${item.exerciseNameSnapshot}`}
               >
-                <span>▶</span>
-                <span className="hidden xs:inline sm:inline">Ver execução</span>
-                <span className="xs:hidden sm:hidden">Execução</span>
+                <span>Ver execução →</span>
               </button>
             </div>
           </div>
 
-          {/* Method / Observation: Prominently displayed under the exercise title, above prescription */}
+          {/* Method / Observation: Subtle inline styling */}
           {item.notes && item.notes.trim() && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-[11px] font-bold w-fit">
-              <span>⚡ Método:</span>
-              <span>{item.notes.trim()}</span>
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[11px] font-medium w-fit">
+              <span>⚡ {item.notes.trim()}</span>
             </div>
           )}
 
@@ -3059,7 +3056,6 @@ export function UnifiedCombinationBlock({
 }: UnifiedCombinationBlockProps) {
   const items = combination.items || [];
   const typeLabel = COMBINATION_TYPE_LABELS[combination.combinationType] || combination.combinationType;
-  const badgeStyle = COMBINATION_BADGE_STYLES[combination.combinationType] || "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
   const activeRest = parseActiveRest(combination.title);
   const restSec = combination.restAfterSeconds ?? 60;
   const [, startTransition] = useTransition();
@@ -3070,52 +3066,42 @@ export function UnifiedCombinationBlock({
     <div
       data-testid="mobile-combination-block"
       data-block-type="unified-combination-block"
-      className="rounded-2xl border-2 border-emerald-500/35 dark:border-emerald-500/40 bg-[var(--surface)] shadow-xs overflow-hidden transition-all"
+      className="rounded-xl border border-[var(--border-default)] border-l-4 border-l-emerald-500 bg-[var(--surface)] shadow-2xs overflow-hidden transition-all"
     >
       {/* Block Header */}
-      <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 bg-[var(--surface-subtle)]/70 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap">
+      <div className="px-3.5 sm:px-4 py-2 bg-[var(--surface-subtle)]/40 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2.5 flex-wrap">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className={`px-2.5 py-1 rounded-xl text-xs font-black tracking-wide border uppercase shrink-0 ${badgeStyle}`}>
+          <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 shrink-0">
             {typeLabel}
           </span>
+          <span className="text-xs font-bold text-[var(--text-tertiary)]">·</span>
           <span className="text-xs font-bold text-[var(--text-secondary)] whitespace-nowrap">
             {items[0]?.sets?.length || 3} rodadas
           </span>
-          {combination.title && (
-            <span className="text-xs font-bold text-[var(--text-primary)] truncate max-w-xs" title={combination.title}>
-              • {combination.title.replace(/•?\s*Descanso Ativo:.*$/i, "").trim()}
+          <span className="text-xs font-bold text-[var(--text-tertiary)]">·</span>
+          <span className="text-xs font-semibold text-[var(--text-secondary)] whitespace-nowrap">
+            {activeRest.isActive ? `🏃 Ativo · ${restSec}s (${activeRest.activity})` : `${restSec}s descanso`}
+          </span>
+          {combination.title && !activeRest.isActive && (
+            <span className="text-xs font-medium text-[var(--text-tertiary)] truncate max-w-xs" title={combination.title}>
+              · {combination.title.replace(/•?\s*Descanso Ativo:.*$/i, "").trim()}
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Rest indicator badge in header */}
-          {activeRest.isActive ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
-              <span>🏃</span>
-              <span className="truncate max-w-[160px] sm:max-w-none">
-                Ativo • {restSec}s • {activeRest.activity}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] text-xs font-semibold">
-              <ClockIcon className="w-3.5 h-3.5" />
-              <span>{restSec}s descanso</span>
-            </div>
-          )}
-
           {/* Block-level Move Controls (↑ / ↓) */}
           {isDraft && onMoveEntryUp && onMoveEntryDown && (
-            <div className="flex items-center gap-1 pl-1">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 disabled={entryIndex === 0}
                 onClick={onMoveEntryUp}
                 aria-label="Mover bloco para cima"
                 title="Mover bloco para cima"
-                className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] transition-colors"
+                className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px] transition-colors"
               >
-                <ArrowUp className="w-4 h-4" />
+                <ArrowUp className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
@@ -3123,9 +3109,9 @@ export function UnifiedCombinationBlock({
                 onClick={onMoveEntryDown}
                 aria-label="Mover bloco para baixo"
                 title="Mover bloco para baixo"
-                className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] transition-colors"
+                className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px] transition-colors"
               >
-                <ArrowDown className="w-4 h-4" />
+                <ArrowDown className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
@@ -3133,40 +3119,41 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Internal Exercise Rows (Clean rows, NOT nested heavy cards) */}
-      <div className="p-3 sm:p-3.5 space-y-2">
+      <div className="divide-y divide-[var(--border-subtle)]">
         {items.map((item, idx) => {
           const letter = LETTERS[idx] || String.fromCharCode(65 + idx);
           const summary = getItemPrescriptionSummary(item);
 
           return (
-            <div key={item.publicId} className="space-y-2">
-              <div className="p-2.5 sm:p-3 rounded-xl bg-[var(--surface-subtle)]/45 border border-[var(--border-subtle)] flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/70 transition-colors">
+            <div key={item.publicId} className="space-y-0">
+              <div className="p-3 sm:px-4 sm:py-3 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/30 transition-colors">
                 {/* Left: Letter Badge + Info */}
                 <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-600 text-white font-black text-xs sm:text-sm flex items-center justify-center shrink-0 shadow-2xs">
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-emerald-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs">
                     {letter}
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 space-y-0.5">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
                         {item.exerciseNameSnapshot}
                       </h4>
                       {item.isCustomExercise && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
                           Personalizado
                         </span>
                       )}
                     </div>
-                    {item.notes && item.notes.trim() && (
-                      <div className="my-0.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-[11px] font-bold">
-                        <span>⚡ Método:</span>
-                        <span className="truncate max-w-[220px] sm:max-w-none">{item.notes.trim()}</span>
-                      </div>
-                    )}
-                    <p className="text-[11px] sm:text-xs font-semibold text-[var(--text-secondary)] truncate">
-                      {summary.seriesCount} séries • {summary.repsText}
-                      {summary.loadKg != null ? ` • ${summary.loadKg}kg` : ""}
-                    </p>
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] flex-wrap">
+                      <span className="font-semibold">
+                        {summary.seriesCount} séries · {summary.repsText}
+                        {summary.loadKg != null ? ` · ${summary.loadKg}kg` : ""}
+                      </span>
+                      {item.notes && item.notes.trim() && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                          ⚡ {item.notes.trim()}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -3180,7 +3167,7 @@ export function UnifiedCombinationBlock({
                           type="button"
                           disabled={idx === 0}
                           onClick={() => onMoveItemInCombination(combination.publicId, item.publicId, "up")}
-                          aria-label={`Mover ${item.exerciseNameSnapshot} para cima`}
+                          aria-label="Mover para cima na combinação"
                           title="Mover para cima na combinação"
                           className="w-9 h-9 sm:w-7 sm:h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px]"
                         >
@@ -3190,7 +3177,7 @@ export function UnifiedCombinationBlock({
                           type="button"
                           disabled={idx === items.length - 1}
                           onClick={() => onMoveItemInCombination(combination.publicId, item.publicId, "down")}
-                          aria-label={`Mover ${item.exerciseNameSnapshot} para baixo`}
+                          aria-label="Mover para baixo na combinação"
                           title="Mover para baixo na combinação"
                           className="w-9 h-9 sm:w-7 sm:h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px]"
                         >
@@ -3204,7 +3191,7 @@ export function UnifiedCombinationBlock({
                       type="button"
                       onClick={() => onOpenQuickEdit(item)}
                       aria-label={`Editar ${item.exerciseNameSnapshot}`}
-                      className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-bold text-[var(--text-primary)] transition-colors min-h-[44px] sm:min-h-[30px] flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-primary)] transition-colors min-h-[44px] sm:min-h-[30px] flex items-center gap-1 cursor-pointer"
                     >
                       <Edit2 className="w-3.5 h-3.5 text-emerald-600" />
                       <span className="hidden xs:inline sm:inline">Editar</span>
@@ -3215,7 +3202,7 @@ export function UnifiedCombinationBlock({
                       type="button"
                       onClick={() => onOpenActions(item, idx, items.length)}
                       aria-label="Ações do exercício"
-                      className="w-11 h-11 sm:w-8 sm:h-8 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px] cursor-pointer"
+                      className="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px] cursor-pointer"
                     >
                       <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
@@ -3225,8 +3212,11 @@ export function UnifiedCombinationBlock({
 
               {/* Transition connector between exercises */}
               {idx < items.length - 1 && (
-                <div className="flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 py-0.5">
-                  <span>↓ Transição direta (sem descanso)</span>
+                <div
+                  className="py-1 px-3 sm:px-4 bg-[var(--surface-subtle)]/25 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 border-t border-[var(--border-subtle)]/50"
+                  title="Transição direta (sem descanso)"
+                >
+                  <span>↓ sem descanso</span>
                 </div>
               )}
             </div>
@@ -3236,11 +3226,11 @@ export function UnifiedCombinationBlock({
 
       {/* Block Footer Actions */}
       {isDraft && (
-        <div className="px-3.5 py-2.5 bg-[var(--surface-subtle)]/50 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
+        <div className="px-3.5 py-2 bg-[var(--surface-subtle)]/30 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => onOpenEditCombination(combination)}
-            className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors min-h-[44px] cursor-pointer shadow-xs"
+            className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors min-h-[44px] sm:min-h-[34px] cursor-pointer shadow-xs"
           >
             <ZapIcon className="w-3.5 h-3.5" />
             <span>Editar combinação</span>
@@ -3253,7 +3243,7 @@ export function UnifiedCombinationBlock({
                   startTransition(() => onUngroupCombination(combination.publicId));
                 }
               }}
-              className="py-2.5 px-3 rounded-xl border border-[var(--border-default)] hover:bg-rose-500/10 hover:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold text-xs sm:text-sm transition-colors min-h-[44px] cursor-pointer"
+              className="py-2 px-3 rounded-lg border border-[var(--border-subtle)] hover:bg-rose-500/10 hover:border-rose-500/30 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors min-h-[44px] sm:min-h-[34px] cursor-pointer"
             >
               Desfazer
             </button>
@@ -3346,17 +3336,24 @@ export function MobileExerciseCard({
   return (
     <div
       data-testid="mobile-exercise-card"
-      className="p-3.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs hover:border-[var(--border-strong)] transition-all space-y-2.5"
+      className="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--border-default)] transition-all space-y-2"
     >
       {/* Header: Name, Muscle group & video button */}
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-extrabold text-[var(--text-primary)] leading-snug">
-            {item.exerciseNameSnapshot}
-          </h4>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] leading-snug truncate">
+              {item.exerciseNameSnapshot}
+            </h4>
+            {item.isCustomExercise && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                Personalizado
+              </span>
+            )}
+          </div>
           {(item.muscleGroupSnapshot || item.equipmentSnapshot) && (
-            <p className="text-[11px] font-semibold text-[var(--text-tertiary)] pt-0.5 truncate">
-              {[item.muscleGroupSnapshot, item.equipmentSnapshot].filter(Boolean).join(" • ")}
+            <p className="text-[11px] font-medium text-[var(--text-tertiary)] truncate">
+              {[item.muscleGroupSnapshot, item.equipmentSnapshot].filter(Boolean).join(" · ")}
             </p>
           )}
         </div>
@@ -3366,47 +3363,36 @@ export function MobileExerciseCard({
             type="button"
             onClick={onOpenExecutionModal}
             aria-label="Ver vídeo do exercício"
-            className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 cursor-pointer"
+            className="p-2 rounded-lg bg-[var(--surface-subtle)] hover:bg-emerald-500/10 text-emerald-600 border border-[var(--border-subtle)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center shrink-0 cursor-pointer"
           >
             <VideoIcon className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {/* Method / Observation: Prominent on mobile above prescription */}
+      {/* Method / Observation: Subtle inline */}
       {item.notes && item.notes.trim() && (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-xs font-bold w-fit">
-          <span>⚡ Método:</span>
-          <span>{item.notes.trim()}</span>
+        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[11px] font-medium w-fit">
+          <span>⚡ {item.notes.trim()}</span>
         </div>
       )}
 
-      {/* Prescription Highlights: Big & Easy to read */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-black text-[var(--text-primary)]">
-          {summary.seriesCount} {summary.seriesCount === 1 ? "série" : "séries"}
-        </span>
-        <span className="px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-primary)]">
-          {summary.repsText}
-        </span>
-        {summary.loadKg != null && (
-          <span className="px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-primary)]">
-            {summary.loadKg} kg
-          </span>
-        )}
-        <span className="px-2.5 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-secondary)]">
-          {summary.restSeconds}s descanso
+      {/* Prescription: Clean single line */}
+      <div className="text-xs font-semibold text-[var(--text-secondary)]">
+        <span>
+          {summary.seriesCount} {summary.seriesCount === 1 ? "série" : "séries"} · {summary.repsText} · {summary.restSeconds}s descanso
+          {summary.loadKg != null ? ` · ${summary.loadKg}kg` : ""}
         </span>
       </div>
 
-      {/* Mobile Actions Toolbar: Large 44x44 Touch Targets */}
+      {/* Mobile Actions Toolbar: Preserved 44x44 Touch Targets */}
       {isDraft && (
-        <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-[var(--border-subtle)]">
-          {/* Large Edit Prescription CTA */}
+        <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-[var(--border-subtle)]">
+          {/* Quick Edit CTA */}
           <button
             type="button"
             onClick={onOpenQuickEdit}
-            className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors min-h-[44px] cursor-pointer shadow-xs"
+            className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors min-h-[44px] cursor-pointer shadow-2xs"
           >
             <Edit2 className="w-3.5 h-3.5" />
             <span>Editar</span>
@@ -3419,7 +3405,7 @@ export function MobileExerciseCard({
               disabled={itemIndex === 0}
               onClick={() => startTransition(() => onMoveUp())}
               aria-label="Mover para cima"
-              className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              className="w-11 h-11 rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
             >
               <ArrowUp className="w-4 h-4" />
             </button>
@@ -3428,7 +3414,7 @@ export function MobileExerciseCard({
               disabled={itemIndex === totalItems - 1}
               onClick={() => startTransition(() => onMoveDown())}
               aria-label="Mover para baixo"
-              className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              className="w-11 h-11 rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
             >
               <ArrowDown className="w-4 h-4" />
             </button>
@@ -3439,7 +3425,7 @@ export function MobileExerciseCard({
             type="button"
             onClick={onOpenActions}
             aria-label="Mais opções"
-            className="w-11 h-11 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+            className="w-11 h-11 rounded-lg bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
           >
             <MoreVertical className="w-4 h-4" />
           </button>

@@ -718,7 +718,7 @@ export function WorkoutCategoryCard({
   return (
     <div className="space-y-4 pb-6 border-b border-[var(--border-subtle)] last:border-b-0">
       {/* Category Header */}
-      <div className="flex items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 pb-3 border-b border-[var(--border-subtle)]">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {isEditingTitle && isDraft ? (
             <div className="flex items-center gap-1.5 flex-1 max-w-sm">
@@ -744,7 +744,7 @@ export function WorkoutCategoryCard({
               </button>
             </div>
           ) : (
-            <div className="min-w-0 flex items-baseline gap-2.5 flex-wrap">
+            <div className="min-w-0 flex flex-col xs:flex-row xs:items-baseline gap-1 xs:gap-2.5">
               <h2
                 onClick={() => {
                   if (isDraft) {
@@ -752,14 +752,14 @@ export function WorkoutCategoryCard({
                     setIsEditingTitle(true);
                   }
                 }}
-                className={`text-base sm:text-lg font-black uppercase tracking-tight text-[var(--text-primary)] truncate ${
+                className={`text-base sm:text-lg font-black uppercase tracking-tight text-[var(--text-primary)] break-words line-clamp-2 sm:line-clamp-none ${
                   isDraft ? "cursor-pointer hover:text-emerald-600 transition-colors" : ""
                 }`}
                 title={isDraft ? "Clique para renomear" : undefined}
               >
                 {categoryTitle}
               </h2>
-              <span className="text-xs text-[var(--text-secondary)] font-medium">
+              <span className="text-xs text-[var(--text-secondary)] font-medium shrink-0">
                 {items.length} {items.length === 1 ? "exercício" : "exercícios"}
                 {hasSubBlocks ? ` · ${subBlocks.length} ${subBlocks.length === 1 ? "grupo" : "grupos"}` : ""}
                 {combinations.length > 0 ? ` · ${combinations.length} combinação(ões)` : ""}
@@ -770,7 +770,7 @@ export function WorkoutCategoryCard({
 
         {/* Category Actions */}
         {isDraft && (
-          <div className="flex items-center gap-1.5 shrink-0 relative">
+          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center relative">
             {/* Flat Category + Exercício Button with Popover */}
             {!hasSubBlocks && (
               <div className="relative">
@@ -2437,7 +2437,7 @@ function ExerciseRow({
           {/* Line 1: Exercise Name & Status Badges */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2 min-w-0 flex-wrap">
-              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate max-w-[220px] sm:max-w-none">
+              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] line-clamp-2 sm:truncate break-words">
                 {item.exerciseNameSnapshot}
               </h3>
 
@@ -2507,7 +2507,7 @@ function ExerciseRow({
 
           {/* Method / Observation: Subtle inline styling */}
           {item.notes && item.notes.trim() && (
-            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[11px] font-medium w-fit">
+            <div className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700/90 dark:text-amber-400/90 w-fit">
               <span>⚡ {item.notes.trim()}</span>
             </div>
           )}
@@ -2540,7 +2540,7 @@ function ExerciseRow({
                     disabled={isFirstInComb || isPending}
                     onClick={() => startTransition(() => onMoveInCombination?.("up") || Promise.resolve())}
                     aria-label="Mover para cima na combinação"
-                    className="p-2 sm:p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center cursor-pointer"
+                    className="p-2 sm:p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 flex items-center justify-center cursor-pointer"
                     title="Mover para cima na combinação"
                   >
                     <ArrowUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -2550,7 +2550,7 @@ function ExerciseRow({
                     disabled={isLastInComb || isPending}
                     onClick={() => startTransition(() => onMoveInCombination?.("down") || Promise.resolve())}
                     aria-label="Mover para baixo na combinação"
-                    className="p-2 sm:p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center cursor-pointer"
+                    className="p-2 sm:p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 flex items-center justify-center cursor-pointer"
                     title="Mover para baixo na combinação"
                   >
                     <ArrowDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -2563,7 +2563,7 @@ function ExerciseRow({
                     disabled={itemIndex === 0 || isPending}
                     onClick={() => startTransition(() => onMoveUp())}
                     aria-label="Mover exercício para cima"
-                    className="p-2 sm:p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center cursor-pointer"
+                    className="p-2 sm:p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 flex items-center justify-center cursor-pointer"
                     title="Mover para cima"
                   >
                     <ArrowUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -2573,7 +2573,7 @@ function ExerciseRow({
                     disabled={itemIndex === totalItems - 1 || isPending}
                     onClick={() => startTransition(() => onMoveDown())}
                     aria-label="Mover exercício para baixo"
-                    className="p-2 sm:p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center cursor-pointer"
+                    className="p-2 sm:p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 flex items-center justify-center cursor-pointer"
                     title="Mover para baixo"
                   >
                     <ArrowDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -2586,7 +2586,7 @@ function ExerciseRow({
                   type="button"
                   onClick={onToggleMenu}
                   aria-label="Opções do exercício"
-                  className="p-2 sm:p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] flex items-center justify-center cursor-pointer"
+                  className="p-2 sm:p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 flex items-center justify-center cursor-pointer"
                 >
                   <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                 </button>
@@ -3059,6 +3059,7 @@ export function UnifiedCombinationBlock({
   const activeRest = parseActiveRest(combination.title);
   const restSec = combination.restAfterSeconds ?? 60;
   const [, startTransition] = useTransition();
+  const [isCombMenuOpen, setIsCombMenuOpen] = useState(false);
 
   const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
@@ -3066,11 +3067,11 @@ export function UnifiedCombinationBlock({
     <div
       data-testid="mobile-combination-block"
       data-block-type="unified-combination-block"
-      className="rounded-xl border border-[var(--border-default)] border-l-4 border-l-emerald-500 bg-[var(--surface)] shadow-2xs overflow-hidden transition-all"
+      className="rounded-xl border border-[var(--border-subtle)] border-l-4 border-l-emerald-500 bg-[var(--surface)] shadow-2xs overflow-hidden transition-all"
     >
       {/* Block Header */}
-      <div className="px-3.5 sm:px-4 py-2 bg-[var(--surface-subtle)]/40 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2.5 flex-wrap">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+      <div className="px-3 sm:px-4 py-2 bg-[var(--surface-subtle)]/30 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 flex-wrap">
           <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 shrink-0">
             {typeLabel}
           </span>
@@ -3089,17 +3090,17 @@ export function UnifiedCombinationBlock({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0 relative">
           {/* Block-level Move Controls (↑ / ↓) */}
           {isDraft && onMoveEntryUp && onMoveEntryDown && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <button
                 type="button"
                 disabled={entryIndex === 0}
                 onClick={onMoveEntryUp}
                 aria-label="Mover bloco para cima"
                 title="Mover bloco para cima"
-                className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px] transition-colors"
+                className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 transition-colors"
               >
                 <ArrowUp className="w-3.5 h-3.5" />
               </button>
@@ -3109,10 +3110,71 @@ export function UnifiedCombinationBlock({
                 onClick={onMoveEntryDown}
                 aria-label="Mover bloco para baixo"
                 title="Mover bloco para baixo"
-                className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px] transition-colors"
+                className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 transition-colors"
               >
                 <ArrowDown className="w-3.5 h-3.5" />
               </button>
+            </div>
+          )}
+
+          {/* Discreet "Editar" Action in Header */}
+          {isDraft && (
+            <button
+              type="button"
+              onClick={() => onOpenEditCombination(combination)}
+              aria-label="Editar combinação"
+              className="px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 hover:bg-emerald-500/10 transition-colors min-h-[44px] sm:min-h-[28px] flex items-center gap-1 cursor-pointer"
+            >
+              <Edit2 className="w-3 h-3" />
+              <span>Editar</span>
+            </button>
+          )}
+
+          {/* Combination Contextual (•••) Menu */}
+          {isDraft && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsCombMenuOpen((v) => !v)}
+                aria-label="Opções da combinação"
+                className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 cursor-pointer"
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
+
+              {isCombMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setIsCombMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1 text-xs font-semibold text-[var(--text-primary)] animate-in fade-in zoom-in-95 duration-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCombMenuOpen(false);
+                        onOpenEditCombination(combination);
+                      }}
+                      className="w-full px-3 py-2 hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
+                    >
+                      <ZapIcon className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Editar combinação</span>
+                    </button>
+                    {onUngroupCombination && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCombMenuOpen(false);
+                          if (confirm(`Desfazer este ${typeLabel} e manter os exercícios separados?`)) {
+                            startTransition(() => onUngroupCombination(combination.publicId));
+                          }
+                        }}
+                        className="w-full px-3 py-2 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Desfazer combinação</span>
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -3126,15 +3188,15 @@ export function UnifiedCombinationBlock({
 
           return (
             <div key={item.publicId} className="space-y-0">
-              <div className="p-3 sm:px-4 sm:py-3 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/30 transition-colors">
+              <div className="p-2.5 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/20 transition-colors">
                 {/* Left: Letter Badge + Info */}
                 <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-emerald-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-bold text-xs flex items-center justify-center shrink-0">
                     {letter}
                   </div>
                   <div className="min-w-0 flex-1 space-y-0.5">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
+                      <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] line-clamp-2 break-words">
                         {item.exerciseNameSnapshot}
                       </h4>
                       {item.isCustomExercise && (
@@ -3149,7 +3211,7 @@ export function UnifiedCombinationBlock({
                         {summary.loadKg != null ? ` · ${summary.loadKg}kg` : ""}
                       </span>
                       {item.notes && item.notes.trim() && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700/90 dark:text-amber-400/90">
                           ⚡ {item.notes.trim()}
                         </span>
                       )}
@@ -3169,7 +3231,7 @@ export function UnifiedCombinationBlock({
                           onClick={() => onMoveItemInCombination(combination.publicId, item.publicId, "up")}
                           aria-label="Mover para cima na combinação"
                           title="Mover para cima na combinação"
-                          className="w-9 h-9 sm:w-7 sm:h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px]"
+                          className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7"
                         >
                           <ArrowUp className="w-3.5 h-3.5" />
                         </button>
@@ -3179,7 +3241,7 @@ export function UnifiedCombinationBlock({
                           onClick={() => onMoveItemInCombination(combination.publicId, item.publicId, "down")}
                           aria-label="Mover para baixo na combinação"
                           title="Mover para baixo na combinação"
-                          className="w-9 h-9 sm:w-7 sm:h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px]"
+                          className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7"
                         >
                           <ArrowDown className="w-3.5 h-3.5" />
                         </button>
@@ -3191,9 +3253,9 @@ export function UnifiedCombinationBlock({
                       type="button"
                       onClick={() => onOpenQuickEdit(item)}
                       aria-label={`Editar ${item.exerciseNameSnapshot}`}
-                      className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-primary)] transition-colors min-h-[44px] sm:min-h-[30px] flex items-center gap-1 cursor-pointer"
+                      className="px-2 sm:px-2.5 py-1 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] transition-colors min-h-[44px] sm:min-h-[28px] flex items-center gap-1 cursor-pointer"
                     >
-                      <Edit2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <Edit2 className="w-3 h-3 text-emerald-600" />
                       <span className="hidden xs:inline sm:inline">Editar</span>
                     </button>
 
@@ -3202,9 +3264,9 @@ export function UnifiedCombinationBlock({
                       type="button"
                       onClick={() => onOpenActions(item, idx, items.length)}
                       aria-label="Ações do exercício"
-                      className="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[30px] sm:min-w-[30px] cursor-pointer"
+                      className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 cursor-pointer"
                     >
-                      <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                      <MoreVertical className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -3213,7 +3275,7 @@ export function UnifiedCombinationBlock({
               {/* Transition connector between exercises */}
               {idx < items.length - 1 && (
                 <div
-                  className="py-1 px-3 sm:px-4 bg-[var(--surface-subtle)]/25 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 border-t border-[var(--border-subtle)]/50"
+                  className="py-0.5 px-3 sm:px-4 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 border-t border-[var(--border-subtle)]/40"
                   title="Transição direta (sem descanso)"
                 >
                   <span>↓ sem descanso</span>
@@ -3223,33 +3285,6 @@ export function UnifiedCombinationBlock({
           );
         })}
       </div>
-
-      {/* Block Footer Actions */}
-      {isDraft && (
-        <div className="px-3.5 py-2 bg-[var(--surface-subtle)]/30 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => onOpenEditCombination(combination)}
-            className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors min-h-[44px] sm:min-h-[34px] cursor-pointer shadow-xs"
-          >
-            <ZapIcon className="w-3.5 h-3.5" />
-            <span>Editar combinação</span>
-          </button>
-          {onUngroupCombination && (
-            <button
-              type="button"
-              onClick={() => {
-                if (confirm(`Desfazer este ${typeLabel} e manter os exercícios separados?`)) {
-                  startTransition(() => onUngroupCombination(combination.publicId));
-                }
-              }}
-              className="py-2 px-3 rounded-lg border border-[var(--border-subtle)] hover:bg-rose-500/10 hover:border-rose-500/30 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors min-h-[44px] sm:min-h-[34px] cursor-pointer"
-            >
-              Desfazer
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -3314,11 +3349,11 @@ export function MobileExerciseCard({
             {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
+            <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] line-clamp-2 break-words">
               {item.exerciseNameSnapshot}
             </h4>
             {item.notes && item.notes.trim() && (
-              <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 truncate">
+              <p className="text-[11px] font-medium text-amber-700/90 dark:text-amber-400/90">
                 ⚡ Método: {item.notes.trim()}
               </p>
             )}
@@ -3342,7 +3377,7 @@ export function MobileExerciseCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1 space-y-0.5">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] leading-snug truncate">
+            <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] leading-snug line-clamp-2 break-words">
               {item.exerciseNameSnapshot}
             </h4>
             {item.isCustomExercise && (
@@ -3372,7 +3407,7 @@ export function MobileExerciseCard({
 
       {/* Method / Observation: Subtle inline */}
       {item.notes && item.notes.trim() && (
-        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[11px] font-medium w-fit">
+        <div className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700/90 dark:text-amber-400/90 w-fit">
           <span>⚡ {item.notes.trim()}</span>
         </div>
       )}

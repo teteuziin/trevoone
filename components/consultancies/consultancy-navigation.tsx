@@ -489,6 +489,22 @@ export function ConsultancyNavigation({
       return pathname === baseSlugHref;
     }
     const cleanItemHref = itemHref.split("#")[0].split("?")[0];
+
+    // Special routing for Nutritionist Patient Record (/planos-v2/prontuario):
+    // Conceptually belongs to "Pacientes" (/progresso/alunos), NOT "Planos Alimentares" (/planos-v2)
+    const isPatientRecordRoute =
+      pathname === `${baseSlugHref}/planos-v2/prontuario` ||
+      pathname.startsWith(`${baseSlugHref}/planos-v2/prontuario/`);
+
+    if (isPatientRecordRoute) {
+      if (cleanItemHref === `${baseSlugHref}/progresso/alunos`) {
+        return true;
+      }
+      if (cleanItemHref === `${baseSlugHref}/planos-v2`) {
+        return false;
+      }
+    }
+
     if (pathname === cleanItemHref) return true;
 
     // Subroute matching with explicit boundary
@@ -612,8 +628,11 @@ export function ConsultancyNavigation({
     "admin-missoes": "Metas, desafios e embaixadores",
     "influencer-missoes": "Missões ativas e recompensas",
     "nutritionist-prontuario": "Histórico e evolução clínica",
-    "student-formularios": "Anamnese e questionários",
-    "atendimento-alunos": "Acompanhamento de alunos",
+    "atendimento-alunos":
+      viewModeState?.effectiveMode === "NUTRITIONIST" ||
+      (roleLabels.includes("Nutricionista") && !roleLabels.includes("Personal Trainer"))
+        ? "Acompanhamento de pacientes e prontuário"
+        : "Acompanhamento de alunos",
     "personal-rotinas": "Treinos e rotinas prescritas",
     "nutritionist-planos": "Planos e prescrições alimentares",
     "admin-financeiro": "Cobranças, faturas e fluxo de caixa",

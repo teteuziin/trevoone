@@ -165,8 +165,8 @@ export default async function ProfessionalStudentProgressDetailPage({
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         <PageHeader
-          eyebrow="Acompanhamento 360�"
-          title={`Evolu��o de ${hubData.student.fullName}`}
+          eyebrow="Acompanhamento 360°"
+          title={`Evolução de ${hubData.student.fullName}`}
           description={hubData.student.email}
           backHref={`/consultoria/${slug}/progresso/alunos`}
           backLabel={isNutritionist && !isPersonal ? "Voltar para lista de pacientes" : "Voltar para lista de alunos"}

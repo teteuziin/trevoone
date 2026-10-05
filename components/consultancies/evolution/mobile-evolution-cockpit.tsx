@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { StudentProgressForm } from "@/components/consultancies/student-progress-form";
 import {
@@ -14,6 +15,7 @@ import {
   type EvolutionMilestoneDto,
   type EvolutionComparisonDataDto,
   formatMetricNumber,
+  formatIsoDateToBr,
 } from "@/types/evolution";
 
 export interface MobileEvolutionCockpitProps {
@@ -243,11 +245,10 @@ export function MobileEvolutionCockpit({
       />
 
       {/* =========================================================================
-          1. HEADER CONTEXT & TOP HERO CARD
-          Answers: "Como estou agora? O que mudou? Qual foi minha última avaliação?"
+          1. HEADER CONTEXT & TOP HERO
           ========================================================================= */}
-      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 space-y-3.5 shadow-2xs depth-surface">
-        <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
+      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 shadow-2xs depth-surface">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[var(--brand)]" />
             <h1 className="text-sm font-bold text-[var(--text-primary)]">
@@ -264,6 +265,103 @@ export function MobileEvolutionCockpit({
             </Badge>
           )}
         </div>
+      </div>
+
+      {/* =========================================================================
+          2. PLANO ALIMENTAR VIGENTE (Active Nutrition Plan)
+          ========================================================================= */}
+      {hubData.activeNutritionPlan && (
+        <div
+          data-testid="mobile-active-nutrition-plan"
+          className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--brand)]/30 space-y-3 shadow-2xs depth-surface"
+        >
+          <div className="flex items-start justify-between gap-2.5 border-b border-[var(--border-subtle)] pb-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v2m0 0a4.5 4.5 0 014.5 4.5c0 3-2 6-4.5 8.5C9.5 17 7.5 14 7.5 11a4.5 4.5 0 014.5-4.5zm0-2c1.5-1 3-.5 3-.5" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] uppercase font-extrabold tracking-wider text-[var(--brand)]">
+                    Plano Alimentar Vigente
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    V{hubData.activeNutritionPlan.versionNumber}
+                  </span>
+                </div>
+                <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
+                  {hubData.activeNutritionPlan.versionTitle}
+                </h3>
+              </div>
+            </div>
+            <Badge variant="success" size="sm" className="shrink-0 text-[10px] font-semibold">
+              Ativo
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-4 gap-1.5 text-center">
+            <div className="p-2 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Kcal</span>
+              <span className="font-extrabold text-[var(--text-primary)] text-xs tabular-nums block truncate">
+                {hubData.activeNutritionPlan.totals.caloriesKcal !== null && hubData.activeNutritionPlan.totals.caloriesKcal !== undefined
+                  ? `${hubData.activeNutritionPlan.totals.caloriesKcal}`
+                  : "—"}
+              </span>
+            </div>
+            <div className="p-2 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Proteína</span>
+              <span className="font-extrabold text-[var(--text-primary)] text-xs tabular-nums block truncate">
+                {hubData.activeNutritionPlan.totals.proteinG !== null && hubData.activeNutritionPlan.totals.proteinG !== undefined
+                  ? `${hubData.activeNutritionPlan.totals.proteinG}g`
+                  : "—"}
+              </span>
+            </div>
+            <div className="p-2 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Carbo</span>
+              <span className="font-extrabold text-[var(--text-primary)] text-xs tabular-nums block truncate">
+                {hubData.activeNutritionPlan.totals.carbohydrateG !== null && hubData.activeNutritionPlan.totals.carbohydrateG !== undefined
+                  ? `${hubData.activeNutritionPlan.totals.carbohydrateG}g`
+                  : "—"}
+              </span>
+            </div>
+            <div className="p-2 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Gordura</span>
+              <span className="font-extrabold text-[var(--text-primary)] text-xs tabular-nums block truncate">
+                {hubData.activeNutritionPlan.totals.fatG !== null && hubData.activeNutritionPlan.totals.fatG !== undefined
+                  ? `${hubData.activeNutritionPlan.totals.fatG}g`
+                  : "—"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] pt-0.5 flex-wrap gap-2">
+            <div className="truncate">
+              {hubData.activeNutritionPlan.prescriberName && (
+                <span>Por <strong>{hubData.activeNutritionPlan.prescriberName}</strong> • </span>
+              )}
+              <span>Início: {formatIsoDateToBr(hubData.activeNutritionPlan.startsOn)}</span>
+            </div>
+            <div>
+              <span>{hubData.activeNutritionPlan.mealsCount} ref.</span>
+            </div>
+          </div>
+
+          <Link
+            href={`/consultoria/${consultancySlug}/planos-v2/${hubData.activeNutritionPlan.planPublicId}?v=${hubData.activeNutritionPlan.versionPublicId}`}
+            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-colors min-h-[44px] cursor-pointer shadow-xs depth-interactive"
+          >
+            <span>Abrir plano</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+        </div>
+      )}
+
+      {/* =========================================================================
+          3. EVOLUÇÃO / RESUMO (Cockpit de Medidas e Variações)
+          ========================================================================= */}
+      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-4 space-y-3.5 shadow-2xs depth-surface">
 
         {/* STATE A: ZERO EVALUATIONS */}
         {milestones.length === 0 && (

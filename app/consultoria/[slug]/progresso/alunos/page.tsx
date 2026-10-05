@@ -62,11 +62,15 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-16">
         <PageHeader
-          eyebrow="Central de Alunos"
-          title="Alunos da Consultoria"
-          description="Acompanhe seus alunos, informa��es, avalia��es e crie rotinas de treino."
+          eyebrow={isNutritionist ? "Pacientes" : "Central de Alunos"}
+          title={isNutritionist ? "Pacientes da Consultoria" : "Alunos da Consultoria"}
+          description={
+            isNutritionist
+              ? "Acompanhe prontuário, plano alimentar e evolução dos seus pacientes."
+              : "Acompanhe seus alunos, informações, avaliações e crie rotinas de treino."
+          }
           backHref={`/consultoria/${slug}`}
-          backLabel="Vis�o geral"
+          backLabel="Visão geral"
         />
 
         <PersonalStudentList

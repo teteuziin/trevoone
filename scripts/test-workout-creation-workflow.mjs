@@ -27,8 +27,7 @@ runTest("FORM OUTER CARD REMOVED: No outer card/surface wrapper around the form"
 });
 
 runTest("DESKTOP PAGE INTEGRATED: Comfortable 900-1000px width matching page layout", () => {
-  assert(code.includes("max-w-[1536px]"), "Contains full-width container matching dashboard");
-  assert(code.includes("max-w-[920px]"), "Provides comfortable ~920-980px usable form width as requested");
+  assert(code.includes("max-w-[940px]"), "Provides comfortable ~900-1000px usable form width as requested");
   assert(!code.includes("rounded-3xl border border-[var(--border-default)]"), "Heavy modal card container eliminated");
 });
 

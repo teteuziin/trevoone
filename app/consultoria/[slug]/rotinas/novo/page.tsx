@@ -126,7 +126,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       maxWidth="full"
     >
-      <div className="w-full max-w-[1536px] 2xl:max-w-[1680px] space-y-6 sm:space-y-8 pb-12">
+      <div className="w-full max-w-[940px] 2xl:max-w-[980px] space-y-6 sm:space-y-8 pb-12 animate-in fade-in duration-150">
         {/* Navigation Breadcrumb / Back Action */}
         <div>
           <Link
@@ -150,55 +150,53 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
           </Link>
         </div>
 
-        {/* WORKFLOW CONTAINER: Integrado diretamente na página (~900–1000px), sem card externo */}
-        <div className="w-full max-w-[920px] 2xl:max-w-[980px] space-y-8 animate-in fade-in duration-150">
-          {/* Header limpo sem redundâncias */}
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight font-sans">
-              {isTemplate ? "Novo modelo de treino" : "Nova ficha de treino"}
-            </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-sans">
-              {isTemplate
-                ? "Defina as informações básicas do modelo. Você adicionará as categorias e exercícios na próxima etapa."
-                : "Defina as informações básicas. Você adicionará os exercícios na próxima etapa."}
-            </p>
-          </div>
+        {/* Header limpo sem redundâncias */}
+        <div className="space-y-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight font-sans">
+            {isTemplate ? "Novo modelo de treino" : "Nova ficha de treino"}
+          </h1>
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-sans">
+            {isTemplate
+              ? "Defina as informações básicas do modelo. Você adicionará as categorias e exercícios na próxima etapa."
+              : "Defina as informações básicas. Você adicionará os exercícios na próxima etapa."}
+          </p>
+        </div>
 
-          {/* Banner do aluno pré-selecionado (se aplicável) */}
-          {preselectedStudent && (
-            <div className="p-3.5 sm:p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shrink-0 font-sans">
-                  {preselectedStudent.student.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <UserCheckIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider font-sans">
-                      Prescrição Direta
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-sans">
-                    {preselectedStudent.student.name}
-                  </p>
-                  {preselectedStudent.overview.objective && (
-                    <p className="text-[11px] text-[var(--text-secondary)] truncate font-sans">
-                      Objetivo: {preselectedStudent.overview.objective}
-                    </p>
-                  )}
-                </div>
+        {/* Banner do aluno pré-selecionado (se aplicável) */}
+        {preselectedStudent && (
+          <div className="p-3.5 sm:p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shrink-0 font-sans">
+                {preselectedStudent.student.name.slice(0, 2).toUpperCase()}
               </div>
-              <Badge variant="success" size="sm">
-                Aluno Vinculado
-              </Badge>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <UserCheckIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider font-sans">
+                    Prescrição Direta
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate font-sans">
+                  {preselectedStudent.student.name}
+                </p>
+                {preselectedStudent.overview.objective && (
+                  <p className="text-[11px] text-[var(--text-secondary)] truncate font-sans">
+                    Objetivo: {preselectedStudent.overview.objective}
+                  </p>
+                )}
+              </div>
             </div>
-          )}
+            <Badge variant="success" size="sm">
+              Aluno Vinculado
+            </Badge>
+          </div>
+        )}
 
-          {/* Formulário integrado à página (sem card envolvente, fundo da página) */}
-          <form
-            action={handleCreate}
-            className="space-y-8"
-          >
+        {/* Formulário integrado à página (sem card envolvente, fundo da página) */}
+        <form
+          action={handleCreate}
+          className="space-y-8"
+        >
             {preselectedStudent && (
               <input
                 type="hidden"
@@ -347,7 +345,6 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
             </div>
           </form>
         </div>
-      </div>
-    </ConsultancyAppShell>
-  );
-}
+      </ConsultancyAppShell>
+    );
+  }

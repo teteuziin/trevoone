@@ -1128,3 +1128,115 @@ async function loadFrozenTreeForAssignment(
     totals,
   };
 }
+
+export type ActiveNutritionPlanSummary = {
+  assignmentPublicId: string;
+  planPublicId: string;
+  versionPublicId: string;
+  versionNumber: number;
+  versionTitle: string;
+  versionSubtitle: string | null;
+  objective: string | null;
+  generalGuidance: string | null;
+  notesForStudent: string | null;
+  startsOn: string;
+  endsOn: string | null;
+  prescriberName: string | null;
+  mealsCount: number;
+  meals: {
+    title: string;
+    scheduledTime: string | null;
+    itemsCount: number;
+  }[];
+  totals: {
+    caloriesKcal: number | null;
+    proteinG: number | null;
+    carbohydrateG: number | null;
+    fatG: number | null;
+  };
+};
+
+/**
+ * Loads the active nutrition plan summary for a student membership within a consultancy.
+ * Tenancy-scoped, returns null if no active assignment exists.
+ */
+export async function getActiveNutritionPlanForStudentMembership(
+  consultancyId: number,
+  studentMembershipId: number
+): Promise<ActiveNutritionPlanSummary | null> {
+  if (!consultancyId || !studentMembershipId) {
+    return null;
+  }
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+
+    const [activeRows] = await connection.query<RowDataPacket[]>(
+      `SELECT
+        a.id AS assignment_id,
+        a.public_id AS assignment_public_id,
+        DATE_FORMAT(a.starts_on, '%Y-%m-%d') AS starts_on,
+        DATE_FORMAT(a.ends_on, '%Y-%m-%d') AS ends_on,
+        a.notes_for_student,
+        p.public_id AS plan_public_id,
+        v.id AS version_id,
+        v.public_id AS version_public_id,
+        v.version_number,
+        v.status AS version_status,
+        v.title AS version_title,
+        v.subtitle AS version_subtitle,
+        v.objective AS version_objective,
+        v.general_guidance AS version_guidance,
+        v.notes AS version_notes,
+        prescriber_u.full_name AS prescriber_name
+       FROM nutrition_v2_assignments a
+       INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+       INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+       LEFT JOIN consultancy_members prescriber_cm ON prescriber_cm.id = a.assigned_by_membership_id
+       LEFT JOIN users prescriber_u ON prescriber_u.id = prescriber_cm.user_id
+       WHERE a.consultancy_id = ?
+         AND a.student_membership_id = ?
+         AND a.status = 'ACTIVE'
+         AND a.deleted_at IS NULL
+       LIMIT 1`,
+      [consultancyId, studentMembershipId]
+    );
+
+    if (!Array.isArray(activeRows) || activeRows.length === 0) {
+      return null;
+    }
+
+    const act = activeRows[0];
+    const tree = await loadFrozenTreeForAssignment(connection, act);
+
+    return {
+      assignmentPublicId: tree.assignmentPublicId,
+      planPublicId: tree.plan.publicId,
+      versionPublicId: tree.version.publicId,
+      versionNumber: tree.version.versionNumber,
+      versionTitle: tree.version.title,
+      versionSubtitle: tree.version.subtitle,
+      objective: tree.version.objective,
+      generalGuidance: tree.version.generalGuidance,
+      notesForStudent: tree.notesForStudent,
+      startsOn: tree.startsOn,
+      endsOn: tree.endsOn,
+      prescriberName: tree.prescriberName || null,
+      mealsCount: tree.meals.length,
+      meals: tree.meals.map((m) => ({
+        title: m.title,
+        scheduledTime: m.scheduledTime,
+        itemsCount: m.items.length,
+      })),
+      totals: {
+        caloriesKcal: tree.totals.caloriesKcal,
+        proteinG: tree.totals.proteinG,
+        carbohydrateG: tree.totals.carbohydrateG,
+        fatG: tree.totals.fatG,
+      },
+    };
+  } finally {
+    if (connection) connection.release();
+  }
+}

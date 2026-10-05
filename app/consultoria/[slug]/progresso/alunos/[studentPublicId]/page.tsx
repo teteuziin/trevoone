@@ -169,7 +169,7 @@ export default async function ProfessionalStudentProgressDetailPage({
           title={`Evolu��o de ${hubData.student.fullName}`}
           description={hubData.student.email}
           backHref={`/consultoria/${slug}/progresso/alunos`}
-          backLabel="Voltar para lista de alunos"
+          backLabel={isNutritionist && !isPersonal ? "Voltar para lista de pacientes" : "Voltar para lista de alunos"}
         />
 
         <Evolution360Hub

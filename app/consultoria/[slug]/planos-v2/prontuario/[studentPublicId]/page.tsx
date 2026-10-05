@@ -3,6 +3,7 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { getPatientRecordDetailAction } from "../../patient-actions";
+import { getActiveNutritionPlanForStudentMembership } from "@/lib/nutrition-v2/assignment-repository";
 import { PatientRecordView } from "@/components/consultancies/nutrition-v2/patient-record-view";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 
@@ -29,6 +30,11 @@ export default async function PatientRecordPage({ params }: PatientRecordPagePro
     notFound();
   }
 
+  const activePlan = await getActiveNutritionPlanForStudentMembership(
+    res.detail.record.consultancyId,
+    res.detail.record.studentMembershipId
+  ).catch(() => null);
+
   return (
     <ConsultancyAppShell
       consultancyName={context?.consultancyName || ctx.consultancySlug || slug}
@@ -41,7 +47,7 @@ export default async function PatientRecordPage({ params }: PatientRecordPagePro
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
-      <PatientRecordView initialDetail={res.detail} slug={slug} />
+      <PatientRecordView initialDetail={res.detail} slug={slug} activePlan={activePlan} />
     </ConsultancyAppShell>
   );
 }

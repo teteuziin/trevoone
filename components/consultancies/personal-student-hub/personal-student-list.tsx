@@ -594,47 +594,66 @@ export function PersonalStudentList({
                       </div>
                     )}
 
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <DumbbellIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
-                      {hasActiveWorkout ? (
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                            Treino ativo:
-                          </span>
-                          <span className="text-[var(--text-primary)] font-medium truncate">
-                            {student.latestWorkoutTitle}
-                          </span>
-                        </div>
-                      ) : student.latestWorkoutTitle ? (
-                        <div className="flex items-center gap-1.5 min-w-0 text-[var(--text-secondary)]">
-                          <span className="text-[var(--text-tertiary)]">Último treino:</span>
-                          <span className="truncate">{student.latestWorkoutTitle}</span>
-                        </div>
-                      ) : (
-                        <span className="text-[var(--text-tertiary)]">Nenhum treino prescrito</span>
-                      )}
-                    </div>
+                    {isNutritionist && !isPersonal ? (
+                      <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                        <AppleIcon className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
+                        <span className="text-[var(--text-secondary)]">Acompanhamento nutricional</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <DumbbellIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
+                        {hasActiveWorkout ? (
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              Treino ativo:
+                            </span>
+                            <span className="text-[var(--text-primary)] font-medium truncate">
+                              {student.latestWorkoutTitle}
+                            </span>
+                          </div>
+                        ) : student.latestWorkoutTitle ? (
+                          <div className="flex items-center gap-1.5 min-w-0 text-[var(--text-secondary)]">
+                            <span className="text-[var(--text-tertiary)]">Último treino:</span>
+                            <span className="truncate">{student.latestWorkoutTitle}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[var(--text-tertiary)]">Nenhum treino prescrito</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Actions: Ver aluno & Criar treino */}
+                  {/* Actions: Ver aluno/paciente & Criar treino/plano */}
                   <div className="flex items-center gap-2 pt-1">
                     <Link
                       href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
                       className="flex-1 inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[44px] depth-interactive cursor-pointer"
                     >
-                      <span>Ver aluno</span>
+                      <span>{isNutritionist && !isPersonal ? "Ver paciente" : "Ver aluno"}</span>
                       <ChevronRightIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                     </Link>
 
-                    <Link
-                      href={`/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`}
-                      className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all min-h-[44px] shadow-xs depth-interactive cursor-pointer shrink-0"
-                      title="Criar novo treino para este aluno"
-                    >
-                      <PlusIcon className="w-3.5 h-3.5" />
-                      <span className="hidden xs:inline">Criar treino</span>
-                      <span className="xs:hidden">Treino</span>
-                    </Link>
+                    {isNutritionist && !isPersonal ? (
+                      <Link
+                        href={`/consultoria/${consultancySlug}/planos-v2/novo?studentId=${student.membershipPublicId}`}
+                        className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all min-h-[44px] shadow-xs depth-interactive cursor-pointer shrink-0"
+                        title="Criar novo plano alimentar para este paciente"
+                      >
+                        <AppleIcon className="w-3.5 h-3.5" />
+                        <span className="hidden xs:inline">Criar plano</span>
+                        <span className="xs:hidden">Plano</span>
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`}
+                        className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all min-h-[44px] shadow-xs depth-interactive cursor-pointer shrink-0"
+                        title="Criar novo treino para este aluno"
+                      >
+                        <PlusIcon className="w-3.5 h-3.5" />
+                        <span className="hidden xs:inline">Criar treino</span>
+                        <span className="xs:hidden">Treino</span>
+                      </Link>
+                    )}
                   </div>
                 </div>
               );

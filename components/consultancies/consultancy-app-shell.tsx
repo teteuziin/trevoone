@@ -142,8 +142,8 @@ export function ConsultancyAppShell({
   if (isPersonal || isNutritionist) {
     rawItems.push({
       id: "atendimento-alunos",
-      label: isNutritionist && !isPersonal ? "Pacientes / Alunos" : "Alunos",
-      mobileLabel: "Alunos",
+      label: isNutritionist && !isPersonal ? "Pacientes" : "Alunos",
+      mobileLabel: isNutritionist && !isPersonal ? "Pacientes" : "Alunos",
       href: `/consultoria/${consultancySlug}/progresso/alunos`,
       iconName: "members",
     });
@@ -166,12 +166,14 @@ export function ConsultancyAppShell({
         href: `/consultoria/${consultancySlug}/planos-v2`,
         iconName: "nutrition",
       });
+      // Unified patient hub: prontuário is accessed contextually inside the patient view
+      // Preserved legacy route compatibility: id: "nutritionist-prontuario" href: `/consultoria/${consultancySlug}/planos-v2/prontuario`
       rawItems.push({
-        id: "nutritionist-prontuario",
-        label: "Prontuários",
-        mobileLabel: "Prontuários",
-        href: `/consultoria/${consultancySlug}/planos-v2/prontuario`,
-        iconName: "progress",
+        id: "nutritionist-alimentos",
+        label: "Alimentos",
+        mobileLabel: "Alimentos",
+        href: `/consultoria/${consultancySlug}/planos-v2/alimentos`,
+        iconName: "nutrition",
       });
     }
 

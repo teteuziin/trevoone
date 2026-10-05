@@ -11,6 +11,7 @@ import {
   type PhotoEvaluationStatus,
   type PhotoEvaluationImageDto,
 } from "./photo-evaluations";
+import { getActiveNutritionPlanForStudentMembership } from "@/lib/nutrition-v2/assignment-repository";
 import {
   type EvolutionHubDataDto,
   type EvolutionMilestoneDto,
@@ -654,6 +655,11 @@ export async function getStudentEvolutionHubData(params: {
       hasMeasurement: m.hasMeasurement,
     }));
 
+    const activeNutritionPlan = await getActiveNutritionPlanForStudentMembership(
+      consultancyId,
+      studentMembershipId
+    ).catch(() => null);
+
     return {
       student: {
         publicId: studentPublicId,
@@ -665,6 +671,22 @@ export async function getStudentEvolutionHubData(params: {
       activePendingPhotoRequest,
       chartSeries,
       eligibleComparisonDates,
+      activeNutritionPlan: activeNutritionPlan
+        ? {
+            assignmentPublicId: activeNutritionPlan.assignmentPublicId,
+            planPublicId: activeNutritionPlan.planPublicId,
+            versionPublicId: activeNutritionPlan.versionPublicId,
+            versionNumber: activeNutritionPlan.versionNumber,
+            versionTitle: activeNutritionPlan.versionTitle,
+            versionSubtitle: activeNutritionPlan.versionSubtitle,
+            objective: activeNutritionPlan.objective,
+            startsOn: activeNutritionPlan.startsOn,
+            endsOn: activeNutritionPlan.endsOn,
+            prescriberName: activeNutritionPlan.prescriberName,
+            mealsCount: activeNutritionPlan.mealsCount,
+            totals: activeNutritionPlan.totals,
+          }
+        : null,
     };
   } finally {
     if (connection) connection.release();

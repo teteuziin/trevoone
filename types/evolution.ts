@@ -148,6 +148,27 @@ export interface EvolutionHubDataDto {
     hasApprovedPhotos: boolean;
     hasMeasurement: boolean;
   }>;
+  activeNutritionPlan?: ActiveNutritionPlanSummaryDto | null;
+}
+
+export interface ActiveNutritionPlanSummaryDto {
+  assignmentPublicId: string;
+  planPublicId: string;
+  versionPublicId: string;
+  versionNumber: number;
+  versionTitle: string;
+  versionSubtitle: string | null;
+  objective: string | null;
+  startsOn: string;
+  endsOn: string | null;
+  prescriberName: string | null;
+  mealsCount: number;
+  totals: {
+    caloriesKcal: number | null;
+    proteinG: number | null;
+    carbohydrateG: number | null;
+    fatG: number | null;
+  };
 }
 
 // Client-safe formatters

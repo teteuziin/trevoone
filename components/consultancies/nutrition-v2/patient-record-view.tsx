@@ -19,15 +19,17 @@ import {
   deleteAnthropometricEntryAction,
   updatePregnancyAction,
 } from "@/app/consultoria/[slug]/planos-v2/patient-actions";
+import type { ActiveNutritionPlanSummary } from "@/lib/nutrition-v2/assignment-repository";
 
 interface PatientRecordViewProps {
   slug: string;
   initialDetail: PatientRecordDetail;
+  activePlan?: ActiveNutritionPlanSummary | null;
 }
 
-type TabType = "resumo" | "clinico" | "alimentar" | "estilo_vida" | "antropometria" | "gestacao" | "calculos";
+type TabType = "resumo" | "plano" | "clinico" | "alimentar" | "estilo_vida" | "antropometria" | "gestacao" | "calculos";
 
-export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProps) {
+export function PatientRecordView({ slug, initialDetail, activePlan }: PatientRecordViewProps) {
   const [detail, setDetail] = useState<PatientRecordDetail>(initialDetail);
   const [activeTab, setActiveTab] = useState<TabType>("resumo");
   const [isPending, startTransition] = useTransition();
@@ -289,10 +291,27 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
                 {detail.onboardingReference ? "Vinculada" : "Pendente"}
               </span>
             </div>
+
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">Plano Vigente:</span>
+              <span className={`font-bold ${activePlan ? "text-[var(--brand)]" : "text-[var(--text-tertiary)]"}`}>
+                {activePlan ? `${activePlan.versionTitle} (V${activePlan.versionNumber})` : "Sem plano ativo"}
+              </span>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
+          <Link href={`/consultoria/${slug}/progresso/alunos/${detail.student.membershipPublicId}`}>
+            <Button
+              variant="secondary"
+              size="md"
+              className="font-bold min-h-[42px] text-xs"
+              title="Acessar fotos corporais e histórico de evolução 360°"
+            >
+              Evolução 360° →
+            </Button>
+          </Link>
           <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
             <Button
               variant="secondary"
@@ -355,6 +374,7 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
         {(
           [
             { id: "resumo", label: "Resumo Geral" },
+            { id: "plano", label: activePlan ? `Plano Ativo (V${activePlan.versionNumber})` : "Plano Alimentar" },
             { id: "clinico", label: "Histórico Clínico" },
             { id: "alimentar", label: "Histórico Alimentar" },
             { id: "estilo_vida", label: "Estilo de Vida" },
@@ -390,6 +410,106 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
       {activeTab === "resumo" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2 space-y-6">
+            {/* Active Nutrition Plan Card in Resumo */}
+            <div className="rounded-xl border border-[var(--brand)]/30 bg-[var(--surface)] p-5 space-y-4 depth-surface">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v2m0 0a4.5 4.5 0 014.5 4.5c0 3-2 6-4.5 8.5C9.5 17 7.5 14 7.5 11a4.5 4.5 0 014.5-4.5zm0-2c1.5-1 3-.5 3-.5" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-[var(--text-primary)]">
+                        Plano Alimentar Vigente
+                      </h3>
+                      {activePlan ? (
+                        <Badge variant="brand" size="sm">
+                          Ativo (V{activePlan.versionNumber})
+                        </Badge>
+                      ) : (
+                        <Badge variant="neutral" size="sm">
+                          Sem plano ativo
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      {activePlan ? activePlan.versionTitle : "Nenhum plano alimentar prescrito para este paciente no momento."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {activePlan ? (
+                    <>
+                      <Link href={`/consultoria/${slug}/planos-v2/${activePlan.planPublicId}?v=${activePlan.versionPublicId}`}>
+                        <Button variant="secondary" size="sm" className="font-bold text-xs min-h-[36px]">
+                          Abrir no Builder →
+                        </Button>
+                      </Link>
+                      <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
+                        <Button variant="primary" size="sm" className="font-bold text-xs min-h-[36px]">
+                          Novo Plano
+                        </Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
+                      <Button variant="primary" size="sm" className="font-bold text-xs min-h-[36px]">
+                        + Prescrever Primeiro Plano
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+
+              {activePlan && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                      <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Meta Calórica</span>
+                      <span className="font-extrabold text-[var(--text-primary)] text-base tabular-nums">
+                        {activePlan.totals.caloriesKcal ? `${activePlan.totals.caloriesKcal} kcal` : "—"}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                      <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Proteínas</span>
+                      <span className="font-extrabold text-[var(--text-primary)] text-base tabular-nums">
+                        {activePlan.totals.proteinG ? `${activePlan.totals.proteinG} g` : "—"}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                      <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Carboidratos</span>
+                      <span className="font-extrabold text-[var(--text-primary)] text-base tabular-nums">
+                        {activePlan.totals.carbohydrateG ? `${activePlan.totals.carbohydrateG} g` : "—"}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                      <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Gorduras</span>
+                      <span className="font-extrabold text-[var(--text-primary)] text-base tabular-nums">
+                        {activePlan.totals.fatG ? `${activePlan.totals.fatG} g` : "—"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] pt-1 flex-wrap gap-2">
+                    <span>
+                      {activePlan.prescriberName && <>Prescrito por <strong>{activePlan.prescriberName}</strong> • </>}
+                      Início: {new Date(activePlan.startsOn).toLocaleDateString("pt-BR")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("plano")}
+                      className="font-bold text-[var(--brand)] hover:underline cursor-pointer"
+                    >
+                      Ver {activePlan.mealsCount} refeições →
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
               <h2 className="text-lg font-semibold text-foreground border-b border-border/20 pb-2">
                 Informações Clínicas de Entrada
@@ -520,6 +640,142 @@ export function PatientRecordView({ slug, initialDetail }: PatientRecordViewProp
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: PLANO ALIMENTAR VIGENTE */}
+      {activeTab === "plano" && (
+        <div className="space-y-6">
+          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-5 sm:p-6 space-y-6 depth-surface">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase font-extrabold tracking-wider text-[var(--brand)]">
+                    Prescrição Nutricional
+                  </span>
+                  {activePlan ? (
+                    <Badge variant="brand" size="sm">
+                      Versão {activePlan.versionNumber} (Ativo)
+                    </Badge>
+                  ) : (
+                    <Badge variant="neutral" size="sm">
+                      Sem plano ativo
+                    </Badge>
+                  )}
+                </div>
+                <h2 className="text-xl font-extrabold text-[var(--text-primary)] mt-1">
+                  {activePlan ? activePlan.versionTitle : "Nenhum Plano Ativo"}
+                </h2>
+                {activePlan?.versionSubtitle && (
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    {activePlan.versionSubtitle}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {activePlan ? (
+                  <>
+                    <Link href={`/consultoria/${slug}/planos-v2/${activePlan.planPublicId}?v=${activePlan.versionPublicId}`}>
+                      <Button variant="secondary" size="md" className="font-bold text-xs min-h-[40px]">
+                        Editar no Builder →
+                      </Button>
+                    </Link>
+                    <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
+                      <Button variant="primary" size="md" className="font-bold text-xs min-h-[40px]">
+                        + Novo Plano
+                      </Button>
+                    </Link>
+                  </>
+                ) : (
+                  <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
+                    <Button variant="primary" size="md" className="font-bold text-xs min-h-[40px]">
+                      + Prescrever Primeiro Plano
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {activePlan ? (
+              <div className="space-y-6">
+                {/* Macro summary cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Total Calórico</span>
+                    <span className="font-extrabold text-[var(--text-primary)] text-lg tabular-nums">
+                      {activePlan.totals.caloriesKcal ? `${activePlan.totals.caloriesKcal} kcal` : "—"}
+                    </span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Proteínas</span>
+                    <span className="font-extrabold text-[var(--text-primary)] text-lg tabular-nums">
+                      {activePlan.totals.proteinG ? `${activePlan.totals.proteinG} g` : "—"}
+                    </span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Carboidratos</span>
+                    <span className="font-extrabold text-[var(--text-primary)] text-lg tabular-nums">
+                      {activePlan.totals.carbohydrateG ? `${activePlan.totals.carbohydrateG} g` : "—"}
+                    </span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Gorduras</span>
+                    <span className="font-extrabold text-[var(--text-primary)] text-lg tabular-nums">
+                      {activePlan.totals.fatG ? `${activePlan.totals.fatG} g` : "—"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Meals list */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--text-tertiary)]">
+                    Refeições Estruturadas ({activePlan.meals.length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {activePlan.meals.map((meal, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between"
+                      >
+                        <div className="space-y-0.5 min-w-0">
+                          <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] block truncate">
+                            {meal.title}
+                          </span>
+                          {meal.scheduledTime && (
+                            <span className="text-[11px] text-[var(--text-tertiary)] block">
+                              Horário previsto: {meal.scheduledTime}
+                            </span>
+                          )}
+                        </div>
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] shrink-0">
+                          {meal.itemsCount} {meal.itemsCount === 1 ? "item" : "itens"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {activePlan.notesForStudent && (
+                  <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">Orientações Gerais ao Paciente</span>
+                    <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{activePlan.notesForStudent}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-8 text-center rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-3">
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Este paciente ainda não possui nenhum plano alimentar ativo atribuído nesta consultoria.
+                </p>
+                <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
+                  <Button variant="primary" size="md" className="font-bold text-xs">
+                    Criar Plano no Builder
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EvolutionTimeline } from "./evolution-timeline";
 import { EvolutionComparator } from "./evolution-comparator";
@@ -13,9 +14,10 @@ import {
   loadPhotoEvaluationTabDataAction,
   type PhotoEvaluationTabDataResult,
 } from "@/app/consultoria/[slug]/progresso/fotos-actions";
-import type {
-  EvolutionHubDataDto,
-  EvolutionComparisonDataDto,
+import {
+  type EvolutionHubDataDto,
+  type EvolutionComparisonDataDto,
+  formatIsoDateToBr,
 } from "@/types/evolution";
 import type {
   PhotoEvaluationRequestDto,
@@ -212,6 +214,18 @@ export function Evolution360Hub({
                 studentPublicId={studentPublicId}
               />
             )}
+
+            {/* Nutritionist & Admin: quick jump to clinical record */}
+            {(isNutritionist || isAdmin) && studentPublicId && (
+              <Link
+                href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${studentPublicId}`}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[var(--brand)] bg-[var(--brand-soft)] hover:bg-[var(--brand-soft)]/80 border border-[var(--brand-soft-border)] transition-colors min-h-[40px] cursor-pointer"
+                title="Abrir prontuário clínico desta paciente"
+              >
+                <span>Ver Prontuário</span>
+                <span aria-hidden="true">→</span>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -287,6 +301,83 @@ export function Evolution360Hub({
             </div>
           </div>
         </div>
+
+        {/* Active Nutrition Plan Context Card */}
+        {hubData.activeNutritionPlan && (
+          <div className="p-4 sm:p-5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--brand)]/30 space-y-3 depth-surface">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v2m0 0a4.5 4.5 0 014.5 4.5c0 3-2 6-4.5 8.5C9.5 17 7.5 14 7.5 11a4.5 4.5 0 014.5-4.5zm0-2c1.5-1 3-.5 3-.5" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs uppercase font-extrabold tracking-wider text-[var(--brand)]">
+                      Plano Alimentar Vigente
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      Ativo (V{hubData.activeNutritionPlan.versionNumber})
+                    </span>
+                  </div>
+                  <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                    {hubData.activeNutritionPlan.versionTitle}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/consultoria/${consultancySlug}/planos-v2/${hubData.activeNutritionPlan.planPublicId}?v=${hubData.activeNutritionPlan.versionPublicId}`}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-[var(--brand)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[36px] cursor-pointer"
+                >
+                  <span>Ver Plano Completo</span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+              <div className="p-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)]">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Calorias</span>
+                <span className="font-extrabold text-[var(--text-primary)] text-sm tabular-nums">
+                  {hubData.activeNutritionPlan.totals.caloriesKcal ? `${hubData.activeNutritionPlan.totals.caloriesKcal} kcal` : "—"}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)]">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Proteínas</span>
+                <span className="font-extrabold text-[var(--text-primary)] text-sm tabular-nums">
+                  {hubData.activeNutritionPlan.totals.proteinG ? `${hubData.activeNutritionPlan.totals.proteinG}g` : "—"}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)]">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Carboidratos</span>
+                <span className="font-extrabold text-[var(--text-primary)] text-sm tabular-nums">
+                  {hubData.activeNutritionPlan.totals.carbohydrateG ? `${hubData.activeNutritionPlan.totals.carbohydrateG}g` : "—"}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)]">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Gorduras</span>
+                <span className="font-extrabold text-[var(--text-primary)] text-sm tabular-nums">
+                  {hubData.activeNutritionPlan.totals.fatG ? `${hubData.activeNutritionPlan.totals.fatG}g` : "—"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)] pt-1 flex-wrap gap-2">
+              <div>
+                {hubData.activeNutritionPlan.prescriberName && (
+                  <span>Prescrito por <strong>{hubData.activeNutritionPlan.prescriberName}</strong> • </span>
+                )}
+                <span>Início: {formatIsoDateToBr(hubData.activeNutritionPlan.startsOn)}</span>
+              </div>
+              <div>
+                <span>{hubData.activeNutritionPlan.mealsCount} refeições cadastradas</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Dynamic Pending Action Banner */}

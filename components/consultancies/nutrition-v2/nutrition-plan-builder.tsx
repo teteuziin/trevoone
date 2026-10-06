@@ -21,6 +21,8 @@ import {
   removeSubstitutionAction,
   reorderSubstitutionsAction,
   publishPlanVersionAction,
+  publishPatientPlanUpdateAction,
+  discardPatientPlanDraftAction,
   createNextVersionAction,
   getPlanVersionHistoryAction,
   getPlanVersionTreeAction,
@@ -37,10 +39,18 @@ import { MobileActionSheet } from "@/components/ui/mobile";
 import type { AssignmentListItemDto } from "@/lib/nutrition-v2/assignment-repository";
 import type { FoodSelectionResult } from "./nutrition-food-picker";
 
+export interface PatientBuilderContext {
+  studentMembershipPublicId: string;
+  studentPublicId: string;
+  studentName: string;
+  returnToUrl: string;
+}
+
 interface NutritionPlanBuilderProps {
   slug: string;
   initialTree: PlanVersionTreeDto;
   initialAssignments?: AssignmentListItemDto[];
+  patientContext?: PatientBuilderContext;
 }
 
 function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -150,10 +160,16 @@ function EditIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   );
 }
 
-export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [] }: NutritionPlanBuilderProps) {
+export function NutritionPlanBuilder({
+  slug,
+  initialTree,
+  initialAssignments = [],
+  patientContext,
+}: NutritionPlanBuilderProps) {
   const router = useRouter();
   const [tree, setTree] = useState<PlanVersionTreeDto>(initialTree);
   const [isPending, startTransition] = useTransition();
+  const [isDiscarding, setIsDiscarding] = useState(false);
 
   const isReadOnly = tree.version.status !== "DRAFT";
 
@@ -223,6 +239,25 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
     setIsPublishing(true);
     setPublishError(null);
 
+    if (patientContext) {
+      const res = await publishPatientPlanUpdateAction(slug, {
+        planPublicId: tree.plan.publicId,
+        versionPublicId: tree.version.publicId,
+        studentMembershipPublicId: patientContext.studentMembershipPublicId,
+      });
+
+      if (res.success) {
+        setIsPublishDialogOpen(false);
+        setIsPublishing(false);
+        router.push(patientContext.returnToUrl);
+        router.refresh();
+      } else {
+        setIsPublishing(false);
+        setPublishError(res.error || "Não foi possível publicar a atualização do plano.");
+      }
+      return;
+    }
+
     const res = await publishPlanVersionAction(slug, tree.plan.publicId, tree.version.publicId);
 
     if (res.success) {
@@ -233,6 +268,24 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
     } else {
       setIsPublishing(false);
       setPublishError(res.error || "Não foi possível publicar o plano.");
+    }
+  };
+
+  const handleDiscardDraft = async () => {
+    if (!patientContext) return;
+    const ok = window.confirm(
+      "Deseja realmente descartar as alterações deste rascunho? Esta ação não pode ser desfeita."
+    );
+    if (!ok) return;
+
+    setIsDiscarding(true);
+    const res = await discardPatientPlanDraftAction(slug, patientContext.studentMembershipPublicId);
+    if (res.success) {
+      router.push(patientContext.returnToUrl);
+      router.refresh();
+    } else {
+      setIsDiscarding(false);
+      alert(res.error || "Erro ao descartar alterações.");
     }
   };
 
@@ -345,11 +398,11 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
         {/* Top Breadcrumb & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <Link
-            href={`/consultoria/${slug}/planos-v2`}
+            href={patientContext ? patientContext.returnToUrl : `/consultoria/${slug}/planos-v2`}
             className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"
           >
             <ArrowLeftIcon className="w-4 h-4" />
-            <span>Voltar para Planos Alimentares</span>
+            <span>{patientContext ? `Voltar para paciente (${patientContext.studentName})` : "Voltar para Planos Alimentares"}</span>
           </Link>
 
           {/* Desktop Action Controls & Version Badges */}
@@ -418,7 +471,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
                 className="font-bold min-h-[38px] shadow-sm"
               >
                 <CheckIcon className="w-3.5 h-3.5 mr-1" />
-                <span>Publicar Versão</span>
+                <span>{patientContext ? "Publicar atualização" : "Publicar Versão"}</span>
               </Button>
             )}
 
@@ -469,6 +522,60 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
             </Badge>
           </div>
         </div>
+
+        {/* Patient Context Banner */}
+        {patientContext && (
+          <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--brand)]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center font-extrabold text-sm shrink-0 shadow-xs">
+                {patientContext.studentName.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-extrabold text-[var(--text-primary)]">
+                    Plano alimentar de {patientContext.studentName}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)] text-[var(--text-inverse)]">
+                    {tree.version.status === "DRAFT" ? "Alteração em andamento" : "Plano publicado"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                  {tree.version.status === "DRAFT"
+                    ? "Enquanto este rascunho estiver em edição, o aluno continua visualizando a prescrição ativa anterior."
+                    : "Este plano está publicado e ativo para a paciente."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {tree.version.status === "DRAFT" && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={isDiscarding}
+                  onClick={handleDiscardDraft}
+                  className="text-xs font-bold min-h-[38px] text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20"
+                >
+                  {isDiscarding ? "Descartando..." : "Descartar alterações"}
+                </Button>
+              )}
+              {tree.version.status === "DRAFT" && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setPublishError(null);
+                    setIsPublishDialogOpen(true);
+                  }}
+                  className="text-xs font-bold min-h-[38px] shadow-sm"
+                >
+                  <CheckIcon className="w-3.5 h-3.5 mr-1" />
+                  <span>Publicar atualização</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Mobile Compact Totals Bar / Accordion */}
         <div className="lg:hidden p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
@@ -1070,6 +1177,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
           tree={tree}
           isPublishing={isPublishing}
           errorMessage={publishError}
+          patientName={patientContext?.studentName}
         />
 
         {/* Version History Drawer / Modal */}
@@ -1122,7 +1230,7 @@ export function NutritionPlanBuilder({ slug, initialTree, initialAssignments = [
             className="flex-1 font-bold min-h-[48px] shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
           >
             <CheckIcon className="w-4 h-4" />
-            <span>Publicar Versão</span>
+            <span>{patientContext ? "Publicar atualização" : "Publicar Versão"}</span>
           </Button>
         )}
 

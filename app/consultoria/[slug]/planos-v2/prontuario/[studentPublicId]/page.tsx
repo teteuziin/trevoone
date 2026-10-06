@@ -4,7 +4,7 @@ import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getPatientRecordDetailAction } from "../../patient-actions";
-import { getActiveNutritionPlanForStudentMembership } from "@/lib/nutrition-v2/assignment-repository";
+import { getPatientPlanState } from "@/lib/nutrition-v2/patient-plan-lifecycle";
 import {
   getStudentEvolutionHubData,
   getEvolutionComparisonBetweenDates,
@@ -37,15 +37,12 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
   const effectiveRole = effectiveState.effectiveMode;
 
   const res = await getPatientRecordDetailAction(slug, studentPublicId);
-  if (!res.success || !res.detail) {
+  if (!res.success || !res.detail || res.detail.record.consultancyId !== ctx.consultancyId) {
     notFound();
   }
 
-  const [activePlan, evolutionHubData] = await Promise.all([
-    getActiveNutritionPlanForStudentMembership(
-      res.detail.record.consultancyId,
-      res.detail.record.studentMembershipId
-    ).catch(() => null),
+  const [patientPlanState, evolutionHubData] = await Promise.all([
+    getPatientPlanState(ctx, res.detail.student.membershipPublicId).catch(() => null),
     getStudentEvolutionHubData({
       userId: session.userId,
       consultancySlug: slug,
@@ -53,6 +50,9 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
       effectiveRole: effectiveRole || "NUTRITIONIST",
     }).catch(() => null),
   ]);
+
+  const activePlan = patientPlanState?.activePlan || null;
+  const draftPlan = patientPlanState?.draftPlan || null;
 
   let evolutionComparisonData = null;
   if (evolutionHubData) {
@@ -83,6 +83,7 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
         initialDetail={res.detail}
         slug={slug}
         activePlan={activePlan}
+        draftPlan={draftPlan}
         evolutionHubData={evolutionHubData}
         evolutionComparisonData={evolutionComparisonData}
         initialTab={initialTab}

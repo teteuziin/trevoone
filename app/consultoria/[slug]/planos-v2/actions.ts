@@ -72,6 +72,13 @@ import {
   type CandidateFoodItem,
   type FoodPortionItem,
 } from "@/lib/nutrition-v2/equivalents";
+import {
+  getPatientPlanState,
+  startPatientPlanEdit,
+  publishPatientPlanUpdate,
+  discardPatientPlanDraft,
+  type PatientPlanStateResult,
+} from "@/lib/nutrition-v2/patient-plan-lifecycle";
 import { getDbConnection } from "@/lib/db/mysql";
 import type { RowDataPacket } from "mysql2/promise";
 
@@ -1176,6 +1183,93 @@ export async function registerRecipeFoodAction(
     return { success: true, data };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao cadastrar receita.";
+    return { success: false, error: message };
+  }
+}
+
+export async function getPatientPlanStateAction(
+  slug: string,
+  studentMembershipPublicId: string
+): Promise<ActionResult<PatientPlanStateResult>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanViewNutrition(ctx);
+    const data = await getPatientPlanState(ctx, studentMembershipPublicId);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao carregar plano da paciente.";
+    return { success: false, error: message };
+  }
+}
+
+export async function startPatientPlanEditAction(
+  slug: string,
+  studentMembershipPublicId: string
+): Promise<ActionResult<{
+  planPublicId: string;
+  versionPublicId: string;
+  versionNumber: number;
+  isExistingDraft: boolean;
+  studentMembershipPublicId: string;
+  studentPublicId: string;
+  studentName: string;
+}>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+    const data = await startPatientPlanEdit(ctx, studentMembershipPublicId);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    revalidatePath(`/consultoria/${slug}/planos-v2/${data.planPublicId}`);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao iniciar edição do plano da paciente.";
+    return { success: false, error: message };
+  }
+}
+
+export async function publishPatientPlanUpdateAction(
+  slug: string,
+  params: {
+    planPublicId: string;
+    versionPublicId: string;
+    studentMembershipPublicId: string;
+  }
+): Promise<ActionResult<{
+  success: boolean;
+  versionPublicId: string;
+  assignmentPublicId: string;
+  publishedAt: string;
+}>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+    const data = await publishPatientPlanUpdate(ctx, params);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    revalidatePath(`/consultoria/${slug}/planos-v2/${params.planPublicId}`);
+    revalidatePath(`/consultoria/${slug}/nutricao`);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao publicar atualização do plano.";
+    return { success: false, error: message };
+  }
+}
+
+export async function discardPatientPlanDraftAction(
+  slug: string,
+  studentMembershipPublicId: string
+): Promise<ActionResult<{ success: boolean }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+    const data = await discardPatientPlanDraft(ctx, studentMembershipPublicId);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao descartar alterações.";
     return { success: false, error: message };
   }
 }

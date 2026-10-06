@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/account/user-avatar";
@@ -13,6 +14,11 @@ import type {
 } from "@/lib/nutrition-v2/patient-record-types";
 import { deriveTrimester } from "@/lib/nutrition-v2/patient-record-validation";
 import type { ActiveNutritionPlanSummary } from "@/lib/nutrition-v2/assignment-repository";
+import type { PatientPlanDraftSummary } from "@/lib/nutrition-v2/patient-plan-lifecycle";
+import {
+  startPatientPlanEditAction,
+  discardPatientPlanDraftAction,
+} from "@/app/consultoria/[slug]/planos-v2/actions";
 import type {
   EvolutionHubDataDto,
   EvolutionComparisonDataDto,
@@ -33,6 +39,7 @@ export interface MobilePatientHubProps {
   slug: string;
   detail: PatientRecordDetail;
   activePlan?: ActiveNutritionPlanSummary | null;
+  draftPlan?: PatientPlanDraftSummary | null;
   evolutionHubData?: EvolutionHubDataDto | null;
   evolutionComparisonData?: EvolutionComparisonDataDto | null;
   clinicalForm: UpdatePatientRecordInput;
@@ -58,6 +65,7 @@ export function MobilePatientHub({
   slug,
   detail,
   activePlan,
+  draftPlan,
   evolutionHubData,
   evolutionComparisonData,
   clinicalForm,
@@ -78,6 +86,7 @@ export function MobilePatientHub({
   bmiResult,
   initialMobileTab,
 }: MobilePatientHubProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<MobilePatientTab>(() => {
     if (initialMobileTab === "evolucao") return "evolucao";
     if (initialMobileTab === "plano") return "plano";
@@ -86,6 +95,40 @@ export function MobilePatientHub({
   });
 
   const [clinicalSubTab, setClinicalSubTab] = useState<ClinicalSubTab>("clinico");
+  const [isStartingEdit, setIsStartingEdit] = useState(false);
+  const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
+  const [draftActionError, setDraftActionError] = useState<string | null>(null);
+
+  const handleStartEditPlan = async () => {
+    setIsStartingEdit(true);
+    setDraftActionError(null);
+    const res = await startPatientPlanEditAction(slug, detail.student.membershipPublicId);
+    if (res.success && res.data) {
+      router.push(
+        `/consultoria/${slug}/planos-v2/${res.data.planPublicId}?v=${res.data.versionPublicId}&studentId=${detail.student.membershipPublicId}`
+      );
+    } else {
+      setIsStartingEdit(false);
+      setDraftActionError(res.error || "Erro ao iniciar edição do plano.");
+    }
+  };
+
+  const handleDiscardDraft = async () => {
+    const ok = window.confirm(
+      "Deseja realmente descartar as alterações deste rascunho? Esta ação não pode ser desfeita."
+    );
+    if (!ok) return;
+
+    setIsDiscardingDraft(true);
+    setDraftActionError(null);
+    const res = await discardPatientPlanDraftAction(slug, detail.student.membershipPublicId);
+    if (res.success) {
+      router.refresh();
+    } else {
+      setIsDiscardingDraft(false);
+      setDraftActionError(res.error || "Erro ao descartar alterações.");
+    }
+  };
 
   const latestAnthro = detail.anthropometrics.length > 0 ? detail.anthropometrics[0] : null;
   const trimesterLabel = deriveTrimester(pregnancyForm.gestationalWeeks ?? null);
@@ -259,7 +302,7 @@ export function MobilePatientHub({
             </div>
           </div>
 
-          {/* Card Plano Alimentar Vigente */}
+            {/* Card Plano Alimentar Vigente */}
           <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--brand)]/30 space-y-3 shadow-2xs depth-surface">
             <div className="flex items-start justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
               <div className="min-w-0">
@@ -285,6 +328,30 @@ export function MobilePatientHub({
                 </Badge>
               )}
             </div>
+
+            {/* Aviso discreto de rascunho em andamento no Resumo */}
+            {draftPlan && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 block">
+                    Alteração em andamento
+                  </span>
+                  <Badge variant="warning" size="sm" className="text-[9px] font-semibold">
+                    Rascunho
+                  </Badge>
+                </div>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Existe uma alteração sendo preparada para esta paciente.
+                </p>
+                <Link
+                  href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-bold text-xs text-[var(--text-inverse)] bg-amber-600 hover:bg-amber-700 min-h-[38px] cursor-pointer"
+                >
+                  <span>Continuar edição</span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            )}
 
             {activePlan ? (
               <>
@@ -323,20 +390,32 @@ export function MobilePatientHub({
                   </div>
                 </div>
 
-                <Link
-                  href={`/consultoria/${slug}/planos-v2/${activePlan.planPublicId}?v=${activePlan.versionPublicId}`}
-                  className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer depth-interactive"
-                >
-                  <span>Abrir plano</span>
-                  <span aria-hidden="true">→</span>
-                </Link>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    disabled={isStartingEdit}
+                    onClick={handleStartEditPlan}
+                    className="w-full font-bold text-xs min-h-[44px] shadow-xs cursor-pointer depth-interactive"
+                  >
+                    {isStartingEdit ? "Abrindo..." : "Editar plano"}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("plano")}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-secondary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[40px] cursor-pointer"
+                  >
+                    <span>Abrir plano</span>
+                    <span aria-hidden="true">→</span>
+                  </button>
+                </div>
               </>
             ) : (
               <Link
                 href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}
                 className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer depth-interactive"
               >
-                <span>+ Criar plano alimentar</span>
+                <span>Prescrever plano</span>
               </Link>
             )}
           </div>
@@ -972,6 +1051,54 @@ export function MobilePatientHub({
           ========================================================================= */}
       {activeTab === "plano" && (
         <div className="space-y-4" data-testid="mobile-tab-plano">
+          {draftActionError && (
+            <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-xs font-semibold text-destructive">
+              {draftActionError}
+            </div>
+          )}
+
+          {/* Estado C: Alteração em andamento (Rascunho) */}
+          {draftPlan && (
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 block">
+                    Alteração em andamento
+                  </span>
+                  <h3 className="text-sm font-bold text-[var(--text-primary)] truncate mt-0.5">
+                    {draftPlan.title || draftPlan.planTitle || activePlan?.versionTitle || "Rascunho de atualização"}
+                  </h3>
+                </div>
+                <Badge variant="warning" size="sm" className="font-semibold text-[10px] shrink-0">
+                  Rascunho
+                </Badge>
+              </div>
+
+              <p className="text-xs text-[var(--text-secondary)]">
+                Você possui alterações em andamento para esta paciente que ainda não foram publicadas.
+              </p>
+
+              <div className="flex items-center gap-2 pt-1">
+                <Link
+                  href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] cursor-pointer shadow-xs depth-interactive"
+                >
+                  <span>Continuar edição</span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  disabled={isDiscardingDraft}
+                  onClick={handleDiscardDraft}
+                  className="px-3.5 py-2.5 rounded-xl font-bold text-xs text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20 min-h-[44px] cursor-pointer"
+                >
+                  {isDiscardingDraft ? "Descartando..." : "Descartar alterações"}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3 shadow-2xs depth-surface">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand)] block">
               Plano Atual
@@ -1049,9 +1176,22 @@ export function MobilePatientHub({
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                  {/* Se NÃO tiver draft, CTA principal é Editar Plano */}
+                  {!draftPlan && (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      disabled={isStartingEdit}
+                      onClick={handleStartEditPlan}
+                      className="w-full font-bold text-xs min-h-[44px] shadow-xs cursor-pointer depth-interactive"
+                    >
+                      {isStartingEdit ? "Abrindo..." : "Editar plano"}
+                    </Button>
+                  )}
+
                   <Link
                     href={`/consultoria/${slug}/planos-v2/${activePlan.planPublicId}?v=${activePlan.versionPublicId}`}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] cursor-pointer shadow-xs depth-interactive"
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-secondary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[40px] cursor-pointer"
                   >
                     <span>Abrir no Builder</span>
                     <span aria-hidden="true">→</span>
@@ -1059,7 +1199,7 @@ export function MobilePatientHub({
 
                   <Link
                     href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer transition-colors"
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer transition-colors"
                   >
                     <span>+ Prescrever Novo Plano</span>
                   </Link>
@@ -1084,7 +1224,8 @@ export function MobilePatientHub({
                   href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}
                   className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer"
                 >
-                  <span>+ Criar plano alimentar</span>
+                  <span>Prescrever plano</span>
+                  <span className="sr-only">+ Criar plano alimentar</span>
                 </Link>
               </div>
             )}

@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
@@ -19,6 +20,11 @@ import {
   deleteAnthropometricEntryAction,
   updatePregnancyAction,
 } from "@/app/consultoria/[slug]/planos-v2/patient-actions";
+import {
+  startPatientPlanEditAction,
+  discardPatientPlanDraftAction,
+} from "@/app/consultoria/[slug]/planos-v2/actions";
+import type { PatientPlanDraftSummary } from "@/lib/nutrition-v2/patient-plan-lifecycle";
 import type { ActiveNutritionPlanSummary } from "@/lib/nutrition-v2/assignment-repository";
 import type {
   EvolutionHubDataDto,
@@ -30,6 +36,7 @@ interface PatientRecordViewProps {
   slug: string;
   initialDetail: PatientRecordDetail;
   activePlan?: ActiveNutritionPlanSummary | null;
+  draftPlan?: PatientPlanDraftSummary | null;
   evolutionHubData?: EvolutionHubDataDto | null;
   evolutionComparisonData?: EvolutionComparisonDataDto | null;
   initialTab?: string;
@@ -41,14 +48,47 @@ export function PatientRecordView({
   slug,
   initialDetail,
   activePlan,
+  draftPlan,
   evolutionHubData,
   evolutionComparisonData,
   initialTab,
 }: PatientRecordViewProps) {
+  const router = useRouter();
   const [detail, setDetail] = useState<PatientRecordDetail>(initialDetail);
   const [activeTab, setActiveTab] = useState<TabType>("resumo");
   const [isPending, startTransition] = useTransition();
+  const [isStartingEdit, setIsStartingEdit] = useState(false);
+  const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleStartEditPlan = async () => {
+    setIsStartingEdit(true);
+    const res = await startPatientPlanEditAction(slug, detail.student.membershipPublicId);
+    if (res.success && res.data) {
+      router.push(
+        `/consultoria/${slug}/planos-v2/${res.data.planPublicId}?v=${res.data.versionPublicId}&studentId=${detail.student.membershipPublicId}`
+      );
+    } else {
+      setIsStartingEdit(false);
+      setMessage({ type: "error", text: res.error || "Erro ao iniciar edição do plano." });
+    }
+  };
+
+  const handleDiscardDraft = async () => {
+    const ok = window.confirm(
+      "Deseja realmente descartar as alterações deste rascunho? Esta ação não pode ser desfeita."
+    );
+    if (!ok) return;
+
+    setIsDiscardingDraft(true);
+    const res = await discardPatientPlanDraftAction(slug, detail.student.membershipPublicId);
+    if (res.success) {
+      router.refresh();
+    } else {
+      setIsDiscardingDraft(false);
+      setMessage({ type: "error", text: res.error || "Erro ao descartar alterações." });
+    }
+  };
 
   // Calculation manual overrides state (ephemeral client simulation only)
   const [calcWeightOverride, setCalcWeightOverride] = useState<string>("");
@@ -258,6 +298,7 @@ export function PatientRecordView({
           slug={slug}
           detail={detail}
           activePlan={activePlan}
+          draftPlan={draftPlan}
           evolutionHubData={evolutionHubData}
           evolutionComparisonData={evolutionComparisonData}
           clinicalForm={clinicalForm}
@@ -486,16 +527,37 @@ export function PatientRecordView({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {activePlan ? (
+                  {draftPlan ? (
                     <>
-                      <Link href={`/consultoria/${slug}/planos-v2/${activePlan.planPublicId}?v=${activePlan.versionPublicId}`}>
-                        <Button variant="secondary" size="sm" className="font-bold text-xs min-h-[36px]">
-                          Abrir no Builder →
+                      <Link href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}>
+                        <Button variant="primary" size="sm" className="font-bold text-xs min-h-[36px]">
+                          Continuar Edição →
                         </Button>
                       </Link>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={isDiscardingDraft}
+                        onClick={handleDiscardDraft}
+                        className="font-bold text-xs min-h-[36px] text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20"
+                      >
+                        {isDiscardingDraft ? "Descartando..." : "Descartar"}
+                      </Button>
+                    </>
+                  ) : activePlan ? (
+                    <>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={isStartingEdit}
+                        onClick={handleStartEditPlan}
+                        className="font-bold text-xs min-h-[36px]"
+                      >
+                        {isStartingEdit ? "Abrindo..." : "Editar Plano"}
+                      </Button>
                       <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
-                        <Button variant="primary" size="sm" className="font-bold text-xs min-h-[36px]">
-                          Novo Plano
+                        <Button variant="secondary" size="sm" className="font-bold text-xs min-h-[36px]">
+                          + Novo Plano
                         </Button>
                       </Link>
                     </>
@@ -720,15 +782,36 @@ export function PatientRecordView({
               </div>
 
               <div className="flex items-center gap-2">
-                {activePlan ? (
+                {draftPlan ? (
                   <>
-                    <Link href={`/consultoria/${slug}/planos-v2/${activePlan.planPublicId}?v=${activePlan.versionPublicId}`}>
-                      <Button variant="secondary" size="md" className="font-bold text-xs min-h-[40px]">
-                        Editar no Builder →
+                    <Link href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}>
+                      <Button variant="primary" size="md" className="font-bold text-xs min-h-[40px]">
+                        Continuar Edição →
                       </Button>
                     </Link>
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      disabled={isDiscardingDraft}
+                      onClick={handleDiscardDraft}
+                      className="font-bold text-xs min-h-[40px] text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20"
+                    >
+                      {isDiscardingDraft ? "Descartando..." : "Descartar Alterações"}
+                    </Button>
+                  </>
+                ) : activePlan ? (
+                  <>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      disabled={isStartingEdit}
+                      onClick={handleStartEditPlan}
+                      className="font-bold text-xs min-h-[40px]"
+                    >
+                      {isStartingEdit ? "Abrindo..." : "Editar Plano"}
+                    </Button>
                     <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
-                      <Button variant="primary" size="md" className="font-bold text-xs min-h-[40px]">
+                      <Button variant="secondary" size="md" className="font-bold text-xs min-h-[40px]">
                         + Novo Plano
                       </Button>
                     </Link>

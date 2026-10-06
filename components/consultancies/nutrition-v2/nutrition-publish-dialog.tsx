@@ -9,6 +9,7 @@ interface NutritionPublishDialogProps {
   tree: PlanVersionTreeDto;
   isPublishing: boolean;
   errorMessage: string | null;
+  patientName?: string;
 }
 
 export function NutritionPublishDialog({
@@ -18,6 +19,7 @@ export function NutritionPublishDialog({
   tree,
   isPublishing,
   errorMessage,
+  patientName,
 }: NutritionPublishDialogProps) {
   if (!isOpen) return null;
 
@@ -43,10 +45,10 @@ export function NutritionPublishDialog({
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
           <div className="space-y-1">
             <h3 className="font-bold text-lg text-[var(--text-primary)] leading-snug">
-              Publicar Plano Alimentar
+              {patientName ? "Publicar Atualização do Plano" : "Publicar Plano Alimentar"}
             </h3>
             <p className="text-xs text-[var(--text-secondary)]">
-              Versão {tree.version.versionNumber} · {tree.version.title}
+              {patientName ? `Paciente: ${patientName} · ` : ""}Versão {tree.version.versionNumber} · {tree.version.title}
             </p>
           </div>
           <button
@@ -68,10 +70,12 @@ export function NutritionPublishDialog({
               <svg className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <span>Atenção: Versão Imutável</span>
+              <span>{patientName ? "Atualização da Prescrição" : "Atenção: Versão Imutável"}</span>
             </p>
             <p className="leading-relaxed">
-              Ao publicar esta versão, sua prescrição se tornará definitiva e não poderá mais ser editada diretamente. Para realizar futuras alterações, você poderá criar uma nova versão a partir desta.
+              {patientName
+                ? `Ao publicar, ${patientName} passará a receber imediatamente este novo cardápio. O histórico anterior será preservado com segurança.`
+                : "Ao publicar esta versão, sua prescrição se tornará definitiva e não poderá mais ser editada diretamente. Para realizar futuras alterações, você poderá criar uma nova versão a partir desta."}
             </p>
           </div>
 
@@ -161,7 +165,7 @@ export function NutritionPublishDialog({
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Confirmar e Publicar</span>
+                <span>{patientName ? "Publicar Atualização" : "Confirmar e Publicar"}</span>
               </>
             )}
           </button>

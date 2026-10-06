@@ -95,31 +95,47 @@ export function NutritionMealEditor({
   };
 
   return (
-    <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+    <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-xl p-3.5 sm:p-5 shadow-sm space-y-4 w-full min-w-0">
       {/* Meal Header */}
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <h3 className="font-bold text-sm tracking-wide text-[var(--text-primary)] uppercase truncate">
-            {meal.title}
-          </h3>
-          {meal.scheduledTime && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)] shrink-0">
-              <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>{meal.scheduledTime}</span>
-            </span>
-          )}
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[var(--border)] pb-3 w-full min-w-0">
+        <div className="flex items-center justify-between gap-2 min-w-0 w-full sm:w-auto">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <h3 className="font-bold text-sm tracking-wide text-[var(--text-primary)] uppercase truncate">
+              {meal.title}
+            </h3>
+            {meal.scheduledTime && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border)] shrink-0">
+                <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{meal.scheduledTime}</span>
+              </span>
+            )}
+          </div>
 
-        {/* Meal Actions */}
-        <div className="flex items-center gap-1 shrink-0">
+          {/* Mobile Collapse Toggle */}
           <button
             type="button"
             title={isCollapsed ? "Expandir refeição" : "Recolher refeição"}
             aria-expanded={!isCollapsed}
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 sm:p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+            className="sm:hidden p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer shrink-0"
+          >
+            <svg className={`w-4 h-4 transition-transform duration-200 ${isCollapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Meal Actions */}
+        <div className="flex items-center justify-end gap-1 flex-wrap shrink-0">
+          {/* Desktop Collapse Toggle */}
+          <button
+            type="button"
+            title={isCollapsed ? "Expandir refeição" : "Recolher refeição"}
+            aria-expanded={!isCollapsed}
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="hidden sm:flex p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl hover:bg-[var(--surface-secondary)] transition-colors items-center justify-center cursor-pointer"
           >
             <svg className={`w-4 h-4 transition-transform duration-200 ${isCollapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />

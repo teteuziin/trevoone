@@ -55,19 +55,19 @@ export function NutritionSubstitutionEditor({
   };
 
   return (
-    <div className="pl-6 pr-3 py-2.5 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30 hover:border-[var(--brand-primary)]/40 transition-colors">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+    <div className="pl-3 sm:pl-6 pr-2.5 sm:pr-3 py-2 sm:py-2.5 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30 hover:border-[var(--brand-primary)]/40 transition-colors w-full min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 w-full min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap flex-1">
           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0 uppercase tracking-wide">
             OU
           </span>
-          <span className="text-xs font-medium text-[var(--text-primary)] truncate">
+          <span className="text-xs font-medium text-[var(--text-primary)] truncate max-w-full">
             {substitution.foodNameSnapshot}
           </span>
           {substitution.foodId == null && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Pendente de revisão
+              Pendente
             </span>
           )}
           {substitution.prescribedQuantity != null && (
@@ -79,7 +79,7 @@ export function NutritionSubstitutionEditor({
             <button
               type="button"
               onClick={() => setIsResolvePickerOpen(true)}
-              className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer"
+              className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer shrink-0"
               title="Vincular a um alimento da tabela nutricional"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,7 +92,7 @@ export function NutritionSubstitutionEditor({
 
         {/* Action icons */}
         {!readOnly && (
-          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          <div className="flex items-center justify-end gap-1 shrink-0 self-end sm:self-auto">
             {!isEditing && (
               <>
                 {onMoveUp && !isFirst && (
@@ -100,7 +100,7 @@ export function NutritionSubstitutionEditor({
                     type="button"
                     title="Mover para cima"
                     onClick={() => onMoveUp()}
-                    className="p-2 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+                    className="p-1.5 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
@@ -112,7 +112,7 @@ export function NutritionSubstitutionEditor({
                     type="button"
                     title="Mover para baixo"
                     onClick={() => onMoveDown()}
-                    className="p-2 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+                    className="p-1.5 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
@@ -123,7 +123,7 @@ export function NutritionSubstitutionEditor({
                   type="button"
                   title="Editar quantidade"
                   onClick={() => setIsEditing(true)}
-                  className="p-2 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+                  className="p-1.5 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -133,7 +133,7 @@ export function NutritionSubstitutionEditor({
                   type="button"
                   title="Remover substituição"
                   onClick={onRemove}
-                  className="p-2 sm:p-1 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+                  className="p-1.5 sm:p-1 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

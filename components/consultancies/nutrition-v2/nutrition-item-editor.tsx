@@ -82,20 +82,20 @@ export function NutritionItemEditor({
   };
 
   return (
-    <div className="p-2.5 sm:p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] shadow-2xs hover:border-[var(--brand-primary)]/40 transition-all space-y-1.5">
+    <div className="p-2.5 sm:p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] shadow-2xs hover:border-[var(--brand-primary)]/40 transition-all space-y-2 w-full min-w-0">
       {/* Item Header / Overview */}
-      <div className="flex items-start justify-between gap-2.5">
-        <div className="min-w-0 flex-1 space-y-0.5">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-2.5 w-full min-w-0">
+        <div className="min-w-0 flex-1 space-y-1">
           {/* Line 1: Food name and calories */}
           <div className="flex items-baseline justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
                 {item.foodNameSnapshot}
               </span>
               {item.foodId == null && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Pendente de revisão
+                  Pendente
                 </span>
               )}
             </div>
@@ -105,7 +105,7 @@ export function NutritionItemEditor({
           </div>
 
           {/* Line 2: Quantity & Macros */}
-          <div className="flex items-center gap-2 text-[11px] text-[var(--text-secondary)] flex-wrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] text-[var(--text-secondary)] flex-wrap">
             {item.prescribedQuantity != null && (
               <span className="font-medium text-[var(--text-primary)]">
                 {item.prescribedQuantity} {item.prescribedUnitLabel || item.prescribedUnitCode || "g"}
@@ -124,7 +124,7 @@ export function NutritionItemEditor({
                 <button
                   type="button"
                   onClick={() => setIsResolvePickerOpen(true)}
-                  className="text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 cursor-pointer min-h-[36px] sm:min-h-0"
+                  className="text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 cursor-pointer min-h-[36px] sm:min-h-0"
                   title="Vincular a um alimento da tabela nutricional"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +154,7 @@ export function NutritionItemEditor({
 
         {/* Action icons */}
         {!readOnly && (
-          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          <div className="flex items-center justify-end gap-1 shrink-0 self-end sm:self-start">
             {!isEditing && (
               <>
                 {onMoveUp && !isFirst && (
@@ -162,7 +162,7 @@ export function NutritionItemEditor({
                     type="button"
                     title="Mover para cima"
                     onClick={() => onMoveUp()}
-                    className="p-2 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+                    className="p-1.5 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
@@ -174,7 +174,7 @@ export function NutritionItemEditor({
                     type="button"
                     title="Mover para baixo"
                     onClick={() => onMoveDown()}
-                    className="p-2 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+                    className="p-1.5 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
@@ -185,7 +185,7 @@ export function NutritionItemEditor({
                   type="button"
                   title="Editar quantidade"
                   onClick={() => setIsEditing(true)}
-                  className="p-2 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+                  className="p-1.5 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -195,7 +195,7 @@ export function NutritionItemEditor({
                   type="button"
                   title="Remover item"
                   onClick={onRemoveItem}
-                  className="p-2 sm:p-1 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+                  className="p-1.5 sm:p-1 text-red-500/80 hover:text-red-600 rounded-lg hover:bg-red-500/10 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

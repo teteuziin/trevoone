@@ -270,9 +270,20 @@ export function MobilePatientHub({
                   {activePlan ? activePlan.versionTitle : "Nenhum plano alimentar ativo"}
                 </h2>
               </div>
-              <Badge variant={activePlan ? "success" : "neutral"} size="sm" className="shrink-0 text-[10px]">
-                {activePlan ? `V${activePlan.versionNumber} Ativo` : "Sem plano"}
-              </Badge>
+              {activePlan ? (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-default)]">
+                    V{activePlan.versionNumber}
+                  </span>
+                  <Badge variant="success" size="sm" className="text-[10px] font-semibold">
+                    Ativo
+                  </Badge>
+                </div>
+              ) : (
+                <Badge variant="neutral" size="sm" className="shrink-0 text-[10px]">
+                  Sem plano
+                </Badge>
+              )}
             </div>
 
             {activePlan ? (
@@ -374,31 +385,45 @@ export function MobilePatientHub({
           ========================================================================= */}
       {activeTab === "prontuario" && (
         <div className="space-y-4" data-testid="mobile-tab-prontuario">
-          {/* Sub-tabs Nível 2 */}
-          <div
-            role="tablist"
-            aria-label="Seções do Prontuário"
-            className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1"
-          >
-            {CLINICAL_SUB_TABS.map((sub) => {
-              const isSubActive = clinicalSubTab === sub.id;
-              return (
-                <button
-                  key={sub.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSubActive}
-                  onClick={() => setClinicalSubTab(sub.id)}
-                  className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
-                    isSubActive
-                      ? "bg-[var(--brand-soft)] text-[var(--brand)] border border-[var(--brand-soft-border)] font-bold shadow-2xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
-                  }`}
-                >
-                  {sub.label}
-                </button>
-              );
-            })}
+          {/* Sub-tabs Nível 2 com scroll suave e affordance mobile-native */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-0.5">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)]">
+                Seções do Prontuário
+              </span>
+              <span className="text-[10px] font-medium text-[var(--text-tertiary)] flex items-center gap-1">
+                <span>Deslize para ver mais</span>
+                <span aria-hidden="true">→</span>
+              </span>
+            </div>
+
+            <div className="relative">
+              <div
+                role="tablist"
+                aria-label="Seções do Prontuário"
+                className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1 -mx-4 px-4 snap-x"
+              >
+                {CLINICAL_SUB_TABS.map((sub) => {
+                  const isSubActive = clinicalSubTab === sub.id;
+                  return (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isSubActive}
+                      onClick={() => setClinicalSubTab(sub.id)}
+                      className={`min-h-[44px] px-4 py-2.5 rounded-xl text-xs whitespace-nowrap shrink-0 snap-start cursor-pointer transition-all flex items-center justify-center ${
+                        isSubActive
+                          ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold shadow-xs border border-transparent"
+                          : "bg-[var(--surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] font-semibold shadow-2xs"
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* Botão de sincronização com Onboarding (se disponível) */}
@@ -965,9 +990,14 @@ export function MobilePatientHub({
                       </p>
                     )}
                   </div>
-                  <Badge variant="success" size="sm" className="shrink-0 text-[10px]">
-                    V{activePlan.versionNumber} Ativo
-                  </Badge>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-default)]">
+                      V{activePlan.versionNumber}
+                    </span>
+                    <Badge variant="success" size="sm" className="text-[10px] font-semibold">
+                      Ativo
+                    </Badge>
+                  </div>
                 </div>
 
                 {/* Macro breakdown */}

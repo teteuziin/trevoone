@@ -82,6 +82,20 @@ runTest("MOBILE PRONTUARIO TAB", () => {
   assert.ok(hubContent.includes("onSaveClinical"));
   assert.ok(hubContent.includes("onSavePregnancy"));
   assert.ok(hubContent.includes("onAddAnthropometry"));
+  // Ajuste 1: sub-tabs mobile polish
+  assert.ok(hubContent.includes("Seções do Prontuário"));
+  assert.ok(hubContent.includes("-mx-4 px-4"));
+  assert.ok(hubContent.includes("overflow-x-auto no-scrollbar scroll-smooth"));
+  assert.ok(hubContent.includes("snap-x"));
+  assert.ok(hubContent.includes("snap-start"));
+});
+
+// PLAN VERSION AND STATUS BADGES NO DUPLICATION (AJUSTE 2)
+runTest("PLAN VERSION AND STATUS BADGES NO DUPLICATION", () => {
+  const hubPath = "components/consultancies/nutrition-v2/mobile-patient-hub.tsx";
+  const hubContent = fs.readFileSync(hubPath, "utf8");
+  assert.ok(!hubContent.includes("V${activePlan.versionNumber} Ativo"), "Must not combine V{version} and Ativo into single badge text");
+  assert.ok(hubContent.includes("V{activePlan.versionNumber}"));
 });
 
 // MOBILE PLAN TAB

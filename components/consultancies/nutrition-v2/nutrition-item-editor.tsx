@@ -82,14 +82,14 @@ export function NutritionItemEditor({
   };
 
   return (
-    <div className="p-2.5 sm:p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] shadow-2xs hover:border-[var(--brand-primary)]/40 transition-all space-y-2 w-full min-w-0">
+    <div className="p-2.5 sm:p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-primary)] shadow-2xs hover:border-[var(--brand-primary)]/40 transition-all space-y-2 w-full max-w-full min-w-0">
       {/* Item Header / Overview */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-2.5 w-full min-w-0">
-        <div className="min-w-0 flex-1 space-y-1">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-2.5 w-full max-w-full min-w-0">
+        <div className="min-w-0 flex-1 space-y-1 w-full max-w-full">
           {/* Line 1: Food name and calories */}
-          <div className="flex items-baseline justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
+          <div className="flex items-start justify-between gap-2 min-w-0 w-full max-w-full">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1 max-w-full">
+              <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] line-clamp-2 break-words [overflow-wrap:anywhere] min-w-0">
                 {item.foodNameSnapshot}
               </span>
               {item.foodId == null && (
@@ -99,28 +99,28 @@ export function NutritionItemEditor({
                 </span>
               )}
             </div>
-            <span className="font-bold text-xs text-amber-600 dark:text-amber-400 font-mono shrink-0">
+            <span className="font-bold text-xs text-amber-600 dark:text-amber-400 font-mono shrink-0 pl-1">
               {item.caloriesKcalSnapshot != null ? `${item.caloriesKcalSnapshot} kcal` : "— kcal"}
             </span>
           </div>
 
           {/* Line 2: Quantity & Macros */}
-          <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] text-[var(--text-secondary)] flex-wrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] text-[var(--text-secondary)] flex-wrap min-w-0 max-w-full">
             {item.prescribedQuantity != null && (
-              <span className="font-medium text-[var(--text-primary)]">
+              <span className="font-medium text-[var(--text-primary)] shrink-0">
                 {item.prescribedQuantity} {item.prescribedUnitLabel || item.prescribedUnitCode || "g"}
               </span>
             )}
-            <span>•</span>
-            <span>P {item.proteinGSnapshot != null ? `${item.proteinGSnapshot}g` : "—"}</span>
-            <span>•</span>
-            <span>C {item.carbohydrateGSnapshot != null ? `${item.carbohydrateGSnapshot}g` : "—"}</span>
-            <span>•</span>
-            <span>G {item.fatGSnapshot != null ? `${item.fatGSnapshot}g` : "—"}</span>
+            <span className="text-[var(--text-tertiary)]">•</span>
+            <span className="shrink-0">P {item.proteinGSnapshot != null ? `${item.proteinGSnapshot}g` : "—"}</span>
+            <span className="text-[var(--text-tertiary)]">•</span>
+            <span className="shrink-0">C {item.carbohydrateGSnapshot != null ? `${item.carbohydrateGSnapshot}g` : "—"}</span>
+            <span className="text-[var(--text-tertiary)]">•</span>
+            <span className="shrink-0">G {item.fatGSnapshot != null ? `${item.fatGSnapshot}g` : "—"}</span>
 
             {!readOnly && item.foodId == null && (
               <>
-                <span>•</span>
+                <span className="text-[var(--text-tertiary)]">•</span>
                 <button
                   type="button"
                   onClick={() => setIsResolvePickerOpen(true)}
@@ -135,11 +135,11 @@ export function NutritionItemEditor({
               </>
             )}
 
-            {item.notes && <span className="text-[var(--text-muted)] italic">· {item.notes}</span>}
+            {item.notes && <span className="text-[var(--text-muted)] italic break-words">· {item.notes}</span>}
 
             {item.micronutrientsSnapshotJson && (
               <>
-                <span>•</span>
+                <span className="text-[var(--text-tertiary)]">•</span>
                 <button
                   type="button"
                   onClick={() => setShowMicro(!showMicro)}
@@ -154,7 +154,7 @@ export function NutritionItemEditor({
 
         {/* Action icons */}
         {!readOnly && (
-          <div className="flex items-center justify-end gap-1 shrink-0 self-end sm:self-start">
+          <div className="flex items-center justify-end gap-1 shrink-0 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-[var(--border-subtle)]">
             {!isEditing && (
               <>
                 {onMoveUp && !isFirst && (

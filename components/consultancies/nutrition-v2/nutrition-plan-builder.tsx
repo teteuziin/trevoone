@@ -409,20 +409,25 @@ export function NutritionPlanBuilder({
   };
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-transparent px-3 sm:px-4 md:px-6 py-4 sm:py-8">
-      <div className="space-y-6 max-w-7xl mx-auto pb-28 sm:pb-20 w-full min-w-0">
+    <div className="w-full max-w-full min-w-0 min-h-[calc(100vh-4rem)] bg-transparent px-3 sm:px-4 md:px-6 py-4 sm:py-8">
+      <div className="space-y-6 max-w-7xl mx-auto pb-28 sm:pb-20 w-full max-w-full min-w-0">
         {/* Top Breadcrumb & Actions */}
-        <div className="flex items-center justify-between gap-2.5 min-w-0 w-full">
+        <div className="flex items-center justify-between gap-2 min-w-0 w-full max-w-full">
           <Link
             href={patientContext ? patientContext.returnToUrl : `/consultoria/${slug}/planos-v2`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive min-w-0 max-w-[calc(100%-110px)] sm:max-w-none"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive min-w-0 max-w-full flex-1"
           >
             <ArrowLeftIcon className="w-4 h-4 shrink-0" />
-            <span className="truncate">{patientContext ? `Voltar para paciente (${patientContext.studentName})` : "Voltar para Planos"}</span>
+            <span className="break-words sm:hidden">
+              {patientContext ? `Voltar para ${patientContext.studentName}` : "Voltar para Planos"}
+            </span>
+            <span className="hidden sm:inline break-words">
+              {patientContext ? `Voltar para paciente (${patientContext.studentName})` : "Voltar para Planos"}
+            </span>
           </Link>
 
           {/* Desktop Action Controls & Version Badges */}
-          <div className="hidden sm:flex items-center gap-2.5 flex-wrap shrink-0">
+          <div className="hidden lg:flex items-center gap-2.5 flex-wrap shrink-0">
             <button
               type="button"
               onClick={handleOpenHistory}
@@ -519,7 +524,7 @@ export function NutritionPlanBuilder({
           </div>
 
           {/* Mobile Badge Only */}
-          <div className="sm:hidden flex items-center gap-2 shrink-0">
+          <div className="lg:hidden flex items-center gap-2 shrink-0">
             <Badge
               variant={
                 tree.version.status === "PUBLISHED"
@@ -541,21 +546,21 @@ export function NutritionPlanBuilder({
 
         {/* Patient Context Banner */}
         {patientContext && (
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--brand)]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0 w-full">
-            <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-              <div className="w-9 h-9 rounded-xl bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center font-extrabold text-sm shrink-0 shadow-xs mt-0.5 sm:mt-0">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--brand)]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0 w-full max-w-full">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 min-w-0 flex-1 w-full max-w-full">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center font-extrabold text-xs sm:text-sm shrink-0 shadow-xs">
                 {patientContext.studentName.charAt(0).toUpperCase()}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-extrabold text-[var(--text-primary)] break-words">
+              <div className="min-w-0 flex-1 w-full max-w-full space-y-1 sm:space-y-0.5">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0 max-w-full">
+                  <span className="text-sm font-extrabold text-[var(--text-primary)] break-words min-w-0">
                     Plano alimentar de {patientContext.studentName}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)] text-[var(--text-inverse)] shrink-0">
+                  <span className="self-start sm:self-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)] text-[var(--text-inverse)] shrink-0">
                     {tree.version.status === "DRAFT" ? "Alteração em andamento" : "Plano publicado"}
                   </span>
                 </div>
-                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 break-words leading-relaxed">
+                <p className="text-[11px] text-[var(--text-secondary)] break-words leading-relaxed min-w-0 max-w-full">
                   {tree.version.status === "DRAFT"
                     ? "Enquanto este rascunho estiver em edição, o aluno continua visualizando a prescrição ativa anterior."
                     : "Este plano está publicado e ativo para a paciente."}
@@ -563,7 +568,7 @@ export function NutritionPlanBuilder({
               </div>
             </div>
 
-            <div className="hidden sm:flex items-center gap-2 shrink-0">
+            <div className="hidden lg:flex items-center gap-2 shrink-0">
               {tree.version.status === "DRAFT" && (
                 <Button
                   variant="secondary"
@@ -594,14 +599,14 @@ export function NutritionPlanBuilder({
         )}
 
         {/* 12-Column Responsive Workspace Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full min-w-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full max-w-full min-w-0">
           {/* LEFT / MAIN WORKSPACE: Plan Header & Meals */}
-          <div className="lg:col-span-8 space-y-6 w-full min-w-0">
+          <div className="lg:col-span-8 space-y-6 w-full max-w-full min-w-0">
             {/* Plan Header Card */}
-            <div className="p-4 sm:p-6 md:p-7 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 sm:space-y-5 depth-surface w-full min-w-0">
+            <div className="p-4 sm:p-6 md:p-7 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 sm:space-y-5 depth-surface w-full max-w-full min-w-0">
               {!isEditingMetadata ? (
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
-                  <div className="space-y-1.5 sm:space-y-2 min-w-0 flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 w-full max-w-full min-w-0">
+                  <div className="space-y-1.5 sm:space-y-2 min-w-0 flex-1 w-full max-w-full">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
                         Plano Alimentar
@@ -613,40 +618,42 @@ export function NutritionPlanBuilder({
                       )}
                     </div>
 
-                    <h1 className="text-lg sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight break-words">
+                    <h1 className="text-lg sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
                       {tree.version.title}
                     </h1>
 
                     {tree.version.subtitle && (
-                      <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium leading-relaxed break-words">
+                      <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium leading-relaxed break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
                         {tree.version.subtitle}
                       </p>
                     )}
 
                     {tree.version.objective && (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] max-w-full">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] max-w-full min-w-0">
                         <span className="shrink-0">Objetivo:</span>
                         <span className="text-[var(--text-primary)] font-bold truncate">{tree.version.objective}</span>
                       </div>
                     )}
 
                     {tree.version.generalGuidance && (
-                      <p className="text-xs text-[var(--text-secondary)] pt-1 whitespace-pre-line leading-relaxed break-words">
+                      <p className="text-xs text-[var(--text-secondary)] pt-1 whitespace-pre-line leading-relaxed break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
                         {tree.version.generalGuidance}
                       </p>
                     )}
                   </div>
 
                   {!isReadOnly && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setIsEditingMetadata(true)}
-                      className="font-semibold text-xs shrink-0 min-h-[38px] self-start"
-                    >
-                      <EditIcon className="w-3.5 h-3.5 mr-1 text-[var(--text-secondary)]" />
-                      <span>Editar Informações</span>
-                    </Button>
+                    <div className="w-full sm:w-auto pt-1 sm:pt-0 shrink-0">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setIsEditingMetadata(true)}
+                        className="font-semibold text-xs w-full sm:w-auto min-h-[38px] justify-center"
+                      >
+                        <EditIcon className="w-3.5 h-3.5 mr-1 text-[var(--text-secondary)]" />
+                        <span>Editar Informações</span>
+                      </Button>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -1026,7 +1033,7 @@ export function NutritionPlanBuilder({
         </div>
 
         {/* Alunos Prescritos Section */}
-        <div className="p-5 sm:p-6 md:p-7 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface">
+        <div className="p-5 sm:p-6 md:p-7 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-4 depth-surface w-full max-w-full min-w-0">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="space-y-0.5">
               <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
@@ -1119,7 +1126,7 @@ export function NutritionPlanBuilder({
               <span>Subtotal conhecido: alguns alimentos possuem informações nutricionais ausentes na base.</span>
             </div>
           )}
-                  {/* Button: Ver micronutrientes */}
+          {/* Button: Ver micronutrientes */}
           <button
             type="button"
             onClick={() => setIsMicronutrientsDrawerOpen(true)}
@@ -1130,27 +1137,29 @@ export function NutritionPlanBuilder({
             </svg>
             <span>Ver micronutrientes</span>
           </button>
-</div>
+        </div>
 
-        {/* Plan Micronutrients Panel */}
+        {/* Plan Micronutrients Panel (Desktop In-Page) */}
         {tree.dailyMicronutrientTotals && (
-          <>
-            <NutritionMicronutrientsPanel
-              totals={tree.dailyMicronutrientTotals}
-              title="Micronutrientes do Plano"
-              isDrawer={true}
-              isOpen={isMicronutrientsDrawerOpen}
-              onClose={() => setIsMicronutrientsDrawerOpen(false)}
-            />
-            <NutritionMicronutrientsPanel
-              totals={tree.dailyMicronutrientTotals}
-              title="Micronutrientes do Plano"
-              defaultCollapsed={true}
-            />
-          </>
+          <NutritionMicronutrientsPanel
+            totals={tree.dailyMicronutrientTotals}
+            title="Micronutrientes do Plano"
+            defaultCollapsed={true}
+          />
         )}
       </div>
     </div>
+
+        {/* Micronutrients Drawer (Mobile & Modal) */}
+        {tree.dailyMicronutrientTotals && (
+          <NutritionMicronutrientsPanel
+            totals={tree.dailyMicronutrientTotals}
+            title="Micronutrientes do Plano"
+            isDrawer={true}
+            isOpen={isMicronutrientsDrawerOpen}
+            onClose={() => setIsMicronutrientsDrawerOpen(false)}
+          />
+        )}
 
         {/* Save as Template Dialog */}
         <NutritionSaveTemplateDialog
@@ -1198,7 +1207,7 @@ export function NutritionPlanBuilder({
       </div>
 
       {/* Mobile Sticky Bottom Action Bar */}
-      <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-default)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-lg flex items-center justify-between gap-2.5">
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-default)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-lg flex items-center justify-between gap-2.5">
         <button
           type="button"
           aria-label="Mais ações do plano"

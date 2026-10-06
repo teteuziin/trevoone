@@ -55,13 +55,13 @@ export function NutritionSubstitutionEditor({
   };
 
   return (
-    <div className="pl-3 sm:pl-6 pr-2.5 sm:pr-3 py-2 sm:py-2.5 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30 hover:border-[var(--brand-primary)]/40 transition-colors w-full min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 w-full min-w-0">
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap flex-1">
+    <div className="pl-3 sm:pl-6 pr-2.5 sm:pr-3 py-2 sm:py-2.5 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30 hover:border-[var(--brand-primary)]/40 transition-colors w-full max-w-full min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap flex-1 max-w-full">
           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0 uppercase tracking-wide">
             OU
           </span>
-          <span className="text-xs font-medium text-[var(--text-primary)] truncate max-w-full">
+          <span className="text-xs font-medium text-[var(--text-primary)] line-clamp-2 break-words [overflow-wrap:anywhere] min-w-0 flex-1">
             {substitution.foodNameSnapshot}
           </span>
           {substitution.foodId == null && (
@@ -92,7 +92,7 @@ export function NutritionSubstitutionEditor({
 
         {/* Action icons */}
         {!readOnly && (
-          <div className="flex items-center justify-end gap-1 shrink-0 self-end sm:self-auto">
+          <div className="flex items-center justify-end gap-1 shrink-0 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-[var(--border-subtle)]">
             {!isEditing && (
               <>
                 {onMoveUp && !isFirst && (

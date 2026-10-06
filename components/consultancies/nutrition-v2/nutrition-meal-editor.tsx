@@ -95,12 +95,12 @@ export function NutritionMealEditor({
   };
 
   return (
-    <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-xl p-3.5 sm:p-5 shadow-sm space-y-4 w-full min-w-0">
+    <div className="bg-[var(--surface-primary)] border border-[var(--border)] rounded-xl p-3.5 sm:p-5 shadow-sm space-y-4 w-full max-w-full min-w-0">
       {/* Meal Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[var(--border)] pb-3 w-full min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[var(--border)] pb-3 w-full max-w-full min-w-0">
         <div className="flex items-center justify-between gap-2 min-w-0 w-full sm:w-auto">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <h3 className="font-bold text-sm tracking-wide text-[var(--text-primary)] uppercase truncate">
+            <h3 className="font-bold text-sm tracking-wide text-[var(--text-primary)] uppercase break-words min-w-0">
               {meal.title}
             </h3>
             {meal.scheduledTime && (
@@ -128,7 +128,7 @@ export function NutritionMealEditor({
         </div>
 
         {/* Meal Actions */}
-        <div className="flex items-center justify-end gap-1 flex-wrap shrink-0">
+        <div className="flex items-center justify-start sm:justify-end gap-1 flex-wrap w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-[var(--border-subtle)] shrink-0">
           {/* Desktop Collapse Toggle */}
           <button
             type="button"
@@ -204,18 +204,18 @@ export function NutritionMealEditor({
       {isCollapsed ? (
         <div
           onClick={() => setIsCollapsed(false)}
-          className="p-3 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs text-[var(--text-secondary)] rounded-xl flex items-center justify-between cursor-pointer transition-colors"
+          className="p-3 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs text-[var(--text-secondary)] rounded-xl flex items-center justify-between gap-2 cursor-pointer transition-colors w-full max-w-full min-w-0"
         >
-          <div className="flex items-center gap-2 truncate min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0 flex-1">
             <span className="font-semibold text-[var(--text-primary)] shrink-0">
               {meal.items.length} {meal.items.length === 1 ? "alimento" : "alimentos"}
             </span>
-            <span className="text-[var(--text-tertiary)] shrink-0">·</span>
+            <span className="text-[var(--text-tertiary)]">·</span>
             <span className="font-bold text-[var(--brand)] shrink-0">
               {meal.mealTotals.caloriesKcal} kcal
             </span>
-            <span className="text-[var(--text-tertiary)] shrink-0">·</span>
-            <span className="text-[var(--text-muted)] text-[11px] shrink-0">
+            <span className="text-[var(--text-tertiary)]">·</span>
+            <span className="text-[var(--text-muted)] text-[11px]">
               P {meal.mealTotals.proteinG}g • C {meal.mealTotals.carbohydrateG}g • G {meal.mealTotals.fatG}g
             </span>
             {meal.items.length > 0 && (
@@ -224,7 +224,7 @@ export function NutritionMealEditor({
               </span>
             )}
           </div>
-          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
+          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 ml-1">
             Expandir ↓
           </span>
         </div>

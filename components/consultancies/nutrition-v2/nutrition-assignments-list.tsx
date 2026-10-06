@@ -91,7 +91,7 @@ export function NutritionAssignmentsList({
           </p>
         </div>
       ) : (
-        <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm">
+        <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm w-full max-w-full min-w-0">
           <div className="divide-y divide-slate-100">
             {assignments.map((asg) => {
               const isActive = asg.status === "ACTIVE";
@@ -99,9 +99,9 @@ export function NutritionAssignmentsList({
               return (
                 <div
                   key={asg.assignmentPublicId}
-                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors"
+                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors w-full max-w-full min-w-0"
                 >
-                  <div className="space-y-1 min-w-0 flex-1">
+                  <div className="space-y-1 min-w-0 flex-1 w-full max-w-full">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-sm text-slate-900 truncate">
                         {asg.studentName}
@@ -125,8 +125,8 @@ export function NutritionAssignmentsList({
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                      <span>{asg.studentEmail}</span>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 break-words w-full max-w-full min-w-0">
+                      <span className="break-all">{asg.studentEmail}</span>
                       <span>•</span>
                       <span>Início: {asg.startsOn}</span>
                       {asg.endsOn && (

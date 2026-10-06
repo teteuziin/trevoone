@@ -49,7 +49,7 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
          INNER JOIN users u ON u.id = cm.user_id
          WHERE (cm.public_id = ? OR u.public_id = ?)
            AND cm.consultancy_id = ?
-           AND cm.deleted_at IS NULL
+           AND cm.status = 'ACTIVE'
          LIMIT 1`,
         [targetStudentId, targetStudentId, ctx.consultancyId!]
       );

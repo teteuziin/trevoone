@@ -775,6 +775,7 @@ export async function getPersonalStudentDetail(params: {
          INNER JOIN nutrition_v2_plans p ON p.id = nv.nutrition_plan_id
          WHERE na.consultancy_id = ?
            AND na.student_membership_id = ?
+           AND na.status IN ('ACTIVE', 'ENDED')
            AND na.deleted_at IS NULL
          ORDER BY na.status = 'ACTIVE' DESC, na.created_at DESC;`,
         [consultancyId, membershipId]

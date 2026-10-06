@@ -33,11 +33,12 @@ export const ALL_NUTRITION_V2_PLAN_VERSION_STATUSES: readonly NutritionV2PlanVer
   "ARCHIVED",
 ] as const;
 
-export type NutritionV2AssignmentStatus = "ACTIVE" | "ENDED" | "DRAFT";
+export type NutritionV2AssignmentStatus = "ACTIVE" | "ENDED" | "DRAFT" | "ARCHIVED";
 export const ALL_NUTRITION_V2_ASSIGNMENT_STATUSES: readonly NutritionV2AssignmentStatus[] = [
   "ACTIVE",
   "ENDED",
   "DRAFT",
+  "ARCHIVED",
 ] as const;
 
 export interface PatientPlanDraftSummary {

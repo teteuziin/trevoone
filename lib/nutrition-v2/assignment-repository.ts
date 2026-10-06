@@ -792,6 +792,7 @@ export async function listPlanAssignments(
        INNER JOIN consultancy_members cm_author ON cm_author.id = a.assigned_by_membership_id
        INNER JOIN users u_author ON u_author.id = cm_author.user_id
        WHERE v.nutrition_plan_id = ?
+         AND a.status IN ('ACTIVE', 'ENDED')
          AND a.deleted_at IS NULL
        ORDER BY (a.status = 'ACTIVE') DESC, a.created_at DESC`,
       [plan.id]

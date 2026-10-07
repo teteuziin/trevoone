@@ -1130,17 +1130,10 @@ export function WorkoutBuilder({
     }
   }
 
-  // Guard for Publishing
+  // Guard for Publishing - opens interactive publish dialog
   function handleOpenPublishDialog() {
     if (version.status !== "DRAFT") {
       notify("Apenas versões em rascunho podem ser publicadas.");
-      return;
-    }
-    const hasUnresolved = (version.blocks || []).some((b) =>
-      (b.items || []).some((i) => !i.exercisePublicId && !i.customExercisePublicId && !i.isCustomExercise)
-    );
-    if (hasUnresolved) {
-      notify("Não é possível publicar: existem exercícios pendentes de revisão. Resolva-os ou personalize-os antes de publicar.");
       return;
     }
     setIsPublishDialogOpen(true);
@@ -1846,6 +1839,7 @@ export function WorkoutBuilder({
           router.push(
             `/consultoria/${consultancySlug}/rotinas/${workout.publicId}?version=${pubVersion.publicId}`
           );
+          router.refresh();
         }}
         onResolveItem={(catId, itemId) => {
           setIsPublishDialogOpen(false);

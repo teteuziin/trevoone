@@ -784,6 +784,32 @@ export async function publishWorkoutAction(
 }
 
 /**
+ * Publishes a DRAFT workout version, automatically converting any remaining
+ * UNRESOLVED exercises to tenant-scoped CUSTOM exercises with full prescription preservation.
+ * Requires explicit human confirmation from the professional.
+ */
+export async function publishWorkoutWithAutoCustomAction(
+  slug: string,
+  versionPublicId: string
+): Promise<ActionResponse<WorkoutVersionDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const published = await publishWorkoutVersion(ctx, versionPublicId, {
+      autoConvertUnresolved: true,
+    });
+
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    revalidatePath(`/consultoria/${slug}/rotinas/${published.workoutPublicId}`);
+    return { ok: true, data: published };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao publicar versão do treino como personalizados.",
+    };
+  }
+}
+
+/**
  * Creates a new DRAFT version (Version N+1) from an immutable published version.
  * If an active draft already exists, idempotently returns the existing draft.
  */

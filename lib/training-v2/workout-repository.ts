@@ -1277,7 +1277,8 @@ async function cloneVersionTree(
  */
 export async function publishWorkoutVersion(
   ctx: TrainingAccessContext,
-  versionPublicId: string
+  versionPublicId: string,
+  options?: { autoConvertUnresolved?: boolean }
 ): Promise<WorkoutVersionDto> {
   assertCanAuthorTraining(ctx);
 
@@ -1320,6 +1321,79 @@ export async function publishWorkoutVersion(
     const tree = await getWorkoutVersionTree(ctx, versionPublicId);
     if (!tree) {
       throw new TrainingAuthorizationError("Falha ao carregar estrutura persistida do treino.", "INTERNAL_ERROR", 500);
+    }
+
+    // 2.4 Explicit professional one-click batch conversion:
+    // If autoConvertUnresolved is enabled by explicit professional confirmation, convert all items
+    // where exercise_id IS NULL AND custom_exercise_id IS NULL to tenant-scoped CUSTOM exercises.
+    // 100% of sets, reps, weight, duration, rest, method, method_config_json, notes, instructions,
+    // order, and combinations are preserved without alteration.
+    if (options?.autoConvertUnresolved) {
+      const [unresolvedDbItems] = await connection.execute<RowDataPacket[]>(
+        `SELECT wbi.id, wbi.public_id, wbi.exercise_name_snapshot,
+                wbi.muscle_group_snapshot, wbi.equipment_snapshot, wbi.instructions_snapshot
+         FROM workout_block_items wbi
+         INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+         WHERE wb.workout_version_id = ?
+           AND wbi.exercise_id IS NULL
+           AND wbi.custom_exercise_id IS NULL
+         ORDER BY wbi.id ASC;`,
+        [v.id]
+      );
+
+      for (const item of unresolvedDbItems) {
+        const rawName = (item.exercise_name_snapshot || "").trim();
+        const cleanName = rawName.length > 0 ? rawName : "Exercício Personalizado";
+        const muscleGroup = item.muscle_group_snapshot?.trim() || "Geral";
+        const equipment = item.equipment_snapshot?.trim() || "Outro";
+        const instructions = item.instructions_snapshot?.trim() || null;
+        const customExPublicId = crypto.randomUUID();
+
+        // 1. Insert into exercises table (scoped to consultancy)
+        const [exRes] = await connection.execute<ResultSetHeader>(
+          `INSERT INTO exercises (
+             public_id, consultancy_id, name, muscle_group_primary,
+             equipment, instructions, status, scope,
+             created_by_user_id, created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, 'PUBLISHED', 'CONSULTANCY', ?, NOW(3), NOW(3));`,
+          [
+            customExPublicId,
+            v.consultancy_id,
+            cleanName,
+            muscleGroup,
+            equipment,
+            instructions,
+            ctx.userId || null,
+          ]
+        );
+
+        const customExerciseId = exRes.insertId;
+
+        // 2. Update item with custom_exercise_id (PRESERVING all sets, method_config, notes, order, combinations)
+        await connection.execute<ResultSetHeader>(
+          `UPDATE workout_block_items
+           SET exercise_id = NULL,
+               custom_exercise_id = ?,
+               exercise_name_snapshot = ?,
+               muscle_group_snapshot = COALESCE(muscle_group_snapshot, ?),
+               equipment_snapshot = COALESCE(equipment_snapshot, ?),
+               updated_at = NOW(3)
+           WHERE id = ?;`,
+          [customExerciseId, cleanName, muscleGroup, equipment, item.id]
+        );
+
+        // Update in-memory tree item so validateWorkoutVersionForPublish passes
+        for (const block of tree.blocks || []) {
+          for (const it of block.items || []) {
+            if (it.publicId === item.public_id) {
+              it.isCustomExercise = true;
+              it.customExercisePublicId = customExPublicId;
+              it.exercisePublicId = customExPublicId;
+              it.exerciseNameSnapshot = cleanName;
+            }
+          }
+        }
+      }
     }
 
     // 2.5 Tolerant sanitization of optional fields before publish
@@ -1392,6 +1466,18 @@ export async function publishWorkoutVersion(
   } finally {
     connection.release();
   }
+}
+
+/**
+ * Publishes a DRAFT workout version, automatically converting any remaining
+ * UNRESOLVED exercises to tenant-scoped CUSTOM exercises with 100% prescription fidelity.
+ * Requires explicit human action from the professional.
+ */
+export async function publishWorkoutWithAutoCustomConversion(
+  ctx: TrainingAccessContext,
+  versionPublicId: string
+): Promise<WorkoutVersionDto> {
+  return publishWorkoutVersion(ctx, versionPublicId, { autoConvertUnresolved: true });
 }
 
 /**

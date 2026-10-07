@@ -633,10 +633,22 @@ runTest("DESKTOP", () => {
 // SECTION 5: RBAC & TENANCY AUTHORIZATION TESTS
 // ============================================================================
 
-function checkMediaUploadAuthorization(ctx, requestedScope) {
+function checkMediaUploadRequest({
+  requestedScope = "CONSULTANCY",
+  consultancyParam = null,
+  ctx = null,
+}) {
+  if (requestedScope !== "GLOBAL" && (!consultancyParam || !consultancyParam.trim())) {
+    return {
+      status: 400,
+      error: "Identificador da consultoria é obrigatório para envio de mídias de consultoria.",
+    };
+  }
+
   if (!ctx) {
     return { status: 403, error: "Contexto de consultoria inválido ou não autorizado." };
   }
+
   if (requestedScope === "GLOBAL") {
     if (!ctx.canManageGlobal) {
       return { status: 403, error: "Apenas Administradores da Plataforma podem publicar mídias globais." };
@@ -648,6 +660,14 @@ function checkMediaUploadAuthorization(ctx, requestedScope) {
     }
     return { status: 200, scope: "CONSULTANCY" };
   }
+}
+
+function checkMediaUploadAuthorization(ctx, requestedScope) {
+  return checkMediaUploadRequest({
+    requestedScope,
+    consultancyParam: ctx?.consultancySlug || (ctx?.consultancyId ? `c_${ctx.consultancyId}` : null),
+    ctx,
+  });
 }
 
 function createTestContext({ roles = [], consultancyId = 1, isPlatformAdmin = false }) {
@@ -670,6 +690,80 @@ function createTestContext({ roles = [], consultancyId = 1, isPlatformAdmin = fa
     consultancySlug: consultancyId ? `tenant-${consultancyId}` : null,
     membershipId: consultancyId ? 100 : null,
     membershipPublicId: consultancyId ? `mem_100` : null,
+    roles: normalizedRoles,
+    hasRole,
+    canAuthorTraining,
+    canManageConsultancy,
+    canManageGlobal: isPlatformAdmin,
+    isStudent,
+  };
+}
+
+function mockResolveTrainingAccessContext(userMemberships, targetIdentifier, isPlatformAdmin = false) {
+  const clean = targetIdentifier?.trim() || null;
+  if (!clean) {
+    // Missing identifier: STRICTLY returns global context with no consultancy membership selected
+    return {
+      userId: 42,
+      userPublicId: "usr_42",
+      isPlatformAdmin,
+      consultancyId: null,
+      consultancyPublicId: null,
+      consultancySlug: null,
+      membershipId: null,
+      membershipPublicId: null,
+      roles: [],
+      hasRole: () => false,
+      canAuthorTraining: false,
+      canManageConsultancy: false,
+      canManageGlobal: isPlatformAdmin,
+      isStudent: false,
+    };
+  }
+
+  const membership = userMemberships.find(
+    (m) => m.slug === clean || m.publicId === clean
+  );
+
+  if (!membership) {
+    if (isPlatformAdmin) {
+      return {
+        userId: 42,
+        userPublicId: "usr_42",
+        isPlatformAdmin: true,
+        consultancyId: null,
+        consultancyPublicId: null,
+        consultancySlug: null,
+        membershipId: null,
+        membershipPublicId: null,
+        roles: [],
+        hasRole: () => false,
+        canAuthorTraining: false,
+        canManageConsultancy: false,
+        canManageGlobal: true,
+        isStudent: false,
+      };
+    }
+    return null;
+  }
+
+  const normalizedRoles = Array.from(
+    new Set(membership.roles.map((r) => normalizeConsultancyRole(r)).filter(Boolean))
+  );
+  const hasRole = (role) => normalizedRoles.includes(role);
+  const canManageConsultancy = hasRole("CONSULTANCY_ADMIN");
+  const canAuthorTraining = canManageConsultancy || hasRole("PERSONAL");
+  const isStudent = hasRole("STUDENT");
+
+  return {
+    userId: 42,
+    userPublicId: "usr_42",
+    isPlatformAdmin,
+    consultancyId: membership.id,
+    consultancyPublicId: membership.publicId,
+    consultancySlug: membership.slug,
+    membershipId: membership.membershipId,
+    membershipPublicId: membership.membershipPublicId,
     roles: normalizedRoles,
     hasRole,
     canAuthorTraining,
@@ -740,11 +834,22 @@ runTest("WRONG TENANT DENIED", () => {
   const ctxNoTenancy = createTestContext({ roles: ["PERSONAL"], consultancyId: null });
   assert.throws(() => assertCanAuthorTraining(ctxNoTenancy), TrainingAuthorizationError);
 
-  const authResNoTenant = checkMediaUploadAuthorization(ctxNoTenancy, "CONSULTANCY");
-  assert.equal(authResNoTenant.status, 403);
+  // Missing tenancy parameter is denied with 400
+  const authResNoTenant = checkMediaUploadRequest({
+    requestedScope: "CONSULTANCY",
+    consultancyParam: null,
+    ctx: ctxNoTenancy,
+  });
+  assert.equal(authResNoTenant.status, 400);
 
-  const authResNull = checkMediaUploadAuthorization(null, "CONSULTANCY");
-  assert.equal(authResNull.status, 403);
+  // Mismatched/unauthorized tenancy context is denied with 403
+  const authResWrongTenant = checkMediaUploadRequest({
+    requestedScope: "CONSULTANCY",
+    consultancyParam: "unauthorized-tenant",
+    ctx: null,
+  });
+  assert.equal(authResWrongTenant.status, 403);
+  assert.ok(authResWrongTenant.error.includes("inválido ou não autorizado"));
 });
 
 runTest("ITEM OVERRIDE DOES NOT REQUIRE LIBRARY ADMIN", () => {
@@ -767,6 +872,146 @@ runTest("LIBRARY PERMISSION PRESERVED", () => {
   const adminGlobalRes = checkMediaUploadAuthorization(ctxPlatformAdmin, "GLOBAL");
   assert.equal(adminGlobalRes.status, 200);
   assert.equal(adminGlobalRes.scope, "GLOBAL");
+});
+
+// ============================================================================
+// HARDENED TENANCY INVARIANTS
+// ============================================================================
+
+runTest("CONSULTANCY REQUIRED FOR CONSULTANCY MEDIA", () => {
+  // Upload with CONSULTANCY scope but omitted consultancy parameter returns 400
+  const noParamRes = checkMediaUploadRequest({
+    requestedScope: "CONSULTANCY",
+    consultancyParam: null,
+    ctx: null,
+  });
+  assert.equal(noParamRes.status, 400);
+  assert.ok(noParamRes.error.includes("Identificador da consultoria é obrigatório"));
+
+  const emptyParamRes = checkMediaUploadRequest({
+    requestedScope: "CONSULTANCY",
+    consultancyParam: "   ",
+    ctx: null,
+  });
+  assert.equal(emptyParamRes.status, 400);
+});
+
+runTest("PERSONAL WITH CORRECT TENANT", () => {
+  const userMemberships = [
+    { id: 10, publicId: "c_10", slug: "consultoria-alpha", membershipId: 1, membershipPublicId: "m_1", roles: ["PERSONAL"] },
+  ];
+  const ctx = mockResolveTrainingAccessContext(userMemberships, "consultoria-alpha");
+  assert.ok(ctx != null);
+  assert.equal(ctx.canAuthorTraining, true);
+
+  const res = checkMediaUploadRequest({
+    requestedScope: "CONSULTANCY",
+    consultancyParam: "consultoria-alpha",
+    ctx,
+  });
+  assert.equal(res.status, 200);
+  assert.equal(res.scope, "CONSULTANCY");
+});
+
+runTest("PERSONAL WITH DIFFERENT TENANT", () => {
+  // User belongs to alpha as Personal, but attempts upload with beta where they are NOT a member
+  const userMemberships = [
+    { id: 10, publicId: "c_10", slug: "consultoria-alpha", membershipId: 1, membershipPublicId: "m_1", roles: ["PERSONAL"] },
+  ];
+  const ctx = mockResolveTrainingAccessContext(userMemberships, "consultoria-beta");
+  assert.equal(ctx, null, "Must return null for unassociated consultancy");
+
+  const res = checkMediaUploadRequest({
+    requestedScope: "CONSULTANCY",
+    consultancyParam: "consultoria-beta",
+    ctx,
+  });
+  assert.equal(res.status, 403);
+  assert.ok(res.error.includes("inválido ou não autorizado"));
+});
+
+runTest("USER WITH TWO CONSULTANCIES DOES NOT FALLBACK", () => {
+  // User is PERSONAL in Alpha, but STUDENT in Beta
+  const userMemberships = [
+    { id: 10, publicId: "c_10", slug: "consultoria-alpha", membershipId: 1, membershipPublicId: "m_1", roles: ["PERSONAL"] },
+    { id: 20, publicId: "c_20", slug: "consultoria-beta", membershipId: 2, membershipPublicId: "m_2", roles: ["STUDENT"] },
+  ];
+
+  // When request specifies Beta, evaluate Beta context only (student denied, no fallback to Alpha)
+  const ctxBeta = mockResolveTrainingAccessContext(userMemberships, "consultoria-beta");
+  assert.ok(ctxBeta != null);
+  assert.equal(ctxBeta.consultancySlug, "consultoria-beta");
+  assert.equal(ctxBeta.canAuthorTraining, false);
+  assert.equal(ctxBeta.isStudent, true);
+
+  const resBeta = checkMediaUploadRequest({
+    requestedScope: "CONSULTANCY",
+    consultancyParam: "consultoria-beta",
+    ctx: ctxBeta,
+  });
+  assert.equal(resBeta.status, 403);
+  assert.ok(resBeta.error.includes("apenas Personal Trainers ou Administradores"));
+});
+
+runTest("MISSING CONSULTANCY DOES NOT AUTOSELECT MEMBERSHIP", () => {
+  // User has memberships, but consultancyIdentifier is not provided
+  const userMemberships = [
+    { id: 10, publicId: "c_10", slug: "consultoria-alpha", membershipId: 1, membershipPublicId: "m_1", roles: ["PERSONAL"] },
+    { id: 20, publicId: "c_20", slug: "consultoria-beta", membershipId: 2, membershipPublicId: "m_2", roles: ["STUDENT"] },
+  ];
+
+  const ctxUnspecified = mockResolveTrainingAccessContext(userMemberships, null);
+  assert.equal(ctxUnspecified.consultancyId, null, "Must not auto-select consultancyId");
+  assert.equal(ctxUnspecified.canAuthorTraining, false, "Must not auto-grant authoring capability");
+
+  // Attempting upload with missing tenancy fails safely
+  const res = checkMediaUploadRequest({
+    requestedScope: "CONSULTANCY",
+    consultancyParam: null,
+    ctx: ctxUnspecified,
+  });
+  assert.equal(res.status, 400);
+});
+
+runTest("MULTI-ROLE CORRECT TENANT", () => {
+  // User has both STUDENT and PERSONAL in the target consultancy
+  const userMemberships = [
+    { id: 10, publicId: "c_10", slug: "consultoria-alpha", membershipId: 1, membershipPublicId: "m_1", roles: ["STUDENT", "PERSONAL"] },
+  ];
+
+  const ctx = mockResolveTrainingAccessContext(userMemberships, "consultoria-alpha");
+  assert.ok(ctx != null);
+  assert.equal(ctx.canAuthorTraining, true);
+  assert.equal(ctx.isStudent, true);
+
+  const res = checkMediaUploadRequest({
+    requestedScope: "CONSULTANCY",
+    consultancyParam: "consultoria-alpha",
+    ctx,
+  });
+  assert.equal(res.status, 200);
+});
+
+runTest("GLOBAL LIBRARY AUTH UNCHANGED", () => {
+  // Personal Trainer cannot upload GLOBAL media
+  const coachCtx = createTestContext({ roles: ["PERSONAL"], consultancyId: 10, isPlatformAdmin: false });
+  const coachRes = checkMediaUploadRequest({
+    requestedScope: "GLOBAL",
+    consultancyParam: null,
+    ctx: coachCtx,
+  });
+  assert.equal(coachRes.status, 403);
+  assert.ok(coachRes.error.includes("Apenas Administradores da Plataforma"));
+
+  // Platform Admin CAN upload GLOBAL media even without tenancy
+  const adminCtx = createTestContext({ roles: [], consultancyId: null, isPlatformAdmin: true });
+  const adminRes = checkMediaUploadRequest({
+    requestedScope: "GLOBAL",
+    consultancyParam: null,
+    ctx: adminCtx,
+  });
+  assert.equal(adminRes.status, 200);
+  assert.equal(adminRes.scope, "GLOBAL");
 });
 
 console.log("==================================================");

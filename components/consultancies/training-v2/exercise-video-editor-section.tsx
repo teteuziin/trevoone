@@ -156,10 +156,16 @@ export function ExerciseVideoEditorSection({
         }
       }
 
+      if (!effectiveConsultancy) {
+        setErrorMessage("Não foi possível identificar a consultoria ativa para este envio.");
+        setIsUploading(false);
+        return;
+      }
+
       // Upload with incremental progress via XMLHttpRequest
-      const uploadUrl = `/api/training-v2/media?scope=CONSULTANCY&visibility=CONSULTANCY&mediaType=VIDEO${
-        effectiveConsultancy ? `&consultancy=${encodeURIComponent(effectiveConsultancy)}` : ""
-      }`;
+      const uploadUrl = `/api/training-v2/media?scope=CONSULTANCY&visibility=CONSULTANCY&mediaType=VIDEO&consultancy=${encodeURIComponent(
+        effectiveConsultancy
+      )}`;
 
       const uploadedPublicId = await new Promise<string>((resolve, reject) => {
         const xhr = new XMLHttpRequest();

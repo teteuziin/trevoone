@@ -76,6 +76,14 @@ export async function POST(request: Request) {
     }
   }
 
+  // If scope is CONSULTANCY (or not explicitly GLOBAL), explicit consultancy is strictly required
+  if (requestedScope !== "GLOBAL" && !consultancyParam) {
+    return NextResponse.json(
+      { error: "Identificador da consultoria é obrigatório para envio de mídias de consultoria." },
+      { status: 400 }
+    );
+  }
+
   // 4. Resolve trusted Training Access Context
   const ctx = await resolveTrainingAccessContext(consultancyParam);
   if (!ctx) {

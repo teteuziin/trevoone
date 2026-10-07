@@ -1145,7 +1145,7 @@ export function WorkoutBuilder({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-full min-w-0 space-y-6">
       {/* Toast Feedback Notification */}
       {feedbackMessage && (
         <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-[var(--surface)] border border-emerald-500 shadow-xl text-xs sm:text-sm font-bold text-[var(--text-primary)] flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200">
@@ -1155,8 +1155,8 @@ export function WorkoutBuilder({
       )}
 
       {/* Top Header — De-cardified Clean Prescription Tool Bar */}
-      <div className="pb-5 sm:pb-6 border-b border-[var(--border-subtle)] space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="w-full max-w-full min-w-0 pb-5 sm:pb-6 border-b border-[var(--border-subtle)] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full max-w-full min-w-0">
           {/* Ficha Title and Sub-details */}
           <div className="space-y-1.5 flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -1204,7 +1204,7 @@ export function WorkoutBuilder({
           </div>
 
           {/* Primary Top Actions (Mobile & Desktop) */}
-          <div className="flex items-center gap-2 flex-wrap shrink-0 w-full sm:w-auto">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto min-w-0">
             {/* Desktop Only Inline Actions */}
             <div className="hidden sm:flex items-center gap-2">
               <button
@@ -1240,13 +1240,13 @@ export function WorkoutBuilder({
             </div>
 
             {/* Core Action Buttons (Mobile: full width row / Desktop: inline) */}
-            <div data-testid="mobile-builder-header" className="flex items-center gap-2 flex-1 sm:flex-initial">
+            <div data-testid="mobile-builder-header" className="flex items-center gap-2 flex-wrap w-full sm:w-auto min-w-0 flex-1 sm:flex-initial">
               {isDraft && (
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={handleSaveMetadata}
-                  className="flex-1 sm:flex-initial px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 sm:flex-initial px-3 sm:px-3.5 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center"
                 >
                   <CheckIcon className="w-4 h-4" />
                   <span>Salvar</span>
@@ -1257,7 +1257,7 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={handleOpenPublishDialog}
-                  className="flex-1 sm:flex-initial px-4 py-2.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center"
                 >
                   <SendIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   <span>Publicar</span>
@@ -1268,7 +1268,7 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={() => setIsAssignModalOpen(true)}
-                  className="flex-1 sm:flex-initial px-4 py-2.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center"
                 >
                   <UserCheckIcon className="w-4 h-4" />
                   <span>Atribuir ao aluno</span>
@@ -1279,7 +1279,7 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={handleCreateNewVersion}
-                  className="flex-1 sm:flex-initial px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 sm:flex-initial px-3 sm:px-3.5 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center"
                 >
                   <PlusIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   <span>Editar (novo rascunho)</span>
@@ -1287,7 +1287,7 @@ export function WorkoutBuilder({
               )}
 
               {/* More actions menu button */}
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
@@ -1482,9 +1482,9 @@ export function WorkoutBuilder({
       </div>
 
       {/* Main Workspace (Center Focus + Desktop Lateral Summary) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full max-w-full min-w-0">
         {/* Central Categories List (12 cols on mobile, 9 cols on desktop) */}
-        <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+        <div className="w-full max-w-full min-w-0 lg:col-span-8 xl:col-span-9 space-y-4">
           {categories.length === 0 ? (
             <div className="p-8 sm:p-12 text-center rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface)] space-y-4">
               <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">

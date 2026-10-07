@@ -730,9 +730,9 @@ export function WorkoutCategoryCard({
   }
 
   return (
-    <div className="space-y-4 pb-6 border-b border-[var(--border-subtle)] last:border-b-0">
+    <div className="space-y-4 pb-6 border-b border-[var(--border-subtle)] last:border-b-0 w-full max-w-full min-w-0">
       {/* Category Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 pb-3 border-b border-[var(--border-subtle)]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 pb-3 border-b border-[var(--border-subtle)] w-full max-w-full min-w-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {isEditingTitle && isDraft ? (
             <div className="flex items-center gap-1.5 flex-1 max-w-sm">
@@ -758,7 +758,7 @@ export function WorkoutCategoryCard({
               </button>
             </div>
           ) : (
-            <div className="min-w-0 flex flex-col xs:flex-row xs:items-baseline gap-1 xs:gap-2.5">
+            <div className="min-w-0 flex flex-col xs:flex-row xs:items-baseline gap-1 xs:gap-2.5 flex-wrap">
               <h2
                 onClick={() => {
                   if (isDraft) {
@@ -773,7 +773,7 @@ export function WorkoutCategoryCard({
               >
                 {categoryTitle}
               </h2>
-              <span className="text-xs text-[var(--text-secondary)] font-medium shrink-0">
+              <span className="text-xs text-[var(--text-secondary)] font-medium">
                 {items.length} {items.length === 1 ? "exercício" : "exercícios"}
                 {hasSubBlocks ? ` · ${subBlocks.length} ${subBlocks.length === 1 ? "grupo" : "grupos"}` : ""}
                 {combinations.length > 0 ? ` · ${combinations.length} combinação(ões)` : ""}
@@ -2442,7 +2442,7 @@ function ExerciseRow({
           onToggleSelect?.();
         }
       }}
-      className={`rounded-lg border transition-all ${
+      className={`rounded-lg border transition-all w-full max-w-full min-w-0 ${
         isSelectionMode && !inCombination
           ? isSelected
             ? "border-2 border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/30 shadow-md ring-2 ring-emerald-500/30 scale-[1.008] cursor-pointer"
@@ -2466,7 +2466,7 @@ function ExerciseRow({
             onToggleExpand();
           }
         }}
-        className={`p-2.5 sm:p-3 flex items-start sm:items-center justify-between gap-2.5 ${
+        className={`p-2.5 sm:p-3 flex items-start sm:items-center justify-between gap-2.5 w-full max-w-full min-w-0 ${
           isDraft || isSelectionMode ? "cursor-pointer" : ""
         }`}
       >
@@ -3194,10 +3194,10 @@ export function UnifiedCombinationBlock({
     <div
       data-testid="mobile-combination-block"
       data-block-type="unified-combination-block"
-      className="rounded-xl border border-[var(--border-subtle)] border-l-4 border-l-emerald-500 bg-[var(--surface)] shadow-2xs overflow-hidden transition-all"
+      className="rounded-xl border border-[var(--border-subtle)] border-l-4 border-l-emerald-500 bg-[var(--surface)] shadow-2xs overflow-hidden transition-all w-full max-w-full min-w-0"
     >
       {/* Block Header */}
-      <div className="px-3 sm:px-4 py-2 bg-[var(--surface-subtle)]/30 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap">
+      <div className="px-3 sm:px-4 py-2 bg-[var(--surface-subtle)]/30 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 flex-wrap">
           <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 shrink-0">
             {typeLabel}

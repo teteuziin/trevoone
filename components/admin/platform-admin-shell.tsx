@@ -17,7 +17,7 @@ export function PlatformAdminShell({
   children,
 }: PlatformAdminShellProps) {
   return (
-    <div className="min-h-svh w-full bg-transparent text-[var(--text-primary)] flex flex-col selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
+    <div className="min-h-svh w-full max-w-full min-w-0 bg-transparent text-[var(--text-primary)] flex flex-col selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors">
       <PlatformAdminNavigation
         userName={userName}
         userEmail={userEmail}
@@ -25,7 +25,7 @@ export function PlatformAdminShell({
       />
 
       {/* Main Content Area with Bottom Offset for Mobile Hotbar */}
-      <main className={`flex-1 w-full pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 lg:pb-10 print:pb-0 ${className}`.trim()}>
+      <main className={`flex-1 w-full min-w-0 max-w-full pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 lg:pb-10 print:pb-0 ${className}`.trim()}>
         {children}
       </main>
     </div>

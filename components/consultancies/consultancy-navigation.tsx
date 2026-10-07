@@ -976,8 +976,8 @@ export function ConsultancyNavigation({
       {/* =========================================================================
           2. TABLET ADAPTIVE TOPBAR (768px - 1023px / md to lg)
           ========================================================================= */}
-      <header className="hidden md:flex lg:hidden sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs print:hidden transition-colors border-specular-t">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+      <header className="hidden md:flex lg:hidden sticky top-0 z-30 w-full max-w-full min-w-0 bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs print:hidden transition-colors border-specular-t">
+        <div className="w-full max-w-7xl min-w-0 mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           {/* Left: Branding */}
           <Link
             href={baseSlugHref}
@@ -1048,8 +1048,8 @@ export function ConsultancyNavigation({
       {/* =========================================================================
           3. MOBILE TOPBAR (< 768px)
           ========================================================================= */}
-      <header className="flex md:hidden sticky top-0 z-30 w-full bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs pt-[env(safe-area-inset-top,0px)] print:hidden transition-colors border-specular-t">
-        <div className="w-full px-3.5 h-14 flex items-center justify-between gap-3">
+      <header className="flex md:hidden sticky top-0 z-30 w-full max-w-full min-w-0 bg-[var(--surface)] border-b border-[var(--border-default)] shadow-2xs pt-[env(safe-area-inset-top,0px)] print:hidden transition-colors border-specular-t">
+        <div className="w-full max-w-full min-w-0 px-3.5 h-14 flex items-center justify-between gap-3">
           {/* Branding */}
           <Link
             href={baseSlugHref}
@@ -1086,7 +1086,7 @@ export function ConsultancyNavigation({
       {!shouldHideMobileBottomNav && (
         <nav
           aria-label="Navegação rápida móvel"
-          className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-lg print:hidden transition-all duration-150 border-specular-t"
+          className="md:hidden fixed bottom-0 inset-x-0 z-30 w-full max-w-full min-w-0 bg-[var(--surface)] border-t border-[var(--border-default)] pb-[env(safe-area-inset-bottom,0px)] shadow-lg print:hidden transition-all duration-150 border-specular-t"
         >
           <div className="flex items-center justify-around h-16 px-1">
             {primaryNavItems.map((item) => {

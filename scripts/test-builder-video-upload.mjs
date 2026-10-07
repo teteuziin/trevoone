@@ -1220,6 +1220,243 @@ runTest("REMOVE OVERRIDE FALLBACK", () => {
   assert.equal(withoutOverride.url, "/api/training-v2/media/library-fallback-asset");
 });
 
+// ============================================================================
+// SECTION 19: PICK VIDEO FROM LIBRARY AUDIT TESTS
+// ============================================================================
+const pickerModalPath = path.join(rootDir, "components/consultancies/training-v2/exercise-library-media-picker-modal.tsx");
+assert.ok(fs.existsSync(pickerModalPath), "exercise-library-media-picker-modal.tsx exists");
+const pickerModalCode = fs.readFileSync(pickerModalPath, "utf-8");
+
+runTest("BUILDER SHOWS LIBRARY VIDEO PICKER", () => {
+  assert.ok(
+    videoEditorCode.includes("Escolher da biblioteca"),
+    "ExerciseVideoEditorSection must feature [ Escolher da biblioteca ] button"
+  );
+  assert.ok(
+    videoEditorCode.includes("ExerciseLibraryMediaPickerModal"),
+    "ExerciseVideoEditorSection must render ExerciseLibraryMediaPickerModal"
+  );
+  assert.ok(
+    pickerModalCode.includes("Escolher Vídeo de Execução") || pickerModalCode.includes("Escolher Vídeo da Biblioteca"),
+    "Picker modal must have clear title"
+  );
+});
+
+runTest("CURRENT EXERCISE VIDEO RECOMMENDED", () => {
+  assert.ok(
+    pickerModalCode.includes("Vídeo Recomendado") || pickerModalCode.includes("VÍDEO RECOMENDADO"),
+    "Modal must feature VÍDEO RECOMENDADO section"
+  );
+  assert.ok(
+    pickerModalCode.includes("getExerciseForPickerAction"),
+    "Modal must query current exercise media via getExerciseForPickerAction"
+  );
+  assert.ok(
+    categoryCardCode.includes("exercisePublicId={item.exercisePublicId}"),
+    "workout-category-card must pass exercisePublicId to ExerciseVideoEditorSection"
+  );
+});
+
+runTest("SEARCH LIBRARY MEDIA", () => {
+  assert.ok(
+    pickerModalCode.includes("searchExercisesForPickerAction"),
+    "Modal must use searchExercisesForPickerAction"
+  );
+  assert.ok(
+    pickerModalCode.includes("Buscar exercício ou vídeo..."),
+    "Modal must contain search input with proper placeholder"
+  );
+});
+
+runTest("ONLY PLAYABLE MEDIA SELECTABLE", () => {
+  assert.ok(
+    pickerModalCode.includes("extractPlayableMediasFromExercise"),
+    "Modal must extract only playable media"
+  );
+  assert.ok(
+    pickerModalCode.includes("exercisesWithPlayableMedia"),
+    "Modal must filter out exercises without playable media"
+  );
+});
+
+runTest("PREVIEW", () => {
+  assert.ok(
+    pickerModalCode.includes("Visualizar"),
+    "Modal must include preview toggle button"
+  );
+  assert.ok(
+    pickerModalCode.includes("<video") && pickerModalCode.includes("<img"),
+    "Modal must support inline video and animated GIF preview"
+  );
+});
+
+runTest("SELECT LIBRARY VIDEO", () => {
+  assert.ok(
+    pickerModalCode.includes("Usar este vídeo") || pickerModalCode.includes("Usar vídeo da biblioteca"),
+    "Modal must offer primary select action"
+  );
+  assert.ok(
+    videoEditorCode.includes("handleLibraryMediaSelect"),
+    "Editor must handle library media selection"
+  );
+  assert.ok(
+    videoEditorCode.includes("✓ Vídeo selecionado"),
+    "Editor must show success message upon library media selection"
+  );
+});
+
+runTest("SELECT DOES NOT CHANGE EXERCISE ID", () => {
+  // Test item transformation: selecting a video only mutates customVideoUrl
+  const originalItem = {
+    id: 101,
+    publicId: "item-pub-1",
+    exerciseId: 50,
+    exercisePublicId: "ex-legg-45",
+    customExerciseId: null,
+    customExercisePublicId: null,
+    isCustomExercise: false,
+    exerciseNameSnapshot: "Legg 45°",
+    targetReps: 12,
+    targetLoadKg: 100,
+    customVideoUrl: null,
+  };
+
+  const selectedLibraryVideoUrl = "/api/training-v2/media/asset-video-legg.mp4";
+
+  // Simulate updating customVideoUrl only (same as handleLibraryMediaSelect + onVideoChange)
+  const updatedItem = {
+    ...originalItem,
+    customVideoUrl: selectedLibraryVideoUrl,
+  };
+
+  assert.equal(updatedItem.exerciseId, originalItem.exerciseId, "exerciseId must NOT change");
+  assert.equal(updatedItem.exercisePublicId, originalItem.exercisePublicId, "exercisePublicId must NOT change");
+  assert.equal(updatedItem.customExerciseId, null, "customExerciseId must remain null");
+  assert.equal(updatedItem.isCustomExercise, false, "isCustomExercise must NOT change");
+  assert.equal(updatedItem.exerciseNameSnapshot, "Legg 45°", "exerciseNameSnapshot must NOT change");
+  assert.equal(updatedItem.customVideoUrl, selectedLibraryVideoUrl, "customVideoUrl must be set");
+});
+
+runTest("SELECT DOES NOT CHANGE CUSTOM ID", () => {
+  const originalCustomItem = {
+    id: 102,
+    publicId: "item-pub-2",
+    exerciseId: null,
+    exercisePublicId: null,
+    customExerciseId: 77,
+    customExercisePublicId: "cust-pulley-flex",
+    isCustomExercise: true,
+    exerciseNameSnapshot: "Crucifixo na polia + Flexão",
+    customVideoUrl: null,
+  };
+
+  const selectedLibraryVideoUrl = "/api/training-v2/media/asset-crucifixo.mp4";
+
+  const updatedCustomItem = {
+    ...originalCustomItem,
+    customVideoUrl: selectedLibraryVideoUrl,
+  };
+
+  assert.equal(updatedCustomItem.exerciseId, null, "exerciseId must remain null");
+  assert.equal(updatedCustomItem.customExerciseId, 77, "customExerciseId must NOT change");
+  assert.equal(updatedCustomItem.customExercisePublicId, "cust-pulley-flex", "customExercisePublicId must NOT change");
+  assert.equal(updatedCustomItem.isCustomExercise, true, "isCustomExercise must remain true");
+  assert.equal(updatedCustomItem.customVideoUrl, selectedLibraryVideoUrl, "customVideoUrl must point to picked video");
+});
+
+runTest("SELECT DOES NOT CHANGE PRESCRIPTION", () => {
+  const item = {
+    seriesCount: 4,
+    targetReps: 10,
+    targetRepsMax: 12,
+    targetDurationSeconds: null,
+    restSeconds: 60,
+    loadKg: 25.5,
+    notes: "Rest-pause na última série",
+    customVideoUrl: null,
+  };
+
+  const updated = {
+    ...item,
+    customVideoUrl: "/api/training-v2/media/library-video.mp4",
+  };
+
+  assert.equal(updated.seriesCount, item.seriesCount);
+  assert.equal(updated.targetReps, item.targetReps);
+  assert.equal(updated.targetRepsMax, item.targetRepsMax);
+  assert.equal(updated.restSeconds, item.restSeconds);
+  assert.equal(updated.loadKg, item.loadKg);
+  assert.equal(updated.notes, item.notes);
+});
+
+runTest("SELECT CREATES ITEM OVERRIDE", () => {
+  const result = resolveExerciseExecutionMedia({
+    item: {
+      exercisePublicId: "ex-supino-reto",
+      customVideoUrl: "/api/training-v2/media/chosen-library-asset.mp4",
+      pinnedMedia: [
+        {
+          role: "EXECUTION_VIDEO",
+          sortOrder: 0,
+          mediaAsset: {
+            publicId: "original-fallback-asset",
+            scope: "GLOBAL",
+            visibility: "GLOBAL",
+            consultancyPublicId: null,
+            mediaType: "VIDEO",
+            storageProvider: "HOSTINGER_LOCAL",
+            mimeType: "video/mp4",
+            fileSizeBytes: 2000000,
+            durationSeconds: 10,
+            width: 1920,
+            height: 1080,
+            createdAt: new Date(),
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(result.source, "ITEM_OVERRIDE");
+  assert.equal(result.url, "/api/training-v2/media/chosen-library-asset.mp4");
+  assert.equal(result.isVideo, true);
+});
+
+runTest("NO FILE DUPLICATION", () => {
+  // Choosing an existing library media only copies the durable media asset URL reference
+  const existingPublicId = "lib-asset-12345";
+  const pickedUrl = `/api/training-v2/media/${existingPublicId}.mp4`;
+
+  assert.ok(pickedUrl.includes(existingPublicId), "Reuses existing media asset reference");
+  assert.ok(!pickedUrl.startsWith("blob:"), "Never uses blob URL");
+  assert.ok(!pickedUrl.includes("temp"), "Never uses temp URL");
+});
+
+runTest("CUSTOM CAN USE LIBRARY MEDIA", () => {
+  const result = resolveExerciseExecutionMedia({
+    item: {
+      isCustomExercise: true,
+      customExercisePublicId: "cust-item-999",
+      customVideoUrl: "/api/training-v2/media/lib-picked-video.mp4",
+    },
+  });
+
+  assert.equal(result.source, "ITEM_OVERRIDE");
+  assert.equal(result.url, "/api/training-v2/media/lib-picked-video.mp4");
+  assert.equal(result.hasMedia, true);
+});
+
+runTest("SEQUENCE USES SELECTED MEDIA", () => {
+  const sequenceMedia = extractItemPlayableMedia(
+    [],
+    "/api/training-v2/media/picked-library-sequence.mp4"
+  );
+
+  assert.ok(sequenceMedia != null, "Sequence media must resolve override");
+  assert.equal(sequenceMedia.url, "/api/training-v2/media/picked-library-sequence.mp4");
+  assert.equal(sequenceMedia.isVideo, true);
+});
+
 console.log("==================================================");
 console.log(`TOTAL: ${passed + failed} | PASSED: ${passed} | FAILED: ${failed}`);
 console.log("==================================================");

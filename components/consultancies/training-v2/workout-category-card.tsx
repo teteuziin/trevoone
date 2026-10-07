@@ -3027,6 +3027,8 @@ function ExerciseRow({
             isCustomExercise={isCustom}
             canSaveToLibrary={Boolean(!isCustom && item.exercisePublicId)}
             consultancySlug={consultancySlug}
+            exercisePublicId={item.exercisePublicId}
+            exerciseName={item.exerciseNameSnapshot}
             onVideoChange={(newUrl, toLibrary) => {
               setVideoUrl(newUrl);
               if (toLibrary !== undefined) setSaveToLibrary(toLibrary);
@@ -4104,6 +4106,8 @@ export function QuickEditExerciseSheet({
           isCustomExercise={Boolean(item.isCustomExercise || item.customExercisePublicId)}
           canSaveToLibrary={Boolean(!item.isCustomExercise && item.exercisePublicId)}
           consultancySlug={consultancySlug}
+          exercisePublicId={item.exercisePublicId}
+          exerciseName={item.exerciseNameSnapshot}
           onVideoChange={(newUrl, toLibrary) => {
             setVideoUrl(newUrl);
             if (toLibrary !== undefined) setSaveToLibrary(toLibrary);

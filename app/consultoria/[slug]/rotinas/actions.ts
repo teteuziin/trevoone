@@ -600,6 +600,27 @@ export async function searchExercisesForPickerAction(
 }
 
 /**
+ * Loads a single exercise with full attached media for video recommendation in the media picker.
+ */
+export async function getExerciseForPickerAction(
+  slug: string,
+  exercisePublicId: string
+): Promise<ActionResponse<import("@/lib/training-v2/types").ExerciseItemDto | null>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const { getExerciseByIdOrPublicId } = await import("@/lib/training-v2/exercise-repository");
+
+    const exercise = await getExerciseByIdOrPublicId(ctx, { publicId: exercisePublicId });
+    return { ok: true, data: exercise };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao carregar exercício para recomendação.",
+    };
+  }
+}
+
+/**
  * Creates a method block in a DRAFT version.
  */
 export async function createMethodBlockAction(

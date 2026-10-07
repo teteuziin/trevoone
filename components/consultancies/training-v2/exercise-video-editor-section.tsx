@@ -64,9 +64,25 @@ function XIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
     </svg>
   );
 }
+
+function FilmIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+      <line x1="7" y1="2" x2="7" y2="22" />
+      <line x1="17" y1="2" x2="17" y2="22" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <line x1="2" y1="7" x2="7" y2="7" />
+      <line x1="2" y1="17" x2="7" y2="17" />
+      <line x1="17" y1="17" x2="22" y2="17" />
+      <line x1="17" y1="7" x2="22" y2="7" />
+    </svg>
+  );
+}
 import type { BlockItemMediaDto, ExerciseMediaDto } from "@/lib/training-v2/types";
 import { resolveExerciseExecutionMedia } from "@/lib/training-v2/execution-media-resolver";
 import { captureExerciseMediaFirstFrame } from "@/lib/training-v2/media-frame-capture";
+import { ExerciseLibraryMediaPickerModal } from "./exercise-library-media-picker-modal";
 
 export interface ExerciseVideoEditorSectionProps {
   currentVideoUrl?: string | null;
@@ -76,6 +92,8 @@ export interface ExerciseVideoEditorSectionProps {
   onVideoChange: (newVideoUrl: string | null, saveToLibrary?: boolean) => void;
   disabled?: boolean;
   consultancySlug?: string;
+  exercisePublicId?: string | null;
+  exerciseName?: string | null;
 }
 
 export function ExerciseVideoEditorSection({
@@ -86,12 +104,15 @@ export function ExerciseVideoEditorSection({
   onVideoChange,
   disabled = false,
   consultancySlug,
+  exercisePublicId,
+  exerciseName,
 }: ExerciseVideoEditorSectionProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUrlInputOpen, setIsUrlInputOpen] = useState(false);
+  const [isLibraryPickerOpen, setIsLibraryPickerOpen] = useState(false);
   const [customUrlDraft, setCustomUrlDraft] = useState("");
   const [saveToLibrary, setSaveToLibrary] = useState(false);
   const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
@@ -269,6 +290,13 @@ export function ExerciseVideoEditorSection({
     onVideoChange(null, false);
   }
 
+  // Handle library video picker selection (Item override without altering exercise entity)
+  function handleLibraryMediaSelect(selectedUrl: string) {
+    setErrorMessage(null);
+    setStatusMessage("✓ Vídeo selecionado");
+    onVideoChange(selectedUrl, saveToLibrary);
+  }
+
   return (
     <div
       data-testid="exercise-video-editor-section"
@@ -284,11 +312,11 @@ export function ExerciseVideoEditorSection({
 
         {hasItemOverride ? (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shrink-0">
-            ✓ Personalizado nesta ficha
+            ✓ Vídeo desta ficha
           </span>
         ) : isFallbackActive ? (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] shrink-0">
-            Vídeo da biblioteca
+            {fallbackResolved.source === "CUSTOM_EXERCISE" ? "Vídeo do exercício personalizado" : "Vídeo da biblioteca"}
           </span>
         ) : (
           <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
@@ -374,41 +402,56 @@ export function ExerciseVideoEditorSection({
           </div>
 
           {/* Action buttons row */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              disabled={disabled || isUploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] cursor-pointer flex-1 sm:flex-initial"
-              title="Substituir por outro arquivo de vídeo"
-            >
-              <RefreshCwIcon className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Substituir vídeo</span>
-            </button>
-
-            {hasItemOverride && (
+          <div className="space-y-2 w-full pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
               <button
                 type="button"
                 disabled={disabled || isUploading}
-                onClick={handleRemoveVideo}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/20 transition-all min-h-[44px] cursor-pointer"
-                title="Remover vídeo personalizado desta ficha"
+                onClick={() => setIsLibraryPickerOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] cursor-pointer"
+                title="Escolher vídeo existente da biblioteca"
               >
-                <TrashIcon className="w-3.5 h-3.5" />
-                <span>Remover desta ficha</span>
+                <FilmIcon className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Escolher da biblioteca</span>
               </button>
-            )}
 
-            <button
-              type="button"
-              disabled={disabled || isUploading}
-              onClick={() => setIsUrlInputOpen(!isUrlInputOpen)}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-all min-h-[44px] cursor-pointer"
-              title="Usar link direto de vídeo"
-            >
-              <LinkIcon className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">Usar URL</span>
-            </button>
+              <button
+                type="button"
+                disabled={disabled || isUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] cursor-pointer"
+                title="Substituir por outro arquivo de vídeo"
+              >
+                <RefreshCwIcon className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Substituir vídeo</span>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              {hasItemOverride ? (
+                <button
+                  type="button"
+                  disabled={disabled || isUploading}
+                  onClick={handleRemoveVideo}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/20 transition-all min-h-[44px] cursor-pointer flex-1 sm:flex-initial"
+                  title="Remover vídeo personalizado desta ficha"
+                >
+                  <TrashIcon className="w-3.5 h-3.5" />
+                  <span>Remover desta ficha</span>
+                </button>
+              ) : <div />}
+
+              <button
+                type="button"
+                disabled={disabled || isUploading}
+                onClick={() => setIsUrlInputOpen(!isUrlInputOpen)}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-all min-h-[44px] cursor-pointer"
+                title="Usar link direto de vídeo"
+              >
+                <LinkIcon className="w-3.5 h-3.5" />
+                <span>Usar URL</span>
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -427,26 +470,40 @@ export function ExerciseVideoEditorSection({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap justify-center pt-1 w-full sm:w-auto">
-            <button
-              type="button"
-              disabled={disabled || isUploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] cursor-pointer flex-1 sm:flex-initial"
-            >
-              <UploadIcon className="w-4 h-4" />
-              <span>{isUploading ? "Enviando..." : "Enviar vídeo"}</span>
-            </button>
+          <div className="space-y-2 w-full pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+              <button
+                type="button"
+                disabled={disabled || isUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] cursor-pointer"
+              >
+                <UploadIcon className="w-4 h-4" />
+                <span>{isUploading ? "Enviando..." : "Enviar vídeo"}</span>
+              </button>
 
-            <button
-              type="button"
-              disabled={disabled || isUploading}
-              onClick={() => setIsUrlInputOpen(!isUrlInputOpen)}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] border border-[var(--border-default)] transition-all min-h-[44px] cursor-pointer"
-            >
-              <LinkIcon className="w-3.5 h-3.5" />
-              <span>Usar URL</span>
-            </button>
+              <button
+                type="button"
+                disabled={disabled || isUploading}
+                onClick={() => setIsLibraryPickerOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] cursor-pointer"
+              >
+                <FilmIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Escolher da biblioteca</span>
+              </button>
+            </div>
+
+            <div className="w-full flex justify-center">
+              <button
+                type="button"
+                disabled={disabled || isUploading}
+                onClick={() => setIsUrlInputOpen(!isUrlInputOpen)}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-all min-h-[44px] cursor-pointer"
+              >
+                <LinkIcon className="w-3.5 h-3.5" />
+                <span>Usar URL</span>
+              </button>
+            </div>
           </div>
 
           {isUploading && (
@@ -538,6 +595,18 @@ export function ExerciseVideoEditorSection({
           <span>Salvar também como vídeo padrão deste exercício na biblioteca</span>
         </label>
       )}
+
+      {/* Library Video Picker Modal / Bottom Sheet */}
+      <ExerciseLibraryMediaPickerModal
+        isOpen={isLibraryPickerOpen}
+        onClose={() => setIsLibraryPickerOpen(false)}
+        consultancySlug={consultancySlug}
+        exercisePublicId={exercisePublicId}
+        exerciseName={exerciseName}
+        currentVideoUrl={currentVideoUrl}
+        fallbackMedia={fallbackMedia}
+        onSelectMedia={handleLibraryMediaSelect}
+      />
     </div>
   );
 }

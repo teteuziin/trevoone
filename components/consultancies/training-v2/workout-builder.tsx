@@ -464,9 +464,13 @@ export function WorkoutBuilder({
         name: data.name,
         muscleGroupPrimary: data.muscleGroup,
         equipment: data.equipment,
+        instructions: data.instructions,
         customVideoUrl: data.videoUrl,
         mediaAssetPublicId: data.videoKey,
         saveToLibrary: data.saveToMyLibrary,
+        notes: data.notes,
+        isSequence: data.isSequence || data.type === "SEQUENCE",
+        sequenceMovements: data.sequenceMovements,
       });
       if (res.ok && res.data) {
         const converted = res.data;
@@ -479,7 +483,11 @@ export function WorkoutBuilder({
             ),
           })),
         }));
-        notify(`Exercício "${data.name}" personalizado com sucesso e liberado para publicação!`);
+        notify(
+          data.isSequence || data.type === "SEQUENCE"
+            ? `Sequência "${data.name}" configurada com sucesso e liberada para publicação!`
+            : `Exercício "${data.name}" personalizado com sucesso e liberado para publicação!`
+        );
         setIsCustomModalOpen(false);
         setCustomModalTarget(null);
       } else {
@@ -494,11 +502,14 @@ export function WorkoutBuilder({
       name: data.name,
       muscleGroup: data.muscleGroup,
       equipment: data.equipment,
+      instructions: data.instructions,
       subBlockPublicId: sbId,
       customVideoUrl: data.videoUrl,
       mediaAssetPublicId: data.videoKey,
       saveToLibrary: data.saveToMyLibrary,
       notes: data.notes,
+      isSequence: data.isSequence || data.type === "SEQUENCE",
+      sequenceMovements: data.sequenceMovements,
       sets: [
         {
           setType: "NORMAL",
@@ -1835,6 +1846,15 @@ export function WorkoutBuilder({
           router.push(
             `/consultoria/${consultancySlug}/rotinas/${workout.publicId}?version=${pubVersion.publicId}`
           );
+        }}
+        onResolveItem={(catId, itemId) => {
+          setIsPublishDialogOpen(false);
+          setActiveCategoryForPicker(catId);
+          setResolvingItemPublicId(itemId);
+        }}
+        onCustomizeItem={(catId, subBlockId, itemId, initialData) => {
+          setIsPublishDialogOpen(false);
+          handleOpenCreateCustomExercise(catId, subBlockId || undefined, itemId, initialData);
         }}
       />
 

@@ -83,29 +83,47 @@ export type DifficultyLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 // METHOD CONFIGURATION OBJECTS (BOUNDED JSON)
 // ============================================================================
 
+export type CustomSequenceConfig = {
+  isSequence?: boolean;
+  movements?: string[];
+};
+
 export type CardioMethodConfig = {
   speedKmh?: number | null;
   paceSecondsPerKm?: number | null;
   inclinePercent?: number | null;
   heartRateZone?: HeartRateZone | null;
   intensityLabel?: string | null;
+  isSequence?: boolean;
+  customSequence?: CustomSequenceConfig;
 };
 
 export type RestPauseMethodConfig = {
   intraPauseSeconds?: number | null;
   targetTotalReps?: number | null;
+  isSequence?: boolean;
+  customSequence?: CustomSequenceConfig;
 };
 
 export type WarmupMethodConfig = {
   focus?: string | null;
   targetJoint?: string | null;
+  isSequence?: boolean;
+  customSequence?: CustomSequenceConfig;
+};
+
+export type CustomSequenceMethodConfig = {
+  isSequence?: boolean;
+  customSequence?: CustomSequenceConfig;
+  [key: string]: unknown;
 };
 
 export type ItemMethodConfig =
   | CardioMethodConfig
   | RestPauseMethodConfig
   | WarmupMethodConfig
-  | Record<string, unknown>;
+  | CustomSequenceMethodConfig
+  | (Record<string, unknown> & { isSequence?: boolean; customSequence?: CustomSequenceConfig });
 
 // ============================================================================
 // MEDIA DOMAIN MODELS

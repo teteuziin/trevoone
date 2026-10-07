@@ -146,7 +146,9 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
                 combinationType: comb?.combinationType || item.combinationType || null,
                 combinationTitle: comb?.title || null,
                 combinationRestSeconds: comb?.restAfterSeconds ?? null,
-                isCustomExercise: !!item.isCustomExercise,
+                isCustomExercise: Boolean(item.customExercisePublicId || item.isCustomExercise),
+                isSequence: Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence),
+                sequenceMovements: (item.methodConfig?.customSequence as { movements?: string[] })?.movements || null,
               };
             }),
           };
@@ -217,7 +219,9 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
                   combinationType: comb?.combinationType || item.combinationType || null,
                   combinationTitle: comb?.title || null,
                   combinationRestSeconds: comb?.restAfterSeconds ?? null,
-                  isCustomExercise: !!item.isCustomExercise,
+                  isCustomExercise: Boolean(item.customExercisePublicId || item.isCustomExercise),
+                  isSequence: Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence),
+                  sequenceMovements: (item.methodConfig?.customSequence as { movements?: string[] })?.movements || null,
                 };
               }),
             };
@@ -286,7 +290,9 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
                   combinationType: comb?.combinationType || item.combinationType || null,
                   combinationTitle: comb?.title || null,
                   combinationRestSeconds: comb?.restAfterSeconds ?? null,
-                  isCustomExercise: !!item.isCustomExercise,
+                  isCustomExercise: Boolean(item.customExercisePublicId || item.isCustomExercise),
+                  isSequence: Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence),
+                  sequenceMovements: (item.methodConfig?.customSequence as { movements?: string[] })?.movements || null,
                 };
               }),
             };

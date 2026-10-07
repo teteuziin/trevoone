@@ -1759,6 +1759,8 @@ export async function createCustomExerciseAction(
     }[];
     durationUnit?: string;
     notes?: string;
+    isSequence?: boolean;
+    sequenceMovements?: string[];
   }
 ): Promise<ActionResponse<WorkoutBlockItemDto>> {
   try {
@@ -1779,6 +1781,8 @@ export async function createCustomExerciseAction(
       saveToLibrary: input.saveToLibrary,
       notes: input.notes,
       durationUnit: input.durationUnit,
+      isSequence: input.isSequence,
+      sequenceMovements: input.sequenceMovements,
       sets: (input.sets || []).map((s) => ({
         setType: (s.setType as WorkoutSetType) || "NORMAL",
         targetReps: s.targetReps ?? null,
@@ -1815,6 +1819,9 @@ export async function convertUnresolvedToCustomExerciseAction(
     customVideoUrl?: string | null;
     mediaAssetPublicId?: string | null;
     saveToLibrary?: boolean;
+    notes?: string | null;
+    isSequence?: boolean;
+    sequenceMovements?: string[];
   }
 ): Promise<ActionResponse<WorkoutBlockItemDto>> {
   try {

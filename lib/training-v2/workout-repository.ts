@@ -1023,7 +1023,9 @@ export function validateWorkoutVersionForPublish(tree: WorkoutVersionDto): { war
   let unresolvedCount = 0;
   for (const block of tree.blocks || []) {
     for (const item of block.items || []) {
-      if (!item.exercisePublicId && !item.customExercisePublicId) {
+      const isCustom = Boolean(item.customExercisePublicId || item.isCustomExercise);
+      const isLibrary = Boolean(item.exercisePublicId && !item.isCustomExercise);
+      if (!isCustom && !isLibrary) {
         unresolvedCount++;
       }
     }
@@ -1338,6 +1340,27 @@ export async function publishWorkoutVersion(
           item.notes = trimmed.length > 0 ? trimmed : null;
         }
       }
+    }
+
+    // 2.8 Authoritative server-side publish guard directly against DB:
+    // Rejects publication if any item in this version has exercise_id IS NULL AND custom_exercise_id IS NULL.
+    // LIBRARY and CUSTOM items are publishable; UNRESOLVED items are strictly forbidden.
+    const [unresolvedDbRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS unresolved_count
+       FROM workout_block_items wbi
+       INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+       WHERE wb.workout_version_id = ?
+         AND wbi.exercise_id IS NULL
+         AND wbi.custom_exercise_id IS NULL;`,
+      [v.id]
+    );
+    const dbUnresolvedCount = Number(unresolvedDbRows[0]?.unresolved_count || 0);
+    if (dbUnresolvedCount > 0) {
+      throw new TrainingAuthorizationError(
+        `${dbUnresolvedCount} exercício(s) precisa(m) ser revisado(s) antes da publicação.`,
+        "UNRESOLVED_EXERCISES",
+        400
+      );
     }
 
     // 3. Domain validation for publishing (at least 1 block + 11 methods validation; tolerant to optional fields)
@@ -6402,6 +6425,8 @@ export type CreateCustomExerciseInput = {
   notes?: string | null;
   sets?: AddSetInput[];
   saveToLibrary?: boolean;
+  isSequence?: boolean;
+  sequenceMovements?: string[];
 };
 
 export async function createCustomExerciseInWorkout(
@@ -6516,12 +6541,23 @@ export async function createCustomExerciseInWorkout(
     const itemPublicId = crypto.randomUUID();
 
     // 6. Insert workout_block_item with custom_exercise_id set and exercise_id = NULL
+    const methodConfig = input.isSequence
+      ? {
+          isSequence: true,
+          customSequence: {
+            isSequence: true,
+            movements: (input.sequenceMovements || []).map((m) => (typeof m === "string" ? m.trim() : "")).filter(Boolean),
+          },
+        }
+      : null;
+    const methodConfigJson = methodConfig ? JSON.stringify(methodConfig) : null;
+
     const [iRes] = await connection.execute<ResultSetHeader>(
       `INSERT INTO workout_block_items (
         public_id, block_id, sub_block_id, exercise_id, custom_exercise_id, sort_order, exercise_name_snapshot,
         muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
-        prescription_mode, duration_unit, custom_video_url, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3));`,
+        prescription_mode, duration_unit, custom_video_url, notes, method_config_json, created_at, updated_at
+      ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3));`,
       [
         itemPublicId,
         b.id,
@@ -6536,6 +6572,7 @@ export async function createCustomExerciseInWorkout(
         input.durationUnit || null,
         input.customVideoUrl?.trim() || null,
         input.notes?.trim() || null,
+        methodConfigJson,
       ]
     );
     const itemId = iRes.insertId;
@@ -6638,7 +6675,7 @@ export async function createCustomExerciseInWorkout(
       targetRpe: null,
       targetRir: null,
       durationUnit: input.durationUnit || null,
-      methodConfig: null,
+      methodConfig,
       customVideoUrl: input.customVideoUrl?.trim() || null,
       notes: input.notes?.trim() || null,
       pinnedMedia: pinnedMediaAsset,
@@ -6662,6 +6699,9 @@ export type ConvertUnresolvedInput = {
   customVideoUrl?: string | null;
   mediaAssetPublicId?: string | null;
   saveToLibrary?: boolean;
+  notes?: string | null;
+  isSequence?: boolean;
+  sequenceMovements?: string[];
 };
 
 export async function convertUnresolvedToCustomExercise(
@@ -6682,11 +6722,16 @@ export async function convertUnresolvedToCustomExercise(
 
     // 1. Fetch item and verify ownership & DRAFT status
     const [itemRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wbi.id, wbi.block_id, wbi.sub_block_id, wbi.sort_order, wbi.prescription_mode,
-              wbi.duration_unit, wbi.notes,
+      `SELECT wbi.id, wbi.block_id, wbi.sub_block_id, wbi.combination_id, wbi.sort_order, wbi.prescription_mode,
+              wbi.target_cadence, wbi.target_rpe, wbi.target_rir,
+              wbi.duration_unit, wbi.notes, wbi.instructions_snapshot, wbi.method_config_json,
+              wsb.public_id AS sub_block_public_id, wsb.title AS sub_block_title,
+              wic.public_id AS combination_public_id, wic.combination_type,
               wv.status, w.consultancy_id
        FROM workout_block_items wbi
        INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+       LEFT JOIN workout_sub_blocks wsb ON wsb.id = wbi.sub_block_id
+       LEFT JOIN workout_item_combinations wic ON wic.id = wbi.combination_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
        INNER JOIN workouts w ON w.id = wv.workout_id
        WHERE wbi.public_id = ? AND w.deleted_at IS NULL
@@ -6782,6 +6827,41 @@ export async function convertUnresolvedToCustomExercise(
     }
 
     // 4. Update item: set custom_exercise_id = exerciseId, exercise_id = NULL, update snapshots, PRESERVE PRESCRIPTION
+    let existingConfig: Record<string, unknown> = {};
+    if (item.method_config_json) {
+      try {
+        existingConfig =
+          typeof item.method_config_json === "string"
+            ? JSON.parse(item.method_config_json)
+            : typeof item.method_config_json === "object" && item.method_config_json !== null
+            ? { ...(item.method_config_json as Record<string, unknown>) }
+            : {};
+      } catch {
+        existingConfig = {};
+      }
+    }
+
+    let methodConfig: Record<string, unknown> | null =
+      Object.keys(existingConfig).length > 0 ? { ...existingConfig } : null;
+
+    if (input.isSequence) {
+      const cleanMovements = (input.sequenceMovements || [])
+        .map((m) => (typeof m === "string" ? m.trim() : ""))
+        .filter(Boolean);
+
+      methodConfig = {
+        ...(methodConfig || {}),
+        isSequence: true,
+        customSequence: {
+          isSequence: true,
+          movements: cleanMovements,
+        },
+      };
+    }
+    const methodConfigJson = methodConfig ? JSON.stringify(methodConfig) : null;
+    const effectiveNotes = input.notes !== undefined ? (input.notes?.trim() || null) : (item.notes ? String(item.notes) : null);
+    const effectiveInstructions = input.instructions !== undefined ? (input.instructions?.trim() || null) : (item.instructions_snapshot ? String(item.instructions_snapshot) : null);
+
     await connection.execute(
       `UPDATE workout_block_items
        SET exercise_id = NULL,
@@ -6789,8 +6869,10 @@ export async function convertUnresolvedToCustomExercise(
            exercise_name_snapshot = ?,
            muscle_group_snapshot = ?,
            equipment_snapshot = ?,
-           instructions_snapshot = COALESCE(?, instructions_snapshot),
+           instructions_snapshot = ?,
+           notes = ?,
            custom_video_url = COALESCE(?, custom_video_url),
+           method_config_json = ?,
            updated_at = NOW(3)
        WHERE id = ?;`,
       [
@@ -6798,29 +6880,37 @@ export async function convertUnresolvedToCustomExercise(
         cleanName,
         muscleGroup,
         equipment,
-        input.instructions?.trim() || null,
+        effectiveInstructions,
+        effectiveNotes,
         input.customVideoUrl?.trim() || null,
+        methodConfigJson,
         item.id,
       ]
     );
 
-    // 5. Fetch existing sets
+    // 5. Fetch existing sets with complete fidelity
     const [setRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT set_number, set_type, target_reps, target_reps_max, target_load_kg,
-              target_duration_seconds, duration_unit, target_distance_meters,
-              target_rest_seconds, intensity_indicator
-       FROM workout_item_sets WHERE block_item_id = ? ORDER BY set_number ASC;`,
+      `SELECT wis.id, wis.set_number, wis.set_type, wis.parent_set_id, p.set_number AS parent_set_number,
+              wis.target_reps, wis.target_reps_max, wis.target_load_kg,
+              wis.target_duration_seconds, wis.duration_unit, wis.target_distance_meters,
+              wis.target_rest_seconds, wis.intensity_indicator
+       FROM workout_item_sets wis
+       LEFT JOIN workout_item_sets p ON p.id = wis.parent_set_id
+       WHERE wis.block_item_id = ?
+       ORDER BY wis.set_number ASC;`,
       [item.id]
     );
 
     const sets: WorkoutItemSetDto[] = setRows.map((s) => ({
       setNumber: Number(s.set_number),
       setType: s.set_type as WorkoutSetType,
+      parentSetNumber: s.parent_set_number != null ? Number(s.parent_set_number) : null,
       targetReps: s.target_reps != null ? Number(s.target_reps) : null,
       targetRepsMax: s.target_reps_max != null ? Number(s.target_reps_max) : null,
       targetLoadKg: s.target_load_kg != null ? Number(s.target_load_kg) : null,
       targetDurationSeconds: s.target_duration_seconds != null ? Number(s.target_duration_seconds) : null,
       durationUnit: s.duration_unit ? String(s.duration_unit) : null,
+      targetDistanceMeters: s.target_distance_meters != null ? Number(s.target_distance_meters) : null,
       targetRestSeconds: s.target_rest_seconds != null ? Number(s.target_rest_seconds) : null,
       intensityIndicator: s.intensity_indicator ? String(s.intensity_indicator) : null,
     }));
@@ -6832,23 +6922,23 @@ export async function convertUnresolvedToCustomExercise(
       exercisePublicId: exercisePublicId,
       customExercisePublicId: exercisePublicId,
       isCustomExercise: true,
-      combinationPublicId: null,
-      combinationType: null,
-      subBlockPublicId: null,
-      subBlockTitle: null,
+      combinationPublicId: item.combination_public_id ? String(item.combination_public_id) : null,
+      combinationType: item.combination_type ? (item.combination_type as WorkoutCombinationType) : null,
+      subBlockPublicId: item.sub_block_public_id ? String(item.sub_block_public_id) : null,
+      subBlockTitle: item.sub_block_title ? String(item.sub_block_title) : null,
       sortOrder: Number(item.sort_order),
       exerciseNameSnapshot: cleanName,
       muscleGroupSnapshot: muscleGroup,
       equipmentSnapshot: equipment,
-      instructionsSnapshot: input.instructions?.trim() || null,
+      instructionsSnapshot: effectiveInstructions,
       prescriptionMode: item.prescription_mode as PrescriptionMode,
-      targetCadence: null,
-      targetRpe: null,
-      targetRir: null,
+      targetCadence: item.target_cadence ? String(item.target_cadence) : null,
+      targetRpe: item.target_rpe != null ? Number(item.target_rpe) : null,
+      targetRir: item.target_rir != null ? Number(item.target_rir) : null,
       durationUnit: item.duration_unit ? String(item.duration_unit) : null,
-      methodConfig: null,
+      methodConfig,
       customVideoUrl: input.customVideoUrl?.trim() || null,
-      notes: item.notes ? String(item.notes) : null,
+      notes: effectiveNotes,
       pinnedMedia: pinnedMediaAsset,
       sets,
     };

@@ -531,6 +531,7 @@ export function inspectWorkoutVersionForPublish(tree: {
     items?: Array<{
       exercisePublicId?: string | null;
       customExercisePublicId?: string | null;
+      isCustomExercise?: boolean;
       exerciseNameSnapshot?: string;
       customVideoUrl?: string | null;
       pinnedMedia?: unknown[];
@@ -608,7 +609,9 @@ export function inspectWorkoutVersionForPublish(tree: {
 
     // Inspect items
     for (const item of items) {
-      if (!item.exercisePublicId && !item.customExercisePublicId) {
+      const isCustom = Boolean(item.customExercisePublicId || item.isCustomExercise);
+      const isLibrary = Boolean(item.exercisePublicId && !item.isCustomExercise);
+      if (!isCustom && !isLibrary) {
         unresolvedCount++;
       }
 

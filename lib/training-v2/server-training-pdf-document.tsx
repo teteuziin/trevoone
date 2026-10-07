@@ -244,6 +244,26 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: "#92400e",
   },
+  sequenceMovementsBox: {
+    backgroundColor: "#faf5ff",
+    borderWidth: 0.75,
+    borderColor: "#e9d5ff",
+    borderRadius: 3,
+    padding: 4,
+    marginTop: 2,
+    marginBottom: 3,
+  },
+  sequenceMovementsTitle: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    color: "#7e22ce",
+    marginBottom: 1.5,
+  },
+  sequenceMovementItem: {
+    fontSize: 7,
+    fontFamily: "Helvetica",
+    color: "#334155",
+  },
   footer: {
     position: "absolute",
     bottom: 20,
@@ -342,6 +362,8 @@ export interface PresentedTrainingPlan {
       combinationTitle?: string | null;
       combinationRestSeconds?: number | null;
       isCustomExercise?: boolean;
+      isSequence?: boolean;
+      sequenceMovements?: string[] | null;
       setsDetail: Array<{
         setNumber: number;
         reps?: number | null;
@@ -577,6 +599,18 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
                         </View>
                       )}
 
+                      {/* Sequence movements list */}
+                      {ex.isSequence && ex.sequenceMovements && ex.sequenceMovements.length > 0 && (
+                        <View style={styles.sequenceMovementsBox}>
+                          <Text style={styles.sequenceMovementsTitle}>Movimentos da Sequência:</Text>
+                          {ex.sequenceMovements.map((mov, mIdx) => (
+                            <Text key={mIdx} style={styles.sequenceMovementItem}>
+                              {mIdx + 1}. {mov}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+
                       {/* Sets Summary */}
                       <View style={styles.setRow}>
                         <Text style={styles.setItem}>
@@ -621,6 +655,18 @@ export function ServerTrainingPdfDocument({ plan }: { plan: PresentedTrainingPla
                             {it.notes && it.notes.trim().length > 0 && (
                               <View style={styles.methodBadge}>
                                 <Text style={styles.methodBadgeText}>Método: {it.notes.trim()}</Text>
+                              </View>
+                            )}
+
+                            {/* Sequence movements list */}
+                            {it.isSequence && it.sequenceMovements && it.sequenceMovements.length > 0 && (
+                              <View style={styles.sequenceMovementsBox}>
+                                <Text style={styles.sequenceMovementsTitle}>Movimentos da Sequência:</Text>
+                                {it.sequenceMovements.map((mov, mIdx) => (
+                                  <Text key={mIdx} style={styles.sequenceMovementItem}>
+                                    {mIdx + 1}. {mov}
+                                  </Text>
+                                ))}
                               </View>
                             )}
 

@@ -50,7 +50,9 @@ function BookmarkCheck({ className = "w-4 h-4" }: { className?: string }) {
 }
 
 export type CustomExerciseFormData = {
+  type?: "EXERCISE" | "SEQUENCE";
   name: string;
+  instructions?: string;
   muscleGroup?: string;
   equipment?: string;
   sets?: number;
@@ -61,6 +63,8 @@ export type CustomExerciseFormData = {
   saveToMyLibrary?: boolean;
   videoUrl?: string;
   videoKey?: string;
+  isSequence?: boolean;
+  sequenceMovements?: string[];
 };
 
 type CustomExerciseInlineModalProps = {
@@ -78,7 +82,14 @@ export function CustomExerciseInlineModal({
   onClose,
   onSave,
 }: CustomExerciseInlineModalProps) {
+  const [customType, setCustomType] = useState<"EXERCISE" | "SEQUENCE">(
+    initialData?.isSequence || initialData?.type === "SEQUENCE" ? "SEQUENCE" : "EXERCISE"
+  );
   const [exerciseName, setExerciseName] = useState(initialData?.name || "");
+  const [instructions, setInstructions] = useState(initialData?.instructions || initialData?.notes || "");
+  const [movementsText, setMovementsText] = useState(
+    initialData?.sequenceMovements ? initialData.sequenceMovements.join("\n") : ""
+  );
   const [muscleGroup, setMuscleGroup] = useState(initialData?.muscleGroup || "");
   const [equipment, setEquipment] = useState(initialData?.equipment || "");
   const [sets, setSets] = useState<number | string>(initialData?.sets ?? 3);
@@ -164,15 +175,27 @@ export function CustomExerciseInlineModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!exerciseName.trim()) {
-      setError("O nome do exercício é obrigatório.");
+      setError(customType === "SEQUENCE" ? "O nome da sequência ou circuito é obrigatório." : "O nome do exercício é obrigatório.");
       return;
     }
 
     try {
       setSaving(true);
       setError(null);
+
+      const parsedMovements = customType === "SEQUENCE"
+        ? movementsText
+            .split("\n")
+            .map((m) => m.trim().replace(/^\d+[\.\-\)]\s*/, ""))
+            .filter(Boolean)
+        : undefined;
+
       await onSave({
+        type: customType,
+        isSequence: customType === "SEQUENCE",
         name: exerciseName.trim(),
+        instructions: instructions.trim() || undefined,
+        sequenceMovements: parsedMovements,
         muscleGroup: muscleGroup.trim() || undefined,
         equipment: equipment.trim() || undefined,
         sets: sets ? Number(sets) : 3,
@@ -187,6 +210,8 @@ export function CustomExerciseInlineModal({
 
       // Reset
       setExerciseName("");
+      setInstructions("");
+      setMovementsText("");
       setMuscleGroup("");
       setEquipment("");
       setNotes("");
@@ -194,7 +219,7 @@ export function CustomExerciseInlineModal({
       setVideoKey("");
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro ao criar exercício personalizado.");
+      setError(err instanceof Error ? err.message : "Erro ao salvar item personalizado.");
     } finally {
       setSaving(false);
     }
@@ -208,13 +233,15 @@ export function CustomExerciseInlineModal({
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5" />
-              Exercício Personalizado
+              {customType === "SEQUENCE" ? "Sequência / Circuito" : "Exercício Personalizado"}
             </div>
             <h2 className="text-base sm:text-lg font-bold text-[var(--foreground)]">
-              Criar Exercício Personalizado
+              {customType === "SEQUENCE" ? "Criar Sequência Personalizada" : "Criar Exercício Personalizado"}
             </h2>
             <p className="text-xs text-[var(--foreground-muted)] line-clamp-2 sm:line-clamp-none">
-              Crie exercícios fora da biblioteca global com vídeo opcional. Não bloqueia a publicação da ficha.
+              {customType === "SEQUENCE"
+                ? "Prescreva uma sequência ou circuito descrita por texto. Vídeo opcional. Não bloqueia a publicação."
+                : "Crie exercícios fora da biblioteca global com vídeo opcional. Não bloqueia a publicação da ficha."}
             </p>
           </div>
           <button
@@ -238,16 +265,42 @@ export function CustomExerciseInlineModal({
               </div>
             )}
 
-            {/* Bloco 1: Exercício */}
+            {/* Type Selector: Exercício vs Sequência/Circuito */}
+            <div className="flex p-1 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => setCustomType("EXERCISE")}
+                className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  customType === "EXERCISE"
+                    ? "bg-[var(--surface)] text-emerald-600 dark:text-emerald-400 shadow-xs border border-[var(--border-subtle)]"
+                    : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                Exercício Personalizado
+              </button>
+              <button
+                type="button"
+                onClick={() => setCustomType("SEQUENCE")}
+                className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  customType === "SEQUENCE"
+                    ? "bg-[var(--surface)] text-purple-600 dark:text-purple-400 shadow-xs border border-[var(--border-subtle)]"
+                    : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                Sequência / Circuito Personalizado
+              </button>
+            </div>
+
+            {/* Bloco 1: Identificação */}
             <div className="space-y-3 p-4 rounded-2xl bg-[var(--surface-subtle)]/40 border border-[var(--border-subtle)]">
               <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-                1. Exercício
+                {customType === "SEQUENCE" ? "1. Identificação da Sequência" : "1. Exercício"}
               </span>
 
-              {/* Nome do exercício */}
+              {/* Nome */}
               <div>
                 <label htmlFor="custom-name" className="block text-xs font-semibold text-[var(--foreground)] mb-1.5">
-                  Nome do exercício *
+                  {customType === "SEQUENCE" ? "Nome da sequência ou circuito *" : "Nome do exercício *"}
                 </label>
                 <input
                   id="custom-name"
@@ -255,41 +308,95 @@ export function CustomExerciseInlineModal({
                   required
                   value={exerciseName}
                   onChange={(e) => setExerciseName(e.target.value)}
-                  placeholder="Ex: Agachamento búlgaro com halteres"
+                  placeholder={customType === "SEQUENCE" ? "Ex: Sequência de Mobilidade Escapular, Circuito Abdominal..." : "Ex: Agachamento búlgaro com halteres"}
                   className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-[var(--foreground)] min-h-[44px]"
                 />
               </div>
 
-              {/* Grupo e Equipamento */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="custom-muscle" className="block text-xs font-semibold text-[var(--foreground)] mb-1.5">
-                    Grupo muscular
-                  </label>
-                  <SuggestiveInput
-                    id="custom-muscle"
-                    value={muscleGroup}
-                    onChange={setMuscleGroup}
-                    suggestions={muscleSuggestions}
-                    placeholder="Ex: Quadríceps, Bíceps..."
-                    maxLength={100}
-                  />
-                </div>
+              {customType === "SEQUENCE" ? (
+                <>
+                  {/* Movimentos da sequência */}
+                  <div>
+                    <label htmlFor="custom-movements" className="block text-xs font-semibold text-[var(--foreground)] mb-1.5">
+                      Movimentos da sequência (um por linha)
+                    </label>
+                    <textarea
+                      id="custom-movements"
+                      rows={3}
+                      value={movementsText}
+                      onChange={(e) => setMovementsText(e.target.value)}
+                      placeholder={"1. Cat-cow (10 reps)\n2. Prancha frontal (30s)\n3. Superman (12 reps)"}
+                      className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono"
+                    />
+                    <span className="text-[10px] text-[var(--foreground-muted)] mt-1 block">
+                      Conteúdo de apresentação para o aluno. O registro de execução continua sendo no item principal.
+                    </span>
+                  </div>
 
-                <div>
-                  <label htmlFor="custom-equip" className="block text-xs font-semibold text-[var(--foreground)] mb-1.5">
-                    Equipamento
-                  </label>
-                  <SuggestiveInput
-                    id="custom-equip"
-                    value={equipment}
-                    onChange={setEquipment}
-                    suggestions={equipmentSuggestions}
-                    placeholder="Ex: Halteres, Barra, Polia..."
-                    maxLength={100}
-                  />
-                </div>
-              </div>
+                  {/* Orientações */}
+                  <div>
+                    <label htmlFor="custom-instructions" className="block text-xs font-semibold text-[var(--foreground)] mb-1.5">
+                      Orientações gerais de execução
+                    </label>
+                    <textarea
+                      id="custom-instructions"
+                      rows={2}
+                      value={instructions}
+                      onChange={(e) => setInstructions(e.target.value)}
+                      placeholder="Ex: Executar os movimentos em sequência com descanso apenas ao final de cada rodada."
+                      className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Grupo e Equipamento */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="custom-muscle" className="block text-xs font-semibold text-[var(--foreground)] mb-1.5">
+                        Grupo muscular
+                      </label>
+                      <SuggestiveInput
+                        id="custom-muscle"
+                        value={muscleGroup}
+                        onChange={setMuscleGroup}
+                        suggestions={muscleSuggestions}
+                        placeholder="Ex: Quadríceps, Bíceps..."
+                        maxLength={100}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="custom-equip" className="block text-xs font-semibold text-[var(--foreground)] mb-1.5">
+                        Equipamento
+                      </label>
+                      <SuggestiveInput
+                        id="custom-equip"
+                        value={equipment}
+                        onChange={setEquipment}
+                        suggestions={equipmentSuggestions}
+                        placeholder="Ex: Halteres, Barra, Polia..."
+                        maxLength={100}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Instruções do Exercício */}
+                  <div>
+                    <label htmlFor="custom-exercise-instructions" className="block text-xs font-semibold text-[var(--foreground)] mb-1.5">
+                      Orientações ou instruções de execução
+                    </label>
+                    <textarea
+                      id="custom-exercise-instructions"
+                      rows={2}
+                      value={instructions}
+                      onChange={(e) => setInstructions(e.target.value)}
+                      placeholder="Ex: Manter tronco inclinado e escápulas fechadas durante todo o percurso."
+                      className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Bloco 2: Prescrição */}

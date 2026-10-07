@@ -59,6 +59,13 @@ type WorkoutPublishDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   onPublished: (publishedVersion: WorkoutVersionDto) => void;
+  onResolveItem?: (categoryPublicId: string, itemPublicId: string, exerciseName: string) => void;
+  onCustomizeItem?: (
+    categoryPublicId: string,
+    subBlockPublicId: string | null,
+    itemPublicId: string,
+    initialData: { name: string; muscleGroup?: string; equipment?: string; notes?: string }
+  ) => void;
 };
 
 export function WorkoutPublishDialog({
@@ -67,11 +74,41 @@ export function WorkoutPublishDialog({
   isOpen,
   onClose,
   onPublished,
+  onResolveItem,
+  onCustomizeItem,
 }: WorkoutPublishDialogProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const inspection = useMemo(() => inspectWorkoutVersionForPublish(version), [version]);
+
+  const unresolvedItems = useMemo(() => {
+    const list: Array<{
+      categoryPublicId: string;
+      categoryTitle: string;
+      subBlockPublicId: string | null;
+      item: NonNullable<WorkoutVersionDto["blocks"]>[0]["items"][0];
+    }> = [];
+    for (const block of version.blocks || []) {
+      for (const item of block.items || []) {
+        const isCustom = Boolean(item.customExercisePublicId || item.isCustomExercise);
+        const isLibrary = Boolean(item.exercisePublicId && !item.isCustomExercise);
+        if (!isCustom && !isLibrary) {
+          list.push({
+            categoryPublicId: block.publicId,
+            categoryTitle: block.title || BLOCK_METHOD_LABELS[block.blockType] || block.blockType,
+            subBlockPublicId: item.subBlockPublicId || null,
+            item,
+          });
+        }
+      }
+    }
+    return list;
+  }, [version]);
+
+  const otherFatalErrors = useMemo(() => {
+    return inspection.fatalErrors.filter((err) => !err.includes("precisa(m) ser revisado(s)"));
+  }, [inspection.fatalErrors]);
 
   if (!isOpen) return null;
 
@@ -186,14 +223,88 @@ export function WorkoutPublishDialog({
             )}
           </div>
 
-          {/* Fatal Structural Errors (Blocks Publication) */}
-          {inspection.fatalErrors.length > 0 && (
+          {/* Dedicated Review Experience for Unresolved Items */}
+          {unresolvedItems.length > 0 && (
+            <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-950/20 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200">
+                    {unresolvedItems.length} {unresolvedItems.length === 1 ? "item precisa" : "itens precisam"} de uma decisão antes da publicação
+                  </h4>
+                  <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">
+                    Itens adicionados fora da biblioteca devem ser vinculados à biblioteca ou confirmados como personalizados (vídeo opcional).
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                {unresolvedItems.map(({ categoryPublicId, categoryTitle, subBlockPublicId, item }) => (
+                  <div
+                    key={item.publicId}
+                    className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-[var(--foreground)] truncate">
+                          {item.exerciseNameSnapshot}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-subtle)] text-[var(--foreground-muted)] border border-[var(--border-subtle)]">
+                          {categoryTitle}
+                        </span>
+                      </div>
+                      {item.muscleGroupSnapshot && (
+                        <span className="text-[10px] text-[var(--foreground-muted)] block mt-0.5">
+                          {item.muscleGroupSnapshot}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {onResolveItem && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            onResolveItem(categoryPublicId, item.publicId, item.exerciseNameSnapshot);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer"
+                        >
+                          Resolver na biblioteca
+                        </button>
+                      )}
+                      {onCustomizeItem && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            onCustomizeItem(categoryPublicId, subBlockPublicId, item.publicId, {
+                              name: item.exerciseNameSnapshot,
+                              muscleGroup: item.muscleGroupSnapshot || undefined,
+                              equipment: item.equipmentSnapshot || undefined,
+                              notes: item.notes || undefined,
+                            });
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-violet-700 dark:text-violet-300 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 transition-colors cursor-pointer"
+                        >
+                          Usar como personalizado
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Other Fatal Structural Errors (Blocks Publication) */}
+          {otherFatalErrors.length > 0 && (
             <div className="p-3.5 rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-semibold">Pendências que impedem a publicação</p>
+                <p className="font-semibold">Outras pendências que impedem a publicação</p>
                 <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
-                  {inspection.fatalErrors.map((err, i) => (
+                  {otherFatalErrors.map((err, i) => (
                     <li key={i}>{err}</li>
                   ))}
                 </ul>

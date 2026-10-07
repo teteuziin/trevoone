@@ -2361,7 +2361,9 @@ function ExerciseRow({
   }${initialLoad != null ? ` • ${initialLoad} kg` : ""}`;
 
   const isCustom = Boolean(item.isCustomExercise || item.customExercisePublicId);
+  const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
   const isUnmatched = !item.exercisePublicId && !isCustom;
+  const hasVideo = Boolean((item.customVideoUrl && item.customVideoUrl.trim().length > 0) || (item.pinnedMedia && item.pinnedMedia.length > 0));
 
   return (
     <div
@@ -2448,8 +2450,12 @@ function ExerciseRow({
               )}
 
               {isCustom && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] whitespace-nowrap shrink-0">
-                  Personalizado
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap shrink-0 border ${
+                  isSequence
+                    ? "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20"
+                    : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
+                }`}>
+                  {isSequence ? "Sequência personalizada" : "Personalizado"}
                 </span>
               )}
 
@@ -2473,7 +2479,8 @@ function ExerciseRow({
                       className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs shrink-0 cursor-pointer"
                       title="Vincular a um exercício da biblioteca"
                     >
-                      Resolver
+                      <span className="hidden sm:inline">Resolver na biblioteca</span>
+                      <span className="sm:hidden">Resolver</span>
                     </button>
                   )}
                   {onOpenConvertCustom && (
@@ -2484,26 +2491,38 @@ function ExerciseRow({
                         onOpenConvertCustom();
                       }}
                       className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-violet-700 dark:text-violet-300 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 transition-colors shrink-0 cursor-pointer"
-                      title="Salvar como exercício personalizado fora da biblioteca"
+                      title="Salvar como exercício ou sequência personalizada fora da biblioteca"
                     >
-                      ✨ Personalizar
+                      <span>✨</span>
+                      <span className="hidden sm:inline">Usar como personalizado</span>
+                      <span className="sm:hidden">Personalizar</span>
                     </button>
                   )}
                 </>
               )}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExecutionModalOpen(true);
-                }}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors shrink-0 cursor-pointer"
-                title={`Ver execução de ${item.exerciseNameSnapshot}`}
-              >
-                <span>Ver execução →</span>
-              </button>
+              {hasVideo && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExecutionModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors shrink-0 cursor-pointer"
+                  title={`Ver execução de ${item.exerciseNameSnapshot}`}
+                >
+                  <span>Ver execução →</span>
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Sequence movements list */}
+          {isSequence && Array.isArray((item.methodConfig?.customSequence as { movements?: string[] })?.movements) && (((item.methodConfig?.customSequence as { movements?: string[] })?.movements?.length ?? 0) > 0) && (
+            <div className="text-[11px] text-[var(--text-secondary)] font-medium bg-[var(--surface-subtle)]/70 px-2.5 py-1 rounded-lg border border-[var(--border-subtle)] w-fit max-w-full">
+              <span className="font-semibold text-purple-700 dark:text-purple-300 mr-1.5">Movimentos:</span>
+              <span>{((item.methodConfig?.customSequence as { movements: string[] }).movements).join(" • ")}</span>
+            </div>
+          )}
 
           {/* Method / Observation: Subtle inline styling */}
           {item.notes && item.notes.trim() && (

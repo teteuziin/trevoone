@@ -20,14 +20,6 @@ function Check({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function Play({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M8 5v14l11-7z" />
-    </svg>
-  );
-}
-
 function Clock({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -368,6 +360,7 @@ export function StudentRuntimeFocusedView({
   } = currentItemContext;
 
   const hasMethodNote = Boolean(item.notes && item.notes.trim());
+  const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
   const hasVideo = isValidVideoUrl(item.customVideoUrl) || (item.pinnedMedia && item.pinnedMedia.length > 0);
 
   return (
@@ -477,6 +470,36 @@ export function StudentRuntimeFocusedView({
             </div>
           )}
 
+          {/* SEQUENCE MOVEMENTS & INSTRUCTIONS */}
+          {isSequence && (
+            <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5 text-xs">
+              <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[11px] uppercase tracking-wider block">
+                Movimentos da Sequência
+              </span>
+              {Array.isArray((item.methodConfig?.customSequence as { movements?: string[] })?.movements) &&
+              (((item.methodConfig?.customSequence as { movements?: string[] })?.movements?.length ?? 0) > 0) ? (
+                <ol className="list-decimal pl-4 space-y-1 text-[var(--text-primary)] font-medium">
+                  {((item.methodConfig?.customSequence as { movements: string[] }).movements).map((m: string, idx: number) => (
+                    <li key={idx}>{m}</li>
+                  ))}
+                </ol>
+              ) : null}
+              {item.instructionsSnapshot && (
+                <p className="text-[var(--text-secondary)] whitespace-pre-line pt-1 text-[11px]">
+                  {item.instructionsSnapshot}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Regular Custom / Exercise Instructions snapshot if not sequence */}
+          {!isSequence && item.instructionsSnapshot && (
+            <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] space-y-1">
+              <span className="font-bold text-[var(--text-primary)] text-[11px] block">Orientações:</span>
+              <p className="whitespace-pre-line leading-relaxed">{item.instructionsSnapshot}</p>
+            </div>
+          )}
+
           {/* Meta details & execution action */}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-[var(--text-secondary)]">
             <div className="flex items-center gap-2">
@@ -493,15 +516,17 @@ export function StudentRuntimeFocusedView({
               )}
             </div>
 
-            {/* Ver Execução Button */}
-            <button
-              type="button"
-              onClick={() => setIsExecutionSheetOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer min-h-[38px]"
-            >
-              {hasVideo ? <VideoIcon className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-              <span>Ver execução</span>
-            </button>
+            {/* Ver Execução Button - ONLY rendered if hasVideo is true */}
+            {hasVideo && (
+              <button
+                type="button"
+                onClick={() => setIsExecutionSheetOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer min-h-[38px]"
+              >
+                <VideoIcon className="w-3.5 h-3.5" />
+                <span>Ver execução</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -637,7 +662,7 @@ export function StudentRuntimeFocusedView({
           type="button"
           onClick={handleConfirmCurrentSet}
           disabled={Boolean(loadingSetPublicId)}
-          className="w-full min-h-[50px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-50 text-white font-extrabold text-base shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full min-h-[54px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-50 text-white font-extrabold text-base shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           {loadingSetPublicId === currentSet.publicId ? (
             <>

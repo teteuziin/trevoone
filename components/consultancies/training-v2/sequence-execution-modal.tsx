@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import type { SequenceMediaExperience } from "@/lib/training-v2/sequence-media";
 
 interface SequenceExecutionModalProps {
@@ -10,10 +11,17 @@ interface SequenceExecutionModalProps {
 }
 
 export function SequenceExecutionModal(props: SequenceExecutionModalProps) {
-  if (!props.isOpen || !props.experience || (props.experience.items || []).length === 0) {
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  if (!isMounted || !props.isOpen || !props.experience || (props.experience.items || []).length === 0) {
     return null;
   }
-  return <SequenceExecutionModalContent {...props} />;
+
+  return createPortal(<SequenceExecutionModalContent {...props} />, document.body);
 }
 
 function SequenceExecutionModalContent({
@@ -105,23 +113,31 @@ function SequenceExecutionModalContent({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-150"
+      role="dialog"
+      aria-modal="true"
+      aria-label={experience?.title || "Sequência de exercícios"}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+        className="w-full max-w-full sm:max-w-lg bg-[var(--surface)] border-t sm:border border-[var(--border-default)] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] sm:max-h-[92vh] pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-0 animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="px-5 py-3.5 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 bg-[var(--surface-subtle)]/60">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+        {/* Mobile drag handle */}
+        <div className="pt-2.5 pb-1 flex justify-center sm:hidden shrink-0">
+          <div className="w-12 h-1 rounded-full bg-[var(--border-strong)]" />
+        </div>
+
+        {/* Header - Stacks / wraps cleanly on small screens */}
+        <div className="px-4 sm:px-5 py-3 border-b border-[var(--border-subtle)] flex items-start justify-between gap-3 bg-[var(--surface-subtle)]/60 shrink-0 w-full min-w-0">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 break-words">
                 Sequência Guiada • {currentIndex + 1} de {items.length}
               </span>
             </div>
-            <h3 className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] truncate">
+            <h3 className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] font-heading leading-tight break-words">
               {experience?.title}
             </h3>
           </div>
@@ -129,20 +145,20 @@ function SequenceExecutionModalContent({
             type="button"
             onClick={onClose}
             aria-label="Fechar sequência"
-            className="p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+            className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer shrink-0"
           >
             ✕
           </button>
         </div>
 
         {/* Progress Dots */}
-        <div className="flex items-center gap-1.5 px-5 pt-3 pb-1">
+        <div className="flex items-center gap-1.5 px-4 sm:px-5 pt-3 pb-1 w-full min-w-0 shrink-0">
           {items.map((it, idx) => (
             <button
               key={idx}
               type="button"
               onClick={() => setCurrentIndex(idx)}
-              className={`h-1.5 rounded-full transition-all flex-1 cursor-pointer ${
+              className={`h-1.5 rounded-full transition-all flex-1 min-w-0 cursor-pointer ${
                 idx === currentIndex
                   ? "bg-emerald-500"
                   : idx < currentIndex
@@ -155,26 +171,26 @@ function SequenceExecutionModalContent({
         </div>
 
         {/* Content Body */}
-        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1 w-full min-w-0">
           {/* Movement Title & Sub-header */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between gap-2">
-              <span className="px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+          <div className="space-y-1 w-full min-w-0">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
                 Movimento {currentIndex + 1}
               </span>
               {(currentItem?.repsText || currentItem?.durationText) && (
-                <span className="text-xs font-bold text-[var(--text-secondary)]">
+                <span className="text-xs font-bold text-[var(--text-secondary)] truncate">
                   {currentItem.repsText || currentItem.durationText}
                 </span>
               )}
             </div>
-            <h4 className="text-lg sm:text-xl font-extrabold text-[var(--text-primary)] font-heading leading-tight">
+            <h4 className="text-base sm:text-lg font-extrabold text-[var(--text-primary)] font-heading leading-tight break-words">
               {currentItem?.name}
             </h4>
           </div>
 
-          {/* Media Player Box */}
-          <div className="rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-[var(--border-subtle)] shadow-inner">
+          {/* Media Player Box - Constrained to 100% width */}
+          <div className="rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-[var(--border-subtle)] shadow-inner w-full max-w-full">
             {isResolvingMedia ? (
               <div className="flex flex-col items-center gap-2 text-white/70 text-xs">
                 <span className="w-6 h-6 border-2 border-white/20 border-t-emerald-400 rounded-full animate-spin" />
@@ -187,15 +203,15 @@ function SequenceExecutionModalContent({
                 controls
                 playsInline
                 autoPlay
-                className="w-full h-full object-contain"
+                className="w-full max-w-full h-full object-contain"
               />
             ) : (
-              <div className="text-center p-4 space-y-1.5 text-white/80">
+              <div className="text-center p-4 space-y-1.5 text-white/80 w-full max-w-full">
                 <span className="text-2xl block">🎬</span>
-                <span className="text-xs font-semibold block text-white/90">
+                <span className="text-xs font-semibold block text-white/90 break-words">
                   Vídeo de demonstração indisponível para este movimento
                 </span>
-                <span className="text-[11px] text-white/60 block">
+                <span className="text-[11px] text-white/60 block break-words">
                   Siga as instruções textuais abaixo para executar o exercício corretamente
                 </span>
               </div>
@@ -204,11 +220,11 @@ function SequenceExecutionModalContent({
 
           {/* Instructions Snapshot */}
           {currentItem?.instructions && (
-            <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs space-y-1">
+            <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs space-y-1 w-full min-w-0">
               <span className="font-bold text-[var(--text-primary)] text-[11px] block uppercase tracking-wider">
                 Instruções:
               </span>
-              <p className="whitespace-pre-line leading-relaxed text-[var(--text-secondary)]">
+              <p className="whitespace-pre-line leading-relaxed text-[var(--text-secondary)] break-words">
                 {currentItem.instructions}
               </p>
             </div>
@@ -216,14 +232,14 @@ function SequenceExecutionModalContent({
 
           {/* Movement Details (Muscle group & equipment) */}
           {(currentItem?.muscleGroup || currentItem?.equipment) && (
-            <div className="flex items-center gap-2 flex-wrap text-xs text-[var(--text-tertiary)] font-medium">
+            <div className="flex items-center gap-2 flex-wrap text-xs text-[var(--text-tertiary)] font-medium w-full min-w-0">
               {currentItem.muscleGroup && (
-                <span className="px-2 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                <span className="px-2 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] truncate">
                   Músculo: {currentItem.muscleGroup}
                 </span>
               )}
               {currentItem.equipment && (
-                <span className="px-2 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                <span className="px-2 py-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] truncate">
                   Equipamento: {currentItem.equipment}
                 </span>
               )}
@@ -232,9 +248,9 @@ function SequenceExecutionModalContent({
 
           {/* Rest notice on last movement */}
           {isLast && experience?.restAfterSeconds && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold flex items-center gap-2">
-              <span>⏱️</span>
-              <span>
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold flex items-center gap-2 w-full min-w-0">
+              <span className="shrink-0">⏱️</span>
+              <span className="break-words">
                 Fim da sequência! Descanso recomendado: <strong>{experience.restAfterSeconds}s</strong>
               </span>
             </div>
@@ -242,17 +258,17 @@ function SequenceExecutionModalContent({
         </div>
 
         {/* Footer Navigation Bar */}
-        <div className="p-4 border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)]/40 flex items-center justify-between gap-3">
+        <div className="p-3.5 sm:p-4 border-t border-[var(--border-subtle)] bg-[var(--surface-subtle)]/40 flex items-center justify-between gap-2.5 sm:gap-3 w-full min-w-0 shrink-0">
           <button
             type="button"
             disabled={isFirst}
             onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-            className="px-4 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] cursor-pointer"
+            className="px-3.5 sm:px-4 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--surface-subtle)] transition-colors min-h-[44px] cursor-pointer shrink-0"
           >
             ← Anterior
           </button>
 
-          <span className="text-xs font-extrabold text-[var(--text-secondary)]">
+          <span className="text-xs font-extrabold text-[var(--text-secondary)] text-center min-w-0 truncate px-1">
             {currentIndex + 1} / {items.length}
           </span>
 
@@ -260,15 +276,15 @@ function SequenceExecutionModalContent({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors min-h-[44px] cursor-pointer"
+              className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors min-h-[44px] cursor-pointer shrink-0"
             >
-              Concluir Sequência ✓
+              Concluir ✓
             </button>
           ) : (
             <button
               type="button"
               onClick={() => setCurrentIndex((prev) => Math.min(items.length - 1, prev + 1))}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors min-h-[44px] cursor-pointer flex items-center gap-1.5"
+              className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors min-h-[44px] cursor-pointer flex items-center gap-1.5 shrink-0"
             >
               <span>Próximo</span>
               <span>→</span>

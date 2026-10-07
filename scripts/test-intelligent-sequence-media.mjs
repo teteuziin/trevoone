@@ -5,6 +5,7 @@ import { register } from 'node:module';
 register('./ts-loader.mjs', import.meta.url);
 
 import assert from "assert";
+import fs from "fs";
 import {
   detectExerciseSequenceFromText,
   extractMovementHints,
@@ -546,6 +547,64 @@ runTest("MOBILE", () => {
 runTest("DESKTOP", () => {
   // Desktop layout preservation verified
   assert.ok(true);
+});
+
+// 30. SEQUENCE EXECUTION MOBILE WIDTH
+runTest("SEQUENCE EXECUTION MOBILE WIDTH", () => {
+  const code = fs.readFileSync("components/consultancies/training-v2/sequence-execution-modal.tsx", "utf8");
+  assert.ok(code.includes("createPortal"), "Must use createPortal to escape ancestor offsets");
+  assert.ok(code.includes("w-full max-w-full sm:max-w-lg"), "Must fit 100% of mobile viewport");
+  assert.ok(code.includes("items-end sm:items-center"), "Must be bottom sheet on mobile");
+  assert.ok(code.includes("rounded-t-3xl"), "Must have rounded top on mobile");
+  assert.ok(code.includes("safe-area-inset-bottom"), "Must include safe-area padding");
+});
+
+// 31. SEQUENCE CONFIG MOBILE WIDTH
+runTest("SEQUENCE CONFIG MOBILE WIDTH", () => {
+  const code = fs.readFileSync("components/consultancies/training-v2/sequence-configuration-modal.tsx", "utf8");
+  assert.ok(code.includes("createPortal"), "Must use createPortal to escape ancestor offsets");
+  assert.ok(code.includes("w-full max-w-full sm:max-w-lg"), "Must fit 100% of mobile viewport");
+  assert.ok(code.includes("items-end sm:items-center"), "Must be bottom sheet on mobile");
+  assert.ok(code.includes("rounded-t-3xl"), "Must have rounded top on mobile");
+  assert.ok(code.includes("safe-area-inset-bottom"), "Must include safe-area padding");
+});
+
+// 32. NO W-SCREEN INSIDE PADDED SHEET
+runTest("NO W-SCREEN INSIDE PADDED SHEET", () => {
+  const execCode = fs.readFileSync("components/consultancies/training-v2/sequence-execution-modal.tsx", "utf8");
+  const cfgCode = fs.readFileSync("components/consultancies/training-v2/sequence-configuration-modal.tsx", "utf8");
+  assert.ok(!execCode.includes("w-screen"), "Must not use w-screen in execution modal");
+  assert.ok(!execCode.includes("100vw"), "Must not use 100vw in execution modal");
+  assert.ok(!cfgCode.includes("w-screen"), "Must not use w-screen in config modal");
+  assert.ok(!cfgCode.includes("100vw"), "Must not use 100vw in config modal");
+});
+
+// 33. NO STRUCTURAL NOWRAP
+runTest("NO STRUCTURAL NOWRAP", () => {
+  const execCode = fs.readFileSync("components/consultancies/training-v2/sequence-execution-modal.tsx", "utf8");
+  const cfgCode = fs.readFileSync("components/consultancies/training-v2/sequence-configuration-modal.tsx", "utf8");
+  assert.ok(!execCode.includes("whitespace-nowrap font-heading"), "Must not use whitespace-nowrap on heading");
+  assert.ok(execCode.includes("break-words"), "Must include break-words on title");
+  assert.ok(cfgCode.includes("break-words"), "Must include break-words on config title");
+});
+
+// 34. VIDEO MAX WIDTH
+runTest("VIDEO MAX WIDTH", () => {
+  const execCode = fs.readFileSync("components/consultancies/training-v2/sequence-execution-modal.tsx", "utf8");
+  assert.ok(execCode.includes("w-full max-w-full h-full object-contain"), "Video must be constrained to container");
+});
+
+// 35. MOBILE HEADER WRAPS
+runTest("MOBILE HEADER WRAPS", () => {
+  const execCode = fs.readFileSync("components/consultancies/training-v2/sequence-execution-modal.tsx", "utf8");
+  assert.ok(execCode.includes("items-start justify-between"), "Header items must be items-start to allow wrapping");
+});
+
+// 36. DESKTOP PRESERVED
+runTest("DESKTOP PRESERVED", () => {
+  const execCode = fs.readFileSync("components/consultancies/training-v2/sequence-execution-modal.tsx", "utf8");
+  assert.ok(execCode.includes("sm:max-w-lg"), "Desktop max width must be preserved");
+  assert.ok(execCode.includes("sm:items-center"), "Desktop center alignment must be preserved");
 });
 
 console.log("\n==================================================================");

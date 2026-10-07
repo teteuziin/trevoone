@@ -3222,9 +3222,166 @@ export function UnifiedCombinationBlock({
       data-block-type="unified-combination-block"
       className="rounded-xl border border-[var(--border-subtle)] border-l-4 border-l-emerald-500 bg-[var(--surface)] shadow-2xs overflow-hidden transition-all w-full max-w-full min-w-0"
     >
-      {/* Block Header */}
-      <div className="px-3 sm:px-4 py-2 bg-[var(--surface-subtle)]/30 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0">
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 flex-wrap">
+      {/* Mobile Block Header (<sm) — dedicated ergonomic layout */}
+      <div className="sm:hidden px-3 py-2.5 bg-[var(--surface-subtle)]/40 border-b border-[var(--border-subtle)] space-y-2 w-full max-w-full min-w-0">
+        {/* Line 1: Type badge, rounds, rest/active info */}
+        <div className="flex items-center justify-between gap-2 min-w-0 w-full flex-wrap">
+          <div className="flex items-center gap-1.5 min-w-0 flex-wrap flex-1">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 shrink-0">
+              {typeLabel}
+            </span>
+            <span className="text-xs font-bold text-[var(--text-tertiary)]">·</span>
+            <span className="text-xs font-bold text-[var(--text-secondary)] whitespace-nowrap">
+              {items[0]?.sets?.length || 3} rodadas
+            </span>
+            <span className="text-xs font-bold text-[var(--text-tertiary)]">·</span>
+            <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">
+              {activeRest.isActive ? `🏃 Ativo · ${restSec}s` : `${restSec}s descanso`}
+            </span>
+          </div>
+        </div>
+
+        {/* Optional activity/title detail if present */}
+        {activeRest.isActive && activeRest.activity ? (
+          <div className="text-[11px] font-medium text-[var(--text-tertiary)] truncate">
+            Atividade: {activeRest.activity}
+          </div>
+        ) : combination.title && !activeRest.isActive ? (
+          <div className="text-[11px] font-medium text-[var(--text-tertiary)] truncate" title={combination.title}>
+            {combination.title.replace(/•?\s*Descanso Ativo:.*$/i, "").trim()}
+          </div>
+        ) : null}
+
+        {/* Line 2: Dedicated Primary Action Bar */}
+        <div className="flex items-center gap-2 w-full pt-0.5">
+          {combSeqExp?.hasPlayableMedia ? (
+            <button
+              type="button"
+              onClick={() => setIsSeqModalOpen(true)}
+              aria-label="Ver sequência de execução guiada"
+              data-testid="combination-view-sequence-btn"
+              className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              title="Ver sequência de execução guiada"
+            >
+              <VideoIcon className="w-4 h-4 shrink-0" />
+              <span className="truncate font-black">Ver sequência</span>
+            </button>
+          ) : isDraft ? (
+            <button
+              type="button"
+              onClick={() => onOpenEditCombination(combination)}
+              aria-label="Editar combinação"
+              className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>Editar combinação</span>
+            </button>
+          ) : null}
+
+          {/* Secondary "Editar" button alongside if media exists */}
+          {combSeqExp?.hasPlayableMedia && isDraft && (
+            <button
+              type="button"
+              onClick={() => onOpenEditCombination(combination)}
+              aria-label="Editar combinação"
+              className="min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="hidden xs:inline">Editar</span>
+            </button>
+          )}
+
+          {/* Context menu (•••) */}
+          {isDraft && (
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsCombMenuOpen((v) => !v)}
+                aria-label="Opções da combinação"
+                className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              {isCombMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setIsCombMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 w-52 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                    {(onMoveEntryUp || onMoveEntryDown) && (
+                      <div className="p-1 space-y-0.5">
+                        {onMoveEntryUp && (
+                          <button
+                            type="button"
+                            disabled={entryIndex === 0}
+                            onClick={() => {
+                              setIsCombMenuOpen(false);
+                              onMoveEntryUp();
+                            }}
+                            className="w-full px-3 py-2.5 rounded-lg hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-left cursor-pointer min-h-[44px]"
+                          >
+                            <ArrowUp className="w-4 h-4" />
+                            <span>Mover para cima</span>
+                          </button>
+                        )}
+                        {onMoveEntryDown && (
+                          <button
+                            type="button"
+                            disabled={entryIndex >= totalEntries - 1}
+                            onClick={() => {
+                              setIsCombMenuOpen(false);
+                              onMoveEntryDown();
+                            }}
+                            className="w-full px-3 py-2.5 rounded-lg hover:bg-[var(--surface-subtle)] disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-left cursor-pointer min-h-[44px]"
+                          >
+                            <ArrowDown className="w-4 h-4" />
+                            <span>Mover para baixo</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="p-1 space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCombMenuOpen(false);
+                          onOpenEditCombination(combination);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-lg hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[44px]"
+                      >
+                        <ZapIcon className="w-4 h-4 text-emerald-600" />
+                        <span>Editar combinação</span>
+                      </button>
+                    </div>
+
+                    {onUngroupCombination && (
+                      <div className="p-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCombMenuOpen(false);
+                            if (confirm(`Desfazer este ${typeLabel} e manter os exercícios separados?`)) {
+                              startTransition(() => onUngroupCombination(combination.publicId));
+                            }
+                          }}
+                          className="w-full px-3 py-2.5 rounded-lg hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[44px]"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Desfazer combinação</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Desktop Header (>=sm) — preserved horizontal flow */}
+      <div className="hidden sm:flex px-4 py-2 bg-[var(--surface-subtle)]/30 border-b border-[var(--border-subtle)] items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
           <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 shrink-0">
             {typeLabel}
           </span>
@@ -3242,15 +3399,15 @@ export function UnifiedCombinationBlock({
             </span>
           )}
 
-          {/* Ver Sequência Button in Unified Combination Header */}
+          {/* Ver Sequência Button in Desktop Combination Header */}
           {combSeqExp?.hasPlayableMedia && (
             <button
               type="button"
               onClick={() => setIsSeqModalOpen(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer min-h-[32px]"
               title="Ver sequência de execução guiada"
             >
-              <VideoIcon className="w-3 h-3" />
+              <VideoIcon className="w-3.5 h-3.5" />
               <span>Ver sequência</span>
             </button>
           )}
@@ -3266,7 +3423,7 @@ export function UnifiedCombinationBlock({
                 onClick={onMoveEntryUp}
                 aria-label="Mover bloco para cima"
                 title="Mover bloco para cima"
-                className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 transition-colors"
+                className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
               >
                 <ArrowUp className="w-3.5 h-3.5" />
               </button>
@@ -3276,20 +3433,20 @@ export function UnifiedCombinationBlock({
                 onClick={onMoveEntryDown}
                 aria-label="Mover bloco para baixo"
                 title="Mover bloco para baixo"
-                className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 transition-colors"
+                className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
               >
                 <ArrowDown className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
 
-          {/* Discreet "Editar" Action in Header */}
+          {/* Discreet "Editar" Action in Desktop Header */}
           {isDraft && (
             <button
               type="button"
               onClick={() => onOpenEditCombination(combination)}
               aria-label="Editar combinação"
-              className="px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 hover:bg-emerald-500/10 transition-colors min-h-[44px] sm:min-h-[28px] flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 hover:bg-emerald-500/10 transition-colors min-h-[28px] flex items-center gap-1 cursor-pointer"
             >
               <Edit2 className="w-3 h-3" />
               <span>Editar</span>
@@ -3303,7 +3460,7 @@ export function UnifiedCombinationBlock({
                 type="button"
                 onClick={() => setIsCombMenuOpen((v) => !v)}
                 aria-label="Opções da combinação"
-                className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 cursor-pointer"
+                className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors cursor-pointer"
               >
                 <MoreVertical className="w-3.5 h-3.5" />
               </button>
@@ -3318,7 +3475,7 @@ export function UnifiedCombinationBlock({
                         setIsCombMenuOpen(false);
                         onOpenEditCombination(combination);
                       }}
-                      className="w-full px-3 py-2 hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
+                      className="w-full px-3 py-2 hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[32px]"
                     >
                       <ZapIcon className="w-3.5 h-3.5 text-emerald-600" />
                       <span>Editar combinação</span>
@@ -3332,7 +3489,7 @@ export function UnifiedCombinationBlock({
                             startTransition(() => onUngroupCombination(combination.publicId));
                           }
                         }}
-                        className="w-full px-3 py-2 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[32px]"
+                        className="w-full px-3 py-2 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[32px]"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>Desfazer combinação</span>
@@ -3354,10 +3511,10 @@ export function UnifiedCombinationBlock({
 
           return (
             <div key={item.publicId} className="space-y-0">
-              <div className="p-2.5 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/20 transition-colors">
+              <div className="p-2.5 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/20 transition-colors w-full max-w-full min-w-0">
                 {/* Left: Letter Badge + Info */}
                 <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-bold text-xs flex items-center justify-center shrink-0">
+                  <div className="w-6 h-6 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-extrabold text-xs flex items-center justify-center shrink-0">
                     {letter}
                   </div>
                   <div className="min-w-0 flex-1 space-y-0.5">
@@ -3376,28 +3533,28 @@ export function UnifiedCombinationBlock({
                         {summary.seriesCount} séries · {summary.repsText}
                         {summary.loadKg != null ? ` · ${summary.loadKg}kg` : ""}
                       </span>
-                      {item.notes && item.notes.trim() && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700/90 dark:text-amber-400/90">
-                          ⚡ {item.notes.trim()}
-                        </span>
-                      )}
                     </div>
+                    {item.notes && item.notes.trim() && (
+                      <div className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700/90 dark:text-amber-400/90 break-words">
+                        ⚡ {item.notes.trim()}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Right: Internal Order (↑ / ↓) + Quick Edit + Actions */}
                 {isDraft && (
                   <div className="flex items-center gap-1 shrink-0">
-                    {/* Internal reorder touch buttons */}
+                    {/* Internal reorder touch buttons: shown on sm+ desktop/tablet, hidden on mobile */}
                     {onMoveItemInCombination && (
-                      <div className="flex items-center gap-0.5">
+                      <div className="hidden sm:flex items-center gap-0.5">
                         <button
                           type="button"
                           disabled={idx === 0}
                           onClick={() => onMoveItemInCombination(combination.publicId, item.publicId, "up")}
                           aria-label="Mover para cima na combinação"
                           title="Mover para cima na combinação"
-                          className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7"
+                          className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
                         >
                           <ArrowUp className="w-3.5 h-3.5" />
                         </button>
@@ -3407,32 +3564,32 @@ export function UnifiedCombinationBlock({
                           onClick={() => onMoveItemInCombination(combination.publicId, item.publicId, "down")}
                           aria-label="Mover para baixo na combinação"
                           title="Mover para baixo na combinação"
-                          className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7"
+                          className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
                         >
                           <ArrowDown className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}
 
-                    {/* Quick Edit button */}
+                    {/* Quick Edit button: min-h-[44px] on mobile */}
                     <button
                       type="button"
                       onClick={() => onOpenQuickEdit(item)}
                       aria-label={`Editar ${item.exerciseNameSnapshot}`}
-                      className="px-2 sm:px-2.5 py-1 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] transition-colors min-h-[44px] sm:min-h-[28px] flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 sm:px-2 py-1 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] transition-colors min-h-[44px] sm:min-h-[28px] flex items-center gap-1 cursor-pointer"
                     >
-                      <Edit2 className="w-3 h-3 text-emerald-600" />
+                      <Edit2 className="w-3.5 h-3.5 text-emerald-600" />
                       <span className="hidden xs:inline sm:inline">Editar</span>
                     </button>
 
-                    {/* Item Actions */}
+                    {/* Item Actions (•••): min-h-[44px] min-w-[44px] on mobile */}
                     <button
                       type="button"
                       onClick={() => onOpenActions(item, idx, items.length)}
                       aria-label="Ações do exercício"
-                      className="w-8 h-8 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 cursor-pointer"
+                      className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] cursor-pointer"
                     >
-                      <MoreVertical className="w-3.5 h-3.5" />
+                      <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
                   </div>
                 )}

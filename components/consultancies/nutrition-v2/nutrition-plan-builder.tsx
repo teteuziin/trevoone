@@ -409,24 +409,24 @@ export function NutritionPlanBuilder({
   };
 
   return (
-    <div className="w-full max-w-full min-w-0 min-h-[calc(100vh-4rem)] bg-transparent px-3 sm:px-4 md:px-6 py-4 sm:py-8">
+    <div className="w-full max-w-full min-w-0 min-h-[calc(100vh-4rem)] bg-transparent px-4 sm:px-6 md:px-8 py-4 sm:py-8">
       <div className="space-y-6 max-w-7xl mx-auto pb-28 sm:pb-20 w-full max-w-full min-w-0">
         {/* Top Breadcrumb & Actions */}
-        <div className="flex items-center justify-between gap-2 min-w-0 w-full max-w-full">
+        <div className="flex items-center justify-between gap-2.5 min-w-0 w-full max-w-full">
           <Link
             href={patientContext ? patientContext.returnToUrl : `/consultoria/${slug}/planos-v2`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive min-w-0 max-w-full flex-1"
+            className="inline-flex items-start sm:items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive min-w-0 max-w-full flex-1"
           >
-            <ArrowLeftIcon className="w-4 h-4 shrink-0" />
-            <span className="break-words sm:hidden">
+            <ArrowLeftIcon className="w-4 h-4 shrink-0 mt-0.5 sm:mt-0" />
+            <span className="break-words [overflow-wrap:anywhere] min-w-0 max-w-full sm:hidden">
               {patientContext ? `Voltar para ${patientContext.studentName}` : "Voltar para Planos"}
             </span>
-            <span className="hidden sm:inline break-words">
+            <span className="hidden sm:inline break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
               {patientContext ? `Voltar para paciente (${patientContext.studentName})` : "Voltar para Planos"}
             </span>
           </Link>
 
-          {/* Desktop Action Controls & Version Badges */}
+          {/* Desktop Action Controls & Version Badges (>= lg) */}
           <div className="hidden lg:flex items-center gap-2.5 flex-wrap shrink-0">
             <button
               type="button"
@@ -523,7 +523,7 @@ export function NutritionPlanBuilder({
             )}
           </div>
 
-          {/* Mobile Badge Only */}
+          {/* Mobile Badge Only (< lg) */}
           <div className="lg:hidden flex items-center gap-2 shrink-0">
             <Badge
               variant={
@@ -533,7 +533,7 @@ export function NutritionPlanBuilder({
                   ? "warning"
                   : "neutral"
               }
-              size="md"
+              size="sm"
             >
               {tree.version.status === "DRAFT"
                 ? `Rascunho (V${tree.version.versionNumber})`
@@ -546,21 +546,24 @@ export function NutritionPlanBuilder({
 
         {/* Patient Context Banner */}
         {patientContext && (
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)] border border-[var(--brand)]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0 w-full max-w-full">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 min-w-0 flex-1 w-full max-w-full">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center font-extrabold text-xs sm:text-sm shrink-0 shadow-xs">
+          <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--brand)]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0 w-full max-w-full">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1 w-full max-w-full">
+              {/* [A] Avatar */}
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center font-extrabold text-xs sm:text-sm shrink-0 shadow-xs mb-0.5 sm:mb-0">
                 {patientContext.studentName.charAt(0).toUpperCase()}
               </div>
-              <div className="min-w-0 flex-1 w-full max-w-full space-y-1 sm:space-y-0.5">
+              <div className="min-w-0 flex-1 w-full max-w-full flex flex-col gap-1 sm:gap-0.5">
+                {/* Title and Badge - Stacked on Mobile (< sm), side-by-side on sm+ */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0 max-w-full">
-                  <span className="text-sm font-extrabold text-[var(--text-primary)] break-words min-w-0">
+                  <span className="text-sm font-extrabold text-[var(--text-primary)] break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
                     Plano alimentar de {patientContext.studentName}
                   </span>
-                  <span className="self-start sm:self-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)] text-[var(--text-inverse)] shrink-0">
+                  <span className="self-start sm:self-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)] text-[var(--text-inverse)] break-words [overflow-wrap:anywhere] shrink-0">
                     {tree.version.status === "DRAFT" ? "Alteração em andamento" : "Plano publicado"}
                   </span>
                 </div>
-                <p className="text-[11px] text-[var(--text-secondary)] break-words leading-relaxed min-w-0 max-w-full">
+                {/* Guidance text */}
+                <p className="text-[11px] text-[var(--text-secondary)] break-words [overflow-wrap:anywhere] leading-relaxed min-w-0 max-w-full pt-0.5 sm:pt-0">
                   {tree.version.status === "DRAFT"
                     ? "Enquanto este rascunho estiver em edição, o aluno continua visualizando a prescrição ativa anterior."
                     : "Este plano está publicado e ativo para a paciente."}
@@ -752,8 +755,8 @@ export function NutritionPlanBuilder({
         </div>
 
         {/* Meals Section */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+        <div className="space-y-4 w-full max-w-full min-w-0">
+          <div className="flex items-center justify-between gap-3 min-w-0 w-full max-w-full">
             <div>
               <h2 className="text-lg font-bold text-[var(--text-primary)]">Refeições do Plano</h2>
               <p className="text-xs text-[var(--text-secondary)] font-medium">
@@ -1207,7 +1210,7 @@ export function NutritionPlanBuilder({
       </div>
 
       {/* Mobile Sticky Bottom Action Bar */}
-      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-default)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-lg flex items-center justify-between gap-2.5">
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)]/95 backdrop-blur-md border-t border-[var(--border-default)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-lg flex items-center justify-between gap-2.5 w-full max-w-full min-w-0">
         <button
           type="button"
           aria-label="Mais ações do plano"

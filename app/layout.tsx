@@ -85,12 +85,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: assetRecoveryBootstrapScript }}
         />
       </head>
-      <body className="min-h-full flex flex-col font-sans bg-[var(--background)] text-[var(--foreground)] relative">
+      <body className="min-h-full flex flex-col font-sans bg-[var(--background)] text-[var(--foreground)] relative w-full max-w-full min-w-0">
         <BrandWallpaper />
         <SafeBoundary name="NetworkStatusToast">
           <NetworkStatusToast />
         </SafeBoundary>
-        <div className="relative z-10 flex-1 flex flex-col">{children}</div>
+        <div className="relative z-10 flex-1 flex flex-col w-full max-w-full min-w-0">{children}</div>
         <BetaWatermark />
         <SafeBoundary name="PwaRegistry">
           <PwaRegistry />

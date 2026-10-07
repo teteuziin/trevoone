@@ -93,11 +93,13 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
   }
 
   return (
-    <NutritionPlanBuilder
-      slug={slug}
-      initialTree={tree}
-      initialAssignments={assignments}
-      patientContext={patientContext || undefined}
-    />
+    <main className="w-full max-w-full min-w-0 flex-1 flex flex-col">
+      <NutritionPlanBuilder
+        slug={slug}
+        initialTree={tree}
+        initialAssignments={assignments}
+        patientContext={patientContext || undefined}
+      />
+    </main>
   );
 }

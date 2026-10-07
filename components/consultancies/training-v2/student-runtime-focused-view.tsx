@@ -11,6 +11,11 @@ import type {
 import { parseActiveRest } from "./workout-category-card";
 import { RestTimer, type ActiveRestState } from "./rest-timer";
 import { MobileBottomSheet } from "@/components/ui/mobile";
+import {
+  buildSequenceMediaFromCustomItem,
+  buildSequenceMediaFromCombination,
+} from "@/lib/training-v2/sequence-media";
+import { SequenceExecutionModal } from "./sequence-execution-modal";
 
 function Check({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -187,6 +192,7 @@ export function StudentRuntimeFocusedView({
   // 4. Input state for current set (reps & load) derived per set ID
   const [draftInputs, setDraftInputs] = useState<Record<string, { reps?: number; loadKg?: string }>>({});
   const [isExecutionSheetOpen, setIsExecutionSheetOpen] = useState(false);
+  const [isSequenceModalOpen, setIsSequenceModalOpen] = useState(false);
 
   const currentDraft = currentSet ? draftInputs[currentSet.publicId] : undefined;
   const reps = currentDraft?.reps ?? currentSet?.prescribedReps ?? 10;
@@ -363,6 +369,16 @@ export function StudentRuntimeFocusedView({
   const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
   const hasVideo = isValidVideoUrl(item.customVideoUrl) || (item.pinnedMedia && item.pinnedMedia.length > 0);
 
+  const sequenceExperience = (() => {
+    if (isSequence) {
+      return buildSequenceMediaFromCustomItem(item);
+    }
+    if (currentItemContext?.combination) {
+      return buildSequenceMediaFromCombination(currentItemContext.combination, currentItemContext.block.items);
+    }
+    return null;
+  })();
+
   return (
     <div className="space-y-4 max-w-lg mx-auto pb-[calc(6rem+env(safe-area-inset-bottom,0px))] select-none">
       {/* RUNTIME TOP BAR: PROGRESS & OVERVIEW TOGGLE */}
@@ -476,12 +492,21 @@ export function StudentRuntimeFocusedView({
               <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[11px] uppercase tracking-wider block">
                 Movimentos da Sequência
               </span>
-              {Array.isArray((item.methodConfig?.customSequence as { movements?: string[] })?.movements) &&
-              (((item.methodConfig?.customSequence as { movements?: string[] })?.movements?.length ?? 0) > 0) ? (
+              {Array.isArray((item.methodConfig?.customSequence as { movements?: unknown[] })?.movements) &&
+              (((item.methodConfig?.customSequence as { movements?: unknown[] })?.movements?.length ?? 0) > 0) ? (
                 <ol className="list-decimal pl-4 space-y-1 text-[var(--text-primary)] font-medium">
-                  {((item.methodConfig?.customSequence as { movements: string[] }).movements).map((m: string, idx: number) => (
-                    <li key={idx}>{m}</li>
-                  ))}
+                  {((item.methodConfig?.customSequence as { movements: unknown[] }).movements).map((m: unknown, idx: number) => {
+                    const label = typeof m === "string" ? m : (m as { label?: string })?.label || `Movimento ${idx + 1}`;
+                    const hint = typeof m === "object" && m !== null
+                      ? ((m as { repsText?: string })?.repsText || (m as { durationText?: string })?.durationText)
+                      : null;
+                    return (
+                      <li key={idx}>
+                        <span>{label}</span>
+                        {hint && <span className="ml-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">({hint})</span>}
+                      </li>
+                    );
+                  })}
                 </ol>
               ) : null}
               {item.instructionsSnapshot && (
@@ -516,8 +541,17 @@ export function StudentRuntimeFocusedView({
               )}
             </div>
 
-            {/* Ver Execução Button - ONLY rendered if hasVideo is true */}
-            {hasVideo && (
+            {/* Ver Sequência (if multi-movement video exists) or Ver Execução */}
+            {sequenceExperience?.hasPlayableMedia ? (
+              <button
+                type="button"
+                onClick={() => setIsSequenceModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer min-h-[38px]"
+              >
+                <VideoIcon className="w-3.5 h-3.5" />
+                <span>Ver sequência</span>
+              </button>
+            ) : hasVideo ? (
               <button
                 type="button"
                 onClick={() => setIsExecutionSheetOpen(true)}
@@ -526,7 +560,7 @@ export function StudentRuntimeFocusedView({
                 <VideoIcon className="w-3.5 h-3.5" />
                 <span>Ver execução</span>
               </button>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -742,6 +776,13 @@ export function StudentRuntimeFocusedView({
           </div>
         </div>
       </MobileBottomSheet>
+
+      {/* MULTI-MOVEMENT SEQUENCE VIDEO MODAL */}
+      <SequenceExecutionModal
+        isOpen={isSequenceModalOpen}
+        onClose={() => setIsSequenceModalOpen(false)}
+        experience={sequenceExperience}
+      />
     </div>
   );
 }

@@ -147,7 +147,17 @@ export async function GET(request: Request, context: RouteContext) {
               combinationRestSeconds: comb?.restAfterSeconds ?? null,
               isCustomExercise: Boolean(item.customExercisePublicId || item.isCustomExercise),
               isSequence: Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence),
-              sequenceMovements: (item.methodConfig?.customSequence as { movements?: string[] })?.movements || null,
+              sequenceMovements: Array.isArray((item.methodConfig?.customSequence as { movements?: unknown[] })?.movements)
+                ? ((item.methodConfig?.customSequence as { movements: unknown[] }).movements).map((m: unknown) => {
+                    if (typeof m === "string") return m;
+                    if (typeof m === "object" && m !== null) {
+                      const obj = m as { label?: string; repsText?: string; durationText?: string };
+                      const hint = obj.repsText || obj.durationText;
+                      return hint ? `${obj.label || "Movimento"} (${hint})` : obj.label || "Movimento";
+                    }
+                    return String(m);
+                  })
+                : null,
             };
           }),
         };

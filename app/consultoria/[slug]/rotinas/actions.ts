@@ -1862,3 +1862,106 @@ export async function convertUnresolvedToCustomExerciseAction(
     };
   }
 }
+
+export type SuggestedSequenceMovementDto = {
+  rawText: string;
+  normalizedName: string;
+  repsText?: string | null;
+  durationText?: string | null;
+  suggestedExercise?: {
+    publicId: string;
+    name: string;
+    muscleGroup?: string | null;
+    equipment?: string | null;
+    hasVideo: boolean;
+  } | null;
+  candidates?: Array<{
+    publicId: string;
+    name: string;
+    muscleGroup?: string | null;
+    equipment?: string | null;
+    hasVideo: boolean;
+  }>;
+};
+
+/**
+ * Searches and suggests published library exercises for detected sequence movement strings.
+ * Requires explicit human confirmation before binding.
+ */
+export async function suggestSequenceMovementsAction(
+  slug: string,
+  rawMovements: string[]
+): Promise<ActionResponse<SuggestedSequenceMovementDto[]>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const { listExercisesForProfessional } = await import("@/lib/training-v2/exercise-repository");
+    const { extractMovementHints } = await import("@/lib/training-v2/sequence-detector");
+
+    const results: SuggestedSequenceMovementDto[] = [];
+
+    for (const raw of rawMovements) {
+      const { normalizedName, hint } = extractMovementHints(raw);
+      if (!normalizedName) continue;
+
+      const res = await listExercisesForProfessional(ctx, {
+        query: normalizedName,
+        pageSize: 6,
+      });
+
+      const published = res.items.filter((ex) => ex.status === "PUBLISHED");
+      const mappedCandidates = published.map((ex) => ({
+        publicId: ex.publicId,
+        name: ex.name,
+        muscleGroup: ex.muscleGroupPrimary,
+        equipment: ex.equipment,
+        hasVideo: (ex.media || []).some(
+          (m) => m.mediaAsset?.mediaType === "VIDEO" || m.mediaAsset?.mimeType === "video/mp4"
+        ),
+      }));
+
+      const exact = mappedCandidates.find(
+        (c) => c.name.toLowerCase() === normalizedName.toLowerCase()
+      );
+      const chosen = exact || mappedCandidates[0] || null;
+
+      results.push({
+        rawText: raw,
+        normalizedName,
+        repsText: hint?.repsText || null,
+        durationText: hint?.durationText || null,
+        suggestedExercise: chosen,
+        candidates: mappedCandidates,
+      });
+    }
+
+    return { ok: true, data: results };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao sugerir movimentos da sequência.",
+    };
+  }
+}
+
+/**
+ * Persists structured sequence movements for a custom exercise item.
+ * Strictly preserves prescription (sets, reps, load, rest, cadence) and existing method config.
+ */
+export async function updateItemCustomSequenceAction(
+  slug: string,
+  input: import("@/lib/training-v2/workout-repository").UpdateItemCustomSequenceInput
+): Promise<ActionResponse<WorkoutBlockItemDto>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    const { updateItemCustomSequence } = await import("@/lib/training-v2/workout-repository");
+
+    const item = await updateItemCustomSequence(ctx, input);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: item };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao atualizar sequência personalizada.",
+    };
+  }
+}

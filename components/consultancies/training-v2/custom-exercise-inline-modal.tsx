@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   SuggestiveInput,
   DEFAULT_SUGGESTED_MUSCLE_GROUPS,
   DEFAULT_SUGGESTED_EQUIPMENT,
 } from "@/components/ui/form-controls";
 import { getExerciseTaxonomyAction } from "@/app/consultoria/[slug]/exercicios/actions";
+import { detectExerciseSequenceFromText } from "@/lib/training-v2/sequence-detector";
 
 function X({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -86,6 +87,9 @@ export function CustomExerciseInlineModal({
     initialData?.isSequence || initialData?.type === "SEQUENCE" ? "SEQUENCE" : "EXERCISE"
   );
   const [exerciseName, setExerciseName] = useState(initialData?.name || "");
+  const detectedSeq = useMemo(() => {
+    return customType === "EXERCISE" ? detectExerciseSequenceFromText(exerciseName) : null;
+  }, [customType, exerciseName]);
   const [instructions, setInstructions] = useState(initialData?.instructions || initialData?.notes || "");
   const [movementsText, setMovementsText] = useState(
     initialData?.sequenceMovements ? initialData.sequenceMovements.join("\n") : ""
@@ -311,6 +315,30 @@ export function CustomExerciseInlineModal({
                   placeholder={customType === "SEQUENCE" ? "Ex: Sequência de Mobilidade Escapular, Circuito Abdominal..." : "Ex: Agachamento búlgaro com halteres"}
                   className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-[var(--foreground)] min-h-[44px]"
                 />
+
+                {/* Intelligent Sequence Detection Suggestion */}
+                {customType === "EXERCISE" && detectedSeq?.detected && detectedSeq.movements.length >= 2 && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/25 flex items-center justify-between gap-2 animate-in fade-in duration-150">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300 block">
+                        ✨ Sequência detectada ({detectedSeq.movements.length} movimentos):
+                      </span>
+                      <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium truncate block">
+                        {detectedSeq.movements.map((m) => m.normalizedName).join(" → ")}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomType("SEQUENCE");
+                        setMovementsText(detectedSeq.movements.map((m) => m.rawText).join("\n"));
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-extrabold text-[10px] shrink-0 cursor-pointer transition-all shadow-xs"
+                    >
+                      Estruturar movimentos
+                    </button>
+                  </div>
+                )}
               </div>
 
               {customType === "SEQUENCE" ? (

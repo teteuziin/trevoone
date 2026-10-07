@@ -83,9 +83,25 @@ export type DifficultyLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 // METHOD CONFIGURATION OBJECTS (BOUNDED JSON)
 // ============================================================================
 
+export type CustomSequenceMovementDto = {
+  order: number;
+  label: string;
+  exerciseId?: number | null;
+  exercisePublicId?: string | null;
+  repsText?: string | null;
+  durationText?: string | null;
+  customVideoUrl?: string | null;
+  instructionsSnapshot?: string | null;
+  muscleGroupSnapshot?: string | null;
+  equipmentSnapshot?: string | null;
+  pinnedMedia?: BlockItemMediaDto[];
+};
+
 export type CustomSequenceConfig = {
   isSequence?: boolean;
-  movements?: string[];
+  rawText?: string | null;
+  movements?: (string | CustomSequenceMovementDto)[];
+  overrideMediaUrl?: string | null;
 };
 
 export type CardioMethodConfig = {

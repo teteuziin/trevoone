@@ -55,6 +55,7 @@ import {
   type CustomExerciseFormData,
 } from "./custom-exercise-inline-modal";
 import { WorkoutPublishDialog } from "./workout-publish-dialog";
+import { SequenceConfigurationModal } from "./sequence-configuration-modal";
 import { WorkoutAssignModal } from "./workout-assign-modal";
 import { TemplateAssignModal } from "./template-assign-modal";
 import { StudentWorkoutRenderer } from "./student-workout-renderer";
@@ -235,6 +236,10 @@ export function WorkoutBuilder({
   const [activeSubBlockForPicker, setActiveSubBlockForPicker] = useState<string | null>(null);
   const [resolvingItemPublicId, setResolvingItemPublicId] = useState<string | null>(null);
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+  const [configuringSequenceItem, setConfiguringSequenceItem] = useState<{
+    item: WorkoutBlockItemDto;
+    movements: import("@/lib/training-v2/sequence-detector").DetectedMovement[];
+  } | null>(null);
   const [customModalTarget, setCustomModalTarget] = useState<{
     categoryPublicId: string;
     subBlockPublicId?: string;
@@ -1601,6 +1606,7 @@ export function WorkoutBuilder({
                       onMoveItemInCombination={handleMoveItemInCombination}
                       onRemoveItemFromCombination={handleRemoveItemFromCombination}
                       onOpenCreateCustomExercise={handleOpenCreateCustomExercise}
+                      onOpenConfigureSequence={(item, movements) => setConfiguringSequenceItem({ item, movements })}
                     />
                   </div>
                 );
@@ -1823,6 +1829,32 @@ export function WorkoutBuilder({
             setCustomModalTarget(null);
           }}
           onSave={handleSaveCustomExercise}
+        />
+      )}
+
+      {/* Sequence Configuration Modal */}
+      {configuringSequenceItem && (
+        <SequenceConfigurationModal
+          isOpen={true}
+          consultancySlug={consultancySlug}
+          item={configuringSequenceItem.item}
+          detectedMovements={configuringSequenceItem.movements}
+          onClose={() => setConfiguringSequenceItem(null)}
+          onSaved={(updatedItem) => {
+            setVersion((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                blocks: prev.blocks.map((b) => ({
+                  ...b,
+                  items: b.items.map((it) => (it.publicId === updatedItem.publicId ? updatedItem : it)),
+                })),
+              };
+            });
+            setConfiguringSequenceItem(null);
+            notify("Sequência configurada com sucesso!");
+            router.refresh();
+          }}
         />
       )}
 

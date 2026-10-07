@@ -7036,4 +7036,161 @@ export async function convertUnresolvedToCustomExercise(
   }
 }
 
+export type UpdateItemCustomSequenceInput = {
+  itemPublicId: string;
+  isSequence: boolean;
+  rawText?: string | null;
+  movements: Array<{
+    order: number;
+    label: string;
+    exerciseId?: number | null;
+    exercisePublicId?: string | null;
+    repsText?: string | null;
+    durationText?: string | null;
+    customVideoUrl?: string | null;
+    instructionsSnapshot?: string | null;
+    muscleGroupSnapshot?: string | null;
+    equipmentSnapshot?: string | null;
+  }>;
+  overrideMediaUrl?: string | null;
+};
+
+/**
+ * Updates a custom exercise item with structured sequence movements.
+ * Preserves 100% of prescription, sets, notes, cadence, and existing method config.
+ * Performs a safe merge in method_config_json.
+ */
+export async function updateItemCustomSequence(
+  ctx: TrainingAccessContext,
+  input: UpdateItemCustomSequenceInput
+): Promise<WorkoutBlockItemDto> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [iRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wbi.id, wbi.public_id, wbi.block_id, wbi.sub_block_id, wbi.combination_id,
+              wbi.exercise_id, wbi.custom_exercise_id, wbi.sort_order, wbi.exercise_name_snapshot,
+              wbi.muscle_group_snapshot, wbi.equipment_snapshot, wbi.instructions_snapshot,
+              wbi.prescription_mode, wbi.target_cadence, wbi.target_rpe, wbi.target_rir,
+              wbi.duration_unit, wbi.method_config_json, wbi.custom_video_url, wbi.notes,
+              wb.workout_version_id, wv.public_id AS version_public_id, wv.status,
+              w.consultancy_id, w.created_by_membership_id
+       FROM workout_block_items wbi
+       INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wbi.public_id = ?
+       LIMIT 1
+       FOR UPDATE;`,
+      [input.itemPublicId]
+    );
+
+    if (!iRows || iRows.length === 0) {
+      throw new TrainingAuthorizationError("Item de treino não encontrado.", "NOT_FOUND", 404);
+    }
+    const item = iRows[0];
+
+    if (Number(item.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado ao treino de outra consultoria.", "FORBIDDEN", 403);
+    }
+    const isCreator = ctx.membershipId && Number(item.created_by_membership_id) === ctx.membershipId;
+    if (!isCreator && !ctx.canManageConsultancy) {
+      throw new TrainingAuthorizationError("Apenas o autor ou administrador podem editar a sequência.", "FORBIDDEN", 403);
+    }
+    if (item.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Não é permitido alterar itens de uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    // Merge safely into method_config_json preserving all existing fields (method, cadence, dropset, etc.)
+    let existingConfig: Record<string, unknown> = {};
+    if (item.method_config_json) {
+      try {
+        existingConfig =
+          typeof item.method_config_json === "string"
+            ? JSON.parse(item.method_config_json)
+            : typeof item.method_config_json === "object" && item.method_config_json !== null
+            ? { ...(item.method_config_json as Record<string, unknown>) }
+            : {};
+      } catch {
+        existingConfig = {};
+      }
+    }
+
+    // Enrich movements with library exercise metadata if exercisePublicId is provided
+    const enrichedMovements = await Promise.all(
+      (input.movements || []).map(async (m) => {
+        let exId = m.exerciseId ?? null;
+        let muscle = m.muscleGroupSnapshot || null;
+        let equip = m.equipmentSnapshot || null;
+        let instr = m.instructionsSnapshot || null;
+
+        if (m.exercisePublicId && !exId) {
+          const [exRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT id, muscle_group_primary, equipment, instructions FROM exercises WHERE public_id = ? AND deleted_at IS NULL LIMIT 1;`,
+            [m.exercisePublicId]
+          );
+          if (exRows.length > 0) {
+            exId = Number(exRows[0].id);
+            if (!muscle && exRows[0].muscle_group_primary) muscle = String(exRows[0].muscle_group_primary);
+            if (!equip && exRows[0].equipment) equip = String(exRows[0].equipment);
+            if (!instr && exRows[0].instructions) instr = String(exRows[0].instructions);
+          }
+        }
+
+        return {
+          order: m.order,
+          label: m.label.trim(),
+          exerciseId: exId,
+          exercisePublicId: m.exercisePublicId || null,
+          repsText: m.repsText || null,
+          durationText: m.durationText || null,
+          customVideoUrl: m.customVideoUrl || null,
+          instructionsSnapshot: instr,
+          muscleGroupSnapshot: muscle,
+          equipmentSnapshot: equip,
+        };
+      })
+    );
+
+    const mergedConfig = {
+      ...existingConfig,
+      isSequence: Boolean(input.isSequence),
+      customSequence: {
+        isSequence: Boolean(input.isSequence),
+        rawText: input.rawText || item.exercise_name_snapshot,
+        movements: enrichedMovements,
+        overrideMediaUrl: input.overrideMediaUrl || null,
+      },
+    };
+
+    const configJson = JSON.stringify(mergedConfig);
+
+    await connection.execute(
+      `UPDATE workout_block_items SET method_config_json = ?, updated_at = NOW(3) WHERE id = ?;`,
+      [configJson, item.id]
+    );
+
+    await connection.commit();
+
+    // Re-read item tree snapshot
+    const updatedVersionTree = await getWorkoutVersionTree(ctx, String(item.version_public_id));
+    for (const b of updatedVersionTree?.blocks || []) {
+      const found = b.items.find((it) => it.publicId === input.itemPublicId);
+      if (found) return found;
+    }
+
+    throw new TrainingAuthorizationError("Item atualizado não encontrado na árvore.", "NOT_FOUND", 404);
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 

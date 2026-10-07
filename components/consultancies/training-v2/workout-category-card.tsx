@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import type {
   WorkoutBlockDto,
   WorkoutBlockItemDto,
@@ -15,6 +15,15 @@ import {
   formatDurationNatural,
 } from "@/lib/training-v2/reps-normalizer";
 import { BottomSheet } from "@/components/ui/design-system";
+import {
+  detectExerciseSequenceFromText,
+  type DetectedMovement,
+} from "@/lib/training-v2/sequence-detector";
+import {
+  buildSequenceMediaFromCustomItem,
+  buildSequenceMediaFromCombination,
+} from "@/lib/training-v2/sequence-media";
+import { SequenceExecutionModal } from "./sequence-execution-modal";
 
 export function parseActiveRest(title?: string | null): { isActive: boolean; activity: string } {
   if (!title) return { isActive: false, activity: "" };
@@ -251,6 +260,10 @@ export type CategoryCardProps = {
     subBlockPublicId?: string,
     convertingItemPublicId?: string,
     initialData?: { name?: string; muscleGroup?: string; equipment?: string }
+  ) => void;
+  onOpenConfigureSequence?: (
+    item: WorkoutBlockItemDto,
+    movements: DetectedMovement[]
   ) => void;
 };
 
@@ -552,6 +565,7 @@ export function WorkoutCategoryCard({
   onMoveItemInCombination,
   onRemoveItemFromCombination,
   onOpenCreateCustomExercise,
+  onOpenConfigureSequence,
 }: CategoryCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(category.title || "");
@@ -1326,6 +1340,7 @@ export function WorkoutCategoryCard({
                                   })
                                 }
                                 onOpenExecutionModal={() => setExecutionModalItem(item)}
+                                onOpenConfigureSequence={onOpenConfigureSequence}
                                 onMoveUp={handleItemMoveUp}
                                 onMoveDown={handleItemMoveDown}
                               />
@@ -1377,6 +1392,7 @@ export function WorkoutCategoryCard({
                                     }
                                   )
                                 }
+                                onOpenConfigureSequence={onOpenConfigureSequence}
                                 isSelectionMode={isCombiningThisSb}
                                 isSelected={selectedExerciseIds.includes(item.publicId)}
                                 onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
@@ -1496,6 +1512,7 @@ export function WorkoutCategoryCard({
                             setActionsSheetItem({ item, index: itemIdx, total: items.length })
                           }
                           onOpenExecutionModal={() => setExecutionModalItem(item)}
+                          onOpenConfigureSequence={onOpenConfigureSequence}
                           onMoveUp={handleItemMoveUp}
                           onMoveDown={handleItemMoveDown}
                         />
@@ -1547,6 +1564,7 @@ export function WorkoutCategoryCard({
                               }
                             )
                           }
+                          onOpenConfigureSequence={onOpenConfigureSequence}
                           isSelectionMode={combiningSubBlockId === "root"}
                           isSelected={selectedExerciseIds.includes(item.publicId)}
                           onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
@@ -1730,6 +1748,12 @@ export function WorkoutCategoryCard({
           allCategories={allCategories}
           categoryPublicId={category.publicId}
           onClose={() => setActionsSheetItem(null)}
+          onOpenConfigureSequence={onOpenConfigureSequence ? () => {
+            const it = actionsSheetItem.item;
+            const det = detectExerciseSequenceFromText(it.exerciseNameSnapshot);
+            setActionsSheetItem(null);
+            onOpenConfigureSequence(it, det.movements);
+          } : undefined}
           onOpenQuickEdit={() => {
             const it = actionsSheetItem.item;
             setActionsSheetItem(null);
@@ -1845,6 +1869,10 @@ export type LegacyCombinationCardProps = {
     combinationPublicId: string,
     itemPublicId: string
   ) => Promise<void>;
+  onOpenConfigureSequence?: (
+    item: WorkoutBlockItemDto,
+    movements: DetectedMovement[]
+  ) => void;
 };
 
 export function LegacyCombinationCard({
@@ -1874,17 +1902,20 @@ export function LegacyCombinationCard({
   onDuplicateCombination,
   onMoveItemInCombination,
   onRemoveItemFromCombination,
+  onOpenConfigureSequence,
 }: LegacyCombinationCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(combination.title || "");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditingRest, setIsEditingRest] = useState(false);
   const [restDraft, setRestDraft] = useState(combination.restAfterSeconds ?? 60);
+  const [isSeqModalOpen, setIsSeqModalOpen] = useState(false);
   const [, startTransition] = useTransition();
 
-  const items = combination.items || [];
+  const items = useMemo(() => combination.items || [], [combination.items]);
   const badgeStyle = COMBINATION_BADGE_STYLES[combination.combinationType] || COMBINATION_BADGE_STYLES.BI_SET;
   const label = COMBINATION_TYPE_LABELS[combination.combinationType] || "Combinação";
+  const combSeqExp = useMemo(() => buildSequenceMediaFromCombination(combination, items), [combination, items]);
 
   function handleSaveTitle() {
     if (!onUpdateCombination) {
@@ -1968,6 +1999,19 @@ export function LegacyCombinationCard({
 
         {/* Rest Badge & Menu */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Ver Sequência Button in Combination Header if media exists */}
+          {combSeqExp?.hasPlayableMedia && (
+            <button
+              type="button"
+              onClick={() => setIsSeqModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer min-h-[44px] sm:min-h-[32px]"
+              title="Ver sequência de execução guiada"
+            >
+              <VideoIcon className="w-3.5 h-3.5" />
+              <span>Ver sequência</span>
+            </button>
+          )}
+
           {/* Rest Badge */}
           {isEditingRest && isDraft ? (
             <div className="flex items-center gap-1">
@@ -2119,7 +2163,7 @@ export function LegacyCombinationCard({
 
       {/* Items inside Combination */}
       <div className="space-y-2">
-        {items.map((item, itemIdx) => {
+        {items.map((item: WorkoutBlockItemDto, itemIdx: number) => {
           const isExpanded = expandedExerciseId === item.publicId;
 
           return (
@@ -2157,6 +2201,7 @@ export function LegacyCombinationCard({
                 inCombination={true}
                 isFirstInComb={itemIdx === 0}
                 isLastInComb={itemIdx === items.length - 1}
+                onOpenConfigureSequence={onOpenConfigureSequence}
                 onMoveInCombination={(dir) =>
                   onMoveItemInCombination?.(combination.publicId, item.publicId, dir) || Promise.resolve()
                 }
@@ -2187,6 +2232,13 @@ export function LegacyCombinationCard({
           <span>Descanso de {combination.restAfterSeconds}s após cada rodada completa</span>
         </div>
       </div>
+
+      {/* Formal Combination Sequence Video Modal */}
+      <SequenceExecutionModal
+        isOpen={isSeqModalOpen}
+        onClose={() => setIsSeqModalOpen(false)}
+        experience={combSeqExp}
+      />
     </div>
   );
 }
@@ -2219,6 +2271,10 @@ type ExerciseRowProps = {
   onSaveQuickConfig: (config: QuickConfigInput) => Promise<void>;
   onResolve?: () => void;
   onOpenConvertCustom?: () => void;
+  onOpenConfigureSequence?: (
+    item: WorkoutBlockItemDto,
+    movements: DetectedMovement[]
+  ) => void;
   // Selection mode for combinations
   isSelectionMode?: boolean;
   isSelected?: boolean;
@@ -2255,6 +2311,7 @@ function ExerciseRow({
   onSaveQuickConfig,
   onResolve,
   onOpenConvertCustom,
+  onOpenConfigureSequence,
   isSelectionMode,
   isSelected,
   onToggleSelect,
@@ -2364,6 +2421,10 @@ function ExerciseRow({
   const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
   const isUnmatched = !item.exercisePublicId && !isCustom;
   const hasVideo = Boolean((item.customVideoUrl && item.customVideoUrl.trim().length > 0) || (item.pinnedMedia && item.pinnedMedia.length > 0));
+
+  const sequenceExp = useMemo(() => isSequence ? buildSequenceMediaFromCustomItem(item) : null, [isSequence, item]);
+  const [isSequenceExecutionOpen, setIsSequenceExecutionOpen] = useState(false);
+  const detectedSeq = useMemo(() => isSequence ? null : detectExerciseSequenceFromText(item.exerciseNameSnapshot), [isSequence, item.exerciseNameSnapshot]);
 
   return (
     <div
@@ -2500,7 +2561,20 @@ function ExerciseRow({
                   )}
                 </>
               )}
-              {hasVideo && (
+              {sequenceExp?.hasPlayableMedia ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsSequenceExecutionOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors shrink-0 cursor-pointer"
+                  title={`Ver sequência de ${item.exerciseNameSnapshot}`}
+                >
+                  <VideoIcon className="w-3.5 h-3.5" />
+                  <span>Ver sequência</span>
+                </button>
+              ) : hasVideo ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -2512,15 +2586,40 @@ function ExerciseRow({
                 >
                   <span>Ver execução →</span>
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
 
           {/* Sequence movements list */}
-          {isSequence && Array.isArray((item.methodConfig?.customSequence as { movements?: string[] })?.movements) && (((item.methodConfig?.customSequence as { movements?: string[] })?.movements?.length ?? 0) > 0) && (
+          {isSequence && Array.isArray((item.methodConfig?.customSequence as { movements?: unknown[] })?.movements) && (((item.methodConfig?.customSequence as { movements?: unknown[] })?.movements?.length ?? 0) > 0) && (
             <div className="text-[11px] text-[var(--text-secondary)] font-medium bg-[var(--surface-subtle)]/70 px-2.5 py-1 rounded-lg border border-[var(--border-subtle)] w-fit max-w-full">
               <span className="font-semibold text-purple-700 dark:text-purple-300 mr-1.5">Movimentos:</span>
-              <span>{((item.methodConfig?.customSequence as { movements: string[] }).movements).join(" • ")}</span>
+              <span>
+                {((item.methodConfig?.customSequence as { movements: unknown[] }).movements).map((m: unknown, idx: number) => {
+                  const label = typeof m === "string" ? m : (m as { label?: string })?.label || `Movimento ${idx + 1}`;
+                  const hint = typeof m === "object" && m !== null
+                    ? ((m as { repsText?: string })?.repsText || (m as { durationText?: string })?.durationText)
+                    : null;
+                  return hint ? `${label} (${hint})` : label;
+                }).join(" • ")}
+              </span>
+            </div>
+          )}
+
+          {/* Discreet prompt when sequence is detected in text but not yet structured */}
+          {isDraft && !isSequence && detectedSeq?.detected && detectedSeq.movements.length >= 2 && onOpenConfigureSequence && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 text-[11px] font-semibold w-fit">
+              <span>✨ Sequência detectada ({detectedSeq.movements.length} movimentos)</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenConfigureSequence(item, detectedSeq.movements);
+                }}
+                className="underline hover:text-purple-900 dark:hover:text-purple-100 cursor-pointer ml-1 font-bold"
+              >
+                Configurar sequência
+              </button>
             </div>
           )}
 
@@ -2994,6 +3093,13 @@ function ExerciseRow({
         customVideoUrl={item.customVideoUrl}
         instructions={item.instructionsSnapshot}
       />
+
+      {/* Sequence Execution Modal */}
+      <SequenceExecutionModal
+        isOpen={isSequenceExecutionOpen}
+        onClose={() => setIsSequenceExecutionOpen(false)}
+        experience={sequenceExp}
+      />
     </div>
   );
 }
@@ -3073,12 +3179,14 @@ export function UnifiedCombinationBlock({
   onMoveItemInCombination,
   onUngroupCombination,
 }: UnifiedCombinationBlockProps) {
-  const items = combination.items || [];
+  const items = useMemo(() => combination.items || [], [combination.items]);
   const typeLabel = COMBINATION_TYPE_LABELS[combination.combinationType] || combination.combinationType;
   const activeRest = parseActiveRest(combination.title);
   const restSec = combination.restAfterSeconds ?? 60;
   const [, startTransition] = useTransition();
   const [isCombMenuOpen, setIsCombMenuOpen] = useState(false);
+  const [isSeqModalOpen, setIsSeqModalOpen] = useState(false);
+  const combSeqExp = useMemo(() => buildSequenceMediaFromCombination(combination, items), [combination, items]);
 
   const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
@@ -3106,6 +3214,19 @@ export function UnifiedCombinationBlock({
             <span className="text-xs font-medium text-[var(--text-tertiary)] truncate max-w-xs" title={combination.title}>
               · {combination.title.replace(/•?\s*Descanso Ativo:.*$/i, "").trim()}
             </span>
+          )}
+
+          {/* Ver Sequência Button in Unified Combination Header */}
+          {combSeqExp?.hasPlayableMedia && (
+            <button
+              type="button"
+              onClick={() => setIsSeqModalOpen(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer"
+              title="Ver sequência de execução guiada"
+            >
+              <VideoIcon className="w-3 h-3" />
+              <span>Ver sequência</span>
+            </button>
           )}
         </div>
 
@@ -3201,7 +3322,7 @@ export function UnifiedCombinationBlock({
 
       {/* Internal Exercise Rows (Clean rows, NOT nested heavy cards) */}
       <div className="divide-y divide-[var(--border-subtle)]">
-        {items.map((item, idx) => {
+        {items.map((item: WorkoutBlockItemDto, idx: number) => {
           const letter = LETTERS[idx] || String.fromCharCode(65 + idx);
           const summary = getItemPrescriptionSummary(item);
 
@@ -3304,6 +3425,13 @@ export function UnifiedCombinationBlock({
           );
         })}
       </div>
+
+      {/* Formal Combination Sequence Video Modal */}
+      <SequenceExecutionModal
+        isOpen={isSeqModalOpen}
+        onClose={() => setIsSeqModalOpen(false)}
+        experience={combSeqExp}
+      />
     </div>
   );
 }
@@ -3323,6 +3451,7 @@ export function MobileExerciseCard({
   onOpenQuickEdit,
   onOpenActions,
   onOpenExecutionModal,
+  onOpenConfigureSequence,
   onMoveUp,
   onMoveDown,
 }: {
@@ -3338,11 +3467,19 @@ export function MobileExerciseCard({
   onOpenQuickEdit: () => void;
   onOpenActions: () => void;
   onOpenExecutionModal: () => void;
+  onOpenConfigureSequence?: (
+    item: WorkoutBlockItemDto,
+    movements: DetectedMovement[]
+  ) => void;
   onMoveUp: () => Promise<void>;
   onMoveDown: () => Promise<void>;
 }) {
   const [, startTransition] = useTransition();
   const summary = getItemPrescriptionSummary(item);
+  const isSequence = Boolean(item.isCustomExercise && item.methodConfig?.customSequence);
+  const sequenceExp = isSequence ? buildSequenceMediaFromCustomItem(item) : null;
+  const [isSequenceExecutionOpen, setIsSequenceExecutionOpen] = useState(false);
+  const detectedSeq = !isSequence ? detectExerciseSequenceFromText(item.exerciseNameSnapshot) : null;
   const hasMedia = !!(item.customVideoUrl || item.pinnedMedia);
 
   // If in selection mode: entire card is touch-target for selecting
@@ -3412,7 +3549,17 @@ export function MobileExerciseCard({
           )}
         </div>
 
-        {hasMedia && (
+        {sequenceExp?.hasPlayableMedia ? (
+          <button
+            type="button"
+            onClick={() => setIsSequenceExecutionOpen(true)}
+            aria-label="Ver sequência de exercícios"
+            className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-colors min-h-[44px] flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
+          >
+            <VideoIcon className="w-4 h-4" />
+            <span>Ver sequência</span>
+          </button>
+        ) : hasMedia ? (
           <button
             type="button"
             onClick={onOpenExecutionModal}
@@ -3421,13 +3568,46 @@ export function MobileExerciseCard({
           >
             <VideoIcon className="w-4 h-4" />
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Method / Observation: Subtle inline */}
       {item.notes && item.notes.trim() && (
         <div className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700/90 dark:text-amber-400/90 w-fit">
           <span>⚡ {item.notes.trim()}</span>
+        </div>
+      )}
+
+      {/* Sequence movements list */}
+      {isSequence && Array.isArray((item.methodConfig?.customSequence as { movements?: unknown[] })?.movements) && (((item.methodConfig?.customSequence as { movements?: unknown[] })?.movements?.length ?? 0) > 0) && (
+        <div className="text-[11px] text-[var(--text-secondary)] font-medium bg-[var(--surface-subtle)]/70 px-2 py-1 rounded-lg border border-[var(--border-subtle)] w-fit max-w-full">
+          <span className="font-semibold text-purple-700 dark:text-purple-300 mr-1">Movimentos:</span>
+          <span>
+            {((item.methodConfig?.customSequence as { movements: unknown[] }).movements).map((m: unknown, idx: number) => {
+              const label = typeof m === "string" ? m : (m as { label?: string })?.label || `Movimento ${idx + 1}`;
+              const hint = typeof m === "object" && m !== null
+                ? ((m as { repsText?: string })?.repsText || (m as { durationText?: string })?.durationText)
+                : null;
+              return hint ? `${label} (${hint})` : label;
+            }).join(" • ")}
+          </span>
+        </div>
+      )}
+
+      {/* Discreet prompt when sequence detected in text */}
+      {isDraft && !isSequence && detectedSeq?.detected && detectedSeq.movements.length >= 2 && onOpenConfigureSequence && (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 text-[11px] font-semibold w-fit">
+          <span>✨ Sequência ({detectedSeq.movements.length} movs)</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenConfigureSequence(item, detectedSeq.movements);
+            }}
+            className="underline hover:text-purple-900 dark:hover:text-purple-100 cursor-pointer ml-1 font-bold"
+          >
+            Configurar
+          </button>
         </div>
       )}
 
@@ -3440,6 +3620,13 @@ export function MobileExerciseCard({
       </div>
 
       {/* Mobile Actions Toolbar: Preserved 44x44 Touch Targets */}
+      {/* Sequence Execution Modal */}
+      <SequenceExecutionModal
+        isOpen={isSequenceExecutionOpen}
+        onClose={() => setIsSequenceExecutionOpen(false)}
+        experience={sequenceExp}
+      />
+
       {isDraft && (
         <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-[var(--border-subtle)]">
           {/* Quick Edit CTA */}
@@ -4075,6 +4262,7 @@ export function ExerciseActionsSheet({
   onClose,
   onOpenQuickEdit,
   onOpenExecutionModal,
+  onOpenConfigureSequence,
   onDuplicate,
   onDelete,
   onMoveUp,
@@ -4091,6 +4279,7 @@ export function ExerciseActionsSheet({
   onClose: () => void;
   onOpenQuickEdit: () => void;
   onOpenExecutionModal: () => void;
+  onOpenConfigureSequence?: () => void;
   onDuplicate: () => Promise<void>;
   onDelete: () => Promise<void>;
   onMoveUp: () => Promise<void>;
@@ -4216,6 +4405,17 @@ export function ExerciseActionsSheet({
             >
               <MoveIcon className="w-4 h-4 text-teal-600" />
               <span>Mover para Outro Treino</span>
+            </button>
+          )}
+
+          {onOpenConfigureSequence && (
+            <button
+              type="button"
+              onClick={onOpenConfigureSequence}
+              className="w-full px-4 py-3 rounded-xl hover:bg-purple-500/10 flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-purple-700 dark:text-purple-300 min-h-[48px] cursor-pointer"
+            >
+              <SparklesIcon className="w-4 h-4 text-purple-600" />
+              <span>Configurar Sequência</span>
             </button>
           )}
 

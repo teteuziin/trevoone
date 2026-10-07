@@ -7,6 +7,11 @@ import path from "node:path";
 
 const { resolveExerciseExecutionMedia } = await import("../lib/training-v2/execution-media-resolver.ts");
 const { extractItemPlayableMedia, buildSequenceMediaFromCombination } = await import("../lib/training-v2/sequence-media.ts");
+const {
+  normalizeConsultancyRole,
+  assertCanAuthorTraining,
+  TrainingAuthorizationError,
+} = await import("../lib/training-v2/access.ts");
 
 const rootDir = process.cwd();
 
@@ -622,6 +627,146 @@ runTest("DESKTOP", () => {
     categoryCardCode.includes("handleSaveAndClose"),
     "Inline expanded editor preserves desktop workflow"
   );
+});
+
+// ============================================================================
+// SECTION 5: RBAC & TENANCY AUTHORIZATION TESTS
+// ============================================================================
+
+function checkMediaUploadAuthorization(ctx, requestedScope) {
+  if (!ctx) {
+    return { status: 403, error: "Contexto de consultoria inválido ou não autorizado." };
+  }
+  if (requestedScope === "GLOBAL") {
+    if (!ctx.canManageGlobal) {
+      return { status: 403, error: "Apenas Administradores da Plataforma podem publicar mídias globais." };
+    }
+    return { status: 200, scope: "GLOBAL" };
+  } else {
+    if (!ctx.canAuthorTraining || !ctx.consultancyId) {
+      return { status: 403, error: "Acesso negado: apenas Personal Trainers ou Administradores da consultoria podem enviar mídias." };
+    }
+    return { status: 200, scope: "CONSULTANCY" };
+  }
+}
+
+function createTestContext({ roles = [], consultancyId = 1, isPlatformAdmin = false }) {
+  const normalizedRoles = Array.from(
+    new Set(
+      roles.map((r) => normalizeConsultancyRole(r)).filter(Boolean)
+    )
+  );
+  const hasRole = (role) => normalizedRoles.includes(role);
+  const canManageConsultancy = hasRole("CONSULTANCY_ADMIN");
+  const canAuthorTraining = canManageConsultancy || hasRole("PERSONAL");
+  const isStudent = hasRole("STUDENT");
+
+  return {
+    userId: 42,
+    userPublicId: "usr_42",
+    isPlatformAdmin,
+    consultancyId: consultancyId ?? null,
+    consultancyPublicId: consultancyId ? `c_${consultancyId}` : null,
+    consultancySlug: consultancyId ? `tenant-${consultancyId}` : null,
+    membershipId: consultancyId ? 100 : null,
+    membershipPublicId: consultancyId ? `mem_100` : null,
+    roles: normalizedRoles,
+    hasRole,
+    canAuthorTraining,
+    canManageConsultancy,
+    canManageGlobal: isPlatformAdmin,
+    isStudent,
+  };
+}
+
+runTest("PERSONAL CAN UPLOAD ITEM VIDEO", () => {
+  for (const roleName of ["PERSONAL", "PERSONAL_TRAINER", "TRAINER", "PROFESSIONAL"]) {
+    const ctx = createTestContext({ roles: [roleName], consultancyId: 10 });
+    assert.equal(ctx.canAuthorTraining, true, `${roleName} must have canAuthorTraining`);
+    assert.doesNotThrow(() => assertCanAuthorTraining(ctx));
+
+    const authRes = checkMediaUploadAuthorization(ctx, "CONSULTANCY");
+    assert.equal(authRes.status, 200);
+    assert.equal(authRes.scope, "CONSULTANCY");
+  }
+});
+
+runTest("ADMIN CAN UPLOAD ITEM VIDEO", () => {
+  for (const roleName of ["CONSULTANCY_ADMIN", "ADMIN", "OWNER"]) {
+    const ctx = createTestContext({ roles: [roleName], consultancyId: 10 });
+    assert.equal(ctx.canAuthorTraining, true, `${roleName} must have canAuthorTraining`);
+    assert.equal(ctx.canManageConsultancy, true);
+    assert.doesNotThrow(() => assertCanAuthorTraining(ctx));
+
+    const authRes = checkMediaUploadAuthorization(ctx, "CONSULTANCY");
+    assert.equal(authRes.status, 200);
+    assert.equal(authRes.scope, "CONSULTANCY");
+  }
+});
+
+runTest("STUDENT DENIED", () => {
+  for (const roleName of ["STUDENT", "ALUNO"]) {
+    const ctx = createTestContext({ roles: [roleName], consultancyId: 10 });
+    assert.equal(ctx.canAuthorTraining, false);
+    assert.throws(() => assertCanAuthorTraining(ctx), TrainingAuthorizationError);
+
+    const authRes = checkMediaUploadAuthorization(ctx, "CONSULTANCY");
+    assert.equal(authRes.status, 403);
+    assert.ok(authRes.error.includes("apenas Personal Trainers ou Administradores"));
+  }
+});
+
+runTest("NUTRITIONIST-ONLY DENIED", () => {
+  const ctx = createTestContext({ roles: ["NUTRITIONIST"], consultancyId: 10 });
+  assert.equal(ctx.canAuthorTraining, false);
+  assert.throws(() => assertCanAuthorTraining(ctx), TrainingAuthorizationError);
+
+  const authRes = checkMediaUploadAuthorization(ctx, "CONSULTANCY");
+  assert.equal(authRes.status, 403);
+  assert.ok(authRes.error.includes("apenas Personal Trainers ou Administradores"));
+});
+
+runTest("MULTI-ROLE PERSONAL", () => {
+  const ctx = createTestContext({ roles: ["STUDENT", "PERSONAL_TRAINER"], consultancyId: 10 });
+  assert.equal(ctx.canAuthorTraining, true);
+  assert.equal(ctx.isStudent, true);
+  assert.doesNotThrow(() => assertCanAuthorTraining(ctx));
+
+  const authRes = checkMediaUploadAuthorization(ctx, "CONSULTANCY");
+  assert.equal(authRes.status, 200);
+});
+
+runTest("WRONG TENANT DENIED", () => {
+  const ctxNoTenancy = createTestContext({ roles: ["PERSONAL"], consultancyId: null });
+  assert.throws(() => assertCanAuthorTraining(ctxNoTenancy), TrainingAuthorizationError);
+
+  const authResNoTenant = checkMediaUploadAuthorization(ctxNoTenancy, "CONSULTANCY");
+  assert.equal(authResNoTenant.status, 403);
+
+  const authResNull = checkMediaUploadAuthorization(null, "CONSULTANCY");
+  assert.equal(authResNull.status, 403);
+});
+
+runTest("ITEM OVERRIDE DOES NOT REQUIRE LIBRARY ADMIN", () => {
+  const ctx = createTestContext({ roles: ["PERSONAL"], consultancyId: 10, isPlatformAdmin: false });
+  assert.equal(ctx.canManageGlobal, false);
+  assert.equal(ctx.canManageConsultancy, false);
+  assert.equal(ctx.canAuthorTraining, true);
+
+  const authRes = checkMediaUploadAuthorization(ctx, "CONSULTANCY");
+  assert.equal(authRes.status, 200);
+});
+
+runTest("LIBRARY PERMISSION PRESERVED", () => {
+  const ctxCoach = createTestContext({ roles: ["PERSONAL"], consultancyId: 10, isPlatformAdmin: false });
+  const coachGlobalRes = checkMediaUploadAuthorization(ctxCoach, "GLOBAL");
+  assert.equal(coachGlobalRes.status, 403);
+  assert.ok(coachGlobalRes.error.includes("Apenas Administradores da Plataforma podem publicar mídias globais"));
+
+  const ctxPlatformAdmin = createTestContext({ roles: [], consultancyId: null, isPlatformAdmin: true });
+  const adminGlobalRes = checkMediaUploadAuthorization(ctxPlatformAdmin, "GLOBAL");
+  assert.equal(adminGlobalRes.status, 200);
+  assert.equal(adminGlobalRes.scope, "GLOBAL");
 });
 
 console.log("==================================================");

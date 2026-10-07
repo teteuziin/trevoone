@@ -7,6 +7,8 @@ import type { RowDataPacket } from "mysql2/promise";
 import { getDbConnection } from "../db/mysql";
 import { getCurrentSession } from "../auth/session";
 import { getPlatformAdminAccess } from "../platform-admin/access";
+import { cookies } from "next/headers";
+import { VIEW_MODE_COOKIE_NAME } from "../consultancies/view-mode";
 import type { ConsultancyRole } from "../consultancies/context";
 
 export type TrainingAccessContext = {
@@ -38,6 +40,37 @@ export class TrainingAuthorizationError extends Error {
   }
 }
 
+
+export function normalizeConsultancyRole(rawRole: unknown): ConsultancyRole | null {
+  if (!rawRole || typeof rawRole !== "string") return null;
+  const clean = rawRole.trim().toUpperCase();
+  if (
+    clean === "PERSONAL" ||
+    clean === "PERSONAL_TRAINER" ||
+    clean === "TRAINER" ||
+    clean === "PROFESSIONAL"
+  ) {
+    return "PERSONAL";
+  }
+  if (
+    clean === "CONSULTANCY_ADMIN" ||
+    clean === "ADMIN" ||
+    clean === "OWNER"
+  ) {
+    return "CONSULTANCY_ADMIN";
+  }
+  if (clean === "NUTRITIONIST") {
+    return "NUTRITIONIST";
+  }
+  if (clean === "STUDENT" || clean === "ALUNO") {
+    return "STUDENT";
+  }
+  if (clean === "INFLUENCER" || clean === "VIP") {
+    return "INFLUENCER";
+  }
+  return null;
+}
+
 /**
  * Resolves trusted Training V2 access context from the authenticated session
  * and an optional consultancy identifier (slug or public_id).
@@ -52,31 +85,81 @@ export async function resolveTrainingAccessContext(
 
   const { isPlatformAdmin } = await getPlatformAdminAccess(session.userId);
 
-  if (!consultancyIdentifier || !consultancyIdentifier.trim()) {
-    // Global context without a specific consultancy active
-    return {
-      userId: session.userId,
-      userPublicId: session.userPublicId,
-      isPlatformAdmin,
-      consultancyId: null,
-      consultancyPublicId: null,
-      consultancySlug: null,
-      membershipId: null,
-      membershipPublicId: null,
-      roles: [],
-      hasRole: () => false,
-      canAuthorTraining: false,
-      canManageConsultancy: false,
-      canManageGlobal: isPlatformAdmin,
-      isStudent: false,
-    };
-  }
+  let targetIdentifier = consultancyIdentifier?.trim() || null;
 
-  const normalizedIdentifier = consultancyIdentifier.trim();
+  // 1. Fallback: resolve from active view mode cookie if identifier not explicitly provided
+  if (!targetIdentifier) {
+    try {
+      const cookieStore = await cookies();
+      const viewModeCookie = cookieStore.get(VIEW_MODE_COOKIE_NAME)?.value;
+      if (viewModeCookie && viewModeCookie.includes(":")) {
+        const [cookieSlug] = viewModeCookie.split(":");
+        if (cookieSlug && cookieSlug.trim()) {
+          targetIdentifier = cookieSlug.trim();
+        }
+      }
+    } catch {
+      // Cookies not available outside request context
+    }
+  }
 
   let connection;
   try {
     connection = await getDbConnection();
+
+    // 2. Fallback: inspect user's active consultancy memberships if identifier still unresolved
+    if (!targetIdentifier) {
+      const [userConsultancies] = await connection.execute<RowDataPacket[]>(
+        `SELECT DISTINCT
+          c.id AS consultancy_id,
+          c.slug AS consultancy_slug,
+          c.public_id AS consultancy_public_id,
+          cmr.role
+        FROM consultancies c
+        INNER JOIN consultancy_members cm ON cm.consultancy_id = c.id
+        LEFT JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+        WHERE cm.user_id = ?
+          AND cm.status = 'ACTIVE'
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL;`,
+        [session.userId]
+      );
+
+      if (Array.isArray(userConsultancies) && userConsultancies.length > 0) {
+        // Prioritize consultancy where user has training authoring role (PERSONAL or ADMIN)
+        const professionalRow = userConsultancies.find((r) => {
+          const normalized = normalizeConsultancyRole(r.role);
+          return normalized === "PERSONAL" || normalized === "CONSULTANCY_ADMIN";
+        });
+
+        if (professionalRow?.consultancy_slug) {
+          targetIdentifier = String(professionalRow.consultancy_slug);
+        } else if (userConsultancies[0]?.consultancy_slug) {
+          targetIdentifier = String(userConsultancies[0].consultancy_slug);
+        }
+      }
+    }
+
+    if (!targetIdentifier) {
+      // Global context without a specific consultancy active
+      return {
+        userId: session.userId,
+        userPublicId: session.userPublicId,
+        isPlatformAdmin,
+        consultancyId: null,
+        consultancyPublicId: null,
+        consultancySlug: null,
+        membershipId: null,
+        membershipPublicId: null,
+        roles: [],
+        hasRole: () => false,
+        canAuthorTraining: false,
+        canManageConsultancy: false,
+        canManageGlobal: isPlatformAdmin,
+        isStudent: false,
+      };
+    }
+
     const [rows] = await connection.execute<RowDataPacket[]>(
       `SELECT
         c.id AS consultancy_id,
@@ -93,7 +176,7 @@ export async function resolveTrainingAccessContext(
         AND cm.status = 'ACTIVE'
         AND c.status = 'ACTIVE'
         AND c.deleted_at IS NULL;`,
-      [normalizedIdentifier, normalizedIdentifier, session.userId]
+      [targetIdentifier, targetIdentifier, session.userId]
     );
 
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -121,9 +204,13 @@ export async function resolveTrainingAccessContext(
     }
 
     const first = rows[0];
-    const roles: ConsultancyRole[] = rows
-      .map((r) => r.role as ConsultancyRole)
-      .filter((r): r is ConsultancyRole => Boolean(r));
+    const roles: ConsultancyRole[] = Array.from(
+      new Set(
+        rows
+          .map((r) => normalizeConsultancyRole(r.role))
+          .filter((r): r is ConsultancyRole => Boolean(r))
+      )
+    );
 
     const hasRole = (role: ConsultancyRole) => roles.includes(role);
     const canManageConsultancy = hasRole("CONSULTANCY_ADMIN");

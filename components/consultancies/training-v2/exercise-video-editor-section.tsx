@@ -75,6 +75,7 @@ export interface ExerciseVideoEditorSectionProps {
   canSaveToLibrary?: boolean;
   onVideoChange: (newVideoUrl: string | null, saveToLibrary?: boolean) => void;
   disabled?: boolean;
+  consultancySlug?: string;
 }
 
 export function ExerciseVideoEditorSection({
@@ -84,6 +85,7 @@ export function ExerciseVideoEditorSection({
   canSaveToLibrary = false,
   onVideoChange,
   disabled = false,
+  consultancySlug,
 }: ExerciseVideoEditorSectionProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
@@ -145,13 +147,27 @@ export function ExerciseVideoEditorSection({
         // frame capture failure is non-blocking
       }
 
+      // Determine effective consultancy slug for tenancy context
+      let effectiveConsultancy = consultancySlug?.trim() || "";
+      if (!effectiveConsultancy && typeof window !== "undefined") {
+        const match = window.location.pathname.match(/\/consultoria\/([^/?#]+)/);
+        if (match && match[1]) {
+          effectiveConsultancy = decodeURIComponent(match[1]).trim();
+        }
+      }
+
       // Upload with incremental progress via XMLHttpRequest
-      const uploadUrl = `/api/training-v2/media?scope=CONSULTANCY&visibility=CONSULTANCY&mediaType=VIDEO`;
+      const uploadUrl = `/api/training-v2/media?scope=CONSULTANCY&visibility=CONSULTANCY&mediaType=VIDEO${
+        effectiveConsultancy ? `&consultancy=${encodeURIComponent(effectiveConsultancy)}` : ""
+      }`;
 
       const uploadedPublicId = await new Promise<string>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", uploadUrl, true);
         xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
+        if (effectiveConsultancy) {
+          xhr.setRequestHeader("x-consultancy-slug", effectiveConsultancy);
+        }
 
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {

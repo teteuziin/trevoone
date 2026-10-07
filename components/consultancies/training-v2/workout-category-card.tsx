@@ -206,6 +206,7 @@ export type CategoryCardProps = {
   totalCategories: number;
   allCategories: { publicId: string; title: string }[];
   isDraft: boolean;
+  consultancySlug?: string;
   onOpenExercisePicker: (categoryPublicId: string, subBlockPublicId?: string) => void;
   onRenameCategory: (categoryPublicId: string, newTitle: string) => Promise<void>;
   onDuplicateCategory: (categoryPublicId: string) => Promise<void>;
@@ -539,6 +540,7 @@ export function WorkoutCategoryCard({
   totalCategories,
   allCategories,
   isDraft,
+  consultancySlug,
   onOpenExercisePicker,
   onRenameCategory,
   onDuplicateCategory,
@@ -1356,6 +1358,7 @@ export function WorkoutCategoryCard({
                                 isDraft={isDraft}
                                 categoryPublicId={category.publicId}
                                 allCategories={allCategories}
+                                consultancySlug={consultancySlug}
                                 onToggleExpand={() =>
                                   setExpandedExerciseId(isExpanded ? null : item.publicId)
                                 }
@@ -1528,6 +1531,7 @@ export function WorkoutCategoryCard({
                           isDraft={isDraft}
                           categoryPublicId={category.publicId}
                           allCategories={allCategories}
+                          consultancySlug={consultancySlug}
                           onToggleExpand={() =>
                             setExpandedExerciseId(isExpanded ? null : item.publicId)
                           }
@@ -1690,6 +1694,7 @@ export function WorkoutCategoryCard({
         <QuickEditExerciseSheet
           isOpen={true}
           item={quickEditingItem}
+          consultancySlug={consultancySlug}
           onClose={() => setQuickEditingItem(null)}
           onSave={async (config) => {
             await onUpdateExerciseQuickConfig(quickEditingItem.publicId, config);
@@ -2286,6 +2291,7 @@ type ExerciseRowProps = {
   onRemoveFromCombination?: () => Promise<void>;
   isFirstInComb?: boolean;
   isLastInComb?: boolean;
+  consultancySlug?: string;
 };
 
 function ExerciseRow({
@@ -2296,6 +2302,7 @@ function ExerciseRow({
   isDraft,
   categoryPublicId,
   allCategories,
+  consultancySlug,
   onToggleExpand,
   onCloseExpand,
   isMenuOpen,
@@ -3019,6 +3026,7 @@ function ExerciseRow({
             fallbackMedia={item.pinnedMedia}
             isCustomExercise={isCustom}
             canSaveToLibrary={Boolean(!isCustom && item.exercisePublicId)}
+            consultancySlug={consultancySlug}
             onVideoChange={(newUrl, toLibrary) => {
               setVideoUrl(newUrl);
               if (toLibrary !== undefined) setSaveToLibrary(toLibrary);
@@ -3699,11 +3707,13 @@ export function QuickEditExerciseSheet({
   item,
   onClose,
   onSave,
+  consultancySlug,
 }: {
   isOpen: boolean;
   item: WorkoutBlockItemDto;
   onClose: () => void;
   onSave: (config: QuickConfigInput) => Promise<void>;
+  consultancySlug?: string;
 }) {
   const summary = getItemPrescriptionSummary(item);
   const [sets, setSets] = useState<number>(summary.seriesCount);
@@ -3936,6 +3946,7 @@ export function QuickEditExerciseSheet({
           fallbackMedia={item.pinnedMedia}
           isCustomExercise={Boolean(item.isCustomExercise || item.customExercisePublicId)}
           canSaveToLibrary={Boolean(!item.isCustomExercise && item.exercisePublicId)}
+          consultancySlug={consultancySlug}
           onVideoChange={(newUrl, toLibrary) => {
             setVideoUrl(newUrl);
             if (toLibrary !== undefined) setSaveToLibrary(toLibrary);

@@ -1580,6 +1580,7 @@ export function WorkoutBuilder({
                       totalCategories={categories.length}
                       allCategories={allCategoriesSimple}
                       isDraft={isDraft}
+                      consultancySlug={consultancySlug}
                       onOpenExercisePicker={(catId, subBlockId) => {
                         setActiveCategoryForPicker(catId);
                         setActiveSubBlockForPicker(subBlockId || null);

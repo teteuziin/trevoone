@@ -48,7 +48,33 @@ export async function POST(request: Request) {
   const requestedScope = searchParams.get("scope")?.toUpperCase() || null;
   const requestedVisibility = searchParams.get("visibility")?.toUpperCase() || null;
   const requestedMediaType = searchParams.get("mediaType")?.toUpperCase() || null;
-  const consultancyParam = searchParams.get("consultancy") || null;
+  // Resolve consultancy identifier with robust fallbacks:
+  // 1. Query parameter: ?consultancy=slug-or-public-id
+  // 2. Custom header: x-consultancy-slug or x-consultancy
+  // 3. Referer URL pathname: /consultoria/:slug
+  let consultancyParam = searchParams.get("consultancy")?.trim() || null;
+
+  if (!consultancyParam) {
+    const headerSlug = request.headers.get("x-consultancy-slug") || request.headers.get("x-consultancy");
+    if (headerSlug && headerSlug.trim()) {
+      consultancyParam = headerSlug.trim();
+    }
+  }
+
+  if (!consultancyParam) {
+    const referer = request.headers.get("referer");
+    if (referer) {
+      try {
+        const refUrl = new URL(referer);
+        const match = refUrl.pathname.match(/\/consultoria\/([^/?#]+)/);
+        if (match && match[1]) {
+          consultancyParam = decodeURIComponent(match[1]).trim();
+        }
+      } catch {
+        // ignore invalid referer URL
+      }
+    }
+  }
 
   // 4. Resolve trusted Training Access Context
   const ctx = await resolveTrainingAccessContext(consultancyParam);

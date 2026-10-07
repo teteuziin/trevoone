@@ -334,34 +334,43 @@ export async function authorizeMediaAssetAccess(
         const isConsultancyCoach = ctx.consultancyId && Number(a.consultancy_id) === ctx.consultancyId && ctx.canAuthorTraining;
 
         if (isStudentOwner || isConsultancyCoach) {
-          // Check if this exact media_asset_id is pinned to any item in this assigned workout version
+          // Check if this exact media_asset_id is pinned or referenced via custom_video_url in this assigned workout version
           const [pinnedRows] = await connection.execute<RowDataPacket[]>(
-            `SELECT wbim.id
-             FROM workout_block_item_media wbim
-             INNER JOIN workout_block_items wbi ON wbi.id = wbim.block_item_id
+            `SELECT wbi.id
+             FROM workout_block_items wbi
              INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
-             WHERE wb.workout_version_id = ? AND wbim.media_asset_id = ?
+             LEFT JOIN workout_block_item_media wbim ON wbim.block_item_id = wbi.id AND wbim.media_asset_id = ?
+             WHERE wb.workout_version_id = ?
+               AND (
+                 wbim.id IS NOT NULL
+                 OR wbi.custom_video_url LIKE CONCAT('%', ?, '%')
+               )
              LIMIT 1;`,
-            [a.workout_version_id, r.id]
+            [r.id, a.workout_version_id, r.public_id]
           );
 
           if (Array.isArray(pinnedRows) && pinnedRows.length > 0) {
-            // Access granted through immutable assignment pin!
+            // Access granted through immutable assignment pin or item video override!
             return { authorized: true, mediaAsset, storageKey };
           }
         }
       }
     } else if (ctx.isStudent && ctx.membershipId) {
-      // Automatic student grant: check if asset is pinned to ANY active/assigned workout version for this student
+      // Automatic student grant: check if asset is pinned or referenced via custom_video_url in ANY active/assigned workout version for this student
       const [anyPinnedRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT wbim.id
-         FROM workout_block_item_media wbim
-         INNER JOIN workout_block_items wbi ON wbi.id = wbim.block_item_id
+        `SELECT wbi.id
+         FROM workout_block_items wbi
          INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
          INNER JOIN workout_assignments wa ON wa.workout_version_id = wb.workout_version_id
-         WHERE wa.student_membership_id = ? AND wbim.media_asset_id = ? AND wa.deleted_at IS NULL
+         LEFT JOIN workout_block_item_media wbim ON wbim.block_item_id = wbi.id AND wbim.media_asset_id = ?
+         WHERE wa.student_membership_id = ?
+           AND wa.deleted_at IS NULL
+           AND (
+             wbim.id IS NOT NULL
+             OR wbi.custom_video_url LIKE CONCAT('%', ?, '%')
+           )
          LIMIT 1;`,
-        [ctx.membershipId, r.id]
+        [r.id, ctx.membershipId, r.public_id]
       );
 
       if (Array.isArray(anyPinnedRows) && anyPinnedRows.length > 0) {

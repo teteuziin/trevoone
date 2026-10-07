@@ -184,6 +184,8 @@ export function StudentRuntimeFocusedView({
   const [draftInputs, setDraftInputs] = useState<Record<string, { reps?: number; loadKg?: string }>>({});
   const [isExecutionSheetOpen, setIsExecutionSheetOpen] = useState(false);
   const [isSequenceModalOpen, setIsSequenceModalOpen] = useState(false);
+  const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
+  const [failedImgUrl, setFailedImgUrl] = useState<string | null>(null);
 
   const currentDraft = currentSet ? draftInputs[currentSet.publicId] : undefined;
   const reps = currentDraft?.reps ?? currentSet?.prescribedReps ?? 10;
@@ -360,6 +362,8 @@ export function StudentRuntimeFocusedView({
   const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
   const resolvedMedia = resolveExerciseExecutionMedia({ item });
   const hasVideo = resolvedMedia.hasMedia;
+  const isVideoFailed = Boolean(resolvedMedia.url && failedVideoUrl === resolvedMedia.url);
+  const isImgFailed = Boolean(resolvedMedia.url && failedImgUrl === resolvedMedia.url);
 
   const sequenceExperience = (() => {
     if (isSequence) {
@@ -715,21 +719,50 @@ export function StudentRuntimeFocusedView({
           {/* Video / Image Execution Media Section */}
           {resolvedMedia.hasMedia && resolvedMedia.url && (
             <div className="rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
-              {resolvedMedia.isVideo ? (
-                <video
-                  src={resolvedMedia.url}
-                  poster={resolvedMedia.thumbnailUrl || undefined}
-                  controls
-                  playsInline
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <img
-                  src={resolvedMedia.url}
-                  alt={item.exerciseNameSnapshot}
-                  className="w-full h-full object-contain"
-                />
-              )}
+              {(() => {
+                const isExplicitGif = resolvedMedia.isGif || resolvedMedia.url.toLowerCase().endsWith(".gif") || resolvedMedia.url.toLowerCase().includes(".gif");
+                const hasFailedBoth = (isExplicitGif && isImgFailed) || (isVideoFailed && isImgFailed);
+
+                if (hasFailedBoth) {
+                  return (
+                    <div className="p-4 text-center space-y-2 text-white">
+                      <span className="text-2xl block">⚠️</span>
+                      <p className="text-xs font-semibold text-zinc-200">Não foi possível reproduzir este vídeo.</p>
+                      <button
+                        type="button"
+                        onClick={() => { setFailedVideoUrl(null); setFailedImgUrl(null); }}
+                        className="text-[11px] px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition cursor-pointer"
+                      >
+                        Tentar novamente
+                      </button>
+                    </div>
+                  );
+                }
+
+                if (isExplicitGif || isVideoFailed || !resolvedMedia.isVideo) {
+                  return (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={resolvedMedia.url}
+                      alt={item.exerciseNameSnapshot}
+                      onError={() => setFailedImgUrl(resolvedMedia.url)}
+                      className="w-full h-full object-contain"
+                    />
+                  );
+                }
+
+                return (
+                  <video
+                    src={resolvedMedia.url}
+                    poster={resolvedMedia.thumbnailUrl || undefined}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    onError={() => setFailedVideoUrl(resolvedMedia.url)}
+                    className="w-full h-full object-contain"
+                  />
+                );
+              })()}
             </div>
           )}
 

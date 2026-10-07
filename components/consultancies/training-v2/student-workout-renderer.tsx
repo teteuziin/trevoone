@@ -1798,6 +1798,8 @@ function ItemCard({
   ) || [];
   const hasStartedSets = itemSets.some((s) => s.completedAt !== null);
   const [showMedia, setShowMedia] = useState(false);
+  const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
+  const [failedImgUrl, setFailedImgUrl] = useState<string | null>(null);
   const pinnedMedia = (substitution?.pinnedMedia && substitution.pinnedMedia.length > 0)
     ? substitution.pinnedMedia
     : (item.pinnedMedia || []);
@@ -1805,6 +1807,8 @@ function ItemCard({
     item: { pinnedMedia, customVideoUrl: item.customVideoUrl },
   });
   const hasMedia = resolvedMedia.hasMedia;
+  const isVideoFailed = Boolean(resolvedMedia.url && failedVideoUrl === resolvedMedia.url);
+  const isImgFailed = Boolean(resolvedMedia.url && failedImgUrl === resolvedMedia.url);
 
   return (
     <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-subtle)]/50 border border-[var(--border-subtle)] space-y-4">
@@ -1916,29 +1920,52 @@ function ItemCard({
       {showMedia && hasMedia && resolvedMedia.url && (
         <div className="space-y-2">
           <div className="rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-center p-1 sm:p-2 shadow-xs">
-            {resolvedMedia.isVideo ? (
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                controls
-                poster={resolvedMedia.thumbnailUrl || undefined}
-                preload="metadata"
-                src={resolvedMedia.url}
-                className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block bg-black"
-              />
-            ) : (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={resolvedMedia.url}
-                alt={item.exerciseNameSnapshot}
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = "none";
-                }}
-                className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block"
-              />
-            )}
+            {(() => {
+              const isExplicitGif = resolvedMedia.isGif || resolvedMedia.url.toLowerCase().endsWith(".gif") || resolvedMedia.url.toLowerCase().includes(".gif");
+              const hasFailedBoth = (isExplicitGif && isImgFailed) || (isVideoFailed && isImgFailed);
+
+              if (hasFailedBoth) {
+                return (
+                  <div className="p-4 text-center space-y-2 text-[var(--foreground)]">
+                    <p className="text-xs font-semibold">Não foi possível reproduzir este vídeo.</p>
+                    <button
+                      type="button"
+                      onClick={() => { setFailedVideoUrl(null); setFailedImgUrl(null); }}
+                      className="text-xs px-3 py-1 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] font-medium transition cursor-pointer"
+                    >
+                      Tentar novamente
+                    </button>
+                  </div>
+                );
+              }
+
+              if (isExplicitGif || isVideoFailed || !resolvedMedia.isVideo) {
+                return (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={resolvedMedia.url}
+                    alt={item.exerciseNameSnapshot}
+                    onError={() => setFailedImgUrl(resolvedMedia.url)}
+                    className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block"
+                  />
+                );
+              }
+
+              return (
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  controls
+                  poster={resolvedMedia.thumbnailUrl || undefined}
+                  preload="metadata"
+                  src={resolvedMedia.url}
+                  onError={() => setFailedVideoUrl(resolvedMedia.url)}
+                  className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block bg-black"
+                />
+              );
+            })()}
           </div>
         </div>
       )}

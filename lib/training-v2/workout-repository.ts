@@ -411,6 +411,34 @@ export async function getWorkoutVersionTree(
       }
     }
 
+    // Query media assets for any custom_video_url to format accurate extension
+    const customMediaMimeMap = new Map<string, string>();
+    const customMediaUuids = Array.from(
+      new Set(
+        iRows
+          .map((i) => {
+            const val = i.custom_video_url ? String(i.custom_video_url) : "";
+            const match = val.match(/\/api\/training-v2\/media\/([0-9a-fA-F-]+)/);
+            return match ? match[1] : null;
+          })
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+
+    if (customMediaUuids.length > 0) {
+      const [customMediaRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT public_id, mime_type
+         FROM media_assets
+         WHERE public_id IN (${customMediaUuids.map(() => "?").join(",")}) AND deleted_at IS NULL;`,
+        customMediaUuids
+      );
+      if (Array.isArray(customMediaRows)) {
+        for (const row of customMediaRows) {
+          customMediaMimeMap.set(String(row.public_id), String(row.mime_type));
+        }
+      }
+    }
+
     // Assemble the tree
     const blocks: WorkoutBlockDto[] = bRows.map((b) => {
       const blockItems = iRows.filter((i) => i.block_id === b.id);
@@ -489,7 +517,21 @@ export async function getWorkoutVersionTree(
               ? JSON.parse(item.method_config_json)
               : item.method_config_json
             : null,
-          customVideoUrl: item.custom_video_url ? String(item.custom_video_url) : null,
+          customVideoUrl: (() => {
+            if (!item.custom_video_url) return null;
+            const raw = String(item.custom_video_url);
+            const match = raw.match(/\/api\/training-v2\/media\/([0-9a-fA-F-]+)/);
+            if (match && match[1]) {
+              const mime = customMediaMimeMap.get(match[1]);
+              if (mime === "image/gif" && !raw.toLowerCase().endsWith(".gif")) {
+                return `${raw}.gif`;
+              }
+              if (mime === "video/mp4" && !raw.toLowerCase().endsWith(".mp4")) {
+                return `${raw}.mp4`;
+              }
+            }
+            return raw;
+          })(),
           notes: item.notes ? String(item.notes) : null,
           pinnedMedia,
           sets: itemSets,
@@ -4810,7 +4852,7 @@ export async function updateItemQuickConfigInDraft(
       if (exRows && exRows.length > 0) {
         const ex = exRows[0];
         if (ex.scope === "CONSULTANCY" && Number(ex.consultancy_id) === ctx.consultancyId) {
-          const match = input.customVideoUrl.match(/\/api\/training-v2\/media\/([a-zA-Z0-9_-]+)/);
+          const match = input.customVideoUrl.match(/\/api\/training-v2\/media\/([a-zA-Z0-9_-]+)(?:\.[a-zA-Z0-9]+)?/);
           if (match) {
             const mediaPublicId = match[1];
             const [maRows] = await connection.execute<RowDataPacket[]>(

@@ -94,6 +94,8 @@ export function ExerciseVideoEditorSection({
   const [isUrlInputOpen, setIsUrlInputOpen] = useState(false);
   const [customUrlDraft, setCustomUrlDraft] = useState("");
   const [saveToLibrary, setSaveToLibrary] = useState(false);
+  const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
+  const [failedImgUrl, setFailedImgUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +109,9 @@ export function ExerciseVideoEditorSection({
   const hasItemOverride = Boolean(currentVideoUrl && currentVideoUrl.trim().length > 0);
   const activeVideoUrl = hasItemOverride ? currentVideoUrl!.trim() : (fallbackResolved.hasMedia ? fallbackResolved.url : null);
   const isFallbackActive = !hasItemOverride && fallbackResolved.hasMedia;
+
+  const isVideoFailed = Boolean(activeVideoUrl && failedVideoUrl === activeVideoUrl);
+  const isImgFailed = Boolean(activeVideoUrl && failedImgUrl === activeVideoUrl);
 
   // Handle file selection and upload
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -167,7 +172,7 @@ export function ExerciseVideoEditorSection({
         effectiveConsultancy
       )}`;
 
-      const uploadedPublicId = await new Promise<string>((resolve, reject) => {
+      const uploadedAsset = await new Promise<{ publicId: string; mimeType?: string }>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", uploadUrl, true);
         xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
@@ -188,7 +193,7 @@ export function ExerciseVideoEditorSection({
             try {
               const res = JSON.parse(xhr.responseText);
               if (res.publicId) {
-                resolve(res.publicId);
+                resolve({ publicId: res.publicId, mimeType: res.mimeType || file.type });
               } else {
                 reject(new Error("Resposta de upload inválida."));
               }
@@ -214,7 +219,9 @@ export function ExerciseVideoEditorSection({
         xhr.send(file);
       });
 
-      const newAssetUrl = `/api/training-v2/media/${uploadedPublicId}`;
+      const isAssetGif = uploadedAsset.mimeType === "image/gif" || file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+      const ext = isAssetGif ? ".gif" : ".mp4";
+      const newAssetUrl = `/api/training-v2/media/${uploadedAsset.publicId}${ext}`;
       setStatusMessage("✓ Vídeo pronto");
       setUploadPercent(null);
 
@@ -304,22 +311,49 @@ export function ExerciseVideoEditorSection({
       {activeVideoUrl ? (
         <div className="space-y-2.5 w-full max-w-full min-w-0">
           <div className="rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center relative border border-[var(--border-subtle)] w-full max-w-full min-w-0 shadow-2xs">
-            {activeVideoUrl.toLowerCase().endsWith(".gif") ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={activeVideoUrl}
-                alt="Demonstração"
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <video
-                src={activeVideoUrl}
-                controls
-                playsInline
-                preload="metadata"
-                className="w-full h-full object-contain"
-              />
-            )}
+            {(() => {
+              const isExplicitGif = activeVideoUrl.toLowerCase().endsWith(".gif") || activeVideoUrl.toLowerCase().includes(".gif");
+              const hasFailedBoth = (isExplicitGif && isImgFailed) || (isVideoFailed && isImgFailed);
+
+              if (hasFailedBoth) {
+                return (
+                  <div className="p-4 text-center space-y-2 text-white">
+                    <AlertCircleIcon className="w-6 h-6 text-amber-400 mx-auto" />
+                    <p className="text-xs font-semibold text-zinc-200">Não foi possível reproduzir este vídeo.</p>
+                    <button
+                      type="button"
+                      onClick={() => { setFailedVideoUrl(null); setFailedImgUrl(null); }}
+                      className="text-[11px] px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition cursor-pointer"
+                    >
+                      Tentar novamente
+                    </button>
+                  </div>
+                );
+              }
+
+              if (isExplicitGif || isVideoFailed) {
+                return (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={activeVideoUrl}
+                    alt="Demonstração"
+                    onError={() => setFailedImgUrl(activeVideoUrl)}
+                    className="w-full h-full object-contain"
+                  />
+                );
+              }
+
+              return (
+                <video
+                  src={activeVideoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  onError={() => setFailedVideoUrl(activeVideoUrl)}
+                  className="w-full h-full object-contain"
+                />
+              );
+            })()}
 
             {isUploading && (
               <div className="absolute inset-0 bg-black/75 flex flex-col items-center justify-center p-4 text-center space-y-2 backdrop-blur-xs">

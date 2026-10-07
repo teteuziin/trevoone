@@ -218,6 +218,7 @@ export function isValidHttpUrl(str: string | null | undefined): boolean {
   if (!str || typeof str !== "string") return false;
   const trimmed = str.trim();
   if (!trimmed) return false;
+  if (trimmed.startsWith("/api/training-v2/media/")) return true;
   try {
     const candidate = trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`;
     const url = new URL(candidate);
@@ -233,6 +234,7 @@ export function sanitizeVideoUrl(val: unknown): string | null {
   if (typeof val !== "string") return null;
   const trimmed = val.trim();
   if (!trimmed) return null;
+  if (trimmed.startsWith("/api/training-v2/media/")) return trimmed;
   try {
     const candidate = trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`;
     const url = new URL(candidate);

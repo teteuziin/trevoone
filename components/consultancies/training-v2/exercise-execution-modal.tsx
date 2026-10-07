@@ -44,6 +44,8 @@ export function ExerciseExecutionModal({
     isGif: boolean;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
+  const [failedImgUrl, setFailedImgUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || pinnedDerived || !exercisePublicId) {
@@ -102,6 +104,8 @@ export function ExerciseExecutionModal({
   }, [isOpen, pinnedDerived, exercisePublicId]);
 
   const activeMedia = pinnedDerived || lazyMedia;
+  const isVideoFailed = Boolean(activeMedia?.url && failedVideoUrl === activeMedia.url);
+  const isImgFailed = Boolean(activeMedia?.url && failedImgUrl === activeMedia.url);
 
   if (!isOpen) return null;
 
@@ -143,25 +147,52 @@ export function ExerciseExecutionModal({
                 <span>Carregando execução...</span>
               </div>
             ) : activeMedia ? (
-              activeMedia.isVideo ? (
-                <video
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  controls
-                  preload="metadata"
-                  src={activeMedia.url}
-                  className="w-full h-full max-h-[360px] object-contain rounded-xl"
-                />
-              ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={activeMedia.url}
-                  alt={`Execução de ${exerciseName}`}
-                  className="w-full h-full max-h-[360px] object-contain rounded-xl"
-                />
-              )
+              (() => {
+                const isExplicitGif = activeMedia.isGif || activeMedia.url.toLowerCase().endsWith(".gif") || activeMedia.url.toLowerCase().includes(".gif");
+                const hasFailedBoth = (isExplicitGif && isImgFailed) || (isVideoFailed && isImgFailed);
+
+                if (hasFailedBoth) {
+                  return (
+                    <div className="p-6 text-center space-y-2 text-white">
+                      <span className="text-2xl block">⚠️</span>
+                      <p className="text-xs font-semibold text-zinc-200">Não foi possível reproduzir este vídeo.</p>
+                      <button
+                        type="button"
+                        onClick={() => { setFailedVideoUrl(null); setFailedImgUrl(null); }}
+                        className="text-xs px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition cursor-pointer"
+                      >
+                        Tentar novamente
+                      </button>
+                    </div>
+                  );
+                }
+
+                if (isExplicitGif || isVideoFailed || !activeMedia.isVideo) {
+                  return (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={activeMedia.url}
+                      alt={`Execução de ${exerciseName}`}
+                      onError={() => setFailedImgUrl(activeMedia.url)}
+                      className="w-full h-full max-h-[360px] object-contain rounded-xl"
+                    />
+                  );
+                }
+
+                return (
+                  <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    controls
+                    preload="metadata"
+                    src={activeMedia.url}
+                    onError={() => setFailedVideoUrl(activeMedia.url)}
+                    className="w-full h-full max-h-[360px] object-contain rounded-xl"
+                  />
+                );
+              })()
             ) : (
               <div className="p-8 text-center space-y-2">
                 <span className="text-3xl block">🏋️</span>

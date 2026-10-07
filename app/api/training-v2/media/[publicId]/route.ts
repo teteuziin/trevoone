@@ -26,9 +26,15 @@ type RouteParams = {
 };
 
 async function handleMediaRequest(request: Request, paramsPromise: Promise<{ publicId: string }>, isHead: boolean) {
-  const { publicId } = await paramsPromise;
+  const { publicId: rawPublicId } = await paramsPromise;
 
-  if (!publicId || typeof publicId !== "string" || !publicId.trim()) {
+  if (!rawPublicId || typeof rawPublicId !== "string" || !rawPublicId.trim()) {
+    return new Response(null, { status: 404 });
+  }
+
+  // Support clean URL lookup when client requests media with extension (e.g. [uuid].mp4, [uuid].gif)
+  const publicId = rawPublicId.trim().replace(/\.(mp4|gif|jpg|jpeg|png|webp)$/i, "");
+  if (!publicId) {
     return new Response(null, { status: 404 });
   }
 
@@ -124,7 +130,7 @@ async function handleMediaRequest(request: Request, paramsPromise: Promise<{ pub
   const standardHeaders: Record<string, string> = {
     "Content-Type": mimeType,
     "Content-Disposition": "inline",
-    "Cache-Control": "private, no-store",
+    "Cache-Control": "private, max-age=3600, must-revalidate",
     "X-Content-Type-Options": "nosniff",
   };
 

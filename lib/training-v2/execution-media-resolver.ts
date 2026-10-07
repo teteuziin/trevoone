@@ -72,7 +72,15 @@ export function resolveExerciseExecutionMedia(input: ResolveMediaInput): Resolve
   // 1. ITEM / PRESCRIÇÃO (Highest Priority: Item-level override)
   if (item?.customVideoUrl && item.customVideoUrl.trim().length > 0) {
     const rawUrl = item.customVideoUrl.trim();
-    const isGif = rawUrl.toLowerCase().endsWith(".gif");
+    const matchingPinned = item.pinnedMedia?.find((m) => {
+      const pubId = m.mediaAsset?.publicId;
+      return pubId && rawUrl.includes(pubId);
+    });
+    const isGif =
+      rawUrl.toLowerCase().endsWith(".gif") ||
+      rawUrl.toLowerCase().includes(".gif") ||
+      matchingPinned?.mediaAsset?.mimeType === "image/gif" ||
+      (matchingPinned?.mediaAsset?.mediaType === "IMAGE" && matchingPinned.role !== "START_IMAGE" && matchingPinned.role !== "VIDEO_POSTER");
     const isVideo = !isGif;
     const thumbItem = item.pinnedMedia?.find(
       (m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER" || m.role === "ALTERNATE_IMAGE"

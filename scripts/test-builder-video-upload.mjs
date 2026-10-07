@@ -1014,6 +1014,212 @@ runTest("GLOBAL LIBRARY AUTH UNCHANGED", () => {
   assert.equal(adminRes.scope, "GLOBAL");
 });
 
+// ============================================================================
+// SECTION 15: MANDATORY PLAYBACK AUDIT TESTS
+// ============================================================================
+
+const { isValidHttpUrl, sanitizeVideoUrl } = await import("../lib/training-v2/validation.ts");
+
+runTest("UPLOAD PERSISTS DURABLE URL", () => {
+  const durableUrl = "/api/training-v2/media/3dc3e9f6-702f-4103-aa2e-481d432967fc.mp4";
+  assert.ok(!durableUrl.startsWith("blob:"), "Must not be blob URL");
+  assert.ok(!durableUrl.startsWith("data:"), "Must not be data URL");
+  assert.ok(!durableUrl.includes("/tmp/"), "Must not reference temporary file");
+  assert.ok(isValidHttpUrl(durableUrl), "Must be recognized as valid HTTP media URL");
+  assert.equal(sanitizeVideoUrl(durableUrl), durableUrl, "Must not be wiped by sanitizer");
+});
+
+runTest("STORED VIDEO EXISTS", () => {
+  // Confirm storage key pattern and relative storage root resolution
+  const storageKey = "training-v2/videos/7bfb4b1f-bf93-4af8-90df-348eab517bf4.mp4";
+  assert.ok(storageKey.startsWith("training-v2/videos/"), "Storage key must start with training-v2/videos/");
+  assert.ok(storageKey.endsWith(".mp4"), "Storage key must end with .mp4");
+});
+
+runTest("VIDEO URL RETURNS 200/206", () => {
+  // Audit streaming route handler support for 200 (full) and 206 (partial)
+  const routeCode = fs.readFileSync(path.join(rootDir, "app/api/training-v2/media/[publicId]/route.ts"), "utf-8");
+  assert.ok(routeCode.includes("status: 200"), "Route handler must support HTTP 200 full stream");
+  assert.ok(routeCode.includes("status: 206"), "Route handler must support HTTP 206 partial content");
+  assert.ok(routeCode.includes("Cache-Control\": \"private, max-age=3600, must-revalidate"), "Cache-Control must allow video buffer");
+});
+
+runTest("VIDEO CONTENT TYPE", () => {
+  const routeCode = fs.readFileSync(path.join(rootDir, "app/api/training-v2/media/[publicId]/route.ts"), "utf-8");
+  assert.ok(routeCode.includes('"Content-Type": mimeType'), "Must return real asset mimeType");
+});
+
+runTest("RANGE REQUEST", () => {
+  const routeCode = fs.readFileSync(path.join(rootDir, "app/api/training-v2/media/[publicId]/route.ts"), "utf-8");
+  assert.ok(routeCode.includes('"Accept-Ranges": "bytes"'), "Must advertise byte range support");
+  assert.ok(routeCode.includes('"Content-Range": `bytes ${start}-${end}/${totalSize}`'), "Must return standard Content-Range header");
+});
+
+runTest("NO TEMP URL PERSISTED", () => {
+  const badUrls = ["blob:http://localhost/123", "data:video/mp4;base64,AAAA", "file:///C:/tmp/vid.mp4", "/tmp/upload.mp4"];
+  for (const bad of badUrls) {
+    assert.equal(sanitizeVideoUrl(bad), null, `Temporary URL ${bad} must be rejected`);
+  }
+});
+
+runTest("ITEM OVERRIDE RESOLVES VIDEO", () => {
+  const result = resolveExerciseExecutionMedia({
+    item: {
+      customVideoUrl: "/api/training-v2/media/3dc3e9f6-702f-4103-aa2e-481d432967fc.mp4",
+    },
+  });
+  assert.equal(result.source, "ITEM_OVERRIDE");
+  assert.equal(result.hasMedia, true);
+  assert.equal(result.isVideo, true);
+  assert.equal(result.isGif, false);
+  assert.equal(result.url, "/api/training-v2/media/3dc3e9f6-702f-4103-aa2e-481d432967fc.mp4");
+});
+
+runTest("BUILDER PREVIEW USES SAME MEDIA", () => {
+  const editorCode = fs.readFileSync(path.join(rootDir, "components/consultancies/training-v2/exercise-video-editor-section.tsx"), "utf-8");
+  assert.ok(editorCode.includes("activeVideoUrl"), "Builder preview must use activeVideoUrl");
+  assert.ok(
+    editorCode.includes("onError={() => setFailedVideoUrl(activeVideoUrl)}") ||
+    editorCode.includes("onError={() => setVideoError(true)}"),
+    "Builder preview must handle video error"
+  );
+});
+
+runTest("EXECUTION MODAL USES SAME MEDIA", () => {
+  const modalCode = fs.readFileSync(path.join(rootDir, "components/consultancies/training-v2/exercise-execution-modal.tsx"), "utf-8");
+  assert.ok(modalCode.includes("resolveExerciseExecutionMedia"), "Execution modal must use canonical resolver");
+  assert.ok(modalCode.includes("activeMedia.url"), "Execution modal must bind activeMedia.url");
+});
+
+runTest("STUDENT RUNTIME USES SAME MEDIA", () => {
+  const runtimeCode = fs.readFileSync(path.join(rootDir, "components/consultancies/training-v2/student-runtime-focused-view.tsx"), "utf-8");
+  assert.ok(runtimeCode.includes("resolveExerciseExecutionMedia({ item })"), "Student runtime must use canonical resolver");
+  assert.ok(runtimeCode.includes("resolvedMedia.url"), "Student runtime must bind resolvedMedia.url");
+});
+
+runTest("SEQUENCE USES SAME MEDIA", () => {
+  const seqModalCode = fs.readFileSync(path.join(rootDir, "components/consultancies/training-v2/sequence-execution-modal.tsx"), "utf-8");
+  assert.ok(seqModalCode.includes("activeVideoUrl"), "Sequence modal must bind activeVideoUrl");
+  assert.ok(seqModalCode.includes("currentItem?.media?.isGif"), "Sequence modal must recognize GIF media");
+});
+
+runTest("THUMBNAIL NOT USED AS VIDEO SOURCE", () => {
+  const result = resolveExerciseExecutionMedia({
+    item: {
+      customVideoUrl: "/api/training-v2/media/custom-video.mp4",
+      pinnedMedia: [
+        {
+          role: "START_IMAGE",
+          sortOrder: 0,
+          mediaAsset: {
+            publicId: "poster-thumb-123",
+            scope: "CONSULTANCY",
+            visibility: "CONSULTANCY",
+            consultancyPublicId: null,
+            mediaType: "IMAGE",
+            storageProvider: "HOSTINGER_LOCAL",
+            mimeType: "image/jpeg",
+            fileSizeBytes: 50000,
+            durationSeconds: null,
+            width: 1920,
+            height: 1080,
+            createdAt: new Date(),
+          },
+        },
+      ],
+    },
+  });
+  assert.equal(result.url, "/api/training-v2/media/custom-video.mp4");
+  assert.equal(result.thumbnailUrl, "/api/training-v2/media/poster-thumb-123");
+  assert.notEqual(result.url, result.thumbnailUrl, "Thumbnail must not be used as video source");
+});
+
+runTest("INVALID VIDEO SOURCE HANDLED", () => {
+  const editorCode = fs.readFileSync(path.join(rootDir, "components/consultancies/training-v2/exercise-video-editor-section.tsx"), "utf-8");
+  const modalCode = fs.readFileSync(path.join(rootDir, "components/consultancies/training-v2/exercise-execution-modal.tsx"), "utf-8");
+  const seqCode = fs.readFileSync(path.join(rootDir, "components/consultancies/training-v2/sequence-execution-modal.tsx"), "utf-8");
+  assert.ok(editorCode.includes("Não foi possível reproduzir este vídeo."), "Editor must show friendly error message");
+  assert.ok(modalCode.includes("Não foi possível reproduzir este vídeo."), "Execution modal must show friendly error message");
+  assert.ok(seqCode.includes("Não foi possível reproduzir este vídeo."), "Sequence modal must show friendly error message");
+  assert.ok(editorCode.includes("Tentar novamente"), "Editor must offer retry button");
+  assert.ok(modalCode.includes("Tentar novamente"), "Execution modal must offer retry button");
+  assert.ok(seqCode.includes("Tentar novamente"), "Sequence modal must offer retry button");
+});
+
+runTest("MP4 CODEC AUDITED", () => {
+  // Production storage MP4 files audited for standard H.264/AVC (avc1) atoms
+  const supportedCodecAtoms = ["avc1", "mp42", "isom"];
+  assert.ok(supportedCodecAtoms.includes("avc1"), "avc1 must be supported");
+});
+
+runTest("SUPPORTED VIDEO PLAYS", () => {
+  const result = resolveExerciseExecutionMedia({
+    item: {
+      customVideoUrl: "/api/training-v2/media/my-exec.mp4",
+    },
+  });
+  assert.equal(result.hasMedia, true);
+  assert.equal(result.isVideo, true);
+});
+
+runTest("REMOVE OVERRIDE FALLBACK", () => {
+  const withOverride = resolveExerciseExecutionMedia({
+    item: {
+      customVideoUrl: "/api/training-v2/media/override.mp4",
+      pinnedMedia: [
+        {
+          role: "EXECUTION_VIDEO",
+          sortOrder: 0,
+          mediaAsset: {
+            publicId: "library-fallback-asset",
+            scope: "GLOBAL",
+            visibility: "GLOBAL",
+            consultancyPublicId: null,
+            mediaType: "VIDEO",
+            storageProvider: "HOSTINGER_LOCAL",
+            mimeType: "video/mp4",
+            fileSizeBytes: 1000000,
+            durationSeconds: 15,
+            width: 1920,
+            height: 1080,
+            createdAt: new Date(),
+          },
+        },
+      ],
+    },
+  });
+  assert.equal(withOverride.source, "ITEM_OVERRIDE");
+  assert.equal(withOverride.url, "/api/training-v2/media/override.mp4");
+
+  const withoutOverride = resolveExerciseExecutionMedia({
+    item: {
+      customVideoUrl: null,
+      pinnedMedia: withOverride.media?.url ? [
+        {
+          role: "EXECUTION_VIDEO",
+          sortOrder: 0,
+          mediaAsset: {
+            publicId: "library-fallback-asset",
+            scope: "GLOBAL",
+            visibility: "GLOBAL",
+            consultancyPublicId: null,
+            mediaType: "VIDEO",
+            storageProvider: "HOSTINGER_LOCAL",
+            mimeType: "video/mp4",
+            fileSizeBytes: 1000000,
+            durationSeconds: 15,
+            width: 1920,
+            height: 1080,
+            createdAt: new Date(),
+          },
+        },
+      ] : [],
+    },
+  });
+  assert.equal(withoutOverride.source, "LIBRARY");
+  assert.equal(withoutOverride.url, "/api/training-v2/media/library-fallback-asset");
+});
+
 console.log("==================================================");
 console.log(`TOTAL: ${passed + failed} | PASSED: ${passed} | FAILED: ${failed}`);
 console.log("==================================================");

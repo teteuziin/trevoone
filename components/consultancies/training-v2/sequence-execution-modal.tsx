@@ -30,6 +30,8 @@ function SequenceExecutionModalContent({
 }: SequenceExecutionModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [resolvedVideos, setResolvedVideos] = useState<Record<string, string | null>>({});
+  const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
+  const [failedImgUrl, setFailedImgUrl] = useState<string | null>(null);
 
   const items = experience?.items || [];
   const currentItem = items[currentIndex];
@@ -107,6 +109,9 @@ function SequenceExecutionModalContent({
     experience?.overrideMediaUrl ||
     currentItem?.media?.url ||
     (currentItem?.exercisePublicId ? resolvedVideos[currentItem.exercisePublicId] : null);
+
+  const isVideoFailed = Boolean(activeVideoUrl && failedVideoUrl === activeVideoUrl);
+  const isImgFailed = Boolean(activeVideoUrl && failedImgUrl === activeVideoUrl);
 
   const isLast = currentIndex === items.length - 1;
   const isFirst = currentIndex === 0;
@@ -197,14 +202,56 @@ function SequenceExecutionModalContent({
                 <span>Carregando vídeo...</span>
               </div>
             ) : activeVideoUrl ? (
-              <video
-                key={activeVideoUrl}
-                src={activeVideoUrl}
-                controls
-                playsInline
-                autoPlay
-                className="w-full max-w-full h-full object-contain"
-              />
+              (() => {
+                const isExplicitGif = Boolean(
+                  currentItem?.media?.isGif ||
+                  activeVideoUrl.toLowerCase().endsWith(".gif") ||
+                  activeVideoUrl.toLowerCase().includes(".gif")
+                );
+                const hasFailedBoth = (isExplicitGif && isImgFailed) || (isVideoFailed && isImgFailed);
+
+                if (hasFailedBoth) {
+                  return (
+                    <div className="p-4 text-center space-y-2 text-white">
+                      <span className="text-2xl block">⚠️</span>
+                      <p className="text-xs font-semibold text-zinc-200">Não foi possível reproduzir este vídeo.</p>
+                      <button
+                        type="button"
+                        onClick={() => { setFailedVideoUrl(null); setFailedImgUrl(null); }}
+                        className="text-[11px] px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition cursor-pointer"
+                      >
+                        Tentar novamente
+                      </button>
+                    </div>
+                  );
+                }
+
+                if (isExplicitGif || isVideoFailed) {
+                  return (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      key={activeVideoUrl}
+                      src={activeVideoUrl}
+                      alt={currentItem?.name}
+                      onError={() => setFailedImgUrl(activeVideoUrl)}
+                      className="w-full max-w-full h-full object-contain"
+                    />
+                  );
+                }
+
+                return (
+                  <video
+                    key={activeVideoUrl}
+                    src={activeVideoUrl}
+                    controls
+                    playsInline
+                    autoPlay
+                    preload="metadata"
+                    onError={() => setFailedVideoUrl(activeVideoUrl)}
+                    className="w-full max-w-full h-full object-contain"
+                  />
+                );
+              })()
             ) : (
               <div className="text-center p-4 space-y-1.5 text-white/80 w-full max-w-full">
                 <span className="text-2xl block">🎬</span>

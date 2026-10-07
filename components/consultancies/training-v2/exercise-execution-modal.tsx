@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import type { BlockItemMediaDto, ExerciseMediaDto } from "@/lib/training-v2/types";
 
+import { resolveExerciseExecutionMedia } from "@/lib/training-v2/execution-media-resolver";
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -23,32 +25,16 @@ export function ExerciseExecutionModal({
   instructions,
 }: Props) {
   const pinnedDerived = useMemo(() => {
-    if (pinnedMedia && pinnedMedia.length > 0) {
-      const exec = pinnedMedia.find((m) => m.role === "EXECUTION_VIDEO");
-      const fallback = pinnedMedia.find(
-        (m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER" || m.role === "ALTERNATE_IMAGE"
-      ) || pinnedMedia[0];
-
-      const target = exec || fallback;
-      if (target?.mediaAsset?.publicId) {
-        const isVid = target.mediaAsset.mediaType === "VIDEO" || target.mediaAsset.mimeType === "video/mp4";
-        const isGif = target.mediaAsset.mimeType === "image/gif";
-        return {
-          url: `/api/training-v2/media/${target.mediaAsset.publicId}`,
-          isVideo: isVid,
-          isGif,
-        };
-      }
-    }
-
-    if (customVideoUrl && customVideoUrl.trim()) {
+    const resolved = resolveExerciseExecutionMedia({
+      item: { pinnedMedia, customVideoUrl },
+    });
+    if (resolved.hasMedia && resolved.url) {
       return {
-        url: customVideoUrl.trim(),
-        isVideo: true,
-        isGif: false,
+        url: resolved.url,
+        isVideo: resolved.isVideo,
+        isGif: resolved.isGif,
       };
     }
-
     return null;
   }, [pinnedMedia, customVideoUrl]);
 

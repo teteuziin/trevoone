@@ -24,6 +24,7 @@ import {
   buildSequenceMediaFromCombination,
 } from "@/lib/training-v2/sequence-media";
 import { SequenceExecutionModal } from "./sequence-execution-modal";
+import { ExerciseVideoEditorSection } from "./exercise-video-editor-section";
 
 export function parseActiveRest(title?: string | null): { isActive: boolean; activity: string } {
   if (!title) return { isActive: false, activity: "" };
@@ -2360,6 +2361,8 @@ function ExerciseRow({
   const [restSeconds, setRestSeconds] = useState<number>(initialRest);
   const [loadKg, setLoadKg] = useState<string>(initialLoad != null ? String(initialLoad) : "");
   const [notes, setNotes] = useState<string>(initialNotes);
+  const [videoUrl, setVideoUrl] = useState<string | null>(item.customVideoUrl ?? null);
+  const [saveToLibrary, setSaveToLibrary] = useState(false);
   const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -2404,6 +2407,8 @@ function ExerciseRow({
         restSeconds: Math.max(0, restSeconds ?? 60),
         loadKg: loadKg.trim() !== "" && !isNaN(Number(loadKg)) ? Number(loadKg) : null,
         notes: combinedNotes,
+        customVideoUrl: videoUrl,
+        saveToExerciseLibrary: saveToLibrary,
       });
       onCloseExpand();
     });
@@ -3007,6 +3012,19 @@ function ExerciseRow({
               />
             </div>
           </div>
+
+          {/* Vídeo de Execução */}
+          <ExerciseVideoEditorSection
+            currentVideoUrl={videoUrl}
+            fallbackMedia={item.pinnedMedia}
+            isCustomExercise={isCustom}
+            canSaveToLibrary={Boolean(!isCustom && item.exercisePublicId)}
+            onVideoChange={(newUrl, toLibrary) => {
+              setVideoUrl(newUrl);
+              if (toLibrary !== undefined) setSaveToLibrary(toLibrary);
+            }}
+            disabled={isPending}
+          />
 
           <div className="flex items-center justify-end gap-2 pt-1">
             <button
@@ -3695,6 +3713,8 @@ export function QuickEditExerciseSheet({
   );
   const [rest, setRest] = useState<number>(summary.restSeconds);
   const [notes, setNotes] = useState<string>(item.notes || "");
+  const [videoUrl, setVideoUrl] = useState<string | null>(item.customVideoUrl ?? null);
+  const [saveToLibrary, setSaveToLibrary] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const REPS_CHIPS = ["8-10", "10-12", "12-15", "Falha"];
@@ -3712,6 +3732,8 @@ export function QuickEditExerciseSheet({
         restSeconds: Math.max(0, rest),
         loadKg: numLoad,
         notes: notes.trim() || null,
+        customVideoUrl: videoUrl,
+        saveToExerciseLibrary: saveToLibrary,
       });
     } finally {
       setIsSaving(false);
@@ -3907,6 +3929,19 @@ export function QuickEditExerciseSheet({
             className="w-full px-3 py-2 text-xs sm:text-sm font-medium rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none"
           />
         </div>
+
+        {/* Vídeo de Execução */}
+        <ExerciseVideoEditorSection
+          currentVideoUrl={videoUrl}
+          fallbackMedia={item.pinnedMedia}
+          isCustomExercise={Boolean(item.isCustomExercise || item.customExercisePublicId)}
+          canSaveToLibrary={Boolean(!item.isCustomExercise && item.exercisePublicId)}
+          onVideoChange={(newUrl, toLibrary) => {
+            setVideoUrl(newUrl);
+            if (toLibrary !== undefined) setSaveToLibrary(toLibrary);
+          }}
+          disabled={isSaving}
+        />
       </div>
     </BottomSheet>
   );

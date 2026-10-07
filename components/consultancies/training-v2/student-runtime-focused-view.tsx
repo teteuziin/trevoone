@@ -15,6 +15,7 @@ import {
   buildSequenceMediaFromCustomItem,
   buildSequenceMediaFromCombination,
 } from "@/lib/training-v2/sequence-media";
+import { resolveExerciseExecutionMedia } from "@/lib/training-v2/execution-media-resolver";
 import { SequenceExecutionModal } from "./sequence-execution-modal";
 
 function Check({ className = "w-4 h-4" }: { className?: string }) {
@@ -64,16 +65,6 @@ function TrophyIcon({ className = "w-6 h-6" }: { className?: string }) {
   );
 }
 
-function isValidVideoUrl(url?: string | null): boolean {
-  if (!url || typeof url !== "string") return false;
-  const trimmed = url.trim();
-  return (
-    trimmed.startsWith("http://") ||
-    trimmed.startsWith("https://") ||
-    trimmed.startsWith("blob:") ||
-    trimmed.startsWith("data:")
-  );
-}
 
 type StudentRuntimeFocusedViewProps = {
   workout: StudentWorkoutViewContract;
@@ -367,7 +358,8 @@ export function StudentRuntimeFocusedView({
 
   const hasMethodNote = Boolean(item.notes && item.notes.trim());
   const isSequence = Boolean(item.methodConfig?.isSequence || item.methodConfig?.customSequence);
-  const hasVideo = isValidVideoUrl(item.customVideoUrl) || (item.pinnedMedia && item.pinnedMedia.length > 0);
+  const resolvedMedia = resolveExerciseExecutionMedia({ item });
+  const hasVideo = resolvedMedia.hasMedia;
 
   const sequenceExperience = (() => {
     if (isSequence) {
@@ -720,25 +712,23 @@ export function StudentRuntimeFocusedView({
         subtitle="Orientações e execução técnica"
       >
         <div className="space-y-4 py-1">
-          {/* Video Section (if valid video exists) */}
-          {hasVideo && (
+          {/* Video / Image Execution Media Section */}
+          {resolvedMedia.hasMedia && resolvedMedia.url && (
             <div className="rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
-              {isValidVideoUrl(item.customVideoUrl) ? (
+              {resolvedMedia.isVideo ? (
                 <video
-                  src={item.customVideoUrl!}
-                  controls
-                  playsInline
-                  className="w-full h-full object-contain"
-                />
-              ) : item.pinnedMedia && item.pinnedMedia.length > 0 && item.pinnedMedia[0].mediaAsset?.publicId ? (
-                <video
-                  src={`/api/training-v2/media/${item.pinnedMedia[0].mediaAsset.publicId}`}
+                  src={resolvedMedia.url}
+                  poster={resolvedMedia.thumbnailUrl || undefined}
                   controls
                   playsInline
                   className="w-full h-full object-contain"
                 />
               ) : (
-                <div className="text-white text-xs">Vídeo de demonstração indisponível</div>
+                <img
+                  src={resolvedMedia.url}
+                  alt={item.exerciseNameSnapshot}
+                  className="w-full h-full object-contain"
+                />
               )}
             </div>
           )}

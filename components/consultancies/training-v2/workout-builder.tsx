@@ -707,7 +707,15 @@ export function WorkoutBuilder({
           items: b.items
             ? b.items.map((i) =>
                 i.publicId === itemPublicId
-                  ? { ...i, sets: res.data!, notes: config.notes ?? i.notes }
+                  ? {
+                      ...i,
+                      sets: res.data!,
+                      notes: config.notes ?? i.notes,
+                      customVideoUrl:
+                        config.customVideoUrl !== undefined
+                          ? config.customVideoUrl
+                          : i.customVideoUrl,
+                    }
                   : i
               )
             : [],

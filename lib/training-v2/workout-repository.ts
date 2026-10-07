@@ -4360,6 +4360,8 @@ export type QuickConfigInput = {
   restSeconds: number;
   loadKg?: number | null;
   notes?: string | null;
+  customVideoUrl?: string | null;
+  saveToExerciseLibrary?: boolean;
 };
 
 /**
@@ -4751,7 +4753,7 @@ export async function updateItemQuickConfigInDraft(
     await connection.beginTransaction();
 
     const [iRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT wbi.id, wv.status, w.consultancy_id, w.created_by_membership_id
+      `SELECT wbi.id, wbi.exercise_id, wv.status, w.consultancy_id, w.created_by_membership_id
        FROM workout_block_items wbi
        INNER JOIN workout_blocks wb ON wb.id = wbi.block_id
        INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
@@ -4777,15 +4779,59 @@ export async function updateItemQuickConfigInDraft(
       throw new TrainingAuthorizationError("Não é permitido alterar itens de uma versão já publicada ou arquivada.", "IMMUTABLE_VERSION", 400);
     }
 
-    // Update notes and duration_unit
-    await connection.execute(
-      "UPDATE workout_block_items SET notes = ?, duration_unit = ?, updated_at = NOW(3) WHERE id = ?;",
-      [
-        input.notes !== undefined ? (input.notes?.trim() || null) : null,
-        input.durationUnit || null,
-        item.id,
-      ]
-    );
+    // Update notes, duration_unit, and custom_video_url (item-level execution media override)
+    if (input.customVideoUrl !== undefined) {
+      await connection.execute(
+        "UPDATE workout_block_items SET notes = ?, duration_unit = ?, custom_video_url = ?, updated_at = NOW(3) WHERE id = ?;",
+        [
+          input.notes !== undefined ? (input.notes?.trim() || null) : null,
+          input.durationUnit || null,
+          input.customVideoUrl ? input.customVideoUrl.trim() : null,
+          item.id,
+        ]
+      );
+    } else {
+      await connection.execute(
+        "UPDATE workout_block_items SET notes = ?, duration_unit = ?, updated_at = NOW(3) WHERE id = ?;",
+        [
+          input.notes !== undefined ? (input.notes?.trim() || null) : null,
+          input.durationUnit || null,
+          item.id,
+        ]
+      );
+    }
+
+    // Optional safe propagation: only if requested, exercise exists, belongs to this tenancy, and media is local asset
+    if (input.saveToExerciseLibrary && input.customVideoUrl && item.exercise_id) {
+      const [exRows] = await connection.execute<RowDataPacket[]>(
+        "SELECT id, scope, consultancy_id FROM exercises WHERE id = ? AND deleted_at IS NULL LIMIT 1;",
+        [item.exercise_id]
+      );
+      if (exRows && exRows.length > 0) {
+        const ex = exRows[0];
+        if (ex.scope === "CONSULTANCY" && Number(ex.consultancy_id) === ctx.consultancyId) {
+          const match = input.customVideoUrl.match(/\/api\/training-v2\/media\/([a-zA-Z0-9_-]+)/);
+          if (match) {
+            const mediaPublicId = match[1];
+            const [maRows] = await connection.execute<RowDataPacket[]>(
+              "SELECT id FROM media_assets WHERE public_id = ? AND deleted_at IS NULL LIMIT 1;",
+              [mediaPublicId]
+            );
+            if (maRows && maRows.length > 0) {
+              const maId = maRows[0].id;
+              await connection.execute(
+                "DELETE FROM exercise_media WHERE exercise_id = ? AND role = 'EXECUTION_VIDEO';",
+                [ex.id]
+              );
+              await connection.execute(
+                "INSERT INTO exercise_media (exercise_id, media_asset_id, role, sort_order) VALUES (?, ?, 'EXECUTION_VIDEO', 0);",
+                [ex.id, maId]
+              );
+            }
+          }
+        }
+      }
+    }
 
     // Delete existing sets
     await connection.execute("DELETE FROM workout_item_sets WHERE block_item_id = ?;", [item.id]);

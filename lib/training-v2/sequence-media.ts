@@ -45,40 +45,26 @@ export type SequenceMediaExperience = {
   totalMovements: number;
 };
 
+import { resolveExerciseExecutionMedia } from "./execution-media-resolver";
+
 /**
  * Extracts playable video media from pinnedMedia or customVideoUrl.
+ * Follows canonical priority: ITEM_OVERRIDE > CUSTOM_EXERCISE > LIBRARY > IMAGE.
  */
 export function extractItemPlayableMedia(
   pinnedMedia?: (BlockItemMediaDto | ExerciseMediaDto)[] | null,
   customVideoUrl?: string | null
 ): { url: string; isVideo: boolean; isGif: boolean } | null {
-  if (pinnedMedia && pinnedMedia.length > 0) {
-    const exec = pinnedMedia.find((m) => m.role === "EXECUTION_VIDEO");
-    const fallback =
-      pinnedMedia.find(
-        (m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER" || m.role === "ALTERNATE_IMAGE"
-      ) || pinnedMedia[0];
-
-    const target = exec || fallback;
-    if (target?.mediaAsset?.publicId) {
-      const isVid = target.mediaAsset.mediaType === "VIDEO" || target.mediaAsset.mimeType === "video/mp4";
-      const isGif = target.mediaAsset.mimeType === "image/gif";
-      return {
-        url: `/api/training-v2/media/${target.mediaAsset.publicId}`,
-        isVideo: isVid,
-        isGif,
-      };
-    }
-  }
-
-  if (customVideoUrl && customVideoUrl.trim().length > 0) {
+  const resolved = resolveExerciseExecutionMedia({
+    item: { pinnedMedia, customVideoUrl },
+  });
+  if (resolved.hasMedia && resolved.url) {
     return {
-      url: customVideoUrl.trim(),
-      isVideo: true,
-      isGif: false,
+      url: resolved.url,
+      isVideo: resolved.isVideo,
+      isGif: resolved.isGif,
     };
   }
-
   return null;
 }
 

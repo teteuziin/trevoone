@@ -1,4 +1,4 @@
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 
@@ -35,8 +35,7 @@ export async function resolve(specifier, context, nextResolve) {
       let parentDir = process.cwd();
       if (context.parentURL) {
         try {
-          const urlObj = new URL(context.parentURL);
-          parentDir = path.dirname(decodeURIComponent(urlObj.pathname.replace(/^\/([a-zA-Z]:)/, '$1')));
+          parentDir = path.dirname(fileURLToPath(context.parentURL));
         } catch {}
       }
       const basePath = /^[a-zA-Z]:[\\/]/.test(specifier) ? path.resolve(specifier) : path.resolve(parentDir, specifier);
@@ -44,6 +43,7 @@ export async function resolve(specifier, context, nextResolve) {
         const full = basePath + ext;
         if (fs.existsSync(full) && !fs.statSync(full).isDirectory()) {
           return {
+            format: 'module',
             url: pathToFileURL(full).href,
             shortCircuit: true,
           };
@@ -56,7 +56,7 @@ export async function resolve(specifier, context, nextResolve) {
 }
 
 export async function load(url, context, nextLoad) {
-  if (url.endsWith('.tsx')) {
+  if (url.endsWith('.tsx') || url.endsWith('.ts')) {
     const { default: ts } = await import('typescript');
     const filePath = decodeURIComponent(new URL(url).pathname.replace(/^\/([A-Z]:)/, '$1'));
     const source = fs.readFileSync(filePath, 'utf8');

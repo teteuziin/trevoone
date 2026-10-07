@@ -28,6 +28,7 @@ import {
   markRestTimerSkipped,
   type ActiveRestState,
 } from "./rest-timer";
+import { resolveExerciseExecutionMedia } from "@/lib/training-v2/execution-media-resolver";
 import { StudentRuntimeFocusedView } from "./student-runtime-focused-view";
 import { formatDurationToMinutes, formatDurationNatural } from "@/lib/training-v2/reps-normalizer";
 
@@ -1790,9 +1791,6 @@ function ItemCard({
   const isSubstituted = Boolean(substitution);
   const displayName = substitution ? substitution.performedExerciseName : item.exerciseNameSnapshot;
   const displayMuscleGroup = substitution?.performedMuscleGroup || item.muscleGroupSnapshot;
-  const pinnedMedia = (substitution?.pinnedMedia && substitution.pinnedMedia.length > 0)
-    ? substitution.pinnedMedia
-    : (item.pinnedMedia || []);
   const isCustom = item.exercisePublicId === null;
 
   const itemSets = activeSession?.sets?.filter(
@@ -1800,7 +1798,13 @@ function ItemCard({
   ) || [];
   const hasStartedSets = itemSets.some((s) => s.completedAt !== null);
   const [showMedia, setShowMedia] = useState(false);
-  const hasMedia = pinnedMedia.length > 0 || Boolean(item.customVideoUrl && item.customVideoUrl.trim().length > 0);
+  const pinnedMedia = (substitution?.pinnedMedia && substitution.pinnedMedia.length > 0)
+    ? substitution.pinnedMedia
+    : (item.pinnedMedia || []);
+  const resolvedMedia = resolveExerciseExecutionMedia({
+    item: { pinnedMedia, customVideoUrl: item.customVideoUrl },
+  });
+  const hasMedia = resolvedMedia.hasMedia;
 
   return (
     <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-subtle)]/50 border border-[var(--border-subtle)] space-y-4">
@@ -1909,79 +1913,35 @@ function ItemCard({
       </div>
 
       {/* SECTION 2: VÍDEO / MÍDIA (On-demand) */}
-      {showMedia && (pinnedMedia.length > 0 || (item.customVideoUrl && item.customVideoUrl.trim().length > 0)) && (() => {
-        if (pinnedMedia.length === 0 && item.customVideoUrl) {
-          const url = item.customVideoUrl.trim();
-          return (
-            <div className="space-y-2">
-              <div className="rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-center p-1 sm:p-2 shadow-xs">
-                <video
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  controls
-                  preload="metadata"
-                  src={url}
-                  className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block bg-black"
-                />
-              </div>
-            </div>
-          );
-        }
-
-        // Priority: 1. GIF animado, 2. MP4 de execução, 3. Frame estático/imagem fallback
-        const executionMedia = pinnedMedia.find((m) => m.role === "EXECUTION_VIDEO");
-        const fallbackMedia = pinnedMedia.find(
-          (m) => m.role === "START_IMAGE" || m.role === "VIDEO_POSTER" || m.role === "ALTERNATE_IMAGE"
-        );
-        const posterMedia = pinnedMedia.find(
-          (m) => m.role === "VIDEO_POSTER" || m.role === "START_IMAGE"
-        );
-        const posterUrl = posterMedia ? `/api/training-v2/media/${posterMedia.mediaAsset.publicId}` : undefined;
-        const displayMediaList = executionMedia ? [executionMedia] : fallbackMedia ? [fallbackMedia] : [pinnedMedia[0]];
-
-        return (
-          <div className="space-y-2">
-            {displayMediaList.map((m) => {
-              // isGif check handled by fallback to <img>
-              const isVideo =
-                m.mediaAsset.mediaType === "VIDEO" || m.mediaAsset.mimeType === "video/mp4";
-
-              return (
-                <div
-                  key={m.mediaAsset.publicId}
-                  className="rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-center p-1 sm:p-2 shadow-xs"
-                >
-                  {isVideo ? (
-                    <video
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      controls
-                      poster={posterUrl}
-                      preload="metadata"
-                      src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
-                      className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block bg-black"
-                    />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={`/api/training-v2/media/${m.mediaAsset.publicId}`}
-                      alt={item.exerciseNameSnapshot}
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.display = "none";
-                      }}
-                      className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block"
-                    />
-                  )}
-                </div>
-              );
-            })}
+      {showMedia && hasMedia && resolvedMedia.url && (
+        <div className="space-y-2">
+          <div className="rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-subtle)] flex items-center justify-center p-1 sm:p-2 shadow-xs">
+            {resolvedMedia.isVideo ? (
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                controls
+                poster={resolvedMedia.thumbnailUrl || undefined}
+                preload="metadata"
+                src={resolvedMedia.url}
+                className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block bg-black"
+              />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={resolvedMedia.url}
+                alt={item.exerciseNameSnapshot}
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                }}
+                className="w-auto h-auto max-w-full max-h-[360px] sm:max-h-[420px] object-contain rounded-xl mx-auto block"
+              />
+            )}
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* SECTION 3: PRESCRIÇÃO E SÉRIES */}
       <div className="space-y-2.5">

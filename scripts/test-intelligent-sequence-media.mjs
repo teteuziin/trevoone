@@ -6,15 +6,17 @@ register('./ts-loader.mjs', import.meta.url);
 
 import assert from "assert";
 import fs from "fs";
-import {
+
+const {
   detectExerciseSequenceFromText,
   extractMovementHints,
-} from "../lib/training-v2/sequence-detector.ts";
-import {
+} = await import("../lib/training-v2/sequence-detector.ts");
+
+const {
   buildSequenceMediaFromCustomItem,
   buildSequenceMediaFromCombination,
   buildSequenceMediaExperience,
-} from "../lib/training-v2/sequence-media.ts";
+} = await import("../lib/training-v2/sequence-media.ts");
 
 console.log("==================================================================");
 console.log("TREVO ONE — INTELLIGENT SEQUENCE MEDIA VERIFICATION SUITE");

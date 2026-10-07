@@ -410,18 +410,18 @@ export function NutritionPlanBuilder({
 
   return (
     <div className="w-full max-w-full min-w-0 min-h-[calc(100vh-4rem)] bg-transparent px-4 sm:px-6 md:px-8 py-4 sm:py-8">
-      <div className="space-y-6 max-w-7xl mx-auto pb-28 sm:pb-20 w-full max-w-full min-w-0">
+      <div className="space-y-6 w-full max-w-full lg:max-w-7xl mx-auto pb-28 sm:pb-20 min-w-0">
         {/* Top Breadcrumb & Actions */}
-        <div className="flex items-center justify-between gap-2.5 min-w-0 w-full max-w-full">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 min-w-0 w-full max-w-full">
           <Link
             href={patientContext ? patientContext.returnToUrl : `/consultoria/${slug}/planos-v2`}
-            className="inline-flex items-start sm:items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive min-w-0 max-w-full flex-1"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive min-w-0 max-w-full flex-1"
           >
             <ArrowLeftIcon className="w-4 h-4 shrink-0 mt-0.5 sm:mt-0" />
-            <span className="break-words [overflow-wrap:anywhere] min-w-0 max-w-full sm:hidden">
+            <span className="block min-w-0 max-w-full break-words [overflow-wrap:anywhere] sm:hidden">
               {patientContext ? `Voltar para ${patientContext.studentName}` : "Voltar para Planos"}
             </span>
-            <span className="hidden sm:inline break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
+            <span className="hidden sm:inline-block min-w-0 max-w-full break-words [overflow-wrap:anywhere]">
               {patientContext ? `Voltar para paciente (${patientContext.studentName})` : "Voltar para Planos"}
             </span>
           </Link>
@@ -552,18 +552,18 @@ export function NutritionPlanBuilder({
               <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[var(--brand)] text-[var(--text-inverse)] flex items-center justify-center font-extrabold text-xs sm:text-sm shrink-0 shadow-xs mb-0.5 sm:mb-0">
                 {patientContext.studentName.charAt(0).toUpperCase()}
               </div>
-              <div className="min-w-0 flex-1 w-full max-w-full flex flex-col gap-1 sm:gap-0.5">
+              <div className="min-w-0 flex-1 w-full max-w-full flex flex-col gap-1.5 sm:gap-0.5">
                 {/* Title and Badge - Stacked on Mobile (< sm), side-by-side on sm+ */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0 max-w-full">
-                  <span className="text-sm font-extrabold text-[var(--text-primary)] break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 min-w-0 w-full max-w-full">
+                  <span className="text-sm font-extrabold text-[var(--text-primary)] block break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
                     Plano alimentar de {patientContext.studentName}
                   </span>
-                  <span className="self-start sm:self-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)] text-[var(--text-inverse)] break-words [overflow-wrap:anywhere] shrink-0">
+                  <span className="inline-block self-start sm:self-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)] text-[var(--text-inverse)] break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
                     {tree.version.status === "DRAFT" ? "Alteração em andamento" : "Plano publicado"}
                   </span>
                 </div>
                 {/* Guidance text */}
-                <p className="text-[11px] text-[var(--text-secondary)] break-words [overflow-wrap:anywhere] leading-relaxed min-w-0 max-w-full pt-0.5 sm:pt-0">
+                <p className="text-[11px] text-[var(--text-secondary)] block break-words [overflow-wrap:anywhere] leading-relaxed min-w-0 max-w-full pt-0.5 sm:pt-0">
                   {tree.version.status === "DRAFT"
                     ? "Enquanto este rascunho estiver em edição, o aluno continua visualizando a prescrição ativa anterior."
                     : "Este plano está publicado e ativo para a paciente."}
@@ -601,8 +601,8 @@ export function NutritionPlanBuilder({
           </div>
         )}
 
-        {/* 12-Column Responsive Workspace Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full max-w-full min-w-0">
+        {/* Responsive Workspace: Mobile 1-Column Flow, Desktop 12-Column Grid */}
+        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 items-start w-full max-w-full min-w-0">
           {/* LEFT / MAIN WORKSPACE: Plan Header & Meals */}
           <div className="lg:col-span-8 space-y-6 w-full max-w-full min-w-0">
             {/* Plan Header Card */}
@@ -621,7 +621,7 @@ export function NutritionPlanBuilder({
                       )}
                     </div>
 
-                    <h1 className="text-lg sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
+                    <h1 className="text-lg sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight block break-words [overflow-wrap:anywhere] min-w-0 max-w-full">
                       {tree.version.title}
                     </h1>
 
@@ -756,9 +756,9 @@ export function NutritionPlanBuilder({
 
         {/* Meals Section */}
         <div className="space-y-4 w-full max-w-full min-w-0">
-          <div className="flex items-center justify-between gap-3 min-w-0 w-full max-w-full">
-            <div>
-              <h2 className="text-lg font-bold text-[var(--text-primary)]">Refeições do Plano</h2>
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 min-w-0 w-full max-w-full">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-bold text-[var(--text-primary)] break-words [overflow-wrap:anywhere]">Refeições do Plano</h2>
               <p className="text-xs text-[var(--text-secondary)] font-medium">
                 {tree.meals.length} refeição{tree.meals.length === 1 ? "" : "ões"} configurada{tree.meals.length === 1 ? "" : "s"}
               </p>
@@ -769,7 +769,7 @@ export function NutritionPlanBuilder({
                 variant="primary"
                 size="sm"
                 onClick={() => setIsAddingMeal(true)}
-                className="font-bold min-h-[38px] shadow-sm"
+                className="font-bold min-h-[38px] shadow-sm shrink-0 w-full sm:w-auto"
               >
                 <PlusIcon className="w-4 h-4 mr-1.5" />
                 <span>Adicionar Refeição</span>
@@ -963,7 +963,7 @@ export function NutritionPlanBuilder({
         </div>
 
         {/* Mobile In-Flow Totals Block (Below Meals) */}
-        <div className="lg:hidden p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 depth-surface w-full min-w-0">
+        <div className="lg:hidden p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 depth-surface w-full max-w-full min-w-0">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
             <div>
               <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)] block">

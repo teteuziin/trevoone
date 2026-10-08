@@ -1,3 +1,5 @@
+import type { BiologicalSex, UpdatePatientPhysiologicalInput } from "./patient-record-types";
+
 export type PregnancyStatus =
   | "NOT_APPLICABLE"
   | "NOT_PREGNANT"
@@ -12,6 +14,8 @@ export const ALL_PREGNANCY_STATUSES: readonly PregnancyStatus[] = [
 ] as const;
 
 export type UpdatePatientRecordInput = {
+  birthDate?: string | null;
+  biologicalSex?: BiologicalSex | null;
   occupation?: string | null;
   routineNotes?: string | null;
   followUpReason?: string | null;
@@ -198,6 +202,51 @@ export function validateDate(val: unknown, fieldName: string): string | null {
 }
 
 /**
+ * Validates birth date.
+ * Rules:
+ * - Must be valid calendar date in YYYY-MM-DD format
+ * - Cannot be in the future
+ * - Year must be >= 1900
+ */
+export function validateBirthDate(val: unknown): string | null {
+  if (val === null || val === undefined || val === "") {
+    return null;
+  }
+  const dateStr = validateDate(val, "nascimento");
+  if (!dateStr) return null;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (dateStr > todayStr) {
+    throw new PatientRecordValidationError(
+      "A data de nascimento não pode estar no futuro.",
+      "BIRTH_DATE_IN_FUTURE"
+    );
+  }
+  return dateStr;
+}
+
+/**
+ * Canonical biological sex validator & normalizer.
+ * Accepts only domain values: MALE/FEMALE and common PT-BR aliases.
+ * Rejects unknown non-empty values.
+ */
+export function canonicalBiologicalSex(val: unknown): BiologicalSex | null {
+  if (val === null || val === undefined || val === "") {
+    return null;
+  }
+  const s = String(val).trim().toUpperCase();
+  if (s === "MALE" || s === "MASCULINO" || s === "M" || s === "HOMEM") {
+    return "MALE";
+  }
+  if (s === "FEMALE" || s === "FEMININO" || s === "F" || s === "MULHER") {
+    return "FEMALE";
+  }
+  throw new PatientRecordValidationError(
+    "Sexo biológico inválido. Valores aceitos: Masculino ('MALE') ou Feminino ('FEMALE').",
+    "INVALID_BIOLOGICAL_SEX"
+  );
+}
+
+/**
  * Sanitizes and trims optional text fields. Empty string returns null.
  */
 export function sanitizeOptionalText(val: unknown, maxLength = 65535): string | null {
@@ -367,6 +416,8 @@ export function validatePatientRecordInput(input: unknown): UpdatePatientRecordI
   const raw = input as Record<string, unknown>;
 
   return {
+    birthDate: raw.birthDate !== undefined ? validateBirthDate(raw.birthDate) : undefined,
+    biologicalSex: raw.biologicalSex !== undefined ? canonicalBiologicalSex(raw.biologicalSex) : undefined,
     occupation: sanitizeOptionalText(raw.occupation, 255),
     routineNotes: sanitizeOptionalText(raw.routineNotes),
     followUpReason: sanitizeOptionalText(raw.followUpReason),
@@ -397,6 +448,32 @@ export function validatePatientRecordInput(input: unknown): UpdatePatientRecordI
     sleepRoutine: sanitizeOptionalText(raw.sleepRoutine),
     workStudyRoutine: sanitizeOptionalText(raw.workStudyRoutine),
   };
+}
+
+/**
+ * Validates discrete physiological data input for patient record (Release 3.1).
+ * Differentiates omitted fields (undefined) from explicitly cleared fields (null / empty string).
+ */
+export function validatePhysiologicalInput(input: unknown): UpdatePatientPhysiologicalInput {
+  if (!input || typeof input !== "object") {
+    throw new PatientRecordValidationError(
+      "Dados fisiológicos inválidos.",
+      "INVALID_PAYLOAD"
+    );
+  }
+
+  const raw = input as Record<string, unknown>;
+  const result: UpdatePatientPhysiologicalInput = {};
+
+  if ("birthDate" in raw && raw.birthDate !== undefined) {
+    result.birthDate = validateBirthDate(raw.birthDate);
+  }
+
+  if ("biologicalSex" in raw && raw.biologicalSex !== undefined) {
+    result.biologicalSex = canonicalBiologicalSex(raw.biologicalSex);
+  }
+
+  return result;
 }
 
 /**

@@ -1,3 +1,5 @@
+export type BiologicalSex = "MALE" | "FEMALE";
+
 /**
  * TREVO ONE ? NUTRITION V2 PATIENT RECORD & PREGNANCY TYPES
  * Authoritative types for clinical health history, lifestyle, anthropometrics, and pregnancy.
@@ -30,6 +32,10 @@ export type PatientRecord = {
   consultancyId: number;
   studentMembershipId: number;
   createdByMembershipId: number;
+
+  // Physiological Foundation (Migration 046)
+  birthDate: string | null;
+  biologicalSex: BiologicalSex | null;
 
   // Basic Clinical Information
   occupation: string | null;
@@ -154,9 +160,17 @@ export type PatientRecordDetail = {
   pregnancy: PatientPregnancyRecord | null;
   anthropometrics: PatientAnthropometricEntry[];
   onboardingReference: OnboardingReferenceData;
+
+  // Canonical resolution across patient record and onboarding reference (Release 3.1)
+  resolvedBirthDate: string | null;
+  resolvedBiologicalSex: BiologicalSex | null;
+  birthDateProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+  biologicalSexProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
 };
 
 export type UpdatePatientRecordInput = {
+  birthDate?: string | null;
+  biologicalSex?: BiologicalSex | null;
   occupation?: string | null;
   routineNotes?: string | null;
   followUpReason?: string | null;
@@ -215,4 +229,9 @@ export type UpdatePregnancyInput = {
   deliveryDate?: string | null;
   breastfeedingStatus?: string | null;
   postpartumNotes?: string | null;
+};
+
+export type UpdatePatientPhysiologicalInput = {
+  birthDate?: string | null;
+  biologicalSex?: BiologicalSex | null;
 };

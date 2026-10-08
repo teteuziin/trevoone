@@ -233,4 +233,8 @@ export interface PatientPlanningStaleStatus {
 export interface PatientPlanningWithStatus {
   planning: PatientPlanning | null;
   staleStatus: PatientPlanningStaleStatus;
+  resolvedBirthDate?: string | null;
+  resolvedBiologicalSex?: BiologicalSex | null;
+  birthDateProvenance?: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+  biologicalSexProvenance?: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
 }

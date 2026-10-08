@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TREVO ONE — NUTRITION V2 PATIENT RECORD REPOSITORY
  * Clinical history, lifestyle, historical anthropometrics, pregnancy, and onboarding integration.
  */
@@ -15,13 +15,24 @@ import {
   type UpdatePatientRecordInput,
   type AddAnthropometricEntryInput,
   type UpdatePregnancyInput,
+  type BiologicalSex,
+  type UpdatePatientPhysiologicalInput,
 } from "./patient-record-types";
 import {
   validatePatientRecordInput,
   validateAnthropometricEntryInput,
   validatePregnancyInput,
+  validatePhysiologicalInput,
   PatientRecordValidationError,
 } from "./patient-record-validation";
+
+function normalizeBioSex(raw: unknown): BiologicalSex | null {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim().toUpperCase();
+  if (s === "MALE" || s === "MASCULINO" || s === "M" || s === "HOMEM") return "MALE";
+  if (s === "FEMALE" || s === "FEMININO" || s === "F" || s === "MULHER") return "FEMALE";
+  return null;
+}
 
 export class PatientRecordNotFoundError extends Error {
   public readonly code = "PATIENT_RECORD_NOT_FOUND";
@@ -48,6 +59,12 @@ function mapRowToPatientRecord(row: RowDataPacket): PatientRecord {
     consultancyId: Number(row.consultancy_id),
     studentMembershipId: Number(row.student_membership_id),
     createdByMembershipId: Number(row.created_by_membership_id),
+    birthDate: row.birth_date
+      ? (typeof row.birth_date === "string"
+          ? row.birth_date.slice(0, 10)
+          : new Date(row.birth_date).toISOString().slice(0, 10))
+      : null,
+    biologicalSex: (row.biological_sex as BiologicalSex) || null,
     occupation: row.occupation ? String(row.occupation) : null,
     routineNotes: row.routine_notes ? String(row.routine_notes) : null,
     followUpReason: row.follow_up_reason ? String(row.follow_up_reason) : null,
@@ -350,12 +367,26 @@ export async function getPatientRecordDetail(
       studentMembershipId
     );
 
+    const resolvedBirthDate = record.birthDate ?? onboardingReference.birthDate ?? null;
+    const birthDateProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING" =
+      record.birthDate ? "PATIENT_RECORD" : onboardingReference.birthDate ? "ONBOARDING" : "MISSING";
+
+    const recordSex = normalizeBioSex(record.biologicalSex);
+    const onboardingSex = normalizeBioSex(onboardingReference.sex);
+    const resolvedBiologicalSex = recordSex ?? onboardingSex ?? null;
+    const biologicalSexProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING" =
+      recordSex ? "PATIENT_RECORD" : onboardingSex ? "ONBOARDING" : "MISSING";
+
     return {
       record,
       student: studentInfo,
       pregnancy,
       anthropometrics,
       onboardingReference,
+      resolvedBirthDate,
+      resolvedBiologicalSex,
+      birthDateProvenance,
+      biologicalSexProvenance,
     };
   } finally {
     connection.release();
@@ -456,6 +487,93 @@ export async function updatePatientRecord(
     );
 
     return mapRowToPatientRecord(updatedRows[0]);
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Updates or sets patient canonical physiological data (Release 3.1).
+ * Creates the patient record lazily if it does not yet exist.
+ * Preserves student onboarding responses as immutable historical reference.
+ */
+export async function updatePatientPhysiologicalData(
+  consultancyId: number,
+  studentMembershipId: number,
+  authorMembershipId: number,
+  input: UpdatePatientPhysiologicalInput
+): Promise<{
+  record: PatientRecord;
+  resolvedBirthDate: string | null;
+  resolvedBiologicalSex: BiologicalSex | null;
+  birthDateProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+  biologicalSexProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+}> {
+  const validated = validatePhysiologicalInput(input);
+  const connection = await getDbConnection();
+
+  try {
+    const record = await getOrCreatePatientRecord(
+      connection,
+      consultancyId,
+      studentMembershipId,
+      authorMembershipId
+    );
+
+    const setClauses: string[] = [];
+    const params: (string | null | number)[] = [];
+
+    if (validated.birthDate !== undefined) {
+      setClauses.push("birth_date = ?");
+      params.push(validated.birthDate);
+    }
+
+    if (validated.biologicalSex !== undefined) {
+      setClauses.push("biological_sex = ?");
+      params.push(validated.biologicalSex);
+    }
+
+    if (setClauses.length > 0) {
+      setClauses.push("updated_at = CURRENT_TIMESTAMP(3)");
+      params.push(record.id, consultancyId);
+
+      await connection.execute<ResultSetHeader>(
+        `UPDATE nutrition_v2_patient_records
+         SET ${setClauses.join(", ")}
+         WHERE id = ? AND consultancy_id = ?;`,
+        params
+      );
+    }
+
+    const [updatedRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT * FROM nutrition_v2_patient_records WHERE id = ?;`,
+      [record.id]
+    );
+
+    const updatedRecord = mapRowToPatientRecord(updatedRows[0]);
+    const onboardingReference = await getOnboardingReferenceData(
+      connection,
+      consultancyId,
+      studentMembershipId
+    );
+
+    const resolvedBirthDate = updatedRecord.birthDate ?? onboardingReference.birthDate ?? null;
+    const birthDateProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING" =
+      updatedRecord.birthDate ? "PATIENT_RECORD" : onboardingReference.birthDate ? "ONBOARDING" : "MISSING";
+
+    const recordSex = normalizeBioSex(updatedRecord.biologicalSex);
+    const onboardingSex = normalizeBioSex(onboardingReference.sex);
+    const resolvedBiologicalSex = recordSex ?? onboardingSex ?? null;
+    const biologicalSexProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING" =
+      recordSex ? "PATIENT_RECORD" : onboardingSex ? "ONBOARDING" : "MISSING";
+
+    return {
+      record: updatedRecord,
+      resolvedBirthDate,
+      resolvedBiologicalSex,
+      birthDateProvenance,
+      biologicalSexProvenance,
+    };
   } finally {
     connection.release();
   }

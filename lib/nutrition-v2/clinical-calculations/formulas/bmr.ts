@@ -37,6 +37,19 @@ export function normalizeBiologicalSex(raw: unknown): BiologicalSex | null {
   return null;
 }
 
+export function canonicalBiologicalSex(raw: unknown): BiologicalSex | null {
+  if (raw === null || raw === undefined) return null;
+  const str = String(raw).trim();
+  if (!str) return null;
+  const normalized = normalizeBiologicalSex(str);
+  if (!normalized) {
+    throw new CalculationValidationError(
+      "Sexo biológico inválido. Valores aceitos: Masculino ('MALE') ou Feminino ('FEMALE')."
+    );
+  }
+  return normalized;
+}
+
 export function calculateAgeFromBirthDate(birthDateStr: string | null | undefined): number | null {
   if (!birthDateStr) return null;
   const trimmed = birthDateStr.trim();

@@ -16,6 +16,12 @@ import {
   archiveTemplate,
   unarchiveTemplate,
   createPlanFromTemplate,
+  duplicateTemplate,
+  applyTemplateToPatient,
+  copyPatientPlanToStudent,
+  listStudentsForPlanCopy,
+  type ApplyTemplateToPatientResult,
+  type CopyPatientPlanToStudentResult,
 } from "@/lib/nutrition-v2/template-repository";
 import type {
   NutritionV2PlanTemplateListItemDto,
@@ -1120,6 +1126,107 @@ export async function createPlanFromTemplateAction(
     return { success: true, data: res };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao criar plano a partir do modelo.";
+    return { success: false, error: message };
+  }
+}
+
+export async function duplicateTemplateAction(
+  slug: string,
+  templatePublicId: string
+): Promise<ActionResult<{ templatePublicId: string; name: string }>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    if (!templatePublicId) {
+      return { success: false, error: "Identificador do modelo é obrigatório.", code: "VALIDATION_ERROR" };
+    }
+
+    const res = await duplicateTemplate(ctx, templatePublicId);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao duplicar modelo.";
+    return { success: false, error: message };
+  }
+}
+
+export async function applyTemplateToPatientAction(
+  slug: string,
+  input: {
+    templatePublicId: string;
+    targetStudentMembershipPublicId: string;
+    title?: string;
+    replaceExistingDraft?: boolean;
+  }
+): Promise<ActionResult<ApplyTemplateToPatientResult>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const res = await applyTemplateToPatient(ctx, input);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    if (res.status === "APPLIED") {
+      revalidatePath(`/consultoria/${slug}/planos-v2/${res.planPublicId}`);
+    }
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao aplicar modelo ao paciente.";
+    return { success: false, error: message };
+  }
+}
+
+export async function copyPatientPlanToStudentAction(
+  slug: string,
+  input: {
+    sourcePlanPublicId: string;
+    sourceVersionPublicId?: string;
+    targetStudentMembershipPublicId: string;
+    replaceExistingDraft?: boolean;
+    allowDraftSource?: boolean;
+    title?: string;
+  }
+): Promise<ActionResult<CopyPatientPlanToStudentResult>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const res = await copyPatientPlanToStudent(ctx, input);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    if (res.status === "COPIED") {
+      revalidatePath(`/consultoria/${slug}/planos-v2/${res.planPublicId}`);
+    }
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao copiar plano para paciente.";
+    return { success: false, error: message };
+  }
+}
+
+export async function listStudentsForPlanCopyAction(
+  slug: string,
+  excludeStudentMembershipPublicId?: string
+): Promise<ActionResult<Array<{
+  membershipPublicId: string;
+  studentPublicId: string;
+  fullName: string;
+  email: string;
+  hasActivePlan: boolean;
+  activePlanTitle: string | null;
+  hasDraftPlan: boolean;
+}>>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+
+    const data = await listStudentsForPlanCopy(ctx, excludeStudentMembershipPublicId);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao buscar alunos para cópia.";
     return { success: false, error: message };
   }
 }

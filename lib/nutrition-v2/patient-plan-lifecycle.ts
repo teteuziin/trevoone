@@ -64,9 +64,44 @@ export interface PatientPlanStateResult {
 }
 
 /**
+ * Soft-deletes all existing meals, items, and substitutions for a version.
+ */
+export async function clearVersionMealsAndItems(
+  connection: PoolConnection,
+  versionId: number
+): Promise<void> {
+  const [sourceMeals] = await connection.query<RowDataPacket[]>(
+    `SELECT id FROM nutrition_v2_meals WHERE nutrition_plan_version_id = ? AND deleted_at IS NULL`,
+    [versionId]
+  );
+  if (sourceMeals.length > 0) {
+    const mealIds = sourceMeals.map((m) => m.id);
+    const [sourceItems] = await connection.query<RowDataPacket[]>(
+      `SELECT id FROM nutrition_v2_meal_items WHERE meal_id IN (?) AND deleted_at IS NULL`,
+      [mealIds]
+    );
+    if (sourceItems.length > 0) {
+      const itemIds = sourceItems.map((i) => i.id);
+      await connection.query(
+        `UPDATE nutrition_v2_item_substitutions SET deleted_at = UTC_TIMESTAMP(3) WHERE meal_item_id IN (?) AND deleted_at IS NULL`,
+        [itemIds]
+      );
+      await connection.query(
+        `UPDATE nutrition_v2_meal_items SET deleted_at = UTC_TIMESTAMP(3) WHERE id IN (?) AND deleted_at IS NULL`,
+        [itemIds]
+      );
+    }
+    await connection.query(
+      `UPDATE nutrition_v2_meals SET deleted_at = UTC_TIMESTAMP(3) WHERE id IN (?) AND deleted_at IS NULL`,
+      [mealIds]
+    );
+  }
+}
+
+/**
  * Deep clones meals, items, and substitutions from a source version to a target version.
  */
-async function deepCloneVersionMealsAndItems(
+export async function deepCloneVersionMealsAndItems(
   connection: PoolConnection,
   sourceVersionId: number,
   targetVersionId: number

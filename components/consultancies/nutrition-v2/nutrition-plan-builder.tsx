@@ -46,11 +46,21 @@ export interface PatientBuilderContext {
   returnToUrl: string;
 }
 
+export interface PlanningTargetDto {
+  caloriesKcal: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatsG: number | null;
+}
+
 interface NutritionPlanBuilderProps {
   slug: string;
   initialTree: PlanVersionTreeDto;
   initialAssignments?: AssignmentListItemDto[];
   patientContext?: PatientBuilderContext;
+  origin?: string;
+  originName?: string;
+  planningTarget?: PlanningTargetDto;
 }
 
 function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -182,6 +192,9 @@ export function NutritionPlanBuilder({
   initialTree,
   initialAssignments = [],
   patientContext,
+  origin,
+  originName,
+  planningTarget,
 }: NutritionPlanBuilderProps) {
   const router = useRouter();
   const [tree, setTree] = useState<PlanVersionTreeDto>(initialTree);
@@ -601,6 +614,20 @@ export function NutritionPlanBuilder({
           </div>
         )}
 
+        {/* Origin Banner */}
+        {origin === "template" && (
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <span className="font-bold shrink-0">Origem:</span>
+            <span>Criado a partir do modelo: <strong>{originName || "Modelo"}</strong></span>
+          </div>
+        )}
+        {origin === "copy" && (
+          <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-800 dark:text-purple-300 text-xs flex items-center gap-2">
+            <span className="font-bold shrink-0">Origem:</span>
+            <span>Criado a partir de uma cópia de plano</span>
+          </div>
+        )}
+
         {/* Responsive Workspace: Mobile 1-Column Flow, Desktop 12-Column Grid */}
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 items-start w-full max-w-full min-w-0">
           {/* LEFT / MAIN WORKSPACE: Plan Header & Meals */}
@@ -1014,6 +1041,63 @@ export function NutritionPlanBuilder({
             </div>
           </div>
 
+          {/* Phase 3 Planning Target Comparison (Mobile) */}
+          {planningTarget && planningTarget.caloriesKcal !== null && (
+            <div className="p-3 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-1">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
+                  Comparação com Planejamento
+                </span>
+                <span className="text-[10px] font-semibold text-[var(--text-secondary)]">Meta vs Plano</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Meta</span>
+                  <span className="text-xs font-extrabold text-[var(--text-primary)] block tabular-nums">
+                    {planningTarget.caloriesKcal} kcal
+                  </span>
+                </div>
+                <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Plano</span>
+                  <span className="text-xs font-extrabold text-[var(--brand)] block tabular-nums">
+                    {tree.dailyTotals.caloriesKcal} kcal
+                  </span>
+                </div>
+                <div className="p-1.5 rounded bg-[var(--surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Diferença</span>
+                  <span
+                    className={`text-xs font-extrabold block tabular-nums ${
+                      tree.dailyTotals.caloriesKcal === planningTarget.caloriesKcal
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : tree.dailyTotals.caloriesKcal > planningTarget.caloriesKcal
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-sky-600 dark:text-sky-400"
+                    }`}
+                  >
+                    {(tree.dailyTotals.caloriesKcal - planningTarget.caloriesKcal > 0 ? "+" : "") +
+                      (tree.dailyTotals.caloriesKcal - planningTarget.caloriesKcal) +
+                      " kcal"}
+                  </span>
+                </div>
+              </div>
+              {planningTarget.proteinG !== null &&
+                planningTarget.carbsG !== null &&
+                planningTarget.fatsG !== null && (
+                  <div className="grid grid-cols-3 gap-1 text-[10px] pt-0.5 text-[var(--text-secondary)]">
+                    <div className="text-center">
+                      P: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.proteinG}g</strong> / {planningTarget.proteinG}g
+                    </div>
+                    <div className="text-center">
+                      C: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.carbohydrateG}g</strong> / {planningTarget.carbsG}g
+                    </div>
+                    <div className="text-center">
+                      G: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.fatG}g</strong> / {planningTarget.fatsG}g
+                    </div>
+                  </div>
+                )}
+            </div>
+          )}
+
           {/* Incomplete data notice */}
           {!tree.dailyTotals.empty && tree.dailyTotals.hasIncompleteData && (
             <div className="flex items-start gap-1.5 p-2 rounded-lg text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
@@ -1111,6 +1195,63 @@ export function NutritionPlanBuilder({
               </span>
             </div>
           </div>
+
+          {/* Phase 3 Planning Target Comparison (Desktop) */}
+          {planningTarget && planningTarget.caloriesKcal !== null && (
+            <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-1.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)]">
+                  Comparação com Planejamento
+                </span>
+                <span className="text-[10px] font-semibold text-[var(--text-secondary)]">Meta vs Plano</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Meta</span>
+                  <span className="text-xs font-extrabold text-[var(--text-primary)] block tabular-nums">
+                    {planningTarget.caloriesKcal} kcal
+                  </span>
+                </div>
+                <div className="p-2 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Plano</span>
+                  <span className="text-xs font-extrabold text-[var(--brand)] block tabular-nums">
+                    {tree.dailyTotals.caloriesKcal} kcal
+                  </span>
+                </div>
+                <div className="p-2 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)]">
+                  <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Diferença</span>
+                  <span
+                    className={`text-xs font-extrabold block tabular-nums ${
+                      tree.dailyTotals.caloriesKcal === planningTarget.caloriesKcal
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : tree.dailyTotals.caloriesKcal > planningTarget.caloriesKcal
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-sky-600 dark:text-sky-400"
+                    }`}
+                  >
+                    {(tree.dailyTotals.caloriesKcal - planningTarget.caloriesKcal > 0 ? "+" : "") +
+                      (tree.dailyTotals.caloriesKcal - planningTarget.caloriesKcal) +
+                      " kcal"}
+                  </span>
+                </div>
+              </div>
+              {planningTarget.proteinG !== null &&
+                planningTarget.carbsG !== null &&
+                planningTarget.fatsG !== null && (
+                  <div className="grid grid-cols-3 gap-1 text-[10px] pt-1 text-[var(--text-secondary)]">
+                    <div className="text-center">
+                      P: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.proteinG}g</strong> / {planningTarget.proteinG}g
+                    </div>
+                    <div className="text-center">
+                      C: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.carbohydrateG}g</strong> / {planningTarget.carbsG}g
+                    </div>
+                    <div className="text-center">
+                      G: <strong className="text-[var(--text-primary)]">{tree.dailyTotals.fatG}g</strong> / {planningTarget.fatsG}g
+                    </div>
+                  </div>
+                )}
+            </div>
+          )}
 
           {/* Fiber row */}
           {tree.dailyMicronutrientTotals?.nutrients?.FIBER && (

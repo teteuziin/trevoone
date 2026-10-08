@@ -36,6 +36,9 @@ import type {
   PatientPlanningStaleStatus,
 } from "@/lib/nutrition-v2/patient-planning-types";
 import { PatientPlanningTab } from "./patient-planning-tab";
+import { NutritionTemplatesModal } from "./nutrition-templates-modal";
+import { NutritionCopyPlanDialog } from "./nutrition-copy-plan-dialog";
+import { NutritionSaveTemplateDialog } from "./nutrition-save-template-dialog";
 
 interface PatientRecordViewProps {
   slug: string;
@@ -88,6 +91,11 @@ export function PatientRecordView({
   const [isStartingEdit, setIsStartingEdit] = useState(false);
   const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Dialog states for templates and plan copy
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+  const [isCopyPlanDialogOpen, setIsCopyPlanDialogOpen] = useState(false);
+  const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
 
   const handleStartEditPlan = async () => {
     setIsStartingEdit(true);
@@ -867,7 +875,7 @@ export function PatientRecordView({
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {draftPlan ? (
                   <>
                     <Link href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}>
@@ -896,18 +904,47 @@ export function PatientRecordView({
                     >
                       {isStartingEdit ? "Abrindo..." : "Editar Plano"}
                     </Button>
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => setIsSaveTemplateDialogOpen(true)}
+                      className="font-bold text-xs min-h-[40px]"
+                    >
+                      Salvar como modelo
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => setIsCopyPlanDialogOpen(true)}
+                      className="font-bold text-xs min-h-[40px]"
+                    >
+                      Copiar plano
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => setIsTemplatesModalOpen(true)}
+                      className="font-bold text-xs min-h-[40px]"
+                    >
+                      Usar modelo
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => setIsCopyPlanDialogOpen(true)}
+                      className="font-bold text-xs min-h-[40px]"
+                    >
+                      Copiar plano existente
+                    </Button>
                     <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
-                      <Button variant="secondary" size="md" className="font-bold text-xs min-h-[40px]">
-                        + Novo Plano
+                      <Button variant="ghost" size="md" className="font-bold text-xs min-h-[40px]">
+                        + Criar do zero
                       </Button>
                     </Link>
                   </>
-                ) : (
-                  <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
-                    <Button variant="primary" size="md" className="font-bold text-xs min-h-[40px]">
-                      + Prescrever Primeiro Plano
-                    </Button>
-                  </Link>
                 )}
               </div>
             </div>
@@ -1896,6 +1933,40 @@ export function PatientRecordView({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modals for Phase 4: Templates and Plan Copy */}
+      {isTemplatesModalOpen && (
+        <NutritionTemplatesModal
+          isOpen={isTemplatesModalOpen}
+          onClose={() => setIsTemplatesModalOpen(false)}
+          consultancySlug={slug}
+          targetStudentMembershipPublicId={detail.student.membershipPublicId}
+          targetStudentName={detail.student.fullName}
+        />
+      )}
+
+      {isCopyPlanDialogOpen && (
+        <NutritionCopyPlanDialog
+          isOpen={isCopyPlanDialogOpen}
+          onClose={() => setIsCopyPlanDialogOpen(false)}
+          consultancySlug={slug}
+          sourcePlanPublicId={activePlan ? activePlan.planPublicId : undefined}
+          sourcePlanTitle={activePlan ? activePlan.versionTitle : undefined}
+          targetStudentMembershipPublicId={!activePlan ? detail.student.membershipPublicId : undefined}
+          targetStudentName={!activePlan ? detail.student.fullName : undefined}
+        />
+      )}
+
+      {isSaveTemplateDialogOpen && activePlan && (
+        <NutritionSaveTemplateDialog
+          isOpen={isSaveTemplateDialogOpen}
+          onClose={() => setIsSaveTemplateDialogOpen(false)}
+          consultancySlug={slug}
+          planPublicId={activePlan.planPublicId}
+          versionPublicId={activePlan.versionPublicId}
+          defaultName={activePlan.versionTitle}
+        />
       )}
     </>
   );

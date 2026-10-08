@@ -2,18 +2,26 @@ import { notFound, redirect } from "next/navigation";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { getPlanVersionTreeByPlanPublicId } from "@/lib/nutrition-v2/plan-repository";
 import { listPlanAssignments } from "@/lib/nutrition-v2/assignment-repository";
+import { getPatientPlanningByStudent } from "@/lib/nutrition-v2/patient-planning-repository";
 import { NutritionPlanBuilder } from "@/components/consultancies/nutrition-v2/nutrition-plan-builder";
 import { getDbConnection } from "@/lib/db/mysql";
 import type { RowDataPacket } from "mysql2/promise";
 
 interface PlanBuilderPageProps {
   params: Promise<{ slug: string; planPublicId: string }>;
-  searchParams: Promise<{ v?: string; studentId?: string; studentPublicId?: string; returnTo?: string }>;
+  searchParams: Promise<{
+    v?: string;
+    studentId?: string;
+    studentPublicId?: string;
+    returnTo?: string;
+    origin?: string;
+    originName?: string;
+  }>;
 }
 
 export default async function PlanBuilderPage({ params, searchParams }: PlanBuilderPageProps) {
   const { slug, planPublicId } = await params;
-  const { v: versionPublicId, studentId, studentPublicId, returnTo } = await searchParams;
+  const { v: versionPublicId, studentId, studentPublicId, returnTo, origin, originName } = await searchParams;
 
   const ctx = await resolveNutritionAccessContext(slug);
   if (!ctx) {
@@ -39,6 +47,13 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
     returnToUrl: string;
   } | null = null;
 
+  let planningTarget: {
+    caloriesKcal: number | null;
+    proteinG: number | null;
+    carbsG: number | null;
+    fatsG: number | null;
+  } | null = null;
+
   const targetStudentId = studentId || studentPublicId;
   const conn = await getDbConnection();
   try {
@@ -61,11 +76,21 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
           studentName: String(sr.full_name),
           returnToUrl: returnTo || `/consultoria/${slug}/planos-v2/prontuario/${sr.user_public_id}?tab=plano`,
         };
+
+        const planning = await getPatientPlanningByStudent(ctx.consultancyId!, Number(sr.id), conn);
+        if (planning) {
+          planningTarget = {
+            caloriesKcal: planning.targetCaloriesKcal,
+            proteinG: planning.targetProteinG,
+            carbsG: planning.targetCarbsG,
+            fatsG: planning.targetFatsG,
+          };
+        }
       }
     } else {
       // Check if this draft is linked to a student via DRAFT assignment
       const [draftAssignRows] = await conn.query<RowDataPacket[]>(
-        `SELECT cm.public_id, u.public_id AS user_public_id, u.full_name
+        `SELECT cm.id AS membership_id, cm.public_id, u.public_id AS user_public_id, u.full_name
          FROM nutrition_v2_assignments a
          INNER JOIN consultancy_members cm ON cm.id = a.student_membership_id
          INNER JOIN users u ON u.id = cm.user_id
@@ -86,6 +111,16 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
           studentName: String(dar.full_name),
           returnToUrl: `/consultoria/${slug}/planos-v2/prontuario/${dar.user_public_id}?tab=plano`,
         };
+
+        const planning = await getPatientPlanningByStudent(ctx.consultancyId!, Number(dar.membership_id), conn);
+        if (planning) {
+          planningTarget = {
+            caloriesKcal: planning.targetCaloriesKcal,
+            proteinG: planning.targetProteinG,
+            carbsG: planning.targetCarbsG,
+            fatsG: planning.targetFatsG,
+          };
+        }
       }
     }
   } finally {
@@ -99,6 +134,9 @@ export default async function PlanBuilderPage({ params, searchParams }: PlanBuil
         initialTree={tree}
         initialAssignments={assignments}
         patientContext={patientContext || undefined}
+        origin={origin}
+        originName={originName}
+        planningTarget={planningTarget || undefined}
       />
     </main>
   );

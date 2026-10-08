@@ -5,6 +5,7 @@ import {
   listTemplatesAction,
   renameTemplateAction,
   archiveTemplateAction,
+  duplicateTemplateAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import { Button } from "@/components/ui/button";
 import type { NutritionV2PlanTemplateListItemDto } from "@/lib/nutrition-v2/types";
@@ -15,12 +16,16 @@ interface NutritionTemplatesModalProps {
   isOpen: boolean;
   onClose: () => void;
   consultancySlug: string;
+  targetStudentMembershipPublicId?: string;
+  targetStudentName?: string;
 }
 
 export function NutritionTemplatesModal({
   isOpen,
   onClose,
   consultancySlug,
+  targetStudentMembershipPublicId,
+  targetStudentName,
 }: NutritionTemplatesModalProps) {
   const [templates, setTemplates] = useState<NutritionV2PlanTemplateListItemDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +34,9 @@ export function NutritionTemplatesModal({
   // Use Template dialog state
   const [templateToUse, setTemplateToUse] = useState<NutritionV2PlanTemplateListItemDto | null>(null);
   const [isUseDialogOpen, setIsUseDialogOpen] = useState(false);
+
+  // Duplicating state
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   // Rename inline state
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
@@ -115,6 +123,26 @@ export function NutritionTemplatesModal({
       alert("Falha ao salvar alteração.");
     } finally {
       setIsRenaming(false);
+    }
+  }
+
+  async function handleDuplicate(tmpl: NutritionV2PlanTemplateListItemDto) {
+    setDuplicatingId(tmpl.publicId);
+    try {
+      const res = await duplicateTemplateAction(consultancySlug, tmpl.publicId);
+      if (res.success && res.data) {
+        // Reload list to get fresh counts
+        const listRes = await listTemplatesAction(consultancySlug, false);
+        if (listRes.success && listRes.data) {
+          setTemplates(listRes.data);
+        }
+      } else {
+        alert(res.error || "Erro ao duplicar modelo.");
+      }
+    } catch {
+      alert("Falha de conexão ao duplicar modelo.");
+    } finally {
+      setDuplicatingId(null);
     }
   }
 
@@ -292,13 +320,21 @@ export function NutritionTemplatesModal({
 
                         {/* Actions Row */}
                         <div className="pt-2.5 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2.5 flex-wrap">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <button
                               type="button"
                               onClick={() => handleStartRename(tmpl)}
                               className="px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors min-h-[44px] cursor-pointer"
                             >
                               Renomear
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDuplicate(tmpl)}
+                              disabled={duplicatingId === tmpl.publicId}
+                              className="px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors disabled:opacity-50 min-h-[44px] cursor-pointer"
+                            >
+                              {duplicatingId === tmpl.publicId ? "Duplicando..." : "Duplicar"}
                             </button>
                             <button
                               type="button"
@@ -350,6 +386,8 @@ export function NutritionTemplatesModal({
           }}
           consultancySlug={consultancySlug}
           template={templateToUse}
+          targetStudentMembershipPublicId={targetStudentMembershipPublicId}
+          targetStudentName={targetStudentName}
         />
       )}
 

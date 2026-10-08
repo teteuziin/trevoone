@@ -360,3 +360,24 @@ export const nutritionV2CreatePlanFromTemplateSchema = z.object({
   templatePublicId: z.string().trim().min(1, 'Identificador do modelo é obrigatório.'),
   title: z.string().trim().min(1, 'Título do novo plano é obrigatório.').max(255).optional(),
 });
+
+export const nutritionV2ApplyTemplateToPatientSchema = z.object({
+  templatePublicId: z.string().trim().min(1, 'Identificador do modelo é obrigatório.'),
+  targetStudentMembershipPublicId: z.string().trim().min(1, 'Identificador do aluno é obrigatório.'),
+  title: z.string().trim().max(255).optional(),
+  replaceExistingDraft: z.boolean().optional(),
+});
+
+export const nutritionV2CopyPatientPlanToStudentSchema = z.object({
+  sourcePlanPublicId: z.string().trim().min(1, 'Identificador do plano de origem é obrigatório.'),
+  sourceVersionPublicId: z.string().trim().min(1).optional(),
+  targetStudentMembershipPublicId: z.string().trim().min(1, 'Identificador do aluno de destino é obrigatório.'),
+  replaceExistingDraft: z.boolean().optional(),
+  allowDraftSource: z.boolean().optional(),
+  title: z.string().trim().max(255).optional(),
+});
+
+export const nutritionV2DuplicateTemplateSchema = z.object({
+  templatePublicId: z.string().trim().min(1, 'Identificador do modelo é obrigatório.'),
+});
+

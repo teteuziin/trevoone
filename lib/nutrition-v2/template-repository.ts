@@ -26,7 +26,14 @@ import {
   nutritionV2RenameTemplateSchema,
   nutritionV2ArchiveTemplateSchema,
   nutritionV2CreatePlanFromTemplateSchema,
+  nutritionV2ApplyTemplateToPatientSchema,
+  nutritionV2CopyPatientPlanToStudentSchema,
+  nutritionV2DuplicateTemplateSchema,
 } from "./validation";
+import {
+  deepCloneVersionMealsAndItems,
+  clearVersionMealsAndItems,
+} from "./patient-plan-lifecycle";
 
 // ============================================================================
 // PURE DOMAIN FUNCTIONS & VALIDATION (TESTABLE WITHOUT DB)
@@ -799,6 +806,371 @@ export async function unarchiveTemplate(
   }
 }
 
+/**
+ * Copies meals, items, and substitutions from a template into an existing plan version.
+ * Performs canonical food validation, fresh macro calculation, and fresh micronutrient snapshots.
+ */
+export async function copyTemplateMealsToPlanVersion(
+  connection: PoolConnection,
+  templateId: number,
+  targetVersionId: number,
+  consultancyId: number
+): Promise<void> {
+  // 1. Load all template meals, items, substitutions
+  const [meals] = await connection.query<RowDataPacket[]>(
+    "SELECT * FROM nutrition_v2_template_meals WHERE template_id = ? AND deleted_at IS NULL ORDER BY sort_order ASC, id ASC",
+    [templateId]
+  );
+
+  const mealIds = meals.map((m) => m.id);
+  let items: RowDataPacket[] = [];
+  let substitutions: RowDataPacket[] = [];
+
+  if (mealIds.length > 0) {
+    const [itemRows] = await connection.query<RowDataPacket[]>(
+      "SELECT * FROM nutrition_v2_template_items WHERE template_meal_id IN (?) AND deleted_at IS NULL ORDER BY sort_order ASC, id ASC",
+      [mealIds]
+    );
+    items = itemRows;
+
+    const itemIds = items.map((i) => i.id);
+    if (itemIds.length > 0) {
+      const [subRows] = await connection.query<RowDataPacket[]>(
+        "SELECT * FROM nutrition_v2_template_item_substitutions WHERE template_meal_item_id IN (?) AND deleted_at IS NULL ORDER BY sort_order ASC, id ASC",
+        [itemIds]
+      );
+      substitutions = subRows;
+    }
+  }
+
+  // 2. Collect all referenced food IDs
+  const referencedFoodIds = new Set<number>();
+  for (const item of items) {
+    if (item.food_id) referencedFoodIds.add(Number(item.food_id));
+  }
+  for (const sub of substitutions) {
+    if (sub.food_id) referencedFoodIds.add(Number(sub.food_id));
+  }
+
+  // 3. Query current canonical food data & portions
+  const canonicalFoodsMap = new Map<number, CanonicalFoodRecord>();
+  const foodRowsById = new Map<number, RowDataPacket>();
+
+  if (referencedFoodIds.size > 0) {
+    const foodIdList = Array.from(referencedFoodIds);
+    const [foodRows] = await connection.query<RowDataPacket[]>(
+      "SELECT * FROM nutrition_v2_foods WHERE id IN (?)",
+      [foodIdList]
+    );
+
+    for (const row of foodRows) {
+      foodRowsById.set(Number(row.id), row);
+    }
+
+    const [portionRows] = await connection.query<RowDataPacket[]>(
+      `SELECT id, public_id, food_id, label, equivalent_reference_amount, status, deleted_at
+       FROM nutrition_v2_food_portions
+       WHERE food_id IN (?) AND deleted_at IS NULL`,
+      [foodIdList]
+    );
+
+    const portionsByFoodId = new Map<
+      number,
+      Array<{
+        id: number;
+        publicId: string;
+        label: string;
+        equivalentReferenceAmount: number;
+        status: string;
+        deletedAt: string | null;
+      }>
+    >();
+    for (const p of portionRows) {
+      const fId = Number(p.food_id);
+      if (!portionsByFoodId.has(fId)) portionsByFoodId.set(fId, []);
+      portionsByFoodId.get(fId)!.push({
+        id: Number(p.id),
+        publicId: String(p.public_id),
+        label: String(p.label),
+        equivalentReferenceAmount: Number(p.equivalent_reference_amount),
+        status: String(p.status),
+        deletedAt: p.deleted_at,
+      });
+    }
+
+    for (const row of foodRows) {
+      const fId = Number(row.id);
+      canonicalFoodsMap.set(fId, {
+        id: fId,
+        publicId: String(row.public_id),
+        name: String(row.name),
+        displayNamePtBr: row.display_name_pt_br ? String(row.display_name_pt_br) : null,
+        category: row.category ? String(row.category) : null,
+        scope: String(row.scope),
+        consultancyId: row.consultancy_id ? Number(row.consultancy_id) : null,
+        status: String(row.status),
+        deletedAt: row.deleted_at,
+        referenceAmount: Number(row.reference_amount),
+        referenceUnitCode: String(row.reference_unit_code),
+        caloriesKcal: row.calories_kcal != null ? Number(row.calories_kcal) : null,
+        proteinG: row.protein_g != null ? Number(row.protein_g) : null,
+        carbohydrateG: row.carbohydrate_g != null ? Number(row.carbohydrate_g) : null,
+        fatG: row.fat_g != null ? Number(row.fat_g) : null,
+        portions: portionsByFoodId.get(fId) || [],
+      });
+    }
+  }
+
+  // 4. Revalidate every food and portion
+  const itemsToCheck = items.map((i) => ({
+    id: i.id,
+    foodId: i.food_id ? Number(i.food_id) : null,
+    foodNameSnapshot: String(i.food_name_snapshot),
+    prescribedQuantity: i.prescribed_quantity != null ? Number(i.prescribed_quantity) : null,
+    prescribedUnitCode: i.prescribed_unit_code ? String(i.prescribed_unit_code) : null,
+    prescribedUnitLabel: i.prescribed_unit_label ? String(i.prescribed_unit_label) : null,
+  }));
+
+  const subsToCheck = substitutions.map((s) => ({
+    id: s.id,
+    foodId: s.food_id ? Number(s.food_id) : null,
+    foodNameSnapshot: String(s.food_name_snapshot),
+    prescribedQuantity: s.prescribed_quantity != null ? Number(s.prescribed_quantity) : null,
+    prescribedUnitCode: s.prescribed_unit_code ? String(s.prescribed_unit_code) : null,
+    prescribedUnitLabel: s.prescribed_unit_label ? String(s.prescribed_unit_label) : null,
+  }));
+
+  const validation = validateTemplateFoods(canonicalFoodsMap, itemsToCheck, subsToCheck, consultancyId);
+
+  if (!validation.valid) {
+    const summaryMsg =
+      `Este modelo possui ${validation.issues.length} alimento(s) que precisam ser revisados antes de ser utilizado: ` +
+      validation.issues.map((iss) => `${iss.foodName} (${iss.reason})`).join("; ");
+    throw new NutritionAuthorizationError(summaryMsg, "CANNOT_APPLY_TEMPLATE_INVALID_FOODS", 400);
+  }
+
+  // 5. Insert meals, items, substitutions with FRESH calculations
+  const itemsByMealId = new Map<number, RowDataPacket[]>();
+  for (const item of items) {
+    const mId = Number(item.template_meal_id);
+    if (!itemsByMealId.has(mId)) itemsByMealId.set(mId, []);
+    itemsByMealId.get(mId)!.push(item);
+  }
+
+  const subsByItemId = new Map<number, RowDataPacket[]>();
+  for (const sub of substitutions) {
+    const iId = Number(sub.template_meal_item_id);
+    if (!subsByItemId.has(iId)) subsByItemId.set(iId, []);
+    subsByItemId.get(iId)!.push(sub);
+  }
+
+  for (let mIdx = 0; mIdx < meals.length; mIdx++) {
+    const m = meals[mIdx];
+    const newMealPublicId = crypto.randomUUID();
+    const [mealRes] = await connection.query<ResultSetHeader>(
+      `INSERT INTO nutrition_v2_meals (
+        public_id,
+        nutrition_plan_version_id,
+        title,
+        scheduled_time,
+        sort_order,
+        notes
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+      [newMealPublicId, targetVersionId, m.title, m.scheduled_time || null, m.sort_order ?? mIdx, m.notes || null]
+    );
+    const newMealId = mealRes.insertId;
+
+    const mealItems = itemsByMealId.get(Number(m.id)) || [];
+    for (let iIdx = 0; iIdx < mealItems.length; iIdx++) {
+      const item = mealItems[iIdx];
+      const newItemPublicId = crypto.randomUUID();
+
+      let caloriesSnapshot: number | null = null;
+      let proteinSnapshot: number | null = null;
+      let carbsSnapshot: number | null = null;
+      let fatSnapshot: number | null = null;
+      let micronutrientsSnapshotJson: string | null = null;
+
+      const foodId = item.food_id ? Number(item.food_id) : null;
+      const food = foodId ? canonicalFoodsMap.get(foodId) : null;
+      const rawFoodRow = foodId ? foodRowsById.get(foodId) : null;
+
+      if (food) {
+        let portionAmount: number | null = null;
+        if (item.prescribed_unit_code === "PORCAO" && item.prescribed_unit_label) {
+          const matchPortion = food.portions?.find(
+            (p) => p.label.trim().toLowerCase() === item.prescribed_unit_label.trim().toLowerCase()
+          );
+          if (matchPortion) {
+            portionAmount = matchPortion.equivalentReferenceAmount;
+          }
+        }
+
+        const calc = calculateItemNutrients({
+          food: {
+            referenceAmount: food.referenceAmount,
+            referenceUnitCode: food.referenceUnitCode,
+            caloriesKcal: food.caloriesKcal,
+            proteinG: food.proteinG,
+            carbohydrateG: food.carbohydrateG,
+            fatG: food.fatG,
+          },
+          prescribedQuantity: Number(item.prescribed_quantity),
+          prescribedUnitCode: String(item.prescribed_unit_code),
+          portion: portionAmount ? { label: item.prescribed_unit_label || "", equivalentReferenceAmount: portionAmount } : null,
+        });
+
+        if (!calc.isValid) {
+          throw new NutritionAuthorizationError(calc.errorMessage || "Erro ao calcular nutrientes do item.", "CANNOT_APPLY_TEMPLATE_INVALID_FOODS", 400);
+        }
+        caloriesSnapshot = calc.caloriesKcal;
+        proteinSnapshot = calc.proteinG;
+        carbsSnapshot = calc.carbohydrateG;
+        fatSnapshot = calc.fatG;
+
+        const microEnvelope = await captureMicronutrientsSnapshotForFood(
+          connection,
+          food.id,
+          rawFoodRow || null,
+          calc.factor
+        );
+        micronutrientsSnapshotJson = JSON.stringify(microEnvelope);
+      }
+
+      const [itemRes] = await connection.query<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_meal_items (
+          public_id,
+          meal_id,
+          food_id,
+          sort_order,
+          food_name_snapshot,
+          category_snapshot,
+          prescribed_quantity,
+          prescribed_unit_code,
+          prescribed_unit_label,
+          calories_kcal_snapshot,
+          protein_g_snapshot,
+          carbohydrate_g_snapshot,
+          fat_g_snapshot,
+          micronutrients_snapshot_json,
+          notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newItemPublicId,
+          newMealId,
+          food ? food.id : null,
+          item.sort_order ?? iIdx,
+          food ? (food.displayNamePtBr || food.name) : item.food_name_snapshot,
+          food ? food.category : (item.category_snapshot || null),
+          item.prescribed_quantity != null ? Number(item.prescribed_quantity) : null,
+          item.prescribed_unit_code || null,
+          item.prescribed_unit_label || null,
+          caloriesSnapshot,
+          proteinSnapshot,
+          carbsSnapshot,
+          fatSnapshot,
+          micronutrientsSnapshotJson,
+          item.notes || null,
+        ]
+      );
+      const newItemId = itemRes.insertId;
+
+      const itemSubs = subsByItemId.get(Number(item.id)) || [];
+      for (let sIdx = 0; sIdx < itemSubs.length; sIdx++) {
+        const sub = itemSubs[sIdx];
+        const newSubPublicId = crypto.randomUUID();
+
+        let subCaloriesSnapshot: number | null = null;
+        let subProteinSnapshot: number | null = null;
+        let subCarbsSnapshot: number | null = null;
+        let subFatSnapshot: number | null = null;
+        let subMicroJson: string | null = null;
+
+        const subFoodId = sub.food_id ? Number(sub.food_id) : null;
+        const subFood = subFoodId ? canonicalFoodsMap.get(subFoodId) : null;
+        const rawSubFoodRow = subFoodId ? foodRowsById.get(subFoodId) : null;
+
+        if (subFood) {
+          let subPortionAmount: number | null = null;
+          if (sub.prescribed_unit_code === "PORCAO" && sub.prescribed_unit_label) {
+            const matchPortion = subFood.portions?.find(
+              (p) => p.label.trim().toLowerCase() === sub.prescribed_unit_label.trim().toLowerCase()
+            );
+            if (matchPortion) {
+              subPortionAmount = matchPortion.equivalentReferenceAmount;
+            }
+          }
+
+          const subCalc = calculateItemNutrients({
+            food: {
+              referenceAmount: subFood.referenceAmount,
+              referenceUnitCode: subFood.referenceUnitCode,
+              caloriesKcal: subFood.caloriesKcal,
+              proteinG: subFood.proteinG,
+              carbohydrateG: subFood.carbohydrateG,
+              fatG: subFood.fatG,
+            },
+            prescribedQuantity: Number(sub.prescribed_quantity),
+            prescribedUnitCode: String(sub.prescribed_unit_code),
+            portion: subPortionAmount ? { label: sub.prescribed_unit_label || "", equivalentReferenceAmount: subPortionAmount } : null,
+          });
+
+          if (!subCalc.isValid) {
+            throw new NutritionAuthorizationError(subCalc.errorMessage || "Erro ao calcular nutrientes da substituição.", "CANNOT_APPLY_TEMPLATE_INVALID_FOODS", 400);
+          }
+          subCaloriesSnapshot = subCalc.caloriesKcal;
+          subProteinSnapshot = subCalc.proteinG;
+          subCarbsSnapshot = subCalc.carbohydrateG;
+          subFatSnapshot = subCalc.fatG;
+
+          const subMicroEnvelope = await captureMicronutrientsSnapshotForFood(
+            connection,
+            subFood.id,
+            rawSubFoodRow || null,
+            subCalc.factor
+          );
+          subMicroJson = JSON.stringify(subMicroEnvelope);
+        }
+
+        await connection.query(
+          `INSERT INTO nutrition_v2_item_substitutions (
+            public_id,
+            meal_item_id,
+            food_id,
+            sort_order,
+            food_name_snapshot,
+            prescribed_quantity,
+            prescribed_unit_code,
+            prescribed_unit_label,
+            calories_kcal_snapshot,
+            protein_g_snapshot,
+            carbohydrate_g_snapshot,
+            fat_g_snapshot,
+            micronutrients_snapshot_json,
+            notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            newSubPublicId,
+            newItemId,
+            subFood ? subFood.id : null,
+            sub.sort_order ?? sIdx,
+            subFood ? (subFood.displayNamePtBr || subFood.name) : sub.food_name_snapshot,
+            sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
+            sub.prescribed_unit_code || null,
+            sub.prescribed_unit_label || null,
+            subCaloriesSnapshot,
+            subProteinSnapshot,
+            subCarbsSnapshot,
+            subFatSnapshot,
+            subMicroJson,
+            sub.notes || null,
+          ]
+        );
+      }
+    }
+  }
+}
+
 export interface CreatePlanFromTemplateInput {
   templatePublicId: string;
   title?: string;
@@ -846,140 +1218,7 @@ export async function createPlanFromTemplate(
       );
     }
 
-    // 2. Load all template meals, items, substitutions
-    const [meals] = await connection.query<RowDataPacket[]>(
-      "SELECT * FROM nutrition_v2_template_meals WHERE template_id = ? ORDER BY sort_order ASC, id ASC",
-      [t.id]
-    );
-
-    const mealIds = meals.map((m) => m.id);
-    let items: RowDataPacket[] = [];
-    let substitutions: RowDataPacket[] = [];
-
-    if (mealIds.length > 0) {
-      const [itemRows] = await connection.query<RowDataPacket[]>(
-        "SELECT * FROM nutrition_v2_template_items WHERE template_meal_id IN (?) ORDER BY sort_order ASC, id ASC",
-        [mealIds]
-      );
-      items = itemRows;
-
-      const itemIds = items.map((i) => i.id);
-      if (itemIds.length > 0) {
-        const [subRows] = await connection.query<RowDataPacket[]>(
-          "SELECT * FROM nutrition_v2_template_item_substitutions WHERE template_meal_item_id IN (?) ORDER BY sort_order ASC, id ASC",
-          [itemIds]
-        );
-        substitutions = subRows;
-      }
-    }
-
-    // 3. Collect all referenced food IDs
-    const referencedFoodIds = new Set<number>();
-    for (const item of items) {
-      if (item.food_id) referencedFoodIds.add(Number(item.food_id));
-    }
-    for (const sub of substitutions) {
-      if (sub.food_id) referencedFoodIds.add(Number(sub.food_id));
-    }
-
-    // 4. Query current canonical food data & portions
-    const canonicalFoodsMap = new Map<number, CanonicalFoodRecord>();
-    const foodRowsById = new Map<number, RowDataPacket>();
-
-    if (referencedFoodIds.size > 0) {
-      const foodIdList = Array.from(referencedFoodIds);
-      const [foodRows] = await connection.query<RowDataPacket[]>(
-        "SELECT * FROM nutrition_v2_foods WHERE id IN (?)",
-        [foodIdList]
-      );
-
-      for (const row of foodRows) {
-        foodRowsById.set(Number(row.id), row);
-      }
-
-      const [portionRows] = await connection.query<RowDataPacket[]>(
-        `SELECT id, public_id, food_id, label, equivalent_reference_amount, status, deleted_at
-         FROM nutrition_v2_food_portions
-         WHERE food_id IN (?) AND deleted_at IS NULL`,
-        [foodIdList]
-      );
-
-      const portionsByFoodId = new Map<
-        number,
-        Array<{
-          id: number;
-          publicId: string;
-          label: string;
-          equivalentReferenceAmount: number;
-          status: string;
-          deletedAt: string | null;
-        }>
-      >();
-      for (const p of portionRows) {
-        const fId = Number(p.food_id);
-        if (!portionsByFoodId.has(fId)) portionsByFoodId.set(fId, []);
-        portionsByFoodId.get(fId)!.push({
-          id: Number(p.id),
-          publicId: String(p.public_id),
-          label: String(p.label),
-          equivalentReferenceAmount: Number(p.equivalent_reference_amount),
-          status: String(p.status),
-          deletedAt: p.deleted_at,
-        });
-      }
-
-      for (const row of foodRows) {
-        const fId = Number(row.id);
-        canonicalFoodsMap.set(fId, {
-          id: fId,
-          publicId: String(row.public_id),
-          name: String(row.name),
-          displayNamePtBr: row.display_name_pt_br ? String(row.display_name_pt_br) : null,
-          category: row.category ? String(row.category) : null,
-          scope: String(row.scope),
-          consultancyId: row.consultancy_id ? Number(row.consultancy_id) : null,
-          status: String(row.status),
-          deletedAt: row.deleted_at,
-          referenceAmount: Number(row.reference_amount),
-          referenceUnitCode: String(row.reference_unit_code),
-          caloriesKcal: row.calories_kcal != null ? Number(row.calories_kcal) : null,
-          proteinG: row.protein_g != null ? Number(row.protein_g) : null,
-          carbohydrateG: row.carbohydrate_g != null ? Number(row.carbohydrate_g) : null,
-          fatG: row.fat_g != null ? Number(row.fat_g) : null,
-          portions: portionsByFoodId.get(fId) || [],
-        });
-      }
-    }
-
-    // 5. Revalidate every food and portion
-    const itemsToCheck = items.map((i) => ({
-      id: i.id,
-      foodId: i.food_id ? Number(i.food_id) : null,
-      foodNameSnapshot: String(i.food_name_snapshot),
-      prescribedQuantity: i.prescribed_quantity != null ? Number(i.prescribed_quantity) : null,
-      prescribedUnitCode: i.prescribed_unit_code ? String(i.prescribed_unit_code) : null,
-      prescribedUnitLabel: i.prescribed_unit_label ? String(i.prescribed_unit_label) : null,
-    }));
-
-    const subsToCheck = substitutions.map((s) => ({
-      id: s.id,
-      foodId: s.food_id ? Number(s.food_id) : null,
-      foodNameSnapshot: String(s.food_name_snapshot),
-      prescribedQuantity: s.prescribed_quantity != null ? Number(s.prescribed_quantity) : null,
-      prescribedUnitCode: s.prescribed_unit_code ? String(s.prescribed_unit_code) : null,
-      prescribedUnitLabel: s.prescribed_unit_label ? String(s.prescribed_unit_label) : null,
-    }));
-
-    const validation = validateTemplateFoods(canonicalFoodsMap, itemsToCheck, subsToCheck, ctx.consultancyId);
-
-    if (!validation.valid) {
-      const summaryMsg =
-        `Este modelo possui ${validation.issues.length} alimento(s) que precisam ser revisados antes de ser utilizado: ` +
-        validation.issues.map((iss) => `${iss.foodName} (${iss.reason})`).join("; ");
-      throw new NutritionAuthorizationError(summaryMsg, "CANNOT_APPLY_TEMPLATE_INVALID_FOODS", 400);
-    }
-
-    // 6. ALL VALID -> Create independent new Plan and Version 1 (DRAFT)
+    // 2. Create independent new Plan and Version 1 (DRAFT)
     const newPlanPublicId = crypto.randomUUID();
     const newVersionPublicId = crypto.randomUUID();
     const planTitle = (parsed.title && parsed.title.trim()) || String(t.name);
@@ -1016,228 +1255,8 @@ export async function createPlanFromTemplate(
     );
     const newVersionId = versionRes.insertId;
 
-    // 7. Insert meals, items, substitutions with FRESH calculations
-    const itemsByMealId = new Map<number, RowDataPacket[]>();
-    for (const item of items) {
-      const mId = Number(item.template_meal_id);
-      if (!itemsByMealId.has(mId)) itemsByMealId.set(mId, []);
-      itemsByMealId.get(mId)!.push(item);
-    }
-
-    const subsByItemId = new Map<number, RowDataPacket[]>();
-    for (const sub of substitutions) {
-      const iId = Number(sub.template_meal_item_id);
-      if (!subsByItemId.has(iId)) subsByItemId.set(iId, []);
-      subsByItemId.get(iId)!.push(sub);
-    }
-
-    for (let mIdx = 0; mIdx < meals.length; mIdx++) {
-      const m = meals[mIdx];
-      const newMealPublicId = crypto.randomUUID();
-      const [mealRes] = await connection.query<ResultSetHeader>(
-        `INSERT INTO nutrition_v2_meals (
-          public_id,
-          nutrition_plan_version_id,
-          title,
-          scheduled_time,
-          sort_order,
-          notes
-        ) VALUES (?, ?, ?, ?, ?, ?)`,
-        [newMealPublicId, newVersionId, m.title, m.scheduled_time || null, m.sort_order ?? mIdx, m.notes || null]
-      );
-      const newMealId = mealRes.insertId;
-
-      const mealItems = itemsByMealId.get(Number(m.id)) || [];
-      for (let iIdx = 0; iIdx < mealItems.length; iIdx++) {
-        const item = mealItems[iIdx];
-        const newItemPublicId = crypto.randomUUID();
-
-        let caloriesSnapshot: number | null = null;
-        let proteinSnapshot: number | null = null;
-        let carbsSnapshot: number | null = null;
-        let fatSnapshot: number | null = null;
-        let micronutrientsSnapshotJson: string | null = null;
-
-        const foodId = item.food_id ? Number(item.food_id) : null;
-        const food = foodId ? canonicalFoodsMap.get(foodId) : null;
-        const rawFoodRow = foodId ? foodRowsById.get(foodId) : null;
-
-        if (food) {
-          let portionAmount: number | null = null;
-          if (item.prescribed_unit_code === "PORCAO" && item.prescribed_unit_label) {
-            const matchPortion = food.portions?.find(
-              (p) => p.label.trim().toLowerCase() === item.prescribed_unit_label.trim().toLowerCase()
-            );
-            if (matchPortion) {
-              portionAmount = matchPortion.equivalentReferenceAmount;
-            }
-          }
-
-          const calc = calculateItemNutrients({
-            food: {
-              referenceAmount: food.referenceAmount,
-              referenceUnitCode: food.referenceUnitCode,
-              caloriesKcal: food.caloriesKcal,
-              proteinG: food.proteinG,
-              carbohydrateG: food.carbohydrateG,
-              fatG: food.fatG,
-            },
-            prescribedQuantity: Number(item.prescribed_quantity),
-            prescribedUnitCode: String(item.prescribed_unit_code),
-            portion: portionAmount ? { label: item.prescribed_unit_label || "", equivalentReferenceAmount: portionAmount } : null,
-          });
-
-          if (!calc.isValid) {
-            throw new NutritionAuthorizationError(calc.errorMessage || "Erro ao calcular nutrientes do item.", "CANNOT_APPLY_TEMPLATE_INVALID_FOODS", 400);
-          }
-          caloriesSnapshot = calc.caloriesKcal;
-          proteinSnapshot = calc.proteinG;
-          carbsSnapshot = calc.carbohydrateG;
-          fatSnapshot = calc.fatG;
-
-          // Fresh micronutrient snapshot using approved logic
-          const microEnvelope = await captureMicronutrientsSnapshotForFood(
-            connection,
-            food.id,
-            rawFoodRow || null,
-            calc.factor
-          );
-          micronutrientsSnapshotJson = JSON.stringify(microEnvelope);
-        }
-
-        const [itemRes] = await connection.query<ResultSetHeader>(
-          `INSERT INTO nutrition_v2_meal_items (
-            public_id,
-            meal_id,
-            food_id,
-            sort_order,
-            food_name_snapshot,
-            category_snapshot,
-            prescribed_quantity,
-            prescribed_unit_code,
-            prescribed_unit_label,
-            calories_kcal_snapshot,
-            protein_g_snapshot,
-            carbohydrate_g_snapshot,
-            fat_g_snapshot,
-            micronutrients_snapshot_json,
-            notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            newItemPublicId,
-            newMealId,
-            food ? food.id : null,
-            item.sort_order ?? iIdx,
-            food ? (food.displayNamePtBr || food.name) : item.food_name_snapshot,
-            food ? food.category : (item.category_snapshot || null),
-            item.prescribed_quantity != null ? Number(item.prescribed_quantity) : null,
-            item.prescribed_unit_code || null,
-            item.prescribed_unit_label || null,
-            caloriesSnapshot,
-            proteinSnapshot,
-            carbsSnapshot,
-            fatSnapshot,
-            micronutrientsSnapshotJson,
-            item.notes || null,
-          ]
-        );
-        const newItemId = itemRes.insertId;
-
-        // Substitutions
-        const itemSubs = subsByItemId.get(Number(item.id)) || [];
-        for (let sIdx = 0; sIdx < itemSubs.length; sIdx++) {
-          const sub = itemSubs[sIdx];
-          const newSubPublicId = crypto.randomUUID();
-
-          let subCaloriesSnapshot: number | null = null;
-          let subProteinSnapshot: number | null = null;
-          let subCarbsSnapshot: number | null = null;
-          let subFatSnapshot: number | null = null;
-          let subMicroJson: string | null = null;
-
-          const subFoodId = sub.food_id ? Number(sub.food_id) : null;
-          const subFood = subFoodId ? canonicalFoodsMap.get(subFoodId) : null;
-          const rawSubFoodRow = subFoodId ? foodRowsById.get(subFoodId) : null;
-
-          if (subFood) {
-            let subPortionAmount: number | null = null;
-            if (sub.prescribed_unit_code === "PORCAO" && sub.prescribed_unit_label) {
-              const matchPortion = subFood.portions?.find(
-                (p) => p.label.trim().toLowerCase() === sub.prescribed_unit_label.trim().toLowerCase()
-              );
-              if (matchPortion) {
-                subPortionAmount = matchPortion.equivalentReferenceAmount;
-              }
-            }
-
-            const subCalc = calculateItemNutrients({
-              food: {
-                referenceAmount: subFood.referenceAmount,
-                referenceUnitCode: subFood.referenceUnitCode,
-                caloriesKcal: subFood.caloriesKcal,
-                proteinG: subFood.proteinG,
-                carbohydrateG: subFood.carbohydrateG,
-                fatG: subFood.fatG,
-              },
-              prescribedQuantity: Number(sub.prescribed_quantity),
-              prescribedUnitCode: String(sub.prescribed_unit_code),
-              portion: subPortionAmount ? { label: sub.prescribed_unit_label || "", equivalentReferenceAmount: subPortionAmount } : null,
-            });
-
-            if (!subCalc.isValid) {
-              throw new NutritionAuthorizationError(subCalc.errorMessage || "Erro ao calcular nutrientes da substitui??o.", "CANNOT_APPLY_TEMPLATE_INVALID_FOODS", 400);
-            }
-            subCaloriesSnapshot = subCalc.caloriesKcal;
-            subProteinSnapshot = subCalc.proteinG;
-            subCarbsSnapshot = subCalc.carbohydrateG;
-            subFatSnapshot = subCalc.fatG;
-
-            const subMicroEnvelope = await captureMicronutrientsSnapshotForFood(
-              connection,
-              subFood.id,
-              rawSubFoodRow || null,
-              subCalc.factor
-            );
-            subMicroJson = JSON.stringify(subMicroEnvelope);
-          }
-
-          await connection.query(
-            `INSERT INTO nutrition_v2_item_substitutions (
-              public_id,
-              meal_item_id,
-              food_id,
-              sort_order,
-              food_name_snapshot,
-              prescribed_quantity,
-              prescribed_unit_code,
-              prescribed_unit_label,
-              calories_kcal_snapshot,
-              protein_g_snapshot,
-              carbohydrate_g_snapshot,
-              fat_g_snapshot,
-              micronutrients_snapshot_json,
-              notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              newSubPublicId,
-              newItemId,
-              subFood ? subFood.id : null,
-              sub.sort_order ?? sIdx,
-              subFood ? (subFood.displayNamePtBr || subFood.name) : sub.food_name_snapshot,
-              sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
-              sub.prescribed_unit_code || null,
-              sub.prescribed_unit_label || null,
-              subCaloriesSnapshot,
-              subProteinSnapshot,
-              subCarbsSnapshot,
-              subFatSnapshot,
-              subMicroJson,
-              sub.notes || null,
-            ]
-          );
-        }
-      }
-    }
+    // 3. Revalidate & copy all meals, items, substitutions
+    await copyTemplateMealsToPlanVersion(connection, Number(t.id), newVersionId, ctx.consultancyId);
 
     await connection.commit();
     return { planPublicId: newPlanPublicId, versionPublicId: newVersionPublicId };
@@ -1254,3 +1273,904 @@ export async function createPlanFromTemplate(
     if (connection) connection.release();
   }
 }
+
+// ============================================================================
+// PHASE 4 — DUPLICATE TEMPLATE, APPLY TO PATIENT & COPY PATIENT PLAN
+// ============================================================================
+
+/**
+ * Duplicates a reusable template within the consultancy.
+ * Creates an entirely independent template row with cloned meals, items, and substitutions.
+ */
+export async function duplicateTemplate(
+  ctx: NutritionAccessContext,
+  templatePublicId: string
+): Promise<{ templatePublicId: string; name: string }> {
+  assertCanAuthorNutrition(ctx);
+  nutritionV2DuplicateTemplateSchema.parse({ templatePublicId });
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    const [templates] = await connection.query<RowDataPacket[]>(
+      "SELECT * FROM nutrition_v2_plan_templates WHERE public_id = ? AND deleted_at IS NULL FOR UPDATE",
+      [templatePublicId]
+    );
+
+    if (templates.length === 0) {
+      throw new NutritionAuthorizationError("Modelo não encontrado.", "TEMPLATE_NOT_FOUND", 404);
+    }
+
+    const t = templates[0];
+    if (Number(t.consultancy_id) !== ctx.consultancyId) {
+      throw new NutritionAuthorizationError("Acesso negado a este modelo.", "FORBIDDEN_TENANT_TEMPLATE", 403);
+    }
+
+    const newTemplatePublicId = crypto.randomUUID();
+    const newName = `Cópia de ${t.name}`;
+
+    const [templateRes] = await connection.query<ResultSetHeader>(
+      `INSERT INTO nutrition_v2_plan_templates (
+        public_id,
+        consultancy_id,
+        created_by_membership_id,
+        name,
+        description
+      ) VALUES (?, ?, ?, ?, ?)`,
+      [newTemplatePublicId, ctx.consultancyId, ctx.membershipId, newName, t.description ? String(t.description) : null]
+    );
+    const newTemplateId = templateRes.insertId;
+
+    // Load meals, items, substitutions of source template
+    const [sourceMeals] = await connection.query<RowDataPacket[]>(
+      "SELECT * FROM nutrition_v2_template_meals WHERE template_id = ? AND deleted_at IS NULL ORDER BY sort_order ASC, id ASC",
+      [t.id]
+    );
+
+    const mealIds = sourceMeals.map((m) => m.id);
+    let items: RowDataPacket[] = [];
+    let substitutions: RowDataPacket[] = [];
+
+    if (mealIds.length > 0) {
+      const [itemRows] = await connection.query<RowDataPacket[]>(
+        "SELECT * FROM nutrition_v2_template_items WHERE template_meal_id IN (?) AND deleted_at IS NULL ORDER BY sort_order ASC, id ASC",
+        [mealIds]
+      );
+      items = itemRows;
+
+      const itemIds = items.map((i) => i.id);
+      if (itemIds.length > 0) {
+        const [subRows] = await connection.query<RowDataPacket[]>(
+          "SELECT * FROM nutrition_v2_template_item_substitutions WHERE template_meal_item_id IN (?) AND deleted_at IS NULL ORDER BY sort_order ASC, id ASC",
+          [itemIds]
+        );
+        substitutions = subRows;
+      }
+    }
+
+    const itemsByMealId = new Map<number, RowDataPacket[]>();
+    for (const item of items) {
+      const mId = Number(item.template_meal_id);
+      if (!itemsByMealId.has(mId)) itemsByMealId.set(mId, []);
+      itemsByMealId.get(mId)!.push(item);
+    }
+
+    const subsByItemId = new Map<number, RowDataPacket[]>();
+    for (const sub of substitutions) {
+      const iId = Number(sub.template_meal_item_id);
+      if (!subsByItemId.has(iId)) subsByItemId.set(iId, []);
+      subsByItemId.get(iId)!.push(sub);
+    }
+
+    for (let mIdx = 0; mIdx < sourceMeals.length; mIdx++) {
+      const m = sourceMeals[mIdx];
+      const newMealPublicId = crypto.randomUUID();
+      const [mealRes] = await connection.query<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_template_meals (
+          public_id, template_id, title, scheduled_time, sort_order, notes
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [newMealPublicId, newTemplateId, m.title, m.scheduled_time || null, m.sort_order ?? mIdx, m.notes || null]
+      );
+      const newMealId = mealRes.insertId;
+
+      const mealItems = itemsByMealId.get(Number(m.id)) || [];
+      for (let iIdx = 0; iIdx < mealItems.length; iIdx++) {
+        const item = mealItems[iIdx];
+        const newItemPublicId = crypto.randomUUID();
+        const [itemRes] = await connection.query<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_template_items (
+            public_id, template_meal_id, food_id, sort_order, food_name_snapshot,
+            category_snapshot, prescribed_quantity, prescribed_unit_code, prescribed_unit_label, notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            newItemPublicId,
+            newMealId,
+            item.food_id || null,
+            item.sort_order ?? iIdx,
+            item.food_name_snapshot,
+            item.category_snapshot || null,
+            item.prescribed_quantity != null ? Number(item.prescribed_quantity) : null,
+            item.prescribed_unit_code || null,
+            item.prescribed_unit_label || null,
+            item.notes || null,
+          ]
+        );
+        const newItemId = itemRes.insertId;
+
+        const itemSubs = subsByItemId.get(Number(item.id)) || [];
+        for (let sIdx = 0; sIdx < itemSubs.length; sIdx++) {
+          const sub = itemSubs[sIdx];
+          const newSubPublicId = crypto.randomUUID();
+          await connection.query(
+            `INSERT INTO nutrition_v2_template_item_substitutions (
+              public_id, template_meal_item_id, food_id, sort_order, food_name_snapshot,
+              prescribed_quantity, prescribed_unit_code, prescribed_unit_label, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              newSubPublicId,
+              newItemId,
+              sub.food_id || null,
+              sub.sort_order ?? sIdx,
+              sub.food_name_snapshot,
+              sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
+              sub.prescribed_unit_code || null,
+              sub.prescribed_unit_label || null,
+              sub.notes || null,
+            ]
+          );
+        }
+      }
+    }
+
+    await connection.commit();
+    return { templatePublicId: newTemplatePublicId, name: newName };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    throw err;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+export interface ApplyTemplateToPatientInput {
+  templatePublicId: string;
+  targetStudentMembershipPublicId: string;
+  title?: string;
+  replaceExistingDraft?: boolean;
+}
+
+export type ApplyTemplateToPatientResult =
+  | {
+      status: "APPLIED";
+      planPublicId: string;
+      versionPublicId: string;
+      versionNumber: number;
+      title: string;
+    }
+  | {
+      status: "EXISTING_DRAFT";
+      existingDraft: {
+        assignmentPublicId: string;
+        planPublicId: string;
+        versionPublicId: string;
+        versionNumber: number;
+        title: string;
+      };
+    };
+
+/**
+ * Applies a reusable template to a specific patient as an independent working draft.
+ * - If target patient has NO plan: creates a dedicated plan, version 1 draft, draft assignment.
+ * - If target patient has an ACTIVE plan: creates next version draft under Phase 2 lifecycle, keeping active plan visible.
+ * - If target patient has an EXISTING DRAFT: returns EXISTING_DRAFT unless replaceExistingDraft is explicitly true.
+ * - When replaceExistingDraft is true: atomically replaces food content of that draft while preserving patient identity and history.
+ */
+export async function applyTemplateToPatient(
+  ctx: NutritionAccessContext,
+  input: ApplyTemplateToPatientInput
+): Promise<ApplyTemplateToPatientResult> {
+  assertCanAuthorNutrition(ctx);
+  const parsed = nutritionV2ApplyTemplateToPatientSchema.parse(input);
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Resolve target student member
+    const [studentRows] = await connection.query<RowDataPacket[]>(
+      `SELECT cm.id, cm.consultancy_id, cm.public_id, cm.user_id, u.public_id AS user_public_id, u.full_name
+       FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
+       WHERE (cm.public_id = ? OR u.public_id = ?)
+         AND cm.status = 'ACTIVE'
+       FOR UPDATE`,
+      [parsed.targetStudentMembershipPublicId, parsed.targetStudentMembershipPublicId]
+    );
+
+    if (studentRows.length === 0) {
+      throw new NutritionAuthorizationError("Aluno de destino não encontrado.", "STUDENT_NOT_FOUND", 404);
+    }
+
+    const targetStudent = studentRows[0];
+    if (Number(targetStudent.consultancy_id) !== ctx.consultancyId) {
+      throw new NutritionAuthorizationError("Acesso negado ao aluno desta consultoria.", "FORBIDDEN_TENANT_STUDENT", 403);
+    }
+
+    const targetStudentMembershipId = Number(targetStudent.id);
+    const targetStudentFullName = String(targetStudent.full_name);
+
+    // 2. Load template and verify tenancy & active status
+    const [templates] = await connection.query<RowDataPacket[]>(
+      "SELECT * FROM nutrition_v2_plan_templates WHERE public_id = ? AND deleted_at IS NULL FOR UPDATE",
+      [parsed.templatePublicId]
+    );
+
+    if (templates.length === 0) {
+      throw new NutritionAuthorizationError("Modelo não encontrado.", "TEMPLATE_NOT_FOUND", 404);
+    }
+
+    const t = templates[0];
+    if (Number(t.consultancy_id) !== ctx.consultancyId) {
+      throw new NutritionAuthorizationError("Acesso negado a este modelo.", "FORBIDDEN_TENANT_TEMPLATE", 403);
+    }
+
+    if (t.archived_at) {
+      throw new NutritionAuthorizationError(
+        "Modelos arquivados não podem ser utilizados para criar planos.",
+        "TEMPLATE_ARCHIVED",
+        400
+      );
+    }
+
+    // 3. Check for existing DRAFT assignment for this student
+    const [existingDrafts] = await connection.query<RowDataPacket[]>(
+      `SELECT
+        a.id AS assignment_id,
+        a.public_id AS assignment_public_id,
+        p.id AS plan_id,
+        p.public_id AS plan_public_id,
+        v.id AS version_id,
+        v.public_id AS version_public_id,
+        v.version_number,
+        v.title AS version_title
+       FROM nutrition_v2_assignments a
+       INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+       INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+       WHERE a.consultancy_id = ?
+         AND a.student_membership_id = ?
+         AND a.status = 'DRAFT'
+         AND a.deleted_at IS NULL
+         AND v.status = 'DRAFT'
+         AND v.deleted_at IS NULL
+         AND p.deleted_at IS NULL
+       ORDER BY a.id DESC
+       LIMIT 1 FOR UPDATE`,
+      [ctx.consultancyId, targetStudentMembershipId]
+    );
+
+    if (existingDrafts.length > 0) {
+      const ed = existingDrafts[0];
+      if (!parsed.replaceExistingDraft) {
+        await connection.commit();
+        return {
+          status: "EXISTING_DRAFT",
+          existingDraft: {
+            assignmentPublicId: String(ed.assignment_public_id),
+            planPublicId: String(ed.plan_public_id),
+            versionPublicId: String(ed.version_public_id),
+            versionNumber: Number(ed.version_number),
+            title: String(ed.version_title),
+          },
+        };
+      }
+
+      // Explicit replacement confirmed: clear meals and clone template content into current draft version
+      await clearVersionMealsAndItems(connection, Number(ed.version_id));
+      await copyTemplateMealsToPlanVersion(connection, Number(t.id), Number(ed.version_id), ctx.consultancyId);
+
+      const safeTitle = parsed.title?.trim() || String(ed.version_title);
+      await connection.query(
+        "UPDATE nutrition_v2_plan_versions SET title = ?, updated_at = UTC_TIMESTAMP(3) WHERE id = ?",
+        [safeTitle, ed.version_id]
+      );
+
+      await connection.commit();
+      return {
+        status: "APPLIED",
+        planPublicId: String(ed.plan_public_id),
+        versionPublicId: String(ed.version_public_id),
+        versionNumber: Number(ed.version_number),
+        title: safeTitle,
+      };
+    }
+
+    // 4. No draft exists: check if student has active plan
+    const [activeRows] = await connection.query<RowDataPacket[]>(
+      `SELECT
+        a.id AS assignment_id,
+        a.nutrition_plan_version_id,
+        a.notes_for_student,
+        v.id AS version_id,
+        v.version_number,
+        v.title AS version_title,
+        p.id AS plan_id,
+        p.public_id AS plan_public_id,
+        p.is_template
+       FROM nutrition_v2_assignments a
+       INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+       INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+       WHERE a.consultancy_id = ?
+         AND a.student_membership_id = ?
+         AND a.status = 'ACTIVE'
+         AND a.deleted_at IS NULL
+       LIMIT 1 FOR UPDATE`,
+      [ctx.consultancyId, targetStudentMembershipId]
+    );
+
+    const safePlanTitle = parsed.title?.trim() || `Plano Alimentar - ${targetStudentFullName}`;
+    let targetPlanPublicId = "";
+    let targetVersionPublicId = "";
+    let targetVersionNumber = 1;
+    let targetVersionId = 0;
+
+    if (activeRows.length > 0) {
+      const active = activeRows[0];
+      const [otherStudents] = await connection.query<RowDataPacket[]>(
+        `SELECT COUNT(DISTINCT a.student_membership_id) AS other_count
+         FROM nutrition_v2_assignments a
+         INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+         WHERE v.nutrition_plan_id = ?
+           AND a.student_membership_id != ?
+           AND a.status = 'ACTIVE'
+           AND a.deleted_at IS NULL`,
+        [active.plan_id, targetStudentMembershipId]
+      );
+      const isShared = Boolean(active.is_template) || Number(otherStudents[0]?.other_count || 0) > 0;
+
+      if (isShared) {
+        // Fork to dedicated plan root
+        targetPlanPublicId = crypto.randomUUID();
+        const [pRes] = await connection.query<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_plans (
+            public_id, consultancy_id, created_by_membership_id, is_template, status
+          ) VALUES (?, ?, ?, 0, 'ACTIVE')`,
+          [targetPlanPublicId, ctx.consultancyId, ctx.membershipId]
+        );
+        const forkedPlanId = pRes.insertId;
+
+        targetVersionPublicId = crypto.randomUUID();
+        targetVersionNumber = 1;
+        const [vRes] = await connection.query<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_plan_versions (
+            public_id, nutrition_plan_id, version_number, status, title, created_by_membership_id
+          ) VALUES (?, ?, 1, 'DRAFT', ?, ?)`,
+          [targetVersionPublicId, forkedPlanId, safePlanTitle, ctx.membershipId]
+        );
+        targetVersionId = vRes.insertId;
+      } else {
+        // Dedicated plan: create next draft version on existing root
+        const targetPlanId = Number(active.plan_id);
+        targetPlanPublicId = String(active.plan_public_id);
+        const [maxRows] = await connection.query<RowDataPacket[]>(
+          "SELECT COALESCE(MAX(version_number), 0) AS max_v FROM nutrition_v2_plan_versions WHERE nutrition_plan_id = ?",
+          [targetPlanId]
+        );
+        targetVersionNumber = Number(maxRows[0].max_v) + 1;
+        targetVersionPublicId = crypto.randomUUID();
+        const [vRes] = await connection.query<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_plan_versions (
+            public_id, nutrition_plan_id, version_number, status, title, created_by_membership_id
+          ) VALUES (?, ?, ?, 'DRAFT', ?, ?)`,
+          [targetVersionPublicId, targetPlanId, targetVersionNumber, safePlanTitle, ctx.membershipId]
+        );
+        targetVersionId = vRes.insertId;
+      }
+
+      // Track working draft in assignments
+      const draftAssignmentPublicId = crypto.randomUUID();
+      await connection.query(
+        `INSERT INTO nutrition_v2_assignments (
+          public_id, consultancy_id, student_membership_id, nutrition_plan_version_id,
+          assigned_by_membership_id, starts_on, ends_on, status, notes_for_student
+        ) VALUES (?, ?, ?, ?, ?, CURRENT_DATE, NULL, 'DRAFT', ?)`,
+        [
+          draftAssignmentPublicId,
+          ctx.consultancyId,
+          targetStudentMembershipId,
+          targetVersionId,
+          ctx.membershipId,
+          active.notes_for_student || null,
+        ]
+      );
+    } else {
+      // Patient without plan: create brand new plan root and version 1 DRAFT
+      targetPlanPublicId = crypto.randomUUID();
+      const [pRes] = await connection.query<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_plans (
+          public_id, consultancy_id, created_by_membership_id, is_template, status
+        ) VALUES (?, ?, ?, 0, 'ACTIVE')`,
+        [targetPlanPublicId, ctx.consultancyId, ctx.membershipId]
+      );
+      const newPlanId = pRes.insertId;
+
+      targetVersionPublicId = crypto.randomUUID();
+      targetVersionNumber = 1;
+      const [vRes] = await connection.query<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_plan_versions (
+          public_id, nutrition_plan_id, version_number, status, title, created_by_membership_id
+        ) VALUES (?, ?, 1, 'DRAFT', ?, ?)`,
+        [targetVersionPublicId, newPlanId, safePlanTitle, ctx.membershipId]
+      );
+      targetVersionId = vRes.insertId;
+
+      const draftAssignmentPublicId = crypto.randomUUID();
+      await connection.query(
+        `INSERT INTO nutrition_v2_assignments (
+          public_id, consultancy_id, student_membership_id, nutrition_plan_version_id,
+          assigned_by_membership_id, starts_on, ends_on, status, notes_for_student
+        ) VALUES (?, ?, ?, ?, ?, CURRENT_DATE, NULL, 'DRAFT', NULL)`,
+        [
+          draftAssignmentPublicId,
+          ctx.consultancyId,
+          targetStudentMembershipId,
+          targetVersionId,
+          ctx.membershipId,
+        ]
+      );
+    }
+
+    // 5. Copy meals, items, substitutions from template to target version
+    await copyTemplateMealsToPlanVersion(connection, Number(t.id), targetVersionId, ctx.consultancyId);
+
+    await connection.commit();
+    return {
+      status: "APPLIED",
+      planPublicId: targetPlanPublicId,
+      versionPublicId: targetVersionPublicId,
+      versionNumber: targetVersionNumber,
+      title: safePlanTitle,
+    };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    throw err;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+export interface CopyPatientPlanToStudentInput {
+  sourcePlanPublicId: string;
+  sourceVersionPublicId?: string;
+  targetStudentMembershipPublicId: string;
+  replaceExistingDraft?: boolean;
+  allowDraftSource?: boolean;
+  title?: string;
+}
+
+export type CopyPatientPlanToStudentResult =
+  | {
+      status: "COPIED";
+      planPublicId: string;
+      versionPublicId: string;
+      versionNumber: number;
+      title: string;
+    }
+  | {
+      status: "EXISTING_DRAFT";
+      existingDraft: {
+        assignmentPublicId: string;
+        planPublicId: string;
+        versionPublicId: string;
+        versionNumber: number;
+        title: string;
+      };
+    };
+
+/**
+ * Copies a plan from Patient A to Patient B.
+ * - Source and target must belong to the same consultancy (cross-tenant DENIED).
+ * - Copies ONLY the nutritional blueprint (meals, items, substitutions).
+ * - NEVER copies patient identity, anthropometrics, clinical notes, planning targets, or source patient name.
+ * - Defaults to copying the PUBLISHED version of the source plan.
+ * - Target plan version is created as an independent working DRAFT under Phase 2 lifecycle.
+ */
+export async function copyPatientPlanToStudent(
+  ctx: NutritionAccessContext,
+  input: CopyPatientPlanToStudentInput
+): Promise<CopyPatientPlanToStudentResult> {
+  assertCanAuthorNutrition(ctx);
+  const parsed = nutritionV2CopyPatientPlanToStudentSchema.parse(input);
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Validate source plan and tenancy
+    const [sourcePlans] = await connection.query<RowDataPacket[]>(
+      "SELECT id, public_id, consultancy_id FROM nutrition_v2_plans WHERE public_id = ? AND deleted_at IS NULL",
+      [parsed.sourcePlanPublicId]
+    );
+
+    if (sourcePlans.length === 0) {
+      throw new NutritionAuthorizationError("Plano de origem não encontrado.", "SOURCE_PLAN_NOT_FOUND", 404);
+    }
+
+    const sourcePlan = sourcePlans[0];
+    if (Number(sourcePlan.consultancy_id) !== ctx.consultancyId) {
+      throw new NutritionAuthorizationError("Acesso negado ao plano de origem.", "FORBIDDEN_TENANT_SOURCE_PLAN", 403);
+    }
+
+    // 2. Resolve source version
+    let sourceVersion: RowDataPacket;
+    if (parsed.sourceVersionPublicId) {
+      const [versions] = await connection.query<RowDataPacket[]>(
+        "SELECT id, public_id, version_number, status, title FROM nutrition_v2_plan_versions WHERE public_id = ? AND nutrition_plan_id = ? AND deleted_at IS NULL",
+        [parsed.sourceVersionPublicId, sourcePlan.id]
+      );
+      if (versions.length === 0) {
+        throw new NutritionAuthorizationError("Versão de origem não encontrada.", "SOURCE_VERSION_NOT_FOUND", 404);
+      }
+      sourceVersion = versions[0];
+      if (sourceVersion.status === "DRAFT" && !parsed.allowDraftSource) {
+        throw new NutritionAuthorizationError(
+          "Não é permitido copiar rascunhos sem confirmação explícita. Selecione uma versão publicada.",
+          "DRAFT_SOURCE_NOT_ALLOWED",
+          400
+        );
+      }
+    } else {
+      // Default: latest PUBLISHED version
+      const [pubVersions] = await connection.query<RowDataPacket[]>(
+        "SELECT id, public_id, version_number, status, title FROM nutrition_v2_plan_versions WHERE nutrition_plan_id = ? AND status = 'PUBLISHED' AND deleted_at IS NULL ORDER BY version_number DESC LIMIT 1",
+        [sourcePlan.id]
+      );
+      if (pubVersions.length > 0) {
+        sourceVersion = pubVersions[0];
+      } else {
+        // Fallback: check if only draft exists
+        const [anyVersions] = await connection.query<RowDataPacket[]>(
+          "SELECT id, public_id, version_number, status, title FROM nutrition_v2_plan_versions WHERE nutrition_plan_id = ? AND deleted_at IS NULL ORDER BY version_number DESC LIMIT 1",
+          [sourcePlan.id]
+        );
+        if (anyVersions.length === 0) {
+          throw new NutritionAuthorizationError("Nenhuma versão encontrada no plano de origem.", "NO_SOURCE_VERSION", 404);
+        }
+        if (!parsed.allowDraftSource) {
+          throw new NutritionAuthorizationError(
+            "O plano de origem não possui versão publicada para cópia.",
+            "NO_PUBLISHED_SOURCE_VERSION",
+            400
+          );
+        }
+        sourceVersion = anyVersions[0];
+      }
+    }
+
+    // 3. Resolve target student member
+    const [targetRows] = await connection.query<RowDataPacket[]>(
+      `SELECT cm.id, cm.consultancy_id, cm.public_id, cm.user_id, u.public_id AS user_public_id, u.full_name
+       FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
+       WHERE (cm.public_id = ? OR u.public_id = ?)
+         AND cm.status = 'ACTIVE'
+       FOR UPDATE`,
+      [parsed.targetStudentMembershipPublicId, parsed.targetStudentMembershipPublicId]
+    );
+
+    if (targetRows.length === 0) {
+      throw new NutritionAuthorizationError("Aluno de destino não encontrado.", "TARGET_STUDENT_NOT_FOUND", 404);
+    }
+
+    const targetStudent = targetRows[0];
+    if (Number(targetStudent.consultancy_id) !== ctx.consultancyId) {
+      throw new NutritionAuthorizationError("Acesso negado ao aluno de destino.", "FORBIDDEN_TENANT_TARGET_STUDENT", 403);
+    }
+
+    const targetStudentMembershipId = Number(targetStudent.id);
+    const targetStudentFullName = String(targetStudent.full_name);
+
+    // GATE: PATIENT NAME NOT LEAKED
+    // Set target plan title formatted with target student name ONLY
+    const safeTargetTitle = parsed.title?.trim() || `Plano Alimentar - ${targetStudentFullName}`;
+
+    // 4. Check target student's existing draft assignment
+    const [existingDrafts] = await connection.query<RowDataPacket[]>(
+      `SELECT
+        a.id AS assignment_id,
+        a.public_id AS assignment_public_id,
+        p.id AS plan_id,
+        p.public_id AS plan_public_id,
+        v.id AS version_id,
+        v.public_id AS version_public_id,
+        v.version_number,
+        v.title AS version_title
+       FROM nutrition_v2_assignments a
+       INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+       INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+       WHERE a.consultancy_id = ?
+         AND a.student_membership_id = ?
+         AND a.status = 'DRAFT'
+         AND a.deleted_at IS NULL
+         AND v.status = 'DRAFT'
+         AND v.deleted_at IS NULL
+         AND p.deleted_at IS NULL
+       ORDER BY a.id DESC
+       LIMIT 1 FOR UPDATE`,
+      [ctx.consultancyId, targetStudentMembershipId]
+    );
+
+    if (existingDrafts.length > 0) {
+      const ed = existingDrafts[0];
+      if (!parsed.replaceExistingDraft) {
+        await connection.commit();
+        return {
+          status: "EXISTING_DRAFT",
+          existingDraft: {
+            assignmentPublicId: String(ed.assignment_public_id),
+            planPublicId: String(ed.plan_public_id),
+            versionPublicId: String(ed.version_public_id),
+            versionNumber: Number(ed.version_number),
+            title: String(ed.version_title),
+          },
+        };
+      }
+
+      // Explicit replacement confirmed: clear meals and deep-clone source version into draft
+      await clearVersionMealsAndItems(connection, Number(ed.version_id));
+      await deepCloneVersionMealsAndItems(connection, Number(sourceVersion.id), Number(ed.version_id));
+
+      await connection.query(
+        "UPDATE nutrition_v2_plan_versions SET title = ?, updated_at = UTC_TIMESTAMP(3) WHERE id = ?",
+        [safeTargetTitle, ed.version_id]
+      );
+
+      await connection.commit();
+      return {
+        status: "COPIED",
+        planPublicId: String(ed.plan_public_id),
+        versionPublicId: String(ed.version_public_id),
+        versionNumber: Number(ed.version_number),
+        title: safeTargetTitle,
+      };
+    }
+
+    // 5. No draft exists: check if target student has active plan
+    const [activeRows] = await connection.query<RowDataPacket[]>(
+      `SELECT
+        a.id AS assignment_id,
+        a.nutrition_plan_version_id,
+        a.notes_for_student,
+        v.id AS version_id,
+        v.version_number,
+        v.title AS version_title,
+        p.id AS plan_id,
+        p.public_id AS plan_public_id,
+        p.is_template
+       FROM nutrition_v2_assignments a
+       INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+       INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+       WHERE a.consultancy_id = ?
+         AND a.student_membership_id = ?
+         AND a.status = 'ACTIVE'
+         AND a.deleted_at IS NULL
+       LIMIT 1 FOR UPDATE`,
+      [ctx.consultancyId, targetStudentMembershipId]
+    );
+
+    let targetPlanPublicId = "";
+    let targetVersionPublicId = "";
+    let targetVersionNumber = 1;
+    let targetVersionId = 0;
+
+    if (activeRows.length > 0) {
+      const active = activeRows[0];
+      const [otherStudents] = await connection.query<RowDataPacket[]>(
+        `SELECT COUNT(DISTINCT a.student_membership_id) AS other_count
+         FROM nutrition_v2_assignments a
+         INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+         WHERE v.nutrition_plan_id = ?
+           AND a.student_membership_id != ?
+           AND a.status = 'ACTIVE'
+           AND a.deleted_at IS NULL`,
+        [active.plan_id, targetStudentMembershipId]
+      );
+      const isShared = Boolean(active.is_template) || Number(otherStudents[0]?.other_count || 0) > 0;
+
+      if (isShared) {
+        targetPlanPublicId = crypto.randomUUID();
+        const [pRes] = await connection.query<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_plans (
+            public_id, consultancy_id, created_by_membership_id, is_template, status
+          ) VALUES (?, ?, ?, 0, 'ACTIVE')`,
+          [targetPlanPublicId, ctx.consultancyId, ctx.membershipId]
+        );
+        const forkedPlanId = pRes.insertId;
+
+        targetVersionPublicId = crypto.randomUUID();
+        targetVersionNumber = 1;
+        const [vRes] = await connection.query<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_plan_versions (
+            public_id, nutrition_plan_id, version_number, status, title, created_by_membership_id
+          ) VALUES (?, ?, 1, 'DRAFT', ?, ?)`,
+          [targetVersionPublicId, forkedPlanId, safeTargetTitle, ctx.membershipId]
+        );
+        targetVersionId = vRes.insertId;
+      } else {
+        const targetPlanId = Number(active.plan_id);
+        targetPlanPublicId = String(active.plan_public_id);
+        const [maxRows] = await connection.query<RowDataPacket[]>(
+          "SELECT COALESCE(MAX(version_number), 0) AS max_v FROM nutrition_v2_plan_versions WHERE nutrition_plan_id = ?",
+          [targetPlanId]
+        );
+        targetVersionNumber = Number(maxRows[0].max_v) + 1;
+        targetVersionPublicId = crypto.randomUUID();
+        const [vRes] = await connection.query<ResultSetHeader>(
+          `INSERT INTO nutrition_v2_plan_versions (
+            public_id, nutrition_plan_id, version_number, status, title, created_by_membership_id
+          ) VALUES (?, ?, ?, 'DRAFT', ?, ?)`,
+          [targetVersionPublicId, targetPlanId, targetVersionNumber, safeTargetTitle, ctx.membershipId]
+        );
+        targetVersionId = vRes.insertId;
+      }
+
+      // Track working draft
+      const draftAssignmentPublicId = crypto.randomUUID();
+      await connection.query(
+        `INSERT INTO nutrition_v2_assignments (
+          public_id, consultancy_id, student_membership_id, nutrition_plan_version_id,
+          assigned_by_membership_id, starts_on, ends_on, status, notes_for_student
+        ) VALUES (?, ?, ?, ?, ?, CURRENT_DATE, NULL, 'DRAFT', ?)`,
+        [
+          draftAssignmentPublicId,
+          ctx.consultancyId,
+          targetStudentMembershipId,
+          targetVersionId,
+          ctx.membershipId,
+          active.notes_for_student || null,
+        ]
+      );
+    } else {
+      // Patient without plan
+      targetPlanPublicId = crypto.randomUUID();
+      const [pRes] = await connection.query<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_plans (
+          public_id, consultancy_id, created_by_membership_id, is_template, status
+        ) VALUES (?, ?, ?, 0, 'ACTIVE')`,
+        [targetPlanPublicId, ctx.consultancyId, ctx.membershipId]
+      );
+      const newPlanId = pRes.insertId;
+
+      targetVersionPublicId = crypto.randomUUID();
+      targetVersionNumber = 1;
+      const [vRes] = await connection.query<ResultSetHeader>(
+        `INSERT INTO nutrition_v2_plan_versions (
+          public_id, nutrition_plan_id, version_number, status, title, created_by_membership_id
+        ) VALUES (?, ?, 1, 'DRAFT', ?, ?)`,
+        [targetVersionPublicId, newPlanId, safeTargetTitle, ctx.membershipId]
+      );
+      targetVersionId = vRes.insertId;
+
+      const draftAssignmentPublicId = crypto.randomUUID();
+      await connection.query(
+        `INSERT INTO nutrition_v2_assignments (
+          public_id, consultancy_id, student_membership_id, nutrition_plan_version_id,
+          assigned_by_membership_id, starts_on, ends_on, status, notes_for_student
+        ) VALUES (?, ?, ?, ?, ?, CURRENT_DATE, NULL, 'DRAFT', NULL)`,
+        [
+          draftAssignmentPublicId,
+          ctx.consultancyId,
+          targetStudentMembershipId,
+          targetVersionId,
+          ctx.membershipId,
+        ]
+      );
+    }
+
+    // 6. Deep clone meals, items, substitutions from source version to target version
+    await deepCloneVersionMealsAndItems(connection, Number(sourceVersion.id), targetVersionId);
+
+    await connection.commit();
+    return {
+      status: "COPIED",
+      planPublicId: targetPlanPublicId,
+      versionPublicId: targetVersionPublicId,
+      versionNumber: targetVersionNumber,
+      title: safeTargetTitle,
+    };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    throw err;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Lists active students within the tenancy for selecting a target when copying a plan.
+ */
+export async function listStudentsForPlanCopy(
+  ctx: NutritionAccessContext,
+  excludeStudentMembershipPublicId?: string
+): Promise<Array<{
+  membershipPublicId: string;
+  studentPublicId: string;
+  fullName: string;
+  email: string;
+  hasActivePlan: boolean;
+  activePlanTitle: string | null;
+  hasDraftPlan: boolean;
+}>> {
+  assertCanAuthorNutrition(ctx);
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    const [rows] = await connection.query<RowDataPacket[]>(
+      `SELECT
+        cm.public_id AS membership_public_id,
+        u.public_id AS student_public_id,
+        u.full_name,
+        u.email,
+        (
+          SELECT v.title
+          FROM nutrition_v2_assignments a
+          INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+          WHERE a.student_membership_id = cm.id
+            AND a.consultancy_id = cm.consultancy_id
+            AND a.status = 'ACTIVE'
+            AND a.deleted_at IS NULL
+          LIMIT 1
+        ) AS active_plan_title,
+        (
+          SELECT COUNT(*)
+          FROM nutrition_v2_assignments a
+          WHERE a.student_membership_id = cm.id
+            AND a.consultancy_id = cm.consultancy_id
+            AND a.status = 'DRAFT'
+            AND a.deleted_at IS NULL
+        ) AS draft_count
+      FROM consultancy_members cm
+      INNER JOIN users u ON u.id = cm.user_id
+      INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+      WHERE cm.consultancy_id = ?
+        AND cm.status = 'ACTIVE'
+        AND u.status = 'ACTIVE'
+        AND u.deleted_at IS NULL
+        AND cmr.role IN ('STUDENT', 'INFLUENCER')
+      GROUP BY cm.id
+      ORDER BY u.full_name ASC`,
+      [ctx.consultancyId]
+    );
+
+    return rows
+      .filter((r) => !excludeStudentMembershipPublicId || r.membership_public_id !== excludeStudentMembershipPublicId)
+      .map((r) => ({
+        membershipPublicId: String(r.membership_public_id),
+        studentPublicId: String(r.student_public_id),
+        fullName: String(r.full_name),
+        email: String(r.email),
+        hasActivePlan: Boolean(r.active_plan_title),
+        activePlanTitle: r.active_plan_title ? String(r.active_plan_title) : null,
+        hasDraftPlan: Number(r.draft_count || 0) > 0,
+      }));
+  } finally {
+    if (connection) connection.release();
+  }
+}
+

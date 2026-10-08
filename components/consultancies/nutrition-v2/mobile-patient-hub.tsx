@@ -31,6 +31,9 @@ import type {
   BiologicalSex,
 } from "@/lib/nutrition-v2/patient-planning-types";
 import { PatientPlanningTab } from "./patient-planning-tab";
+import { NutritionTemplatesModal } from "./nutrition-templates-modal";
+import { NutritionCopyPlanDialog } from "./nutrition-copy-plan-dialog";
+import { NutritionSaveTemplateDialog } from "./nutrition-save-template-dialog";
 
 export type MobilePatientTab = "resumo" | "prontuario" | "planejamento" | "plano" | "evolucao";
 export type ClinicalSubTab =
@@ -119,6 +122,11 @@ export function MobilePatientHub({
   const [isStartingEdit, setIsStartingEdit] = useState(false);
   const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
   const [draftActionError, setDraftActionError] = useState<string | null>(null);
+
+  // Phase 4: Templates and Copy Plan dialog states
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+  const [isCopyPlanDialogOpen, setIsCopyPlanDialogOpen] = useState(false);
+  const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
 
   const handleStartEditPlan = async () => {
     setIsStartingEdit(true);
@@ -1242,6 +1250,25 @@ export function MobilePatientHub({
                     </Button>
                   )}
 
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => setIsSaveTemplateDialogOpen(true)}
+                      className="w-full font-bold text-xs min-h-[40px] cursor-pointer"
+                    >
+                      Salvar como modelo
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => setIsCopyPlanDialogOpen(true)}
+                      className="w-full font-bold text-xs min-h-[40px] cursor-pointer"
+                    >
+                      Copiar plano
+                    </Button>
+                  </div>
+
                   <Link
                     href={`/consultoria/${slug}/planos-v2/${activePlan.planPublicId}?v=${activePlan.versionPublicId}`}
                     className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-secondary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[40px] cursor-pointer"
@@ -1273,13 +1300,30 @@ export function MobilePatientHub({
                     Esta paciente ainda não possui um plano alimentar ativo prescrito na consultoria.
                   </p>
                 </div>
-                <Link
-                  href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}
-                  className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer"
-                >
-                  <span>Prescrever plano</span>
-                  <span className="sr-only">+ Criar plano alimentar</span>
-                </Link>
+                <div className="space-y-2 pt-1">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => setIsTemplatesModalOpen(true)}
+                    className="w-full font-bold text-xs min-h-[44px] shadow-xs cursor-pointer"
+                  >
+                    Usar modelo
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    onClick={() => setIsCopyPlanDialogOpen(true)}
+                    className="w-full font-bold text-xs min-h-[44px] cursor-pointer"
+                  >
+                    Copiar plano existente
+                  </Button>
+                  <Link
+                    href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] min-h-[40px] cursor-pointer transition-colors"
+                  >
+                    <span>+ Criar do zero</span>
+                  </Link>
+                </div>
               </div>
             )}
           </div>
@@ -1314,6 +1358,39 @@ export function MobilePatientHub({
             </div>
           )}
         </div>
+      )}
+      {/* Dialogs for Templates and Copy Plan */}
+      {isTemplatesModalOpen && (
+        <NutritionTemplatesModal
+          isOpen={isTemplatesModalOpen}
+          onClose={() => setIsTemplatesModalOpen(false)}
+          consultancySlug={slug}
+          targetStudentMembershipPublicId={detail.student.membershipPublicId}
+          targetStudentName={detail.student.fullName}
+        />
+      )}
+
+      {isCopyPlanDialogOpen && (
+        <NutritionCopyPlanDialog
+          isOpen={isCopyPlanDialogOpen}
+          onClose={() => setIsCopyPlanDialogOpen(false)}
+          consultancySlug={slug}
+          sourcePlanPublicId={activePlan ? activePlan.planPublicId : undefined}
+          sourcePlanTitle={activePlan ? activePlan.versionTitle : undefined}
+          targetStudentMembershipPublicId={!activePlan ? detail.student.membershipPublicId : undefined}
+          targetStudentName={!activePlan ? detail.student.fullName : undefined}
+        />
+      )}
+
+      {isSaveTemplateDialogOpen && activePlan && (
+        <NutritionSaveTemplateDialog
+          isOpen={isSaveTemplateDialogOpen}
+          onClose={() => setIsSaveTemplateDialogOpen(false)}
+          consultancySlug={slug}
+          planPublicId={activePlan.planPublicId}
+          versionPublicId={activePlan.versionPublicId}
+          defaultName={activePlan.versionTitle}
+        />
       )}
     </div>
   );

@@ -651,6 +651,76 @@ console.log("\n--- 4. TESTES DE INTEGRAÇÃO & UI ---");
   pass("DESKTOP");
 }
 
+// UNDEFINED MACROS DISPLAY EMPTY
+{
+  const tabPath = path.join(__dirname, "..", "components", "consultancies", "nutrition-v2", "patient-planning-tab.tsx");
+  const tabContent = fs.readFileSync(tabPath, "utf8");
+  // Check that inputs use placeholder="—" rather than placeholder="0"
+  assert(!tabContent.includes('placeholder="0"'), "Inputs de macros não podem ter placeholder='0'");
+  assert(tabContent.includes('placeholder="—"'), "Inputs de macros devem usar placeholder discreto '—'");
+  pass("UNDEFINED MACROS DISPLAY EMPTY");
+}
+
+// NULL MACROS NOT COERCED TO ZERO
+{
+  // Parsing empty strings must strictly return null
+  function parseMacroInput(val) {
+    if (!val || val.trim() === "") return null;
+    const v = parseFloat(val);
+    return isNaN(v) || v < 0 ? null : v;
+  }
+  assert.equal(parseMacroInput(""), null);
+  assert.equal(parseMacroInput("   "), null);
+  assert.equal(parseMacroInput(null), null);
+  assert.equal(parseMacroInput("0"), 0); // 0 only if explicitly typed
+
+  const nullTotals = calculateMacroCalories(null, null, null);
+  assert.equal(nullTotals.proteinKcal, null);
+  assert.equal(nullTotals.carbsKcal, null);
+  assert.equal(nullTotals.fatsKcal, null);
+  assert.equal(nullTotals.totalKcal, null);
+  assert.equal(nullTotals.allDefined, false);
+  pass("NULL MACROS NOT COERCED TO ZERO");
+}
+
+// PLAN VERSION HIDDEN FROM USER
+{
+  const desktopHubPath = path.join(__dirname, "..", "components", "consultancies", "nutrition-v2", "patient-record-view.tsx");
+  const desktopContent = fs.readFileSync(desktopHubPath, "utf8");
+  assert(
+    desktopContent.includes('{ id: "plano", label: activePlan ? "Plano Ativo" : "Plano Alimentar" }'),
+    "Aba do plano ativo deve ser 'Plano Ativo' sem expor número de versão como '(V1)'"
+  );
+  assert(
+    !desktopContent.includes("Plano Ativo (V"),
+    "Aba do plano ativo não pode conter 'Plano Ativo (V'"
+  );
+  pass("PLAN VERSION HIDDEN FROM USER");
+}
+
+// MOBILE DATE FORMAT
+{
+  function formatMeasurementDate(dateStr) {
+    if (!dateStr) return null;
+    const trimmed = dateStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      const [y, m, d] = trimmed.slice(0, 10).split("-");
+      return `${d}/${m}/${y}`;
+    }
+    return trimmed;
+  }
+  assert.equal(formatMeasurementDate("2026-10-05"), "05/10/2026");
+  assert.equal(formatMeasurementDate("2026-01-20"), "20/01/2026");
+
+  const tabPath = path.join(__dirname, "..", "components", "consultancies", "nutrition-v2", "patient-planning-tab.tsx");
+  const tabContent = fs.readFileSync(tabPath, "utf8");
+  assert(
+    tabContent.includes("formatMeasurementDate"),
+    "PatientPlanningTab deve utilizar helper formatMeasurementDate para formatar datas"
+  );
+  pass("MOBILE DATE FORMAT");
+}
+
 console.log(`\n========================================`);
 console.log(`TODOS OS ${passedCount} GATES APROVADOS COM SUCESSO!`);
 console.log(`========================================\n`);

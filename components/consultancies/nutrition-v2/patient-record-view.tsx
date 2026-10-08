@@ -413,7 +413,7 @@ export function PatientRecordView({
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
               <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">Plano Vigente:</span>
               <span className={`font-bold ${activePlan ? "text-[var(--brand)]" : "text-[var(--text-tertiary)]"}`}>
-                {activePlan ? `${activePlan.versionTitle} (V${activePlan.versionNumber})` : "Sem plano ativo"}
+                {activePlan ? activePlan.versionTitle : "Sem plano ativo"}
               </span>
             </div>
           </div>
@@ -493,7 +493,7 @@ export function PatientRecordView({
           [
             { id: "resumo", label: "Resumo Geral" },
             { id: "planejamento", label: "Planejamento" },
-            { id: "plano", label: activePlan ? `Plano Ativo (V${activePlan.versionNumber})` : "Plano Alimentar" },
+            { id: "plano", label: activePlan ? "Plano Ativo" : "Plano Alimentar" },
             { id: "clinico", label: "Histórico Clínico" },
 
             { id: "alimentar", label: "Histórico Alimentar" },
@@ -546,7 +546,7 @@ export function PatientRecordView({
                       </h3>
                       {activePlan ? (
                         <Badge variant="brand" size="sm">
-                          Ativo (V{activePlan.versionNumber})
+                          Ativo
                         </Badge>
                       ) : (
                         <Badge variant="neutral" size="sm">
@@ -817,7 +817,7 @@ export function PatientRecordView({
                   </span>
                   {activePlan ? (
                     <Badge variant="brand" size="sm">
-                      Versão {activePlan.versionNumber} (Ativo)
+                      Ativo
                     </Badge>
                   ) : (
                     <Badge variant="neutral" size="sm">

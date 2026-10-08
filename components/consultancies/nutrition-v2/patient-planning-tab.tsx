@@ -184,18 +184,32 @@ export function PatientPlanningTab({
     return null;
   }, [isManualOverride, parsedManualTarget, computedCalculatedTarget]);
 
-  // Macros calculations
+  // Helper to format ISO measurement date to PT-BR (DD/MM/AAAA)
+  const formatMeasurementDate = (dateStr?: string | null): string | null => {
+    if (!dateStr) return null;
+    const trimmed = dateStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      const [y, m, d] = trimmed.slice(0, 10).split("-");
+      return `${d}/${m}/${y}`;
+    }
+    return trimmed;
+  };
+
+  // Macros calculations: empty inputs strictly evaluate to null (UNKNOWN != ZERO)
   const parsedProteinG = useMemo(() => {
+    if (!proteinG || proteinG.trim() === "") return null;
     const v = parseFloat(proteinG);
     return isNaN(v) || v < 0 ? null : v;
   }, [proteinG]);
 
   const parsedCarbsG = useMemo(() => {
+    if (!carbsG || carbsG.trim() === "") return null;
     const v = parseFloat(carbsG);
     return isNaN(v) || v < 0 ? null : v;
   }, [carbsG]);
 
   const parsedFatsG = useMemo(() => {
+    if (!fatsG || fatsG.trim() === "") return null;
     const v = parseFloat(fatsG);
     return isNaN(v) || v < 0 ? null : v;
   }, [fatsG]);
@@ -417,16 +431,16 @@ export function PatientPlanningTab({
         <div className="space-y-6">
           {/* CARD 1: DADOS ATUAIS & IMC */}
           <div className="rounded-xl border border-border/50 bg-card p-4 space-y-4 shadow-xs">
-            <div className="flex items-center justify-between border-b border-border/40 pb-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-between border-b border-border/40 pb-2 gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground truncate">
                 Dados Atuais & Proporção Corporal
               </h3>
               {latestAnthro ? (
-                <span className="text-[11px] text-muted-foreground">
-                  Medição: {latestAnthro.measurementDate}
+                <span className="text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">
+                  Medição: {formatMeasurementDate(latestAnthro.measurementDate)}
                 </span>
               ) : (
-                <span className="text-[11px] text-muted-foreground">Anamnese do Aluno</span>
+                <span className="text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">Anamnese do Aluno</span>
               )}
             </div>
 
@@ -452,7 +466,11 @@ export function PatientPlanningTab({
               <div className="bg-muted/30 rounded-lg p-2.5">
                 <span className="text-[10px] text-muted-foreground block uppercase font-medium">Sexo</span>
                 <span className="text-base font-bold text-foreground">
-                  {currentBiologicalSex ? (currentBiologicalSex === "MALE" ? "Masc." : "Fem.") : <span className="text-xs text-amber-600 font-normal">Não inf.</span>}
+                  {currentBiologicalSex ? (
+                    currentBiologicalSex === "MALE" ? "Masc." : "Fem."
+                  ) : (
+                    <span className="text-xs text-muted-foreground font-normal">Não informado</span>
+                  )}
                 </span>
               </div>
             </div>
@@ -726,7 +744,7 @@ export function PatientPlanningTab({
                     disabled={!canAuthor}
                     value={proteinG}
                     onChange={(e) => setProteinG(e.target.value)}
-                    placeholder="0"
+                    placeholder="—"
                     className="w-full text-xs rounded-lg border border-border/60 bg-background p-2 pr-7 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-semibold"
                   />
                   <span className="absolute right-2 top-2 text-[11px] text-muted-foreground">g</span>
@@ -750,7 +768,7 @@ export function PatientPlanningTab({
                     disabled={!canAuthor}
                     value={carbsG}
                     onChange={(e) => setCarbsG(e.target.value)}
-                    placeholder="0"
+                    placeholder="—"
                     className="w-full text-xs rounded-lg border border-border/60 bg-background p-2 pr-7 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-semibold"
                   />
                   <span className="absolute right-2 top-2 text-[11px] text-muted-foreground">g</span>
@@ -774,7 +792,7 @@ export function PatientPlanningTab({
                     disabled={!canAuthor}
                     value={fatsG}
                     onChange={(e) => setFatsG(e.target.value)}
-                    placeholder="0"
+                    placeholder="—"
                     className="w-full text-xs rounded-lg border border-border/60 bg-background p-2 pr-7 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-semibold"
                   />
                   <span className="absolute right-2 top-2 text-[11px] text-muted-foreground">g</span>

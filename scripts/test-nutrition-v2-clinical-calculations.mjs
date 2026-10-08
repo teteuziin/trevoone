@@ -22,14 +22,17 @@
  * 17. Diagnostic classification is explicitly NOT generated automatically
  */
 
+import { register } from "node:module";
+register("./ts-loader.mjs", import.meta.url);
+
 import assert from "node:assert/strict";
-import {
+const {
   clinicalFormulaRegistry,
   executeClinicalCalculation,
   calculatePatientBMI,
   resolveInputsForPatient,
   validateNumericInput,
-} from "../lib/nutrition-v2/clinical-calculations/index.ts";
+} = await import("../lib/nutrition-v2/clinical-calculations/index.ts");
 
 console.log("=== INICIANDO SUÍTE DE TESTES: CLINICAL CALCULATIONS (RELEASE I) ===\n");
 

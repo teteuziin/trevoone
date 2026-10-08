@@ -4,6 +4,7 @@ import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getPatientRecordDetailAction } from "../../patient-actions";
+import { getPatientPlanningAction } from "../../planning-actions";
 import { getPatientPlanState } from "@/lib/nutrition-v2/patient-plan-lifecycle";
 import {
   getStudentEvolutionHubData,
@@ -41,7 +42,7 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
     notFound();
   }
 
-  const [patientPlanState, evolutionHubData] = await Promise.all([
+  const [patientPlanState, evolutionHubData, planningRes] = await Promise.all([
     getPatientPlanState(ctx, res.detail.student.membershipPublicId).catch(() => null),
     getStudentEvolutionHubData({
       userId: session.userId,
@@ -49,6 +50,7 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
       studentPublicId,
       effectiveRole: effectiveRole || "NUTRITIONIST",
     }).catch(() => null),
+    getPatientPlanningAction(slug, studentPublicId).catch(() => null),
   ]);
 
   const activePlan = patientPlanState?.activePlan || null;
@@ -87,7 +89,11 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
         evolutionHubData={evolutionHubData}
         evolutionComparisonData={evolutionComparisonData}
         initialTab={initialTab}
+        initialPlanning={planningRes?.data?.planning || null}
+        initialStaleStatus={planningRes?.data?.staleStatus || null}
+        canAuthorNutrition={ctx.canAuthorNutrition}
       />
     </ConsultancyAppShell>
   );
 }
+

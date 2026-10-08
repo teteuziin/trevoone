@@ -31,6 +31,11 @@ import type {
   EvolutionComparisonDataDto,
 } from "@/types/evolution";
 import { MobilePatientHub } from "./mobile-patient-hub";
+import type {
+  PatientPlanning,
+  PatientPlanningStaleStatus,
+} from "@/lib/nutrition-v2/patient-planning-types";
+import { PatientPlanningTab } from "./patient-planning-tab";
 
 interface PatientRecordViewProps {
   slug: string;
@@ -40,9 +45,21 @@ interface PatientRecordViewProps {
   evolutionHubData?: EvolutionHubDataDto | null;
   evolutionComparisonData?: EvolutionComparisonDataDto | null;
   initialTab?: string;
+  initialPlanning?: PatientPlanning | null;
+  initialStaleStatus?: PatientPlanningStaleStatus | null;
+  canAuthorNutrition?: boolean;
 }
 
-type TabType = "resumo" | "plano" | "clinico" | "alimentar" | "estilo_vida" | "antropometria" | "gestacao" | "calculos";
+type TabType =
+  | "resumo"
+  | "planejamento"
+  | "plano"
+  | "clinico"
+  | "alimentar"
+  | "estilo_vida"
+  | "antropometria"
+  | "gestacao"
+  | "calculos";
 
 export function PatientRecordView({
   slug,
@@ -52,10 +69,21 @@ export function PatientRecordView({
   evolutionHubData,
   evolutionComparisonData,
   initialTab,
+  initialPlanning,
+  initialStaleStatus,
+  canAuthorNutrition = true,
 }: PatientRecordViewProps) {
   const router = useRouter();
   const [detail, setDetail] = useState<PatientRecordDetail>(initialDetail);
-  const [activeTab, setActiveTab] = useState<TabType>("resumo");
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (initialTab === "planejamento") return "planejamento";
+    if (initialTab === "plano") return "plano";
+    if (initialTab === "antropometria") return "antropometria";
+    if (initialTab === "gestacao") return "gestacao";
+    if (initialTab === "calculos") return "calculos";
+    return "resumo";
+  });
+
   const [isPending, startTransition] = useTransition();
   const [isStartingEdit, setIsStartingEdit] = useState(false);
   const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
@@ -318,8 +346,12 @@ export function PatientRecordView({
           setCalcHeightOverride={setCalcHeightOverride}
           bmiResult={bmiResult}
           initialMobileTab={initialTab}
+          initialPlanning={initialPlanning}
+          initialStaleStatus={initialStaleStatus}
+          canAuthor={canAuthorNutrition}
         />
       </div>
+
 
       {/* Preserved Desktop Patient Hub (hidden md:block) */}
       <div className="hidden md:block space-y-6 max-w-7xl mx-auto px-4 py-6">
@@ -460,8 +492,10 @@ export function PatientRecordView({
         {(
           [
             { id: "resumo", label: "Resumo Geral" },
+            { id: "planejamento", label: "Planejamento" },
             { id: "plano", label: activePlan ? `Plano Ativo (V${activePlan.versionNumber})` : "Plano Alimentar" },
             { id: "clinico", label: "Histórico Clínico" },
+
             { id: "alimentar", label: "Histórico Alimentar" },
             { id: "estilo_vida", label: "Estilo de Vida" },
             { id: "antropometria", label: `Antropometria (${detail.anthropometrics.length})` },
@@ -751,8 +785,28 @@ export function PatientRecordView({
         </div>
       )}
 
+      {/* TAB: PLANEJAMENTO NUTRICIONAL */}
+      {activeTab === "planejamento" && (
+        <PatientPlanningTab
+          slug={slug}
+          studentPublicId={detail.student.membershipPublicId}
+          studentMembershipPublicId={detail.student.membershipPublicId}
+          patientRecordId={detail.record.id}
+          initialPlanning={initialPlanning || null}
+          initialStaleStatus={initialStaleStatus || null}
+          latestAnthro={latestAnthro}
+          onboardingRef={detail.onboardingReference}
+          activePlan={activePlan}
+          draftPlan={draftPlan}
+          canAuthor={canAuthorNutrition}
+          onStartEditPlan={handleStartEditPlan}
+          isStartingEditPlan={isStartingEdit}
+        />
+      )}
+
       {/* TAB: PLANO ALIMENTAR VIGENTE */}
       {activeTab === "plano" && (
+
         <div className="space-y-6">
           <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface)] p-5 sm:p-6 space-y-6 depth-surface">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">

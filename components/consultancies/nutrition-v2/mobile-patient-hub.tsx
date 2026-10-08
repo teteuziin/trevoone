@@ -25,8 +25,13 @@ import type {
 } from "@/types/evolution";
 import type { ClinicalCalculationResult } from "@/lib/nutrition-v2/clinical-calculations";
 import { MobileEvolutionCockpit } from "@/components/consultancies/evolution/mobile-evolution-cockpit";
+import type {
+  PatientPlanning,
+  PatientPlanningStaleStatus,
+} from "@/lib/nutrition-v2/patient-planning-types";
+import { PatientPlanningTab } from "./patient-planning-tab";
 
-export type MobilePatientTab = "resumo" | "prontuario" | "plano" | "evolucao";
+export type MobilePatientTab = "resumo" | "prontuario" | "planejamento" | "plano" | "evolucao";
 export type ClinicalSubTab =
   | "clinico"
   | "alimentar"
@@ -59,7 +64,11 @@ export interface MobilePatientHubProps {
   setCalcHeightOverride: (val: string) => void;
   bmiResult: ClinicalCalculationResult<number>;
   initialMobileTab?: string;
+  initialPlanning?: PatientPlanning | null;
+  initialStaleStatus?: PatientPlanningStaleStatus | null;
+  canAuthor?: boolean;
 }
+
 
 export function MobilePatientHub({
   slug,
@@ -85,9 +94,13 @@ export function MobilePatientHub({
   setCalcHeightOverride,
   bmiResult,
   initialMobileTab,
+  initialPlanning,
+  initialStaleStatus,
+  canAuthor = true,
 }: MobilePatientHubProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<MobilePatientTab>(() => {
+    if (initialMobileTab === "planejamento") return "planejamento";
     if (initialMobileTab === "evolucao") return "evolucao";
     if (initialMobileTab === "plano") return "plano";
     if (initialMobileTab === "prontuario") return "prontuario";
@@ -136,9 +149,11 @@ export function MobilePatientHub({
   const LEVEL_1_TABS: Array<{ id: MobilePatientTab; label: string }> = [
     { id: "resumo", label: "Resumo" },
     { id: "prontuario", label: "Prontuário" },
+    { id: "planejamento", label: "Planejamento" },
     { id: "plano", label: "Plano" },
     { id: "evolucao", label: "Evolução" },
   ];
+
 
   const CLINICAL_SUB_TABS: Array<{ id: ClinicalSubTab; label: string }> = [
     { id: "clinico", label: "Histórico Clínico" },
@@ -1046,10 +1061,35 @@ export function MobilePatientHub({
       )}
 
       {/* =========================================================================
+          TAB: [ PLANEJAMENTO ]
+          Cálculos clínicos, metas calóricas, macros e comparação com o plano
+          ========================================================================= */}
+      {activeTab === "planejamento" && (
+        <div data-testid="mobile-tab-planejamento">
+          <PatientPlanningTab
+            slug={slug}
+            studentPublicId={detail.student.membershipPublicId}
+            studentMembershipPublicId={detail.student.membershipPublicId}
+            patientRecordId={detail.record.id}
+            initialPlanning={initialPlanning || null}
+            initialStaleStatus={initialStaleStatus || null}
+            latestAnthro={latestAnthro}
+            onboardingRef={detail.onboardingReference}
+            activePlan={activePlan}
+            draftPlan={draftPlan}
+            canAuthor={canAuthor}
+            onStartEditPlan={handleStartEditPlan}
+            isStartingEditPlan={isStartingEdit}
+          />
+        </div>
+      )}
+
+      {/* =========================================================================
           5. TAB 3: [ PLANO ]
           Plano Atual / Criar Plano / Status e Macros
           ========================================================================= */}
       {activeTab === "plano" && (
+
         <div className="space-y-4" data-testid="mobile-tab-plano">
           {draftActionError && (
             <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-xs font-semibold text-destructive">

@@ -1,11 +1,15 @@
 /**
  * TREVO ONE — NUTRITION PROFESSIONAL V2
- * RELEASE I — CLINICAL FORMULA REGISTRY
+ * RELEASE J — CLINICAL FORMULA REGISTRY
  * Authoritative central registry for versioned clinical & metabolic formulas.
  */
 
 import type { CalculationCode, FormulaDefinition } from "./types";
 import { BMI_STANDARD_FORMULA } from "./formulas/bmi";
+import {
+  BMR_MIFFLIN_ST_JEOR_FORMULA,
+  BMR_HARRIS_BENEDICT_REVISED_FORMULA,
+} from "./formulas/bmr";
 import { SPEC_REQUIRED_FORMULAS } from "./formulas/stubs";
 
 class FormulaRegistry {
@@ -14,10 +18,15 @@ class FormulaRegistry {
   constructor() {
     // Register approved standard formulas
     this.register(BMI_STANDARD_FORMULA);
+    this.register(BMR_MIFFLIN_ST_JEOR_FORMULA);
+    this.register(BMR_HARRIS_BENEDICT_REVISED_FORMULA);
 
-    // Register spec-required stubs
+    // Register spec-required stubs for calculations awaiting approval
     for (const stub of SPEC_REQUIRED_FORMULAS) {
-      this.register(stub);
+      // Do not overwrite formulas already registered as APPROVED
+      if (!this.formulas.has(stub.code)) {
+        this.register(stub);
+      }
     }
   }
 

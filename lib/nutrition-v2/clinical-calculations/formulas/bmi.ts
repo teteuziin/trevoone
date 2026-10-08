@@ -122,3 +122,56 @@ export const BMI_STANDARD_FORMULA: FormulaDefinition = {
     };
   },
 };
+
+export interface BmiClassification {
+  category: string;
+  badgeVariant: "success" | "warning" | "danger" | "neutral";
+  description: string;
+}
+
+export function classifyBMI(bmi: number | null | undefined): BmiClassification | null {
+  if (bmi === null || bmi === undefined || isNaN(bmi) || bmi <= 0) {
+    return null;
+  }
+  if (bmi < 18.5) {
+    return {
+      category: "Abaixo do peso",
+      badgeVariant: "warning",
+      description: "IMC menor que 18,5 kg/m² (WHO)",
+    };
+  }
+  if (bmi < 25.0) {
+    return {
+      category: "Eutrofia",
+      badgeVariant: "success",
+      description: "Peso adequado: IMC entre 18,5 e 24,9 kg/m² (WHO)",
+    };
+  }
+  if (bmi < 30.0) {
+    return {
+      category: "Sobrepeso",
+      badgeVariant: "warning",
+      description: "Pré-obesidade: IMC entre 25,0 e 29,9 kg/m² (WHO)",
+    };
+  }
+  if (bmi < 35.0) {
+    return {
+      category: "Obesidade Grau I",
+      badgeVariant: "danger",
+      description: "IMC entre 30,0 e 34,9 kg/m² (WHO)",
+    };
+  }
+  if (bmi < 40.0) {
+    return {
+      category: "Obesidade Grau II",
+      badgeVariant: "danger",
+      description: "IMC entre 35,0 e 39,9 kg/m² (WHO)",
+    };
+  }
+  return {
+    category: "Obesidade Grau III",
+    badgeVariant: "danger",
+    description: "IMC maior ou igual a 40,0 kg/m² (WHO)",
+  };
+}
+

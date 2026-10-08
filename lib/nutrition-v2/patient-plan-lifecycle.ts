@@ -42,7 +42,14 @@ export interface PatientPlanDraftSummary {
   planTitle?: string;
   subtitle?: string | null;
   updatedAt: string;
+  totals?: {
+    caloriesKcal: number | null;
+    proteinG: number | null;
+    carbohydrateG: number | null;
+    fatG: number | null;
+  } | null;
 }
+
 
 export interface PatientPlanStateResult {
   activePlan: ActiveNutritionPlanSummary | null;
@@ -253,9 +260,11 @@ export async function getPatientPlanState(
 
     let draftPlan: PatientPlanDraftSummary | null = null;
     let isShared = false;
+    let draftVersionId: number | null = null;
 
     if (draftRows && draftRows.length > 0) {
       const d = draftRows[0];
+      draftVersionId = Number(d.version_id);
       draftPlan = {
         assignmentPublicId: String(d.assignment_public_id),
         planPublicId: String(d.plan_public_id),
@@ -299,6 +308,7 @@ export async function getPatientPlanState(
 
         if (planDrafts && planDrafts.length > 0) {
           const pd = planDrafts[0];
+          draftVersionId = Number(pd.id);
           draftPlan = {
             assignmentPublicId: "",
             planPublicId: String(pd.plan_public_id),
@@ -311,6 +321,36 @@ export async function getPatientPlanState(
         }
       }
     }
+
+    if (draftPlan && draftVersionId) {
+      const [draftItemTotals] = await connection.query<RowDataPacket[]>(
+        `SELECT
+           SUM(mi.calories_kcal_snapshot) AS total_calories,
+           SUM(mi.protein_g_snapshot) AS total_protein,
+           SUM(mi.carbohydrate_g_snapshot) AS total_carbs,
+           SUM(mi.fat_g_snapshot) AS total_fats
+         FROM nutrition_v2_meals m
+         INNER JOIN nutrition_v2_meal_items mi ON mi.meal_id = m.id AND mi.deleted_at IS NULL
+         WHERE m.nutrition_plan_version_id = ? AND m.deleted_at IS NULL`,
+        [draftVersionId]
+      );
+      if (draftItemTotals && draftItemTotals.length > 0 && draftItemTotals[0].total_calories !== null) {
+        draftPlan.totals = {
+          caloriesKcal: Number(draftItemTotals[0].total_calories) || 0,
+          proteinG: Number(draftItemTotals[0].total_protein) || 0,
+          carbohydrateG: Number(draftItemTotals[0].total_carbs) || 0,
+          fatG: Number(draftItemTotals[0].total_fats) || 0,
+        };
+      } else {
+        draftPlan.totals = {
+          caloriesKcal: 0,
+          proteinG: 0,
+          carbohydrateG: 0,
+          fatG: 0,
+        };
+      }
+    }
+
 
     if (activePlan && !isShared) {
       const [otherCheck] = await connection.query<RowDataPacket[]>(

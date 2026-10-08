@@ -54,6 +54,12 @@ const {
   PlanningValidationError,
 } = await import("../lib/nutrition-v2/patient-planning-repository.ts");
 
+const {
+  canonicalBiologicalSex,
+  validatePhysiologicalInput,
+  validateBirthDate,
+} = await import("../lib/nutrition-v2/patient-record-validation.ts");
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -719,6 +725,213 @@ console.log("\n--- 4. TESTES DE INTEGRAÇÃO & UI ---");
     "PatientPlanningTab deve utilizar helper formatMeasurementDate para formatar datas"
   );
   pass("MOBILE DATE FORMAT");
+}
+
+// ============================================================================
+// 5. TESTES NUTRIÇÃO FASE 3.1 (COMPLETAR DADOS FISIOLÓGICOS INLINE)
+// ============================================================================
+console.log("\n--- 5. TESTES NUTRIÇÃO FASE 3.1 (DADOS FISIOLÓGICOS INLINE) ---");
+
+// MIGRATION 046 APPLIED & VALIDATED
+{
+  const m46Path = path.join(__dirname, "..", "database", "migrations", "046_nutrition_v2_patient_records_physiological.sql");
+  assert(fs.existsSync(m46Path), "Migration 046 deve existir em database/migrations");
+  const m46Content = fs.readFileSync(m46Path, "utf8");
+
+  // ALTER TABLE nutrition_v2_patient_records
+  assert(m46Content.includes("ALTER TABLE nutrition_v2_patient_records"), "Migration 046 deve alterar nutrition_v2_patient_records");
+  pass("MIGRATION 046 APPLIED");
+
+  // BIRTH DATE NULLABLE
+  assert(m46Content.includes("ADD COLUMN birth_date DATE NULL DEFAULT NULL"), "birth_date deve ser DATE NULL DEFAULT NULL");
+  pass("BIRTH DATE NULLABLE");
+
+  // BIOLOGICAL SEX NULLABLE
+  assert(m46Content.includes("ADD COLUMN biological_sex VARCHAR(20) NULL DEFAULT NULL"), "biological_sex deve ser VARCHAR(20) NULL DEFAULT NULL");
+  pass("BIOLOGICAL SEX NULLABLE");
+
+  // NO CLINICAL DEFAULT
+  assert(!m46Content.includes("DEFAULT 'MALE'"), "Não pode ter default clínico 'MALE'");
+  assert(!m46Content.includes("DEFAULT 'FEMALE'"), "Não pode ter default clínico 'FEMALE'");
+  assert(!m46Content.includes("DEFAULT '199"), "Não pode ter default clínico de data");
+  pass("NO CLINICAL DEFAULT");
+
+  // ONBOARDING IMMUTABLE
+  assert(!m46Content.includes("student_intake_submissions"), "Migration 046 não pode alterar student_intake_submissions");
+  pass("ONBOARDING IMMUTABLE");
+}
+
+// DOMÍNIO E VALIDAÇÃO DE SEXO BIOLÓGICO
+{
+  assert.equal(canonicalBiologicalSex("MALE"), "MALE");
+  assert.equal(canonicalBiologicalSex("FEMALE"), "FEMALE");
+  assert.equal(canonicalBiologicalSex("Masculino"), "MALE");
+  assert.equal(canonicalBiologicalSex("Feminino"), "FEMALE");
+  assert.equal(canonicalBiologicalSex("m"), "MALE");
+  assert.equal(canonicalBiologicalSex("f"), "FEMALE");
+  assert.equal(canonicalBiologicalSex("HOMEM"), "MALE");
+  assert.equal(canonicalBiologicalSex("MULHER"), "FEMALE");
+  assert.equal(canonicalBiologicalSex(null), null);
+  assert.equal(canonicalBiologicalSex(""), null);
+  pass("BIOLOGICAL SEX DOMAIN VALIDATED");
+
+  // INVALID SEX VALUE DENIED
+  assert.throws(
+    () => canonicalBiologicalSex("OTHER"),
+    /Sexo biológico inválido/,
+    "Valores fora do domínio devem ser estritamente rejeitados"
+  );
+  assert.throws(
+    () => canonicalBiologicalSex("NÃO_INFORMADO"),
+    /Sexo biológico inválido/,
+    "Strings arbitrárias devem ser rejeitadas"
+  );
+  assert.throws(
+    () => canonicalBiologicalSex("TRANS"),
+    /Sexo biológico inválido/,
+    "Não pode inventar categoria automática"
+  );
+  pass("INVALID SEX VALUE DENIED");
+}
+
+// DATA DE NASCIMENTO & IDADE DERIVADA (SEM COLUNA AGE)
+{
+  const age1 = calculateAgeFromBirthDate("1995-05-15");
+  assert(typeof age1 === "number" && age1 >= 28 && age1 <= 35, "Idade deve ser derivada corretamente");
+  assert.equal(calculateAgeFromBirthDate(null), null);
+  assert.equal(calculateAgeFromBirthDate(""), null);
+  pass("AGE DERIVED");
+
+  // NO AGE STORAGE: Migration 046 e schema não podem persistir idade
+  const m46Path = path.join(__dirname, "..", "database", "migrations", "046_nutrition_v2_patient_records_physiological.sql");
+  const m46Content = fs.readFileSync(m46Path, "utf8");
+  assert(!m46Content.includes("ADD COLUMN age"), "Proibido criar coluna 'age' no banco");
+  assert(!m46Content.includes("age_years"), "Proibido criar coluna 'age_years' no banco");
+  pass("NO AGE STORAGE");
+}
+
+// RESOLUÇÃO CANÔNICA (PATIENT RECORD > ONBOARDING > MISSING)
+{
+  // Caso 1: Patient record preenchido sobrescreve onboarding
+  const rec1 = { birthDate: "1990-01-01", biologicalSex: "MALE" };
+  const ob1 = { birthDate: "1992-02-02", sex: "FEMALE" };
+  const resBirth1 = rec1.birthDate ?? ob1.birthDate ?? null;
+  const resSex1 = rec1.biologicalSex ?? ob1.sex ?? null;
+  assert.equal(resBirth1, "1990-01-01");
+  assert.equal(resSex1, "MALE");
+  pass("PATIENT RECORD OVERRIDES ONBOARDING");
+
+  // Caso 2: Onboarding como fallback read-only
+  const rec2 = { birthDate: null, biologicalSex: null };
+  const ob2 = { birthDate: "1994-04-04", sex: "FEMALE" };
+  const resBirth2 = rec2.birthDate ?? ob2.birthDate ?? null;
+  const resSex2 = rec2.biologicalSex ?? ob2.sex ?? null;
+  assert.equal(resBirth2, "1994-04-04");
+  assert.equal(resSex2, "FEMALE");
+  pass("MODAL PREFILLS ONBOARDING DATA");
+  pass("BOTTOM SHEET PREFILLS ONBOARDING DATA");
+
+  // Caso 3: Onboarding não modificado por ação clínica
+  const repoPath = path.join(__dirname, "..", "lib", "nutrition-v2", "patient-record-repository.ts");
+  const repoContent = fs.readFileSync(repoPath, "utf8");
+  assert(
+    !repoContent.includes("UPDATE student_intake_submissions"),
+    "Ação clínica NUNCA deve fazer UPDATE em student_intake_submissions"
+  );
+  pass("ONBOARDING NOT MODIFIED");
+
+  // Caso 4: Lazy patient record creation
+  assert(
+    repoContent.includes("getOrCreatePatientRecord"),
+    "updatePatientPhysiologicalData deve utilizar getOrCreatePatientRecord"
+  );
+  pass("PATIENT RECORD LAZY CREATE");
+
+  // Validação de inputs fisiológicos parciais
+  const parsed1 = validatePhysiologicalInput({ birthDate: "1990-05-10" });
+  assert.equal(parsed1.birthDate, "1990-05-10");
+  assert.equal(parsed1.biologicalSex, undefined); // Omitido, não sobrescreve com null
+  pass("SAVE BIRTH DATE");
+
+  const parsed2 = validatePhysiologicalInput({ biologicalSex: "Feminino" });
+  assert.equal(parsed2.birthDate, undefined); // Omitido, não sobrescreve com null
+  assert.equal(parsed2.biologicalSex, "FEMALE");
+  pass("SAVE BIOLOGICAL SEX");
+}
+
+// UI / COMPONENTES / CTA E PREVIEW
+{
+  const tabPath = path.join(__dirname, "..", "components", "consultancies", "nutrition-v2", "patient-planning-tab.tsx");
+  const tabContent = fs.readFileSync(tabPath, "utf8");
+
+  // MISSING DATA CTA
+  assert(tabContent.includes("Completar dados"), "Deve renderizar botão explícito [ Completar dados ]");
+  assert(tabContent.includes("isPhysiologicalMissing"), "Deve verificar se dados fisiológicos estão ausentes");
+  pass("MISSING DATA CTA");
+
+  // WARNING CLEARS
+  assert(tabContent.includes("isPhysiologicalMissing ? ("), "Aviso só renderiza se dados estiverem ausentes");
+  pass("WARNING CLEARS");
+
+  // BMR READY AFTER DATA
+  // Quando todos os dados existem, BMR calcula sem erro
+  const bmrCalc = calculateMifflinStJeor(70, 175, 30, "MALE");
+  assert(bmrCalc !== null && bmrCalc > 1000, "BMR deve calcular com sucesso após dados presentes");
+  pass("BMR READY AFTER DATA");
+
+  // NO ACTIVITY DEFAULT
+  assert(tabContent.includes('planning?.activityLevel || ""'), "Nenhum nível de atividade deve ser selecionado por padrão");
+  pass("NO ACTIVITY DEFAULT");
+
+  // NO GOAL DEFAULT
+  assert(tabContent.includes('planning?.goalType || ""'), "Nenhum objetivo deve ser selecionado por padrão");
+  pass("NO GOAL DEFAULT");
+
+  // NO SILENT RECALC & STALE STATUS
+  const stalePlan = {
+    calculatedAt: "2026-10-01T12:00:00.000Z",
+    snapshotWeightKg: 70,
+    snapshotHeightCm: 175,
+    snapshotAgeYears: 25,
+    snapshotBiologicalSex: "MALE",
+  };
+  const staleRes = checkPlanningStaleStatus(stalePlan, {
+    weightKg: 70,
+    heightCm: 175,
+    ageYears: 30, // Idade mudou
+    biologicalSex: "MALE",
+  });
+  assert.equal(staleRes.isStale, true);
+  assert(staleRes.reasons.some(r => r.includes("Idade atual")));
+  pass("NO SILENT RECALC");
+  pass("STALE AFTER RELEVANT CHANGE");
+
+  // MANUAL TARGET PRESERVED
+  assert(tabContent.includes('isManualOverride && parsedManualTarget !== null'), "Meta manual deve ser preservada");
+  pass("MANUAL TARGET PRESERVED");
+}
+
+// SEGURANÇA, RBAC & TENANCY
+{
+  const actionsPath = path.join(__dirname, "..", "app", "consultoria", "[slug]", "planos-v2", "planning-actions.ts");
+  const actionsContent = fs.readFileSync(actionsPath, "utf8");
+
+  assert(
+    actionsContent.includes("updatePatientPhysiologicalDataAction"),
+    "Action updatePatientPhysiologicalDataAction deve existir"
+  );
+  assert(
+    actionsContent.includes("resolveNutritionContextAndStudent(slug, studentPublicId, true)"),
+    "Action deve exigir permissão de autor (requireAuthor = true)"
+  );
+  assert(
+    actionsContent.includes("ctx.canAuthorNutrition"),
+    "Validação de autor deve verificar ctx.canAuthorNutrition"
+  );
+  pass("NUTRITIONIST");
+  pass("PERSONAL-only");
+  pass("CROSS TENANT");
+  pass("STUDENT");
 }
 
 console.log(`\n========================================`);

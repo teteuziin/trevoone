@@ -28,6 +28,7 @@ import { MobileEvolutionCockpit } from "@/components/consultancies/evolution/mob
 import type {
   PatientPlanning,
   PatientPlanningStaleStatus,
+  BiologicalSex,
 } from "@/lib/nutrition-v2/patient-planning-types";
 import { PatientPlanningTab } from "./patient-planning-tab";
 
@@ -67,6 +68,12 @@ export interface MobilePatientHubProps {
   initialPlanning?: PatientPlanning | null;
   initialStaleStatus?: PatientPlanningStaleStatus | null;
   canAuthor?: boolean;
+  onPhysiologicalDataUpdated?: (data: {
+    resolvedBirthDate: string | null;
+    resolvedBiologicalSex: BiologicalSex | null;
+    birthDateProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+    biologicalSexProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+  }) => void;
 }
 
 
@@ -97,6 +104,7 @@ export function MobilePatientHub({
   initialPlanning,
   initialStaleStatus,
   canAuthor = true,
+  onPhysiologicalDataUpdated,
 }: MobilePatientHubProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<MobilePatientTab>(() => {
@@ -1073,6 +1081,10 @@ export function MobilePatientHub({
             patientRecordId={detail.record.id}
             initialPlanning={initialPlanning || null}
             initialStaleStatus={initialStaleStatus || null}
+            initialResolvedBirthDate={detail.resolvedBirthDate}
+            initialResolvedBiologicalSex={detail.resolvedBiologicalSex}
+            initialBirthDateProvenance={detail.birthDateProvenance}
+            initialBiologicalSexProvenance={detail.biologicalSexProvenance}
             latestAnthro={latestAnthro}
             onboardingRef={detail.onboardingReference}
             activePlan={activePlan}
@@ -1080,6 +1092,7 @@ export function MobilePatientHub({
             canAuthor={canAuthor}
             onStartEditPlan={handleStartEditPlan}
             isStartingEditPlan={isStartingEdit}
+            onPhysiologicalDataUpdated={onPhysiologicalDataUpdated}
           />
         </div>
       )}

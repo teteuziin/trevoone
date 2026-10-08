@@ -349,6 +349,20 @@ export function PatientRecordView({
           initialPlanning={initialPlanning}
           initialStaleStatus={initialStaleStatus}
           canAuthor={canAuthorNutrition}
+          onPhysiologicalDataUpdated={(data) => {
+            setDetail((prev) => ({
+              ...prev,
+              resolvedBirthDate: data.resolvedBirthDate,
+              resolvedBiologicalSex: data.resolvedBiologicalSex,
+              birthDateProvenance: data.birthDateProvenance,
+              biologicalSexProvenance: data.biologicalSexProvenance,
+              record: {
+                ...prev.record,
+                birthDate: data.resolvedBirthDate,
+                biologicalSex: data.resolvedBiologicalSex,
+              },
+            }));
+          }}
         />
       </div>
 
@@ -794,6 +808,10 @@ export function PatientRecordView({
           patientRecordId={detail.record.id}
           initialPlanning={initialPlanning || null}
           initialStaleStatus={initialStaleStatus || null}
+          initialResolvedBirthDate={detail.resolvedBirthDate}
+          initialResolvedBiologicalSex={detail.resolvedBiologicalSex}
+          initialBirthDateProvenance={detail.birthDateProvenance}
+          initialBiologicalSexProvenance={detail.biologicalSexProvenance}
           latestAnthro={latestAnthro}
           onboardingRef={detail.onboardingReference}
           activePlan={activePlan}
@@ -801,6 +819,20 @@ export function PatientRecordView({
           canAuthor={canAuthorNutrition}
           onStartEditPlan={handleStartEditPlan}
           isStartingEditPlan={isStartingEdit}
+          onPhysiologicalDataUpdated={(data) => {
+            setDetail((prev) => ({
+              ...prev,
+              resolvedBirthDate: data.resolvedBirthDate,
+              resolvedBiologicalSex: data.resolvedBiologicalSex,
+              birthDateProvenance: data.birthDateProvenance,
+              biologicalSexProvenance: data.biologicalSexProvenance,
+              record: {
+                ...prev.record,
+                birthDate: data.resolvedBirthDate,
+                biologicalSex: data.resolvedBiologicalSex,
+              },
+            }));
+          }}
         />
       )}
 

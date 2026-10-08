@@ -11,6 +11,7 @@ import type {
   ActivityLevelCode,
   GoalTypeCode,
   TargetCalorieSource,
+  BiologicalSex,
 } from "@/lib/nutrition-v2/patient-planning-types";
 import {
   BMR_FORMULAS,
@@ -32,7 +33,10 @@ import {
 } from "@/lib/nutrition-v2/clinical-calculations";
 import type { ActiveNutritionPlanSummary } from "@/lib/nutrition-v2/assignment-repository";
 import type { PatientPlanDraftSummary } from "@/lib/nutrition-v2/patient-plan-lifecycle";
-import { savePatientPlanningAction } from "@/app/consultoria/[slug]/planos-v2/planning-actions";
+import {
+  savePatientPlanningAction,
+  updatePatientPhysiologicalDataAction,
+} from "@/app/consultoria/[slug]/planos-v2/planning-actions";
 
 export interface PatientPlanningTabProps {
   slug: string;
@@ -41,6 +45,10 @@ export interface PatientPlanningTabProps {
   patientRecordId?: number | null;
   initialPlanning: PatientPlanning | null;
   initialStaleStatus: PatientPlanningStaleStatus | null;
+  initialResolvedBirthDate?: string | null;
+  initialResolvedBiologicalSex?: BiologicalSex | null;
+  initialBirthDateProvenance?: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+  initialBiologicalSexProvenance?: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
   latestAnthro?: {
     weightKg: number | null;
     heightCm: number | null;
@@ -57,6 +65,12 @@ export interface PatientPlanningTabProps {
   canAuthor?: boolean;
   onStartEditPlan?: () => void;
   isStartingEditPlan?: boolean;
+  onPhysiologicalDataUpdated?: (data: {
+    resolvedBirthDate: string | null;
+    resolvedBiologicalSex: BiologicalSex | null;
+    birthDateProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+    biologicalSexProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+  }) => void;
 }
 
 export function PatientPlanningTab({
@@ -66,6 +80,10 @@ export function PatientPlanningTab({
   patientRecordId,
   initialPlanning,
   initialStaleStatus,
+  initialResolvedBirthDate,
+  initialResolvedBiologicalSex,
+  initialBirthDateProvenance,
+  initialBiologicalSexProvenance,
   latestAnthro,
   onboardingRef,
   activePlan,
@@ -73,16 +91,40 @@ export function PatientPlanningTab({
   canAuthor = true,
   onStartEditPlan,
   isStartingEditPlan = false,
+  onPhysiologicalDataUpdated,
 }: PatientPlanningTabProps) {
   const [planning, setPlanning] = useState<PatientPlanning | null>(initialPlanning);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  // 1. Current clinical data resolution
+  // 1. Current clinical data resolution (Release 3.1 canonical resolution)
+  const [resolvedBirthDate, setResolvedBirthDate] = useState<string | null>(
+    initialResolvedBirthDate ?? onboardingRef?.birthDate ?? null
+  );
+  const [resolvedBiologicalSex, setResolvedBiologicalSex] = useState<BiologicalSex | null>(
+    initialResolvedBiologicalSex ?? normalizeBiologicalSex(onboardingRef?.sex) ?? null
+  );
+  const [birthDateProvenance, setBirthDateProvenance] = useState<"PATIENT_RECORD" | "ONBOARDING" | "MISSING">(
+    initialBirthDateProvenance ?? (onboardingRef?.birthDate ? "ONBOARDING" : "MISSING")
+  );
+  const [biologicalSexProvenance, setBiologicalSexProvenance] = useState<"PATIENT_RECORD" | "ONBOARDING" | "MISSING">(
+    initialBiologicalSexProvenance ?? (onboardingRef?.sex ? "ONBOARDING" : "MISSING")
+  );
+  const [dynamicStaleStatus, setDynamicStaleStatus] = useState<PatientPlanningStaleStatus | null>(
+    initialStaleStatus
+  );
+
+  // Modal / Bottom Sheet state
+  const [isPhysiologicalModalOpen, setIsPhysiologicalModalOpen] = useState(false);
+  const [modalBirthDate, setModalBirthDate] = useState<string>(resolvedBirthDate || "");
+  const [modalBiologicalSex, setModalBiologicalSex] = useState<string>(resolvedBiologicalSex || "");
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [isSavingPhysiological, setIsSavingPhysiological] = useState(false);
+
   const currentWeightKg = latestAnthro?.weightKg ?? onboardingRef?.reportedWeightKg ?? null;
   const currentHeightCm = latestAnthro?.heightCm ?? onboardingRef?.reportedHeightCm ?? null;
-  const currentAgeYears = calculateAgeFromBirthDate(onboardingRef?.birthDate);
-  const currentBiologicalSex = normalizeBiologicalSex(onboardingRef?.sex);
+  const currentAgeYears = calculateAgeFromBirthDate(resolvedBirthDate);
+  const currentBiologicalSex = resolvedBiologicalSex;
 
   // BMI of current data
   const currentBMI = useMemo(() => {
@@ -235,18 +277,92 @@ export function PatientPlanningTab({
     if (forcedRecalcSnapshot) {
       return { isStale: false, reasons: [], currentInputs: null, snapshotInputs: null };
     }
-    return initialStaleStatus || { isStale: false, reasons: [], currentInputs: null, snapshotInputs: null };
-  }, [initialStaleStatus, forcedRecalcSnapshot]);
+    return dynamicStaleStatus || { isStale: false, reasons: [], currentInputs: null, snapshotInputs: null };
+  }, [dynamicStaleStatus, forcedRecalcSnapshot]);
 
   // Missing data indicators
-  const missingInputs = useMemo(() => {
+  const isBirthDateMissing = currentAgeYears === null;
+  const isSexMissing = !currentBiologicalSex;
+  const isPhysiologicalMissing = isBirthDateMissing || isSexMissing;
+
+  const missingPhysiologicalText = useMemo(() => {
+    if (isBirthDateMissing && isSexMissing) {
+      return "⚠ Para calcular TMB e GET, informe: Data de nascimento e Sexo biológico.";
+    }
+    if (isBirthDateMissing) {
+      return "⚠ Para calcular TMB e GET, informe a data de nascimento.";
+    }
+    if (isSexMissing) {
+      return "⚠ Informe o sexo biológico para calcular TMB e GET.";
+    }
+    return null;
+  }, [isBirthDateMissing, isSexMissing]);
+
+  const otherMissingInputs = useMemo(() => {
     const list: string[] = [];
     if (!currentWeightKg) list.push("Peso corporal");
     if (!currentHeightCm) list.push("Altura");
-    if (currentAgeYears === null) list.push("Data de nascimento / Idade");
-    if (!currentBiologicalSex) list.push("Sexo biológico");
     return list;
-  }, [currentWeightKg, currentHeightCm, currentAgeYears, currentBiologicalSex]);
+  }, [currentWeightKg, currentHeightCm]);
+
+  // Modal handlers
+  const handleOpenPhysiologicalModal = () => {
+    setModalBirthDate(resolvedBirthDate || "");
+    setModalBiologicalSex(resolvedBiologicalSex || "");
+    setModalError(null);
+    setIsPhysiologicalModalOpen(true);
+  };
+
+  const modalDerivedAge = useMemo(() => {
+    return calculateAgeFromBirthDate(modalBirthDate || null);
+  }, [modalBirthDate]);
+
+  const handleSavePhysiological = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setModalError(null);
+    setIsSavingPhysiological(true);
+
+    try {
+      const birthDatePayload = modalBirthDate.trim() ? modalBirthDate.trim() : null;
+      const sexPayload = modalBiologicalSex ? (modalBiologicalSex as BiologicalSex) : null;
+
+      const res = await updatePatientPhysiologicalDataAction(slug, studentPublicId, {
+        birthDate: birthDatePayload,
+        biologicalSex: sexPayload,
+      });
+
+      if (!res.success || !res.data) {
+        setModalError(res.error || "Erro ao salvar dados fisiológicos.");
+        setIsSavingPhysiological(false);
+        return;
+      }
+
+      setResolvedBirthDate(res.data.resolvedBirthDate);
+      setResolvedBiologicalSex(res.data.resolvedBiologicalSex);
+      setBirthDateProvenance(res.data.birthDateProvenance);
+      setBiologicalSexProvenance(res.data.biologicalSexProvenance);
+      setDynamicStaleStatus(res.data.staleStatus);
+      setIsPhysiologicalModalOpen(false);
+
+      if (onPhysiologicalDataUpdated) {
+        onPhysiologicalDataUpdated({
+          resolvedBirthDate: res.data.resolvedBirthDate,
+          resolvedBiologicalSex: res.data.resolvedBiologicalSex,
+          birthDateProvenance: res.data.birthDateProvenance,
+          biologicalSexProvenance: res.data.biologicalSexProvenance,
+        });
+      }
+
+      setFeedback({
+        type: "success",
+        message: "Dados fisiológicos atualizados com sucesso!",
+      });
+    } catch (err: unknown) {
+      setModalError(err instanceof Error ? err.message : "Erro inesperado ao salvar.");
+    } finally {
+      setIsSavingPhysiological(false);
+    }
+  };
 
   // Goal selection handler
   const handleSelectGoal = (type: GoalTypeCode) => {
@@ -432,9 +548,20 @@ export function PatientPlanningTab({
           {/* CARD 1: DADOS ATUAIS & IMC */}
           <div className="rounded-xl border border-border/50 bg-card p-4 space-y-4 shadow-xs">
             <div className="flex items-center justify-between border-b border-border/40 pb-2 gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground truncate">
-                Dados Atuais & Proporção Corporal
-              </h3>
+              <div className="flex items-center gap-2 min-w-0">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground truncate">
+                  Dados Atuais & Proporção Corporal
+                </h3>
+                {canAuthor && !isPhysiologicalMissing && (
+                  <button
+                    type="button"
+                    onClick={handleOpenPhysiologicalModal}
+                    className="text-[11px] font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 underline cursor-pointer"
+                  >
+                    Editar fisiologia
+                  </button>
+                )}
+              </div>
               {latestAnthro ? (
                 <span className="text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">
                   Medição: {formatMeasurementDate(latestAnthro.measurementDate)}
@@ -469,7 +596,7 @@ export function PatientPlanningTab({
                   {currentBiologicalSex ? (
                     currentBiologicalSex === "MALE" ? "Masc." : "Fem."
                   ) : (
-                    <span className="text-xs text-muted-foreground font-normal">Não informado</span>
+                    <span className="text-xs text-amber-600 font-normal">Não informado</span>
                   )}
                 </span>
               </div>
@@ -497,11 +624,28 @@ export function PatientPlanningTab({
               </span>
             </div>
 
-            {missingInputs.length > 0 && (
+            {isPhysiologicalMissing ? (
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                  {missingPhysiologicalText}
+                </p>
+                {canAuthor && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleOpenPhysiologicalModal}
+                    className="border-amber-400/50 bg-amber-50 hover:bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-700 dark:hover:bg-amber-900/60 font-semibold text-xs shrink-0 self-start sm:self-auto min-h-[36px]"
+                  >
+                    Completar dados
+                  </Button>
+                )}
+              </div>
+            ) : otherMissingInputs.length > 0 ? (
               <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                ⚠ Para calcular TMB e GET, informe: {missingInputs.join(", ")}.
+                ⚠ Para calcular TMB e GET, informe: {otherMissingInputs.join(", ")}.
               </p>
-            )}
+            ) : null}
           </div>
 
           {/* CARD 2: GASTO ENERGÉTICO (TMB & GET) */}
@@ -979,6 +1123,133 @@ export function PatientPlanningTab({
           </div>
         </div>
       </div>
+
+      {/* MODAL (DESKTOP) / BOTTOM SHEET (MOBILE) - COMPLETAR DADOS FISIOLÓGICOS */}
+      {isPhysiologicalModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex sm:items-center sm:justify-center items-end p-0 sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-physiological-title"
+        >
+          <div className="w-full sm:max-w-md bg-card text-card-foreground border-t sm:border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95">
+            {/* Mobile drag handle */}
+            <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full mx-auto mb-1 sm:hidden" />
+
+            <div className="flex items-center justify-between pb-2 border-b border-border/50">
+              <h3 id="modal-physiological-title" className="text-sm font-bold text-foreground">
+                Completar Dados Fisiológicos
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsPhysiologicalModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground text-sm p-1 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                aria-label="Fechar modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              A data de nascimento e o sexo biológico são necessários para o cálculo preciso de TMB e GET.
+            </p>
+
+            {(birthDateProvenance === "ONBOARDING" || biologicalSexProvenance === "ONBOARDING") && (
+              <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-800 dark:text-emerald-300">
+                ℹ Dados pré-preenchidos a partir da anamnese de onboarding. A gravação criará a versão canônica no prontuário sem alterar o histórico original do aluno.
+              </div>
+            )}
+
+            <form onSubmit={handleSavePhysiological} className="space-y-4">
+              {/* CAMPO 1: DATA DE NASCIMENTO */}
+              <div className="space-y-1.5">
+                <label htmlFor="field-modal-birth-date" className="text-xs font-semibold text-foreground block">
+                  Data de Nascimento
+                </label>
+                <input
+                  id="field-modal-birth-date"
+                  type="date"
+                  max={new Date().toISOString().slice(0, 10)}
+                  value={modalBirthDate}
+                  onChange={(e) => setModalBirthDate(e.target.value)}
+                  className="w-full text-xs rounded-xl border border-border bg-background p-2.5 min-h-[44px] text-foreground focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                />
+                {modalDerivedAge !== null ? (
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium block">
+                    Idade calculada: {modalDerivedAge} anos
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground block">
+                    Informe a data para calcular a idade do paciente.
+                  </span>
+                )}
+              </div>
+
+              {/* CAMPO 2: SEXO BIOLÓGICO */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground block">
+                  Sexo Biológico
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  Parâmetro fisiológico das equações de Mifflin-St Jeor e Harris-Benedict.
+                </p>
+                <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setModalBiologicalSex("MALE")}
+                    className={`min-h-[44px] px-3 py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                      modalBiologicalSex === "MALE"
+                        ? "border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold ring-1 ring-emerald-500"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    <span>Masculino</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalBiologicalSex("FEMALE")}
+                    className={`min-h-[44px] px-3 py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                      modalBiologicalSex === "FEMALE"
+                        ? "border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold ring-1 ring-emerald-500"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    <span>Feminino</span>
+                  </button>
+                </div>
+              </div>
+
+              {modalError && (
+                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-700 dark:text-red-300">
+                  {modalError}
+                </div>
+              )}
+
+              {/* ACTION BUTTONS */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPhysiologicalModalOpen(false)}
+                  disabled={isSavingPhysiological}
+                  className="text-xs min-h-[40px] px-4 cursor-pointer"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSavingPhysiological}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs min-h-[40px] px-4 cursor-pointer"
+                >
+                  {isSavingPhysiological ? "Salvando..." : "Salvar Dados"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

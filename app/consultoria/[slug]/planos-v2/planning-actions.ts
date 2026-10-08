@@ -13,15 +13,21 @@ import type {
   PatientPlanning,
   SavePatientPlanningInput,
   PatientPlanningWithStatus,
+  PatientPlanningStaleStatus,
 } from "@/lib/nutrition-v2/patient-planning-types";
 
 import {
   getPatientRecordDetail,
+  updatePatientPhysiologicalData,
 } from "@/lib/nutrition-v2/patient-record-repository";
+import type {
+  UpdatePatientPhysiologicalInput,
+} from "@/lib/nutrition-v2/patient-record-types";
 import {
   calculateAgeFromBirthDate,
   normalizeBiologicalSex,
 } from "@/lib/nutrition-v2/clinical-calculations";
+import type { BiologicalSex } from "@/lib/nutrition-v2/patient-planning-types";
 
 export type ActionResult<T = unknown> = {
   success: boolean;
@@ -88,8 +94,8 @@ export async function getPatientPlanningAction(
 
     const currentWeightKg = latestAnthro?.weightKg ?? detail?.onboardingReference.reportedWeightKg ?? null;
     const currentHeightCm = latestAnthro?.heightCm ?? detail?.onboardingReference.reportedHeightCm ?? null;
-    const currentAgeYears = calculateAgeFromBirthDate(detail?.onboardingReference.birthDate);
-    const currentBiologicalSex = normalizeBiologicalSex(detail?.onboardingReference.sex);
+    const currentAgeYears = calculateAgeFromBirthDate(detail?.resolvedBirthDate ?? detail?.onboardingReference.birthDate);
+    const currentBiologicalSex = normalizeBiologicalSex(detail?.resolvedBiologicalSex ?? detail?.onboardingReference.sex);
 
     const staleStatus = checkPlanningStaleStatus(planning, {
       weightKg: currentWeightKg,
@@ -103,10 +109,82 @@ export async function getPatientPlanningAction(
       data: {
         planning,
         staleStatus,
+        resolvedBirthDate: detail?.resolvedBirthDate ?? null,
+        resolvedBiologicalSex: detail?.resolvedBiologicalSex ?? null,
+        birthDateProvenance: detail?.birthDateProvenance ?? "MISSING",
+        biologicalSexProvenance: detail?.biologicalSexProvenance ?? "MISSING",
       },
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao carregar planejamento do paciente.";
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Updates patient physiological data (birth date and biological sex) directly from planning or hub.
+ * Enforces server-side authoring RBAC and multi-tenancy.
+ * Differentiates omitted fields vs explicitly cleared fields.
+ * Does NOT overwrite onboarding data (onboarding is immutable).
+ */
+export async function updatePatientPhysiologicalDataAction(
+  slug: string,
+  studentPublicId: string,
+  input: UpdatePatientPhysiologicalInput
+): Promise<ActionResult<{
+  resolvedBirthDate: string | null;
+  resolvedBiologicalSex: BiologicalSex | null;
+  birthDateProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+  biologicalSexProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
+  ageYears: number | null;
+  staleStatus: PatientPlanningStaleStatus;
+}>> {
+  try {
+    const { ctx, studentMembershipId } = await resolveNutritionContextAndStudent(slug, studentPublicId, true);
+
+    const result = await updatePatientPhysiologicalData(
+      ctx.consultancyId!,
+      studentMembershipId,
+      ctx.membershipId!,
+      input
+    );
+
+    // Fetch latest anthropometrics and planning to compute updated stale status
+    const [planning, detail] = await Promise.all([
+      getPatientPlanningByStudent(ctx.consultancyId!, studentMembershipId),
+      getPatientRecordDetail(ctx.consultancyId!, studentMembershipId, ctx.membershipId!).catch(() => null),
+    ]);
+
+    const latestAnthro = detail && detail.anthropometrics.length > 0 ? detail.anthropometrics[0] : null;
+    const currentWeightKg = latestAnthro?.weightKg ?? detail?.onboardingReference.reportedWeightKg ?? null;
+    const currentHeightCm = latestAnthro?.heightCm ?? detail?.onboardingReference.reportedHeightCm ?? null;
+    const currentAgeYears = calculateAgeFromBirthDate(result.resolvedBirthDate);
+
+    const staleStatus = checkPlanningStaleStatus(planning, {
+      weightKg: currentWeightKg,
+      heightCm: currentHeightCm,
+      ageYears: currentAgeYears,
+      biologicalSex: result.resolvedBiologicalSex,
+    });
+
+    revalidatePath(`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}`);
+
+    return {
+      success: true,
+      data: {
+        resolvedBirthDate: result.resolvedBirthDate,
+        resolvedBiologicalSex: result.resolvedBiologicalSex,
+        birthDateProvenance: result.birthDateProvenance,
+        biologicalSexProvenance: result.biologicalSexProvenance,
+        ageYears: currentAgeYears,
+        staleStatus,
+      },
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao atualizar dados fisiológicos do paciente.";
     return {
       success: false,
       error: message,

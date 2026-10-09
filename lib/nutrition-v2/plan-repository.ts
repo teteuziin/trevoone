@@ -63,6 +63,17 @@ import {
   deriveSubstitutionStatus,
   normalizeCriterion,
 } from "./equivalents";
+import {
+  validatePlanTreeForPublication,
+  type PendingPublicationItem,
+  type PublishValidationResult,
+} from "./validation";
+
+export {
+  validatePlanTreeForPublication,
+  type PendingPublicationItem,
+  type PublishValidationResult,
+};
 
 // ============================================================================
 // DTOs & INPUT TYPES
@@ -124,11 +135,6 @@ export interface PlanVersionHistoryItemDto {
   createdAt: string;
   publishedAt: string | null;
   updatedAt: string;
-}
-
-export interface PublishValidationResult {
-  valid: boolean;
-  errors: string[];
 }
 
 export interface MealWithItemsDto {
@@ -2758,103 +2764,8 @@ export async function reorderSubstitutions(
 
 // ============================================================================
 // PUBLICATION VALIDATION (PERSISTED TREE)
+// Imported and re-exported from ./validation (safe for client and server)
 // ============================================================================
-
-const VALID_UNIT_CODES_SET = new Set([
-  "G",
-  "KG",
-  "ML",
-  "L",
-  "UNIDADE",
-  "FATIA",
-  "COLHER_SOPA",
-  "COLHER_CHA",
-  "XICARA",
-  "SCOOP",
-  "PORCAO",
-]);
-
-/**
- * Validates a persisted plan version tree for publication according to Product02-E rules.
- * Does NOT require macros. Does NOT require source food to be active (snapshots are authoritative).
- */
-export function validatePlanTreeForPublication(tree: PlanVersionTreeDto): PublishValidationResult {
-  const errors: string[] = [];
-
-  // 1. Version title non-empty
-  if (!tree.version.title || !tree.version.title.trim()) {
-    errors.push("O título do plano é obrigatório.");
-  }
-
-  // 2. Meal count >= 1
-  if (!tree.meals || tree.meals.length === 0) {
-    errors.push("Adicione pelo menos uma refeição antes de publicar o plano.");
-    return { valid: false, errors };
-  }
-
-  // 3. Inspect each meal
-  for (let mIdx = 0; mIdx < tree.meals.length; mIdx++) {
-    const meal = tree.meals[mIdx];
-    const mealLabel = meal.title?.trim() ? `"${meal.title.trim()}"` : `Refeição ${mIdx + 1}`;
-
-    if (!meal.title || !meal.title.trim()) {
-      errors.push(`A ${mealLabel} precisa ter um nome preenchido.`);
-    }
-
-    // Each active meal must have >= 1 main item
-    if (!meal.items || meal.items.length === 0) {
-      errors.push(`A refeição ${mealLabel} precisa ter pelo menos um item.`);
-      continue;
-    }
-
-    // Inspect main items
-    for (let iIdx = 0; iIdx < meal.items.length; iIdx++) {
-      const item = meal.items[iIdx];
-      const itemLabel = item.foodNameSnapshot?.trim()
-        ? `"${item.foodNameSnapshot.trim()}"`
-        : `Item ${iIdx + 1} de ${mealLabel}`;
-
-      if (!item.foodNameSnapshot || !item.foodNameSnapshot.trim()) {
-        errors.push(`O item ${iIdx + 1} da refeição ${mealLabel} está sem o nome do alimento.`);
-      }
-
-      if (item.prescribedQuantity != null && item.prescribedQuantity <= 0) {
-        errors.push(`A quantidade do item ${itemLabel} deve ser maior que zero.`);
-      }
-
-      if (item.prescribedUnitCode && !VALID_UNIT_CODES_SET.has(item.prescribedUnitCode.trim().toUpperCase())) {
-        errors.push(`A unidade "${item.prescribedUnitCode}" do item ${itemLabel} é inválida.`);
-      }
-
-      // Inspect substitutions
-      if (item.substitutions && item.substitutions.length > 0) {
-        for (let sIdx = 0; sIdx < item.substitutions.length; sIdx++) {
-          const sub = item.substitutions[sIdx];
-          const subLabel = sub.foodNameSnapshot?.trim()
-            ? `"${sub.foodNameSnapshot.trim()}"`
-            : `Substituição ${sIdx + 1} de ${itemLabel}`;
-
-          if (!sub.foodNameSnapshot || !sub.foodNameSnapshot.trim()) {
-            errors.push(`A substituição ${sIdx + 1} do item ${itemLabel} está sem o nome do alimento.`);
-          }
-
-          if (sub.prescribedQuantity != null && sub.prescribedQuantity <= 0) {
-            errors.push(`A quantidade da substituição ${subLabel} deve ser maior que zero.`);
-          }
-
-          if (sub.prescribedUnitCode && !VALID_UNIT_CODES_SET.has(sub.prescribedUnitCode.trim().toUpperCase())) {
-            errors.push(`A unidade "${sub.prescribedUnitCode}" da substituição ${subLabel} é inválida.`);
-          }
-        }
-      }
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
-}
 
 // ============================================================================
 // PUBLISH PLAN VERSION (TRANSACTIONAL)
@@ -2933,8 +2844,11 @@ export async function publishPlanVersion(
     if (!validation.valid) {
       throw new NutritionAuthorizationError(
         validation.errors[0] || "Plano incompleto para publicação.",
-        "PUBLICATION_VALIDATION_FAILED",
-        400
+        validation.pendingItems && validation.pendingItems.length > 0
+          ? "PLAN_NUTRITION_INCOMPLETE"
+          : "PUBLICATION_VALIDATION_FAILED",
+        400,
+        validation.pendingItems
       );
     }
 

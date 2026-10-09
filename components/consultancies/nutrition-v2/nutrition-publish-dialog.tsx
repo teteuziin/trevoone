@@ -1,6 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import type { PlanVersionTreeDto } from "@/lib/nutrition-v2/plan-repository";
+import {
+  validatePlanTreeForPublication,
+  type PendingPublicationItem,
+} from "@/lib/nutrition-v2/validation";
 
 interface NutritionPublishDialogProps {
   isOpen: boolean;
@@ -10,6 +15,7 @@ interface NutritionPublishDialogProps {
   isPublishing: boolean;
   errorMessage: string | null;
   patientName?: string;
+  onReviewItem?: (item: PendingPublicationItem) => void;
 }
 
 export function NutritionPublishDialog({
@@ -20,7 +26,12 @@ export function NutritionPublishDialog({
   isPublishing,
   errorMessage,
   patientName,
+  onReviewItem,
 }: NutritionPublishDialogProps) {
+  const validation = useMemo(() => validatePlanTreeForPublication(tree), [tree]);
+  const pendingItems = validation.pendingItems;
+  const isBlocked = pendingItems.length > 0;
+
   if (!isOpen) return null;
 
   const totalMeals = tree.meals.length;
@@ -41,14 +52,27 @@ export function NutritionPublishDialog({
         <div className="pt-2.5 pb-1 flex justify-center sm:hidden bg-[var(--surface-primary)]">
           <div className="w-10 h-1.5 rounded-full bg-[var(--border-strong)]" />
         </div>
+
         {/* Header */}
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
           <div className="space-y-1">
             <h3 className="font-bold text-lg text-[var(--text-primary)] leading-snug">
-              {patientName ? "Publicar Atualização do Plano" : "Publicar Plano Alimentar"}
+              {isBlocked
+                ? "Revise o plano antes de publicar"
+                : patientName
+                ? "Publicar Atualização do Plano"
+                : "Publicar Plano Alimentar"}
             </h3>
             <p className="text-xs text-[var(--text-secondary)]">
-              {patientName ? `Paciente: ${patientName} · ` : ""}Versão {tree.version.versionNumber} · {tree.version.title}
+              {isBlocked
+                ? `Existem ${pendingItems.length} alimento${
+                    pendingItems.length > 1 ? "s" : ""
+                  } que ainda não possu${
+                    pendingItems.length > 1 ? "em" : "i"
+                  } informações suficientes para cálculo nutricional.`
+                : `${patientName ? `Paciente: ${patientName} · ` : ""}Versão ${
+                    tree.version.versionNumber
+                  } · ${tree.version.title}`}
             </p>
           </div>
           <button
@@ -65,71 +89,151 @@ export function NutritionPublishDialog({
 
         {/* Content */}
         <div className="p-5 space-y-4 overflow-y-auto">
-          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
-            <p className="font-semibold flex items-center gap-1.5">
-              <svg className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span>{patientName ? "Atualização da Prescrição" : "Atenção: Versão Imutável"}</span>
-            </p>
-            <p className="leading-relaxed">
-              {patientName
-                ? `Ao publicar, ${patientName} passará a receber imediatamente este novo cardápio. O histórico anterior será preservado com segurança.`
-                : "Ao publicar esta versão, sua prescrição se tornará definitiva e não poderá mais ser editada diretamente. Para realizar futuras alterações, você poderá criar uma nova versão a partir desta."}
-            </p>
-          </div>
-
-          {/* Structure Summary */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-              Resumo da Prescrição
-            </h4>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="p-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)]">
-                <div className="text-base font-bold text-[var(--text-primary)]">{totalMeals}</div>
-                <div className="text-[11px] text-[var(--text-muted)]">Refeiç{totalMeals === 1 ? "ão" : "ões"}</div>
+          {isBlocked ? (
+            /* ========================================================== */
+            /* BLOCKING UX: PENDING ITEMS LIST & ACTION BUTTONS          */
+            /* ========================================================== */
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <svg
+                    className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <span>Publicação bloqueada</span>
+                </p>
+                <p className="leading-relaxed">
+                  Para garantir a segurança e a precisão do cálculo, todos os alimentos
+                  prescritos devem estar vinculados à tabela nutricional e possuir porções calculáveis antes de serem publicados.
+                </p>
               </div>
-              <div className="p-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)]">
-                <div className="text-base font-bold text-[var(--text-primary)]">{totalMainItems}</div>
-                <div className="text-[11px] text-[var(--text-muted)]">Itens Principais</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)]">
-                <div className="text-base font-bold text-[var(--text-primary)]">{totalSubstitutions}</div>
-                <div className="text-[11px] text-[var(--text-muted)]">Substituições</div>
-              </div>
-            </div>
-          </div>
 
-          {/* Macro Summary Badge */}
-          <div className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/50 space-y-1 text-xs">
-            <div className="flex items-center justify-between font-semibold text-[var(--text-primary)]">
-              <span>Totais Diários:</span>
-              <span className="text-amber-600 dark:text-amber-400">
-                {tree.dailyTotals.caloriesKcal} kcal {tree.dailyTotals.hasIncompleteData ? "(parcial)" : ""}
-              </span>
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                  Alimentos pendentes ({pendingItems.length})
+                </h4>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
+                  {pendingItems.map((item, idx) => (
+                    <div
+                      key={`${item.itemPublicId}-${idx}`}
+                      className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <div className="font-semibold text-[var(--text-primary)] truncate">
+                          {item.mealTitle ? `${item.mealTitle}: ` : ""}
+                          {item.foodName}
+                        </div>
+                        <div className="text-[11px] text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                          <span>{item.reasonLabel}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onReviewItem?.(item);
+                        }}
+                        className="shrink-0 px-2.5 py-1.5 rounded-lg bg-[var(--surface-primary)] border border-amber-500/40 text-amber-800 dark:text-amber-300 font-semibold text-xs hover:bg-amber-500/15 active:scale-95 transition-colors"
+                      >
+                        {item.reason === "UNRESOLVED_PORTION" || item.reason === "INVALID_QUANTITY"
+                          ? "Corrigir medida"
+                          : "Vincular alimento"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center justify-between text-[var(--text-secondary)] text-[11px]">
-              <span>P: {tree.dailyTotals.proteinG}g · C: {tree.dailyTotals.carbohydrateG}g · G: {tree.dailyTotals.fatG}g</span>
-              {tree.dailyTotals.hasIncompleteData && (
-                <span className="text-[var(--text-muted)] italic">(itens sem cálculo)</span>
-              )}
-            </div>
-          </div>
+          ) : (
+            /* ========================================================== */
+            /* NORMAL PUBLISH CONFIRMATION FLOW                           */
+            /* ========================================================== */
+            <>
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <svg
+                    className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <span>{patientName ? "Atualização da Prescrição" : "Atenção: Versão Imutável"}</span>
+                </p>
+                <p className="leading-relaxed">
+                  {patientName
+                    ? `Ao publicar, ${patientName} passará a receber imediatamente este novo cardápio. O histórico anterior será preservado com segurança.`
+                    : "Ao publicar esta versão, sua prescrição se tornará definitiva e não poderá mais ser editada diretamente. Para realizar futuras alterações, você poderá criar uma nova versão a partir desta."}
+                </p>
+              </div>
 
-          {(tree.dailyTotals.hasIncompleteData || tree.meals.some((m) => m.items.some((i) => i.foodId == null || i.substitutions.some((s) => s.foodId == null)))) && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2">
-              <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span>Este plano contém itens pendentes de revisão. Os totais nutricionais podem estar incompletos.</span>
-            </div>
+              {/* Structure Summary */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                  Resumo da Prescrição
+                </h4>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="p-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)]">
+                    <div className="text-base font-bold text-[var(--text-primary)]">{totalMeals}</div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      Refeiç{totalMeals === 1 ? "ão" : "ões"}
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)]">
+                    <div className="text-base font-bold text-[var(--text-primary)]">{totalMainItems}</div>
+                    <div className="text-[11px] text-[var(--text-muted)]">Itens Principais</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)]">
+                    <div className="text-base font-bold text-[var(--text-primary)]">{totalSubstitutions}</div>
+                    <div className="text-[11px] text-[var(--text-muted)]">Substituições</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Macro Summary Badge */}
+              <div className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)]/50 space-y-1 text-xs">
+                <div className="flex items-center justify-between font-semibold text-[var(--text-primary)]">
+                  <span>Totais Diários:</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-mono">
+                    {tree.dailyTotals.caloriesKcal} kcal
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[var(--text-secondary)] text-[11px]">
+                  <span>
+                    P: {tree.dailyTotals.proteinG}g · C: {tree.dailyTotals.carbohydrateG}g · G:{" "}
+                    {tree.dailyTotals.fatG}g
+                  </span>
+                </div>
+              </div>
+            </>
           )}
 
           {/* Error message banner */}
           {errorMessage && (
             <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 flex items-start gap-2">
               <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <span>{errorMessage}</span>
             </div>
@@ -138,39 +242,67 @@ export function NutritionPublishDialog({
 
         {/* Footer actions */}
         <div className="p-4 border-t border-[var(--border)] bg-[var(--surface-secondary)]/30 flex items-center justify-between sm:justify-end gap-2.5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
-          <button
-            type="button"
-            disabled={isPublishing}
-            onClick={onClose}
-            className="px-4 py-2.5 text-xs font-semibold rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] min-h-[44px]"
-          >
-            Voltar ao Editor
-          </button>
-          <button
-            type="button"
-            disabled={isPublishing}
-            onClick={onConfirm}
-            className="flex-1 sm:flex-initial px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm flex items-center justify-center gap-2 min-h-[48px] transition-colors"
-          >
-            {isPublishing ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                <span>Publicando...</span>
-              </>
-            ) : (
-              <>
+          {isBlocked ? (
+            /* Blocking footer: Revisar pendências (NO "Publicar mesmo assim") */
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 text-xs font-semibold rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] min-h-[44px]"
+              >
+                Voltar ao Editor
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 sm:flex-initial px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-amber-600 text-white hover:bg-amber-700 shadow-sm flex items-center justify-center gap-2 min-h-[48px] transition-colors"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
-                <span>{patientName ? "Publicar Atualização" : "Confirmar e Publicar"}</span>
-              </>
-            )}
-          </button>
+                <span>Revisar pendências</span>
+              </button>
+            </>
+          ) : (
+            /* Normal publish footer */
+            <>
+              <button
+                type="button"
+                disabled={isPublishing}
+                onClick={onClose}
+                className="px-4 py-2.5 text-xs font-semibold rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] min-h-[44px]"
+              >
+                Voltar ao Editor
+              </button>
+              <button
+                type="button"
+                disabled={isPublishing}
+                onClick={onConfirm}
+                className="flex-1 sm:flex-initial px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm flex items-center justify-center gap-2 min-h-[48px] transition-colors"
+              >
+                {isPublishing ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    <span>Publicando...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>{patientName ? "Publicar Atualização" : "Confirmar e Publicar"}</span>
+                  </>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
+

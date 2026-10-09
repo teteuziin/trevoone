@@ -75,7 +75,7 @@ export function NutritionPlanCreationSheet({ consultancySlug }: NutritionPlanCre
         <Link href={`/consultoria/${consultancySlug}/planos-v2/novo`} className="shrink-0">
           <Button variant="primary" size="md" className="font-bold min-h-[44px] shadow-sm">
             <PlusIcon className="w-4 h-4 mr-1.5" />
-            <span>Criar plano</span>
+            <span>Criar modelo</span>
           </Button>
         </Link>
       </div>
@@ -89,7 +89,7 @@ export function NutritionPlanCreationSheet({ consultancySlug }: NutritionPlanCre
           className="font-bold min-h-[48px] w-full shadow-sm flex items-center justify-center gap-2 text-sm"
         >
           <PlusIcon className="w-4 h-4" />
-          <span>+ Novo plano</span>
+          <span>+ Novo modelo</span>
         </Button>
       </div>
 
@@ -97,8 +97,8 @@ export function NutritionPlanCreationSheet({ consultancySlug }: NutritionPlanCre
       <MobileBottomSheet
         isOpen={isSheetOpen}
         onClose={() => setIsSheetOpen(false)}
-        title="Novo Plano Alimentar"
-        subtitle="Escolha como deseja iniciar a prescrição"
+        title="Novo Modelo de Plano"
+        subtitle="Escolha como deseja criar o modelo de plano"
       >
         <div className="space-y-3 pt-1">
           {/* Option 1: Criar do zero */}
@@ -112,7 +112,7 @@ export function NutritionPlanCreationSheet({ consultancySlug }: NutritionPlanCre
             </div>
             <div className="flex-1 min-w-0">
               <h4 className="font-bold text-sm text-[var(--text-primary)]">
-                Criar do zero
+                Criar modelo do zero
               </h4>
               <p className="text-xs text-[var(--text-secondary)] mt-0.5 leading-relaxed">
                 Monte refeições, alimentos, medidas caseiras e substituições manualmente no editor.

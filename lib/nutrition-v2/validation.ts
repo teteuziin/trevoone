@@ -381,3 +381,190 @@ export const nutritionV2DuplicateTemplateSchema = z.object({
   templatePublicId: z.string().trim().min(1, 'Identificador do modelo é obrigatório.'),
 });
 
+// ============================================================================
+// PUBLICATION GATE VALIDATION (P0.2)
+// ============================================================================
+
+export interface PendingPublicationItem {
+  mealPublicId: string;
+  mealTitle: string;
+  itemPublicId: string;
+  foodName: string;
+  reason: "UNLINKED" | "UNRESOLVED_PORTION" | "UNKNOWN_NUTRITION" | "INVALID_QUANTITY";
+  reasonLabel: string;
+}
+
+export interface PublishValidationResult {
+  valid: boolean;
+  errors: string[];
+  pendingItems: PendingPublicationItem[];
+}
+
+const VALID_PUBLICATION_UNIT_CODES_SET = new Set([
+  "G",
+  "KG",
+  "ML",
+  "L",
+  "UNIDADE",
+  "FATIA",
+  "COLHER_SOPA",
+  "COLHER_CHA",
+  "XICARA",
+  "COPO",
+  "SCOOP",
+  "PORCAO",
+]);
+
+/**
+ * Validates a plan version tree for publication according to P0.2 publication gate rules.
+ * Pure domain logic safe for both client and server runtime.
+ */
+export function validatePlanTreeForPublication(tree: {
+  version: { title: string };
+  meals: Array<{
+    publicId: string;
+    title: string;
+    items: Array<{
+      publicId: string;
+      foodId?: string | number | null;
+      foodNameSnapshot?: string | null;
+      prescribedQuantity?: number | null;
+      prescribedUnitCode?: string | null;
+      caloriesKcalSnapshot?: number | null;
+      substitutions?: Array<{
+        publicId?: string;
+        foodId?: string | number | null;
+        foodNameSnapshot?: string | null;
+        prescribedQuantity?: number | null;
+        prescribedUnitCode?: string | null;
+      }>;
+    }>;
+  }>;
+}): PublishValidationResult {
+  const errors: string[] = [];
+  const pendingItems: PendingPublicationItem[] = [];
+
+  // 1. Version title non-empty
+  if (!tree.version.title || !tree.version.title.trim()) {
+    errors.push("O título do plano é obrigatório.");
+  }
+
+  // 2. Meal count >= 1
+  if (!tree.meals || tree.meals.length === 0) {
+    errors.push("Adicione pelo menos uma refeição antes de publicar o plano.");
+    return { valid: false, errors, pendingItems: [] };
+  }
+
+  // 3. Inspect each meal
+  for (let mIdx = 0; mIdx < tree.meals.length; mIdx++) {
+    const meal = tree.meals[mIdx];
+    const mealLabel = meal.title ? `"${meal.title}"` : `Refeição ${mIdx + 1}`;
+
+    if (!meal.title || !meal.title.trim()) {
+      errors.push(`O título da refeição ${mIdx + 1} é obrigatório.`);
+    }
+
+    if (!meal.items || meal.items.length === 0) {
+      errors.push(`Adicione pelo menos um alimento à refeição ${mealLabel}.`);
+    }
+
+    // Inspect items
+    for (let iIdx = 0; iIdx < (meal.items || []).length; iIdx++) {
+      const item = meal.items[iIdx];
+      const itemLabel = item.foodNameSnapshot
+        ? `"${item.foodNameSnapshot}" (${mealLabel})`
+        : `Item ${iIdx + 1} (${mealLabel})`;
+
+      if (!item.foodNameSnapshot || !item.foodNameSnapshot.trim()) {
+        errors.push(`O item ${iIdx + 1} da refeição ${mealLabel} está sem o nome do alimento.`);
+      }
+
+      // Quantity validation: must be > 0
+      if (item.prescribedQuantity == null || item.prescribedQuantity <= 0) {
+        errors.push(`A quantidade do item ${itemLabel} deve ser maior que zero.`);
+        pendingItems.push({
+          mealPublicId: meal.publicId,
+          mealTitle: meal.title,
+          itemPublicId: item.publicId,
+          foodName: item.foodNameSnapshot || `Item ${iIdx + 1}`,
+          reason: "INVALID_QUANTITY",
+          reasonLabel: "Quantidade inválida (deve ser maior que zero)",
+        });
+      }
+
+      if (
+        item.prescribedUnitCode &&
+        !VALID_PUBLICATION_UNIT_CODES_SET.has(item.prescribedUnitCode.trim().toUpperCase())
+      ) {
+        errors.push(`A unidade "${item.prescribedUnitCode}" do item ${itemLabel} é inválida.`);
+      }
+
+      // Publication Gate: Food linking & nutrition resolution
+      if (item.foodId == null) {
+        pendingItems.push({
+          mealPublicId: meal.publicId,
+          mealTitle: meal.title,
+          itemPublicId: item.publicId,
+          foodName: item.foodNameSnapshot || `Item ${iIdx + 1}`,
+          reason: "UNLINKED",
+          reasonLabel: "Sem vínculo nutricional",
+        });
+      } else if (item.caloriesKcalSnapshot == null) {
+        // Unknown nutrition vs unresolved portion (KNOWN ZERO is caloriesKcalSnapshot === 0, which is valid!)
+        const isPortion =
+          item.prescribedUnitCode === "PORCAO" ||
+          (item.prescribedUnitCode &&
+            !["G", "KG", "ML", "L"].includes(item.prescribedUnitCode.trim().toUpperCase()));
+        pendingItems.push({
+          mealPublicId: meal.publicId,
+          mealTitle: meal.title,
+          itemPublicId: item.publicId,
+          foodName: item.foodNameSnapshot || `Item ${iIdx + 1}`,
+          reason: isPortion ? "UNRESOLVED_PORTION" : "UNKNOWN_NUTRITION",
+          reasonLabel: isPortion
+            ? "Medida sem conversão nutricional"
+            : "Informações nutricionais desconhecidas",
+        });
+      }
+
+      // Inspect substitutions
+      if (item.substitutions && item.substitutions.length > 0) {
+        for (let sIdx = 0; sIdx < item.substitutions.length; sIdx++) {
+          const sub = item.substitutions[sIdx];
+          const subLabel = sub.foodNameSnapshot
+            ? `"${sub.foodNameSnapshot}" (substituição do item ${itemLabel})`
+            : `Substituição ${sIdx + 1} (${itemLabel})`;
+
+          if (!sub.foodNameSnapshot || !sub.foodNameSnapshot.trim()) {
+            errors.push(`A substituição ${sIdx + 1} do item ${itemLabel} está sem nome.`);
+          }
+
+          if (sub.prescribedQuantity != null && sub.prescribedQuantity <= 0) {
+            errors.push(`A quantidade da substituição ${subLabel} deve ser maior que zero.`);
+          }
+
+          if (
+            sub.prescribedUnitCode &&
+            !VALID_PUBLICATION_UNIT_CODES_SET.has(sub.prescribedUnitCode.trim().toUpperCase())
+          ) {
+            errors.push(`A unidade "${sub.prescribedUnitCode}" da substituição ${subLabel} é inválida.`);
+          }
+        }
+      }
+    }
+  }
+
+  if (pendingItems.length > 0) {
+    errors.push(
+      `Existem ${pendingItems.length} alimento(s) que ainda não possuem informações suficientes para cálculo nutricional.`
+    );
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    pendingItems,
+  };
+}
+
+

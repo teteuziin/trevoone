@@ -100,11 +100,12 @@ export function NutritionItemEditor({
               {item.foodId == null ? (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  SEM VÍNCULO NUTRICIONAL
+                  REVISÃO NECESSÁRIA · SEM VÍNCULO
                 </span>
               ) : item.caloriesKcalSnapshot == null ? (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
-                  Medida sem conversão nutricional
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  REVISÃO NECESSÁRIA · MEDIDA SEM CONVERSÃO
                 </span>
               ) : null}
             </div>

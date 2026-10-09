@@ -28,7 +28,7 @@ import type {
 } from "@/lib/nutrition-v2/types";
 
 import { revalidatePath } from "next/cache";
-import { resolveNutritionAccessContext, assertCanAuthorNutrition, assertCanViewNutrition } from "@/lib/nutrition-v2/access";
+import { resolveNutritionAccessContext, assertCanAuthorNutrition, assertCanViewNutrition, NutritionAuthorizationError } from "@/lib/nutrition-v2/access";
 import {
   createPlanWithDraftVersion,
   updatePlanVersionMetadata,
@@ -802,6 +802,9 @@ export async function publishPlanVersionAction(
     revalidatePath(`/consultoria/${slug}/planos-v2/${planPublicId}`);
     return { success: true, data: res };
   } catch (err: unknown) {
+    if (err instanceof NutritionAuthorizationError) {
+      return { success: false, error: err.message, code: err.code };
+    }
     const message = err instanceof Error ? err.message : "Erro ao publicar plano.";
     return { success: false, error: message };
   }
@@ -1361,6 +1364,9 @@ export async function publishPatientPlanUpdateAction(
     revalidatePath(`/consultoria/${slug}/nutricao`);
     return { success: true, data };
   } catch (err: unknown) {
+    if (err instanceof NutritionAuthorizationError) {
+      return { success: false, error: err.message, code: err.code };
+    }
     const message = err instanceof Error ? err.message : "Erro ao publicar atualização do plano.";
     return { success: false, error: message };
   }

@@ -844,8 +844,11 @@ export async function publishPatientPlanUpdate(
     if (!validation.valid) {
       throw new NutritionAuthorizationError(
         validation.errors[0] || "Plano incompleto para publicação.",
-        "PUBLICATION_VALIDATION_FAILED",
-        400
+        validation.pendingItems && validation.pendingItems.length > 0
+          ? "PLAN_NUTRITION_INCOMPLETE"
+          : "PUBLICATION_VALIDATION_FAILED",
+        400,
+        validation.pendingItems
       );
     }
 

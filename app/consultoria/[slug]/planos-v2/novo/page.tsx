@@ -107,7 +107,7 @@ function NovoPlanoContent({ slug }: { slug: string }) {
             className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"
           >
             <ArrowLeftIcon className="w-4 h-4" />
-            <span>{studentId ? "Voltar para Paciente" : "Voltar para Planos Alimentares"}</span>
+            <span>{studentId ? "Voltar para Paciente" : "Voltar para Planos e Modelos"}</span>
           </Link>
         </div>
 
@@ -119,14 +119,16 @@ function NovoPlanoContent({ slug }: { slug: string }) {
                 Nutrição Clínica
               </span>
               <Badge variant="brand" size="sm">
-                Novo Cardápio
+                {studentId ? "Novo Cardápio" : "Novo Modelo"}
               </Badge>
             </div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-              Criar Novo Plano Alimentar
+              {studentId ? "Criar Novo Plano Alimentar" : "Criar Novo Modelo de Plano"}
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium leading-relaxed">
-              Preencha os dados básicos da prescrição. Na próxima etapa você poderá montar as refeições, porções e substituições.
+              {studentId
+                ? "Preencha os dados básicos da prescrição. Na próxima etapa você poderá montar as refeições, porções e substituições."
+                : "Preencha os dados básicos do modelo. Este modelo poderá ser salvo na biblioteca e aplicado a múltiplos pacientes ou prescrições."}
             </p>
           </div>
 
@@ -139,13 +141,13 @@ function NovoPlanoContent({ slug }: { slug: string }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
-                Título do Plano *
+                {studentId ? "Título do Plano *" : "Título do Modelo *"}
               </label>
               <input
                 type="text"
                 name="title"
                 required
-                placeholder="Ex: Dieta para Hipertrofia - Fase 1, Protocolo Low Carb..."
+                placeholder={studentId ? "Ex: Dieta para Hipertrofia - Fase 1, Protocolo Low Carb..." : "Ex: Modelo Dieta para Hipertrofia - Fase 1, Modelo Protocolo Low Carb..."}
                 className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
               />
             </div>
@@ -176,7 +178,7 @@ function NovoPlanoContent({ slug }: { slug: string }) {
 
             <div>
               <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
-                Orientações Gerais ao Paciente (opcional)
+                {studentId ? "Orientações Gerais ao Paciente (opcional)" : "Orientações Gerais do Modelo (opcional)"}
               </label>
               <textarea
                 name="generalGuidance"
@@ -211,7 +213,13 @@ function NovoPlanoContent({ slug }: { slug: string }) {
                 disabled={isPending}
                 className="font-bold min-h-[44px] shadow-sm"
               >
-                {isPending ? "Criando Plano..." : "Criar e Montar Refeições"}
+                {isPending
+                  ? studentId
+                    ? "Criando Plano..."
+                    : "Criando Modelo..."
+                  : studentId
+                  ? "Criar e Montar Refeições"
+                  : "Criar Modelo e Montar Refeições"}
               </Button>
             </div>
           </form>

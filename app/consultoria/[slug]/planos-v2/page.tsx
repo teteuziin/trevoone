@@ -198,7 +198,7 @@ export default async function PlanosV2Page({ params, searchParams }: PlanosV2Pag
             <Link href={`/consultoria/${slug}/planos-v2/novo`} className="inline-block">
               <Button variant="primary" size="md" className="font-bold min-h-[48px] px-5 shadow-sm">
                 <PlusIcon className="w-4 h-4 mr-1.5" />
-                <span>Criar Primeiro Plano</span>
+                <span>Criar Primeiro Modelo</span>
               </Button>
             </Link>
           </div>

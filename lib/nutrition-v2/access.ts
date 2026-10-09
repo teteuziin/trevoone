@@ -30,12 +30,14 @@ export type NutritionAccessContext = {
 export class NutritionAuthorizationError extends Error {
   public readonly code: string;
   public readonly statusCode: number;
+  public pendingItems?: unknown;
 
-  constructor(message: string, code: string = "FORBIDDEN", statusCode: number = 403) {
+  constructor(message: string, code: string = "FORBIDDEN", statusCode: number = 403, pendingItems?: unknown) {
     super(message);
     this.name = "NutritionAuthorizationError";
     this.code = code;
     this.statusCode = statusCode;
+    this.pendingItems = pendingItems;
   }
 }
 

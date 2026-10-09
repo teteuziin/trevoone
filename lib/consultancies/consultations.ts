@@ -88,6 +88,7 @@ export interface ConsultationListItemDto {
   counterpartName: string;
   counterpartRole: string;
   canJoinNow: boolean;
+  counterpartMembershipPublicId?: string;
 }
 
 // ==========================================
@@ -592,6 +593,7 @@ export async function listUpcomingConsultationsForProfessional(
         counterpartName: row.student_name,
         counterpartRole: "Aluno",
         canJoinNow,
+        counterpartMembershipPublicId: row.student_membership_public_id,
       };
     });
   } finally {
@@ -749,6 +751,7 @@ export async function listConsultationHistoryForProfessional(
         counterpartName: row.student_name,
         counterpartRole: "Aluno",
         canJoinNow,
+        counterpartMembershipPublicId: row.student_membership_public_id,
       };
     });
   } finally {

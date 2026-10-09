@@ -5,6 +5,7 @@ import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getPatientRecordDetailAction } from "../../patient-actions";
 import { getPatientPlanningAction } from "../../planning-actions";
+import { getPatientConsultationsHubAction } from "../../consultation-actions";
 import { getPatientPlanState } from "@/lib/nutrition-v2/patient-plan-lifecycle";
 import {
   getStudentEvolutionHubData,
@@ -15,13 +16,14 @@ import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-
 
 interface PatientRecordPageProps {
   params: Promise<{ slug: string; studentPublicId: string }>;
-  searchParams?: Promise<{ tab?: string }>;
+  searchParams?: Promise<{ tab?: string; appointmentPublicId?: string }>;
 }
 
 export default async function PatientRecordPage({ params, searchParams }: PatientRecordPageProps) {
   const { slug, studentPublicId } = await params;
   const sp = searchParams ? await searchParams : undefined;
   const initialTab = sp?.tab;
+  const initialAppointmentPublicId = sp?.appointmentPublicId;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -42,7 +44,7 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
     notFound();
   }
 
-  const [patientPlanState, evolutionHubData, planningRes] = await Promise.all([
+  const [patientPlanState, evolutionHubData, planningRes, consultationsRes] = await Promise.all([
     getPatientPlanState(ctx, res.detail.student.membershipPublicId).catch(() => null),
     getStudentEvolutionHubData({
       userId: session.userId,
@@ -51,6 +53,7 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
       effectiveRole: effectiveRole || "NUTRITIONIST",
     }).catch(() => null),
     getPatientPlanningAction(slug, studentPublicId).catch(() => null),
+    getPatientConsultationsHubAction(slug, studentPublicId).catch(() => null),
   ]);
 
   const activePlan = patientPlanState?.activePlan || null;
@@ -91,6 +94,8 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
         initialTab={initialTab}
         initialPlanning={planningRes?.data?.planning || null}
         initialStaleStatus={planningRes?.data?.staleStatus || null}
+        initialConsultationsSummary={consultationsRes && consultationsRes.success ? consultationsRes.data : null}
+        initialAppointmentPublicId={initialAppointmentPublicId}
         canAuthorNutrition={ctx.canAuthorNutrition}
       />
     </ConsultancyAppShell>

@@ -39,6 +39,8 @@ import { PatientPlanningTab } from "./patient-planning-tab";
 import { NutritionTemplatesModal } from "./nutrition-templates-modal";
 import { NutritionCopyPlanDialog } from "./nutrition-copy-plan-dialog";
 import { NutritionSaveTemplateDialog } from "./nutrition-save-template-dialog";
+import { ClinicalConsultationTab } from "./clinical-consultation-tab";
+import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
 
 interface PatientRecordViewProps {
   slug: string;
@@ -50,11 +52,14 @@ interface PatientRecordViewProps {
   initialTab?: string;
   initialPlanning?: PatientPlanning | null;
   initialStaleStatus?: PatientPlanningStaleStatus | null;
+  initialConsultationsSummary?: PatientConsultationHubSummaryDto | null;
+  initialAppointmentPublicId?: string;
   canAuthorNutrition?: boolean;
 }
 
 type TabType =
   | "resumo"
+  | "consultas"
   | "planejamento"
   | "plano"
   | "clinico"
@@ -74,11 +79,14 @@ export function PatientRecordView({
   initialTab,
   initialPlanning,
   initialStaleStatus,
+  initialConsultationsSummary = null,
+  initialAppointmentPublicId,
   canAuthorNutrition = true,
 }: PatientRecordViewProps) {
   const router = useRouter();
   const [detail, setDetail] = useState<PatientRecordDetail>(initialDetail);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (initialTab === "consultas") return "consultas";
     if (initialTab === "planejamento") return "planejamento";
     if (initialTab === "plano") return "plano";
     if (initialTab === "antropometria") return "antropometria";
@@ -356,6 +364,8 @@ export function PatientRecordView({
           initialMobileTab={initialTab}
           initialPlanning={initialPlanning}
           initialStaleStatus={initialStaleStatus}
+          initialConsultationsSummary={initialConsultationsSummary}
+          initialAppointmentPublicId={initialAppointmentPublicId}
           canAuthor={canAuthorNutrition}
           onPhysiologicalDataUpdated={(data) => {
             setDetail((prev) => ({
@@ -514,6 +524,7 @@ export function PatientRecordView({
         {(
           [
             { id: "resumo", label: "Resumo Geral" },
+            { id: "consultas", label: "Consultas" },
             { id: "planejamento", label: "Planejamento" },
             { id: "plano", label: activePlan ? "Plano Ativo" : "Plano Alimentar" },
             { id: "clinico", label: "Histórico Clínico" },
@@ -547,6 +558,19 @@ export function PatientRecordView({
           </button>
         ))}
       </div>
+
+      {/* TAB: CONSULTAS */}
+      {activeTab === "consultas" && (
+        <ClinicalConsultationTab
+          slug={slug}
+          studentPublicId={detail.student.membershipPublicId}
+          studentName={detail.student.fullName}
+          initialSummary={initialConsultationsSummary}
+          initialAppointmentPublicId={initialAppointmentPublicId}
+          availableAnthropometrics={detail.anthropometrics}
+          canAuthor={canAuthorNutrition}
+        />
+      )}
 
       {/* TAB 1: RESUMO GERAL */}
       {activeTab === "resumo" && (

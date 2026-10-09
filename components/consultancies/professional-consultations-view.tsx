@@ -314,6 +314,17 @@ export function ProfessionalConsultationsView({
                         </button>
                       </>
                     )}
+                    {professionalType === "NUTRITIONIST" && nextConsultation.counterpartMembershipPublicId && (
+                      <Link
+                        href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${nextConsultation.counterpartMembershipPublicId}?tab=consultas&appointmentPublicId=${nextConsultation.publicId}`}
+                        className="depth-interactive inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all border border-emerald-500/30"
+                      >
+                        <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Atendimento clínico
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
@@ -378,6 +389,14 @@ export function ProfessionalConsultationsView({
                           </button>
                         </div>
                       )}
+                      {professionalType === "NUTRITIONIST" && item.counterpartMembershipPublicId && (
+                        <Link
+                          href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${item.counterpartMembershipPublicId}?tab=consultas&appointmentPublicId=${item.publicId}`}
+                          className="depth-interactive inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all border border-emerald-500/30"
+                        >
+                          Atendimento clínico
+                        </Link>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -432,8 +451,18 @@ export function ProfessionalConsultationsView({
                     </p>
                   </div>
 
-                  <div className="text-left sm:text-right text-[var(--text-tertiary)] font-mono text-[11px]">
-                    {item.scheduledStartFormatted}
+                  <div className="flex items-center gap-3">
+                    <div className="text-left sm:text-right text-[var(--text-tertiary)] font-mono text-[11px]">
+                      {item.scheduledStartFormatted}
+                    </div>
+                    {professionalType === "NUTRITIONIST" && item.counterpartMembershipPublicId && (
+                      <Link
+                        href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${item.counterpartMembershipPublicId}?tab=consultas&appointmentPublicId=${item.publicId}`}
+                        className="depth-interactive inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-all border border-emerald-500/20"
+                      >
+                        Atendimento clínico
+                      </Link>
+                    )}
                   </div>
                 </div>
               );

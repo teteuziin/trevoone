@@ -34,8 +34,10 @@ import { PatientPlanningTab } from "./patient-planning-tab";
 import { NutritionTemplatesModal } from "./nutrition-templates-modal";
 import { NutritionCopyPlanDialog } from "./nutrition-copy-plan-dialog";
 import { NutritionSaveTemplateDialog } from "./nutrition-save-template-dialog";
+import { ClinicalConsultationTab } from "./clinical-consultation-tab";
+import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
 
-export type MobilePatientTab = "resumo" | "prontuario" | "planejamento" | "plano" | "evolucao";
+export type MobilePatientTab = "resumo" | "consultas" | "prontuario" | "planejamento" | "plano" | "evolucao";
 export type ClinicalSubTab =
   | "clinico"
   | "alimentar"
@@ -70,6 +72,8 @@ export interface MobilePatientHubProps {
   initialMobileTab?: string;
   initialPlanning?: PatientPlanning | null;
   initialStaleStatus?: PatientPlanningStaleStatus | null;
+  initialConsultationsSummary?: PatientConsultationHubSummaryDto | null;
+  initialAppointmentPublicId?: string;
   canAuthor?: boolean;
   onPhysiologicalDataUpdated?: (data: {
     resolvedBirthDate: string | null;
@@ -78,7 +82,6 @@ export interface MobilePatientHubProps {
     biologicalSexProvenance: "PATIENT_RECORD" | "ONBOARDING" | "MISSING";
   }) => void;
 }
-
 
 export function MobilePatientHub({
   slug,
@@ -106,11 +109,14 @@ export function MobilePatientHub({
   initialMobileTab,
   initialPlanning,
   initialStaleStatus,
+  initialConsultationsSummary = null,
+  initialAppointmentPublicId,
   canAuthor = true,
   onPhysiologicalDataUpdated,
 }: MobilePatientHubProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<MobilePatientTab>(() => {
+    if (initialMobileTab === "consultas") return "consultas";
     if (initialMobileTab === "planejamento") return "planejamento";
     if (initialMobileTab === "evolucao") return "evolucao";
     if (initialMobileTab === "plano") return "plano";
@@ -164,6 +170,7 @@ export function MobilePatientHub({
 
   const LEVEL_1_TABS: Array<{ id: MobilePatientTab; label: string }> = [
     { id: "resumo", label: "Resumo" },
+    { id: "consultas", label: "Consultas" },
     { id: "prontuario", label: "Prontuário" },
     { id: "planejamento", label: "Planejamento" },
     { id: "plano", label: "Plano" },
@@ -486,6 +493,40 @@ export function MobilePatientHub({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB: [ CONSULTAS ]
+          ========================================================================= */}
+      {activeTab === "consultas" && (
+        <div className="space-y-4" data-testid="mobile-tab-consultas">
+          <ClinicalConsultationTab
+            slug={slug}
+            studentPublicId={detail.student.membershipPublicId}
+            studentName={detail.student.fullName}
+            initialSummary={initialConsultationsSummary}
+            availableAnthropometrics={detail.anthropometrics}
+            canAuthor={canAuthor}
+          />
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB: [ CONSULTAS ]
+          Histórico clínico de consultas e acompanhamento
+          ========================================================================= */}
+      {activeTab === "consultas" && (
+        <div className="space-y-4" data-testid="mobile-tab-consultas">
+          <ClinicalConsultationTab
+            slug={slug}
+            studentPublicId={detail.student.membershipPublicId}
+            studentName={detail.student.fullName}
+            initialSummary={initialConsultationsSummary}
+            initialAppointmentPublicId={initialAppointmentPublicId}
+            availableAnthropometrics={detail.anthropometrics}
+            canAuthor={canAuthor}
+          />
         </div>
       )}
 

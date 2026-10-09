@@ -175,17 +175,37 @@ export async function deepCloneVersionMealsAndItems(
       );
       const newItemId = iInsertRes.insertId;
 
-      const [sourceSubs] = await connection.query<RowDataPacket[]>(
-        `SELECT
-          id, public_id, food_id, sort_order,
-          food_name_snapshot, prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
-          calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
-          micronutrients_snapshot_json, notes
-         FROM nutrition_v2_item_substitutions
-         WHERE meal_item_id = ? AND deleted_at IS NULL
-         ORDER BY sort_order ASC, id ASC`,
-        [si.id]
-      );
+      let sourceSubs: RowDataPacket[] = [];
+      try {
+        const [subsWithEq] = await connection.query<RowDataPacket[]>(
+          `SELECT
+            id, public_id, food_id, sort_order,
+            food_name_snapshot, prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+            calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
+            micronutrients_snapshot_json, notes,
+            equivalence_criterion, is_stale, stale_reason,
+            base_food_id_snapshot, base_quantity_snapshot, base_unit_code_snapshot,
+            equivalence_target_value_snapshot
+           FROM nutrition_v2_item_substitutions
+           WHERE meal_item_id = ? AND deleted_at IS NULL
+           ORDER BY sort_order ASC, id ASC`,
+          [si.id]
+        );
+        sourceSubs = subsWithEq;
+      } catch {
+        const [subsLegacy] = await connection.query<RowDataPacket[]>(
+          `SELECT
+            id, public_id, food_id, sort_order,
+            food_name_snapshot, prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+            calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
+            micronutrients_snapshot_json, notes
+           FROM nutrition_v2_item_substitutions
+           WHERE meal_item_id = ? AND deleted_at IS NULL
+           ORDER BY sort_order ASC, id ASC`,
+          [si.id]
+        );
+        sourceSubs = subsLegacy;
+      }
 
       for (const ss of sourceSubs) {
         const rawSubMicro = ss.micronutrients_snapshot_json;
@@ -196,30 +216,67 @@ export async function deepCloneVersionMealsAndItems(
           : null;
 
         const newSubPublicId = crypto.randomUUID();
-        await connection.query(
-          `INSERT INTO nutrition_v2_item_substitutions (
-            public_id, meal_item_id, food_id, sort_order,
-            food_name_snapshot, prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
-            calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
-            micronutrients_snapshot_json, notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            newSubPublicId,
-            newItemId,
-            ss.food_id,
-            ss.sort_order,
-            ss.food_name_snapshot,
-            ss.prescribed_quantity,
-            ss.prescribed_unit_code,
-            ss.prescribed_unit_label,
-            ss.calories_kcal_snapshot,
-            ss.protein_g_snapshot,
-            ss.carbohydrate_g_snapshot,
-            ss.fat_g_snapshot,
-            serializedSubMicro,
-            ss.notes,
-          ]
-        );
+        try {
+          await connection.query(
+            `INSERT INTO nutrition_v2_item_substitutions (
+              public_id, meal_item_id, food_id, sort_order,
+              food_name_snapshot, prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+              calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
+              micronutrients_snapshot_json, notes,
+              equivalence_criterion, is_stale, stale_reason,
+              base_food_id_snapshot, base_quantity_snapshot, base_unit_code_snapshot,
+              equivalence_target_value_snapshot
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              newSubPublicId,
+              newItemId,
+              ss.food_id,
+              ss.sort_order,
+              ss.food_name_snapshot,
+              ss.prescribed_quantity,
+              ss.prescribed_unit_code,
+              ss.prescribed_unit_label,
+              ss.calories_kcal_snapshot,
+              ss.protein_g_snapshot,
+              ss.carbohydrate_g_snapshot,
+              ss.fat_g_snapshot,
+              serializedSubMicro,
+              ss.notes,
+              ss.equivalence_criterion ?? null,
+              ss.is_stale ?? null,
+              ss.stale_reason ?? null,
+              ss.base_food_id_snapshot ?? null,
+              ss.base_quantity_snapshot ?? null,
+              ss.base_unit_code_snapshot ?? null,
+              ss.equivalence_target_value_snapshot ?? null,
+            ]
+          );
+        } catch {
+          await connection.query(
+            `INSERT INTO nutrition_v2_item_substitutions (
+              public_id, meal_item_id, food_id, sort_order,
+              food_name_snapshot, prescribed_quantity, prescribed_unit_code, prescribed_unit_label,
+              calories_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, fat_g_snapshot,
+              micronutrients_snapshot_json, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              newSubPublicId,
+              newItemId,
+              ss.food_id,
+              ss.sort_order,
+              ss.food_name_snapshot,
+              ss.prescribed_quantity,
+              ss.prescribed_unit_code,
+              ss.prescribed_unit_label,
+              ss.calories_kcal_snapshot,
+              ss.protein_g_snapshot,
+              ss.carbohydrate_g_snapshot,
+              ss.fat_g_snapshot,
+              serializedSubMicro,
+              ss.notes,
+            ]
+          );
+        }
       }
     }
   }

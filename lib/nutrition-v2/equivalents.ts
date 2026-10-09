@@ -16,7 +16,8 @@ export type EquivalentCriterion =
   | "CALORIES"
   | "PROTEIN"
   | "CARBOHYDRATE"
-  | "FAT";
+  | "FAT"
+  | "MANUAL";
 
 export const ALL_EQUIVALENT_CRITERIA = [
   "CALORIES",
@@ -25,11 +26,20 @@ export const ALL_EQUIVALENT_CRITERIA = [
   "FAT",
 ] as const;
 
+export const ALL_SUBSTITUTION_CRITERIA = [
+  "CALORIES",
+  "PROTEIN",
+  "CARBOHYDRATE",
+  "FAT",
+  "MANUAL",
+] as const;
+
 export const EQUIVALENT_CRITERIA_LABELS: Record<EquivalentCriterion, string> = {
   CALORIES: "Calorias (Energia)",
   PROTEIN: "Proteína",
   CARBOHYDRATE: "Carboidrato",
   FAT: "Gordura",
+  MANUAL: "Porção Manual",
 };
 
 export const EQUIVALENT_CRITERIA_SHORT_LABELS: Record<EquivalentCriterion, string> = {
@@ -37,6 +47,7 @@ export const EQUIVALENT_CRITERIA_SHORT_LABELS: Record<EquivalentCriterion, strin
   PROTEIN: "Proteína",
   CARBOHYDRATE: "Carboidrato",
   FAT: "Gordura",
+  MANUAL: "Manual",
 };
 
 export const EQUIVALENT_CRITERIA_UNITS: Record<EquivalentCriterion, string> = {
@@ -44,7 +55,143 @@ export const EQUIVALENT_CRITERIA_UNITS: Record<EquivalentCriterion, string> = {
   PROTEIN: "g",
   CARBOHYDRATE: "g",
   FAT: "g",
+  MANUAL: "",
 };
+
+export const STALE_REASONS = {
+  BASE_FOOD_CHANGED: "BASE_FOOD_CHANGED",
+  BASE_UNIT_CHANGED: "BASE_UNIT_CHANGED",
+  BASE_QUANTITY_CHANGED: "BASE_QUANTITY_CHANGED",
+  FOOD_DATA_CHANGED: "FOOD_DATA_CHANGED",
+} as const;
+
+export type StaleReason = keyof typeof STALE_REASONS;
+
+export const STALE_REASON_LABELS: Record<StaleReason, string> = {
+  BASE_FOOD_CHANGED: "Alimento base foi alterado",
+  BASE_UNIT_CHANGED: "Unidade da porção base foi alterada",
+  BASE_QUANTITY_CHANGED: "Quantidade prescrita da base foi alterada",
+  FOOD_DATA_CHANGED: "Dados nutricionais na biblioteca foram atualizados",
+};
+
+export type SubstitutionDerivedStatus = "FRESH" | "STALE" | "UNVERIFIED";
+
+export interface SubstitutionStatusCheckInput {
+  currentBaseFoodId?: number | null;
+  currentBaseQuantity?: number | null;
+  currentBaseUnitCode?: string | null;
+  storedCriterion?: EquivalentCriterion | string | null;
+  storedIsStale?: boolean | null;
+  storedStaleReason?: string | null;
+  baseFoodIdSnapshot?: number | null;
+  baseQuantitySnapshot?: number | null;
+  baseUnitCodeSnapshot?: string | null;
+  isFoodDataChanged?: boolean;
+}
+
+export interface SubstitutionDerivedStatusResult {
+  status: SubstitutionDerivedStatus;
+  isStale: boolean;
+  staleReason: StaleReason | null;
+  isUnverified: boolean;
+  message?: string;
+}
+
+/**
+ * Derived status is the ultimate authority.
+ * Even if stored is_stale is FALSE in DB, an actual divergence computes to STALE.
+ * Missing essential baseline snapshots computes to UNVERIFIED.
+ * Priority: 1. BASE_FOOD_CHANGED, 2. BASE_UNIT_CHANGED, 3. BASE_QUANTITY_CHANGED, 4. FOOD_DATA_CHANGED.
+ */
+export function deriveSubstitutionStatus(
+  input: SubstitutionStatusCheckInput
+): SubstitutionDerivedStatusResult {
+  if (
+    input.storedCriterion == null ||
+    input.baseQuantitySnapshot == null ||
+    input.baseFoodIdSnapshot == null
+  ) {
+    return {
+      status: "UNVERIFIED",
+      isStale: false,
+      staleReason: null,
+      isUnverified: true,
+      message: "Equivalência não verificada",
+    };
+  }
+
+  // Priority 1: BASE_FOOD_CHANGED
+  if (
+    input.currentBaseFoodId != null &&
+    Number(input.baseFoodIdSnapshot) !== Number(input.currentBaseFoodId)
+  ) {
+    return {
+      status: "STALE",
+      isStale: true,
+      staleReason: "BASE_FOOD_CHANGED",
+      isUnverified: false,
+      message: "Alimento base alterado",
+    };
+  }
+
+  // Priority 2: BASE_UNIT_CHANGED
+  if (
+    input.baseUnitCodeSnapshot &&
+    input.currentBaseUnitCode &&
+    input.baseUnitCodeSnapshot.trim().toUpperCase() !== input.currentBaseUnitCode.trim().toUpperCase()
+  ) {
+    return {
+      status: "STALE",
+      isStale: true,
+      staleReason: "BASE_UNIT_CHANGED",
+      isUnverified: false,
+      message: "Unidade da base alterada",
+    };
+  }
+
+  // Priority 3: BASE_QUANTITY_CHANGED
+  if (
+    input.currentBaseQuantity != null &&
+    Math.abs(Number(input.baseQuantitySnapshot) - Number(input.currentBaseQuantity)) > 0.001
+  ) {
+    return {
+      status: "STALE",
+      isStale: true,
+      staleReason: "BASE_QUANTITY_CHANGED",
+      isUnverified: false,
+      message: "Quantidade da base alterada",
+    };
+  }
+
+  // Priority 4: FOOD_DATA_CHANGED
+  if (input.isFoodDataChanged) {
+    return {
+      status: "STALE",
+      isStale: true,
+      staleReason: "FOOD_DATA_CHANGED",
+      isUnverified: false,
+      message: "Dados da tabela nutricional atualizados",
+    };
+  }
+
+  // Priority 5: Stored is_stale flag if explicitly true
+  if (input.storedIsStale === true) {
+    return {
+      status: "STALE",
+      isStale: true,
+      staleReason: (input.storedStaleReason as StaleReason) || "BASE_QUANTITY_CHANGED",
+      isUnverified: false,
+      message: "Equivalência desatualizada",
+    };
+  }
+
+  return {
+    status: "FRESH",
+    isStale: false,
+    staleReason: null,
+    isUnverified: false,
+  };
+}
 
 export type EquivalentResultStatus =
   | "READY"
@@ -177,6 +324,7 @@ export function normalizeCriterion(
   if (upper === "PROTEIN") return "PROTEIN";
   if (upper === "CARBOHYDRATE" || upper === "CARBS") return "CARBOHYDRATE";
   if (upper === "FAT") return "FAT";
+  if (upper === "MANUAL") return "MANUAL";
   throw new Error(`Critério inválido: ${criterion}`);
 }
 
@@ -450,7 +598,8 @@ export function findBestPortionSuggestion(
 export function calculateNutrientEquivalence(
   reference: ReferenceFoodPrescription,
   candidate: CandidateFoodItem,
-  criterion: EquivalentCriterion | string
+  criterion: EquivalentCriterion | string,
+  manualQuantity?: number | null
 ): EquivalentCalculationResult {
   let normalizedCriterion: EquivalentCriterion;
   try {
@@ -534,6 +683,70 @@ export function calculateNutrientEquivalence(
       isImpractical: false,
       canApply: false,
       message: `A unidade '${candidate.referenceUnitCode || "indefinida"}' deste alimento não é compatível para cálculo canônico direto (esperado: g, kg, ml ou l).`,
+    };
+  }
+
+  // Special branch: MANUAL portion criterion (preserves manual quantity, shows comparison, does not auto-recalc)
+  if (normalizedCriterion === "MANUAL") {
+    const rawQty = manualQuantity != null && Number(manualQuantity) > 0
+      ? Number(manualQuantity)
+      : (reference.prescribedQuantity != null && Number(reference.prescribedQuantity) > 0
+          ? Number(reference.prescribedQuantity)
+          : candCanon.amount);
+
+    const roundedQuantity = Math.max(1, Math.round(rawQty));
+    const formattedQuantity = `${roundedQuantity} ${candCanon.unitCode.toLowerCase()}`;
+    const isImpractical = roundedQuantity > IMPRACTICAL_GRAMS_THRESHOLD;
+    const macroFactor = roundedQuantity / candCanon.amount;
+
+    const macroSnapshotsForEquivalent: MacroSnapshots = {
+      caloriesKcal: candidate.caloriesKcal != null ? roundMacro(candidate.caloriesKcal * macroFactor) : null,
+      proteinG: candidate.proteinG != null ? roundMacro(candidate.proteinG * macroFactor) : null,
+      carbohydrateG: candidate.carbohydrateG != null ? roundMacro(candidate.carbohydrateG * macroFactor) : null,
+      fatG: candidate.fatG != null ? roundMacro(candidate.fatG * macroFactor) : null,
+    };
+
+    const targetKcal = roundMacro(reference.caloriesKcalSnapshot ?? reference.caloriesKcal) ?? 0;
+    const candKcal = macroSnapshotsForEquivalent.caloriesKcal ?? 0;
+    const absDiff = roundMacro(Math.abs(candKcal - targetKcal)) ?? 0;
+    const pctDiff = targetKcal > 0 ? Math.round(((candKcal - targetKcal) / targetKcal) * 1000) / 10 : 0;
+
+    const differenceMetrics: DifferenceMetrics = {
+      targetValue: targetKcal,
+      candidateCalculatedValue: candKcal,
+      absoluteDifference: absDiff,
+      percentageDifference: pctDiff,
+    };
+
+    const portionSuggestion = findBestPortionSuggestion(
+      roundedQuantity,
+      candCanon.unitCode,
+      candidate.portions
+    );
+
+    return {
+      status: isImpractical ? "IMPRACTICAL" : "READY",
+      criterion: "MANUAL",
+      criterionLabel,
+      criterionUnit,
+      targetNutrientValue: null,
+      candidateNutrientValue: null,
+      substituteNutrientValue: null,
+      calculatedQuantity: rawQty,
+      roundedQuantity,
+      unitCode: candCanon.unitCode,
+      formattedQuantity,
+      rawEquivalentGrams: candCanon.dimension === "MASS" ? rawQty : null,
+      roundedGrams: candCanon.dimension === "MASS" ? roundedQuantity : null,
+      formattedGrams: candCanon.dimension === "MASS" ? formattedQuantity : null,
+      macroSnapshotsForEquivalent,
+      portionSuggestion,
+      differenceMetrics,
+      isImpractical,
+      canApply: !isImpractical,
+      message: isImpractical
+        ? `Quantidade pouco prática (${formattedQuantity}).`
+        : "Porção manual definida pelo profissional. Sem recálculo automático.",
     };
   }
 

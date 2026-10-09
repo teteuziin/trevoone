@@ -79,6 +79,25 @@ async function run() {
     process.exit(0);
   }
 
+  if (!process.env.DB_HOST) {
+    try {
+      const envPath = path.join(__dirname, "..", ".env.local");
+      const envContent = await fs.readFile(envPath, "utf-8");
+      for (const line of envContent.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx !== -1) {
+          const k = trimmed.substring(0, eqIdx).trim();
+          const v = trimmed.substring(eqIdx + 1).trim();
+          if (k && !process.env[k]) {
+            process.env[k] = v;
+          }
+        }
+      }
+    } catch {}
+  }
+
   const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = process.env;
 
   if (!DB_HOST || !DB_NAME || !DB_USER || DB_PASSWORD === undefined || DB_PASSWORD === "") {

@@ -356,6 +356,13 @@ export interface NutritionV2TemplateItemSubstitutionDto {
   prescribedUnitCode: string | null;
   prescribedUnitLabel: string | null;
   notes: string | null;
+  equivalenceCriterion?: string | null;
+  isStale?: boolean | null;
+  staleReason?: string | null;
+  baseFoodIdSnapshot?: number | null;
+  baseQuantitySnapshot?: number | null;
+  baseUnitCodeSnapshot?: string | null;
+  equivalenceTargetValueSnapshot?: number | null;
 }
 
 export interface NutritionV2TemplateMealItemDto {

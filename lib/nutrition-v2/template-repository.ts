@@ -359,14 +359,31 @@ export async function createTemplateFromPlan(
 
       const itemIds = items.map((i) => i.id);
       if (itemIds.length > 0) {
-        const [subRows] = await connection.query<RowDataPacket[]>(
-          `SELECT id, public_id, meal_item_id, food_id, sort_order, food_name_snapshot,
-                  prescribed_quantity, prescribed_unit_code, prescribed_unit_label, notes
-           FROM nutrition_v2_item_substitutions
-           WHERE meal_item_id IN (?) AND deleted_at IS NULL
-           ORDER BY sort_order ASC, id ASC`,
-          [itemIds]
-        );
+        let subRows: RowDataPacket[] = [];
+        try {
+          const [rowsWithEq] = await connection.query<RowDataPacket[]>(
+            `SELECT id, public_id, meal_item_id, food_id, sort_order, food_name_snapshot,
+                    prescribed_quantity, prescribed_unit_code, prescribed_unit_label, notes,
+                    equivalence_criterion, is_stale, stale_reason,
+                    base_food_id_snapshot, base_quantity_snapshot, base_unit_code_snapshot,
+                    equivalence_target_value_snapshot
+             FROM nutrition_v2_item_substitutions
+             WHERE meal_item_id IN (?) AND deleted_at IS NULL
+             ORDER BY sort_order ASC, id ASC`,
+            [itemIds]
+          );
+          subRows = rowsWithEq;
+        } catch {
+          const [rowsLegacy] = await connection.query<RowDataPacket[]>(
+            `SELECT id, public_id, meal_item_id, food_id, sort_order, food_name_snapshot,
+                    prescribed_quantity, prescribed_unit_code, prescribed_unit_label, notes
+             FROM nutrition_v2_item_substitutions
+             WHERE meal_item_id IN (?) AND deleted_at IS NULL
+             ORDER BY sort_order ASC, id ASC`,
+            [itemIds]
+          );
+          subRows = rowsLegacy;
+        }
         substitutions = subRows;
       }
     }
@@ -452,30 +469,71 @@ export async function createTemplateFromPlan(
         for (let sIdx = 0; sIdx < itemSubs.length; sIdx++) {
           const sub = itemSubs[sIdx];
           const subPublicId = crypto.randomUUID();
-          await connection.query(
-            `INSERT INTO nutrition_v2_template_item_substitutions (
-              public_id,
-              template_meal_item_id,
-              food_id,
-              sort_order,
-              food_name_snapshot,
-              prescribed_quantity,
-              prescribed_unit_code,
-              prescribed_unit_label,
-              notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              subPublicId,
-              templateItemId,
-              sub.food_id || null,
-              sub.sort_order ?? sIdx,
-              sub.food_name_snapshot,
-              sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
-              sub.prescribed_unit_code || null,
-              sub.prescribed_unit_label || null,
-              sub.notes || null,
-            ]
-          );
+          try {
+            await connection.query(
+              `INSERT INTO nutrition_v2_template_item_substitutions (
+                public_id,
+                template_meal_item_id,
+                food_id,
+                sort_order,
+                food_name_snapshot,
+                prescribed_quantity,
+                prescribed_unit_code,
+                prescribed_unit_label,
+                notes,
+                equivalence_criterion,
+                is_stale,
+                stale_reason,
+                base_food_id_snapshot,
+                base_quantity_snapshot,
+                base_unit_code_snapshot,
+                equivalence_target_value_snapshot
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                subPublicId,
+                templateItemId,
+                sub.food_id || null,
+                sub.sort_order ?? sIdx,
+                sub.food_name_snapshot,
+                sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
+                sub.prescribed_unit_code || null,
+                sub.prescribed_unit_label || null,
+                sub.notes || null,
+                sub.equivalence_criterion ?? null,
+                sub.is_stale ?? null,
+                sub.stale_reason ?? null,
+                sub.base_food_id_snapshot ?? null,
+                sub.base_quantity_snapshot ?? null,
+                sub.base_unit_code_snapshot ?? null,
+                sub.equivalence_target_value_snapshot ?? null,
+              ]
+            );
+          } catch {
+            await connection.query(
+              `INSERT INTO nutrition_v2_template_item_substitutions (
+                public_id,
+                template_meal_item_id,
+                food_id,
+                sort_order,
+                food_name_snapshot,
+                prescribed_quantity,
+                prescribed_unit_code,
+                prescribed_unit_label,
+                notes
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                subPublicId,
+                templateItemId,
+                sub.food_id || null,
+                sub.sort_order ?? sIdx,
+                sub.food_name_snapshot,
+                sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
+                sub.prescribed_unit_code || null,
+                sub.prescribed_unit_label || null,
+                sub.notes || null,
+              ]
+            );
+          }
         }
       }
     }
@@ -633,6 +691,13 @@ export async function getTemplateDetail(
         prescribedUnitCode: s.prescribed_unit_code ? String(s.prescribed_unit_code) : null,
         prescribedUnitLabel: s.prescribed_unit_label ? String(s.prescribed_unit_label) : null,
         notes: s.notes ? String(s.notes) : null,
+        equivalenceCriterion: s.equivalence_criterion ?? null,
+        isStale: s.is_stale === 1 || s.is_stale === true ? true : s.is_stale === 0 || s.is_stale === false ? false : null,
+        staleReason: s.stale_reason ?? null,
+        baseFoodIdSnapshot: s.base_food_id_snapshot != null ? Number(s.base_food_id_snapshot) : null,
+        baseQuantitySnapshot: s.base_quantity_snapshot != null ? Number(s.base_quantity_snapshot) : null,
+        baseUnitCodeSnapshot: s.base_unit_code_snapshot ?? null,
+        equivalenceTargetValueSnapshot: s.equivalence_target_value_snapshot != null ? Number(s.equivalence_target_value_snapshot) : null,
       });
     }
 
@@ -1132,40 +1197,91 @@ export async function copyTemplateMealsToPlanVersion(
           subMicroJson = JSON.stringify(subMicroEnvelope);
         }
 
-        await connection.query(
-          `INSERT INTO nutrition_v2_item_substitutions (
-            public_id,
-            meal_item_id,
-            food_id,
-            sort_order,
-            food_name_snapshot,
-            prescribed_quantity,
-            prescribed_unit_code,
-            prescribed_unit_label,
-            calories_kcal_snapshot,
-            protein_g_snapshot,
-            carbohydrate_g_snapshot,
-            fat_g_snapshot,
-            micronutrients_snapshot_json,
-            notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            newSubPublicId,
-            newItemId,
-            subFood ? subFood.id : null,
-            sub.sort_order ?? sIdx,
-            subFood ? (subFood.displayNamePtBr || subFood.name) : sub.food_name_snapshot,
-            sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
-            sub.prescribed_unit_code || null,
-            sub.prescribed_unit_label || null,
-            subCaloriesSnapshot,
-            subProteinSnapshot,
-            subCarbsSnapshot,
-            subFatSnapshot,
-            subMicroJson,
-            sub.notes || null,
-          ]
-        );
+        try {
+          await connection.query(
+            `INSERT INTO nutrition_v2_item_substitutions (
+              public_id,
+              meal_item_id,
+              food_id,
+              sort_order,
+              food_name_snapshot,
+              prescribed_quantity,
+              prescribed_unit_code,
+              prescribed_unit_label,
+              calories_kcal_snapshot,
+              protein_g_snapshot,
+              carbohydrate_g_snapshot,
+              fat_g_snapshot,
+              micronutrients_snapshot_json,
+              notes,
+              equivalence_criterion,
+              is_stale,
+              stale_reason,
+              base_food_id_snapshot,
+              base_quantity_snapshot,
+              base_unit_code_snapshot,
+              equivalence_target_value_snapshot
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              newSubPublicId,
+              newItemId,
+              subFood ? subFood.id : null,
+              sub.sort_order ?? sIdx,
+              subFood ? (subFood.displayNamePtBr || subFood.name) : sub.food_name_snapshot,
+              sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
+              sub.prescribed_unit_code || null,
+              sub.prescribed_unit_label || null,
+              subCaloriesSnapshot,
+              subProteinSnapshot,
+              subCarbsSnapshot,
+              subFatSnapshot,
+              subMicroJson,
+              sub.notes || null,
+              sub.equivalence_criterion ?? null,
+              sub.is_stale ?? null,
+              sub.stale_reason ?? null,
+              sub.base_food_id_snapshot ?? null,
+              sub.base_quantity_snapshot ?? null,
+              sub.base_unit_code_snapshot ?? null,
+              sub.equivalence_target_value_snapshot ?? null,
+            ]
+          );
+        } catch {
+          await connection.query(
+            `INSERT INTO nutrition_v2_item_substitutions (
+              public_id,
+              meal_item_id,
+              food_id,
+              sort_order,
+              food_name_snapshot,
+              prescribed_quantity,
+              prescribed_unit_code,
+              prescribed_unit_label,
+              calories_kcal_snapshot,
+              protein_g_snapshot,
+              carbohydrate_g_snapshot,
+              fat_g_snapshot,
+              micronutrients_snapshot_json,
+              notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              newSubPublicId,
+              newItemId,
+              subFood ? subFood.id : null,
+              sub.sort_order ?? sIdx,
+              subFood ? (subFood.displayNamePtBr || subFood.name) : sub.food_name_snapshot,
+              sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
+              sub.prescribed_unit_code || null,
+              sub.prescribed_unit_label || null,
+              subCaloriesSnapshot,
+              subProteinSnapshot,
+              subCarbsSnapshot,
+              subFatSnapshot,
+              subMicroJson,
+              sub.notes || null,
+            ]
+          );
+        }
       }
     }
   }
@@ -1403,23 +1519,53 @@ export async function duplicateTemplate(
         for (let sIdx = 0; sIdx < itemSubs.length; sIdx++) {
           const sub = itemSubs[sIdx];
           const newSubPublicId = crypto.randomUUID();
-          await connection.query(
-            `INSERT INTO nutrition_v2_template_item_substitutions (
-              public_id, template_meal_item_id, food_id, sort_order, food_name_snapshot,
-              prescribed_quantity, prescribed_unit_code, prescribed_unit_label, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              newSubPublicId,
-              newItemId,
-              sub.food_id || null,
-              sub.sort_order ?? sIdx,
-              sub.food_name_snapshot,
-              sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
-              sub.prescribed_unit_code || null,
-              sub.prescribed_unit_label || null,
-              sub.notes || null,
-            ]
-          );
+          try {
+            await connection.query(
+              `INSERT INTO nutrition_v2_template_item_substitutions (
+                public_id, template_meal_item_id, food_id, sort_order, food_name_snapshot,
+                prescribed_quantity, prescribed_unit_code, prescribed_unit_label, notes,
+                equivalence_criterion, is_stale, stale_reason,
+                base_food_id_snapshot, base_quantity_snapshot, base_unit_code_snapshot,
+                equivalence_target_value_snapshot
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                newSubPublicId,
+                newItemId,
+                sub.food_id || null,
+                sub.sort_order ?? sIdx,
+                sub.food_name_snapshot,
+                sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
+                sub.prescribed_unit_code || null,
+                sub.prescribed_unit_label || null,
+                sub.notes || null,
+                sub.equivalence_criterion ?? null,
+                sub.is_stale ?? null,
+                sub.stale_reason ?? null,
+                sub.base_food_id_snapshot ?? null,
+                sub.base_quantity_snapshot ?? null,
+                sub.base_unit_code_snapshot ?? null,
+                sub.equivalence_target_value_snapshot ?? null,
+              ]
+            );
+          } catch {
+            await connection.query(
+              `INSERT INTO nutrition_v2_template_item_substitutions (
+                public_id, template_meal_item_id, food_id, sort_order, food_name_snapshot,
+                prescribed_quantity, prescribed_unit_code, prescribed_unit_label, notes
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                newSubPublicId,
+                newItemId,
+                sub.food_id || null,
+                sub.sort_order ?? sIdx,
+                sub.food_name_snapshot,
+                sub.prescribed_quantity != null ? Number(sub.prescribed_quantity) : null,
+                sub.prescribed_unit_code || null,
+                sub.prescribed_unit_label || null,
+                sub.notes || null,
+              ]
+            );
+          }
         }
       }
     }

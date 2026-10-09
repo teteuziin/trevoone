@@ -100,11 +100,11 @@ export function NutritionItemEditor({
               {item.foodId == null ? (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Sem vínculo
+                  SEM VÍNCULO NUTRICIONAL
                 </span>
               ) : item.caloriesKcalSnapshot == null ? (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
-                  Medida pendente
+                  Medida sem conversão nutricional
                 </span>
               ) : null}
             </div>
@@ -140,6 +140,39 @@ export function NutritionItemEditor({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                   <span>Vincular alimento</span>
+                </button>
+              </>
+            )}
+
+            {!readOnly && item.foodId != null && item.caloriesKcalSnapshot == null && (
+              <>
+                <span className="text-[var(--text-tertiary)]">•</span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await onUpdateItem({
+                      prescribedUnitCode: "G",
+                      prescribedUnitLabel: "Gramas (g)",
+                      portionPublicId: null,
+                      prescribedQuantity: item.prescribedQuantity || 100,
+                    });
+                  }}
+                  className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 cursor-pointer min-h-[36px] sm:min-h-0"
+                  title="Converter para gramas e calcular nutrientes automaticamente"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 18h12l3-18H3z" />
+                  </svg>
+                  <span>Usar gramas</span>
+                </button>
+                <span className="text-[var(--text-tertiary)]">•</span>
+                <button
+                  type="button"
+                  onClick={() => setIsResolvePickerOpen(true)}
+                  className="text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 cursor-pointer min-h-[36px] sm:min-h-0"
+                  title="Escolher outra medida caseira cadastrada para este alimento"
+                >
+                  <span>Escolher outra medida</span>
                 </button>
               </>
             )}
@@ -357,11 +390,13 @@ export function NutritionItemEditor({
         initialFoods={initialFoodsForEquivalents}
       />
 
-      {/* Food Picker for Resolving Pending Item */}
+      {/* Food Picker for Resolving Pending Item or Choosing Registered Portions */}
       <NutritionFoodPicker
         slug={slug}
         isOpen={isResolvePickerOpen}
         onClose={() => setIsResolvePickerOpen(false)}
+        initialQuery={extractCleanFoodQuery(item.foodNameSnapshot)}
+        disableCustomTab={true}
         onSelect={async (selection) => {
           await onUpdateItem({
             foodPublicId: selection.foodPublicId || undefined,
@@ -372,8 +407,17 @@ export function NutritionItemEditor({
           });
           setIsResolvePickerOpen(false);
         }}
-        title={`Vincular Alimento para "${item.foodNameSnapshot}"`}
+        title={item.foodId == null ? `Vincular Alimento para "${item.foodNameSnapshot}"` : `Escolher Medida para "${item.foodNameSnapshot}"`}
       />
     </div>
   );
+}
+
+function extractCleanFoodQuery(raw: string): string {
+  if (!raw) return "";
+  let clean = raw.trim();
+  clean = clean.replace(/^(fruta|prote[ií]na|carboidrato|gordura|vegetal|salada|bebida|doce)\s*:\s*/i, "");
+  clean = clean.replace(/\([^)]*\)/g, "");
+  clean = clean.replace(/^\d+([.,]\d+)?\s*(g|kg|ml|l|colheres|colher|fatias|fatia|unidades|unidade|escumadeira|concha)?(\s+de)?\s+/i, "");
+  return clean.trim() || raw.trim();
 }

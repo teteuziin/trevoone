@@ -33,6 +33,8 @@ interface NutritionFoodPickerProps {
   onClose: () => void;
   onSelect: (result: FoodSelectionResult) => void;
   title?: string;
+  initialQuery?: string;
+  disableCustomTab?: boolean;
 }
 
 const CANONICAL_UNITS = [
@@ -55,12 +57,20 @@ export function NutritionFoodPicker({
   onClose,
   onSelect,
   title = "Adicionar Alimento",
+  initialQuery,
+  disableCustomTab = false,
 }: NutritionFoodPickerProps) {
   const [activeTab, setActiveTab] = useState<"CATALOG" | "CUSTOM">("CATALOG");
 
   // Catalog search state
-  const [query, setQuery] = useState("");
+  const [prevInitialQuery, setPrevInitialQuery] = useState(initialQuery);
+  const [query, setQuery] = useState(initialQuery || "");
   const [sourceFilter, setSourceFilter] = useState<"ALL" | "TACO" | "USDA" | "CONSULTANCY">("ALL");
+
+  if (initialQuery !== prevInitialQuery) {
+    setPrevInitialQuery(initialQuery);
+    setQuery(initialQuery || "");
+  }
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<FoodListItemDto[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -219,8 +229,8 @@ export function NutritionFoodPicker({
           </button>
         </div>
 
-        {/* Tab switch (only if not currently configuring a selected food) */}
-        {!selectedFood && (
+        {/* Tab switch (only if not currently configuring a selected food and custom tab not disabled) */}
+        {!selectedFood && !disableCustomTab && (
           <div className="flex border-b border-[var(--border-subtle)] bg-[var(--surface-subtle)]/50 px-5 pt-2 gap-2">
             <button
               type="button"

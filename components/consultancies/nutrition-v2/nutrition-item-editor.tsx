@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { MealItemWithSubstitutionsDto } from "@/lib/nutrition-v2/plan-repository";
+import type {
+  MealItemWithSubstitutionsDto,
+  ItemSubstitutionDto,
+  AddSubstitutionInput,
+  UpdateSubstitutionInput,
+} from "@/lib/nutrition-v2/plan-repository";
 import { NutritionSubstitutionEditor } from "./nutrition-substitution-editor";
-import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-picker";
+import { NutritionFoodPicker } from "./nutrition-food-picker";
 import { NutritionEquivalentsModal } from "./nutrition-equivalents-modal";
 import type { FoodListItemDto } from "@/lib/nutrition-v2/food-repository";
 import { calculateMealMicronutrientTotals } from "@/lib/nutrition-v2/nutrient-calculator";
@@ -26,8 +31,8 @@ interface NutritionItemEditorProps {
   onMoveDown?: () => Promise<void>;
   isFirst: boolean;
   isLast: boolean;
-  onAddSubstitution: (payload: FoodSelectionResult) => Promise<void>;
-  onUpdateSubstitution: (subPublicId: string, data: { prescribedQuantity?: number | null; notes?: string | null }) => Promise<void>;
+  onAddSubstitution: (payload: AddSubstitutionInput) => Promise<void>;
+  onUpdateSubstitution: (subPublicId: string, data: UpdateSubstitutionInput) => Promise<void>;
   onRemoveSubstitution: (subPublicId: string) => Promise<void>;
   onReorderSubstitutions: (orderedSubPublicIds: string[]) => Promise<void>;
   initialFoodsForEquivalents?: FoodListItemDto[];
@@ -53,9 +58,9 @@ export function NutritionItemEditor({
   const [quantity, setQuantity] = useState(String(item.prescribedQuantity || ""));
   const [notes, setNotes] = useState(item.notes || "");
   const [isSaving, setIsSaving] = useState(false);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isResolvePickerOpen, setIsResolvePickerOpen] = useState(false);
   const [isEquivalentsOpen, setIsEquivalentsOpen] = useState(false);
+  const [substitutionToReview, setSubstitutionToReview] = useState<ItemSubstitutionDto | null>(null);
   const [showMicro, setShowMicro] = useState(false);
 
   const handleSave = async () => {
@@ -277,6 +282,10 @@ export function NutritionItemEditor({
                   onRemove={() => onRemoveSubstitution(sub.publicId)}
                   onMoveUp={() => handleMoveSub(idx, "UP")}
                   onMoveDown={() => handleMoveSub(idx, "DOWN")}
+                  onReviewOrRecalculate={(targetSub) => {
+                    setSubstitutionToReview(targetSub);
+                    setIsEquivalentsOpen(true);
+                  }}
                 />
               ))}
             </div>
@@ -288,8 +297,11 @@ export function NutritionItemEditor({
           <div className="pt-1 flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => setIsPickerOpen(true)}
-              className="text-xs text-[var(--brand-primary)] hover:underline font-medium inline-flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-[var(--brand-primary)]/5 cursor-pointer"
+              onClick={() => {
+                setSubstitutionToReview(null);
+                setIsEquivalentsOpen(true);
+              }}
+              className="text-xs text-[var(--brand-primary)] hover:underline font-medium inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-[var(--brand-primary)]/5 cursor-pointer min-h-[44px]"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -299,8 +311,11 @@ export function NutritionItemEditor({
 
             <button
               type="button"
-              onClick={() => setIsEquivalentsOpen(true)}
-              className="text-xs text-amber-700 dark:text-amber-400 hover:underline font-medium inline-flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-amber-500/10 cursor-pointer"
+              onClick={() => {
+                setSubstitutionToReview(null);
+                setIsEquivalentsOpen(true);
+              }}
+              className="text-xs text-amber-700 dark:text-amber-400 hover:underline font-medium inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-amber-500/10 cursor-pointer min-h-[44px]"
               title="Calcular quantidade equivalente com base em energia, proteína, carboidrato ou gordura"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -323,24 +338,18 @@ export function NutritionItemEditor({
         )}
       </div>
 
-      {/* Food Picker for Substitutions */}
-      <NutritionFoodPicker
-        slug={slug}
-        isOpen={isPickerOpen}
-        onClose={() => setIsPickerOpen(false)}
-        onSelect={async (res) => {
-          await onAddSubstitution(res);
-        }}
-        title={`Adicionar Substituição para "${item.foodNameSnapshot}"`}
-      />
-
-      {/* Equivalents Calculator Modal */}
+      {/* Equivalents Calculator & Review Modal */}
       <NutritionEquivalentsModal
         slug={slug}
         isOpen={isEquivalentsOpen}
-        onClose={() => setIsEquivalentsOpen(false)}
+        onClose={() => {
+          setIsEquivalentsOpen(false);
+          setSubstitutionToReview(null);
+        }}
         prescribedItem={item}
+        substitutionToReview={substitutionToReview}
         onAddSubstitution={onAddSubstitution}
+        onUpdateSubstitution={onUpdateSubstitution}
         initialFoods={initialFoodsForEquivalents}
       />
 

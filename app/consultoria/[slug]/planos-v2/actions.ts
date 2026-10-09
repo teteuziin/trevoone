@@ -74,6 +74,7 @@ import {
   getTargetNutrientValue,
   EQUIVALENT_CRITERIA_LABELS,
   EQUIVALENT_CRITERIA_UNITS,
+  type EquivalentCriterion,
   type ReferenceFoodPrescription,
   type CandidateFoodItem,
   type FoodPortionItem,
@@ -531,7 +532,7 @@ export async function calculateEquivalentsAction(
     if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
     assertCanAuthorNutrition(ctx);
 
-    let normCriterion: "CALORIES" | "PROTEIN" | "CARBOHYDRATE" | "FAT";
+    let normCriterion: EquivalentCriterion;
     try {
       normCriterion = normalizeCriterion(input.criterion);
     } catch {

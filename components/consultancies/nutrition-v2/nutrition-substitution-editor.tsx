@@ -1,26 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import type { ItemSubstitutionDto } from "@/lib/nutrition-v2/plan-repository";
+import type { ItemSubstitutionDto, UpdateSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
 import { calculateMealMicronutrientTotals } from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
+import {
+  EQUIVALENT_CRITERIA_SHORT_LABELS,
+  type EquivalentCriterion,
+} from "@/lib/nutrition-v2/equivalents";
 
 interface NutritionSubstitutionEditorProps {
   slug?: string;
   substitution: ItemSubstitutionDto;
   readOnly?: boolean;
-  onUpdate: (data: {
-    foodPublicId?: string;
-    portionPublicId?: string | null;
-    prescribedQuantity?: number | null;
-    prescribedUnitCode?: string | null;
-    prescribedUnitLabel?: string | null;
-    notes?: string | null;
-  }) => Promise<void>;
+  onUpdate: (data: UpdateSubstitutionInput) => Promise<void>;
   onRemove: () => Promise<void>;
   onMoveUp?: () => Promise<void>;
   onMoveDown?: () => Promise<void>;
+  onReviewOrRecalculate?: (sub: ItemSubstitutionDto) => void;
   isFirst: boolean;
   isLast: boolean;
 }
@@ -33,6 +31,7 @@ export function NutritionSubstitutionEditor({
   onRemove,
   onMoveUp,
   onMoveDown,
+  onReviewOrRecalculate,
   isFirst,
   isLast,
 }: NutritionSubstitutionEditorProps) {
@@ -74,6 +73,41 @@ export function NutritionSubstitutionEditor({
             <span className="text-xs text-[var(--text-secondary)] shrink-0 font-medium">
               · {substitution.prescribedQuantity} {substitution.prescribedUnitLabel || substitution.prescribedUnitCode || ""}
             </span>
+          )}
+          {substitution.equivalenceCriterion && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+              {EQUIVALENT_CRITERIA_SHORT_LABELS[substitution.equivalenceCriterion as EquivalentCriterion] || substitution.equivalenceCriterion}
+            </span>
+          )}
+          {substitution.derivedStatus === "UNVERIFIED" && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20 shrink-0">
+              Não verificada
+            </span>
+          )}
+          {!readOnly && substitution.derivedStatus === "UNVERIFIED" && onReviewOrRecalculate && (
+            <button
+              type="button"
+              onClick={() => onReviewOrRecalculate(substitution)}
+              className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 cursor-pointer shrink-0"
+              title="Revisar e definir critério de equivalência"
+            >
+              [ Revisar ]
+            </button>
+          )}
+          {substitution.derivedStatus === "STALE" && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+              Desatualizada
+            </span>
+          )}
+          {!readOnly && substitution.derivedStatus === "STALE" && onReviewOrRecalculate && (
+            <button
+              type="button"
+              onClick={() => onReviewOrRecalculate(substitution)}
+              className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer shrink-0"
+              title="Recalcular porção equivalente com base no alimento principal"
+            >
+              [ Recalcular ]
+            </button>
           )}
           {!readOnly && substitution.foodId == null && slug && (
             <button

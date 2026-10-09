@@ -38,6 +38,7 @@ import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { MobileActionSheet } from "@/components/ui/mobile";
 import type { AssignmentListItemDto } from "@/lib/nutrition-v2/assignment-repository";
 import type { FoodSelectionResult } from "./nutrition-food-picker";
+import type { AddSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
 
 export interface PatientBuilderContext {
   studentMembershipPublicId: string;
@@ -955,7 +956,7 @@ export function NutritionPlanBuilder({
                       else alert(res.error || "Erro ao reordenar itens.");
                     });
                   }}
-                  onAddSubstitution={async (itemPublicId, payload: FoodSelectionResult) => {
+                  onAddSubstitution={async (itemPublicId, payload: AddSubstitutionInput) => {
                     startTransition(async () => {
                       const res = await addSubstitutionAction(slug, tree.plan.publicId, itemPublicId, payload);
                       if (res.success) await refreshTree();

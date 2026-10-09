@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { MealWithItemsDto } from "@/lib/nutrition-v2/plan-repository";
+import type {
+  MealWithItemsDto,
+  AddSubstitutionInput,
+  UpdateSubstitutionInput,
+} from "@/lib/nutrition-v2/plan-repository";
 import { NutritionItemEditor } from "./nutrition-item-editor";
 import { NutritionFoodPicker, type FoodSelectionResult } from "./nutrition-food-picker";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
@@ -27,15 +31,8 @@ interface NutritionMealEditorProps {
   }) => Promise<void>;
   onRemoveItem: (itemPublicId: string) => Promise<void>;
   onReorderItems: (orderedItemPublicIds: string[]) => Promise<void>;
-  onAddSubstitution: (itemPublicId: string, payload: FoodSelectionResult) => Promise<void>;
-  onUpdateSubstitution: (subPublicId: string, data: {
-    foodPublicId?: string;
-    portionPublicId?: string | null;
-    prescribedQuantity?: number | null;
-    prescribedUnitCode?: string | null;
-    prescribedUnitLabel?: string | null;
-    notes?: string | null;
-  }) => Promise<void>;
+  onAddSubstitution: (itemPublicId: string, payload: AddSubstitutionInput) => Promise<void>;
+  onUpdateSubstitution: (subPublicId: string, data: UpdateSubstitutionInput) => Promise<void>;
   onRemoveSubstitution: (subPublicId: string) => Promise<void>;
   onReorderSubstitutions: (itemPublicId: string, orderedSubPublicIds: string[]) => Promise<void>;
 }

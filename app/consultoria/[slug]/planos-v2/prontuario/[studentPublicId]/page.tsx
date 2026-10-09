@@ -6,6 +6,7 @@ import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { getPatientRecordDetailAction } from "../../patient-actions";
 import { getPatientPlanningAction } from "../../planning-actions";
 import { getPatientConsultationsHubAction } from "../../consultation-actions";
+import { getPatientCheckinsHubAction } from "../../checkin-actions";
 import { getPatientPlanState } from "@/lib/nutrition-v2/patient-plan-lifecycle";
 import {
   getStudentEvolutionHubData,
@@ -44,7 +45,7 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
     notFound();
   }
 
-  const [patientPlanState, evolutionHubData, planningRes, consultationsRes] = await Promise.all([
+  const [patientPlanState, evolutionHubData, planningRes, consultationsRes, checkinsRes] = await Promise.all([
     getPatientPlanState(ctx, res.detail.student.membershipPublicId).catch(() => null),
     getStudentEvolutionHubData({
       userId: session.userId,
@@ -54,6 +55,7 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
     }).catch(() => null),
     getPatientPlanningAction(slug, studentPublicId).catch(() => null),
     getPatientConsultationsHubAction(slug, studentPublicId).catch(() => null),
+    getPatientCheckinsHubAction(slug, studentPublicId).catch(() => null),
   ]);
 
   const activePlan = patientPlanState?.activePlan || null;
@@ -95,6 +97,7 @@ export default async function PatientRecordPage({ params, searchParams }: Patien
         initialPlanning={planningRes?.data?.planning || null}
         initialStaleStatus={planningRes?.data?.staleStatus || null}
         initialConsultationsSummary={consultationsRes && consultationsRes.success ? consultationsRes.data : null}
+        initialCheckinsSummary={checkinsRes && checkinsRes.success ? checkinsRes.data : null}
         initialAppointmentPublicId={initialAppointmentPublicId}
         canAuthorNutrition={ctx.canAuthorNutrition}
       />

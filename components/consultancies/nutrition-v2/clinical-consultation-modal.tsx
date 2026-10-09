@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getPatientCheckinsHubAction } from "@/app/consultoria/[slug]/planos-v2/checkin-actions";
+import { CHECKIN_ADHERENCE_LABELS, type CheckinResponseSummaryDto } from "@/lib/nutrition-v2/checkin-types";
 import type {
   ConsultationType,
   AdherenceLevel,
@@ -105,6 +108,22 @@ export function ClinicalConsultationModal({
 
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [latestCheckin, setLatestCheckin] = useState<CheckinResponseSummaryDto | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+    getPatientCheckinsHubAction(slug, studentPublicId)
+      .then((res) => {
+        if (isMounted && res.success && res.data?.latestCompletedCheckin) {
+          setLatestCheckin(res.data.latestCompletedCheckin);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, slug, studentPublicId]);
 
   if (!isOpen) return null;
 
@@ -516,6 +535,54 @@ export function ClinicalConsultationModal({
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></span>
               3. Adesão & Dificuldades
             </h3>
+
+            {/* Card Informativo Fase 7: Último check-in do aluno (somente leitura) */}
+            {latestCheckin && (
+              <div className="p-3.5 rounded-xl bg-[var(--surface-secondary)]/70 border border-[var(--border-subtle)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Último Check-in de Acompanhamento (Informativo)
+                  </span>
+                  <Link
+                    href={`/consultoria/${slug}/planos-v2/prontuario/${studentPublicId}?tab=checkins`}
+                    target="_blank"
+                    className="text-[11px] text-[var(--accent-primary)] hover:underline font-medium"
+                  >
+                    Ver check-ins →
+                  </Link>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span className="text-[10px] text-[var(--text-tertiary)] block">Data de envio</span>
+                    <span className="text-[var(--text-primary)] font-medium">
+                      {new Date(latestCheckin.submittedAt).toLocaleDateString("pt-BR")}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--text-tertiary)] block">Adesão autorreferida</span>
+                    <span className="text-[var(--text-primary)] font-medium">
+                      {CHECKIN_ADHERENCE_LABELS[latestCheckin.adherence] || latestCheckin.adherence}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--text-tertiary)] block">Contato</span>
+                    {latestCheckin.requestsHelp === true ? (
+                      <Badge variant="warning" className="text-[10px] py-0 px-1.5">
+                        Solicitou contato
+                      </Badge>
+                    ) : (
+                      <span className="text-[var(--text-secondary)] text-[11px]">Não solicitado</span>
+                    )}
+                  </div>
+                </div>
+                {latestCheckin.difficultyText && (
+                  <p className="text-[11px] text-[var(--text-secondary)] italic border-t border-[var(--border-subtle)]/60 pt-1.5">
+                    Dificuldade informada: &ldquo;{latestCheckin.difficultyText}&rdquo;
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">

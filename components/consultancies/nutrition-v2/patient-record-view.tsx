@@ -41,6 +41,8 @@ import { NutritionCopyPlanDialog } from "./nutrition-copy-plan-dialog";
 import { NutritionSaveTemplateDialog } from "./nutrition-save-template-dialog";
 import { ClinicalConsultationTab } from "./clinical-consultation-tab";
 import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
+import { PatientCheckinsTab } from "./patient-checkins-tab";
+import type { PatientCheckinsHubSummaryDto } from "@/lib/nutrition-v2/checkin-types";
 
 interface PatientRecordViewProps {
   slug: string;
@@ -53,6 +55,7 @@ interface PatientRecordViewProps {
   initialPlanning?: PatientPlanning | null;
   initialStaleStatus?: PatientPlanningStaleStatus | null;
   initialConsultationsSummary?: PatientConsultationHubSummaryDto | null;
+  initialCheckinsSummary?: PatientCheckinsHubSummaryDto | null;
   initialAppointmentPublicId?: string;
   canAuthorNutrition?: boolean;
 }
@@ -60,6 +63,7 @@ interface PatientRecordViewProps {
 type TabType =
   | "resumo"
   | "consultas"
+  | "checkins"
   | "planejamento"
   | "plano"
   | "clinico"
@@ -80,6 +84,7 @@ export function PatientRecordView({
   initialPlanning,
   initialStaleStatus,
   initialConsultationsSummary = null,
+  initialCheckinsSummary = null,
   initialAppointmentPublicId,
   canAuthorNutrition = true,
 }: PatientRecordViewProps) {
@@ -87,6 +92,7 @@ export function PatientRecordView({
   const [detail, setDetail] = useState<PatientRecordDetail>(initialDetail);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (initialTab === "consultas") return "consultas";
+    if (initialTab === "checkins") return "checkins";
     if (initialTab === "planejamento") return "planejamento";
     if (initialTab === "plano") return "plano";
     if (initialTab === "antropometria") return "antropometria";
@@ -365,6 +371,7 @@ export function PatientRecordView({
           initialPlanning={initialPlanning}
           initialStaleStatus={initialStaleStatus}
           initialConsultationsSummary={initialConsultationsSummary}
+          initialCheckinsSummary={initialCheckinsSummary}
           initialAppointmentPublicId={initialAppointmentPublicId}
           canAuthor={canAuthorNutrition}
           onPhysiologicalDataUpdated={(data) => {
@@ -525,6 +532,7 @@ export function PatientRecordView({
           [
             { id: "resumo", label: "Resumo Geral" },
             { id: "consultas", label: "Consultas" },
+            { id: "checkins", label: "Check-ins" },
             { id: "planejamento", label: "Planejamento" },
             { id: "plano", label: activePlan ? "Plano Ativo" : "Plano Alimentar" },
             { id: "clinico", label: "Histórico Clínico" },
@@ -569,6 +577,16 @@ export function PatientRecordView({
           initialAppointmentPublicId={initialAppointmentPublicId}
           availableAnthropometrics={detail.anthropometrics}
           canAuthor={canAuthorNutrition}
+        />
+      )}
+
+      {/* TAB: CHECK-INS */}
+      {activeTab === "checkins" && (
+        <PatientCheckinsTab
+          slug={slug}
+          studentPublicId={detail.student.membershipPublicId}
+          canAuthor={canAuthorNutrition}
+          initialSummary={initialCheckinsSummary}
         />
       )}
 

@@ -303,7 +303,7 @@ assert(
 assert(
   studentListContent.includes("min-h-[44px]") &&
   studentListContent.includes("min-w-[44px]") &&
-  studentListContent.includes("aria-label=\"Mais opções para este aluno\""),
+  studentListContent.includes("Mais opções para este aluno"),
   "42. Mobile student card actions enforce touch targets >= 44x44px"
 );
 

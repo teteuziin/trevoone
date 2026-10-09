@@ -14,6 +14,7 @@ import type {
   StudentActiveTrainingSummary,
   StudentActiveNutritionSummary,
 } from "./dashboard-student-view";
+import type { CheckinRequestDetailDto } from "@/lib/nutrition-v2/checkin-types";
 
 export interface StudentOnboardingInfo {
   applicable: boolean;
@@ -63,6 +64,7 @@ interface DashboardCombinedStudentVipViewProps {
   previousProgress?: LatestProgressInfo | null;
   pendingPhotoEvaluation?: boolean;
   todayCheckin?: DailyCheckinRecord | null;
+  pendingNutritionCheckin?: CheckinRequestDetailDto | null;
   missions: MissionListItemView[];
   totalMissions?: number;
   referrerData?: ReferrerDashboardData | null;
@@ -79,6 +81,7 @@ export function DashboardCombinedStudentVipView({
   previousProgress,
   pendingPhotoEvaluation,
   todayCheckin,
+  pendingNutritionCheckin,
   missions = [],
   referrerData,
 }: DashboardCombinedStudentVipViewProps) {
@@ -167,6 +170,7 @@ export function DashboardCombinedStudentVipView({
           previousProgress={previousProgress}
           pendingPhotoEvaluation={pendingPhotoEvaluation}
           todayCheckin={todayCheckin}
+          pendingNutritionCheckin={pendingNutritionCheckin}
         />
       ) : (
         /* Secondary Experience: Clean VIP & Affiliate Tools */

@@ -36,8 +36,10 @@ import { NutritionCopyPlanDialog } from "./nutrition-copy-plan-dialog";
 import { NutritionSaveTemplateDialog } from "./nutrition-save-template-dialog";
 import { ClinicalConsultationTab } from "./clinical-consultation-tab";
 import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
+import { PatientCheckinsTab } from "./patient-checkins-tab";
+import type { PatientCheckinsHubSummaryDto } from "@/lib/nutrition-v2/checkin-types";
 
-export type MobilePatientTab = "resumo" | "consultas" | "prontuario" | "planejamento" | "plano" | "evolucao";
+export type MobilePatientTab = "resumo" | "consultas" | "checkins" | "prontuario" | "planejamento" | "plano" | "evolucao";
 export type ClinicalSubTab =
   | "clinico"
   | "alimentar"
@@ -73,6 +75,7 @@ export interface MobilePatientHubProps {
   initialPlanning?: PatientPlanning | null;
   initialStaleStatus?: PatientPlanningStaleStatus | null;
   initialConsultationsSummary?: PatientConsultationHubSummaryDto | null;
+  initialCheckinsSummary?: PatientCheckinsHubSummaryDto | null;
   initialAppointmentPublicId?: string;
   canAuthor?: boolean;
   onPhysiologicalDataUpdated?: (data: {
@@ -110,6 +113,7 @@ export function MobilePatientHub({
   initialPlanning,
   initialStaleStatus,
   initialConsultationsSummary = null,
+  initialCheckinsSummary = null,
   initialAppointmentPublicId,
   canAuthor = true,
   onPhysiologicalDataUpdated,
@@ -117,6 +121,7 @@ export function MobilePatientHub({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<MobilePatientTab>(() => {
     if (initialMobileTab === "consultas") return "consultas";
+    if (initialMobileTab === "checkins") return "checkins";
     if (initialMobileTab === "planejamento") return "planejamento";
     if (initialMobileTab === "evolucao") return "evolucao";
     if (initialMobileTab === "plano") return "plano";
@@ -171,6 +176,7 @@ export function MobilePatientHub({
   const LEVEL_1_TABS: Array<{ id: MobilePatientTab; label: string }> = [
     { id: "resumo", label: "Resumo" },
     { id: "consultas", label: "Consultas" },
+    { id: "checkins", label: "Check-ins" },
     { id: "prontuario", label: "Prontuário" },
     { id: "planejamento", label: "Planejamento" },
     { id: "plano", label: "Plano" },
@@ -476,6 +482,15 @@ export function MobilePatientHub({
 
               <button
                 type="button"
+                onClick={() => setActiveTab("checkins")}
+                className="w-full inline-flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer transition-colors"
+              >
+                <span>Acompanhar check-ins</span>
+                <span aria-hidden="true">→</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveTab("plano")}
                 className="w-full inline-flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer transition-colors"
               >
@@ -497,17 +512,16 @@ export function MobilePatientHub({
       )}
 
       {/* =========================================================================
-          TAB: [ CONSULTAS ]
+          TAB: [ CHECK-INS ]
+          Acompanhamento e adesão entre consultas (Fase 7)
           ========================================================================= */}
-      {activeTab === "consultas" && (
-        <div className="space-y-4" data-testid="mobile-tab-consultas">
-          <ClinicalConsultationTab
+      {activeTab === "checkins" && (
+        <div className="space-y-4" data-testid="mobile-tab-checkins">
+          <PatientCheckinsTab
             slug={slug}
             studentPublicId={detail.student.membershipPublicId}
-            studentName={detail.student.fullName}
-            initialSummary={initialConsultationsSummary}
-            availableAnthropometrics={detail.anthropometrics}
             canAuthor={canAuthor}
+            initialSummary={initialCheckinsSummary}
           />
         </div>
       )}

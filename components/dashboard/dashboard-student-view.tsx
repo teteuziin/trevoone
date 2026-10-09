@@ -8,6 +8,7 @@ import { DailyCheckinWidget } from "@/components/checkin/daily-checkin-widget";
 import { Section, ListRow } from "@/components/ui/design-system";
 import { MobileDashboardCockpit } from "./mobile-dashboard-cockpit";
 import type { DailyCheckinRecord } from "@/lib/checkins/service";
+import type { CheckinRequestDetailDto } from "@/lib/nutrition-v2/checkin-types";
 
 export interface StudentWorkoutRoutineSummary {
   publicId?: string;
@@ -70,6 +71,7 @@ interface DashboardStudentViewProps {
   previousProgress?: LatestProgressInfo | null;
   pendingPhotoEvaluation?: boolean;
   todayCheckin?: DailyCheckinRecord | null;
+  pendingNutritionCheckin?: CheckinRequestDetailDto | null;
 }
 
 function formatDate(dateStr: string): string {
@@ -102,6 +104,7 @@ export function DashboardStudentView({
   previousProgress,
   pendingPhotoEvaluation,
   todayCheckin,
+  pendingNutritionCheckin,
 }: DashboardStudentViewProps) {
   const hasIncompleteOnboarding =
     onboarding && onboarding.applicable && !onboarding.isComplete;
@@ -155,30 +158,58 @@ export function DashboardStudentView({
           consultancyName={consultancyName}
           userName={userName}
           urgentAlert={
-            hasIncompleteOnboarding ? (
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-300">
-                  <span>⚠</span>
-                  <span>Anamnese Pendente ({onboarding?.confirmedRequirements || 0}/{onboarding?.totalRequirements || 0} etapas)</span>
-                </div>
-                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                  Complete suas respostas para que sua prescrição seja personalizada.
-                </p>
-                <Link href={`/consultoria/${consultancySlug}/onboarding`}>
-                  <Button variant="primary" size="sm" className="w-full min-h-[44px] font-bold text-xs mt-1">
-                    Completar Anamnese →
-                  </Button>
-                </Link>
-              </div>
-            ) : pendingPhotoEvaluation ? (
-              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                  <span className="font-bold text-amber-700 dark:text-amber-300">Avaliação física pendente</span>
-                </div>
-                <Link href={`/consultoria/${consultancySlug}/progresso`}>
-                  <span className="font-bold text-[var(--brand)]">Ver →</span>
-                </Link>
+            hasIncompleteOnboarding || (pendingNutritionCheckin && pendingNutritionCheckin.derivedState === "PENDING") || pendingPhotoEvaluation ? (
+              <div className="space-y-3">
+                {hasIncompleteOnboarding && (
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-300">
+                      <span>⚠</span>
+                      <span>Anamnese Pendente ({onboarding?.confirmedRequirements || 0}/{onboarding?.totalRequirements || 0} etapas)</span>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                      Complete suas respostas para que sua prescrição seja personalizada.
+                    </p>
+                    <Link href={`/consultoria/${consultancySlug}/onboarding`}>
+                      <Button variant="primary" size="sm" className="w-full min-h-[44px] font-bold text-xs mt-1">
+                        Completar Anamnese →
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+                {pendingNutritionCheckin && pendingNutritionCheckin.derivedState === "PENDING" && (
+                  <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                        <span>Check-in de acompanhamento</span>
+                      </div>
+                      {pendingNutritionCheckin.dueAt && (
+                        <span className="text-[10px] text-[var(--text-tertiary)]">
+                          Prazo: {new Date(pendingNutritionCheckin.dueAt).toLocaleDateString("pt-BR")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                      Conte para sua nutricionista como foi seu período.
+                    </p>
+                    <Link href={`/consultoria/${consultancySlug}/nutricao/checkin/${pendingNutritionCheckin.publicId}`}>
+                      <Button variant="primary" size="sm" className="w-full min-h-[44px] font-bold text-xs mt-1">
+                        Responder agora →
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+                {pendingPhotoEvaluation && (
+                  <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                      <span className="font-bold text-amber-700 dark:text-amber-300">Avaliação física pendente</span>
+                    </div>
+                    <Link href={`/consultoria/${consultancySlug}/progresso`}>
+                      <span className="font-bold text-[var(--brand)]">Ver →</span>
+                    </Link>
+                  </div>
+                )}
               </div>
             ) : null
           }
@@ -343,6 +374,33 @@ export function DashboardStudentView({
           <Link href={`/consultoria/${consultancySlug}/onboarding`}>
             <Button variant="primary" size="sm" className="whitespace-nowrap rounded-lg font-semibold">
               Completar anamnese →
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {/* Check-in de acompanhamento nutricional pendente (Fase 7) */}
+      {pendingNutritionCheckin && pendingNutritionCheckin.derivedState === "PENDING" && (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <p className="text-xs sm:text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                Check-in de acompanhamento
+              </p>
+              {pendingNutritionCheckin.dueAt && (
+                <span className="text-[10px] text-[var(--text-tertiary)]">
+                  • Prazo: {new Date(pendingNutritionCheckin.dueAt).toLocaleDateString("pt-BR")}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Conte para sua nutricionista como foi seu período.
+            </p>
+          </div>
+          <Link href={`/consultoria/${consultancySlug}/nutricao/checkin/${pendingNutritionCheckin.publicId}`}>
+            <Button variant="primary" size="sm" className="whitespace-nowrap rounded-lg font-semibold">
+              Responder agora →
             </Button>
           </Link>
         </div>

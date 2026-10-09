@@ -22,6 +22,7 @@ import { DashboardStudentView } from "@/components/dashboard/dashboard-student-v
 import { StudentPendingRequestsInbox } from "@/components/consultancies/student/student-pending-requests-inbox";
 import { listStudentPendingRequests } from "@/lib/consultancies/student-requests";
 import { getTodayCheckin } from "@/lib/checkins/service";
+import { getPendingCheckinForStudent } from "@/lib/nutrition-v2/checkin-repository";
 import { trackMemberActivity } from "@/lib/monitoring/activity-tracker";
 import { DashboardPersonalView } from "@/components/dashboard/dashboard-personal-view";
 import { DashboardNutritionistView } from "@/components/dashboard/dashboard-nutritionist-view";
@@ -193,6 +194,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     adminOverview,
     studentPendingRequests,
     todayCheckin,
+    pendingNutritionCheckin,
     referrerData,
   ] = await Promise.all([
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) ? getStudentOnboardingStatus(session.userId, slug).catch(() => null) : Promise.resolve(null),
@@ -225,6 +227,9 @@ export default async function ConsultancyPage({ params }: PageProps) {
       : Promise.resolve([]),
     needStudentData && context.membershipId
       ? getTodayCheckin(context.consultancyId, context.membershipId).catch(() => null)
+      : Promise.resolve(null),
+    needStudentData && context.membershipId
+      ? getPendingCheckinForStudent(context.consultancyId, context.membershipId).catch(() => null)
       : Promise.resolve(null),
     needInfluencerData && context.membershipId
       ? getReferrerDashboardData(context.consultancyId, context.membershipId).catch(() => null)
@@ -356,6 +361,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
               missions={influencerMissionsResult?.items || []}
               totalMissions={influencerMissionsResult?.total || 0}
               referrerData={referrerData}
+              pendingNutritionCheckin={pendingNutritionCheckin}
             />
           </>
         )}
@@ -421,6 +427,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
               previousProgress={previousProgress}
               pendingPhotoEvaluation={hasPendingPhotoEvaluation}
               todayCheckin={todayCheckin}
+              pendingNutritionCheckin={pendingNutritionCheckin}
             />
           </>
         )}

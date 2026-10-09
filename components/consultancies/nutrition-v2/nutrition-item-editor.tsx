@@ -102,10 +102,15 @@ export function NutritionItemEditor({
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                   REVISÃO NECESSÁRIA · SEM VÍNCULO
                 </span>
-              ) : item.caloriesKcalSnapshot == null ? (
+              ) : item.caloriesKcalSnapshot == null && (item.prescribedUnitCode === "PORCAO" || (item.prescribedUnitCode && !["G", "KG", "ML", "L"].includes(item.prescribedUnitCode.trim().toUpperCase()))) ? (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                   REVISÃO NECESSÁRIA · MEDIDA SEM CONVERSÃO
+                </span>
+              ) : item.caloriesKcalSnapshot == null || item.proteinGSnapshot == null || item.carbohydrateGSnapshot == null || item.fatGSnapshot == null ? (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  REVISÃO NECESSÁRIA · DADOS INCOMPLETOS
                 </span>
               ) : null}
             </div>

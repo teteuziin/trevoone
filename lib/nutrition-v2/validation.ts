@@ -392,6 +392,14 @@ export interface PendingPublicationItem {
   foodName: string;
   reason: "UNLINKED" | "UNRESOLVED_PORTION" | "UNKNOWN_NUTRITION" | "INVALID_QUANTITY";
   reasonLabel: string;
+  missingNutrients?: string[];
+}
+
+export function formatMissingNutrientsList(nutrients: string[]): string {
+  if (!nutrients || nutrients.length === 0) return "";
+  if (nutrients.length === 1) return nutrients[0];
+  if (nutrients.length === 2) return `${nutrients[0]} e ${nutrients[1]}`;
+  return `${nutrients.slice(0, -1).join(", ")} e ${nutrients[nutrients.length - 1]}`;
 }
 
 export interface PublishValidationResult {
@@ -431,6 +439,9 @@ export function validatePlanTreeForPublication(tree: {
       prescribedQuantity?: number | null;
       prescribedUnitCode?: string | null;
       caloriesKcalSnapshot?: number | null;
+      proteinGSnapshot?: number | null;
+      carbohydrateGSnapshot?: number | null;
+      fatGSnapshot?: number | null;
       substitutions?: Array<{
         publicId?: string;
         foodId?: string | number | null;
@@ -499,7 +510,7 @@ export function validatePlanTreeForPublication(tree: {
         errors.push(`A unidade "${item.prescribedUnitCode}" do item ${itemLabel} é inválida.`);
       }
 
-      // Publication Gate: Food linking & nutrition resolution
+      // Publication Gate: Food linking & 4-macro nutrition resolution (P0.3)
       if (item.foodId == null) {
         pendingItems.push({
           mealPublicId: meal.publicId,
@@ -509,22 +520,38 @@ export function validatePlanTreeForPublication(tree: {
           reason: "UNLINKED",
           reasonLabel: "Sem vínculo nutricional",
         });
-      } else if (item.caloriesKcalSnapshot == null) {
-        // Unknown nutrition vs unresolved portion (KNOWN ZERO is caloriesKcalSnapshot === 0, which is valid!)
-        const isPortion =
-          item.prescribedUnitCode === "PORCAO" ||
-          (item.prescribedUnitCode &&
-            !["G", "KG", "ML", "L"].includes(item.prescribedUnitCode.trim().toUpperCase()));
-        pendingItems.push({
-          mealPublicId: meal.publicId,
-          mealTitle: meal.title,
-          itemPublicId: item.publicId,
-          foodName: item.foodNameSnapshot || `Item ${iIdx + 1}`,
-          reason: isPortion ? "UNRESOLVED_PORTION" : "UNKNOWN_NUTRITION",
-          reasonLabel: isPortion
-            ? "Medida sem conversão nutricional"
-            : "Informações nutricionais desconhecidas",
-        });
+      } else {
+        const missingMacros: string[] = [];
+        if (item.caloriesKcalSnapshot == null) missingMacros.push("Calorias");
+        if (item.proteinGSnapshot == null) missingMacros.push("Proteínas");
+        if (item.carbohydrateGSnapshot == null) missingMacros.push("Carboidratos");
+        if (item.fatGSnapshot == null) missingMacros.push("Gorduras");
+
+        if (missingMacros.length > 0) {
+          const isPortion =
+            item.prescribedUnitCode === "PORCAO" ||
+            (item.prescribedUnitCode &&
+              !["G", "KG", "ML", "L"].includes(item.prescribedUnitCode.trim().toUpperCase()));
+
+          const missingFormatted = formatMissingNutrientsList(missingMacros);
+          const reasonLabel = isPortion
+            ? `Medida sem conversão nutricional (Dados ausentes: ${missingFormatted})`
+            : `Dados nutricionais incompletos (Dados ausentes: ${missingFormatted})`;
+
+          pendingItems.push({
+            mealPublicId: meal.publicId,
+            mealTitle: meal.title,
+            itemPublicId: item.publicId,
+            foodName: item.foodNameSnapshot || `Item ${iIdx + 1}`,
+            reason: isPortion ? "UNRESOLVED_PORTION" : "UNKNOWN_NUTRITION",
+            reasonLabel,
+            missingNutrients: missingMacros,
+          });
+
+          errors.push(
+            `O item ${itemLabel} possui dados nutricionais incompletos. Dados ausentes: ${missingFormatted}.`
+          );
+        }
       }
 
       // Inspect substitutions

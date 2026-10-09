@@ -38,6 +38,9 @@ const completeTree = {
           prescribedQuantity: 100,
           prescribedUnitCode: "G",
           caloriesKcalSnapshot: 146,
+          proteinGSnapshot: 13,
+          carbohydrateGSnapshot: 1,
+          fatGSnapshot: 10,
         },
       ],
     },
@@ -120,7 +123,7 @@ const unresolvedPortionTree = {
 const resPortion = validatePlanTreeForPublication(unresolvedPortionTree);
 assert(resPortion.valid === false, "PUBLISH WITH UNRESOLVED PORTION: DENIED PASS");
 assert(resPortion.pendingItems[0].reason === "UNRESOLVED_PORTION", "Reason is UNRESOLVED_PORTION");
-assert(resPortion.pendingItems[0].reasonLabel === "Medida sem conversão nutricional", "Reason label is 'Medida sem conversão nutricional'");
+assert(resPortion.pendingItems[0].reasonLabel.startsWith("Medida sem conversão nutricional"), "Reason label starts with 'Medida sem conversão nutricional'");
 
 // 5. KNOWN ZERO (caloriesKcalSnapshot === 0 is valid and NOT blocked)
 const knownZeroTree = {
@@ -137,6 +140,9 @@ const knownZeroTree = {
           prescribedQuantity: 200,
           prescribedUnitCode: "ML",
           caloriesKcalSnapshot: 0,
+          proteinGSnapshot: 0,
+          carbohydrateGSnapshot: 0,
+          fatGSnapshot: 0,
         },
       ],
     },
@@ -185,6 +191,9 @@ const resolvedAfterLinkingTree = {
           prescribedQuantity: 150,
           prescribedUnitCode: "G",
           caloriesKcalSnapshot: 78, // now calculated!
+          proteinGSnapshot: 0.3,
+          carbohydrateGSnapshot: 19.5,
+          fatGSnapshot: 0.2,
         },
       ],
     },

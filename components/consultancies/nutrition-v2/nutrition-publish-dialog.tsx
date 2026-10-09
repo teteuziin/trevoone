@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { PlanVersionTreeDto } from "@/lib/nutrition-v2/plan-repository";
 import {
   validatePlanTreeForPublication,
+  formatMissingNutrientsList,
   type PendingPublicationItem,
 } from "@/lib/nutrition-v2/validation";
 
@@ -134,8 +135,20 @@ export function NutritionPublishDialog({
                         </div>
                         <div className="text-[11px] text-amber-700 dark:text-amber-400 flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                          <span>{item.reasonLabel}</span>
+                          <span>
+                            {item.reason === "UNLINKED"
+                              ? "Sem vínculo nutricional"
+                              : item.reason === "INVALID_QUANTITY"
+                              ? "Quantidade inválida"
+                              : "Dados nutricionais incompletos"}
+                          </span>
                         </div>
+                        {item.missingNutrients && item.missingNutrients.length > 0 && (
+                          <div className="text-[11px] text-amber-800 dark:text-amber-300 font-medium pl-2.5">
+                            <span className="text-[var(--text-secondary)]">Dados ausentes: </span>
+                            <span>{formatMissingNutrientsList(item.missingNutrients)}</span>
+                          </div>
+                        )}
                       </div>
                       <button
                         type="button"

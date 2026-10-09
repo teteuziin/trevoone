@@ -21,6 +21,11 @@ interface PlanBuilderPageProps {
 
 export default async function PlanBuilderPage({ params, searchParams }: PlanBuilderPageProps) {
   const { slug, planPublicId } = await params;
+
+  if (planPublicId === "alimentos") {
+    redirect(`/consultoria/${slug}/alimentos-v2`);
+  }
+
   const { v: versionPublicId, studentId, studentPublicId, returnTo, origin, originName } = await searchParams;
 
   const ctx = await resolveNutritionAccessContext(slug);

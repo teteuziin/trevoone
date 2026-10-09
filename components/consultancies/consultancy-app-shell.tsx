@@ -172,7 +172,7 @@ export function ConsultancyAppShell({
         id: "nutritionist-alimentos",
         label: "Alimentos",
         mobileLabel: "Alimentos",
-        href: `/consultoria/${consultancySlug}/planos-v2/alimentos`,
+        href: `/consultoria/${consultancySlug}/alimentos-v2`,
         iconName: "nutrition",
       });
     }

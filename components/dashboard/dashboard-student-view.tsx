@@ -245,13 +245,41 @@ export function DashboardStudentView({
                   <span>→</span>
                 </Link>
               </div>
+            ) : hasNutrition && activeNutritionPlan ? (
+              <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    Plano Alimentar Ativo
+                  </span>
+                  {firstMealTime && (
+                    <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
+                      1ª às {firstMealTime}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-[var(--text-primary)]">
+                    {activeNutritionPlan.title}
+                  </h2>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    {mealCount} refeições prescritas
+                  </p>
+                </div>
+                <Link
+                  href={`/consultoria/${consultancySlug}/nutricao`}
+                  className="w-full min-h-[48px] rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-2 shadow-xs active:scale-[0.98] transition-transform"
+                >
+                  <span>Ver Cardápio Completo</span>
+                  <span>→</span>
+                </Link>
+              </div>
             ) : (
               <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-2 text-center">
                 <div className="w-10 h-10 mx-auto rounded-xl bg-[var(--surface-subtle)] flex items-center justify-center text-[var(--text-tertiary)]">
-                  🏋️
+                  📋
                 </div>
-                <h2 className="text-xs font-bold text-[var(--text-primary)]">Nenhum treino publicado</h2>
-                <p className="text-[11px] text-[var(--text-secondary)]">Seu treinador está preparando sua prescrição personalizada.</p>
+                <h2 className="text-xs font-bold text-[var(--text-primary)]">Plano em elaboração</h2>
+                <p className="text-[11px] text-[var(--text-secondary)]">Sua equipe está preparando sua prescrição personalizada.</p>
               </div>
             )
           }

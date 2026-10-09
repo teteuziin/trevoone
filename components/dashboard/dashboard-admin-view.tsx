@@ -158,10 +158,10 @@ export function DashboardAdminView({
             viewAllHref: `/consultoria/${consultancySlug}/operacoes`,
             items: [
               {
-                id: "planos",
-                title: "Planos & Preços",
-                subtitle: "Configuração de planos de assinatura",
-                href: `/consultoria/${consultancySlug}/planos`,
+                id: "financeiro",
+                title: "Financeiro & Cobranças",
+                subtitle: "Gestão financeira e faturamento",
+                href: `/consultoria/${consultancySlug}/financeiro`,
               },
               {
                 id: "ia-quotas",

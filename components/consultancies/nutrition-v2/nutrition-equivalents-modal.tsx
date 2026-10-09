@@ -11,7 +11,6 @@ import type {
 } from "@/lib/nutrition-v2/plan-repository";
 import {
   calculateNutrientEquivalence,
-  ALL_SUBSTITUTION_CRITERIA,
   EQUIVALENT_CRITERIA_LABELS,
   EQUIVALENT_CRITERIA_SHORT_LABELS,
   EQUIVALENT_CRITERIA_UNITS,
@@ -452,34 +451,49 @@ export function NutritionEquivalentsModal({
             </div>
           </div>
 
-          {/* Criterion Tabs (Includes MANUAL) */}
-          <div className="space-y-1.5">
+          {/* Primary Criterion Tabs + Secondary Manual Adjustment Button */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-[var(--text-secondary)]">
               <span>Critério de Equivalência:</span>
-              {currentTargetValue != null && (
+              {currentTargetValue != null && selectedCriterion !== "MANUAL" && (
                 <span className="text-[11px] text-[var(--brand)] font-semibold">
                   Alvo na base: {currentTargetValue} {currentCriterionUnit}
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)]">
-              {ALL_SUBSTITUTION_CRITERIA.map((criterion) => {
-                const isActive = selectedCriterion === criterion;
-                return (
-                  <button
-                    key={criterion}
-                    type="button"
-                    onClick={() => setSelectedCriterion(criterion)}
-                    className={`min-h-[44px] px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center ${
-                      isActive
-                        ? "bg-[var(--brand)] text-white shadow-xs"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)]/60"
-                    }`}
-                  >
-                    {EQUIVALENT_CRITERIA_SHORT_LABELS[criterion]}
-                  </button>
-                );
-              })}
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] flex-1">
+                {(["CALORIES", "CARBOHYDRATE", "PROTEIN", "FAT"] as const).map((criterion) => {
+                  const isActive = selectedCriterion === criterion;
+                  return (
+                    <button
+                      key={criterion}
+                      type="button"
+                      onClick={() => setSelectedCriterion(criterion)}
+                      className={`min-h-[40px] px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center ${
+                        isActive
+                          ? "bg-[var(--brand)] text-white shadow-xs"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)]/60"
+                      }`}
+                    >
+                      {EQUIVALENT_CRITERIA_SHORT_LABELS[criterion]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedCriterion(selectedCriterion === "MANUAL" ? "CALORIES" : "MANUAL")}
+                className={`min-h-[40px] px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5 ${
+                  selectedCriterion === "MANUAL"
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 ring-1 ring-amber-500/20"
+                    : "text-[var(--text-secondary)] border-[var(--border-subtle)] bg-[var(--surface-sunken)] hover:bg-[var(--surface-hover)]"
+                }`}
+              >
+                <span>✏️ Ajustar porção manualmente</span>
+              </button>
             </div>
           </div>
 
@@ -710,23 +724,106 @@ export function NutritionEquivalentsModal({
                       </div>
                     )}
 
-                    {/* Calculated Macros Row */}
+                    {/* Side-by-Side 4-Macro Comparative Table */}
                     {calc.status === "READY" && calc.macroSnapshotsForEquivalent && (
-                      <div className="p-2.5 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] space-y-2 text-xs">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-medium text-[var(--text-secondary)]">
-                            <span className="font-bold text-amber-600 dark:text-amber-400">
-                              ≈ {calc.macroSnapshotsForEquivalent.caloriesKcal} kcal
-                            </span>
-                            <span>P: {calc.macroSnapshotsForEquivalent.proteinG}g</span>
-                            <span>C: {calc.macroSnapshotsForEquivalent.carbohydrateG}g</span>
-                            <span>G: {calc.macroSnapshotsForEquivalent.fatG}g</span>
+                      <div className="space-y-3">
+                        <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden text-xs bg-[var(--surface-sunken)]/40">
+                          <div className="grid grid-cols-3 bg-[var(--surface-sunken)] px-3 py-2 font-bold text-[11px] text-[var(--text-tertiary)] border-b border-[var(--border-subtle)]">
+                            <span>Nutriente</span>
+                            <span className="text-center">Alimento Base ({prescribedItem.prescribedQuantity}{prescribedItem.prescribedUnitLabel || prescribedItem.prescribedUnitCode || "g"})</span>
+                            <span className="text-right">Substituto Sugerido ({calc.formattedQuantity})</span>
                           </div>
 
-                          {/* Editable quantity input before confirming */}
-                          <div className="flex items-center gap-1.5 ml-auto">
-                            <label className="text-[11px] font-semibold text-[var(--text-tertiary)]">
-                              Confirmar porção ({calc.unitCode?.toLowerCase() || "g"}):
+                          {/* Calorias */}
+                          <div className={`grid grid-cols-3 px-3 py-2 items-center border-b border-[var(--border-subtle)] transition-colors ${selectedCriterion === "CALORIES" ? "bg-amber-500/15 font-bold" : ""}`}>
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                              <span className="truncate">Calorias</span>
+                              {selectedCriterion === "CALORIES" && (
+                                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/25 text-amber-800 dark:text-amber-300 uppercase font-extrabold shrink-0">Critério</span>
+                              )}
+                            </span>
+                            <span className="text-center tabular-nums">{reference.caloriesKcalSnapshot != null ? `${reference.caloriesKcalSnapshot} kcal` : "-"}</span>
+                            <span className="text-right tabular-nums">
+                              <strong>{calc.macroSnapshotsForEquivalent.caloriesKcal} kcal</strong>
+                              {reference.caloriesKcalSnapshot != null && calc.macroSnapshotsForEquivalent.caloriesKcal != null && (
+                                <span className="text-[10px] text-[var(--text-tertiary)] ml-1">
+                                  ({(calc.macroSnapshotsForEquivalent.caloriesKcal - reference.caloriesKcalSnapshot > 0 ? "+" : "")}
+                                  {Math.round((calc.macroSnapshotsForEquivalent.caloriesKcal - reference.caloriesKcalSnapshot) * 10) / 10} kcal)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Carboidratos */}
+                          <div className={`grid grid-cols-3 px-3 py-2 items-center border-b border-[var(--border-subtle)] transition-colors ${selectedCriterion === "CARBOHYDRATE" ? "bg-emerald-500/15 font-bold" : ""}`}>
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                              <span className="truncate">Carboidratos</span>
+                              {selectedCriterion === "CARBOHYDRATE" && (
+                                <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/25 text-emerald-800 dark:text-emerald-300 uppercase font-extrabold shrink-0">Critério</span>
+                              )}
+                            </span>
+                            <span className="text-center tabular-nums">{reference.carbohydrateGSnapshot != null ? `${reference.carbohydrateGSnapshot}g` : "-"}</span>
+                            <span className="text-right tabular-nums">
+                              <strong>{calc.macroSnapshotsForEquivalent.carbohydrateG}g</strong>
+                              {reference.carbohydrateGSnapshot != null && calc.macroSnapshotsForEquivalent.carbohydrateG != null && (
+                                <span className="text-[10px] text-[var(--text-tertiary)] ml-1">
+                                  ({(calc.macroSnapshotsForEquivalent.carbohydrateG - reference.carbohydrateGSnapshot > 0 ? "+" : "")}
+                                  {Math.round((calc.macroSnapshotsForEquivalent.carbohydrateG - reference.carbohydrateGSnapshot) * 10) / 10}g)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Proteínas */}
+                          <div className={`grid grid-cols-3 px-3 py-2 items-center border-b border-[var(--border-subtle)] transition-colors ${selectedCriterion === "PROTEIN" ? "bg-sky-500/15 font-bold" : ""}`}>
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
+                              <span className="truncate">Proteínas</span>
+                              {selectedCriterion === "PROTEIN" && (
+                                <span className="text-[9px] px-1 py-0.2 rounded bg-sky-500/25 text-sky-800 dark:text-sky-300 uppercase font-extrabold shrink-0">Critério</span>
+                              )}
+                            </span>
+                            <span className="text-center tabular-nums">{reference.proteinGSnapshot != null ? `${reference.proteinGSnapshot}g` : "-"}</span>
+                            <span className="text-right tabular-nums">
+                              <strong>{calc.macroSnapshotsForEquivalent.proteinG}g</strong>
+                              {reference.proteinGSnapshot != null && calc.macroSnapshotsForEquivalent.proteinG != null && (
+                                <span className="text-[10px] text-[var(--text-tertiary)] ml-1">
+                                  ({(calc.macroSnapshotsForEquivalent.proteinG - reference.proteinGSnapshot > 0 ? "+" : "")}
+                                  {Math.round((calc.macroSnapshotsForEquivalent.proteinG - reference.proteinGSnapshot) * 10) / 10}g)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Gorduras */}
+                          <div className={`grid grid-cols-3 px-3 py-2 items-center transition-colors ${selectedCriterion === "FAT" ? "bg-orange-500/15 font-bold" : ""}`}>
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
+                              <span className="truncate">Gorduras</span>
+                              {selectedCriterion === "FAT" && (
+                                <span className="text-[9px] px-1 py-0.2 rounded bg-orange-500/25 text-orange-800 dark:text-orange-300 uppercase font-extrabold shrink-0">Critério</span>
+                              )}
+                            </span>
+                            <span className="text-center tabular-nums">{reference.fatGSnapshot != null ? `${reference.fatGSnapshot}g` : "-"}</span>
+                            <span className="text-right tabular-nums">
+                              <strong>{calc.macroSnapshotsForEquivalent.fatG}g</strong>
+                              {reference.fatGSnapshot != null && calc.macroSnapshotsForEquivalent.fatG != null && (
+                                <span className="text-[10px] text-[var(--text-tertiary)] ml-1">
+                                  ({(calc.macroSnapshotsForEquivalent.fatG - reference.fatGSnapshot > 0 ? "+" : "")}
+                                  {Math.round((calc.macroSnapshotsForEquivalent.fatG - reference.fatGSnapshot) * 10) / 10}g)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Confirmation & Portion Adjustment Row */}
+                        <div className="p-3 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-semibold text-[var(--text-secondary)]">
+                              Porção a aplicar ({calc.unitCode?.toLowerCase() || "g"}):
                             </label>
                             <input
                               type="number"
@@ -738,32 +835,31 @@ export function NutritionEquivalentsModal({
                                   [food.publicId]: e.target.value,
                                 })
                               }
-                              className="w-20 min-h-[36px] px-2 py-1 text-xs font-bold text-center rounded-lg bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
+                              className="w-24 min-h-[38px] px-2.5 py-1 text-xs font-bold text-center rounded-lg bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                             />
                           </div>
-                        </div>
 
-                        {/* Confirmation Button */}
-                        <div className="flex justify-end pt-1">
-                          {isReviewMode ? (
-                            <button
-                              type="button"
-                              disabled={isSubmitting || isSelf}
-                              onClick={() => handleConfirmRecalculate(calc.roundedQuantity, calc.unitCode)}
-                              className="min-h-[44px] px-4 py-2 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:opacity-90 active:scale-[0.98] transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isSubmitting ? "Confirmando..." : "Confirmar equivalência"}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={!calc.canApply || isSubmitting || isSelf || isDuplicate}
-                              onClick={() => handleAdd(food, calc.roundedQuantity!, calc.unitCode!)}
-                              className="min-h-[44px] px-4 py-2 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:opacity-90 active:scale-[0.98] transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isSubmittingThis ? "Adicionando..." : "Adicionar como substituição"}
-                            </button>
-                          )}
+                          <div>
+                            {isReviewMode ? (
+                              <button
+                                type="button"
+                                disabled={isSubmitting || isSelf}
+                                onClick={() => handleConfirmRecalculate(calc.roundedQuantity, calc.unitCode)}
+                                className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:opacity-90 active:scale-[0.98] transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isSubmitting ? "Confirmando..." : "Confirmar equivalência"}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={!calc.canApply || isSubmitting || isSelf || isDuplicate}
+                                onClick={() => handleAdd(food, calc.roundedQuantity!, calc.unitCode!)}
+                                className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:opacity-90 active:scale-[0.98] transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isSubmittingThis ? "Adicionando..." : "Confirmar substituição"}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}

@@ -302,6 +302,20 @@ export function getSafeStandardUnitsForFood(referenceUnitCode: string): Array<{ 
 // RELEASE D: MEAL & PLAN MACRO TOTALS AGGREGATION
 // ============================================================================
 
+export type MacroTotalsStatus = "COMPLETE" | "INCOMPLETE" | "EMPTY";
+
+export interface IncompleteFoodItemInfo {
+  id?: number | string | null;
+  publicId?: string | null;
+  foodId?: number | null;
+  name: string;
+  prescribedQuantityText: string;
+  reason: string;
+  reasonCode?: "FOOD_NOT_LINKED" | "PORTION_NOT_FOUND" | "MACROS_INCOMPLETE" | "QUANTITY_MISSING";
+  missingCalories: boolean;
+  missingMacros: boolean;
+}
+
 export interface NutrientTotalDetail {
   value: number;
   knownItemCount: number;
@@ -317,7 +331,11 @@ export interface MacroTotals {
   carbohydrateG: number;
   fatG: number;
   hasIncompleteData: boolean;
+  isComplete: boolean;
+  status: MacroTotalsStatus;
   totalItemsCount: number;
+  incompleteItemsCount: number;
+  incompleteItems: IncompleteFoodItemInfo[];
   empty: boolean;
   details: {
     calories: NutrientTotalDetail;
@@ -328,6 +346,14 @@ export interface MacroTotals {
 }
 
 export interface SnapshotItemSource {
+  id?: number | string;
+  publicId?: string;
+  foodId?: number | null;
+  foodNameSnapshot?: string | null;
+  name?: string | null;
+  prescribedQuantity?: number | null;
+  prescribedUnitCode?: string | null;
+  prescribedUnitLabel?: string | null;
   caloriesKcalSnapshot?: number | null;
   proteinGSnapshot?: number | null;
   carbohydrateGSnapshot?: number | null;
@@ -383,12 +409,61 @@ export function calculateMealTotals(
   const carbDetail = calculateSingleNutrientTotal(items.map((i) => i.carbohydrateGSnapshot));
   const fatDetail = calculateSingleNutrientTotal(items.map((i) => i.fatGSnapshot));
 
+  const incompleteItems: IncompleteFoodItemInfo[] = [];
+
+  for (const item of items) {
+    const isCalUnknown = item.caloriesKcalSnapshot == null || !Number.isFinite(Number(item.caloriesKcalSnapshot));
+    const isProtUnknown = item.proteinGSnapshot == null || !Number.isFinite(Number(item.proteinGSnapshot));
+    const isCarbUnknown = item.carbohydrateGSnapshot == null || !Number.isFinite(Number(item.carbohydrateGSnapshot));
+    const isFatUnknown = item.fatGSnapshot == null || !Number.isFinite(Number(item.fatGSnapshot));
+
+    if (isCalUnknown || isProtUnknown || isCarbUnknown || isFatUnknown) {
+      const name = item.foodNameSnapshot || item.name || "Alimento sem nome";
+      const unit = item.prescribedUnitLabel || item.prescribedUnitCode || "g";
+      const qtyText = item.prescribedQuantity != null
+        ? `${item.prescribedQuantity} ${unit}`
+        : "Quantidade não informada";
+
+      let reason = "Informação nutricional incompleta";
+      let reasonCode: "FOOD_NOT_LINKED" | "PORTION_NOT_FOUND" | "MACROS_INCOMPLETE" | "QUANTITY_MISSING" = "MACROS_INCOMPLETE";
+      if (item.foodId == null) {
+        reason = "Alimento sem vínculo com a biblioteca";
+        reasonCode = "FOOD_NOT_LINKED";
+      } else if (item.prescribedQuantity == null || Number(item.prescribedQuantity) <= 0) {
+        reason = "Quantidade prescrita não informada";
+        reasonCode = "QUANTITY_MISSING";
+      } else if (isCalUnknown) {
+        reason = "Calorias indisponíveis ou medida caseira sem conversão em gramas";
+        reasonCode = "PORTION_NOT_FOUND";
+      } else {
+        reason = "Macronutrientes incompletos na tabela nutricional";
+        reasonCode = "MACROS_INCOMPLETE";
+      }
+
+      incompleteItems.push({
+        id: item.id ?? null,
+        publicId: item.publicId ?? null,
+        foodId: item.foodId ?? null,
+        name,
+        prescribedQuantityText: qtyText,
+        reason,
+        reasonCode,
+        missingCalories: isCalUnknown,
+        missingMacros: isProtUnknown || isCarbUnknown || isFatUnknown,
+      });
+    }
+  }
+
   const hasIncompleteData = totalItemsCount > 0 && (
     !calDetail.isComplete ||
     !protDetail.isComplete ||
     !carbDetail.isComplete ||
-    !fatDetail.isComplete
+    !fatDetail.isComplete ||
+    incompleteItems.length > 0
   );
+
+  const isComplete = totalItemsCount > 0 && !hasIncompleteData;
+  const status: MacroTotalsStatus = totalItemsCount === 0 ? "EMPTY" : isComplete ? "COMPLETE" : "INCOMPLETE";
 
   return {
     caloriesKcal: calDetail.value,
@@ -396,7 +471,11 @@ export function calculateMealTotals(
     carbohydrateG: carbDetail.value,
     fatG: fatDetail.value,
     hasIncompleteData,
+    isComplete,
+    status,
     totalItemsCount,
+    incompleteItemsCount: incompleteItems.length,
+    incompleteItems,
     empty: totalItemsCount === 0,
     details: {
       calories: calDetail,
@@ -408,11 +487,25 @@ export function calculateMealTotals(
 }
 
 export function calculatePlanTotals(
-  mealsOrTotals: Array<MacroTotals | { mealTotals: MacroTotals }>
+  mealsOrTotals: Array<
+    | MacroTotals
+    | { mealTotals: MacroTotals }
+    | { items: SnapshotItemSource[] }
+    | SnapshotItemSource[]
+  >
 ): MacroTotals {
-  const totalsList: MacroTotals[] = mealsOrTotals.map((item) =>
-    "mealTotals" in item ? item.mealTotals : item
-  );
+  const totalsList: MacroTotals[] = mealsOrTotals.map((item) => {
+    if (Array.isArray(item)) {
+      return calculateMealTotals(item);
+    }
+    if ("mealTotals" in item && item.mealTotals) {
+      return item.mealTotals;
+    }
+    if ("items" in item && Array.isArray(item.items)) {
+      return calculateMealTotals(item.items);
+    }
+    return item as MacroTotals;
+  });
 
   let rawCalories = 0;
   let rawProtein = 0;
@@ -425,6 +518,8 @@ export function calculatePlanTotals(
   let carbKnown = 0;
   let fatKnown = 0;
 
+  const incompleteItems: IncompleteFoodItemInfo[] = [];
+
   for (const m of totalsList) {
     rawCalories += m.caloriesKcal;
     rawProtein += m.proteinG;
@@ -432,10 +527,14 @@ export function calculatePlanTotals(
     rawFat += m.fatG;
 
     totalItemsCount += m.totalItemsCount;
-    calKnown += m.details.calories.knownItemCount;
-    protKnown += m.details.protein.knownItemCount;
-    carbKnown += m.details.carbohydrate.knownItemCount;
-    fatKnown += m.details.fat.knownItemCount;
+    calKnown += m.details?.calories?.knownItemCount ?? 0;
+    protKnown += m.details?.protein?.knownItemCount ?? 0;
+    carbKnown += m.details?.carbohydrate?.knownItemCount ?? 0;
+    fatKnown += m.details?.fat?.knownItemCount ?? 0;
+
+    if (Array.isArray(m.incompleteItems)) {
+      incompleteItems.push(...m.incompleteItems);
+    }
   }
 
   const isEmpty = totalItemsCount === 0;
@@ -450,7 +549,16 @@ export function calculatePlanTotals(
   const carbComplete = !isEmpty && carbKnown === totalItemsCount;
   const fatComplete = !isEmpty && fatKnown === totalItemsCount;
 
-  const hasIncompleteData = !isEmpty && (!calComplete || !protComplete || !carbComplete || !fatComplete);
+  const hasIncompleteData = !isEmpty && (
+    !calComplete ||
+    !protComplete ||
+    !carbComplete ||
+    !fatComplete ||
+    incompleteItems.length > 0
+  );
+
+  const isComplete = !isEmpty && !hasIncompleteData;
+  const status: MacroTotalsStatus = isEmpty ? "EMPTY" : isComplete ? "COMPLETE" : "INCOMPLETE";
 
   return {
     caloriesKcal: calValue,
@@ -458,7 +566,11 @@ export function calculatePlanTotals(
     carbohydrateG: carbValue,
     fatG: fatValue,
     hasIncompleteData,
+    isComplete,
+    status,
     totalItemsCount,
+    incompleteItemsCount: incompleteItems.length,
+    incompleteItems,
     empty: isEmpty,
     details: {
       calories: {

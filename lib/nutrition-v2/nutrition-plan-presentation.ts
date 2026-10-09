@@ -46,6 +46,8 @@ export interface PresentedPlanTotals {
   fatFormatted: string;
   hasAnyMacro: boolean;
   isPartial?: boolean;
+  status?: "COMPLETE" | "INCOMPLETE" | "EMPTY";
+  incompleteItemsCount?: number;
 }
 
 export interface PresentedMicronutrientItem {
@@ -193,6 +195,8 @@ export function presentNutritionPlan(
     fatFormatted: formatMacroGram(totals.fatG),
     hasAnyMacro,
     isPartial: Boolean(totals.hasIncompleteData),
+    status: totals.status,
+    incompleteItemsCount: totals.incompleteItemsCount,
   };
 
   // Format meals and items (strictly preserving sort_order)

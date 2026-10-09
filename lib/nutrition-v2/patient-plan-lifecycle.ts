@@ -1084,3 +1084,152 @@ export async function discardPatientPlanDraft(
     if (connection) connection.release();
   }
 }
+
+/**
+ * Creates a dedicated individual nutrition plan for a patient directly from scratch:
+ * - Title is auto-assigned as "Plano Alimentar - <Nome do Aluno>" (no redundant intermediate form).
+ * - Reuses an existing draft assignment if one is already open for this student.
+ * - Otherwise, creates plan root, draft version (V1), and draft assignment in a single transaction.
+ * - Caller redirects straight to the Builder.
+ */
+export async function createPatientPlanFromScratch(
+  ctx: NutritionAccessContext,
+  studentMembershipPublicId: string
+): Promise<{
+  planPublicId: string;
+  versionPublicId: string;
+  versionNumber: number;
+  isExistingDraft: boolean;
+  studentMembershipPublicId: string;
+  studentPublicId: string;
+  studentName: string;
+}> {
+  assertCanAuthorNutrition(ctx);
+
+  let connection: PoolConnection | undefined;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Lock student member and check eligibility
+    const [memberRows] = await connection.query<RowDataPacket[]>(
+      `SELECT cm.id, cm.consultancy_id, cm.public_id, cm.user_id, u.public_id AS user_public_id, u.full_name
+       FROM consultancy_members cm
+       INNER JOIN users u ON u.id = cm.user_id
+       WHERE (cm.public_id = ? OR u.public_id = ?)
+         AND cm.status = 'ACTIVE'
+       FOR UPDATE`,
+      [studentMembershipPublicId, studentMembershipPublicId]
+    );
+
+    if (!memberRows || memberRows.length === 0) {
+      throw new NutritionAuthorizationError("Aluno não encontrado.", "STUDENT_NOT_FOUND", 404);
+    }
+    const student = memberRows[0];
+    if (Number(student.consultancy_id) !== ctx.consultancyId!) {
+      throw new NutritionAuthorizationError("Acesso negado ao aluno desta consultoria.", "FORBIDDEN_TENANT_STUDENT", 403);
+    }
+
+    const studentMembershipId = Number(student.id);
+    const resolvedMembershipPublicId = String(student.public_id);
+    const resolvedUserPublicId = String(student.user_public_id);
+    const studentName = String(student.full_name);
+
+    // 2. Check for an existing DRAFT assignment for this student
+    const [existingDraftAssignments] = await connection.query<RowDataPacket[]>(
+      `SELECT
+        a.id AS assignment_id,
+        p.public_id AS plan_public_id,
+        v.public_id AS version_public_id,
+        v.version_number
+       FROM nutrition_v2_assignments a
+       INNER JOIN nutrition_v2_plan_versions v ON v.id = a.nutrition_plan_version_id
+       INNER JOIN nutrition_v2_plans p ON p.id = v.nutrition_plan_id
+       WHERE a.consultancy_id = ?
+         AND a.student_membership_id = ?
+         AND a.status = 'DRAFT'
+         AND a.deleted_at IS NULL
+         AND v.status = 'DRAFT'
+         AND v.deleted_at IS NULL
+         AND p.deleted_at IS NULL
+       ORDER BY a.id DESC
+       LIMIT 1 FOR UPDATE`,
+      [ctx.consultancyId!, studentMembershipId]
+    );
+
+    if (existingDraftAssignments.length > 0) {
+      const ed = existingDraftAssignments[0];
+      await connection.commit();
+      return {
+        planPublicId: String(ed.plan_public_id),
+        versionPublicId: String(ed.version_public_id),
+        versionNumber: Number(ed.version_number),
+        isExistingDraft: true,
+        studentMembershipPublicId: resolvedMembershipPublicId,
+        studentPublicId: resolvedUserPublicId,
+        studentName,
+      };
+    }
+
+    // 3. Create dedicated plan root for this student
+    const planPublicId = crypto.randomUUID();
+    const [pRes] = await connection.query<ResultSetHeader>(
+      `INSERT INTO nutrition_v2_plans (
+        public_id, consultancy_id, created_by_membership_id, is_template, status
+      ) VALUES (?, ?, ?, 0, 'ACTIVE')`,
+      [planPublicId, ctx.consultancyId!, ctx.membershipId!]
+    );
+    const planId = pRes.insertId;
+
+    // 4. Create version 1 (DRAFT) with title "Plano Alimentar - <studentName>"
+    const versionPublicId = crypto.randomUUID();
+    const autoTitle = `Plano Alimentar - ${studentName}`.slice(0, 200);
+    const [vRes] = await connection.query<ResultSetHeader>(
+      `INSERT INTO nutrition_v2_plan_versions (
+        public_id, nutrition_plan_id, version_number, status,
+        title, subtitle, objective, general_guidance, notes,
+        created_by_membership_id
+      ) VALUES (?, ?, 1, 'DRAFT', ?, NULL, NULL, NULL, NULL, ?)`,
+      [versionPublicId, planId, autoTitle, ctx.membershipId!]
+    );
+    const versionId = vRes.insertId;
+
+    // 5. Track the working draft via a DRAFT assignment row for this student
+    const draftAssignmentPublicId = crypto.randomUUID();
+    await connection.query(
+      `INSERT INTO nutrition_v2_assignments (
+        public_id, consultancy_id, student_membership_id, nutrition_plan_version_id,
+        assigned_by_membership_id, starts_on, ends_on, status, notes_for_student
+      ) VALUES (?, ?, ?, ?, ?, CURRENT_DATE, NULL, 'DRAFT', NULL)`,
+      [
+        draftAssignmentPublicId,
+        ctx.consultancyId!,
+        studentMembershipId,
+        versionId,
+        ctx.membershipId!,
+      ]
+    );
+
+    await connection.commit();
+
+    return {
+      planPublicId,
+      versionPublicId,
+      versionNumber: 1,
+      isExistingDraft: false,
+      studentMembershipPublicId: resolvedMembershipPublicId,
+      studentPublicId: resolvedUserPublicId,
+      studentName,
+    };
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+    throw err;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+

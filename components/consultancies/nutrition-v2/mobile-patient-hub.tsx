@@ -18,6 +18,7 @@ import type { PatientPlanDraftSummary } from "@/lib/nutrition-v2/patient-plan-li
 import {
   startPatientPlanEditAction,
   discardPatientPlanDraftAction,
+  createPatientPlanFromScratchAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import type {
   EvolutionHubDataDto,
@@ -132,12 +133,27 @@ export function MobilePatientHub({
   const [clinicalSubTab, setClinicalSubTab] = useState<ClinicalSubTab>("clinico");
   const [isStartingEdit, setIsStartingEdit] = useState(false);
   const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
+  const [isCreatingScratch, setIsCreatingScratch] = useState(false);
   const [draftActionError, setDraftActionError] = useState<string | null>(null);
 
   // Phase 4: Templates and Copy Plan dialog states
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [isCopyPlanDialogOpen, setIsCopyPlanDialogOpen] = useState(false);
   const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
+
+  const handleCreatePlanFromScratch = async () => {
+    setIsCreatingScratch(true);
+    setDraftActionError(null);
+    const res = await createPatientPlanFromScratchAction(slug, detail.student.membershipPublicId);
+    if (res.success && res.data) {
+      router.push(
+        `/consultoria/${slug}/planos-v2/${res.data.planPublicId}?v=${res.data.versionPublicId}&studentId=${detail.student.membershipPublicId}`
+      );
+    } else {
+      setIsCreatingScratch(false);
+      setDraftActionError(res.error || "Erro ao criar plano para o paciente.");
+    }
+  };
 
   const handleStartEditPlan = async () => {
     setIsStartingEdit(true);
@@ -455,12 +471,15 @@ export function MobilePatientHub({
                 </div>
               </>
             ) : (
-              <Link
-                href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}
-                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer depth-interactive"
+              <Button
+                variant="primary"
+                size="md"
+                disabled={isCreatingScratch}
+                onClick={handleCreatePlanFromScratch}
+                className="w-full font-bold text-xs min-h-[44px] shadow-xs cursor-pointer depth-interactive"
               >
-                <span>Prescrever plano</span>
-              </Link>
+                {isCreatingScratch ? "Criando plano..." : "Prescrever plano"}
+              </Button>
             )}
           </div>
 
@@ -1332,12 +1351,15 @@ export function MobilePatientHub({
                     <span aria-hidden="true">→</span>
                   </Link>
 
-                  <Link
-                    href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer transition-colors"
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    disabled={isCreatingScratch}
+                    onClick={handleCreatePlanFromScratch}
+                    className="w-full font-bold text-xs min-h-[44px] cursor-pointer"
                   >
-                    <span>+ Prescrever Novo Plano</span>
-                  </Link>
+                    {isCreatingScratch ? "Criando plano..." : "+ Prescrever Novo Plano"}
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -1359,8 +1381,17 @@ export function MobilePatientHub({
                   <Button
                     variant="primary"
                     size="md"
-                    onClick={() => setIsTemplatesModalOpen(true)}
+                    disabled={isCreatingScratch}
+                    onClick={handleCreatePlanFromScratch}
                     className="w-full font-bold text-xs min-h-[44px] shadow-xs cursor-pointer"
+                  >
+                    {isCreatingScratch ? "Criando plano..." : "+ Criar do zero"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    onClick={() => setIsTemplatesModalOpen(true)}
+                    className="w-full font-bold text-xs min-h-[44px] cursor-pointer"
                   >
                     Usar modelo
                   </Button>
@@ -1372,12 +1403,6 @@ export function MobilePatientHub({
                   >
                     Copiar plano existente
                   </Button>
-                  <Link
-                    href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] min-h-[40px] cursor-pointer transition-colors"
-                  >
-                    <span>+ Criar do zero</span>
-                  </Link>
                 </div>
               </div>
             )}

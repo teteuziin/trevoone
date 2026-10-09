@@ -97,15 +97,19 @@ export function NutritionItemEditor({
               <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] line-clamp-2 break-words [overflow-wrap:anywhere] min-w-0">
                 {item.foodNameSnapshot}
               </span>
-              {item.foodId == null && (
+              {item.foodId == null ? (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Pendente
+                  Sem vínculo
                 </span>
-              )}
+              ) : item.caloriesKcalSnapshot == null ? (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                  Medida pendente
+                </span>
+              ) : null}
             </div>
             <span className="font-bold text-xs text-amber-600 dark:text-amber-400 font-mono shrink-0 pl-1">
-              {item.caloriesKcalSnapshot != null ? `${item.caloriesKcalSnapshot} kcal` : "— kcal"}
+              {item.caloriesKcalSnapshot != null ? `${item.caloriesKcalSnapshot} kcal` : "Sem cálculo"}
             </span>
           </div>
 

@@ -82,6 +82,7 @@ import {
 import {
   getPatientPlanState,
   startPatientPlanEdit,
+  createPatientPlanFromScratch,
   publishPatientPlanUpdate,
   discardPatientPlanDraft,
   type PatientPlanStateResult,
@@ -1378,6 +1379,33 @@ export async function discardPatientPlanDraftAction(
     return { success: true, data };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao descartar alterações.";
+    return { success: false, error: message };
+  }
+}
+
+export async function createPatientPlanFromScratchAction(
+  slug: string,
+  studentMembershipPublicId: string
+): Promise<ActionResult<{
+  planPublicId: string;
+  versionPublicId: string;
+  versionNumber: number;
+  isExistingDraft: boolean;
+  studentMembershipPublicId: string;
+  studentPublicId: string;
+  studentName: string;
+}>> {
+  try {
+    const ctx = await resolveNutritionAccessContext(slug);
+    if (!ctx) return { success: false, error: "Sessão expirada ou não autorizada.", code: "UNAUTHORIZED" };
+    assertCanAuthorNutrition(ctx);
+    const data = await createPatientPlanFromScratch(ctx, studentMembershipPublicId);
+    revalidatePath(`/consultoria/${slug}/planos-v2`);
+    revalidatePath(`/consultoria/${slug}/planos-v2/${data.planPublicId}`);
+    revalidatePath(`/consultoria/${slug}/pacientes/${studentMembershipPublicId}`);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao criar plano para o paciente.";
     return { success: false, error: message };
   }
 }

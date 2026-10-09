@@ -23,6 +23,7 @@ import {
 import {
   startPatientPlanEditAction,
   discardPatientPlanDraftAction,
+  createPatientPlanFromScratchAction,
 } from "@/app/consultoria/[slug]/planos-v2/actions";
 import type { PatientPlanDraftSummary } from "@/lib/nutrition-v2/patient-plan-lifecycle";
 import type { ActiveNutritionPlanSummary } from "@/lib/nutrition-v2/assignment-repository";
@@ -104,12 +105,26 @@ export function PatientRecordView({
   const [isPending, startTransition] = useTransition();
   const [isStartingEdit, setIsStartingEdit] = useState(false);
   const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
+  const [isCreatingScratch, setIsCreatingScratch] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Dialog states for templates and plan copy
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [isCopyPlanDialogOpen, setIsCopyPlanDialogOpen] = useState(false);
   const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
+
+  const handleCreatePlanFromScratch = async () => {
+    setIsCreatingScratch(true);
+    const res = await createPatientPlanFromScratchAction(slug, detail.student.membershipPublicId);
+    if (res.success && res.data) {
+      router.push(
+        `/consultoria/${slug}/planos-v2/${res.data.planPublicId}?v=${res.data.versionPublicId}&studentId=${detail.student.membershipPublicId}`
+      );
+    } else {
+      setIsCreatingScratch(false);
+      setMessage({ type: "error", text: res.error || "Erro ao criar plano para o paciente." });
+    }
+  };
 
   const handleStartEditPlan = async () => {
     setIsStartingEdit(true);
@@ -469,15 +484,37 @@ export function PatientRecordView({
               Evolução 360° →
             </Button>
           </Link>
-          <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
+          {draftPlan ? (
+            <Link href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}>
+              <Button
+                variant="primary"
+                size="md"
+                className="font-bold min-h-[42px] text-xs"
+              >
+                Continuar Edição →
+              </Button>
+            </Link>
+          ) : activePlan ? (
             <Button
-              variant="secondary"
+              variant="primary"
               size="md"
+              disabled={isStartingEdit}
+              onClick={handleStartEditPlan}
               className="font-bold min-h-[42px] text-xs"
             >
-              Prescrever Plano
+              {isStartingEdit ? "Abrindo..." : "Editar Plano"}
             </Button>
-          </Link>
+          ) : (
+            <Button
+              variant="primary"
+              size="md"
+              disabled={isCreatingScratch}
+              onClick={handleCreatePlanFromScratch}
+              className="font-bold min-h-[42px] text-xs"
+            >
+              {isCreatingScratch ? "Criando..." : "Prescrever Plano"}
+            </Button>
+          )}
           {activeTab !== "antropometria" && activeTab !== "gestacao" && (
             <Button
               onClick={handleSaveClinicalRecord}
@@ -653,18 +690,26 @@ export function PatientRecordView({
                       >
                         {isStartingEdit ? "Abrindo..." : "Editar Plano"}
                       </Button>
-                      <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
-                        <Button variant="secondary" size="sm" className="font-bold text-xs min-h-[36px]">
-                          + Novo Plano
-                        </Button>
-                      </Link>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={isCreatingScratch}
+                        onClick={handleCreatePlanFromScratch}
+                        className="font-bold text-xs min-h-[36px]"
+                      >
+                        {isCreatingScratch ? "Criando..." : "+ Novo Plano"}
+                      </Button>
                     </>
                   ) : (
-                    <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
-                      <Button variant="primary" size="sm" className="font-bold text-xs min-h-[36px]">
-                        + Prescrever Primeiro Plano
-                      </Button>
-                    </Link>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={isCreatingScratch}
+                      onClick={handleCreatePlanFromScratch}
+                      className="font-bold text-xs min-h-[36px]"
+                    >
+                      {isCreatingScratch ? "Criando..." : "+ Prescrever Primeiro Plano"}
+                    </Button>
                   )}
                 </div>
               </div>
@@ -968,6 +1013,15 @@ export function PatientRecordView({
                     <Button
                       variant="primary"
                       size="md"
+                      disabled={isCreatingScratch}
+                      onClick={handleCreatePlanFromScratch}
+                      className="font-bold text-xs min-h-[40px]"
+                    >
+                      {isCreatingScratch ? "Criando..." : "+ Criar do zero"}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="md"
                       onClick={() => setIsTemplatesModalOpen(true)}
                       className="font-bold text-xs min-h-[40px]"
                     >
@@ -981,11 +1035,6 @@ export function PatientRecordView({
                     >
                       Copiar plano existente
                     </Button>
-                    <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
-                      <Button variant="ghost" size="md" className="font-bold text-xs min-h-[40px]">
-                        + Criar do zero
-                      </Button>
-                    </Link>
                   </>
                 )}
               </div>
@@ -1062,11 +1111,15 @@ export function PatientRecordView({
                 <p className="text-sm text-[var(--text-secondary)]">
                   Este paciente ainda não possui nenhum plano alimentar ativo atribuído nesta consultoria.
                 </p>
-                <Link href={`/consultoria/${slug}/planos-v2/novo?studentId=${detail.student.membershipPublicId}`}>
-                  <Button variant="primary" size="md" className="font-bold text-xs">
-                    Criar Plano no Builder
-                  </Button>
-                </Link>
+                <Button
+                  variant="primary"
+                  size="md"
+                  disabled={isCreatingScratch}
+                  onClick={handleCreatePlanFromScratch}
+                  className="font-bold text-xs"
+                >
+                  {isCreatingScratch ? "Criando Plano..." : "Criar Plano no Builder"}
+                </Button>
               </div>
             )}
           </div>

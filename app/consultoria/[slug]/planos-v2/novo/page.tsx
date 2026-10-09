@@ -1,9 +1,9 @@
 "use client";
 
-import React, { use, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { use, useState, useEffect, useTransition, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createPlanAction } from "../actions";
+import { createPlanAction, createPatientPlanFromScratchAction } from "../actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -28,11 +28,41 @@ function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-export default function NovoPlanoPage({ params }: NovoPlanoPageProps) {
-  const { slug } = use(params);
+function NovoPlanoContent({ slug }: { slug: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const studentId = searchParams.get("studentId");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [autoRedirecting, setAutoRedirecting] = useState(Boolean(studentId));
+
+  useEffect(() => {
+    if (!studentId) return;
+
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await createPatientPlanFromScratchAction(slug, studentId);
+        if (!isMounted) return;
+        if (res.success && res.data) {
+          router.replace(
+            `/consultoria/${slug}/planos-v2/${res.data.planPublicId}?v=${res.data.versionPublicId}&studentId=${studentId}`
+          );
+        } else {
+          setAutoRedirecting(false);
+          setError(res.error || "Não foi possível iniciar o plano para este paciente.");
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        setAutoRedirecting(false);
+        setError(err instanceof Error ? err.message : "Erro inesperado.");
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [slug, studentId, router]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,17 +79,35 @@ export default function NovoPlanoPage({ params }: NovoPlanoPageProps) {
     });
   };
 
+  if (autoRedirecting) {
+    return (
+      <div className="w-full min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+        <div className="max-w-md w-full p-8 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 depth-surface">
+          <div className="w-10 h-10 border-2 border-[var(--brand)] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="space-y-1">
+            <h2 className="text-base font-bold text-[var(--text-primary)]">
+              Iniciando plano para o paciente...
+            </h2>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Configurando o montador de refeições. Você será redirecionado em instantes.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full min-h-[calc(100vh-4rem)] bg-transparent px-4 py-6 sm:py-8">
       <div className="max-w-2xl mx-auto space-y-6 pb-20">
         {/* Back navigation */}
         <div className="flex items-center gap-2">
           <Link
-            href={`/consultoria/${slug}/planos-v2`}
+            href={studentId ? `/consultoria/${slug}/pacientes/${studentId}?tab=plano` : `/consultoria/${slug}/planos-v2`}
             className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"
           >
             <ArrowLeftIcon className="w-4 h-4" />
-            <span>Voltar para Planos Alimentares</span>
+            <span>{studentId ? "Voltar para Paciente" : "Voltar para Planos Alimentares"}</span>
           </Link>
         </div>
 
@@ -151,7 +199,7 @@ export default function NovoPlanoPage({ params }: NovoPlanoPageProps) {
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
-              <Link href={`/consultoria/${slug}/planos-v2`}>
+              <Link href={studentId ? `/consultoria/${slug}/pacientes/${studentId}?tab=plano` : `/consultoria/${slug}/planos-v2`}>
                 <Button variant="secondary" size="md" className="font-semibold min-h-[44px]">
                   Cancelar
                 </Button>
@@ -170,5 +218,14 @@ export default function NovoPlanoPage({ params }: NovoPlanoPageProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NovoPlanoPage({ params }: NovoPlanoPageProps) {
+  const { slug } = use(params);
+  return (
+    <Suspense fallback={<div className="w-full min-h-[calc(100vh-4rem)]" />}>
+      <NovoPlanoContent slug={slug} />
+    </Suspense>
   );
 }

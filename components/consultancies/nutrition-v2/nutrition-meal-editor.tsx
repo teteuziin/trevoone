@@ -312,38 +312,35 @@ export function NutritionMealEditor({
       <div className="border-t border-[var(--border)] pt-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-[var(--text-primary)] text-sm">
-              {meal.mealTotals.caloriesKcal} kcal
-              {!meal.mealTotals.empty && meal.mealTotals.details?.calories?.hasUnknown && (
-                <span className="text-amber-500 font-bold ml-0.5" title={`${meal.mealTotals.details.calories.knownItemCount} de ${meal.mealTotals.details.calories.totalItemCount} alimentos com dado conhecido`}>*</span>
-              )}
+            <span className={`font-bold text-sm ${meal.mealTotals.status === "INCOMPLETE" ? "text-amber-600 dark:text-amber-400" : "text-[var(--text-primary)]"}`}>
+              {meal.mealTotals.status === "INCOMPLETE" ? `Subtotal: ${meal.mealTotals.caloriesKcal} kcal` : `${meal.mealTotals.caloriesKcal} kcal`}
             </span>
             <span className="text-[var(--text-tertiary)]">•</span>
             <span className="text-[var(--text-secondary)]">
               P <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.proteinG}g</strong>
-              {!meal.mealTotals.empty && meal.mealTotals.details?.protein?.hasUnknown && (
+              {!meal.mealTotals.empty && meal.mealTotals.status === "INCOMPLETE" && (
                 <span className="text-amber-500 font-bold ml-0.5">*</span>
               )}
             </span>
             <span className="text-[var(--text-tertiary)]">•</span>
             <span className="text-[var(--text-secondary)]">
               C <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.carbohydrateG}g</strong>
-              {!meal.mealTotals.empty && meal.mealTotals.details?.carbohydrate?.hasUnknown && (
+              {!meal.mealTotals.empty && meal.mealTotals.status === "INCOMPLETE" && (
                 <span className="text-amber-500 font-bold ml-0.5">*</span>
               )}
             </span>
             <span className="text-[var(--text-tertiary)]">•</span>
             <span className="text-[var(--text-secondary)]">
               G <strong className="text-[var(--text-primary)] font-semibold">{meal.mealTotals.fatG}g</strong>
-              {!meal.mealTotals.empty && meal.mealTotals.details?.fat?.hasUnknown && (
+              {!meal.mealTotals.empty && meal.mealTotals.status === "INCOMPLETE" && (
                 <span className="text-amber-500 font-bold ml-0.5">*</span>
               )}
             </span>
           </div>
 
-          {!meal.mealTotals.empty && meal.mealTotals.hasIncompleteData && (
-            <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-              * Dados incompletos
+          {!meal.mealTotals.empty && meal.mealTotals.status === "INCOMPLETE" && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+              Total Incompleto ({meal.mealTotals.incompleteItemsCount} pendente{meal.mealTotals.incompleteItemsCount === 1 ? "" : "s"})
             </span>
           )}
         </div>

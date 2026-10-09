@@ -994,10 +994,21 @@ export function NutritionPlanBuilder({
         <div className="lg:hidden p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 depth-surface w-full max-w-full min-w-0">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
             <div>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)] block">
-                Total Diário
-              </span>
-              <div className="text-xl font-extrabold text-[var(--brand)] font-heading leading-tight">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-tertiary)] block">
+                  {tree.dailyTotals.status === "INCOMPLETE" ? "Subtotal Conhecido" : "Total Diário"}
+                </span>
+                {tree.dailyTotals.status === "INCOMPLETE" ? (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                    Total Incompleto
+                  </span>
+                ) : tree.dailyTotals.status === "COMPLETE" ? (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                    Total Completo
+                  </span>
+                ) : null}
+              </div>
+              <div className={`text-xl font-extrabold font-heading leading-tight mt-0.5 ${tree.dailyTotals.status === "INCOMPLETE" ? "text-amber-600 dark:text-amber-400" : "text-[var(--brand)]"}`}>
                 {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}{" "}
                 <span className="text-xs font-semibold text-[var(--text-secondary)]">kcal</span>
               </div>
@@ -1018,7 +1029,7 @@ export function NutritionPlanBuilder({
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="p-2 sm:p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5 min-w-0">
               <span className="text-[9px] sm:text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400 block truncate">
-                Proteínas
+                {tree.dailyTotals.status === "INCOMPLETE" ? "Proteínas *" : "Proteínas"}
               </span>
               <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums truncate">
                 {tree.dailyTotals.proteinG}g
@@ -1026,7 +1037,7 @@ export function NutritionPlanBuilder({
             </div>
             <div className="p-2 sm:p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5 min-w-0">
               <span className="text-[9px] sm:text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block truncate">
-                Carboidratos
+                {tree.dailyTotals.status === "INCOMPLETE" ? "Carboidratos *" : "Carboidratos"}
               </span>
               <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums truncate">
                 {tree.dailyTotals.carbohydrateG}g
@@ -1034,7 +1045,7 @@ export function NutritionPlanBuilder({
             </div>
             <div className="p-2 sm:p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5 min-w-0">
               <span className="text-[9px] sm:text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block truncate">
-                Gorduras
+                {tree.dailyTotals.status === "INCOMPLETE" ? "Gorduras *" : "Gorduras"}
               </span>
               <span className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] block tabular-nums truncate">
                 {tree.dailyTotals.fatG}g
@@ -1099,11 +1110,33 @@ export function NutritionPlanBuilder({
             </div>
           )}
 
-          {/* Incomplete data notice */}
-          {!tree.dailyTotals.empty && tree.dailyTotals.hasIncompleteData && (
-            <div className="flex items-start gap-1.5 p-2 rounded-lg text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-              <span className="font-bold shrink-0">*</span>
-              <span className="break-words">Subtotal conhecido: alguns alimentos possuem informações nutricionais ausentes.</span>
+          {/* Incomplete data disclosure */}
+          {!tree.dailyTotals.empty && tree.dailyTotals.status === "INCOMPLETE" && (
+            <div className="p-3 rounded-xl text-xs bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/25 space-y-2">
+              <div className="flex items-center gap-1.5 font-bold">
+                <svg className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>Total Diário Incompleto ({tree.dailyTotals.incompleteItemsCount} item{tree.dailyTotals.incompleteItemsCount === 1 ? "" : "s"} pendente{tree.dailyTotals.incompleteItemsCount === 1 ? "" : "s"})</span>
+              </div>
+              <p className="text-[11px] leading-relaxed opacity-90">
+                O valor acima reflete apenas o <strong>subtotal dos alimentos com cálculo nutricional completo</strong>.
+              </p>
+              {tree.dailyTotals.incompleteItems && tree.dailyTotals.incompleteItems.length > 0 && (
+                <div className="pt-1 border-t border-amber-500/20 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">Itens sem cálculo completo:</span>
+                  <ul className="space-y-1 text-[11px] max-h-36 overflow-y-auto pr-1">
+                    {tree.dailyTotals.incompleteItems.map((inc, i) => (
+                      <li key={i} className="flex items-start gap-1">
+                        <span className="text-amber-500 font-bold shrink-0">•</span>
+                        <span className="break-words">
+                          <strong>{inc.name}</strong> ({inc.prescribedQuantityText}): <span className="opacity-85">{inc.reason}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
@@ -1160,37 +1193,59 @@ export function NutritionPlanBuilder({
         <div className="p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                Totais Nutricionais
-              </span>
-              <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
-                Análise Diária do Cardápio
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                  {tree.dailyTotals.status === "INCOMPLETE" ? "Subtotal Conhecido" : "Totais Nutricionais"}
+                </span>
+                {tree.dailyTotals.status === "INCOMPLETE" ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                    Total Incompleto
+                  </span>
+                ) : tree.dailyTotals.status === "COMPLETE" ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                    Total Completo
+                  </span>
+                ) : null}
+              </div>
+              <h3 className="font-heading text-base font-bold text-[var(--text-primary)] mt-0.5">
+                {tree.dailyTotals.status === "INCOMPLETE" ? "Cálculo Diário Parcial" : "Análise Diária do Cardápio"}
               </h3>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-extrabold text-[var(--brand)] font-heading leading-tight">
+              <div className={`text-2xl font-extrabold font-heading leading-tight ${tree.dailyTotals.status === "INCOMPLETE" ? "text-amber-600 dark:text-amber-400" : "text-[var(--brand)]"}`}>
                 {tree.dailyTotals.caloriesKcal.toLocaleString("pt-BR")}
                 <span className="text-xs font-semibold text-[var(--text-secondary)] ml-1">kcal</span>
               </div>
+              {tree.dailyTotals.status === "INCOMPLETE" && (
+                <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 block mt-0.5">
+                  apenas itens calculados
+                </span>
+              )}
             </div>
           </div>
 
           {/* Macro Breakdown Cards */}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400 block">Proteínas</span>
+              <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400 block">
+                {tree.dailyTotals.status === "INCOMPLETE" ? "Proteínas *" : "Proteínas"}
+              </span>
               <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
                 {tree.dailyTotals.proteinG}g
               </span>
             </div>
             <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">Carboidratos</span>
+              <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">
+                {tree.dailyTotals.status === "INCOMPLETE" ? "Carboidratos *" : "Carboidratos"}
+              </span>
               <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
                 {tree.dailyTotals.carbohydrateG}g
               </span>
             </div>
             <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block">Gorduras</span>
+              <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block">
+                {tree.dailyTotals.status === "INCOMPLETE" ? "Gorduras *" : "Gorduras"}
+              </span>
               <span className="text-sm font-extrabold text-[var(--text-primary)] block tabular-nums">
                 {tree.dailyTotals.fatG}g
               </span>
@@ -1264,11 +1319,33 @@ export function NutritionPlanBuilder({
             </div>
           )}
 
-          {/* Incomplete data notice */}
-          {!tree.dailyTotals.empty && tree.dailyTotals.hasIncompleteData && (
-            <div className="flex items-start gap-2 p-2.5 rounded-xl text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-              <span className="font-bold shrink-0">*</span>
-              <span>Subtotal conhecido: alguns alimentos possuem informações nutricionais ausentes na base.</span>
+          {/* Incomplete data disclosure (Desktop) */}
+          {!tree.dailyTotals.empty && tree.dailyTotals.status === "INCOMPLETE" && (
+            <div className="p-3.5 rounded-xl text-xs bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/25 space-y-2">
+              <div className="flex items-center gap-2 font-bold">
+                <svg className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>Total Diário Incompleto ({tree.dailyTotals.incompleteItemsCount} item{tree.dailyTotals.incompleteItemsCount === 1 ? "" : "s"} pendente{tree.dailyTotals.incompleteItemsCount === 1 ? "" : "s"})</span>
+              </div>
+              <p className="text-[11px] leading-relaxed opacity-90">
+                O valor exibido acima é um <strong>subtotal conhecido</strong>. Para obter o total preciso, vincule os alimentos pendentes à tabela nutricional ou informe medidas em gramas.
+              </p>
+              {tree.dailyTotals.incompleteItems && tree.dailyTotals.incompleteItems.length > 0 && (
+                <div className="pt-1.5 border-t border-amber-500/20 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">Itens sem cálculo completo:</span>
+                  <ul className="space-y-1 text-[11px] max-h-48 overflow-y-auto pr-1">
+                    {tree.dailyTotals.incompleteItems.map((inc, i) => (
+                      <li key={i} className="flex items-start gap-1">
+                        <span className="text-amber-500 font-bold shrink-0">•</span>
+                        <span className="break-words">
+                          <strong>{inc.name}</strong> ({inc.prescribedQuantityText}): <span className="opacity-85">{inc.reason}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
           {/* Button: Ver micronutrientes */}

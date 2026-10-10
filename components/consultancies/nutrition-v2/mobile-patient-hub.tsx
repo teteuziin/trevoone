@@ -39,6 +39,7 @@ import { ClinicalConsultationTab } from "./clinical-consultation-tab";
 import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
 import { PatientCheckinsTab } from "./patient-checkins-tab";
 import type { PatientCheckinsHubSummaryDto } from "@/lib/nutrition-v2/checkin-types";
+import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
 
 export type MobilePatientTab = "resumo" | "consultas" | "checkins" | "prontuario" | "planejamento" | "plano" | "evolucao";
 export type ClinicalSubTab =
@@ -60,7 +61,7 @@ export interface MobilePatientHubProps {
   setClinicalForm: React.Dispatch<React.SetStateAction<UpdatePatientRecordInput>>;
   pregnancyForm: UpdatePregnancyInput;
   setPregnancyForm: React.Dispatch<React.SetStateAction<UpdatePregnancyInput>>;
-  onSaveClinical: () => void;
+  onSaveClinical?: () => void;
   onSavePregnancy: () => void;
   onAddAnthropometry: () => void;
   onDeleteAnthropometry: (publicId: string) => void;
@@ -79,6 +80,11 @@ export interface MobilePatientHubProps {
   initialCheckinsSummary?: PatientCheckinsHubSummaryDto | null;
   initialAppointmentPublicId?: string;
   canAuthor?: boolean;
+  autosaveStatus?: AutosaveStatus;
+  autosaveError?: string | null;
+  onRetryAutosave?: () => void;
+  onFlushSave?: () => void;
+  onFieldBlur?: () => void;
   onPhysiologicalDataUpdated?: (data: {
     resolvedBirthDate: string | null;
     resolvedBiologicalSex: BiologicalSex | null;
@@ -98,7 +104,6 @@ export function MobilePatientHub({
   setClinicalForm,
   pregnancyForm,
   setPregnancyForm,
-  onSaveClinical,
   onSavePregnancy,
   onAddAnthropometry,
   onDeleteAnthropometry,
@@ -117,6 +122,11 @@ export function MobilePatientHub({
   initialCheckinsSummary = null,
   initialAppointmentPublicId,
   canAuthor = true,
+  autosaveStatus,
+  autosaveError,
+  onRetryAutosave,
+  onFlushSave,
+  onFieldBlur,
   onPhysiologicalDataUpdated,
 }: MobilePatientHubProps) {
   const router = useRouter();
@@ -130,6 +140,11 @@ export function MobilePatientHub({
     return "resumo";
   });
 
+  const handleMobileTabChange = (newTab: MobilePatientTab) => {
+    onFlushSave?.();
+    setActiveTab(newTab);
+  };
+
   const [clinicalSubTab, setClinicalSubTab] = useState<ClinicalSubTab>("clinico");
   const [isStartingEdit, setIsStartingEdit] = useState(false);
   const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
@@ -142,6 +157,7 @@ export function MobilePatientHub({
   const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
 
   const handleCreatePlanFromScratch = async () => {
+    onFlushSave?.();
     setIsCreatingScratch(true);
     setDraftActionError(null);
     const res = await createPatientPlanFromScratchAction(slug, detail.student.membershipPublicId);
@@ -156,6 +172,7 @@ export function MobilePatientHub({
   };
 
   const handleStartEditPlan = async () => {
+    onFlushSave?.();
     setIsStartingEdit(true);
     setDraftActionError(null);
     const res = await startPatientPlanEditAction(slug, detail.student.membershipPublicId);
@@ -226,14 +243,24 @@ export function MobilePatientHub({
         <div className="flex items-center justify-between gap-2">
           <Link
             href={`/consultoria/${slug}/progresso/alunos`}
+            onClick={() => onFlushSave?.()}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--brand)] hover:underline min-h-[44px] cursor-pointer"
           >
             <span aria-hidden="true">←</span>
             <span>Voltar aos Pacientes</span>
           </Link>
-          <Badge variant="brand" size="sm" className="font-semibold text-[10px]">
-            Paciente Ativo
-          </Badge>
+          <div className="flex items-center gap-2">
+            {canAuthor && autosaveStatus && (
+              <AutosaveIndicator
+                status={autosaveStatus}
+                errorMessage={autosaveError}
+                onRetry={onRetryAutosave}
+              />
+            )}
+            <Badge variant="brand" size="sm" className="font-semibold text-[10px]">
+              Paciente Ativo
+            </Badge>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -286,7 +313,7 @@ export function MobilePatientHub({
               type="button"
               role="tab"
               aria-selected={isActive}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleMobileTabChange(tab.id)}
               className={`flex-1 min-h-[44px] px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center justify-center ${
                 isActive
                   ? "bg-[var(--surface)] text-[var(--brand)] shadow-xs border border-[var(--border-default)]"
@@ -405,6 +432,7 @@ export function MobilePatientHub({
                 </p>
                 <Link
                   href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
+                  onClick={() => onFlushSave?.()}
                   className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-bold text-xs text-[var(--text-inverse)] bg-amber-600 hover:bg-amber-700 min-h-[38px] cursor-pointer"
                 >
                   <span>Continuar edição</span>
@@ -568,17 +596,25 @@ export function MobilePatientHub({
           Nível 2: Seções Clínicas com reaproveitamento integral das seções existentes
           ========================================================================= */}
       {activeTab === "prontuario" && (
-        <div className="space-y-4" data-testid="mobile-tab-prontuario">
+        <div className="space-y-4" data-testid="mobile-tab-prontuario" onBlur={onFieldBlur}>
           {/* Sub-tabs Nível 2 com scroll suave e affordance mobile-native */}
           <div className="space-y-2">
             <div className="flex items-center justify-between px-0.5">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)]">
                 Seções do Prontuário
               </span>
-              <span className="text-[10px] font-medium text-[var(--text-tertiary)] flex items-center gap-1">
-                <span>Deslize para ver mais</span>
-                <span aria-hidden="true">→</span>
-              </span>
+              {canAuthor && autosaveStatus ? (
+                <AutosaveIndicator
+                  status={autosaveStatus}
+                  errorMessage={autosaveError}
+                  onRetry={onRetryAutosave}
+                />
+              ) : (
+                <span className="text-[10px] font-medium text-[var(--text-tertiary)] flex items-center gap-1">
+                  <span>Deslize para ver mais</span>
+                  <span aria-hidden="true">→</span>
+                </span>
+              )}
             </div>
 
             <div className="relative">
@@ -595,7 +631,10 @@ export function MobilePatientHub({
                       type="button"
                       role="tab"
                       aria-selected={isSubActive}
-                      onClick={() => setClinicalSubTab(sub.id)}
+                      onClick={() => {
+                        onFlushSave?.();
+                        setClinicalSubTab(sub.id);
+                      }}
                       className={`min-h-[44px] px-4 py-2.5 rounded-xl text-xs whitespace-nowrap shrink-0 snap-start cursor-pointer transition-all flex items-center justify-center ${
                         isSubActive
                           ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold shadow-xs border border-transparent"
@@ -623,7 +662,7 @@ export function MobilePatientHub({
 
           {/* Sub-seção 1: Histórico Clínico */}
           {clinicalSubTab === "clinico" && (
-            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3.5 shadow-2xs depth-surface">
+            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3.5 shadow-2xs depth-surface" onBlur={onFieldBlur}>
               <h3 className="font-bold text-xs uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-subtle)] pb-2">
                 Condições de Saúde e Histórico
               </h3>
@@ -737,22 +776,12 @@ export function MobilePatientHub({
                   />
                 </div>
               </div>
-
-              <Button
-                variant="primary"
-                size="md"
-                onClick={onSaveClinical}
-                disabled={isPending}
-                className="w-full font-bold text-xs min-h-[44px] shadow-sm mt-2 cursor-pointer"
-              >
-                {isPending ? "Salvando..." : "Salvar Prontuário"}
-              </Button>
             </div>
           )}
 
           {/* Sub-seção 2: Histórico Alimentar */}
           {clinicalSubTab === "alimentar" && (
-            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3.5 shadow-2xs depth-surface">
+            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3.5 shadow-2xs depth-surface" onBlur={onFieldBlur}>
               <h3 className="font-bold text-xs uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-subtle)] pb-2">
                 Hábitos e Preferências Alimentares
               </h3>
@@ -842,22 +871,12 @@ export function MobilePatientHub({
                   />
                 </div>
               </div>
-
-              <Button
-                variant="primary"
-                size="md"
-                onClick={onSaveClinical}
-                disabled={isPending}
-                className="w-full font-bold text-xs min-h-[44px] shadow-sm mt-2 cursor-pointer"
-              >
-                {isPending ? "Salvando..." : "Salvar Prontuário"}
-              </Button>
             </div>
           )}
 
           {/* Sub-seção 3: Estilo de Vida */}
           {clinicalSubTab === "estilo_vida" && (
-            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3.5 shadow-2xs depth-surface">
+            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3.5 shadow-2xs depth-surface" onBlur={onFieldBlur}>
               <h3 className="font-bold text-xs uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-subtle)] pb-2">
                 Estilo de Vida e Hábitos Diários
               </h3>
@@ -935,16 +954,6 @@ export function MobilePatientHub({
                   />
                 </div>
               </div>
-
-              <Button
-                variant="primary"
-                size="md"
-                onClick={onSaveClinical}
-                disabled={isPending}
-                className="w-full font-bold text-xs min-h-[44px] shadow-sm mt-2 cursor-pointer"
-              >
-                {isPending ? "Salvando..." : "Salvar Prontuário"}
-              </Button>
             </div>
           )}
 
@@ -1216,6 +1225,7 @@ export function MobilePatientHub({
               <div className="flex items-center gap-2 pt-1">
                 <Link
                   href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
+                  onClick={() => onFlushSave?.()}
                   className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] cursor-pointer shadow-xs depth-interactive"
                 >
                   <span>Continuar edição</span>
@@ -1345,6 +1355,7 @@ export function MobilePatientHub({
 
                   <Link
                     href={`/consultoria/${slug}/planos-v2/${activePlan.planPublicId}?v=${activePlan.versionPublicId}`}
+                    onClick={() => onFlushSave?.()}
                     className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-secondary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[40px] cursor-pointer"
                   >
                     <span>Abrir no Builder</span>
@@ -1385,7 +1396,7 @@ export function MobilePatientHub({
                     onClick={handleCreatePlanFromScratch}
                     className="w-full font-bold text-xs min-h-[44px] shadow-xs cursor-pointer"
                   >
-                    {isCreatingScratch ? "Criando plano..." : "+ Criar do zero"}
+                    {isCreatingScratch ? "Criando plano..." : "+ Criar plano alimentar"}
                   </Button>
                   <Button
                     variant="secondary"

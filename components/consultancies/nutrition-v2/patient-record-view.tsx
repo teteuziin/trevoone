@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useMemo } from "react";
+import React, { useState, useTransition, useMemo, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,7 @@ import type {
   EvolutionComparisonDataDto,
 } from "@/types/evolution";
 import { MobilePatientHub } from "./mobile-patient-hub";
+import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
 import type {
   PatientPlanning,
   PatientPlanningStaleStatus,
@@ -113,7 +114,10 @@ export function PatientRecordView({
   const [isCopyPlanDialogOpen, setIsCopyPlanDialogOpen] = useState(false);
   const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
 
+  const flushPendingSaveRef = useRef<(() => void) | null>(null);
+
   const handleCreatePlanFromScratch = async () => {
+    flushPendingSaveRef.current?.();
     setIsCreatingScratch(true);
     const res = await createPatientPlanFromScratchAction(slug, detail.student.membershipPublicId);
     if (res.success && res.data) {
@@ -127,6 +131,7 @@ export function PatientRecordView({
   };
 
   const handleStartEditPlan = async () => {
+    flushPendingSaveRef.current?.();
     setIsStartingEdit(true);
     const res = await startPatientPlanEditAction(slug, detail.student.membershipPublicId);
     if (res.success && res.data) {
@@ -273,16 +278,200 @@ export function PatientRecordView({
     notes: null,
   });
 
-  const handleSaveClinicalRecord = () => {
-    setMessage(null);
-    startTransition(async () => {
-      const res = await updatePatientRecordAction(slug, detail.student.membershipPublicId, clinicalForm);
-      if (res.success) {
-        setMessage({ type: "success", text: "Prontuário salvo com sucesso!" });
-      } else {
-        setMessage({ type: "error", text: res.error || "Erro ao salvar prontuário." });
+  // Autosave states & refs for clinical record with SERIALIZED SERVER WRITES
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
+  const [autosaveError, setAutosaveError] = useState<string | null>(null);
+
+  const lastSavedSnapshotRef = useRef<string>(JSON.stringify(clinicalForm));
+  const pendingSaveRef = useRef<UpdatePatientRecordInput | null>(null);
+  const isSavingRef = useRef<boolean>(false);
+  const saveSequenceRef = useRef<number>(0);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const latestFormRef = useRef<UpdatePatientRecordInput>(clinicalForm);
+  const isMountedRef = useRef<boolean>(false);
+  const isUnmountedRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    latestFormRef.current = clinicalForm;
+  }, [clinicalForm]);
+
+  const processSaveQueue = useCallback(async () => {
+    if (!canAuthorNutrition) return;
+
+    // SERIALIZED SERVER WRITES: at most 1 active save request in flight
+    // If a request is already executing, the active loop will drain pendingSaveRef upon completion.
+    if (isSavingRef.current) {
+      return;
+    }
+
+    if (!pendingSaveRef.current) {
+      return;
+    }
+
+    isSavingRef.current = true;
+    if (!isUnmountedRef.current) {
+      setAutosaveStatus("saving");
+      setAutosaveError(null);
+    }
+
+    while (pendingSaveRef.current) {
+      const formToSave = pendingSaveRef.current;
+      pendingSaveRef.current = null;
+
+      // Skip redundant write if snapshot already matches persisted record
+      if (JSON.stringify(formToSave) === lastSavedSnapshotRef.current) {
+        continue;
       }
-    });
+
+      const currentSeq = ++saveSequenceRef.current;
+      try {
+        const res = await updatePatientRecordAction(
+          slug,
+          detail.student.membershipPublicId,
+          formToSave
+        );
+
+        if (currentSeq !== saveSequenceRef.current) {
+          continue;
+        }
+
+        if (res.success) {
+          lastSavedSnapshotRef.current = JSON.stringify(formToSave);
+          // If a new change arrived while saving, the while loop will proceed with it.
+        } else {
+          // If write failed and no newer change arrived, preserve pendingSaveRef for retry
+          if (!pendingSaveRef.current) {
+            pendingSaveRef.current = formToSave;
+          }
+          isSavingRef.current = false;
+          if (!isUnmountedRef.current) {
+            setAutosaveStatus("error");
+            setAutosaveError(res.error || "Não foi possível salvar");
+          }
+          return;
+        }
+      } catch (err: unknown) {
+        if (!pendingSaveRef.current) {
+          pendingSaveRef.current = formToSave;
+        }
+        isSavingRef.current = false;
+        if (!isUnmountedRef.current) {
+          setAutosaveStatus("error");
+          setAutosaveError(
+            err instanceof Error ? err.message : "Não foi possível salvar"
+          );
+        }
+        return;
+      }
+    }
+
+    isSavingRef.current = false;
+    // Only mark "saved" when all pending writes have finished persisting
+    if (!isUnmountedRef.current) {
+      setAutosaveStatus("saved");
+      setAutosaveError(null);
+    }
+  }, [canAuthorNutrition, detail.student.membershipPublicId, slug]);
+
+  const executeAutosave = useCallback(
+    async (formToSave: UpdatePatientRecordInput) => {
+      pendingSaveRef.current = formToSave;
+      await processSaveQueue();
+    },
+    [processSaveQueue]
+  );
+
+  // Debounce (650ms) autosave trigger on clinicalForm changes
+  useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
+
+    if (!canAuthorNutrition) return;
+
+    const currentSnapshot = JSON.stringify(clinicalForm);
+    if (currentSnapshot === lastSavedSnapshotRef.current) {
+      return;
+    }
+
+    // Enqueue newest change and mark UI as saving immediately
+    pendingSaveRef.current = clinicalForm;
+    setAutosaveStatus("saving");
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
+      processSaveQueue();
+    }, 650);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [clinicalForm, canAuthorNutrition, processSaveQueue]);
+
+  // Flush pending save immediately (blur, tab switch, navigation, unmount)
+  const flushPendingSave = useCallback(() => {
+    if (!canAuthorNutrition) return;
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    const currentSnapshot = JSON.stringify(latestFormRef.current);
+    if (currentSnapshot !== lastSavedSnapshotRef.current) {
+      pendingSaveRef.current = latestFormRef.current;
+    }
+    if (pendingSaveRef.current || isSavingRef.current) {
+      processSaveQueue();
+    }
+  }, [canAuthorNutrition, processSaveQueue]);
+
+  // Keep ref updated for handlers defined earlier
+  useEffect(() => {
+    flushPendingSaveRef.current = flushPendingSave;
+  }, [flushPendingSave]);
+
+  // Immediate blur flush when user leaves a modified field
+  const handleFieldBlur = useCallback(() => {
+    if (!canAuthorNutrition) return;
+    const currentSnapshot = JSON.stringify(latestFormRef.current);
+    if (currentSnapshot !== lastSavedSnapshotRef.current) {
+      flushPendingSave();
+    }
+  }, [canAuthorNutrition, flushPendingSave]);
+
+  // Tab switch handler with instant flush
+  const handleTabChange = useCallback(
+    (newTab: TabType) => {
+      flushPendingSave();
+      setActiveTab(newTab);
+    },
+    [flushPendingSave]
+  );
+
+  // Flush on unmount
+  useEffect(() => {
+    return () => {
+      isUnmountedRef.current = true;
+      flushPendingSave();
+    };
+  }, [flushPendingSave]);
+
+  const handleRetryAutosave = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    executeAutosave(latestFormRef.current);
+  }, [executeAutosave]);
+
+  const handleSaveClinicalRecord = () => {
+    handleRetryAutosave();
   };
 
   const handleSavePregnancy = () => {
@@ -375,7 +564,7 @@ export function PatientRecordView({
           onAddAnthropometry={() => setShowAddAnthro(true)}
           onDeleteAnthropometry={handleDeleteAnthropometric}
           onCopyFromOnboarding={handleCopyFromOnboarding}
-          isPending={isPending}
+          isPending={isPending || autosaveStatus === "saving"}
           message={message}
           calcWeightOverride={calcWeightOverride}
           setCalcWeightOverride={setCalcWeightOverride}
@@ -389,6 +578,11 @@ export function PatientRecordView({
           initialCheckinsSummary={initialCheckinsSummary}
           initialAppointmentPublicId={initialAppointmentPublicId}
           canAuthor={canAuthorNutrition}
+          autosaveStatus={autosaveStatus}
+          autosaveError={autosaveError}
+          onRetryAutosave={handleRetryAutosave}
+          onFlushSave={flushPendingSave}
+          onFieldBlur={handleFieldBlur}
           onPhysiologicalDataUpdated={(data) => {
             setDetail((prev) => ({
               ...prev,
@@ -415,6 +609,7 @@ export function PatientRecordView({
           <div className="flex items-center gap-2 mb-1">
             <Link
               href={`/consultoria/${slug}/planos-v2/prontuario`}
+              onClick={() => flushPendingSave()}
               className="text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
             >
               <span>← Voltar aos Pacientes</span>
@@ -474,7 +669,10 @@ export function PatientRecordView({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
-          <Link href={`/consultoria/${slug}/progresso/alunos/${detail.student.membershipPublicId}`}>
+          <Link
+            href={`/consultoria/${slug}/progresso/alunos/${detail.student.membershipPublicId}`}
+            onClick={() => flushPendingSave()}
+          >
             <Button
               variant="secondary"
               size="md"
@@ -484,47 +682,39 @@ export function PatientRecordView({
               Evolução 360° →
             </Button>
           </Link>
-          {draftPlan ? (
-            <Link href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}>
+          {/* Header plan action: duplicate continue-edit button removed from header when draft exists (preserved contextually in Plano tab) */}
+          {!draftPlan && (
+            activePlan ? (
               <Button
                 variant="primary"
                 size="md"
+                disabled={isStartingEdit}
+                onClick={handleStartEditPlan}
                 className="font-bold min-h-[42px] text-xs"
               >
-                Continuar Edição →
+                {isStartingEdit ? "Abrindo..." : "Editar Plano"}
               </Button>
-            </Link>
-          ) : activePlan ? (
-            <Button
-              variant="primary"
-              size="md"
-              disabled={isStartingEdit}
-              onClick={handleStartEditPlan}
-              className="font-bold min-h-[42px] text-xs"
-            >
-              {isStartingEdit ? "Abrindo..." : "Editar Plano"}
-            </Button>
-          ) : (
-            <Button
-              variant="primary"
-              size="md"
-              disabled={isCreatingScratch}
-              onClick={handleCreatePlanFromScratch}
-              className="font-bold min-h-[42px] text-xs"
-            >
-              {isCreatingScratch ? "Criando..." : "Prescrever Plano"}
-            </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="md"
+                disabled={isCreatingScratch}
+                onClick={handleCreatePlanFromScratch}
+                className="font-bold min-h-[42px] text-xs"
+              >
+                {isCreatingScratch ? "Criando..." : "Prescrever Plano"}
+              </Button>
+            )
           )}
-          {activeTab !== "antropometria" && activeTab !== "gestacao" && (
-            <Button
-              onClick={handleSaveClinicalRecord}
-              disabled={isPending}
-              variant="primary"
-              size="md"
-              className="font-bold min-h-[42px] text-xs shadow-sm"
-            >
-              {isPending ? "Salvando..." : "Salvar Prontuário"}
-            </Button>
+          {/* Prontuário Autosave Status Indicator */}
+          {canAuthorNutrition && activeTab !== "antropometria" && activeTab !== "gestacao" && (
+            <div className="px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center min-h-[42px]">
+              <AutosaveIndicator
+                status={autosaveStatus}
+                errorMessage={autosaveError}
+                onRetry={handleRetryAutosave}
+              />
+            </div>
           )}
           {activeTab === "gestacao" && (
             <Button
@@ -592,7 +782,7 @@ export function PatientRecordView({
           <button
             key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             className={`px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeTab === tab.id
                 ? "bg-[var(--brand-soft)] text-[var(--brand)] border border-[var(--brand-soft-border)] shadow-2xs font-bold"
@@ -629,7 +819,7 @@ export function PatientRecordView({
 
       {/* TAB 1: RESUMO GERAL */}
       {activeTab === "resumo" && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6" onBlur={handleFieldBlur}>
           <div className="md:col-span-2 space-y-6">
             {/* Active Nutrition Plan Card in Resumo */}
             <div className="rounded-xl border border-[var(--brand)]/30 bg-[var(--surface)] p-5 space-y-4 depth-surface">
@@ -664,7 +854,10 @@ export function PatientRecordView({
                 <div className="flex items-center gap-2">
                   {draftPlan ? (
                     <>
-                      <Link href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}>
+                      <Link
+                        href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
+                        onClick={() => flushPendingSave()}
+                      >
                         <Button variant="primary" size="sm" className="font-bold text-xs min-h-[36px]">
                           Continuar Edição →
                         </Button>
@@ -793,6 +986,7 @@ export function PatientRecordView({
                 onChange={(e) =>
                   setClinicalForm({ ...clinicalForm, clinicalObservations: e.target.value })
                 }
+                onBlur={handleFieldBlur}
                 rows={4}
                 className="w-full text-sm rounded-lg border border-border/50 bg-background p-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 placeholder="Anotações clínicas do nutricionista..."
@@ -965,7 +1159,10 @@ export function PatientRecordView({
               <div className="flex items-center gap-2 flex-wrap">
                 {draftPlan ? (
                   <>
-                    <Link href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}>
+                    <Link
+                      href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
+                      onClick={() => flushPendingSave()}
+                    >
                       <Button variant="primary" size="md" className="font-bold text-xs min-h-[40px]">
                         Continuar Edição →
                       </Button>
@@ -1128,7 +1325,7 @@ export function PatientRecordView({
 
       {/* TAB 2: HISTÓRICO CLÍNICO */}
       {activeTab === "clinico" && (
-        <div className="space-y-6">
+        <div className="space-y-6" onBlur={handleFieldBlur}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
               <h3 className="font-semibold text-foreground text-sm border-b border-border/20 pb-2">
@@ -1262,7 +1459,7 @@ export function PatientRecordView({
 
       {/* TAB 3: HISTÓRICO ALIMENTAR */}
       {activeTab === "alimentar" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onBlur={handleFieldBlur}>
           <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
             <h3 className="font-semibold text-foreground text-sm border-b border-border/20 pb-2">
               Preferências e Restrições
@@ -1353,7 +1550,7 @@ export function PatientRecordView({
 
       {/* TAB 4: ESTILO DE VIDA */}
       {activeTab === "estilo_vida" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onBlur={handleFieldBlur}>
           <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
             <h3 className="font-semibold text-foreground text-sm border-b border-border/20 pb-2">
               Atividade Física e Sono

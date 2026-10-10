@@ -444,7 +444,6 @@ export function PersonalStudentList({
                 ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
                 : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
               const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
-              const createPlanHref = `/consultoria/${consultancySlug}/planos-v2/novo?student=${student.membershipPublicId}`;
 
               return (
                 <div
@@ -538,17 +537,8 @@ export function PersonalStudentList({
                       <ChevronRightIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                     </Link>
 
-                    {/* Contextual primary action by role */}
-                    {isEffectiveNutritionist ? (
-                      <Link
-                        href={createPlanHref}
-                        className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] shadow-xs cursor-pointer shrink-0"
-                        title="Criar novo plano alimentar"
-                      >
-                        <AppleIcon className="w-3.5 h-3.5" />
-                        <span>Plano</span>
-                      </Link>
-                    ) : (
+                    {/* For Personal Trainer, preserve workout button. For Nutritionist, 'Ver paciente' is the single clean primary action */}
+                    {!isEffectiveNutritionist && (
                       <Link
                         href={createWorkoutHref}
                         className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] shadow-xs cursor-pointer shrink-0"
@@ -585,6 +575,7 @@ export function PersonalStudentList({
               const studentDetailHref = isEffectiveNutritionist
                 ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
                 : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
+              // Contract check: href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
 
               return (
                 <div
@@ -672,17 +663,7 @@ export function PersonalStudentList({
                       <ChevronRightIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                     </Link>
 
-                    {isEffectiveNutritionist ? (
-                      <Link
-                        href={`/consultoria/${consultancySlug}/planos-v2/novo?studentId=${student.membershipPublicId}`}
-                        className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all min-h-[44px] shadow-xs depth-interactive cursor-pointer shrink-0"
-                        title="Criar novo plano alimentar para este paciente"
-                      >
-                        <AppleIcon className="w-3.5 h-3.5" />
-                        <span className="hidden xs:inline">Criar plano</span>
-                        <span className="xs:hidden">Plano</span>
-                      </Link>
-                    ) : (
+                    {!isEffectiveNutritionist && (
                       <Link
                         href={`/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`}
                         className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all min-h-[44px] shadow-xs depth-interactive cursor-pointer shrink-0"

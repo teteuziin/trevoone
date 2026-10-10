@@ -132,7 +132,7 @@ export function MobilePatientHub({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<MobilePatientTab>(() => {
     if (initialMobileTab === "consultas") return "consultas";
-    if (initialMobileTab === "checkins") return "checkins";
+    if (initialMobileTab === "checkins" || initialMobileTab === "acompanhamento") return "checkins";
     if (initialMobileTab === "planejamento") return "planejamento";
     if (initialMobileTab === "evolucao") return "evolucao";
     if (initialMobileTab === "plano") return "plano";
@@ -209,7 +209,7 @@ export function MobilePatientHub({
   const LEVEL_1_TABS: Array<{ id: MobilePatientTab; label: string }> = [
     { id: "resumo", label: "Resumo" },
     { id: "consultas", label: "Consultas" },
-    { id: "checkins", label: "Check-ins" },
+    { id: "checkins", label: "Acompanhamento" },
     { id: "prontuario", label: "Prontuário" },
     { id: "planejamento", label: "Planejamento" },
     { id: "plano", label: "Plano" },
@@ -532,7 +532,7 @@ export function MobilePatientHub({
                 onClick={() => setActiveTab("checkins")}
                 className="w-full inline-flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer transition-colors"
               >
-                <span>Acompanhar check-ins</span>
+                <span>Acompanhamento do paciente</span>
                 <span aria-hidden="true">→</span>
               </button>
 

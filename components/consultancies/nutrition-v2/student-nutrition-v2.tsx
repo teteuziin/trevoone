@@ -7,6 +7,7 @@ import {
   presentNutritionPlan,
   type PresentedNutritionPlan,
 } from "@/lib/nutrition-v2/nutrition-plan-presentation";
+import { StudentFollowupTrigger } from "./student-followup-trigger";
 
 interface Props {
   consultancySlug: string;
@@ -17,6 +18,7 @@ interface Props {
   userPublicId?: string;
   consultancyPublicId?: string;
   role?: string;
+  pendingCheckinRequestPublicId?: string | null;
 }
 
 export function StudentNutritionV2({
@@ -28,6 +30,7 @@ export function StudentNutritionV2({
   userPublicId: initialUserPublicId,
   consultancyPublicId: initialConsultancyPublicId,
   role: initialRole,
+  pendingCheckinRequestPublicId,
 }: Props) {
   const [activeContext, setActiveContext] = React.useState<{
     userPublicId: string;
@@ -145,6 +148,11 @@ export function StudentNutritionV2({
         </Link>
 
         <div className="flex items-center gap-2">
+          <StudentFollowupTrigger
+            consultancySlug={consultancySlug}
+            pendingCheckinRequestPublicId={pendingCheckinRequestPublicId}
+          />
+
           <a
             href={pdfDownloadUrl}
             download
@@ -202,6 +210,13 @@ export function StudentNutritionV2({
             )}
           </div>
         </div>
+
+        {/* Action: Registrar acompanhamento (Foto ou Anotação) */}
+        <StudentFollowupTrigger
+          consultancySlug={consultancySlug}
+          pendingCheckinRequestPublicId={pendingCheckinRequestPublicId}
+          variant="card"
+        />
 
         {/* Daily Macros Grid */}
         {plan.totals.hasAnyMacro && (

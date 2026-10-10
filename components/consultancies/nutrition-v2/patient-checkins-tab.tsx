@@ -3,8 +3,8 @@
 import React, { useState, useTransition, useEffect } from "react";
 import type {
   CheckinDetailDto,
-  PatientCheckinsHubSummaryDto,
   CheckinAdherenceLevel,
+  PatientCheckinsHubSummaryDto,
 } from "@/lib/nutrition-v2/checkin-types";
 import {
   CHECKIN_ADHERENCE_LABELS,
@@ -13,12 +13,16 @@ import {
   CHECKIN_SLEEP_LABELS,
   CHECKIN_TRAINING_LABELS,
 } from "@/lib/nutrition-v2/checkin-types";
+import type {
+  FollowupTimelineFilter,
+  PatientFollowupHubSummaryDto,
+} from "@/lib/nutrition-v2/followup-types";
 import {
   createCheckinRequestAction,
   cancelCheckinRequestAction,
-  getPatientCheckinsHubAction,
   getCheckinDetailAction,
 } from "@/app/consultoria/[slug]/planos-v2/checkin-actions";
+import { getPatientFollowupTimelineAction } from "@/app/consultoria/[slug]/nutricao/acompanhamento-actions";
 
 interface PatientCheckinsTabProps {
   slug: string;
@@ -59,40 +63,48 @@ export function PatientCheckinsTab({
   slug,
   studentPublicId,
   canAuthor = true,
-  initialSummary = null,
 }: PatientCheckinsTabProps) {
-  const [summary, setSummary] = useState<PatientCheckinsHubSummaryDto | null>(initialSummary);
+  const [timelineSummary, setTimelineSummary] = useState<PatientFollowupHubSummaryDto | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Modal states
+  // Filter state
+  const [filter, setFilter] = useState<FollowupTimelineFilter>("all");
+
+  // Request modal states
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [dueDateInput, setDueDateInput] = useState("");
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
 
+  // Check-in response detail modal states
   const [selectedResponsePublicId, setSelectedResponsePublicId] = useState<string | null>(null);
   const [detailData, setDetailData] = useState<CheckinDetailDto | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
-  useEffect(() => {
-    if (!initialSummary) {
-      let isMounted = true;
-      getPatientCheckinsHubAction(slug, studentPublicId).then((res) => {
-        if (isMounted && res.success) {
-          setSummary(res.data);
-        }
-      });
-      return () => {
-        isMounted = false;
-      };
-    }
-  }, [slug, studentPublicId, initialSummary]);
+  // Photo viewer modal
+  const [selectedPhotoPublicId, setSelectedPhotoPublicId] = useState<string | null>(null);
 
-  function loadSummary() {
+  useEffect(() => {
+    let isMounted = true;
+    getPatientFollowupTimelineAction(slug, studentPublicId).then((res) => {
+      if (isMounted) {
+        setIsLoading(false);
+        if (res.success && res.data) {
+          setTimelineSummary(res.data);
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [slug, studentPublicId]);
+
+  function refreshTimeline() {
     startTransition(async () => {
-      const res = await getPatientCheckinsHubAction(slug, studentPublicId);
-      if (res.success) {
-        setSummary(res.data);
+      const res = await getPatientFollowupTimelineAction(slug, studentPublicId);
+      if (res.success && res.data) {
+        setTimelineSummary(res.data);
       }
     });
   }
@@ -112,7 +124,7 @@ export function PatientCheckinsTab({
       setMessage({ type: "success", text: "Solicitação de check-in enviada ao aluno com sucesso!" });
       setIsRequestModalOpen(false);
       setDueDateInput("");
-      loadSummary();
+      refreshTimeline();
     }
   }
 
@@ -127,7 +139,7 @@ export function PatientCheckinsTab({
         setMessage({ type: "error", text: res.error || "Erro ao cancelar solicitação." });
       } else {
         setMessage({ type: "success", text: "Solicitação cancelada." });
-        loadSummary();
+        refreshTimeline();
       }
     });
   }
@@ -144,58 +156,68 @@ export function PatientCheckinsTab({
     }
   }
 
-  function renderAdherenceBadge(level: CheckinAdherenceLevel) {
+  function renderAdherenceBadge(level: CheckinAdherenceLevel | string) {
     switch (level) {
       case "HIGH":
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            Adesão Alta
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+            <span>●</span>
+            <span>Adesão Alta</span>
           </span>
         );
       case "MODERATE":
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            Adesão Moderada
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+            <span>●</span>
+            <span>Adesão Moderada</span>
           </span>
         );
       case "LOW":
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-            Adesão Baixa
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+            <span>●</span>
+            <span>Adesão Baixa</span>
           </span>
         );
       default:
-        return null;
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+            {CHECKIN_ADHERENCE_LABELS[level as CheckinAdherenceLevel] || level}
+          </span>
+        );
     }
   }
 
-  const pending = summary?.pendingRequest;
-  const recentResponses = summary?.recentResponses || [];
+  // Filter timeline items
+  const allItems = timelineSummary?.timeline || [];
+  const filteredItems = allItems.filter((item) => {
+    if (filter === "all") return true;
+    if (filter === "meals") return item.type === "FOOD_PHOTO";
+    if (filter === "checkins") return item.type === "CHECKIN_REQUEST" || item.type === "CHECKIN_RESPONSE";
+    if (filter === "notes") return item.type === "PATIENT_NOTE";
+    return true;
+  });
+
+  const pendingRequest = timelineSummary?.pendingCheckinRequest;
 
   return (
     <div className="space-y-6">
-      {/* Header com resumo compacto e CTA */}
-      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs">
+      {/* 1. Header do Acompanhamento */}
+      <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-5 sm:p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
-              <h3 className="text-base font-bold text-[var(--text-primary)] font-heading">
-                Acompanhamento de Check-ins
+              <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-heading">
+                Acompanhamento
               </h3>
-              {summary && summary.totalCompletedCount > 0 && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-                  {summary.totalCompletedCount} {summary.totalCompletedCount === 1 ? "resposta" : "respostas"}
-                </span>
-              )}
-              {summary && summary.requestsHelpCount > 0 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                  <span>⚠️</span>
-                  <span>Solicitou contato</span>
+              {timelineSummary && (
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                  {timelineSummary.totalEventsCount} {timelineSummary.totalEventsCount === 1 ? "registro" : "registros"}
                 </span>
               )}
             </div>
             <p className="text-xs text-[var(--text-secondary)]">
-              Registro temporal de adesão e percepções autorrelatadas pelo aluno entre consultas.
+              Registros do paciente entre consultas.
             </p>
           </div>
 
@@ -203,9 +225,9 @@ export function PatientCheckinsTab({
             <button
               type="button"
               onClick={() => setIsRequestModalOpen(true)}
-              disabled={Boolean(pending && pending.derivedState === "PENDING")}
+              disabled={Boolean(pendingRequest && pendingRequest.derivedState === "PENDING")}
               className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all min-h-[44px] cursor-pointer shadow-xs ${
-                pending && pending.derivedState === "PENDING"
+                pendingRequest && pendingRequest.derivedState === "PENDING"
                   ? "bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-default)] cursor-not-allowed"
                   : "bg-[var(--brand)] text-[var(--text-inverse)] hover:bg-[var(--brand-hover)] active:scale-98"
               }`}
@@ -236,11 +258,11 @@ export function PatientCheckinsTab({
         )}
       </div>
 
-      {/* Card de Solicitação Pendente (se houver) */}
-      {pending && (
+      {/* 2. Banner de Solicitação Pendente (se houver) */}
+      {pendingRequest && (
         <div
           className={`border rounded-2xl p-4 sm:p-4.5 shadow-xs transition-all ${
-            pending.derivedState === "EXPIRED"
+            pendingRequest.derivedState === "EXPIRED"
               ? "bg-amber-500/5 border-amber-500/25"
               : "bg-blue-500/5 border-blue-500/25"
           }`}
@@ -249,47 +271,47 @@ export function PatientCheckinsTab({
             <div className="flex items-start gap-3">
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base font-bold ${
-                  pending.derivedState === "EXPIRED"
+                  pendingRequest.derivedState === "EXPIRED"
                     ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                     : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
                 }`}
               >
-                {pending.derivedState === "EXPIRED" ? "⏳" : "📬"}
+                {pendingRequest.derivedState === "EXPIRED" ? "⏳" : "📬"}
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h4 className="text-xs font-bold text-[var(--text-primary)]">
-                    {pending.derivedState === "EXPIRED"
+                    {pendingRequest.derivedState === "EXPIRED"
                       ? "Check-in Expirado"
                       : "Solicitação Aguardando Resposta"}
                   </h4>
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                      pending.derivedState === "EXPIRED"
+                      pendingRequest.derivedState === "EXPIRED"
                         ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25"
                         : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25"
                     }`}
                   >
-                    {pending.derivedState === "EXPIRED" ? "Expirado" : "Pendente"}
+                    {pendingRequest.derivedState === "EXPIRED" ? "Expirado" : "Pendente"}
                   </span>
                 </div>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  Solicitado em <strong>{formatDate(pending.requestedAt)}</strong>
-                  {pending.dueAt && (
+                  {pendingRequest.dueAt ? (
                     <>
-                      {" "}
-                      • Prazo até <strong>{formatDate(pending.dueAt)}</strong>
+                      Prazo até <strong>{formatDate(pendingRequest.dueAt)}</strong>
                     </>
+                  ) : (
+                    "Sem prazo fixo"
                   )}
-                  {pending.requestedByName && ` por ${pending.requestedByName}`}
+                  {pendingRequest.requestedByName && ` • Solicitado por ${pendingRequest.requestedByName}`}
                 </p>
               </div>
             </div>
 
-            {canAuthor && pending.status === "PENDING" && (
+            {canAuthor && pendingRequest.status === "PENDING" && (
               <button
                 type="button"
-                onClick={() => handleCancelRequest(pending.publicId)}
+                onClick={() => handleCancelRequest(pendingRequest.requestPublicId)}
                 disabled={isPending}
                 className="self-stretch sm:self-auto text-xs font-semibold px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-red-500 transition-all cursor-pointer min-h-[38px] flex items-center justify-center"
               >
@@ -300,95 +322,326 @@ export function PatientCheckinsTab({
         </div>
       )}
 
-      {/* Histórico Cronológico de Respostas */}
-      <div className="space-y-3">
-        <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider px-1">
-          Histórico de Respostas ({recentResponses.length})
-        </h4>
+      {/* 3. Barra de Filtros */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        <button
+          type="button"
+          onClick={() => setFilter("all")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[38px] cursor-pointer whitespace-nowrap ${
+            filter === "all"
+              ? "bg-[var(--brand)] text-[var(--text-inverse)] shadow-xs"
+              : "bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          Tudo ({allItems.length})
+        </button>
 
-        {recentResponses.length === 0 ? (
-          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-8 text-center space-y-2">
-            <p className="text-sm font-semibold text-[var(--text-primary)]">
-              Nenhum check-in respondido ainda
+        <button
+          type="button"
+          onClick={() => setFilter("meals")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[38px] cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            filter === "meals"
+              ? "bg-[var(--brand)] text-[var(--text-inverse)] shadow-xs"
+              : "bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          <span>📷</span>
+          <span>Alimentação ({allItems.filter((i) => i.type === "FOOD_PHOTO").length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilter("checkins")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[38px] cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            filter === "checkins"
+              ? "bg-[var(--brand)] text-[var(--text-inverse)] shadow-xs"
+              : "bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          <span>📋</span>
+          <span>Check-ins ({allItems.filter((i) => i.type === "CHECKIN_REQUEST" || i.type === "CHECKIN_RESPONSE").length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilter("notes")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[38px] cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            filter === "notes"
+              ? "bg-[var(--brand)] text-[var(--text-inverse)] shadow-xs"
+              : "bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          <span>📝</span>
+          <span>Observações ({allItems.filter((i) => i.type === "PATIENT_NOTE").length})</span>
+        </button>
+      </div>
+
+      {/* 4. Linha do Tempo Clínica (Mais recente -> mais antigo) */}
+      <div className="space-y-3">
+        {isLoading ? (
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-10 text-center space-y-2">
+            <p className="text-xs text-[var(--text-secondary)] animate-pulse">
+              Carregando linha do tempo do paciente...
             </p>
-            <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto">
-              Quando a nutricionista solicitar e o aluno responder pelo aplicativo, as respostas
-              ficarão registradas cronologicamente aqui.
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-8 sm:p-12 text-center space-y-2.5">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center text-xl">
+              🍃
+            </div>
+            <p className="text-sm font-bold text-[var(--text-primary)]">
+              {allItems.length === 0
+                ? "Nenhum acompanhamento registrado ainda."
+                : "Nenhum registro para este filtro."}
+            </p>
+            <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto leading-relaxed">
+              {allItems.length === 0
+                ? "Fotos da alimentação, observações e respostas de check-ins aparecerão aqui."
+                : "Altere o filtro selecionado acima para visualizar outros registros da linha do tempo."}
             </p>
           </div>
         ) : (
-          <div className="space-y-2.5">
-            {recentResponses.map((item) => (
-              <div
-                key={item.publicId}
-                onClick={() => handleOpenDetail(item.publicId)}
-                className="bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] rounded-2xl p-4 shadow-xs transition-all cursor-pointer group"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-1.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-[var(--text-primary)]">
-                        {formatDate(item.submittedAt)}
-                      </span>
-                      {renderAdherenceBadge(item.adherence)}
-                      {item.requestsHelp === true && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
-                          <span>⚠️</span>
-                          <span>Solicitou contato</span>
+          <div className="space-y-3">
+            {filteredItems.map((item) => {
+              if (item.type === "FOOD_PHOTO" && item.payload.kind === "FOOD_PHOTO") {
+                const data = item.payload.data;
+                const photoUrl = `/api/consultancies/${slug}/nutricao/acompanhamento/fotos/${data.photoEventPublicId}`;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs space-y-3 transition-all hover:border-[var(--brand)]/40"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          <span>📷</span>
+                          <span>{data.mealTypeLabel || "Alimentação"}</span>
                         </span>
-                      )}
+                        <span className="text-xs text-[var(--text-secondary)]">
+                          {formatDateTime(item.occurredAt)}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-medium text-[var(--text-tertiary)]">
+                        Por {item.author.name}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                      <div className="w-full sm:w-48 shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={photoUrl}
+                          alt="Foto da refeição"
+                          className="w-full h-44 object-cover rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] cursor-pointer hover:opacity-95 transition-opacity"
+                          onClick={() => setSelectedPhotoPublicId(data.photoEventPublicId)}
+                          loading="lazy"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPhotoPublicId(data.photoEventPublicId)}
+                          className="mt-1.5 text-[11px] font-bold text-[var(--brand)] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>🔍</span>
+                          <span>Ampliar foto</span>
+                        </button>
+                      </div>
+
+                      <div className="flex-1 space-y-2 min-w-0">
+                        {data.caption ? (
+                          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                            <p className="text-xs sm:text-sm text-[var(--text-primary)] leading-relaxed italic">
+                              &quot;{data.caption}&quot;
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-[var(--text-tertiary)] italic">
+                            Sem anotações complementares do aluno.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (item.type === "PATIENT_NOTE" && item.payload.kind === "PATIENT_NOTE") {
+                const data = item.payload.data;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs space-y-2.5 transition-all hover:border-[var(--brand)]/40"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          <span>📝</span>
+                          <span>Observação do Paciente</span>
+                        </span>
+                        <span className="text-xs text-[var(--text-secondary)]">
+                          {formatDateTime(item.occurredAt)}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-medium text-[var(--text-tertiary)]">
+                        Por {item.author.name}
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                      <p className="text-xs sm:text-sm text-[var(--text-primary)] font-medium leading-relaxed whitespace-pre-wrap">
+                        {data.text}
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (item.type === "CHECKIN_RESPONSE" && item.payload.kind === "CHECKIN_RESPONSE") {
+                const data = item.payload.data;
+
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handleOpenDetail(data.responsePublicId)}
+                    className="bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] rounded-2xl p-4 sm:p-5 shadow-xs transition-all cursor-pointer group space-y-3"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                          <span>📋</span>
+                          <span>Check-in Respondido</span>
+                        </span>
+                        <span className="text-xs text-[var(--text-secondary)]">
+                          {formatDateTime(item.occurredAt)}
+                        </span>
+                        {renderAdherenceBadge(data.adherence)}
+                        {data.requestsHelp === true && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                            <span>⚠️</span>
+                            <span>Solicitou contato</span>
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-bold text-[var(--brand)] group-hover:underline">
+                        Ver detalhes →
+                      </span>
                     </div>
 
                     {/* Resumo de métricas preenchidas */}
                     <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-[var(--text-secondary)]">
-                      {item.hungerRating !== null && (
+                      {data.ratings.hunger !== null && (
                         <span className="px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px]">
-                          Fome: <strong>{item.hungerRating}/5</strong>
+                          Fome: <strong>{data.ratings.hunger}/5</strong>
                         </span>
                       )}
-                      {item.energyRating !== null && (
+                      {data.ratings.energy !== null && (
                         <span className="px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px]">
-                          Energia: <strong>{item.energyRating}/5</strong>
+                          Energia: <strong>{data.ratings.energy}/5</strong>
                         </span>
                       )}
-                      {item.sleepRating !== null && (
+                      {data.ratings.sleep !== null && (
                         <span className="px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px]">
-                          Sono: <strong>{item.sleepRating}/5</strong>
+                          Sono: <strong>{data.ratings.sleep}/5</strong>
                         </span>
                       )}
-                      {item.hydrationLiters !== null && (
+                      {data.ratings.training !== null && (
                         <span className="px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px]">
-                          Água: <strong>{item.hydrationLiters} L</strong>
+                          Treino: <strong>{data.ratings.training}/5</strong>
                         </span>
                       )}
-                      {item.selfReportedWeightKg !== null && (
+                      {data.hydrationLiters !== null && (
                         <span className="px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px]">
-                          Peso informado: <strong>{item.selfReportedWeightKg} kg</strong>
+                          Água: <strong>{data.hydrationLiters} L</strong>
+                        </span>
+                      )}
+                      {data.selfReportedWeightKg !== null && (
+                        <span className="px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[11px] text-blue-600 dark:text-blue-400">
+                          Peso informado: <strong>{data.selfReportedWeightKg} kg</strong> (autorrelatado)
                         </span>
                       )}
                     </div>
 
-                    {/* Dificuldade ou notas curtas se houver */}
-                    {item.difficultyText && (
-                      <p className="text-xs text-[var(--text-secondary)] line-clamp-1 italic pt-0.5">
-                        &quot;{item.difficultyText}&quot;
+                    {data.difficultyText && (
+                      <p className="text-xs text-[var(--text-secondary)] line-clamp-1 italic">
+                        &quot;{data.difficultyText}&quot;
                       </p>
                     )}
                   </div>
+                );
+              }
 
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                    <span className="text-xs font-semibold text-[var(--brand)] group-hover:underline">
-                      Ver detalhes →
-                    </span>
+              if (item.type === "CHECKIN_REQUEST" && item.payload.kind === "CHECKIN_REQUEST") {
+                const data = item.payload.data;
+                // Only render if not already shown as the primary pending request above
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 shadow-xs space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                          <span>📬</span>
+                          <span>Check-in Solicitado</span>
+                        </span>
+                        <span className="text-xs text-[var(--text-secondary)]">
+                          {formatDateTime(item.occurredAt)}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[var(--surface-subtle)] text-[var(--text-tertiary)]">
+                        {data.derivedState === "EXPIRED" ? "Expirado" : "Pendente"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Solicitado por {data.requestedByName}
+                      {data.dueAt && ` • Prazo até ${formatDate(data.dueAt)}`}
+                    </p>
                   </div>
-                </div>
-              </div>
-            ))}
+                );
+              }
+
+              return null;
+            })}
           </div>
         )}
       </div>
 
-      {/* Modal: Solicitar Check-in */}
+      {/* 5. Modal: Ampliar Foto em Alta Resolução */}
+      {selectedPhotoPublicId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setSelectedPhotoPublicId(null)}
+        >
+          <div
+            className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl max-w-3xl w-full p-4 sm:p-6 shadow-2xl space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                Foto de Refeição
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSelectedPhotoPublicId(null)}
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-lg font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex justify-center bg-black/20 rounded-2xl overflow-hidden max-h-[75vh]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/consultancies/${slug}/nutricao/acompanhamento/fotos/${selectedPhotoPublicId}`}
+                alt="Foto em alta resolução"
+                className="max-h-[75vh] w-auto object-contain rounded-xl"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Modal: Solicitar Check-in (Fase 7 Preservada) */}
       {isRequestModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-xl space-y-4">
@@ -448,20 +701,21 @@ export function PatientCheckinsTab({
         </div>
       )}
 
-      {/* Modal: Detalhe do Check-in */}
+      {/* 7. Modal: Detalhes Completos da Resposta do Check-in (Fase 7 Preservada) */}
       {selectedResponsePublicId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-xl space-y-4">
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)] font-heading">
-                  Detalhes do Check-in
+                  Respostas do Check-in
                 </h3>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  {detailData
-                    ? `Enviado em ${formatDateTime(detailData.response?.submittedAt)}`
-                    : "Carregando detalhes..."}
-                </p>
+                {detailData?.response && (
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    Enviado por {detailData.response.studentName || "Aluno"} em{" "}
+                    {formatDateTime(detailData.response.submittedAt)}
+                  </p>
+                )}
               </div>
               <button
                 type="button"
@@ -475,203 +729,182 @@ export function PatientCheckinsTab({
               </button>
             </div>
 
-            {isLoadingDetail || !detailData?.response ? (
-              <div className="py-8 text-center text-xs text-[var(--text-secondary)]">
-                Carregando informações...
+            {isLoadingDetail || !detailData || !detailData.response ? (
+              <div className="py-12 text-center text-xs text-[var(--text-secondary)] animate-pulse">
+                Carregando detalhes do check-in...
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* Alerta de solicitação de ajuda */}
-                {detailData.response.requestsHelp === true && (
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center gap-2 text-xs font-bold text-amber-600 dark:text-amber-400">
-                    <span className="text-base">⚠️</span>
-                    <span>O aluno solicitou contato da nutricionista antes do próximo retorno.</span>
-                  </div>
-                )}
+              <CheckinResponseModalBody response={detailData.response} renderBadge={renderAdherenceBadge} />
+            )}
 
-                {/* Grade de Percepções & Métricas */}
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium block">
-                      Adesão ao plano
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {CHECKIN_ADHERENCE_LABELS[detailData.response.adherence]}
-                      </span>
-                      {detailData.previousResponseSummary && (
-                        <span className="text-[10px] text-[var(--text-tertiary)]">
-                          (ant: {CHECKIN_ADHERENCE_LABELS[detailData.previousResponseSummary.adherence]})
-                        </span>
-                      )}
-                    </div>
-                  </div>
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedResponsePublicId(null);
+                  setDetailData(null);
+                }}
+                className="px-4 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-xs font-semibold text-[var(--text-secondary)] transition-all cursor-pointer min-h-[44px]"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
-                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium block">
-                      Fome percebida
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {detailData.response.hungerRating !== null
-                          ? `${detailData.response.hungerRating}/5 (${CHECKIN_RATING_LABELS[detailData.response.hungerRating]})`
-                          : "Não informado"}
-                      </span>
-                      {detailData.previousResponseSummary &&
-                        detailData.previousResponseSummary.hungerRating !== null &&
-                        detailData.response.hungerRating !== null && (
-                          <span className="text-[10px] text-[var(--text-tertiary)]">
-                            (ant: {detailData.previousResponseSummary.hungerRating}/5)
-                          </span>
-                        )}
-                    </div>
-                  </div>
+function CheckinResponseModalBody({
+  response,
+  renderBadge,
+}: {
+  response: NonNullable<CheckinDetailDto["response"]>;
+  renderBadge: (level: CheckinAdherenceLevel | string) => React.ReactNode;
+}) {
+  return (
+    <div className="space-y-5 text-xs">
+      {/* 1. Nível de Adesão */}
+      <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+          Adesão ao Plano Alimentar
+        </span>
+        <div className="flex items-center gap-2">
+          {renderBadge(response.adherence)}
+        </div>
+      </div>
 
-                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium block">
-                      Disposição / Energia
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {detailData.response.energyRating !== null
-                          ? `${detailData.response.energyRating}/5 (${CHECKIN_ENERGY_LABELS[detailData.response.energyRating]})`
-                          : "Não informado"}
-                      </span>
-                      {detailData.previousResponseSummary &&
-                        detailData.previousResponseSummary.energyRating !== null &&
-                        detailData.response.energyRating !== null && (
-                          <span className="text-[10px] text-[var(--text-tertiary)]">
-                            (ant: {detailData.previousResponseSummary.energyRating}/5)
-                          </span>
-                        )}
-                    </div>
-                  </div>
+      {/* 2. Percepções Autorrelatadas */}
+      <div className="space-y-2">
+        <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] px-1">
+          Percepções Autorrelatadas (1 a 5)
+        </h4>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+            <span className="text-[10px] text-[var(--text-secondary)] block">Fome</span>
+            <span className="text-sm font-bold text-[var(--text-primary)]">
+              {response.hungerRating !== null
+                ? `${response.hungerRating}/5 (${CHECKIN_RATING_LABELS[response.hungerRating as 1] || ""})`
+                : "Não informado"}
+            </span>
+          </div>
 
-                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium block">
-                      Qualidade do sono
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {detailData.response.sleepRating !== null
-                          ? `${detailData.response.sleepRating}/5 (${CHECKIN_SLEEP_LABELS[detailData.response.sleepRating]})`
-                          : "Não informado"}
-                      </span>
-                      {detailData.previousResponseSummary &&
-                        detailData.previousResponseSummary.sleepRating !== null &&
-                        detailData.response.sleepRating !== null && (
-                          <span className="text-[10px] text-[var(--text-tertiary)]">
-                            (ant: {detailData.previousResponseSummary.sleepRating}/5)
-                          </span>
-                        )}
-                    </div>
-                  </div>
+          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+            <span className="text-[10px] text-[var(--text-secondary)] block">Energia</span>
+            <span className="text-sm font-bold text-[var(--text-primary)]">
+              {response.energyRating !== null
+                ? `${response.energyRating}/5 (${CHECKIN_ENERGY_LABELS[response.energyRating as 1] || ""})`
+                : "Não informado"}
+            </span>
+          </div>
 
-                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium block">
-                      Rotina de treinos
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {detailData.response.trainingRating !== null
-                          ? `${detailData.response.trainingRating}/5 (${CHECKIN_TRAINING_LABELS[detailData.response.trainingRating]})`
-                          : "Não informado"}
-                      </span>
-                      {detailData.previousResponseSummary &&
-                        detailData.previousResponseSummary.trainingRating !== null &&
-                        detailData.response.trainingRating !== null && (
-                          <span className="text-[10px] text-[var(--text-tertiary)]">
-                            (ant: {detailData.previousResponseSummary.trainingRating}/5)
-                          </span>
-                        )}
-                    </div>
-                  </div>
+          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+            <span className="text-[10px] text-[var(--text-secondary)] block">Sono</span>
+            <span className="text-sm font-bold text-[var(--text-primary)]">
+              {response.sleepRating !== null
+                ? `${response.sleepRating}/5 (${CHECKIN_SLEEP_LABELS[response.sleepRating as 1] || ""})`
+                : "Não informado"}
+            </span>
+          </div>
 
-                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium block">
-                      Hidratação
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {detailData.response.hydrationLiters !== null
-                          ? `${detailData.response.hydrationLiters} L / dia`
-                          : "Não informado"}
-                      </span>
-                      {detailData.previousResponseSummary &&
-                        detailData.previousResponseSummary.hydrationLiters !== null &&
-                        detailData.response.hydrationLiters !== null && (
-                          <span className="text-[10px] text-[var(--text-tertiary)]">
-                            (ant: {detailData.previousResponseSummary.hydrationLiters} L)
-                          </span>
-                        )}
-                    </div>
-                  </div>
-                </div>
+          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+            <span className="text-[10px] text-[var(--text-secondary)] block">Treino</span>
+            <span className="text-sm font-bold text-[var(--text-primary)]">
+              {response.trainingRating !== null
+                ? `${response.trainingRating}/5 (${CHECKIN_TRAINING_LABELS[response.trainingRating as 1] || ""})`
+                : "Não informado"}
+            </span>
+          </div>
+        </div>
+      </div>
 
-                {/* Peso Autorreferido (preservação estrita da origem) */}
-                <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                  <span className="text-[11px] text-[var(--text-tertiary)] font-medium block">
-                    Peso informado pelo aluno (autorrelato):
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-bold text-[var(--text-primary)]">
-                      {detailData.response.selfReportedWeightKg !== null
-                        ? `${detailData.response.selfReportedWeightKg} kg`
-                        : "Não informado"}
-                    </span>
-                    {detailData.previousResponseSummary &&
-                      detailData.previousResponseSummary.selfReportedWeightKg !== null &&
-                      detailData.response.selfReportedWeightKg !== null && (
-                        <span className="text-xs text-[var(--text-tertiary)]">
-                          (ant: {detailData.previousResponseSummary.selfReportedWeightKg} kg)
-                        </span>
-                      )}
-                  </div>
-                  <p className="text-[10px] text-[var(--text-tertiary)] pt-0.5">
-                    * Registro autorreferido pelo aluno. Não substitui a medição antropométrica clínica oficial.
-                  </p>
-                </div>
+      {/* 3. Métricas Físicas Autorreferidas */}
+      <div className="space-y-2">
+        <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] px-1">
+          Métricas Físicas Autorreferidas
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+            <span className="text-[10px] text-[var(--text-secondary)] block">
+              Consumo Médio de Água
+            </span>
+            <span className="text-sm font-bold text-[var(--text-primary)]">
+              {response.hydrationLiters !== null
+                ? `${response.hydrationLiters} L / dia`
+                : "Não informado"}
+            </span>
+          </div>
 
-                {/* Dificuldade */}
-                {detailData.response.difficultyText && (
-                  <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium block">
-                      Principal dificuldade relatada:
-                    </span>
-                    <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                      {detailData.response.difficultyText}
-                    </p>
-                  </div>
-                )}
-
-                {/* Observações do aluno */}
-                {detailData.response.studentNotes && (
-                  <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium block">
-                      Observações adicionais do aluno:
-                    </span>
-                    <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                      {detailData.response.studentNotes}
-                    </p>
-                  </div>
-                )}
-
-                {/* Footer do modal */}
-                <div className="pt-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedResponsePublicId(null);
-                      setDetailData(null);
-                    }}
-                    className="px-5 py-2 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] cursor-pointer min-h-[40px]"
-                  >
-                    Fechar
-                  </button>
-                </div>
-              </div>
+          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+            <span className="text-[10px] text-[var(--text-secondary)] block">
+              Peso Informado pelo Paciente
+            </span>
+            <span className="text-sm font-bold text-[var(--text-primary)]">
+              {response.selfReportedWeightKg !== null
+                ? `${response.selfReportedWeightKg} kg`
+                : "Não informado"}
+            </span>
+            {response.selfReportedWeightKg !== null && (
+              <span className="text-[10px] text-[var(--text-tertiary)] block">
+                Dado autorreferido — não altera a antropometria clínica oficial.
+              </span>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* 4. Relato Textual */}
+      <div className="space-y-2">
+        <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] px-1">
+          Relato do Aluno
+        </h4>
+        <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-3">
+          {response.difficultyText && (
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                Dificuldades enfrentadas:
+              </span>
+              <p className="text-xs text-[var(--text-primary)] mt-1 whitespace-pre-wrap leading-relaxed">
+                {response.difficultyText}
+              </p>
+            </div>
+          )}
+
+          {response.studentNotes && (
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                Observações gerais:
+              </span>
+              <p className="text-xs text-[var(--text-primary)] mt-1 whitespace-pre-wrap leading-relaxed">
+                {response.studentNotes}
+              </p>
+            </div>
+          )}
+
+          {!response.difficultyText && !response.studentNotes && (
+            <p className="text-xs text-[var(--text-secondary)] italic">
+              Nenhum relato textual foi adicionado pelo aluno.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* 5. Solicitação de Contato */}
+      {response.requestsHelp !== null && (
+        <div
+          className={`p-3.5 rounded-2xl border flex items-center gap-2.5 ${
+            response.requestsHelp
+              ? "bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-300 font-semibold"
+              : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-secondary)]"
+          }`}
+        >
+          <span>{response.requestsHelp ? "⚠️" : "✓"}</span>
+          <span>
+            {response.requestsHelp
+              ? "O aluno solicitou contato/ajuda do profissional neste check-in."
+              : "O aluno não solicitou contato especial nesta resposta."}
+          </span>
         </div>
       )}
     </div>

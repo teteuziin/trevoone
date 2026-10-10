@@ -157,6 +157,7 @@ export async function runApisSuite() {
     "app/api/consultancies/[slug]/consultations/[consultationPublicId]/signaling/messages/route.ts",
     "app/api/consultancies/[slug]/consultations/[consultationPublicId]/signaling/session/route.ts",
     "app/api/consultancies/[slug]/logo/route.ts",
+    "app/api/consultancies/[slug]/nutricao/acompanhamento/fotos/[eventPublicId]/route.ts",
     "app/api/consultancies/[slug]/nutricao/pdf/route.ts",
     "app/api/consultancies/[slug]/photo-evaluations/[requestPublicId]/images/[pose]/route.ts",
     "app/api/consultancies/[slug]/students/route.ts",
@@ -178,8 +179,8 @@ export async function runApisSuite() {
     "app/r/[code]/route.ts",
   ];
 
-  runTest(`API AUDIT: Exactly 30 API route files verified and exist on filesystem`, () => {
-    assert.equal(allApiRoutes.length, 30, "Must audit all 30 discovered API routes");
+  runTest(`API AUDIT: Exactly 31 API route files verified and exist on filesystem`, () => {
+    assert.equal(allApiRoutes.length, 31, "Must audit all 31 discovered API routes");
     for (const routePath of allApiRoutes) {
       assert(fs.existsSync(path.resolve(routePath)), `API route file must exist: ${routePath}`);
     }

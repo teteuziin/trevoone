@@ -5,6 +5,8 @@ import { resolveStudentModuleAccess } from "@/lib/consultancies/student-module-a
 import { getStudentAuthoritativeNutrition } from "@/lib/nutrition-v2/assignment-repository";
 import { StudentModuleAccessPanel } from "@/components/consultancies/student-module-access-panel";
 import { StudentNutritionV2 } from "@/components/consultancies/nutrition-v2/student-nutrition-v2";
+import { StudentFollowupTrigger } from "@/components/consultancies/nutrition-v2/student-followup-trigger";
+import { getPendingCheckinForStudent } from "@/lib/nutrition-v2/checkin-repository";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -76,6 +78,10 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
   // A. Prescrição V2 ativa -> renderiza Nutrition V2
   // B. Sem prescrição V2 ativa (com ou sem histórico prévio) -> estado sem plano ativo (ZERO fallback V1)
   const v2Auth = await getStudentAuthoritativeNutrition(session.userId, slug);
+  const pendingCheckin = await getPendingCheckinForStudent(
+    access.context.consultancyId,
+    access.context.membershipId
+  );
 
   return (
     <ConsultancyAppShell
@@ -103,16 +109,22 @@ export default async function StudentNutricaoPage({ params }: PageProps) {
             userPublicId={session.userPublicId}
             consultancyPublicId={access.context.consultancyPublicId}
             role="STUDENT"
+            pendingCheckinRequestPublicId={pendingCheckin?.publicId}
           />
         ) : (
           <div className="space-y-6">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <Link
                 href={`/consultoria/${access.context.consultancySlug}`}
                 className="inline-flex items-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               >
                 ← Voltar ao painel
               </Link>
+
+              <StudentFollowupTrigger
+                consultancySlug={access.context.consultancySlug}
+                pendingCheckinRequestPublicId={pendingCheckin?.publicId}
+              />
             </div>
             <PageHeader
               title="Seu Plano Alimentar"

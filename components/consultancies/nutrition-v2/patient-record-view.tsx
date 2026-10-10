@@ -94,7 +94,7 @@ export function PatientRecordView({
   const [detail, setDetail] = useState<PatientRecordDetail>(initialDetail);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (initialTab === "consultas") return "consultas";
-    if (initialTab === "checkins") return "checkins";
+    if (initialTab === "checkins" || initialTab === "acompanhamento") return "checkins";
     if (initialTab === "planejamento") return "planejamento";
     if (initialTab === "plano") return "plano";
     if (initialTab === "antropometria") return "antropometria";
@@ -759,7 +759,7 @@ export function PatientRecordView({
           [
             { id: "resumo", label: "Resumo Geral" },
             { id: "consultas", label: "Consultas" },
-            { id: "checkins", label: "Check-ins" },
+            { id: "checkins", label: "Acompanhamento" },
             { id: "planejamento", label: "Planejamento" },
             { id: "plano", label: activePlan ? "Plano Ativo" : "Plano Alimentar" },
             { id: "clinico", label: "Histórico Clínico" },

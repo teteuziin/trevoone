@@ -7,6 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "qa:full": "node --env-file=.env.local scripts/qa-runner.mjs",
+    "qa:unit": "node --env-file=.env.local scripts/qa-runner.mjs --unit",
     "nutrition:import:taco": "node scripts/import-taco.mjs"
   },
   "dependencies": {

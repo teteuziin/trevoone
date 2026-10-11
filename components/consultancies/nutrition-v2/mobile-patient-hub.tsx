@@ -40,6 +40,13 @@ import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinic
 import { PatientCheckinsTab } from "./patient-checkins-tab";
 import type { PatientCheckinsHubSummaryDto } from "@/lib/nutrition-v2/checkin-types";
 import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
+import { PatientGeneralSummaryTab } from "./patient-general-summary-tab";
+import type { PatientFollowupHubSummaryDto } from "@/lib/nutrition-v2/followup-types";
+import {
+  BMR_FORMULA_METADATA,
+  ACTIVITY_LEVEL_DEFINITIONS,
+  GOAL_TYPE_DEFINITIONS,
+} from "@/lib/nutrition-v2/patient-planning-types";
 
 export type MobilePatientTab = "resumo" | "consultas" | "checkins" | "prontuario" | "planejamento" | "plano" | "evolucao";
 export type ClinicalSubTab =
@@ -78,6 +85,7 @@ export interface MobilePatientHubProps {
   initialStaleStatus?: PatientPlanningStaleStatus | null;
   initialConsultationsSummary?: PatientConsultationHubSummaryDto | null;
   initialCheckinsSummary?: PatientCheckinsHubSummaryDto | null;
+  initialFollowupSummary?: PatientFollowupHubSummaryDto | null;
   initialAppointmentPublicId?: string;
   canAuthor?: boolean;
   autosaveStatus?: AutosaveStatus;
@@ -120,6 +128,7 @@ export function MobilePatientHub({
   initialStaleStatus,
   initialConsultationsSummary = null,
   initialCheckinsSummary = null,
+  initialFollowupSummary = null,
   initialAppointmentPublicId,
   canAuthor = true,
   autosaveStatus,
@@ -341,220 +350,54 @@ export function MobilePatientHub({
 
       {/* =========================================================================
           3. TAB 1: [ RESUMO ]
-          Visão compacta sem dashboard gigante de cards
+          Resumo Clínico consolidado do paciente com Plano Alimentar Vigente e Ações Rápidas
           ========================================================================= */}
       {activeTab === "resumo" && (
-        <div className="space-y-3.5" data-testid="mobile-tab-resumo">
-          {/* Card Resumo do Paciente */}
-          <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3 shadow-2xs depth-surface">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
-              Resumo Clínico
-            </span>
-
-            <div className="grid grid-cols-2 gap-2.5 text-xs">
-              <div className="p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                  Objetivo
-                </span>
-                <span className="font-semibold text-[var(--text-primary)] block truncate">
-                  {detail.record.mainObjective || detail.onboardingReference?.mainObjective || "—"}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                  Último Peso
-                </span>
-                <span className="font-bold text-[var(--text-primary)] block tabular-nums">
-                  {latestAnthro?.weightKg !== null && latestAnthro?.weightKg !== undefined
-                    ? `${latestAnthro.weightKg} kg`
-                    : detail.onboardingReference?.reportedWeightKg
-                    ? `${detail.onboardingReference.reportedWeightKg} kg`
-                    : "—"}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between text-xs">
-              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">
-                Status Anamnese
-              </span>
-              <span className="font-bold text-[var(--text-primary)]">
-                {detail.onboardingReference?.hasOnboardingData
-                  ? "Anamnese Vinculada"
-                  : detail.record.occupation || detail.record.clinicalObservations
-                  ? "Prontuário Preenchido"
-                  : "Pendente"}
-              </span>
-            </div>
-          </div>
-
-            {/* Card Plano Alimentar Vigente */}
-          <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--brand)]/30 space-y-3 shadow-2xs depth-surface">
-            <div className="flex items-start justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
-              <div className="min-w-0">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--brand)] block">
-                  Plano Alimentar Vigente
-                </span>
-                <h2 className="text-sm font-bold text-[var(--text-primary)] truncate mt-0.5">
-                  {activePlan ? activePlan.versionTitle : "Nenhum plano alimentar ativo"}
-                </h2>
-              </div>
-              {activePlan ? (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-default)]">
-                    V{activePlan.versionNumber}
-                  </span>
-                  <Badge variant="success" size="sm" className="text-[10px] font-semibold">
-                    Ativo
-                  </Badge>
-                </div>
-              ) : (
-                <Badge variant="neutral" size="sm" className="shrink-0 text-[10px]">
-                  Sem plano
-                </Badge>
-              )}
-            </div>
-
-            {/* Aviso discreto de rascunho em andamento no Resumo */}
-            {draftPlan && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 block">
-                    Alteração em andamento
-                  </span>
-                  <Badge variant="warning" size="sm" className="text-[9px] font-semibold">
-                    Rascunho
-                  </Badge>
-                </div>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Existe uma alteração sendo preparada para esta paciente.
-                </p>
-                <Link
-                  href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
-                  onClick={() => onFlushSave?.()}
-                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-bold text-xs text-[var(--text-inverse)] bg-amber-600 hover:bg-amber-700 min-h-[38px] cursor-pointer"
-                >
-                  <span>Continuar edição</span>
-                  <span aria-hidden="true">→</span>
-                </Link>
-              </div>
-            )}
-
-            {activePlan ? (
-              <>
-                <div className="grid grid-cols-4 gap-1.5 text-center">
-                  <div className="p-2 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Kcal</span>
-                    <span className="font-extrabold text-xs text-[var(--text-primary)] tabular-nums block truncate">
-                      {activePlan.totals.caloriesKcal !== null && activePlan.totals.caloriesKcal !== undefined
-                        ? `${activePlan.totals.caloriesKcal}`
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Proteína</span>
-                    <span className="font-extrabold text-xs text-[var(--text-primary)] tabular-nums block truncate">
-                      {activePlan.totals.proteinG !== null && activePlan.totals.proteinG !== undefined
-                        ? `${activePlan.totals.proteinG}g`
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Carbo</span>
-                    <span className="font-extrabold text-xs text-[var(--text-primary)] tabular-nums block truncate">
-                      {activePlan.totals.carbohydrateG !== null && activePlan.totals.carbohydrateG !== undefined
-                        ? `${activePlan.totals.carbohydrateG}g`
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                    <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">Gordura</span>
-                    <span className="font-extrabold text-xs text-[var(--text-primary)] tabular-nums block truncate">
-                      {activePlan.totals.fatG !== null && activePlan.totals.fatG !== undefined
-                        ? `${activePlan.totals.fatG}g`
-                        : "—"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <Button
-                    variant="primary"
-                    size="md"
-                    disabled={isStartingEdit}
-                    onClick={handleStartEditPlan}
-                    className="w-full font-bold text-xs min-h-[44px] shadow-xs cursor-pointer depth-interactive"
-                  >
-                    {isStartingEdit ? "Abrindo..." : "Editar plano"}
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("plano")}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-secondary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[40px] cursor-pointer"
-                  >
-                    <span>Abrir plano</span>
-                    <span aria-hidden="true">→</span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <Button
-                variant="primary"
-                size="md"
-                disabled={isCreatingScratch}
-                onClick={handleCreatePlanFromScratch}
-                className="w-full font-bold text-xs min-h-[44px] shadow-xs cursor-pointer depth-interactive"
-              >
-                {isCreatingScratch ? "Criando plano..." : "Prescrever plano"}
-              </Button>
-            )}
-          </div>
-
-          {/* Ações Rápidas */}
-          <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] space-y-2.5 shadow-2xs depth-surface">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)] block">
-              Ações Rápidas
-            </span>
-
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab("prontuario")}
-                className="w-full inline-flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer transition-colors"
-              >
-                <span>Abrir prontuário clínico</span>
-                <span aria-hidden="true">→</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("checkins")}
-                className="w-full inline-flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer transition-colors"
-              >
-                <span>Acompanhamento do paciente</span>
-                <span aria-hidden="true">→</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("plano")}
-                className="w-full inline-flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer transition-colors"
-              >
-                <span>{activePlan ? "Ver detalhes do plano" : "Prescrever plano"}</span>
-                <span aria-hidden="true">→</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("evolucao")}
-                className="w-full inline-flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer transition-colors"
-              >
-                <span>Ver evolução física</span>
-                <span aria-hidden="true">→</span>
-              </button>
-            </div>
-          </div>
+        <div className="space-y-4" data-testid="mobile-tab-resumo">
+          <PatientGeneralSummaryTab
+            slug={slug}
+            detail={detail}
+            activePlan={activePlan}
+            draftPlan={draftPlan}
+            planning={initialPlanning}
+            staleStatus={initialStaleStatus}
+            consultationsSummary={initialConsultationsSummary}
+            checkinsSummary={initialCheckinsSummary}
+            followupSummary={initialFollowupSummary}
+            evolutionComparisonData={evolutionComparisonData}
+            clinicalForm={clinicalForm}
+            canAuthor={canAuthor}
+            onNavigateTab={(tab) => {
+              onFlushSave?.();
+              if (
+                tab === "clinico" ||
+                tab === "alimentar" ||
+                tab === "estilo_vida" ||
+                tab === "antropometria" ||
+                tab === "gestacao" ||
+                tab === "calculos"
+              ) {
+                setActiveTab("prontuario");
+                setClinicalSubTab(tab as ClinicalSubTab);
+              } else if (
+                tab === "resumo" ||
+                tab === "consultas" ||
+                tab === "checkins" ||
+                tab === "planejamento" ||
+                tab === "plano" ||
+                tab === "evolucao"
+              ) {
+                setActiveTab(tab as MobilePatientTab);
+              }
+            }}
+            onAddAnthropometry={onAddAnthropometry}
+            onStartEditPlan={handleStartEditPlan}
+            onCreatePlanFromScratch={handleCreatePlanFromScratch}
+            onDiscardDraft={handleDiscardDraft}
+            isStartingEditPlan={isStartingEdit}
+            isDiscardingDraft={isDiscardingDraft}
+            isCreatingScratch={isCreatingScratch}
+          />
         </div>
       )}
 
@@ -1154,6 +997,107 @@ export function MobilePatientHub({
                   />
                 </div>
               </div>
+
+              {/* Card TMB */}
+              <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                    Taxa Metabólica Basal (TMB)
+                  </span>
+                  {initialPlanning?.bmrKcal ? (
+                    <Badge variant="brand" size="sm" className="text-[10px]">Calculada</Badge>
+                  ) : (
+                    <Badge variant="neutral" size="sm" className="text-[10px]">Pendente</Badge>
+                  )}
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xl font-extrabold text-[var(--text-primary)] tabular-nums">
+                    {initialPlanning?.bmrKcal ? `${Math.round(initialPlanning.bmrKcal)} kcal` : "TMB não calculada"}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)] font-medium">
+                    {initialPlanning?.bmrFormula ? (BMR_FORMULA_METADATA[initialPlanning.bmrFormula]?.name || initialPlanning.bmrFormula) : "Fórmula pendente"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card GET / TDEE */}
+              <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                    Gasto Energético Total (GET)
+                  </span>
+                  {initialPlanning?.tdeeKcal ? (
+                    <Badge variant="brand" size="sm" className="text-[10px]">Calculado</Badge>
+                  ) : (
+                    <Badge variant="neutral" size="sm" className="text-[10px]">Pendente</Badge>
+                  )}
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xl font-extrabold text-[var(--text-primary)] tabular-nums">
+                    {initialPlanning?.tdeeKcal ? `${Math.round(initialPlanning.tdeeKcal)} kcal` : "GET não calculado"}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)] font-medium">
+                    {initialPlanning?.activityLevel ? (ACTIVITY_LEVEL_DEFINITIONS[initialPlanning.activityLevel]?.label || initialPlanning.activityLevel) : "Atividade pendente"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card Meta Calórica & Macros */}
+              <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                    Meta Calórica Oficial
+                  </span>
+                  {initialPlanning?.targetCaloriesKcal ? (
+                    <Badge variant="brand" size="sm" className="text-[10px]">Definida</Badge>
+                  ) : (
+                    <Badge variant="neutral" size="sm" className="text-[10px]">Pendente</Badge>
+                  )}
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xl font-extrabold text-[var(--brand)] tabular-nums">
+                    {initialPlanning?.targetCaloriesKcal ? `${initialPlanning.targetCaloriesKcal} kcal/dia` : "Meta não definida"}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)] font-medium">
+                    {initialPlanning?.goalType ? (GOAL_TYPE_DEFINITIONS[initialPlanning.goalType]?.label || initialPlanning.goalType) : "Objetivo pendente"}
+                  </span>
+                </div>
+
+                {initialPlanning?.targetCaloriesKcal && (initialPlanning.targetProteinG !== null || initialPlanning.targetCarbsG !== null || initialPlanning.targetFatsG !== null) && (
+                  <div className="grid grid-cols-3 gap-1.5 pt-1 text-center">
+                    <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <span className="text-[9px] uppercase font-bold text-blue-700 dark:text-blue-300 block">P</span>
+                      <strong className="text-xs text-[var(--text-primary)] block tabular-nums">
+                        {initialPlanning.targetProteinG !== null ? `${initialPlanning.targetProteinG}g` : "—"}
+                      </strong>
+                    </div>
+                    <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <span className="text-[9px] uppercase font-bold text-amber-700 dark:text-amber-300 block">C</span>
+                      <strong className="text-xs text-[var(--text-primary)] block tabular-nums">
+                        {initialPlanning.targetCarbsG !== null ? `${initialPlanning.targetCarbsG}g` : "—"}
+                      </strong>
+                    </div>
+                    <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                      <span className="text-[9px] uppercase font-bold text-rose-700 dark:text-rose-300 block">G</span>
+                      <strong className="text-xs text-[var(--text-primary)] block tabular-nums">
+                        {initialPlanning.targetFatsG !== null ? `${initialPlanning.targetFatsG}g` : "—"}
+                      </strong>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onFlushSave?.();
+                  setActiveTab("planejamento");
+                }}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--brand)] bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] min-h-[44px] cursor-pointer"
+              >
+                <span>Ajustar Parâmetros no Planejamento</span>
+                <span aria-hidden="true">→</span>
+              </button>
             </div>
           )}
         </div>
@@ -1357,10 +1301,12 @@ export function MobilePatientHub({
                     href={`/consultoria/${slug}/planos-v2/${activePlan.planPublicId}?v=${activePlan.versionPublicId}`}
                     onClick={() => onFlushSave?.()}
                     className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-secondary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[40px] cursor-pointer"
+                    aria-label="Abrir plano"
                   >
                     <span>Abrir no Builder</span>
                     <span aria-hidden="true">→</span>
                   </Link>
+                  {/* Atalho mobile: Abrir plano */}
 
                   <Button
                     variant="secondary"

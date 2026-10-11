@@ -45,6 +45,13 @@ import { ClinicalConsultationTab } from "./clinical-consultation-tab";
 import type { PatientConsultationHubSummaryDto } from "@/lib/nutrition-v2/clinical-consultation-types";
 import { PatientCheckinsTab } from "./patient-checkins-tab";
 import type { PatientCheckinsHubSummaryDto } from "@/lib/nutrition-v2/checkin-types";
+import { PatientGeneralSummaryTab } from "./patient-general-summary-tab";
+import type { PatientFollowupHubSummaryDto } from "@/lib/nutrition-v2/followup-types";
+import {
+  BMR_FORMULA_METADATA,
+  ACTIVITY_LEVEL_DEFINITIONS,
+  GOAL_TYPE_DEFINITIONS,
+} from "@/lib/nutrition-v2/patient-planning-types";
 
 interface PatientRecordViewProps {
   slug: string;
@@ -58,6 +65,7 @@ interface PatientRecordViewProps {
   initialStaleStatus?: PatientPlanningStaleStatus | null;
   initialConsultationsSummary?: PatientConsultationHubSummaryDto | null;
   initialCheckinsSummary?: PatientCheckinsHubSummaryDto | null;
+  initialFollowupSummary?: PatientFollowupHubSummaryDto | null;
   initialAppointmentPublicId?: string;
   canAuthorNutrition?: boolean;
 }
@@ -87,6 +95,7 @@ export function PatientRecordView({
   initialStaleStatus,
   initialConsultationsSummary = null,
   initialCheckinsSummary = null,
+  initialFollowupSummary = null,
   initialAppointmentPublicId,
   canAuthorNutrition = true,
 }: PatientRecordViewProps) {
@@ -576,6 +585,7 @@ export function PatientRecordView({
           initialStaleStatus={initialStaleStatus}
           initialConsultationsSummary={initialConsultationsSummary}
           initialCheckinsSummary={initialCheckinsSummary}
+          initialFollowupSummary={initialFollowupSummary}
           initialAppointmentPublicId={initialAppointmentPublicId}
           canAuthor={canAuthorNutrition}
           autosaveStatus={autosaveStatus}
@@ -819,272 +829,32 @@ export function PatientRecordView({
 
       {/* TAB 1: RESUMO GERAL */}
       {activeTab === "resumo" && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6" onBlur={handleFieldBlur}>
-          <div className="md:col-span-2 space-y-6">
-            {/* Active Nutrition Plan Card in Resumo */}
-            <div className="rounded-xl border border-[var(--brand)]/30 bg-[var(--surface)] p-5 space-y-4 depth-surface">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center shrink-0">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v2m0 0a4.5 4.5 0 014.5 4.5c0 3-2 6-4.5 8.5C9.5 17 7.5 14 7.5 11a4.5 4.5 0 014.5-4.5zm0-2c1.5-1 3-.5 3-.5" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base font-bold text-[var(--text-primary)]">
-                        Plano Alimentar Vigente
-                      </h3>
-                      {activePlan ? (
-                        <Badge variant="brand" size="sm">
-                          Ativo
-                        </Badge>
-                      ) : (
-                        <Badge variant="neutral" size="sm">
-                          Sem plano ativo
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      {activePlan ? activePlan.versionTitle : "Nenhum plano alimentar prescrito para este paciente no momento."}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {draftPlan ? (
-                    <>
-                      <Link
-                        href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
-                        onClick={() => flushPendingSave()}
-                      >
-                        <Button variant="primary" size="sm" className="font-bold text-xs min-h-[36px]">
-                          Continuar Edição →
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={isDiscardingDraft}
-                        onClick={handleDiscardDraft}
-                        className="font-bold text-xs min-h-[36px] text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20"
-                      >
-                        {isDiscardingDraft ? "Descartando..." : "Descartar"}
-                      </Button>
-                    </>
-                  ) : activePlan ? (
-                    <>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={isStartingEdit}
-                        onClick={handleStartEditPlan}
-                        className="font-bold text-xs min-h-[36px]"
-                      >
-                        {isStartingEdit ? "Abrindo..." : "Editar Plano"}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={isCreatingScratch}
-                        onClick={handleCreatePlanFromScratch}
-                        className="font-bold text-xs min-h-[36px]"
-                      >
-                        {isCreatingScratch ? "Criando..." : "+ Novo Plano"}
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      disabled={isCreatingScratch}
-                      onClick={handleCreatePlanFromScratch}
-                      className="font-bold text-xs min-h-[36px]"
-                    >
-                      {isCreatingScratch ? "Criando..." : "+ Prescrever Primeiro Plano"}
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {activePlan && (
-                <>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                      <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Meta Calórica</span>
-                      <span className="font-extrabold text-[var(--text-primary)] text-base tabular-nums">
-                        {activePlan.totals.caloriesKcal ? `${activePlan.totals.caloriesKcal} kcal` : "—"}
-                      </span>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                      <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Proteínas</span>
-                      <span className="font-extrabold text-[var(--text-primary)] text-base tabular-nums">
-                        {activePlan.totals.proteinG ? `${activePlan.totals.proteinG} g` : "—"}
-                      </span>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                      <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Carboidratos</span>
-                      <span className="font-extrabold text-[var(--text-primary)] text-base tabular-nums">
-                        {activePlan.totals.carbohydrateG ? `${activePlan.totals.carbohydrateG} g` : "—"}
-                      </span>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
-                      <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Gorduras</span>
-                      <span className="font-extrabold text-[var(--text-primary)] text-base tabular-nums">
-                        {activePlan.totals.fatG ? `${activePlan.totals.fatG} g` : "—"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] pt-1 flex-wrap gap-2">
-                    <span>
-                      {activePlan.prescriberName && <>Prescrito por <strong>{activePlan.prescriberName}</strong> • </>}
-                      Início: {new Date(activePlan.startsOn).toLocaleDateString("pt-BR")}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("plano")}
-                      className="font-bold text-[var(--brand)] hover:underline cursor-pointer"
-                    >
-                      Ver {activePlan.mealsCount} refeições →
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
-              <h2 className="text-lg font-semibold text-foreground border-b border-border/20 pb-2">
-                Informações Clínicas de Entrada
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase font-medium">Profissão / Ocupação</label>
-                  <p className="font-medium text-foreground">{clinicalForm.occupation || "Não informada"}</p>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase font-medium">Objetivo Principal</label>
-                  <p className="font-medium text-foreground">{clinicalForm.mainObjective || "Não informado"}</p>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase font-medium">Motivo do Acompanhamento</label>
-                  <p className="text-foreground">{clinicalForm.followUpReason || "Não informado"}</p>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase font-medium">Alergias / Intolerâncias</label>
-                  <p className="text-foreground">{clinicalForm.foodAllergiesIntolerances || "Nenhuma registrada"}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
-              <h2 className="text-lg font-semibold text-foreground border-b border-border/20 pb-2">
-                Observações Clínicas Relevantes
-              </h2>
-              <textarea
-                value={clinicalForm.clinicalObservations || ""}
-                onChange={(e) =>
-                  setClinicalForm({ ...clinicalForm, clinicalObservations: e.target.value })
-                }
-                onBlur={handleFieldBlur}
-                rows={4}
-                className="w-full text-sm rounded-lg border border-border/50 bg-background p-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                placeholder="Anotações clínicas do nutricionista..."
-              />
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="rounded-xl border border-border/40 bg-muted/20 p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-foreground text-sm">Dados de Onboarding</h3>
-                <Badge variant="neutral" className="text-[10px]">
-                  Somente Leitura
-                </Badge>
-              </div>
-
-              {detail.onboardingReference.hasOnboardingData ? (
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">Data Nascimento:</span>{" "}
-                    <span className="font-medium text-foreground">
-                      {detail.onboardingReference.birthDate || "Não informada"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Sexo Informado:</span>{" "}
-                    <span className="font-medium text-foreground">
-                      {detail.onboardingReference.sex || "Não informado"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Peso Inicial Onboarding:</span>{" "}
-                    <span className="font-medium text-foreground">
-                      {detail.onboardingReference.reportedWeightKg
-                        ? `${detail.onboardingReference.reportedWeightKg} kg`
-                        : "Não informado"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Altura Onboarding:</span>{" "}
-                    <span className="font-medium text-foreground">
-                      {detail.onboardingReference.reportedHeightCm
-                        ? `${detail.onboardingReference.reportedHeightCm} cm`
-                        : "Não informada"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Queixas / Saúde:</span>{" "}
-                    <span className="text-foreground">
-                      {detail.onboardingReference.healthConditions || "Nenhuma"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Atividade Física:</span>{" "}
-                    <span className="text-foreground">
-                      {detail.onboardingReference.physicalActivity || "Não informada"}
-                    </span>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyFromOnboarding}
-                    className="w-full mt-2 text-xs"
-                  >
-                    Importar para Edição do Prontuário
-                  </Button>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Nenhum questionário de anamnese preenchido pelo aluno até o momento.
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3 text-xs">
-              <h4 className="font-medium text-foreground">Status do Paciente</h4>
-              <div className="flex flex-wrap gap-2">
-                {pregnancyForm.pregnancyStatus === "PREGNANT" && (
-                  <Badge className="bg-purple-600/20 text-purple-700 dark:text-purple-300 border-purple-500/30">
-                    Gestante {pregnancyForm.gestationalWeeks ? `(${pregnancyForm.gestationalWeeks} semanas)` : ""}
-                  </Badge>
-                )}
-                {pregnancyForm.pregnancyStatus === "POSTPARTUM" && (
-                  <Badge className="bg-pink-600/20 text-pink-700 dark:text-pink-300 border-pink-500/30">
-                    Pós-Parto
-                  </Badge>
-                )}
-                {detail.anthropometrics.length > 0 && (
-                  <Badge variant="neutral">
-                    Último peso: {detail.anthropometrics[0].weightKg} kg (
-                    {detail.anthropometrics[0].measurementDate})
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
+        <div onBlur={handleFieldBlur}>
+          <PatientGeneralSummaryTab
+            slug={slug}
+            detail={detail}
+            activePlan={activePlan}
+            draftPlan={draftPlan}
+            planning={initialPlanning}
+            staleStatus={initialStaleStatus}
+            consultationsSummary={initialConsultationsSummary}
+            checkinsSummary={initialCheckinsSummary}
+            followupSummary={initialFollowupSummary}
+            evolutionComparisonData={evolutionComparisonData}
+            clinicalForm={clinicalForm}
+            canAuthor={canAuthorNutrition}
+            onNavigateTab={(tab) => {
+              flushPendingSave();
+              setActiveTab(tab as TabType);
+            }}
+            onAddAnthropometry={() => setShowAddAnthro(true)}
+            onStartEditPlan={handleStartEditPlan}
+            onCreatePlanFromScratch={handleCreatePlanFromScratch}
+            onDiscardDraft={handleDiscardDraft}
+            isStartingEditPlan={isStartingEdit}
+            isDiscardingDraft={isDiscardingDraft}
+            isCreatingScratch={isCreatingScratch}
+          />
         </div>
       )}
 
@@ -2074,11 +1844,185 @@ export function PatientRecordView({
             </div>
           </div>
 
-          {/* Outros cálculos desativados até validação do protocolo clínico */}
-          <div className="rounded-2xl border border-border/50 bg-muted/20 p-5 text-xs text-muted-foreground">
-            <p>
-              Outros cálculos nutricionais serão disponibilizados após validação do protocolo clínico da plataforma.
-            </p>
+          {/* Card 2: TMB & GET/TDEE */}
+          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading text-lg font-bold text-[var(--text-primary)]">
+                    Taxa Metabólica Basal (TMB) & Gasto Energético Total (GET)
+                  </h3>
+                  {initialPlanning?.bmrKcal ? (
+                    <Badge variant="brand" size="sm">Calculado</Badge>
+                  ) : (
+                    <Badge variant="neutral" size="sm">Pendente</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Valores calculados no Planejamento Nutricional com base na fórmula clínica e no nível de atividade física.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  flushPendingSave();
+                  setActiveTab("planejamento");
+                }}
+                className="text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer"
+              >
+                Ajustar no Planejamento →
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
+                  TMB (Basal)
+                </span>
+                <span className="font-heading font-extrabold text-[var(--text-primary)] text-2xl tabular-nums block">
+                  {initialPlanning?.bmrKcal ? `${Math.round(initialPlanning.bmrKcal)} kcal` : "TMB não calculada"}
+                </span>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Fórmula: {initialPlanning?.bmrFormula ? (BMR_FORMULA_METADATA[initialPlanning.bmrFormula]?.name || initialPlanning.bmrFormula) : "Não definida"}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
+                  Fator de Atividade
+                </span>
+                <span className="font-heading font-extrabold text-[var(--text-primary)] text-xl block truncate">
+                  {initialPlanning?.activityLevel ? (ACTIVITY_LEVEL_DEFINITIONS[initialPlanning.activityLevel]?.label || initialPlanning.activityLevel) : "Não definido"}
+                </span>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Multiplicador: {initialPlanning?.activityLevel ? `${ACTIVITY_LEVEL_DEFINITIONS[initialPlanning.activityLevel]?.factor}x` : "—"}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
+                  GET / TDEE (Gasto Total)
+                </span>
+                <span className="font-heading font-extrabold text-[var(--text-primary)] text-2xl tabular-nums block">
+                  {initialPlanning?.tdeeKcal ? `${Math.round(initialPlanning.tdeeKcal)} kcal` : "GET não calculado"}
+                </span>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Gasto energético total diário estimado
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Meta Calórica e Macronutrientes */}
+          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading text-lg font-bold text-[var(--text-primary)]">
+                    Meta Calórica Oficial & Distribuição de Macronutrientes
+                  </h3>
+                  {initialPlanning?.targetCaloriesKcal ? (
+                    <Badge variant="brand" size="sm">Meta Definida</Badge>
+                  ) : (
+                    <Badge variant="neutral" size="sm">Meta Pendente</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Prescrição de calorias e distribuição planejada de macronutrientes para o objetivo do paciente.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  flushPendingSave();
+                  setActiveTab("planejamento");
+                }}
+                className="text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer"
+              >
+                Editar Parâmetros →
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
+                  Objetivo Nutricional
+                </span>
+                <span className="font-heading font-bold text-[var(--text-primary)] text-lg block">
+                  {initialPlanning?.goalType ? (GOAL_TYPE_DEFINITIONS[initialPlanning.goalType]?.label || initialPlanning.goalType) : "Objetivo não definido"}
+                </span>
+                {initialPlanning?.clinicalNotes && (
+                  <p className="text-[11px] text-[var(--text-secondary)] line-clamp-2">
+                    {initialPlanning.clinicalNotes}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-4 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-[var(--brand)] block">
+                  Meta Calórica Diária
+                </span>
+                <span className="font-heading font-extrabold text-[var(--brand)] text-2xl tabular-nums block">
+                  {initialPlanning?.targetCaloriesKcal ? `${initialPlanning.targetCaloriesKcal} kcal/dia` : "Meta calórica não definida"}
+                </span>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  {initialPlanning?.targetCaloriesKcal && initialPlanning?.tdeeKcal
+                    ? `${initialPlanning.targetCaloriesKcal > initialPlanning.tdeeKcal ? "Superávit" : "Déficit"} de ${Math.abs(Math.round(initialPlanning.targetCaloriesKcal - initialPlanning.tdeeKcal))} kcal em relação ao GET`
+                    : "Padrão normocalórico ou pendente de cálculo"}
+                </p>
+              </div>
+            </div>
+
+            {/* Distribuição de Macronutrientes */}
+            {initialPlanning?.targetCaloriesKcal && (initialPlanning.targetProteinG !== null || initialPlanning.targetCarbsG !== null || initialPlanning.targetFatsG !== null) ? (
+              <div className="grid grid-cols-3 gap-3 text-center text-xs pt-2">
+                <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-blue-700 dark:text-blue-300 block">
+                    Proteína
+                  </span>
+                  <span className="font-heading font-extrabold text-[var(--text-primary)] text-lg tabular-nums block">
+                    {initialPlanning.targetProteinG !== null ? `${initialPlanning.targetProteinG}g` : "—"}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)] block">
+                    {initialPlanning.targetProteinG !== null
+                      ? `${Math.round(initialPlanning.targetProteinG * 4)} kcal (${Math.round(((initialPlanning.targetProteinG * 4) / initialPlanning.targetCaloriesKcal) * 100)}%)`
+                      : "—"}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-300 block">
+                    Carboidrato
+                  </span>
+                  <span className="font-heading font-extrabold text-[var(--text-primary)] text-lg tabular-nums block">
+                    {initialPlanning.targetCarbsG !== null ? `${initialPlanning.targetCarbsG}g` : "—"}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)] block">
+                    {initialPlanning.targetCarbsG !== null
+                      ? `${Math.round(initialPlanning.targetCarbsG * 4)} kcal (${Math.round(((initialPlanning.targetCarbsG * 4) / initialPlanning.targetCaloriesKcal) * 100)}%)`
+                      : "—"}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-rose-700 dark:text-rose-300 block">
+                    Gordura
+                  </span>
+                  <span className="font-heading font-extrabold text-[var(--text-primary)] text-lg tabular-nums block">
+                    {initialPlanning.targetFatsG !== null ? `${initialPlanning.targetFatsG}g` : "—"}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)] block">
+                    {initialPlanning.targetFatsG !== null
+                      ? `${Math.round(initialPlanning.targetFatsG * 9)} kcal (${Math.round(((initialPlanning.targetFatsG * 9) / initialPlanning.targetCaloriesKcal) * 100)}%)`
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-center text-xs text-[var(--text-tertiary)]">
+                Distribuição de macronutrientes não definida ainda no planejamento deste paciente.
+              </div>
+            )}
           </div>
         </div>
       )}

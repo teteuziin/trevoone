@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useMemo, useTransition } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
 import type {
   PatientPlanning,
   PatientPlanningStaleStatus,
+  SavePatientPlanningInput,
   BmrFormulaCode,
   ActivityLevelCode,
   GoalTypeCode,
@@ -94,7 +96,6 @@ export function PatientPlanningTab({
   onPhysiologicalDataUpdated,
 }: PatientPlanningTabProps) {
   const [planning, setPlanning] = useState<PatientPlanning | null>(initialPlanning);
-  const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // 1. Current clinical data resolution (Release 3.1 canonical resolution)
@@ -375,49 +376,272 @@ export function PatientPlanningTab({
     }
   };
 
+  // Autosave state & references (P0 Autosave Standard: 500-800ms debounce, serialized server writes)
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
+  const [autosaveError, setAutosaveError] = useState<string | null>(null);
+
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isSavingRef = useRef<boolean>(false);
+  const pendingSaveRef = useRef<SavePatientPlanningInput | null>(null);
+  const saveSequenceRef = useRef<number>(0);
+  const lastSavedSnapshotRef = useRef<string>(
+    JSON.stringify({
+      bmrFormula: planning?.bmrFormula || BMR_FORMULAS.MIFFLIN_ST_JEOR_V1,
+      activityLevel: planning?.activityLevel || "",
+      goalType: planning?.goalType || "",
+      calorieAdjustment: planning?.calorieAdjustmentKcal !== null && planning?.calorieAdjustmentKcal !== undefined ? String(planning.calorieAdjustmentKcal) : "",
+      isManualOverride: planning?.targetCaloriesSource === "MANUAL",
+      manualCalorieTarget: planning?.targetCaloriesSource === "MANUAL" && planning?.targetCaloriesKcal !== null && planning?.targetCaloriesKcal !== undefined ? String(planning.targetCaloriesKcal) : "",
+      proteinG: planning?.targetProteinG !== null && planning?.targetProteinG !== undefined ? String(planning.targetProteinG) : "",
+      carbsG: planning?.targetCarbsG !== null && planning?.targetCarbsG !== undefined ? String(planning.targetCarbsG) : "",
+      fatsG: planning?.targetFatsG !== null && planning?.targetFatsG !== undefined ? String(planning.targetFatsG) : "",
+      clinicalNotes: (planning?.clinicalNotes || "").trim(),
+      forcedRecalcSnapshot: false,
+    })
+  );
+  const isMountedRef = useRef<boolean>(false);
+  const isUnmountedRef = useRef<boolean>(false);
+
+  // Authoritative payload for persistence
+  const currentPlanningPayload = useMemo(() => {
+    return {
+      patientRecordId,
+      calculatedAt: computedBMR ? new Date().toISOString() : planning?.calculatedAt || null,
+      snapshotWeightKg: currentWeightKg,
+      snapshotHeightCm: currentHeightCm,
+      snapshotAgeYears: currentAgeYears,
+      snapshotBiologicalSex: currentBiologicalSex,
+      bmrFormula: computedBMR ? bmrFormula : planning?.bmrFormula || null,
+      bmrKcal: computedBMR ?? planning?.bmrKcal ?? null,
+      activityLevel: activityLevel || null,
+      activityFactor: selectedActivityFactor,
+      tdeeKcal: computedTDEE ?? planning?.tdeeKcal ?? null,
+      goalType: goalType || null,
+      calorieAdjustmentKcal: parsedAdjustment,
+      calculatedTargetCaloriesKcal: computedCalculatedTarget,
+      targetCaloriesKcal: effectiveTargetCalories,
+      targetCaloriesSource: effectiveTargetSource,
+      targetProteinG: parsedProteinG,
+      targetCarbsG: parsedCarbsG,
+      targetFatsG: parsedFatsG,
+      clinicalNotes: clinicalNotes.trim() || null,
+    };
+  }, [
+    patientRecordId,
+    computedBMR,
+    planning?.calculatedAt,
+    planning?.bmrFormula,
+    planning?.bmrKcal,
+    planning?.tdeeKcal,
+    currentWeightKg,
+    currentHeightCm,
+    currentAgeYears,
+    currentBiologicalSex,
+    bmrFormula,
+    activityLevel,
+    selectedActivityFactor,
+    computedTDEE,
+    goalType,
+    parsedAdjustment,
+    computedCalculatedTarget,
+    effectiveTargetCalories,
+    effectiveTargetSource,
+    parsedProteinG,
+    parsedCarbsG,
+    parsedFatsG,
+    clinicalNotes,
+  ]);
+
+  const processSaveQueue = useCallback(async () => {
+    if (!canAuthor) return;
+    if (isSavingRef.current) return;
+    if (!pendingSaveRef.current) return;
+
+    isSavingRef.current = true;
+    if (!isUnmountedRef.current) {
+      setAutosaveStatus("saving");
+      setAutosaveError(null);
+    }
+
+    while (pendingSaveRef.current) {
+      const payloadToSave = pendingSaveRef.current;
+      pendingSaveRef.current = null;
+
+      const currentSeq = ++saveSequenceRef.current;
+      try {
+        const res = await savePatientPlanningAction(slug, studentPublicId, payloadToSave);
+
+        if (currentSeq !== saveSequenceRef.current) {
+          continue;
+        }
+
+        if (res.success && res.data) {
+          setPlanning(res.data);
+          setForcedRecalcSnapshot(false);
+          lastSavedSnapshotRef.current = JSON.stringify({
+            bmrFormula: res.data.bmrFormula,
+            activityLevel: res.data.activityLevel,
+            goalType: res.data.goalType,
+            calorieAdjustment: res.data.calorieAdjustmentKcal !== null && res.data.calorieAdjustmentKcal !== undefined ? String(res.data.calorieAdjustmentKcal) : "",
+            isManualOverride: res.data.targetCaloriesSource === "MANUAL",
+            manualCalorieTarget: res.data.targetCaloriesSource === "MANUAL" && res.data.targetCaloriesKcal !== null && res.data.targetCaloriesKcal !== undefined ? String(res.data.targetCaloriesKcal) : "",
+            proteinG: res.data.targetProteinG !== null && res.data.targetProteinG !== undefined ? String(res.data.targetProteinG) : "",
+            carbsG: res.data.targetCarbsG !== null && res.data.targetCarbsG !== undefined ? String(res.data.targetCarbsG) : "",
+            fatsG: res.data.targetFatsG !== null && res.data.targetFatsG !== undefined ? String(res.data.targetFatsG) : "",
+            clinicalNotes: (res.data.clinicalNotes || "").trim(),
+            forcedRecalcSnapshot: false,
+          });
+        } else {
+          if (!pendingSaveRef.current) {
+            pendingSaveRef.current = payloadToSave;
+          }
+          isSavingRef.current = false;
+          if (!isUnmountedRef.current) {
+            setAutosaveStatus("error");
+            setAutosaveError(res.error || "Não foi possível salvar o planejamento");
+          }
+          return;
+        }
+      } catch (err: unknown) {
+        if (!pendingSaveRef.current) {
+          pendingSaveRef.current = payloadToSave;
+        }
+        isSavingRef.current = false;
+        if (!isUnmountedRef.current) {
+          setAutosaveStatus("error");
+          setAutosaveError(err instanceof Error ? err.message : "Não foi possível salvar o planejamento");
+        }
+        return;
+      }
+    }
+
+    isSavingRef.current = false;
+    if (!isUnmountedRef.current) {
+      setAutosaveStatus("saved");
+      setAutosaveError(null);
+    }
+  }, [canAuthor, slug, studentPublicId]);
+
+  // Flush pending save immediately (blur, navigation, tab switch)
+  const flushPendingSave = useCallback(() => {
+    if (!canAuthor) return;
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    const currentSnapshot = JSON.stringify({
+      bmrFormula,
+      activityLevel,
+      goalType,
+      calorieAdjustment,
+      isManualOverride,
+      manualCalorieTarget,
+      proteinG,
+      carbsG,
+      fatsG,
+      clinicalNotes: clinicalNotes.trim(),
+      forcedRecalcSnapshot,
+    });
+    if (currentSnapshot !== lastSavedSnapshotRef.current) {
+      pendingSaveRef.current = currentPlanningPayload;
+    }
+    if (pendingSaveRef.current || isSavingRef.current) {
+      processSaveQueue();
+    }
+  }, [
+    canAuthor,
+    bmrFormula,
+    activityLevel,
+    goalType,
+    calorieAdjustment,
+    isManualOverride,
+    manualCalorieTarget,
+    proteinG,
+    carbsG,
+    fatsG,
+    clinicalNotes,
+    forcedRecalcSnapshot,
+    currentPlanningPayload,
+    processSaveQueue,
+  ]);
+
+  // Debounce (650ms) autosave trigger on planning form changes
+  useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
+
+    if (!canAuthor) return;
+
+    const currentSnapshot = JSON.stringify({
+      bmrFormula,
+      activityLevel,
+      goalType,
+      calorieAdjustment,
+      isManualOverride,
+      manualCalorieTarget,
+      proteinG,
+      carbsG,
+      fatsG,
+      clinicalNotes: clinicalNotes.trim(),
+      forcedRecalcSnapshot,
+    });
+
+    if (currentSnapshot === lastSavedSnapshotRef.current) {
+      return;
+    }
+
+    pendingSaveRef.current = currentPlanningPayload;
+    setAutosaveStatus("saving");
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
+      processSaveQueue();
+    }, 650);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [
+    bmrFormula,
+    activityLevel,
+    goalType,
+    calorieAdjustment,
+    isManualOverride,
+    manualCalorieTarget,
+    proteinG,
+    carbsG,
+    fatsG,
+    clinicalNotes,
+    forcedRecalcSnapshot,
+    canAuthor,
+    currentPlanningPayload,
+    processSaveQueue,
+  ]);
+
+  // Unmount cleanup
+  useEffect(() => {
+    return () => {
+      isUnmountedRef.current = true;
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
   // Recalculate handler
   const handleRecalculate = () => {
     setForcedRecalcSnapshot(true);
     setFeedback({
       type: "success",
-      message: "Cálculos atualizados com base nos dados clínicos atuais do paciente. Clique em 'Salvar Planejamento' para persistir a nova base.",
-    });
-  };
-
-  // Save handler
-  const handleSave = () => {
-    startTransition(async () => {
-      setFeedback(null);
-      const res = await savePatientPlanningAction(slug, studentPublicId, {
-        patientRecordId,
-        calculatedAt: computedBMR ? new Date().toISOString() : planning?.calculatedAt || null,
-        snapshotWeightKg: currentWeightKg,
-        snapshotHeightCm: currentHeightCm,
-        snapshotAgeYears: currentAgeYears,
-        snapshotBiologicalSex: currentBiologicalSex,
-        bmrFormula: computedBMR ? bmrFormula : planning?.bmrFormula || null,
-        bmrKcal: computedBMR ?? planning?.bmrKcal ?? null,
-        activityLevel: activityLevel || null,
-        activityFactor: selectedActivityFactor,
-        tdeeKcal: computedTDEE ?? planning?.tdeeKcal ?? null,
-        goalType: goalType || null,
-        calorieAdjustmentKcal: parsedAdjustment,
-        calculatedTargetCaloriesKcal: computedCalculatedTarget,
-        targetCaloriesKcal: effectiveTargetCalories,
-        targetCaloriesSource: effectiveTargetSource,
-        targetProteinG: parsedProteinG,
-        targetCarbsG: parsedCarbsG,
-        targetFatsG: parsedFatsG,
-        clinicalNotes: clinicalNotes.trim() || null,
-      });
-
-      if (res.success && res.data) {
-        setPlanning(res.data);
-        setForcedRecalcSnapshot(false);
-        setFeedback({ type: "success", message: "Planejamento nutricional salvo com sucesso!" });
-      } else {
-        setFeedback({ type: "error", message: res.error || "Erro ao salvar planejamento." });
-      }
+      message: "Cálculos atualizados com base nos dados clínicos atuais do paciente.",
     });
   };
 
@@ -471,7 +695,7 @@ export function PatientPlanningTab({
   }, [activePlan, draftPlan, effectiveTargetCalories, parsedProteinG, parsedCarbsG, parsedFatsG]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onBlur={flushPendingSave}>
       {/* HEADER / STALE ALERT / FEEDBACK */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -482,7 +706,7 @@ export function PatientPlanningTab({
         </div>
 
         {canAuthor && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {staleStatus.isStale && (
               <Button
                 variant="outline"
@@ -493,14 +717,11 @@ export function PatientPlanningTab({
                 ↻ Recalcular
               </Button>
             )}
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={isPending}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-4"
-            >
-              {isPending ? "Salvando..." : "Salvar Planejamento"}
-            </Button>
+            <AutosaveIndicator
+              status={autosaveStatus}
+              errorMessage={autosaveError}
+              onRetry={processSaveQueue}
+            />
           </div>
         )}
       </div>

@@ -16,7 +16,6 @@ import type {
 } from "@/lib/nutrition-v2/patient-planning-types";
 import {
   BMR_FORMULA_METADATA,
-  ACTIVITY_LEVEL_DEFINITIONS,
   GOAL_TYPE_DEFINITIONS,
 } from "@/lib/nutrition-v2/patient-planning-types";
 import {
@@ -170,31 +169,8 @@ export function PatientGeneralSummaryTab({
   const bmrFormulaName = planning?.bmrFormula
     ? BMR_FORMULA_METADATA[planning.bmrFormula]?.name || planning.bmrFormula
     : null;
-  const activityDef = planning?.activityLevel
-    ? ACTIVITY_LEVEL_DEFINITIONS[planning.activityLevel]
-    : null;
   const goalDef = planning?.goalType ? GOAL_TYPE_DEFINITIONS[planning.goalType] : null;
   const targetCalories = planning?.targetCaloriesKcal ?? null;
-  const targetProtein = planning?.targetProteinG ?? null;
-  const targetCarbs = planning?.targetCarbsG ?? null;
-  const targetFats = planning?.targetFatsG ?? null;
-
-  // Macro calorie and percentage calculations
-  const proteinKcal = targetProtein !== null ? Math.round(targetProtein * 4) : null;
-  const carbsKcal = targetCarbs !== null ? Math.round(targetCarbs * 4) : null;
-  const fatsKcal = targetFats !== null ? Math.round(targetFats * 9) : null;
-  const proteinPct =
-    proteinKcal !== null && targetCalories && targetCalories > 0
-      ? Math.round((proteinKcal / targetCalories) * 100)
-      : null;
-  const carbsPct =
-    carbsKcal !== null && targetCalories && targetCalories > 0
-      ? Math.round((carbsKcal / targetCalories) * 100)
-      : null;
-  const fatsPct =
-    fatsKcal !== null && targetCalories && targetCalories > 0
-      ? Math.round((fatsKcal / targetCalories) * 100)
-      : null;
 
   // 6. Recent timeline events (Acompanhamento)
   const followupTimeline = followupSummary?.timeline;
@@ -745,169 +721,6 @@ export function PatientGeneralSummaryTab({
                 )}
               </div>
             )}
-          </section>
-
-          {/* BLOCO F: CÁLCULOS CLÍNICOS (IMC + TMB + GET/TDEE + MACROS) */}
-          <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] p-5 space-y-4 shadow-2xs depth-surface">
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-heading font-bold text-base text-[var(--text-primary)]">
-                    Cálculos Clínicos & Metas
-                  </h3>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => onNavigateTab("planejamento", "planejamento")}
-                className="text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer min-h-[36px] flex items-center"
-              >
-                Ajustar no Planejamento →
-              </button>
-            </div>
-
-            {/* Aviso de Parâmetros Desatualizados (Stale status) */}
-            {staleStatus?.isStale && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs flex items-start gap-2">
-                <span className="shrink-0 text-amber-600 font-bold">⚠️</span>
-                <div>
-                  <strong className="block font-semibold">Cálculo desatualizado</strong>
-                  <span>Novos dados antropométricos registrados após o último planejamento. Recomenda-se recalcular.</span>
-                </div>
-              </div>
-            )}
-
-            {/* Métricas Principais: IMC, TMB, GET/TDEE */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              {/* IMC */}
-              <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                  IMC (WHO)
-                </span>
-                <span className="font-heading font-extrabold text-[var(--text-primary)] text-base tabular-nums block">
-                  {bmiValue !== null ? `${bmiValue.toFixed(1)}` : "—"}
-                </span>
-                <span className="text-[10px] font-semibold text-[var(--text-secondary)] block truncate">
-                  {bmiClassification?.category || "Não calculado"}
-                </span>
-              </div>
-
-              {/* TMB */}
-              <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                  TMB (Basal)
-                </span>
-                <span className="font-heading font-extrabold text-[var(--text-primary)] text-base tabular-nums block">
-                  {bmrValue !== null ? `${Math.round(bmrValue)} kcal` : "TMB não calculada"}
-                </span>
-                <span className="text-[10px] text-[var(--text-tertiary)] block truncate">
-                  {bmrFormulaName || "Fórmula pendente"}
-                </span>
-              </div>
-
-              {/* GET / TDEE */}
-              <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                  GET (Total)
-                </span>
-                <span className="font-heading font-extrabold text-[var(--text-primary)] text-base tabular-nums block">
-                  {tdeeValue !== null ? `${Math.round(tdeeValue)} kcal` : "GET não calculado"}
-                </span>
-                <span className="text-[10px] text-[var(--text-tertiary)] block truncate">
-                  {activityDef ? `×${activityDef.factor} (${activityDef.label})` : "Fator não definido"}
-                </span>
-              </div>
-            </div>
-
-            {/* Meta Calórica Oficial & Objetivo */}
-            <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
-              <div className="flex items-center justify-between text-xs flex-wrap gap-2">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                    Meta Calórica Oficial
-                  </span>
-                  <span className="font-heading font-extrabold text-[var(--text-primary)] text-lg tabular-nums">
-                    {targetCalories !== null ? `${targetCalories} kcal/dia` : "Meta calórica não definida"}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                    Objetivo
-                  </span>
-                  <span className="font-bold text-[var(--brand)] text-xs">
-                    {goalDef?.label || "Não definido"}
-                  </span>
-                </div>
-              </div>
-
-              {planning?.calorieAdjustmentKcal !== null && planning?.calorieAdjustmentKcal !== undefined && (
-                <p className="text-[11px] text-[var(--text-secondary)]">
-                  Ajuste metabólico aplicado:{" "}
-                  <strong>
-                    {planning.calorieAdjustmentKcal > 0 ? `+${planning.calorieAdjustmentKcal}` : planning.calorieAdjustmentKcal} kcal
-                  </strong>{" "}
-                  em relação ao GET.
-                </p>
-              )}
-            </div>
-
-            {/* Distribuição de Macronutrientes */}
-            <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
-                Distribuição de Macronutrientes
-              </span>
-
-              {targetProtein !== null || targetCarbs !== null || targetFats !== null ? (
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block">
-                      Proteína
-                    </span>
-                    <strong className="text-[var(--text-primary)] font-extrabold tabular-nums block">
-                      {targetProtein !== null ? `${targetProtein} g` : "—"}
-                    </strong>
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">
-                      {proteinPct !== null ? `${proteinPct}%` : "—"}
-                    </span>
-                  </div>
-
-                  <div className="p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block">
-                      Carboidrato
-                    </span>
-                    <strong className="text-[var(--text-primary)] font-extrabold tabular-nums block">
-                      {targetCarbs !== null ? `${targetCarbs} g` : "—"}
-                    </strong>
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">
-                      {carbsPct !== null ? `${carbsPct}%` : "—"}
-                    </span>
-                  </div>
-
-                  <div className="p-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400 block">
-                      Gordura
-                    </span>
-                    <strong className="text-[var(--text-primary)] font-extrabold tabular-nums block">
-                      {targetFats !== null ? `${targetFats} g` : "—"}
-                    </strong>
-                    <span className="text-[10px] text-[var(--text-tertiary)] block">
-                      {fatsPct !== null ? `${fatsPct}%` : "—"}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-2 text-center">
-                  <p className="text-xs text-[var(--text-tertiary)]">
-                    Metas de macronutrientes ainda não definidas no planejamento.
-                  </p>
-                </div>
-              )}
-            </div>
           </section>
 
           {/* BLOCO H: PLANEJAMENTO NUTRICIONAL */}

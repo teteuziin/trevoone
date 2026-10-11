@@ -104,22 +104,12 @@ runTest("7. Bloco E: Antropometria com CTAs + Medição e Histórico e exibiçã
   assert.ok(content.includes("weightDelta < 0"), "Must detect weight loss");
 });
 
-// 8. BLOCK F: CÁLCULOS CLÍNICOS COM CTA "AJUSTAR NO PLANEJAMENTO"
-runTest("8. Bloco F: Cálculos clínicos com TMB, GET, meta e CTA Ajustar no Planejamento", () => {
+// 8. UNIFICAÇÃO DE CÁLCULOS CLÍNICOS: CARD REDUNDANTE REMOVIDO DO RESUMO GERAL
+runTest("8. Unificação de Cálculos Clínicos: card redundante removido em favor de Planejamento", () => {
   const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
-  assert.ok(content.includes("BLOCO F: CÁLCULOS CLÍNICOS"), "Block F comment must exist");
-  assert.ok(content.includes("Ajustar no Planejamento →"), "Must have Ajustar no Planejamento CTA");
-  assert.ok(content.includes("onNavigateTab(\"planejamento\""), "Must navigate to planejamento");
-  assert.ok(content.includes("IMC (WHO)"), "Must display BMI");
-  assert.ok(content.includes("TMB (Basal)"), "Must display BMR");
-  assert.ok(content.includes("GET (Total)"), "Must display TDEE / GET");
-  assert.ok(content.includes("TMB não calculada"), "Must show TMB não calculada when absent");
-  assert.ok(content.includes("GET não calculado"), "Must show GET não calculado when absent");
-  assert.ok(content.includes("Meta calórica não definida"), "Must show Meta calórica não definida when absent");
-  assert.ok(content.includes("Distribuição de Macronutrientes"), "Must display macro distribution");
-  assert.ok(content.includes("Proteína"), "Must display protein");
-  assert.ok(content.includes("Carboidrato"), "Must display carbohydrate");
-  assert.ok(content.includes("Gordura"), "Must display fat");
+  assert.ok(!content.includes("Cálculos Clínicos & Metas"), "Card redundante Cálculos Clínicos & Metas deve ser removido do Resumo Geral");
+  assert.ok(content.includes("Planejamento Nutricional"), "Deve ter seção de Planejamento Nutricional");
+  assert.ok(content.includes("onNavigateTab(\"planejamento\""), "Deve navegar para planejamento");
 });
 
 // 9. BLOCK G: PLANO ALIMENTAR ATIVO COMPLETO

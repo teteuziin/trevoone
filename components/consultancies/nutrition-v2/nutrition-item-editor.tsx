@@ -313,24 +313,31 @@ export function NutritionItemEditor({
               <span>{item.substitutions.length} alternativa{item.substitutions.length > 1 ? "s" : ""}</span>
             </div>
             <div className="space-y-1.5">
-              {item.substitutions.map((sub, idx) => (
-                <NutritionSubstitutionEditor
-                  key={sub.publicId}
-                  slug={slug}
-                  substitution={sub}
-                  readOnly={readOnly}
-                  isFirst={idx === 0}
-                  isLast={idx === item.substitutions.length - 1}
-                  onUpdate={(data) => onUpdateSubstitution(sub.publicId, data)}
-                  onRemove={() => onRemoveSubstitution(sub.publicId)}
-                  onMoveUp={() => handleMoveSub(idx, "UP")}
-                  onMoveDown={() => handleMoveSub(idx, "DOWN")}
-                  onReviewOrRecalculate={(targetSub) => {
-                    setSubstitutionToReview(targetSub);
-                    setIsEquivalentsOpen(true);
-                  }}
-                />
-              ))}
+              {item.substitutions
+                .filter((sub, idx, arr) => {
+                  if (sub.foodId != null) {
+                    return arr.findIndex((s) => s.foodId === sub.foodId) === idx;
+                  }
+                  return arr.findIndex((s) => s.publicId === sub.publicId) === idx;
+                })
+                .map((sub, idx, arr) => (
+                  <NutritionSubstitutionEditor
+                    key={sub.publicId}
+                    slug={slug}
+                    substitution={sub}
+                    readOnly={readOnly}
+                    isFirst={idx === 0}
+                    isLast={idx === arr.length - 1}
+                    onUpdate={(data) => onUpdateSubstitution(sub.publicId, data)}
+                    onRemove={() => onRemoveSubstitution(sub.publicId)}
+                    onMoveUp={() => handleMoveSub(idx, "UP")}
+                    onMoveDown={() => handleMoveSub(idx, "DOWN")}
+                    onReviewOrRecalculate={(targetSub) => {
+                      setSubstitutionToReview(targetSub);
+                      setIsEquivalentsOpen(true);
+                    }}
+                  />
+                ))}
             </div>
           </div>
         )}

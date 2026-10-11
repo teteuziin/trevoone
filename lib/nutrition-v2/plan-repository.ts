@@ -1306,6 +1306,12 @@ export async function addMealItem(
 
         prescribedUnitCode = "PORCAO";
         prescribedUnitLabel = String(portion.label);
+      } else {
+        // Alimento sem porção doméstica selecionada: fallback seguro para unidade canônica de referência (ex: Gramas)
+        if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+          prescribedUnitCode = (food.reference_unit_code ? String(food.reference_unit_code).toUpperCase() : "G");
+          prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+        }
       }
 
       // Authoritatively calculate nutrient snapshots using canonical food data
@@ -1634,6 +1640,15 @@ export async function updateMealItem(
           prescribedUnitLabel = String(portion.label);
         } else {
           portionEquivalentAmount = null;
+          if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+            prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
+            prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+          }
+        }
+      } else {
+        if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+          prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
+          prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
         }
       }
 
@@ -2052,6 +2067,12 @@ export async function addSubstitution(
         portionEquivalentAmount = eq;
         prescribedUnitCode = "PORCAO";
         prescribedUnitLabel = String(portion.label);
+      } else {
+        // Alimento substituto sem porção doméstica: fallback seguro para unidade canônica de referência (ex: Gramas)
+        if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+          prescribedUnitCode = (food.reference_unit_code ? String(food.reference_unit_code).toUpperCase() : "G");
+          prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+        }
       }
 
       if (prescribedQuantity == null || !Number.isFinite(prescribedQuantity) || prescribedQuantity <= 0) {
@@ -2063,7 +2084,7 @@ export async function addSubstitution(
           referenceAmount: Number(food.reference_amount),
           referenceUnitCode: String(food.reference_unit_code),
           caloriesKcal: food.calories_kcal != null ? Number(food.calories_kcal) : null,
-          proteinG: food.proteinG != null ? Number(food.protein_g) : null,
+          proteinG: food.protein_g != null ? Number(food.protein_g) : null,
           carbohydrateG: food.carbohydrate_g != null ? Number(food.carbohydrate_g) : null,
           fatG: food.fat_g != null ? Number(food.fat_g) : null,
           fiberG: food.fiber_g != null ? Number(food.fiber_g) : null,
@@ -2443,6 +2464,15 @@ export async function updateSubstitution(
           prescribedUnitLabel = String(portion.label);
         } else {
           portionEquivalentAmount = null;
+          if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+            prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
+            prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+          }
+        }
+      } else {
+        if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+          prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
+          prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
         }
       }
 

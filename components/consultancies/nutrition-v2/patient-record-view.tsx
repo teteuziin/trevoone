@@ -763,8 +763,8 @@ export function PatientRecordView({
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <div className="flex overflow-x-auto gap-1.5 border-b border-[var(--border-default)] pb-2 no-scrollbar">
+      {/* Navigation Tabs (Top Main Nav: 5 core tabs, fits desktop with zero horizontal overflow) */}
+      <div className="flex gap-1.5 border-b border-[var(--border-default)] pb-2 overflow-x-auto sm:overflow-visible no-scrollbar">
         {(
           [
             { id: "resumo", label: "Resumo Geral" },
@@ -772,28 +772,13 @@ export function PatientRecordView({
             { id: "checkins", label: "Acompanhamento" },
             { id: "planejamento", label: "Planejamento" },
             { id: "plano", label: activePlan ? "Plano Ativo" : "Plano Alimentar" },
-            { id: "clinico", label: "Histórico Clínico" },
-
-            { id: "alimentar", label: "Histórico Alimentar" },
-            { id: "estilo_vida", label: "Estilo de Vida" },
-            { id: "antropometria", label: `Antropometria (${detail.anthropometrics.length})` },
-            {
-              id: "gestacao",
-              label:
-                pregnancyForm.pregnancyStatus === "PREGNANT"
-                  ? "Gestação (Ativa)"
-                  : pregnancyForm.pregnancyStatus === "POSTPARTUM"
-                  ? "Pós-parto"
-                  : "Gestação",
-            },
-            { id: "calculos", label: "Cálculos Clínicos" },
           ] as const
         ).map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => handleTabChange(tab.id)}
-            className={`px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeTab === tab.id
                 ? "bg-[var(--brand-soft)] text-[var(--brand)] border border-[var(--brand-soft-border)] shadow-2xs font-bold"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent"
@@ -803,6 +788,42 @@ export function PatientRecordView({
           </button>
         ))}
       </div>
+
+      {/* Sub-area Navigation Header when viewing detailed clinical sub-tabs */}
+      {(activeTab === "clinico" ||
+        activeTab === "alimentar" ||
+        activeTab === "estilo_vida" ||
+        activeTab === "antropometria" ||
+        activeTab === "gestacao" ||
+        activeTab === "calculos") && (
+        <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+          <div className="flex items-center gap-2 text-xs sm:text-sm">
+            <button
+              type="button"
+              onClick={() => handleTabChange("resumo")}
+              className="font-bold text-[var(--brand)] hover:underline flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>← Voltar ao Resumo Geral</span>
+            </button>
+            <span className="text-[var(--text-tertiary)] font-bold">/</span>
+            <span className="font-extrabold text-[var(--text-primary)]">
+              {activeTab === "clinico" && "Histórico Clínico"}
+              {activeTab === "alimentar" && "Histórico Alimentar"}
+              {activeTab === "estilo_vida" && "Estilo de Vida"}
+              {activeTab === "antropometria" && `Antropometria (${detail.anthropometrics.length})`}
+              {activeTab === "gestacao" && "Dados Gestacionais"}
+              {activeTab === "calculos" && "Cálculos Clínicos"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleTabChange("resumo")}
+            className="px-3 py-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+          >
+            Fechar detalhes ✕
+          </button>
+        </div>
+      )}
 
       {/* TAB: CONSULTAS */}
       {activeTab === "consultas" && (

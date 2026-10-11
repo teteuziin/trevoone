@@ -216,13 +216,11 @@ export function MobilePatientHub({
   const trimesterLabel = deriveTrimester(pregnancyForm.gestationalWeeks ?? null);
 
   const LEVEL_1_TABS: Array<{ id: MobilePatientTab; label: string }> = [
-    { id: "resumo", label: "Resumo" },
+    { id: "resumo", label: "Resumo Geral" },
     { id: "consultas", label: "Consultas" },
     { id: "checkins", label: "Acompanhamento" },
-    { id: "prontuario", label: "Prontuário" },
     { id: "planejamento", label: "Planejamento" },
-    { id: "plano", label: "Plano" },
-    { id: "evolucao", label: "Evolução" },
+    { id: "plano", label: "Plano Ativo" },
   ];
 
 
@@ -440,6 +438,18 @@ export function MobilePatientHub({
           ========================================================================= */}
       {activeTab === "prontuario" && (
         <div className="space-y-4" data-testid="mobile-tab-prontuario" onBlur={onFieldBlur}>
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={() => handleMobileTabChange("resumo")}
+              className="text-xs font-bold text-[var(--brand)] hover:underline flex items-center gap-1 min-h-[44px] px-1 cursor-pointer"
+            >
+              ← Voltar ao Resumo Geral
+            </button>
+            <span className="text-xs font-bold text-[var(--text-secondary)] pr-1">
+              Prontuário Detalhado
+            </span>
+          </div>
           {/* Sub-tabs Nível 2 com scroll suave e affordance mobile-native */}
           <div className="space-y-2">
             <div className="flex items-center justify-between px-0.5">

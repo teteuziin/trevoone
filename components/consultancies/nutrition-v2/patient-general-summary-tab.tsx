@@ -243,156 +243,69 @@ export function PatientGeneralSummaryTab({
   return (
     <div className="space-y-6" data-testid="clinical-summary-dashboard">
       {/* =================================================================== */}
-      {/* BLOCO A: IDENTIFICAÇÃO E STATUS DO PACIENTE (COCKPIT CLÍNICO)       */}
+      {/* INDICADORES CLÍNICOS RÁPIDOS (FAIXA COMPACTA DO RESUMO GERAL)       */}
       {/* =================================================================== */}
       <section
-        className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] p-5 md:p-6 shadow-xs depth-surface transition-all"
-        aria-label="Identificação e Status do Paciente"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3.5"
+        aria-label="Indicadores Clínicos Rápidos"
+        data-testid="summary-quick-indicators"
       >
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-5">
-          <div className="flex items-start gap-4">
-            <div className="w-13 h-13 rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center font-heading font-extrabold text-xl shrink-0 border border-[var(--brand)]/20 shadow-xs">
-              {detail.student.fullName?.charAt(0)?.toUpperCase() || "P"}
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-xl md:text-2xl font-heading font-extrabold text-[var(--text-primary)] tracking-tight">
-                  {detail.student.fullName}
-                </h2>
-                <Badge variant="brand" size="sm">
-                  Paciente Ativo
-                </Badge>
-                {detail.onboardingReference?.hasOnboardingData ? (
-                  <Badge variant="brand" size="sm">
-                    Anamnese Vinculada
-                  </Badge>
-                ) : (
-                  <Badge variant="neutral" size="sm">
-                    Anamnese Pendente
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-x-4 gap-y-1 text-xs text-[var(--text-secondary)] flex-wrap">
-                <span>{detail.student.email}</span>
-                {detail.student.joinedAt && (
-                  <span>
-                    • Vínculo desde {formatDate(detail.student.joinedAt)}
-                  </span>
-                )}
-                {ageYears !== null && <span>• {ageYears} anos</span>}
-                <span>• Sexo: {bioSexLabel}</span>
-              </div>
-            </div>
-          </div>
-
-          {canAuthor && (
-            <div className="flex items-center gap-2.5 flex-wrap lg:justify-end">
-              {draftPlan ? (
-                <>
-                  <Link
-                    href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
-                  >
-                    <Button variant="primary" size="sm" className="font-bold text-xs min-h-[40px] shadow-xs">
-                      Continuar Edição do Rascunho →
-                    </Button>
-                  </Link>
-                  {onDiscardDraft && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={isDiscardingDraft}
-                      onClick={onDiscardDraft}
-                      className="font-bold text-xs min-h-[40px] text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20"
-                    >
-                      {isDiscardingDraft ? "Descartando..." : "Descartar"}
-                    </Button>
-                  )}
-                </>
-              ) : activePlan ? (
-                <>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    disabled={isStartingEditPlan}
-                    onClick={onStartEditPlan}
-                    className="font-bold text-xs min-h-[40px] shadow-xs"
-                  >
-                    {isStartingEditPlan ? "Abrindo..." : "Editar Plano Ativo"}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={isCreatingScratch}
-                    onClick={onCreatePlanFromScratch}
-                    className="font-bold text-xs min-h-[40px]"
-                  >
-                    {isCreatingScratch ? "Criando..." : "+ Novo Plano"}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={isCreatingScratch}
-                  onClick={onCreatePlanFromScratch}
-                  className="font-bold text-xs min-h-[40px] shadow-xs"
-                >
-                  {isCreatingScratch ? "Criando..." : "+ Prescrever Primeiro Plano"}
-                </Button>
-              )}
-            </div>
-          )}
+        {/* 1. Peso Atual */}
+        <div className="p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-1">
+          <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
+            Peso Atual
+          </span>
+          <span className="font-heading font-extrabold text-[var(--text-primary)] text-xl md:text-2xl tabular-nums block">
+            {currentWeightKg !== null ? `${currentWeightKg} kg` : "—"}
+          </span>
+          <span className="text-[11px] text-[var(--text-secondary)] block truncate">
+            {latestAnthro?.measurementDate ? formatDate(latestAnthro.measurementDate) : "Sem medição registrada"}
+          </span>
         </div>
 
-        {/* Indicadores-chave rápidos */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
-          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
-              Último Peso
-            </span>
-            <span className="font-heading font-extrabold text-[var(--text-primary)] text-base md:text-lg tabular-nums block">
-              {currentWeightKg !== null ? `${currentWeightKg} kg` : "—"}
-            </span>
-            <span className="text-[11px] text-[var(--text-tertiary)] block truncate">
-              {latestAnthro?.measurementDate ? formatDate(latestAnthro.measurementDate) : "Sem data"}
-            </span>
-          </div>
+        {/* 2. IMC */}
+        <div className="p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-1">
+          <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
+            IMC
+          </span>
+          <span className="font-heading font-extrabold text-[var(--text-primary)] text-xl md:text-2xl tabular-nums block">
+            {bmiValue !== null ? `${bmiValue.toFixed(1)} kg/m²` : "—"}
+          </span>
+          <span className="text-[11px] text-[var(--brand)] font-semibold block truncate">
+            {bmiClassification?.category || "Cálculo pendente"}
+          </span>
+        </div>
 
-          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
-              IMC Atual
-            </span>
-            <span className="font-heading font-extrabold text-[var(--text-primary)] text-base md:text-lg tabular-nums block">
-              {bmiValue !== null ? `${bmiValue.toFixed(1)} kg/m²` : "—"}
-            </span>
-            <span className="text-[11px] text-[var(--brand)] font-semibold block truncate">
-              {bmiClassification?.category || "Pendente"}
-            </span>
-          </div>
+        {/* 3. TMB */}
+        <div className="p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-1">
+          <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
+            TMB
+          </span>
+          <span className="font-heading font-extrabold text-[var(--text-primary)] text-xl md:text-2xl tabular-nums block">
+            {bmrValue !== null ? `${Math.round(bmrValue)} kcal` : "TMB não calculada"}
+          </span>
+          <span className="text-[11px] text-[var(--text-secondary)] block truncate">
+            {bmrFormulaName || "Fórmula não definida"}
+          </span>
+        </div>
 
-          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
-              Plano Alimentar
-            </span>
-            <span className="font-heading font-extrabold text-[var(--text-primary)] text-base md:text-lg block truncate">
-              {activePlan ? `V${activePlan.versionNumber}` : "Sem plano"}
-            </span>
-            <span className="text-[11px] text-[var(--text-secondary)] block truncate">
-              {activePlan ? activePlan.versionTitle : "Nenhuma prescrição"}
-            </span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
-              Meta Calórica
-            </span>
-            <span className="font-heading font-extrabold text-[var(--text-primary)] text-base md:text-lg tabular-nums block">
-              {targetCalories !== null ? `${targetCalories} kcal` : "—"}
-            </span>
-            <span className="text-[11px] text-[var(--text-secondary)] block truncate">
-              {goalDef?.label || "Pendente de cálculo"}
-            </span>
-          </div>
+        {/* 4. GET / Meta Calórica */}
+        <div className="p-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-1">
+          <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block tracking-wider">
+            GET / Meta Calórica
+          </span>
+          <span className="font-heading font-extrabold text-[var(--brand)] text-xl md:text-2xl tabular-nums block">
+            {targetCalories !== null
+              ? `${targetCalories} kcal`
+              : tdeeValue !== null
+              ? `${Math.round(tdeeValue)} kcal`
+              : "Meta não definida"}
+          </span>
+          <span className="text-[11px] text-[var(--text-secondary)] block truncate">
+            {tdeeValue !== null && targetCalories !== null
+              ? `GET: ${Math.round(tdeeValue)} kcal • ${goalDef?.label || "Objetivo"}`
+              : goalDef?.label || (tdeeValue !== null ? "GET calculado" : "Pendente no planejamento")}
+          </span>
         </div>
       </section>
 
@@ -771,6 +684,11 @@ export function PatientGeneralSummaryTab({
               </div>
             </div>
 
+            <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+              <span>Idade: <strong className="text-[var(--text-primary)]">{ageYears !== null ? `${ageYears} anos` : "Não informada"}</strong></span>
+              <span>Sexo: <strong className="text-[var(--text-primary)]">{bioSexLabel}</strong></span>
+            </div>
+
             {/* Variação de peso recente & Tendência */}
             <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2">
               <div className="flex items-center justify-between text-xs">
@@ -1079,7 +997,11 @@ export function PatientGeneralSummaryTab({
                   </h3>
                 </div>
               </div>
-              {activePlan ? (
+              {draftPlan ? (
+                <Badge variant="warning" size="sm">
+                  Rascunho em Edição
+                </Badge>
+              ) : activePlan ? (
                 <Badge variant="brand" size="sm">
                   Ativo V{activePlan.versionNumber}
                 </Badge>
@@ -1136,7 +1058,7 @@ export function PatientGeneralSummaryTab({
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
+                <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={() => onNavigateTab("plano")}
@@ -1144,16 +1066,39 @@ export function PatientGeneralSummaryTab({
                   >
                     Ver todas as {activePlan.mealsCount} refeições →
                   </button>
-                  {onStartEditPlan && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={isStartingEditPlan}
-                      onClick={onStartEditPlan}
-                      className="font-bold text-xs min-h-[36px]"
-                    >
-                      Editar Plano
-                    </Button>
+                  {canAuthor && (
+                    draftPlan ? (
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
+                        >
+                          <Button variant="primary" size="sm" className="font-bold text-xs min-h-[36px]">
+                            Continuar Edição →
+                          </Button>
+                        </Link>
+                        {onDiscardDraft && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={isDiscardingDraft}
+                            onClick={onDiscardDraft}
+                            className="font-bold text-xs min-h-[36px] text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                          >
+                            Descartar
+                          </Button>
+                        )}
+                      </div>
+                    ) : onStartEditPlan ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={isStartingEditPlan}
+                        onClick={onStartEditPlan}
+                        className="font-bold text-xs min-h-[36px]"
+                      >
+                        Editar Plano
+                      </Button>
+                    ) : null
                   )}
                 </div>
               </div>
@@ -1162,16 +1107,26 @@ export function PatientGeneralSummaryTab({
                 <p className="text-xs text-[var(--text-tertiary)]">
                   Nenhum plano alimentar prescrito para este paciente no momento.
                 </p>
-                {onCreatePlanFromScratch && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    disabled={isCreatingScratch}
-                    onClick={onCreatePlanFromScratch}
-                    className="font-bold text-xs min-h-[40px]"
-                  >
-                    {isCreatingScratch ? "Criando..." : "+ Prescrever Primeiro Plano"}
-                  </Button>
+                {canAuthor && (
+                  draftPlan ? (
+                    <Link
+                      href={`/consultoria/${slug}/planos-v2/${draftPlan.planPublicId}?v=${draftPlan.versionPublicId}&studentId=${detail.student.membershipPublicId}`}
+                    >
+                      <Button variant="primary" size="sm" className="font-bold text-xs min-h-[40px]">
+                        Continuar Rascunho em Edição →
+                      </Button>
+                    </Link>
+                  ) : onCreatePlanFromScratch ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={isCreatingScratch}
+                      onClick={onCreatePlanFromScratch}
+                      className="font-bold text-xs min-h-[40px]"
+                    >
+                      {isCreatingScratch ? "Criando..." : "+ Prescrever Primeiro Plano"}
+                    </Button>
+                  ) : null
                 )}
               </div>
             )}

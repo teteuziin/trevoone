@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import assert from "assert";
 
-console.log("=== TREVO ONE — TEST SUITE: RESUMO GERAL DO PRONTUÁRIO ===\n");
+console.log("=== TREVO ONE — TEST SUITE: NAVEGAÇÃO DO PATIENT HUB & RESUMO GERAL ===\n");
 
 let allPassed = true;
 function runTest(name, fn) {
@@ -24,22 +24,33 @@ runTest("1. PatientGeneralSummaryTab component exists and exports correctly", ()
   assert.ok(content.includes("export interface PatientGeneralSummaryTabProps"), "Must export PatientGeneralSummaryTabProps");
 });
 
-// 2. BLOCK A: IDENTIFICAÇÃO E STATUS
-runTest("2. Bloco A: Identificação e status do paciente", () => {
+// 2. INDICADORES CLÍNICOS RÁPIDOS NO TOPO DO RESUMO
+runTest("2. Indicadores clínicos rápidos no topo (Peso Atual, IMC, TMB, GET / Meta Calórica)", () => {
   const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
-  assert.ok(content.includes("BLOCO A: IDENTIFICAÇÃO E STATUS"), "Block A comment must exist");
-  assert.ok(content.includes("detail.student.fullName"), "Must display patient full name");
-  assert.ok(content.includes("detail.student.email"), "Must display patient email");
-  assert.ok(content.includes("detail.student.joinedAt"), "Must display join date");
-  assert.ok(content.includes("Anamnese"), "Must display anamnesis status");
-  assert.ok(content.includes("Plano Alimentar"), "Must display active plan status");
-  assert.ok(content.includes("Continuar Edição do Rascunho"), "Must handle draft in progress");
+  assert.ok(content.includes("INDICADORES CLÍNICOS RÁPIDOS"), "Indicators comment must exist");
+  assert.ok(content.includes("data-testid=\"summary-quick-indicators\""), "Must have summary-quick-indicators testid");
+  assert.ok(content.includes("Peso Atual"), "Must display Peso Atual");
+  assert.ok(content.includes("IMC"), "Must display IMC");
+  assert.ok(content.includes("TMB"), "Must display TMB");
+  assert.ok(content.includes("GET / Meta Calórica"), "Must display GET / Meta Calórica");
 });
 
-// 3. BLOCK B: RESUMO CLÍNICO
-runTest("3. Bloco B: Resumo clínico consolidado com empty state", () => {
+// 3. REMOÇÃO DE IDENTIFICAÇÃO DUPLICADA E RESUMO DUPLICADO DO PLANO
+runTest("3. Remoção de identificação duplicada e resumo duplicado do plano", () => {
+  const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
+  // Identification header belongs exclusively to global Patient Hub header
+  assert.ok(!content.includes("• Vínculo desde"), "Must NOT repeat patient join date in summary tab");
+  assert.ok(!content.includes("Continuar Edição do Rascunho →"), "Must NOT duplicate draft edit button in top summary strip");
+  // Strip must NOT duplicate active plan (handled by dedicated Card G)
+  assert.ok(!content.includes("Plano Alimentar\n            </span>"), "Must NOT duplicate plan in quick strip");
+});
+
+// 4. BLOCK B: RESUMO CLÍNICO COM NAVEGAÇÃO "VER PRONTUÁRIO"
+runTest("4. Bloco B: Resumo clínico consolidado com empty state e CTA Ver Prontuário", () => {
   const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
   assert.ok(content.includes("BLOCO B: RESUMO CLÍNICO"), "Block B comment must exist");
+  assert.ok(content.includes("Ver Prontuário →"), "Must have Ver Prontuário CTA");
+  assert.ok(content.includes("onNavigateTab(\"clinico\""), "Must navigate to clinico subarea");
   assert.ok(content.includes("Condições & Diagnósticos"), "Must display diagnosed conditions");
   assert.ok(content.includes("Alergias & Intolerâncias"), "Must display allergies/intolerances");
   assert.ok(content.includes("Medicamentos & Suplementos"), "Must display medications and supplements");
@@ -49,10 +60,12 @@ runTest("3. Bloco B: Resumo clínico consolidado com empty state", () => {
   assert.ok(content.includes("Nenhuma informação clínica registrada ainda."), "Must display elegant clinical empty state");
 });
 
-// 4. BLOCK C: HISTÓRICO ALIMENTAR
-runTest("4. Bloco C: Histórico alimentar com empty state", () => {
+// 5. BLOCK C: HISTÓRICO ALIMENTAR COM NAVEGAÇÃO "VER DETALHES"
+runTest("5. Bloco C: Histórico alimentar com empty state e CTA Ver Detalhes", () => {
   const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
   assert.ok(content.includes("BLOCO C: HISTÓRICO ALIMENTAR"), "Block C comment must exist");
+  assert.ok(content.includes("Ver Detalhes →"), "Must have Ver Detalhes CTA");
+  assert.ok(content.includes("onNavigateTab(\"alimentar\""), "Must navigate to alimentar subarea");
   assert.ok(content.includes("Padrão & Rotina Alimentar"), "Must display usual eating routine");
   assert.ok(content.includes("Preferências"), "Must display food preferences");
   assert.ok(content.includes("Restrições Alimentares"), "Must display dietary restrictions");
@@ -61,10 +74,11 @@ runTest("4. Bloco C: Histórico alimentar com empty state", () => {
   assert.ok(content.includes("Nenhum histórico alimentar registrado ainda."), "Must display elegant dietary empty state");
 });
 
-// 5. BLOCK D: ESTILO DE VIDA
-runTest("5. Bloco D: Estilo de vida com empty state", () => {
+// 6. BLOCK D: ESTILO DE VIDA COM NAVEGAÇÃO "VER DETALHES"
+runTest("6. Bloco D: Estilo de vida com empty state e CTA Ver Detalhes", () => {
   const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
   assert.ok(content.includes("BLOCO D: ESTILO DE VIDA"), "Block D comment must exist");
+  assert.ok(content.includes("onNavigateTab(\"estilo_vida\""), "Must navigate to estilo_vida subarea");
   assert.ok(content.includes("Profissão / Ocupação"), "Must display occupation and routine");
   assert.ok(content.includes("Atividade Física"), "Must display physical activity");
   assert.ok(content.includes("Sono"), "Must display sleep");
@@ -74,22 +88,28 @@ runTest("5. Bloco D: Estilo de vida com empty state", () => {
   assert.ok(content.includes("Nenhuma informação de estilo de vida registrada ainda."), "Must display elegant lifestyle empty state");
 });
 
-// 6. BLOCK E: ANTROPOMETRIA COM DELTA E TENDÊNCIA
-runTest("6. Bloco E: Antropometria com variação recente e tendência", () => {
+// 7. BLOCK E: ANTROPOMETRIA COM CTAS "+ MEDIÇÃO" E "HISTÓRICO"
+runTest("7. Bloco E: Antropometria com CTAs + Medição e Histórico e exibição de idade/sexo", () => {
   const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
   assert.ok(content.includes("BLOCO E: ANTROPOMETRIA"), "Block E comment must exist");
+  assert.ok(content.includes("+ Medição"), "Must have + Medição CTA");
+  assert.ok(content.includes("Histórico →"), "Must have Histórico CTA");
+  assert.ok(content.includes("onNavigateTab(\"antropometria\""), "Must navigate to antropometria subarea");
   assert.ok(content.includes("Peso Atual"), "Must display current weight");
   assert.ok(content.includes("Estatura"), "Must display height");
+  assert.ok(content.includes("Idade:"), "Must display age");
+  assert.ok(content.includes("Sexo:"), "Must display biological sex");
   assert.ok(content.includes("Variação Recente de Peso"), "Must display recent weight variation");
   assert.ok(content.includes("weightDelta > 0"), "Must detect weight gain");
   assert.ok(content.includes("weightDelta < 0"), "Must detect weight loss");
-  assert.ok(content.includes("Peso anterior de referência"), "Must display reference weight");
 });
 
-// 7. BLOCK F: CÁLCULOS CLÍNICOS (IMC + TMB + GET/TDEE + MACROS + UNKNOWN != ZERO)
-runTest("7. Bloco F: Cálculos clínicos com TMB, GET e rigor UNKNOWN != ZERO", () => {
+// 8. BLOCK F: CÁLCULOS CLÍNICOS COM CTA "AJUSTAR NO PLANEJAMENTO"
+runTest("8. Bloco F: Cálculos clínicos com TMB, GET, meta e CTA Ajustar no Planejamento", () => {
   const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
   assert.ok(content.includes("BLOCO F: CÁLCULOS CLÍNICOS"), "Block F comment must exist");
+  assert.ok(content.includes("Ajustar no Planejamento →"), "Must have Ajustar no Planejamento CTA");
+  assert.ok(content.includes("onNavigateTab(\"planejamento\""), "Must navigate to planejamento");
   assert.ok(content.includes("IMC (WHO)"), "Must display BMI");
   assert.ok(content.includes("TMB (Basal)"), "Must display BMR");
   assert.ok(content.includes("GET (Total)"), "Must display TDEE / GET");
@@ -102,8 +122,8 @@ runTest("7. Bloco F: Cálculos clínicos com TMB, GET e rigor UNKNOWN != ZERO", 
   assert.ok(content.includes("Gordura"), "Must display fat");
 });
 
-// 8. BLOCK G: PLANO ALIMENTAR ATIVO
-runTest("8. Bloco G: Plano alimentar ativo e ações", () => {
+// 9. BLOCK G: PLANO ALIMENTAR ATIVO COMPLETO
+runTest("9. Bloco G: Plano alimentar ativo completo", () => {
   const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
   assert.ok(content.includes("BLOCO G: PLANO ALIMENTAR ATIVO"), "Block G comment must exist");
   assert.ok(content.includes("activePlan.versionTitle"), "Must display plan title");
@@ -115,80 +135,61 @@ runTest("8. Bloco G: Plano alimentar ativo e ações", () => {
   assert.ok(content.includes("onStartEditPlan"), "Must support editing plan");
 });
 
-// 9. BLOCK H: PLANEJAMENTO NUTRICIONAL
-runTest("9. Bloco H: Planejamento nutricional e comparação com o plano ativo", () => {
+// 10. BLOCK H & I: PLANEJAMENTO E ACOMPANHAMENTO
+runTest("10. Blocos H e I: Planejamento e Acompanhamento", () => {
   const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
   assert.ok(content.includes("BLOCO H: PLANEJAMENTO NUTRICIONAL"), "Block H comment must exist");
-  assert.ok(content.includes("Status do Planejamento"), "Must display planning status");
-  assert.ok(content.includes("Comparativo Meta vs Prescrição Vigente"), "Must display active plan comparison");
-  assert.ok(content.includes("Diferença da prescrição"), "Must display calorie difference between plan and planning");
-  assert.ok(content.includes("Cálculo desatualizado"), "Must display stale warning if anthro updated after planning");
-});
-
-// 10. BLOCK I: ACOMPANHAMENTO RECENTE
-runTest("10. Bloco I: Acompanhamento recente e linha do tempo", () => {
-  const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-general-summary-tab.tsx", "utf8");
   assert.ok(content.includes("BLOCO I: ACOMPANHAMENTO"), "Block I comment must exist");
   assert.ok(content.includes("Última Consulta"), "Must display last consultation");
   assert.ok(content.includes("Último Check-in"), "Must display last check-in");
   assert.ok(content.includes("Linha do Tempo"), "Must display recent timeline events");
-  assert.ok(content.includes("Abrir Linha do Tempo"), "Must provide CTA to full timeline");
 });
 
-// 11. DESKTOP INTEGRATION IN PATIENT-RECORD-VIEW
-runTest("11. Integração desktop em PatientRecordView", () => {
-  const content = fs.readFileSync("components/consultancies/nutrition-v2/patient-record-view.tsx", "utf8");
-  assert.ok(content.includes("<PatientGeneralSummaryTab"), "Must render PatientGeneralSummaryTab");
-  assert.ok(content.includes("activeTab === \"resumo\""), "Must render on activeTab === resumo");
-  assert.ok(content.includes("initialFollowupSummary"), "Must pass initialFollowupSummary");
-  assert.ok(content.includes("Taxa Metabólica Basal (TMB) & Gasto Energético Total (GET)"), "Must enhance calculos tab with TMB and GET");
-  assert.ok(content.includes("Meta Calórica Oficial & Distribuição de Macronutrientes"), "Must enhance calculos tab with Macros");
-});
-
-// 12. MOBILE INTEGRATION IN MOBILE-PATIENT-HUB
-runTest("12. Integração mobile em MobilePatientHub", () => {
-  const content = fs.readFileSync("components/consultancies/nutrition-v2/mobile-patient-hub.tsx", "utf8");
-  assert.ok(content.includes("<PatientGeneralSummaryTab"), "Must render PatientGeneralSummaryTab on mobile");
-  assert.ok(content.includes("data-testid=\"mobile-tab-resumo\""), "Must preserve mobile-tab-resumo testid");
-  assert.ok(content.includes("initialFollowupSummary"), "Must pass initialFollowupSummary");
-  assert.ok(content.includes("Taxa Metabólica Basal (TMB)"), "Must enhance mobile calculos tab with TMB");
-  assert.ok(content.includes("Gasto Energético Total (GET)"), "Must enhance mobile calculos tab with GET");
-});
-
-// 13. PRESERVATION OF DETAILED TABS (NON-REGRESSION)
-runTest("13. Preservação de todas as abas detalhadas existentes", () => {
+// 11. MAIN NAV SIMPLIFICATION IN PATIENT-RECORD-VIEW (DESKTOP)
+runTest("11. Barra principal do desktop simplificada para 5 abas principais", () => {
   const viewContent = fs.readFileSync("components/consultancies/nutrition-v2/patient-record-view.tsx", "utf8");
+
+  // The 5 main navigation tabs must be present
+  assert.ok(viewContent.includes('{ id: "resumo", label: "Resumo Geral" }'), "Must have Resumo Geral in main nav");
+  assert.ok(viewContent.includes('{ id: "consultas", label: "Consultas" }'), "Must have Consultas in main nav");
+  assert.ok(viewContent.includes('{ id: "checkins", label: "Acompanhamento" }'), "Must have Acompanhamento in main nav");
+  assert.ok(viewContent.includes('{ id: "planejamento", label: "Planejamento" }'), "Must have Planejamento in main nav");
+  assert.ok(viewContent.includes('{ id: "plano", label: activePlan ? "Plano Ativo" : "Plano Alimentar" }'), "Must have Plano Ativo in main nav");
+
+  // Detailed clinical tabs must be REMOVED from the main nav array
+  assert.ok(!viewContent.includes('{ id: "clinico", label: "Histórico Clínico" }'), "Histórico Clínico must NOT be in main nav array");
+  assert.ok(!viewContent.includes('{ id: "alimentar", label: "Histórico Alimentar" }'), "Histórico Alimentar must NOT be in main nav array");
+  assert.ok(!viewContent.includes('{ id: "estilo_vida", label: "Estilo de Vida" }'), "Estilo de Vida must NOT be in main nav array");
+  assert.ok(!viewContent.includes('{ id: "calculos", label: "Cálculos Clínicos" }'), "Cálculos Clínicos must NOT be in main nav array");
+});
+
+// 12. PRESERVATION OF CLINICAL DETAIL SECTIONS AND RETURN BREADCRUMB
+runTest("12. Preservação de subáreas clínicas e cabeçalho de retorno ao Resumo Geral", () => {
+  const viewContent = fs.readFileSync("components/consultancies/nutrition-v2/patient-record-view.tsx", "utf8");
+
+  // Sub-area header with back button
+  assert.ok(viewContent.includes("Voltar ao Resumo Geral"), "Must have Voltar ao Resumo Geral link");
+  assert.ok(viewContent.includes("Fechar detalhes ✕"), "Must have Fechar detalhes button");
+
+  // Sub-areas must remain fully functional
+  assert.ok(viewContent.includes('activeTab === "clinico"'), "Must preserve clinico subarea view");
+  assert.ok(viewContent.includes('activeTab === "alimentar"'), "Must preserve alimentar subarea view");
+  assert.ok(viewContent.includes('activeTab === "estilo_vida"'), "Must preserve estilo_vida subarea view");
+  assert.ok(viewContent.includes('activeTab === "antropometria"'), "Must preserve antropometria subarea view");
+  assert.ok(viewContent.includes('activeTab === "gestacao"'), "Must preserve gestacao subarea view");
+  assert.ok(viewContent.includes('activeTab === "calculos"'), "Must preserve calculos subarea view");
+});
+
+// 13. MOBILE INTEGRATION WITH 5 CORE TABS AND BACK BUTTON
+runTest("13. Integração mobile com 5 abas principais e retorno ao Resumo Geral", () => {
   const hubContent = fs.readFileSync("components/consultancies/nutrition-v2/mobile-patient-hub.tsx", "utf8");
-
-  // Detailed tabs in desktop
-  const expectedDesktopTabs = [
-    "consultas",
-    "checkins",
-    "planejamento",
-    "plano",
-    "clinico",
-    "alimentar",
-    "estilo_vida",
-    "antropometria",
-    "gestacao",
-    "calculos",
-  ];
-  for (const tab of expectedDesktopTabs) {
-    assert.ok(viewContent.includes(`activeTab === "${tab}"`), `Desktop must preserve tab '${tab}'`);
-  }
-
-  // Detailed sub-tabs in mobile
-  const expectedMobileSubTabs = [
-    "clinico",
-    "alimentar",
-    "estilo_vida",
-    "antropometria",
-    "gestacao",
-    "calculos",
-  ];
-  for (const subTab of expectedMobileSubTabs) {
-    assert.ok(hubContent.includes(`clinicalSubTab === "${subTab}"`), `Mobile must preserve sub-tab '${subTab}'`);
-  }
+  assert.ok(hubContent.includes('{ id: "resumo", label: "Resumo Geral" }'), "Mobile must have Resumo Geral");
+  assert.ok(hubContent.includes('{ id: "consultas", label: "Consultas" }'), "Mobile must have Consultas");
+  assert.ok(hubContent.includes('{ id: "checkins", label: "Acompanhamento" }'), "Mobile must have Acompanhamento");
+  assert.ok(hubContent.includes('{ id: "planejamento", label: "Planejamento" }'), "Mobile must have Planejamento");
+  assert.ok(hubContent.includes('{ id: "plano", label: "Plano Ativo" }'), "Mobile must have Plano Ativo");
+  assert.ok(hubContent.includes("Voltar ao Resumo Geral"), "Mobile prontuario must have back button to Resumo Geral");
+  assert.ok(hubContent.includes("data-testid=\"mobile-tab-resumo\""), "Must preserve mobile-tab-resumo testid");
 });
 
 // 14. SERVER PAGE DATA LOADER
@@ -204,6 +205,6 @@ if (!allPassed) {
   console.error("ALGUNS TESTES FALHARAM!");
   process.exit(1);
 } else {
-  console.log("TODOS OS 14 TESTES DE RESUMO GERAL PASSARAM COM SUCESSO!");
+  console.log("TODOS OS 14 TESTES DE NAVEGAÇÃO E RESUMO GERAL PASSARAM COM SUCESSO!");
   console.log("========================================\n");
 }

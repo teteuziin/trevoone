@@ -12,6 +12,7 @@ import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
 import { getFoodPortionsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
 import {
   EQUIVALENT_CRITERIA_SHORT_LABELS,
+  generatePracticalRoundingSuggestions,
   type EquivalentCriterion,
 } from "@/lib/nutrition-v2/equivalents";
 
@@ -246,6 +247,16 @@ export function NutritionSubstitutionEditor({
     setIsEditing(false);
   };
 
+  const curQtyNum = parseFloat(quantity.replace(",", "."));
+  const activeUnitLabel =
+    selectedUnitValue === "G"
+      ? "g"
+      : availablePortions.find((p) => p.publicId === selectedUnitValue)?.label || "g";
+  const inlineRoundingOptions =
+    Number.isFinite(curQtyNum) && curQtyNum > 0
+      ? generatePracticalRoundingSuggestions(curQtyNum, activeUnitLabel)
+      : [];
+
   return (
     <div className="pl-3 sm:pl-6 pr-2.5 sm:pr-3 py-2 sm:py-2.5 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-secondary)]/30 hover:border-[var(--brand-primary)]/40 transition-colors w-full max-w-full min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 w-full max-w-full min-w-0">
@@ -304,6 +315,16 @@ export function NutritionSubstitutionEditor({
               onClick={() => onReviewOrRecalculate(substitution)}
               className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer shrink-0"
               title="Recalcular porção equivalente com base no alimento principal"
+            >
+              [ Recalcular ]
+            </button>
+          )}
+          {!readOnly && substitution.equivalenceCriterion === "MANUAL" && substitution.derivedStatus !== "STALE" && onReviewOrRecalculate && (
+            <button
+              type="button"
+              onClick={() => onReviewOrRecalculate(substitution)}
+              className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer shrink-0"
+              title="Recalcular equivalência matemática com base no alimento principal"
             >
               [ Recalcular ]
             </button>
@@ -423,6 +444,37 @@ export function NutritionSubstitutionEditor({
               </select>
             </div>
           </div>
+
+          {/* Practical Rounding Suggestions Quick Chips */}
+          {inlineRoundingOptions.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              <span className="text-[10px] text-[var(--text-tertiary)] font-semibold mr-0.5">
+                Arredondar:
+              </span>
+              {inlineRoundingOptions.map((opt) => {
+                const isSelected = curQtyNum === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      const nextVal = String(opt.value);
+                      setQuantity(nextVal);
+                      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+                      performSave(nextVal, selectedUnitValue, notes);
+                    }}
+                    className={`min-h-[32px] px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${
+                      isSelected
+                        ? "bg-[var(--brand-primary)] text-white border-[var(--brand-primary)] shadow-2xs"
+                        : "bg-[var(--surface-primary)] text-[var(--text-primary)] border-[var(--border)] hover:border-[var(--brand-primary)]/60 hover:bg-[var(--surface-secondary)]"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div>
             <label className="block text-[11px] font-semibold text-[var(--text-secondary)] mb-0.5">

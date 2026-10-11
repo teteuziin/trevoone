@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useTransition, useMemo, useCallback } from "react";
-import { searchFoodsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
+import React, { useState, useEffect, useTransition, useMemo, useCallback, useRef } from "react";
+import {
+  searchFoodsForPickerAction,
+  getFoodPortionsForPickerAction,
+} from "@/app/consultoria/[slug]/planos-v2/actions";
 import type { FoodListItemDto } from "@/lib/nutrition-v2/food-repository";
 import type {
   MealItemWithSubstitutionsDto,
@@ -11,6 +14,7 @@ import type {
 } from "@/lib/nutrition-v2/plan-repository";
 import {
   calculateNutrientEquivalence,
+  generatePracticalRoundingSuggestions,
   EQUIVALENT_CRITERIA_LABELS,
   EQUIVALENT_CRITERIA_SHORT_LABELS,
   EQUIVALENT_CRITERIA_UNITS,
@@ -20,7 +24,12 @@ import {
   type ReferenceFoodPrescription,
   type CandidateFoodItem,
   type StaleReason,
+  type MacroSnapshots,
 } from "@/lib/nutrition-v2/equivalents";
+import {
+  derivePortionUnitCode,
+  roundMacro,
+} from "@/lib/nutrition-v2/nutrient-calculator";
 
 interface NutritionEquivalentsModalProps {
   slug: string;
@@ -31,6 +40,12 @@ interface NutritionEquivalentsModalProps {
   onAddSubstitution: (payload: AddSubstitutionInput) => Promise<void>;
   onUpdateSubstitution?: (subPublicId: string, data: UpdateSubstitutionInput) => Promise<void>;
   initialFoods?: FoodListItemDto[];
+}
+
+interface FoodPortionOption {
+  publicId: string;
+  label: string;
+  equivalentReferenceAmount: number;
 }
 
 export function NutritionEquivalentsModal({
@@ -47,7 +62,9 @@ export function NutritionEquivalentsModal({
 
   const [prevReviewId, setPrevReviewId] = useState<string | null>(substitutionToReview?.publicId ?? null);
   const [selectedCriterion, setSelectedCriterion] = useState<EquivalentCriterion>(
-    substitutionToReview?.equivalenceCriterion || "CALORIES"
+    substitutionToReview?.equivalenceCriterion && substitutionToReview.equivalenceCriterion !== "MANUAL"
+      ? substitutionToReview.equivalenceCriterion
+      : "CALORIES"
   );
   const [query, setQuery] = useState("");
   const [scopeFilter, setScopeFilter] = useState<"ALL" | "GLOBAL" | "CONSULTANCY">("ALL");
@@ -57,11 +74,19 @@ export function NutritionEquivalentsModal({
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [customQuantities, setCustomQuantities] = useState<Record<string, string>>({});
+  const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
+  const [foodPortionsMap, setFoodPortionsMap] = useState<Record<string, FoodPortionOption[]>>({});
+  const loadedPortionFoodIdsRef = useRef<Set<string>>(new Set());
 
   if ((substitutionToReview?.publicId ?? null) !== prevReviewId) {
     setPrevReviewId(substitutionToReview?.publicId ?? null);
-    setSelectedCriterion(substitutionToReview?.equivalenceCriterion || "CALORIES");
+    setSelectedCriterion(
+      substitutionToReview?.equivalenceCriterion && substitutionToReview.equivalenceCriterion !== "MANUAL"
+        ? substitutionToReview.equivalenceCriterion
+        : "CALORIES"
+    );
     setCustomQuantities({});
+    setSelectedUnits({});
   }
 
   // Convert prescribed item into pure reference DTO (First Food Anchor)
@@ -105,12 +130,63 @@ export function NutritionEquivalentsModal({
     };
   }, [isOpen, slug, query, scopeFilter, initialFoods, isReviewMode, substitutionToReview]);
 
+  // Pre-load household portions from Food Library for candidate foods
+  useEffect(() => {
+    if (!isOpen || !slug || foods.length === 0) return;
+
+    const foodsToFetch = foods.filter(
+      (f) => f.publicId && !loadedPortionFoodIdsRef.current.has(f.publicId)
+    );
+    if (foodsToFetch.length === 0) return;
+
+    foodsToFetch.forEach((f) => loadedPortionFoodIdsRef.current.add(f.publicId));
+
+    Promise.all(
+      foodsToFetch.map(async (f) => {
+        try {
+          const res = await getFoodPortionsForPickerAction(slug, f.publicId);
+          if (res.success && res.data) {
+            const rawPortions = (res.data.portions || []) as Array<{
+              publicId: string;
+              label: string;
+              equivalentReferenceAmount: number;
+              status?: string;
+            }>;
+            const activePortions: FoodPortionOption[] = rawPortions
+              .filter((p) => (p.status || "ACTIVE") === "ACTIVE")
+              .map((p) => ({
+                publicId: p.publicId,
+                label: p.label,
+                equivalentReferenceAmount: Number(p.equivalentReferenceAmount),
+              }));
+            return { foodPublicId: f.publicId, portions: activePortions };
+          }
+        } catch {
+          // ignore network errors
+        }
+        return null;
+      })
+    ).then((results) => {
+      setFoodPortionsMap((prev) => {
+        const next = { ...prev };
+        for (const item of results) {
+          if (item) {
+            next[item.foodPublicId] = item.portions;
+          }
+        }
+        return next;
+      });
+    });
+  }, [isOpen, slug, foods]);
+
   const handleClose = useCallback(() => {
     if (isSubmitting) return;
     setQuery("");
     setSuccessMessage(null);
     setSubmittingId(null);
     setCustomQuantities({});
+    setSelectedUnits({});
+    loadedPortionFoodIdsRef.current.clear();
     onClose();
   }, [isSubmitting, onClose]);
 
@@ -230,7 +306,13 @@ export function NutritionEquivalentsModal({
   }, [calculatedItems, isReviewMode, prescribedItem.categorySnapshot]);
 
   // Handle adding new substitution
-  const handleAdd = async (food: FoodListItemDto, defaultRoundedQty: number, unitCode: string) => {
+  const handleAdd = async (
+    food: FoodListItemDto,
+    defaultRoundedQty: number,
+    unitCode: string,
+    portionPublicId?: string | null,
+    unitLabel?: string | null
+  ) => {
     try {
       setSubmittingId(food.publicId);
       setIsSubmitting(true);
@@ -242,15 +324,24 @@ export function NutritionEquivalentsModal({
         return;
       }
 
+      const isOverridden =
+        selectedCriterion === "MANUAL" ||
+        (customQtyStr != null && parseFloat(customQtyStr.replace(",", ".")) !== defaultRoundedQty) ||
+        Boolean(portionPublicId);
+      const criterionToSave = isOverridden ? "MANUAL" : selectedCriterion;
+
       const normalizedUnit = (unitCode || "G").toUpperCase();
       const payload: AddSubstitutionInput = {
         foodPublicId: food.publicId,
         prescribedQuantity: finalQty,
+        portionPublicId: portionPublicId || null,
         prescribedUnitCode: normalizedUnit,
-        prescribedUnitLabel: normalizedUnit.toLowerCase(),
-        notes: `Equivalente por ${EQUIVALENT_CRITERIA_SHORT_LABELS[selectedCriterion].toLowerCase()}`,
-        equivalenceCriterion: selectedCriterion,
-        equivalenceTargetValueSnapshot: selectedCriterion === "MANUAL" ? null : currentTargetValue,
+        prescribedUnitLabel: unitLabel || (normalizedUnit === "G" ? "Gramas (g)" : normalizedUnit.toLowerCase()),
+        notes: isOverridden
+          ? "Porção ajustada manualmente"
+          : `Equivalente por ${EQUIVALENT_CRITERIA_SHORT_LABELS[selectedCriterion].toLowerCase()}`,
+        equivalenceCriterion: criterionToSave,
+        equivalenceTargetValueSnapshot: criterionToSave === "MANUAL" ? null : currentTargetValue,
       };
 
       await onAddSubstitution(payload);
@@ -268,7 +359,12 @@ export function NutritionEquivalentsModal({
   };
 
   // Handle confirming recalculation/review of existing substitution
-  const handleConfirmRecalculate = async (calcRoundedQty: number | null, unitCode: string | null) => {
+  const handleConfirmRecalculate = async (
+    calcRoundedQty: number | null,
+    unitCode: string | null,
+    portionPublicId?: string | null,
+    unitLabel?: string | null
+  ) => {
     if (!substitutionToReview || !onUpdateSubstitution) return;
 
     try {
@@ -283,13 +379,20 @@ export function NutritionEquivalentsModal({
         return;
       }
 
+      const isOverridden =
+        selectedCriterion === "MANUAL" ||
+        (calcRoundedQty != null && finalQty !== calcRoundedQty) ||
+        Boolean(portionPublicId);
+      const criterionToSave = isOverridden ? "MANUAL" : selectedCriterion;
+
       const normalizedUnit = (unitCode || substitutionToReview.prescribedUnitCode || "G").toUpperCase();
       const payload: UpdateSubstitutionInput = {
         prescribedQuantity: finalQty,
+        portionPublicId: portionPublicId || null,
         prescribedUnitCode: normalizedUnit,
-        prescribedUnitLabel: normalizedUnit.toLowerCase(),
-        equivalenceCriterion: selectedCriterion,
-        equivalenceTargetValueSnapshot: selectedCriterion === "MANUAL" ? null : currentTargetValue,
+        prescribedUnitLabel: unitLabel || (normalizedUnit === "G" ? "Gramas (g)" : normalizedUnit.toLowerCase()),
+        equivalenceCriterion: criterionToSave,
+        equivalenceTargetValueSnapshot: criterionToSave === "MANUAL" ? null : currentTargetValue,
         isStale: false,
         staleReason: null,
       };
@@ -598,9 +701,53 @@ export function NutritionEquivalentsModal({
             ) : (
               sortedItems.map(({ food, calc, isSelf, isDuplicate }) => {
                 const isSubmittingThis = submittingId === food.publicId;
+                const foodPortions = foodPortionsMap[food.publicId] || [];
+                const selectedUnitVal = selectedUnits[food.publicId] || "G";
                 const customQtyVal =
                   customQuantities[food.publicId] ??
                   (calc.roundedQuantity != null ? String(calc.roundedQuantity) : "");
+                const activeQtyNum = parseFloat(customQtyVal.replace(",", "."));
+                const activeQty = Number.isFinite(activeQtyNum) && activeQtyNum > 0 ? activeQtyNum : (calc.roundedQuantity || 1);
+
+                let activePortionPublicId: string | null = null;
+                let activeUnitCode = calc.unitCode || "G";
+                let activeUnitLabel = "Gramas (g)";
+                let portionMultiplier = 1;
+
+                if (selectedUnitVal !== "G") {
+                  const pt = foodPortions.find((p) => p.publicId === selectedUnitVal);
+                  if (pt) {
+                    activePortionPublicId = pt.publicId;
+                    activeUnitCode = derivePortionUnitCode(pt.label);
+                    activeUnitLabel = pt.label;
+                    portionMultiplier = pt.equivalentReferenceAmount;
+                  }
+                }
+
+                // Practical rounding suggestions near calculated equivalent
+                const roundingOptions = calc.status === "READY" && calc.roundedQuantity != null
+                  ? generatePracticalRoundingSuggestions(
+                      selectedUnitVal === "G"
+                        ? calc.roundedQuantity
+                        : Math.max(1, Math.round(calc.roundedQuantity / portionMultiplier)),
+                      selectedUnitVal === "G" ? (calc.unitCode?.toLowerCase() || "g") : activeUnitLabel
+                    )
+                  : [];
+
+                const isOverridden =
+                  selectedCriterion === "MANUAL" ||
+                  (calc.roundedQuantity != null && activeQty !== calc.roundedQuantity) ||
+                  selectedUnitVal !== "G";
+
+                // Dynamic macros based on chosen prescribed quantity and unit
+                const effectiveGrams = activeQty * (selectedUnitVal === "G" ? 1 : portionMultiplier);
+                const macroScale = food.referenceAmount > 0 ? effectiveGrams / food.referenceAmount : 1;
+                const displayMacros: MacroSnapshots = {
+                  caloriesKcal: food.caloriesKcal != null ? roundMacro(food.caloriesKcal * macroScale) : null,
+                  proteinG: food.proteinG != null ? roundMacro(food.proteinG * macroScale) : null,
+                  carbohydrateG: food.carbohydrateG != null ? roundMacro(food.carbohydrateG * macroScale) : null,
+                  fatG: food.fatG != null ? roundMacro(food.fatG * macroScale) : null,
+                };
 
                 return (
                   <div
@@ -649,8 +796,13 @@ export function NutritionEquivalentsModal({
                             </span>
                           </div>
                           {calc.status === "READY" && (
-                            <div className="text-sm sm:text-base font-extrabold text-[var(--brand)] tabular-nums mt-0.5">
-                              Sugerido: {calc.formattedQuantity}
+                            <div className="mt-0.5">
+                              <div className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">
+                                Equivalência calculada
+                              </div>
+                              <div className="text-sm sm:text-base font-extrabold text-[var(--brand)] tabular-nums">
+                                {calc.formattedQuantity}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -659,11 +811,11 @@ export function NutritionEquivalentsModal({
                       {/* Prominent Calculated Quantity Badge in Add Mode */}
                       {!isReviewMode && calc.status === "READY" && (
                         <div className="text-right shrink-0">
+                          <div className="text-[10px] uppercase font-bold text-[var(--text-tertiary)]">
+                            Equivalência calculada
+                          </div>
                           <div className="text-base sm:text-lg font-extrabold text-[var(--brand)] tabular-nums">
                             {calc.formattedQuantity}
-                          </div>
-                          <div className="text-[10px] font-semibold text-[var(--text-secondary)]">
-                            quantidade sugerida
                           </div>
                         </div>
                       )}
@@ -731,7 +883,7 @@ export function NutritionEquivalentsModal({
                           <div className="grid grid-cols-3 bg-[var(--surface-sunken)] px-3 py-2 font-bold text-[11px] text-[var(--text-tertiary)] border-b border-[var(--border-subtle)]">
                             <span>Nutriente</span>
                             <span className="text-center">Alimento Base ({prescribedItem.prescribedQuantity}{prescribedItem.prescribedUnitLabel || prescribedItem.prescribedUnitCode || "g"})</span>
-                            <span className="text-right">Substituto Sugerido ({calc.formattedQuantity})</span>
+                            <span className="text-right">Substituto Sugerido ({activeQty} {selectedUnitVal === "G" ? (calc.unitCode?.toLowerCase() || "g") : activeUnitLabel})</span>
                           </div>
 
                           {/* Calorias */}
@@ -745,11 +897,11 @@ export function NutritionEquivalentsModal({
                             </span>
                             <span className="text-center tabular-nums">{reference.caloriesKcalSnapshot != null ? `${reference.caloriesKcalSnapshot} kcal` : "-"}</span>
                             <span className="text-right tabular-nums">
-                              <strong>{calc.macroSnapshotsForEquivalent.caloriesKcal} kcal</strong>
-                              {reference.caloriesKcalSnapshot != null && calc.macroSnapshotsForEquivalent.caloriesKcal != null && (
+                              <strong>{displayMacros.caloriesKcal ?? "-"} kcal</strong>
+                              {reference.caloriesKcalSnapshot != null && displayMacros.caloriesKcal != null && (
                                 <span className="text-[10px] text-[var(--text-tertiary)] ml-1">
-                                  ({(calc.macroSnapshotsForEquivalent.caloriesKcal - reference.caloriesKcalSnapshot > 0 ? "+" : "")}
-                                  {Math.round((calc.macroSnapshotsForEquivalent.caloriesKcal - reference.caloriesKcalSnapshot) * 10) / 10} kcal)
+                                  ({(displayMacros.caloriesKcal - reference.caloriesKcalSnapshot > 0 ? "+" : "")}
+                                  {Math.round((displayMacros.caloriesKcal - reference.caloriesKcalSnapshot) * 10) / 10} kcal)
                                 </span>
                               )}
                             </span>
@@ -766,11 +918,11 @@ export function NutritionEquivalentsModal({
                             </span>
                             <span className="text-center tabular-nums">{reference.carbohydrateGSnapshot != null ? `${reference.carbohydrateGSnapshot}g` : "-"}</span>
                             <span className="text-right tabular-nums">
-                              <strong>{calc.macroSnapshotsForEquivalent.carbohydrateG}g</strong>
-                              {reference.carbohydrateGSnapshot != null && calc.macroSnapshotsForEquivalent.carbohydrateG != null && (
+                              <strong>{displayMacros.carbohydrateG ?? "-"}g</strong>
+                              {reference.carbohydrateGSnapshot != null && displayMacros.carbohydrateG != null && (
                                 <span className="text-[10px] text-[var(--text-tertiary)] ml-1">
-                                  ({(calc.macroSnapshotsForEquivalent.carbohydrateG - reference.carbohydrateGSnapshot > 0 ? "+" : "")}
-                                  {Math.round((calc.macroSnapshotsForEquivalent.carbohydrateG - reference.carbohydrateGSnapshot) * 10) / 10}g)
+                                  ({(displayMacros.carbohydrateG - reference.carbohydrateGSnapshot > 0 ? "+" : "")}
+                                  {Math.round((displayMacros.carbohydrateG - reference.carbohydrateGSnapshot) * 10) / 10}g)
                                 </span>
                               )}
                             </span>
@@ -787,11 +939,11 @@ export function NutritionEquivalentsModal({
                             </span>
                             <span className="text-center tabular-nums">{reference.proteinGSnapshot != null ? `${reference.proteinGSnapshot}g` : "-"}</span>
                             <span className="text-right tabular-nums">
-                              <strong>{calc.macroSnapshotsForEquivalent.proteinG}g</strong>
-                              {reference.proteinGSnapshot != null && calc.macroSnapshotsForEquivalent.proteinG != null && (
+                              <strong>{displayMacros.proteinG ?? "-"}g</strong>
+                              {reference.proteinGSnapshot != null && displayMacros.proteinG != null && (
                                 <span className="text-[10px] text-[var(--text-tertiary)] ml-1">
-                                  ({(calc.macroSnapshotsForEquivalent.proteinG - reference.proteinGSnapshot > 0 ? "+" : "")}
-                                  {Math.round((calc.macroSnapshotsForEquivalent.proteinG - reference.proteinGSnapshot) * 10) / 10}g)
+                                  ({(displayMacros.proteinG - reference.proteinGSnapshot > 0 ? "+" : "")}
+                                  {Math.round((displayMacros.proteinG - reference.proteinGSnapshot) * 10) / 10}g)
                                 </span>
                               )}
                             </span>
@@ -808,57 +960,157 @@ export function NutritionEquivalentsModal({
                             </span>
                             <span className="text-center tabular-nums">{reference.fatGSnapshot != null ? `${reference.fatGSnapshot}g` : "-"}</span>
                             <span className="text-right tabular-nums">
-                              <strong>{calc.macroSnapshotsForEquivalent.fatG}g</strong>
-                              {reference.fatGSnapshot != null && calc.macroSnapshotsForEquivalent.fatG != null && (
+                              <strong>{displayMacros.fatG ?? "-"}g</strong>
+                              {reference.fatGSnapshot != null && displayMacros.fatG != null && (
                                 <span className="text-[10px] text-[var(--text-tertiary)] ml-1">
-                                  ({(calc.macroSnapshotsForEquivalent.fatG - reference.fatGSnapshot > 0 ? "+" : "")}
-                                  {Math.round((calc.macroSnapshotsForEquivalent.fatG - reference.fatGSnapshot) * 10) / 10}g)
+                                  ({(displayMacros.fatG - reference.fatGSnapshot > 0 ? "+" : "")}
+                                  {Math.round((displayMacros.fatG - reference.fatGSnapshot) * 10) / 10}g)
                                 </span>
                               )}
                             </span>
                           </div>
                         </div>
 
-                        {/* Confirmation & Portion Adjustment Row */}
-                        <div className="p-3 rounded-xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs font-semibold text-[var(--text-secondary)]">
-                              Porção a aplicar ({calc.unitCode?.toLowerCase() || "g"}):
-                            </label>
-                            <input
-                              type="number"
-                              step="any"
-                              value={customQtyVal}
-                              onChange={(e) =>
-                                setCustomQuantities({
-                                  ...customQuantities,
-                                  [food.publicId]: e.target.value,
-                                })
-                              }
-                              className="w-24 min-h-[38px] px-2.5 py-1 text-xs font-bold text-center rounded-lg bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
-                            />
+                        {/* Confirmation & Practical Rounding Box */}
+                        <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[var(--surface-sunken)] border border-[var(--border-subtle)] space-y-3">
+                          {/* Header: Equivalência calculada + Sugestões de arredondamento rápido */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
+                            <div className="text-xs">
+                              <span className="text-[var(--text-secondary)] font-medium">Equivalência calculada: </span>
+                              <strong className="text-[var(--brand)] font-bold text-sm tabular-nums">
+                                {calc.formattedQuantity || `${calc.roundedQuantity} g`}
+                              </strong>
+                            </div>
+
+                            {/* Practical Rounding Suggestions Quick Chips */}
+                            {roundingOptions.length > 0 && (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[11px] text-[var(--text-tertiary)] font-semibold mr-0.5">
+                                  Arredondar:
+                                </span>
+                                {roundingOptions.map((opt) => {
+                                  const isSelected = activeQty === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => {
+                                        setCustomQuantities((prev) => ({
+                                          ...prev,
+                                          [food.publicId]: String(opt.value),
+                                        }));
+                                      }}
+                                      className={`min-h-[36px] sm:min-h-[32px] px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                                        isSelected
+                                          ? "bg-[var(--brand)] text-white border-[var(--brand)] shadow-xs"
+                                          : "bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border-default)] hover:border-[var(--brand)]/60 hover:bg-[var(--surface-hover)]"
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
 
-                          <div>
-                            {isReviewMode ? (
-                              <button
-                                type="button"
-                                disabled={isSubmitting || isSelf}
-                                onClick={() => handleConfirmRecalculate(calc.roundedQuantity, calc.unitCode)}
-                                className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:opacity-90 active:scale-[0.98] transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          {/* Inputs: Quantidade prescrita + Unidade */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-[var(--text-secondary)] mb-1">
+                                Quantidade prescrita:
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0.1"
+                                value={customQtyVal}
+                                onChange={(e) =>
+                                  setCustomQuantities({
+                                    ...customQuantities,
+                                    [food.publicId]: e.target.value,
+                                  })
+                                }
+                                className="w-full min-h-[44px] px-3 py-2 text-xs font-bold rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] tabular-nums"
+                                placeholder="Ex: 55"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-semibold text-[var(--text-secondary)] mb-1">
+                                Unidade:
+                              </label>
+                              <select
+                                value={selectedUnitVal}
+                                onChange={(e) => {
+                                  const newUnit = e.target.value;
+                                  let nextQtyStr = customQtyVal;
+                                  const curNum = parseFloat(customQtyVal.replace(",", "."));
+
+                                  if (selectedUnitVal === "G" && newUnit !== "G") {
+                                    const pt = foodPortions.find((p) => p.publicId === newUnit);
+                                    if (pt && pt.equivalentReferenceAmount > 0 && Number.isFinite(curNum) && curNum > 10) {
+                                      nextQtyStr = String(Math.max(1, Math.round(curNum / pt.equivalentReferenceAmount)));
+                                    }
+                                  } else if (selectedUnitVal !== "G" && newUnit === "G") {
+                                    const prevPt = foodPortions.find((p) => p.publicId === selectedUnitVal);
+                                    if (prevPt && prevPt.equivalentReferenceAmount > 0) {
+                                      nextQtyStr = String(Math.round((Number.isFinite(curNum) ? curNum : 1) * prevPt.equivalentReferenceAmount));
+                                    }
+                                  }
+
+                                  setSelectedUnits((prev) => ({ ...prev, [food.publicId]: newUnit }));
+                                  setCustomQuantities((prev) => ({ ...prev, [food.publicId]: nextQtyStr }));
+                                }}
+                                className="w-full min-h-[44px] px-3 py-2 text-xs font-medium rounded-xl bg-[var(--surface)] border border-[var(--border-default)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
                               >
-                                {isSubmitting ? "Confirmando..." : "Confirmar equivalência"}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={!calc.canApply || isSubmitting || isSelf || isDuplicate}
-                                onClick={() => handleAdd(food, calc.roundedQuantity!, calc.unitCode!)}
-                                className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:opacity-90 active:scale-[0.98] transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {isSubmittingThis ? "Adicionando..." : "Confirmar substituição"}
-                              </button>
-                            )}
+                                <option value="G">Gramas (g)</option>
+                                {foodPortions.map((p) => (
+                                  <option key={p.publicId} value={p.publicId}>
+                                    {p.label} ({p.equivalentReferenceAmount}g)
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Status & Confirmation Action Button Row (Touch Targets >= 44px) */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                            <div className="text-[11px] text-[var(--text-secondary)]">
+                              {isOverridden ? (
+                                <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                  Ajuste manual (critério: MANUAL — não recalcula automaticamente)
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                  Equivalência automática por {currentCriterionShort.toLowerCase()}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="shrink-0">
+                              {isReviewMode ? (
+                                <button
+                                  type="button"
+                                  disabled={isSubmitting || isSelf}
+                                  onClick={() => handleConfirmRecalculate(activeQty, activeUnitCode, activePortionPublicId, activeUnitLabel)}
+                                  className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:opacity-90 active:scale-[0.98] transition-all shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {isSubmitting ? "Confirmando..." : "Confirmar equivalência"}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={!calc.canApply || isSubmitting || isSelf || isDuplicate}
+                                  onClick={() => handleAdd(food, activeQty!, activeUnitCode, activePortionPublicId, activeUnitLabel)}
+                                  className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:opacity-90 active:scale-[0.98] transition-all shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {isSubmittingThis ? "Adicionando..." : "Confirmar substituição"}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>

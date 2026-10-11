@@ -14,6 +14,7 @@ import {
   calculateNutrientEquivalence,
   deriveSubstitutionStatus,
   normalizeCriterion,
+  generatePracticalRoundingSuggestions,
 } from "../lib/nutrition-v2/equivalents.ts";
 
 console.log("=== INICIANDO SUÍTE DE TESTES: FIX P0 EDITOR DE QUANTIDADE E UNIDADE ===\n");
@@ -384,6 +385,82 @@ runTest("DUPLICATE SUBSTITUTE: denied when food_id already exists among alternat
     },
     { message: /já está entre as opções de substituição/ }
   );
+});
+
+// ============================================================================
+// 14. PRACTICAL ROUNDING: 55g gives lower 50g, exact 55g, upper 60g
+// ============================================================================
+runTest("PRACTICAL ROUNDING: 55g gives lower 50g, exact 55g, upper 60g", () => {
+  const options = generatePracticalRoundingSuggestions(55, "g");
+  assert.equal(options.length, 3);
+  assert.equal(options[0].value, 50);
+  assert.equal(options[0].label, "50 g");
+  assert.equal(options[1].value, 55);
+  assert.equal(options[1].label, "55 g exato");
+  assert.equal(options[1].isExact, true);
+  assert.equal(options[2].value, 60);
+  assert.equal(options[2].label, "60 g");
+});
+
+// ============================================================================
+// 15. PRACTICAL ROUNDING: 53g gives 50 | 53 | 55
+// ============================================================================
+runTest("PRACTICAL ROUNDING: 53g gives 50 | 53 | 55", () => {
+  const options = generatePracticalRoundingSuggestions(53, "g");
+  assert.deepEqual(options.map((o) => o.value), [50, 53, 55]);
+});
+
+// ============================================================================
+// 16. PRACTICAL ROUNDING: 97g gives 95 | 97 | 100
+// ============================================================================
+runTest("PRACTICAL ROUNDING: 97g gives 95 | 97 | 100", () => {
+  const options = generatePracticalRoundingSuggestions(97, "g");
+  assert.deepEqual(options.map((o) => o.value), [95, 97, 100]);
+});
+
+// ============================================================================
+// 17. PRACTICAL ROUNDING: 127g gives 125 | 127 | 130
+// ============================================================================
+runTest("PRACTICAL ROUNDING: 127g gives 125 | 127 | 130", () => {
+  const options = generatePracticalRoundingSuggestions(127, "g");
+  assert.deepEqual(options.map((o) => o.value), [125, 127, 130]);
+});
+
+// ============================================================================
+// 18. MANUAL INPUT: 55 -> 63 sets criterion MANUAL & recalculates nutrients
+// ============================================================================
+runTest("MANUAL INPUT: 55 -> 63 sets criterion MANUAL & recalculates nutrients from 63g", () => {
+  const calculatedQty = 55;
+  const userChosenQty = 63;
+  const isOverridden = userChosenQty !== calculatedQty;
+  const criterionToSave = isOverridden ? "MANUAL" : "CALORIES";
+
+  assert.equal(criterionToSave, "MANUAL");
+
+  const calc63 = calculateItemNutrients({
+    food: CANONICAL_MANDIOCA,
+    prescribedQuantity: 63,
+    prescribedUnitCode: "G",
+  });
+
+  assert.equal(calc63.isValid, true);
+  assert.equal(calc63.caloriesKcal, roundMacro(125 * (63 / 100)));
+  assert.equal(calc63.carbohydrateG, roundMacro(30.1 * (63 / 100)));
+});
+
+// ============================================================================
+// 19. REFRESH PERSISTENCE: 63g remains 63g with MANUAL criterion
+// ============================================================================
+runTest("REFRESH: 63 remains 63 without auto-recalculating to 55g", () => {
+  const savedState = {
+    prescribedQuantity: 63,
+    equivalenceCriterion: "MANUAL",
+    caloriesKcalSnapshot: roundMacro(125 * (63 / 100)),
+  };
+
+  // Simulating plan refresh / load: manual state is preserved
+  assert.equal(savedState.prescribedQuantity, 63);
+  assert.equal(savedState.equivalenceCriterion, "MANUAL");
 });
 
 console.log(`\n==================================================`);

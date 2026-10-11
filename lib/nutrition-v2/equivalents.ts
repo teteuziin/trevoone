@@ -985,3 +985,76 @@ export function calculateNutrientEquivalence(
     canApply: true,
   };
 }
+
+// ============================================================================
+// PRACTICAL ROUNDING SUGGESTIONS (P0 UX)
+// ============================================================================
+
+export interface PracticalRoundingOption {
+  value: number;
+  label: string;
+  isExact?: boolean;
+}
+
+/**
+ * Generates practical rounding suggestions near the exact calculated quantity.
+ *
+ * Rules:
+ * - Increments of 5g or 10g depending on magnitude.
+ * - Always keeps the exact value as the central option.
+ * - Examples:
+ *   - 53 g: 50 | 53 | 55
+ *   - 55 g: 50 | 55 | 60
+ *   - 97 g: 95 | 97 | 100
+ *   - 127 g: 125 | 127 | 130
+ */
+export function generatePracticalRoundingSuggestions(
+  exactQty: number,
+  unitLabelOrCode: string = "g"
+): PracticalRoundingOption[] {
+  if (!Number.isFinite(exactQty) || exactQty <= 0) {
+    return [];
+  }
+
+  const exact = Math.round(exactQty * 10) / 10;
+  const rawUnit = unitLabelOrCode ? unitLabelOrCode.trim() : "g";
+  const normalizedUnit =
+    rawUnit.toUpperCase() === "G" || rawUnit.toLowerCase() === "gramas"
+      ? "g"
+      : rawUnit;
+
+  const isContinuous = ["g", "ml", "gramas", "gramas (g)"].includes(normalizedUnit.toLowerCase());
+
+  let lower: number;
+  let upper: number;
+
+  if (isContinuous) {
+    const step = exact >= 150 ? 10 : 5;
+
+    if (exact % step === 0) {
+      lower = Math.max(1, exact - step);
+      upper = exact + step;
+    } else {
+      lower = Math.max(1, Math.floor(exact / step) * step);
+      upper = Math.ceil(exact / step) * step;
+    }
+
+    if (lower === exact) lower = Math.max(1, exact - step);
+    if (upper === exact) upper = exact + step;
+  } else {
+    if (exact <= 2) {
+      lower = Math.max(0.5, Math.round((exact - 0.5) * 10) / 10);
+      upper = Math.round((exact + 0.5) * 10) / 10;
+    } else {
+      lower = Math.max(1, Math.floor(exact - 1));
+      upper = Math.ceil(exact + 1);
+    }
+  }
+
+  return [
+    { value: lower, label: `${lower} ${normalizedUnit}` },
+    { value: exact, label: `${exact} ${normalizedUnit} exato`, isExact: true },
+    { value: upper, label: `${upper} ${normalizedUnit}` },
+  ];
+}
+

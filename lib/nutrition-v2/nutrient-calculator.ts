@@ -954,3 +954,24 @@ export function calculatePlanMicronutrientTotals(
     nutrients: nutrientsMap,
   };
 }
+
+/**
+ * Derives a standard or normalized unit code from a portion label (e.g. "Fatia" -> "FATIA", "Pedaço" -> "PEDACO").
+ */
+export function derivePortionUnitCode(label: string): string {
+  const norm = (label || "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]/g, "_");
+
+  if (norm.includes("FATIA")) return "FATIA";
+  if (norm.includes("COLHER") && norm.includes("SOPA")) return "COLHER_SOPA";
+  if (norm.includes("COLHER") && (norm.includes("CHA") || norm.includes("SOBREMESA"))) return "COLHER_CHA";
+  if (norm.includes("XICARA") || norm.includes("COPO")) return "XICARA";
+  if (norm.includes("SCOOP")) return "SCOOP";
+  if (norm.includes("UNIDADE")) return "UNIDADE";
+  if (norm.includes("PEDACO")) return "PEDACO";
+  return norm || "PORCAO";
+}

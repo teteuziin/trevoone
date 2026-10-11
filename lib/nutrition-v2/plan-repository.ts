@@ -42,6 +42,7 @@ import {
 } from "./access";
 import {
   calculateItemNutrients,
+  derivePortionUnitCode,
   calculateMealTotals,
   calculatePlanTotals,
   calculateMealMicronutrientTotals,
@@ -2460,19 +2461,41 @@ export async function updateSubstitution(
             throw new NutritionAuthorizationError("Peso ou referência da porção inválido.", "INVALID_PORTION_AMOUNT", 400);
           }
           portionEquivalentAmount = eq;
-          prescribedUnitCode = "PORCAO";
+          prescribedUnitCode = input.prescribedUnitCode && input.prescribedUnitCode !== "G"
+            ? input.prescribedUnitCode.trim().toUpperCase()
+            : derivePortionUnitCode(String(portion.label));
           prescribedUnitLabel = String(portion.label);
+        } else {
+          portionEquivalentAmount = null;
+          prescribedUnitCode = "G";
+          prescribedUnitLabel = "Gramas (g)";
+        }
+      } else {
+        // When input.portionPublicId is undefined, preserve existing registered portion if present
+        if (sub.prescribed_unit_label && sub.prescribed_unit_code !== "G") {
+          const [matchingPortions] = await connection.query<RowDataPacket[]>(
+            `SELECT * FROM nutrition_v2_food_portions
+             WHERE food_id = ? AND label = ? AND deleted_at IS NULL AND status = 'ACTIVE' LIMIT 1`,
+            [effectiveFoodId, String(sub.prescribed_unit_label)]
+          );
+          if (matchingPortions.length > 0) {
+            const portion = matchingPortions[0];
+            portionEquivalentAmount = Number(portion.equivalent_reference_amount);
+            prescribedUnitCode = String(sub.prescribed_unit_code);
+            prescribedUnitLabel = String(portion.label);
+          } else {
+            portionEquivalentAmount = null;
+            if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
+              prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
+              prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
+            }
+          }
         } else {
           portionEquivalentAmount = null;
           if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
             prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
             prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
           }
-        }
-      } else {
-        if (!prescribedUnitCode || prescribedUnitCode === "PORCAO") {
-          prescribedUnitCode = (effectiveFoodRow.reference_unit_code ? String(effectiveFoodRow.reference_unit_code).toUpperCase() : "G");
-          prescribedUnitLabel = prescribedUnitCode === "G" ? "Gramas (g)" : prescribedUnitCode;
         }
       }
 
@@ -2560,17 +2583,25 @@ export async function updateSubstitution(
     }
 
     // Equivalence metadata updates (Requirements 21, 23, 24)
+    const isManualChange = input.prescribedQuantity !== undefined || input.prescribedUnitCode !== undefined || input.portionPublicId !== undefined;
+
     if (input.equivalenceCriterion !== undefined) {
       updates.push("equivalence_criterion = ?");
       params.push(input.equivalenceCriterion ? normalizeCriterion(input.equivalenceCriterion) : null);
+    } else if (isManualChange) {
+      updates.push("equivalence_criterion = ?");
+      params.push("MANUAL");
     }
 
     if (input.isStale !== undefined) {
       updates.push("is_stale = ?");
       params.push(input.isStale === null ? null : (input.isStale ? 1 : 0));
-    }
-
-    if (input.staleReason !== undefined) {
+    } else if (input.equivalenceCriterion === "MANUAL" || isManualChange) {
+      updates.push("is_stale = ?");
+      params.push(0);
+      updates.push("stale_reason = ?");
+      params.push(null);
+    } else if (input.staleReason !== undefined) {
       updates.push("stale_reason = ?");
       params.push(input.staleReason);
     }
@@ -2578,7 +2609,7 @@ export async function updateSubstitution(
     if (input.baseFoodIdSnapshot !== undefined) {
       updates.push("base_food_id_snapshot = ?");
       params.push(input.baseFoodIdSnapshot);
-    } else if (input.equivalenceCriterion !== undefined && input.equivalenceCriterion !== null) {
+    } else if ((input.equivalenceCriterion !== undefined && input.equivalenceCriterion !== null) || isManualChange) {
       updates.push("base_food_id_snapshot = ?");
       params.push(sub.base_food_id != null ? Number(sub.base_food_id) : null);
     }
@@ -2586,7 +2617,7 @@ export async function updateSubstitution(
     if (input.baseQuantitySnapshot !== undefined) {
       updates.push("base_quantity_snapshot = ?");
       params.push(input.baseQuantitySnapshot);
-    } else if (input.equivalenceCriterion !== undefined && input.equivalenceCriterion !== null) {
+    } else if ((input.equivalenceCriterion !== undefined && input.equivalenceCriterion !== null) || isManualChange) {
       updates.push("base_quantity_snapshot = ?");
       params.push(sub.base_prescribed_quantity != null ? Number(sub.base_prescribed_quantity) : null);
     }
@@ -2594,7 +2625,7 @@ export async function updateSubstitution(
     if (input.baseUnitCodeSnapshot !== undefined) {
       updates.push("base_unit_code_snapshot = ?");
       params.push(input.baseUnitCodeSnapshot);
-    } else if (input.equivalenceCriterion !== undefined && input.equivalenceCriterion !== null) {
+    } else if ((input.equivalenceCriterion !== undefined && input.equivalenceCriterion !== null) || isManualChange) {
       updates.push("base_unit_code_snapshot = ?");
       params.push(sub.base_prescribed_unit_code ? String(sub.base_prescribed_unit_code) : null);
     }

@@ -964,11 +964,12 @@ export function NutritionPlanBuilder({
                     });
                   }}
                   onUpdateSubstitution={async (subPublicId, data) => {
-                    startTransition(async () => {
-                      const res = await updateSubstitutionAction(slug, tree.plan.publicId, subPublicId, data);
-                      if (res.success) await refreshTree();
-                      else alert(res.error || "Erro ao atualizar substituição.");
-                    });
+                    const res = await updateSubstitutionAction(slug, tree.plan.publicId, subPublicId, data);
+                    if (res.success) {
+                      await refreshTree();
+                    } else {
+                      throw new Error(res.error || "Erro ao atualizar substituição.");
+                    }
                   }}
                   onRemoveSubstitution={async (subPublicId) => {
                     startTransition(async () => {

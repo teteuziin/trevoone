@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import type { ItemSubstitutionDto, UpdateSubstitutionInput } from "@/lib/nutrition-v2/plan-repository";
-import { calculateMealMicronutrientTotals } from "@/lib/nutrition-v2/nutrient-calculator";
+import {
+  calculateMealMicronutrientTotals,
+  derivePortionUnitCode,
+} from "@/lib/nutrition-v2/nutrient-calculator";
 import { NutritionMicronutrientsPanel } from "./nutrition-micronutrients-panel";
 import { NutritionFoodPicker } from "./nutrition-food-picker";
+import { AutosaveIndicator, type AutosaveStatus } from "./autosave-indicator";
+import { getFoodPortionsForPickerAction } from "@/app/consultoria/[slug]/planos-v2/actions";
 import {
   EQUIVALENT_CRITERIA_SHORT_LABELS,
   type EquivalentCriterion,
@@ -23,6 +28,12 @@ interface NutritionSubstitutionEditorProps {
   isLast: boolean;
 }
 
+interface FoodPortionOption {
+  publicId: string;
+  label: string;
+  equivalentReferenceAmount: number;
+}
+
 export function NutritionSubstitutionEditor({
   slug,
   substitution,
@@ -37,19 +48,201 @@ export function NutritionSubstitutionEditor({
 }: NutritionSubstitutionEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isResolvePickerOpen, setIsResolvePickerOpen] = useState(false);
-  const [quantity, setQuantity] = useState(String(substitution.prescribedQuantity || ""));
+  const [quantity, setQuantity] = useState(
+    substitution.prescribedQuantity != null ? String(substitution.prescribedQuantity) : ""
+  );
+  const [selectedUnitValue, setSelectedUnitValue] = useState<string>("G");
   const [notes, setNotes] = useState(substitution.notes || "");
-  const [isSaving, setIsSaving] = useState(false);
   const [showMicro, setShowMicro] = useState(false);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    const numQty = quantity ? parseFloat(quantity.replace(",", ".")) : null;
-    await onUpdate({
-      prescribedQuantity: numQty && numQty > 0 ? numQty : null,
-      notes: notes.trim() || null,
-    });
-    setIsSaving(false);
+  // Authoritative food portions loaded strictly from Food Library for this food
+  const [availablePortions, setAvailablePortions] = useState<FoodPortionOption[]>([]);
+  const [isLoadingPortions, setIsLoadingPortions] = useState(false);
+
+  // Autosave state
+  const [saveStatus, setSaveStatus] = useState<AutosaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Concurrency & debounce refs
+  const latestReqIdRef = useRef(0);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Determine if item has an unresolved legacy unit without conversion
+  const isLegacyUnresolved =
+    selectedUnitValue === "__LEGACY__" ||
+    (substitution.caloriesKcalSnapshot == null &&
+      substitution.foodId != null &&
+      (substitution.prescribedUnitCode === "PORCAO" ||
+        (substitution.prescribedUnitCode &&
+          !["G", "KG", "ML", "L"].includes(substitution.prescribedUnitCode.trim().toUpperCase()))));
+
+  // Load portions authoritatively from Food Library for substitution.foodPublicId
+  const loadPortions = useCallback(async () => {
+    if (!slug || !substitution.foodPublicId) {
+      setAvailablePortions([]);
+      return;
+    }
+
+    setIsLoadingPortions(true);
+    try {
+      const res = await getFoodPortionsForPickerAction(slug, substitution.foodPublicId);
+      setIsLoadingPortions(false);
+      if (res.success && res.data) {
+        const rawPortions = (res.data.portions || []) as Array<{
+          publicId: string;
+          label: string;
+          equivalentReferenceAmount: number;
+          status?: string;
+        }>;
+        const activePortions: FoodPortionOption[] = rawPortions
+          .filter((p) => (p.status || "ACTIVE") === "ACTIVE")
+          .map((p) => ({
+            publicId: p.publicId,
+            label: p.label,
+            equivalentReferenceAmount: Number(p.equivalentReferenceAmount),
+          }));
+
+        setAvailablePortions(activePortions);
+
+        // Resolve active unit selection against loaded portions
+        if (substitution.prescribedUnitLabel) {
+          const matching = activePortions.find(
+            (p) => p.label.trim().toLowerCase() === substitution.prescribedUnitLabel!.trim().toLowerCase()
+          );
+          if (matching) {
+            setSelectedUnitValue(matching.publicId);
+            return;
+          }
+        }
+
+        const code = (substitution.prescribedUnitCode || "").trim().toUpperCase();
+        if (code === "G" || code === "KG" || !code) {
+          setSelectedUnitValue("G");
+        } else {
+          // Non-standard legacy unit with no conversion
+          setSelectedUnitValue("__LEGACY__");
+        }
+      }
+    } catch {
+      setIsLoadingPortions(false);
+    }
+  }, [slug, substitution.foodPublicId, substitution.prescribedUnitCode, substitution.prescribedUnitLabel]);
+
+  // Authoritative Autosave execution with concurrency protection
+  const performSave = useCallback(
+    async (qtyStr: string, unitVal: string, currentNotes: string) => {
+      const numQty = parseFloat(qtyStr.replace(",", "."));
+      if (!Number.isFinite(numQty) || numQty <= 0) {
+        return;
+      }
+
+      const reqId = ++latestReqIdRef.current;
+      setSaveStatus("saving");
+      setSaveError(null);
+
+      try {
+        let portionPublicId: string | null = null;
+        let unitCode = "G";
+        let unitLabel = "Gramas (g)";
+
+        if (unitVal !== "G" && unitVal !== "__LEGACY__") {
+          const pt = availablePortions.find((p) => p.publicId === unitVal);
+          if (pt) {
+            portionPublicId = pt.publicId;
+            unitCode = derivePortionUnitCode(pt.label);
+            unitLabel = pt.label;
+          }
+        }
+
+        await onUpdate({
+          prescribedQuantity: numQty,
+          portionPublicId,
+          prescribedUnitCode: unitCode,
+          prescribedUnitLabel: unitLabel,
+          notes: currentNotes.trim() || null,
+          equivalenceCriterion: "MANUAL",
+        });
+
+        if (reqId === latestReqIdRef.current) {
+          setSaveStatus("saved");
+          setTimeout(() => {
+            if (reqId === latestReqIdRef.current) {
+              setSaveStatus("idle");
+            }
+          }, 2500);
+        }
+      } catch (err: unknown) {
+        if (reqId === latestReqIdRef.current) {
+          setSaveStatus("error");
+          setSaveError(err instanceof Error ? err.message : "Erro ao salvar.");
+        }
+      }
+    },
+    [availablePortions, onUpdate]
+  );
+
+  // Debounced input handlers
+  const handleQuantityChange = (newVal: string) => {
+    setQuantity(newVal);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      performSave(newVal, selectedUnitValue, notes);
+    }, 600);
+  };
+
+  const handleUnitChange = (newUnitVal: string) => {
+    let nextQty = quantity;
+
+    // Smart scaling: switching from grams to a portion with large gram quantity
+    if (selectedUnitValue === "G" && newUnitVal !== "G" && newUnitVal !== "__LEGACY__") {
+      const pt = availablePortions.find((p) => p.publicId === newUnitVal);
+      if (pt && pt.equivalentReferenceAmount > 0) {
+        const curNum = parseFloat(quantity.replace(",", "."));
+        if (Number.isFinite(curNum) && curNum > 10) {
+          const suggested = Math.max(1, Math.round(curNum / pt.equivalentReferenceAmount)) || 1;
+          nextQty = String(suggested);
+          setQuantity(nextQty);
+        }
+      }
+    } else if (selectedUnitValue !== "G" && selectedUnitValue !== "__LEGACY__" && newUnitVal === "G") {
+      // Switching from a portion to grams: scale to total equivalent grams
+      const prevPt = availablePortions.find((p) => p.publicId === selectedUnitValue);
+      if (prevPt && prevPt.equivalentReferenceAmount > 0) {
+        const curNum = parseFloat(quantity.replace(",", ".")) || 1;
+        const grams = Math.round(curNum * prevPt.equivalentReferenceAmount);
+        nextQty = String(grams);
+        setQuantity(nextQty);
+      }
+    }
+
+    setSelectedUnitValue(newUnitVal);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    performSave(nextQty, newUnitVal, notes);
+  };
+
+  const handleNotesChange = (newVal: string) => {
+    setNotes(newVal);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      performSave(quantity, selectedUnitValue, newVal);
+    }, 600);
+  };
+
+  const handleOpenEdit = () => {
+    setQuantity(substitution.prescribedQuantity != null ? String(substitution.prescribedQuantity) : "");
+    setNotes(substitution.notes || "");
+    setSaveStatus("idle");
+    setSaveError(null);
+    setIsEditing(true);
+    loadPortions();
+  };
+
+  const handleClose = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+      performSave(quantity, selectedUnitValue, notes);
+    }
     setIsEditing(false);
   };
 
@@ -69,9 +262,15 @@ export function NutritionSubstitutionEditor({
               Pendente
             </span>
           )}
+          {isLegacyUnresolved && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              REVISÃO NECESSÁRIA · MEDIDA SEM CONVERSÃO
+            </span>
+          )}
           {substitution.prescribedQuantity != null && (
             <span className="text-xs text-[var(--text-secondary)] shrink-0 font-medium">
-              · {substitution.prescribedQuantity} {substitution.prescribedUnitLabel || substitution.prescribedUnitCode || ""}
+              · {substitution.prescribedQuantity} {substitution.prescribedUnitLabel || substitution.prescribedUnitCode || "g"}
             </span>
           )}
           {substitution.equivalenceCriterion && (
@@ -155,8 +354,8 @@ export function NutritionSubstitutionEditor({
                 )}
                 <button
                   type="button"
-                  title="Editar quantidade"
-                  onClick={() => setIsEditing(true)}
+                  title="Editar quantidade e unidade"
+                  onClick={handleOpenEdit}
                   className="p-1.5 sm:p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-secondary)] min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,9 +378,9 @@ export function NutritionSubstitutionEditor({
         )}
       </div>
 
-      {/* Inline edit mode */}
+      {/* Inline edit mode: side-by-side desktop, stacked mobile, with debounced autosave */}
       {isEditing && (
-        <div className="mt-2.5 pt-2.5 border-t border-[var(--border)] space-y-2">
+        <div className="mt-2.5 pt-2.5 border-t border-[var(--border)] space-y-2.5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label className="block text-[11px] font-semibold text-[var(--text-secondary)] mb-0.5">
@@ -190,39 +389,68 @@ export function NutritionSubstitutionEditor({
               <input
                 type="number"
                 step="any"
+                min="0.1"
                 value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
+                onChange={(e) => handleQuantityChange(e.target.value)}
+                placeholder="Ex: 50"
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
               />
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-[var(--text-secondary)] mb-0.5">
-                Observações:
+                Unidade:
               </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ex: cru, assado..."
+              <select
+                value={selectedUnitValue}
+                onChange={(e) => handleUnitChange(e.target.value)}
+                disabled={isLoadingPortions}
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
-              />
+              >
+                <option value="G">Gramas (g)</option>
+                {isLoadingPortions && availablePortions.length === 0 && (
+                  <option value="" disabled>Carregando porções...</option>
+                )}
+                {availablePortions.map((p) => (
+                  <option key={p.publicId} value={p.publicId}>
+                    {p.label} ({p.equivalentReferenceAmount}g)
+                  </option>
+                ))}
+                {isLegacyUnresolved && selectedUnitValue === "__LEGACY__" && (
+                  <option value="__LEGACY__" disabled>
+                    {substitution.prescribedUnitLabel || substitution.prescribedUnitCode} (sem conversão cadastrada)
+                  </option>
+                )}
+              </select>
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-1">
+
+          <div>
+            <label className="block text-[11px] font-semibold text-[var(--text-secondary)] mb-0.5">
+              Observações:
+            </label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => handleNotesChange(e.target.value)}
+              placeholder="Ex: cru, assado, sem açúcar..."
+              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-subtle)]">
+            <div className="flex items-center gap-2">
+              <AutosaveIndicator
+                status={saveStatus}
+                errorMessage={saveError}
+                onRetry={() => performSave(quantity, selectedUnitValue, notes)}
+              />
+            </div>
             <button
               type="button"
-              onClick={() => setIsEditing(false)}
-              className="px-2.5 py-1 text-[11px] rounded-lg border border-[var(--border)] text-[var(--text-secondary)]"
+              onClick={handleClose}
+              className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] cursor-pointer"
             >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={handleSave}
-              className="px-2.5 py-1 text-[11px] rounded-lg bg-[var(--brand-primary)] text-white font-medium hover:opacity-90"
-            >
-              {isSaving ? "Salvando..." : "Salvar"}
+              Fechar
             </button>
           </div>
         </div>

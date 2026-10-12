@@ -89,7 +89,7 @@ export class MockOpenAIImportProvider implements OpenAIImportProvider {
       };
     }
 
-    const textContent = input.text || (input.buffer ? input.buffer.toString("utf8") : "");
+    const textContent = (input.text || (input.buffer ? input.buffer.toString("utf8") : "")) + " " + (input.filename || "");
 
     // Deterministic mock generation based on document contents
     let studentCandidate: string | null = null;
@@ -99,41 +99,92 @@ export class MockOpenAIImportProvider implements OpenAIImportProvider {
 
     const categories: RawTrainingImportProposal["categories"] = [];
 
-    // Category: Peito / Superior
-    categories.push({
-      name: "PEITO",
-      exercises: [
-        {
-          originalText: "Supino reto com barra — 4 séries de 10 reps, 60s descanso, 30kg",
-          exerciseNameCandidate: "Supino reto",
-          sets: 4,
-          reps: 10,
-          durationSeconds: null,
-          restSeconds: 60,
-          load: 30,
-          notes: "Manter escápulas aduzidas",
-        },
-        {
-          originalText: "Crucifixo inclinado com halteres 3x12 descanso 45s",
-          exerciseNameCandidate: "Crucifixo inclinado",
-          sets: 3,
-          reps: 12,
-          durationSeconds: null,
-          restSeconds: 45,
-          load: null,
-          notes: null,
-        },
-      ],
-    });
+    // Specific test case: Puxada frental triangulo (verbatim transcription)
+    if (textContent.toLowerCase().includes("puxada frental")) {
+      categories.push({
+        name: "COSTAS",
+        exercises: [
+          {
+            originalText: "Puxada frental triangulo 3x12",
+            exerciseNameCandidate: "Puxada frental triangulo",
+            sets: 3,
+            reps: 12,
+            durationSeconds: null,
+            restSeconds: 60,
+            load: null,
+            notes: null,
+          },
+        ],
+      });
+    } else if (textContent.toLowerCase().includes("elevação monstra") || textContent.toLowerCase().includes("elevacao monstra")) {
+      categories.push({
+        name: "OMBROS",
+        exercises: [
+          {
+            originalText: "Elevação monstra do João 4x10",
+            exerciseNameCandidate: "Elevação monstra do João",
+            sets: 4,
+            reps: 10,
+            durationSeconds: null,
+            restSeconds: null,
+            load: null,
+            notes: null,
+          },
+        ],
+      });
+    } else if (textContent.toLowerCase().includes("rosca ?artelo")) {
+      categories.push({
+        name: "BÍCEPS",
+        exercises: [
+          {
+            originalText: "Rosca ?artelo 3x10",
+            exerciseNameCandidate: "Rosca ?artelo",
+            sets: 3,
+            reps: 10,
+            durationSeconds: null,
+            restSeconds: null,
+            load: null,
+            notes: "REVIEW_REQUIRED",
+          },
+        ],
+      });
+    } else {
+      // Standard Default Category: Peito / Superior
+      categories.push({
+        name: "PEITO",
+        exercises: [
+          {
+            originalText: "Supino reto com barra — 4 séries de 10 reps, 60s descanso, 30kg",
+            exerciseNameCandidate: "Supino reto",
+            sets: 4,
+            reps: 10,
+            durationSeconds: null,
+            restSeconds: 60,
+            load: 30,
+            notes: "Manter escápulas aduzidas",
+          },
+          {
+            originalText: "Crucifixo inclinado com halteres 3x12 descanso 45s",
+            exerciseNameCandidate: "Crucifixo inclinado",
+            sets: 3,
+            reps: 12,
+            durationSeconds: null,
+            restSeconds: 45,
+            load: null,
+            notes: null,
+          },
+        ],
+      });
+    }
 
-    // Check for ambiguity test case: "Remada"
+    // Check for ambiguity test case: "Remada" or "Remada máquina"
     if (textContent.toLowerCase().includes("remada")) {
       categories.push({
         name: "COSTAS",
         exercises: [
           {
-            originalText: "Remada — 4x10",
-            exerciseNameCandidate: "Remada",
+            originalText: "Remada máquina — 4x10",
+            exerciseNameCandidate: "Remada máquina",
             sets: 4,
             reps: 10,
             durationSeconds: null,

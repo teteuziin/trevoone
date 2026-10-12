@@ -43,6 +43,7 @@ export interface ResolvedTrainingExerciseItem {
   matchStatus: ExerciseMatchStatus;
   exercisePublicId: string | null;
   exerciseNameSnapshot: string;
+  matchedExerciseName?: string | null; // Library name metadata when matched/linked, for UI display ONLY
   muscleGroupSnapshot: string | null;
   equipmentSnapshot: string | null;
   candidates: MatchedExerciseCandidate[];
@@ -255,13 +256,23 @@ export async function processTrainingAiImport(params: {
   const usageEventPublicId = quotaReservation.usageEventPublicId!;
 
   // 3. Create initial import job record
-  const sourceType = input.filename.endsWith(".pdf")
+  const lowerFilename = input.filename.toLowerCase();
+  const isImage =
+    lowerFilename.endsWith(".png") ||
+    lowerFilename.endsWith(".jpg") ||
+    lowerFilename.endsWith(".jpeg") ||
+    lowerFilename.endsWith(".webp") ||
+    (Boolean(input.mimeType) && input.mimeType.startsWith("image/"));
+
+  const sourceType = lowerFilename.endsWith(".pdf")
     ? "PDF"
-    : input.filename.endsWith(".docx")
+    : lowerFilename.endsWith(".docx")
       ? "DOCX"
-      : input.filename.endsWith(".md")
+      : lowerFilename.endsWith(".md")
         ? "MARKDOWN"
-        : "TEXT";
+        : isImage
+          ? "IMAGE"
+          : "TEXT";
 
   const dbJob = await getDbConnection();
   try {
@@ -369,14 +380,17 @@ export async function processTrainingAiImport(params: {
       const matchResult = await matchExerciseCandidate(consultancyId, ex.exerciseNameCandidate);
 
       let exercisePublicId: string | null = null;
-      let exerciseNameSnapshot = ex.exerciseNameCandidate;
+      // CRITICAL GUARANTEE: exerciseNameSnapshot is ALWAYS the verbatim source name from the document!
+      // Library matching is additional metadata ONLY and NEVER alters the source name.
+      const exerciseNameSnapshot = (ex.exerciseNameCandidate || ex.originalText || "Exercício").trim();
+      let matchedExerciseName: string | null = null;
       let muscleGroupSnapshot: string | null = null;
       let equipmentSnapshot: string | null = null;
 
       if (matchResult.status === "MATCHED" && matchResult.matched) {
         matchedCount++;
         exercisePublicId = matchResult.matched.exercisePublicId;
-        exerciseNameSnapshot = matchResult.matched.name;
+        matchedExerciseName = matchResult.matched.name; // Keep library name separate for UI display ONLY
         muscleGroupSnapshot = matchResult.matched.muscleGroupPrimary;
         equipmentSnapshot = matchResult.matched.equipment;
       } else if (matchResult.status === "AMBIGUOUS") {
@@ -393,6 +407,7 @@ export async function processTrainingAiImport(params: {
         matchStatus: matchResult.status,
         exercisePublicId,
         exerciseNameSnapshot,
+        matchedExerciseName,
         muscleGroupSnapshot,
         equipmentSnapshot,
         candidates: matchResult.candidates,
@@ -662,15 +677,26 @@ export async function confirmTrainingAiImport(params: {
         exercisesCreated++;
         const itemPublicId = crypto.randomUUID();
 
-        // Resolve exercise DB id from publicId
-        const [exRows] = await db.query<RowDataPacket[]>(
-          `SELECT id, name, muscle_group_primary, equipment FROM exercises WHERE public_id = ? LIMIT 1`,
-          [ex.exercisePublicId]
-        );
-        const exerciseId = exRows.length > 0 ? exRows[0].id : null;
-        const nameSnapshot = exRows.length > 0 ? String(exRows[0].name) : ex.exerciseNameSnapshot;
-        const muscleSnapshot = exRows.length > 0 ? String(exRows[0].muscle_group_primary) : ex.muscleGroupSnapshot;
-        const equipSnapshot = exRows.length > 0 ? String(exRows[0].equipment) : ex.equipmentSnapshot;
+        // Resolve exercise DB id from publicId if linked
+        let exerciseId: number | null = null;
+        let muscleSnapshot = ex.muscleGroupSnapshot;
+        let equipSnapshot = ex.equipmentSnapshot;
+
+        if (ex.exercisePublicId) {
+          const [exRows] = await db.query<RowDataPacket[]>(
+            `SELECT id, name, muscle_group_primary, equipment FROM exercises WHERE public_id = ? LIMIT 1`,
+            [ex.exercisePublicId]
+          );
+          if (exRows.length > 0) {
+            exerciseId = exRows[0].id;
+            muscleSnapshot = exRows[0].muscle_group_primary ? String(exRows[0].muscle_group_primary) : muscleSnapshot;
+            equipSnapshot = exRows[0].equipment ? String(exRows[0].equipment) : equipSnapshot;
+          }
+        }
+
+        // CRITICAL GUARD: nameSnapshot is ALWAYS ex.exerciseNameSnapshot (verbatim source truth)!
+        // Linking to library exercise is metadata only (pins media/equipment), NEVER alters source name!
+        const nameSnapshot = (ex.exerciseNameSnapshot || ex.exerciseNameCandidate || ex.originalText || "Exercício").trim();
         const gn = ex.groupName?.trim();
         const subBlockId = gn && subBlockMap.has(gn) ? subBlockMap.get(gn) : null;
         const combKey = ex.combinationIndex != null ? `${subBlockId || "none"}:${ex.combinationIndex}` : null;

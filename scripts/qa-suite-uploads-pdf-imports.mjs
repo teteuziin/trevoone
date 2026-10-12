@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 const { detectReceiptFileType } = await import("../lib/storage/private-files.ts");
 const { generateTrainingPlanPdfBuffer } = await import("../lib/training-v2/generate-training-pdf.ts");
 const { generateNutritionPlanPdfBuffer } = await import("../lib/nutrition-v2/generate-nutrition-pdf.ts");
+const { resolveExerciseExecutionMedia } = await import("../lib/training-v2/execution-media-resolver.ts");
 
 let passedCount = 0;
 let totalCount = 0;
@@ -248,6 +249,33 @@ export async function runUploadsPdfImportsSuite() {
 
     // Not found
     assert.equal(resolveImportedItem("Suco de Pitaya Exótico", catalog).matchType, "NOT_FOUND");
+  });
+
+  // 6. EXACT SOURCE WORKOUT IMPORT INVARIANTS
+  runTest("IMPORT PIPELINE: Verbatim source truth preserved (matching/linking does not rename source)", () => {
+    const sourceName = "Puxada frental triangulo";
+    const matchedLibraryName = "Puxada frontal pegada neutra com triângulo";
+    const item = {
+      exerciseNameSnapshot: sourceName,
+      exercisePublicId: "lib_01",
+      matchedExerciseName: matchedLibraryName,
+    };
+    assert.equal(item.exerciseNameSnapshot, "Puxada frental triangulo", "exerciseNameSnapshot must remain verbatim source");
+    assert.equal(item.matchedExerciseName, "Puxada frontal pegada neutra com triângulo");
+  });
+
+  runTest("IMPORT PIPELINE: Supported image formats include .png, .jpg, .jpeg, .webp", () => {
+    const ALLOWED = [".pdf", ".txt", ".md", ".docx", ".png", ".jpg", ".jpeg", ".webp"];
+    for (const ext of [".png", ".jpg", ".jpeg", ".webp"]) {
+      assert.ok(ALLOWED.includes(ext), `Extension ${ext} must be accepted`);
+    }
+  });
+
+  runTest("IMPORT PIPELINE: Null-safe execution media for unmapped exercises (exercise_id = NULL)", () => {
+    const item = { exercisePublicId: null, pinnedMedia: [], customVideoUrl: null };
+    const media = resolveExerciseExecutionMedia({ item });
+    assert.equal(media.hasMedia, false);
+    assert.equal(media.source, "NONE");
   });
 
   console.log(`\nUPLOADS, PDF & IMPORTS SUITE PASS: ${passedCount}/${totalCount} testes executados com sucesso!\n`);

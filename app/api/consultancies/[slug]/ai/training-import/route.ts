@@ -16,7 +16,7 @@ interface RouteContext {
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
 const MAX_TEXT_LENGTH_CHARS = 100 * 1024; // 100K characters
 
-const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".md", ".docx"];
+const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".md", ".docx", ".png", ".jpg", ".jpeg", ".webp"];
 
 export async function POST(request: Request, context: RouteContext) {
   const { slug } = await context.params;
@@ -63,15 +63,25 @@ export async function POST(request: Request, context: RouteContext) {
       const hasAllowedExt = ALLOWED_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
       if (!hasAllowedExt) {
         return NextResponse.json(
-          { success: false, error: "Formato de arquivo não suportado. Use PDF, TXT, MD ou DOCX." },
+          { success: false, error: "Formato de arquivo não suportado. Use PDF, imagem (PNG, JPG, WEBP), TXT, MD ou DOCX." },
           { status: 400 }
         );
+      }
+
+      let mimeType = file.type;
+      if (!mimeType || mimeType === "application/octet-stream") {
+        if (lowerName.endsWith(".png")) mimeType = "image/png";
+        else if (lowerName.endsWith(".webp")) mimeType = "image/webp";
+        else if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) mimeType = "image/jpeg";
+        else if (lowerName.endsWith(".pdf")) mimeType = "application/pdf";
+        else if (lowerName.endsWith(".docx")) mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        else mimeType = "application/octet-stream";
       }
 
       const buffer = Buffer.from(await file.arrayBuffer());
       docInput = {
         filename: file.name,
-        mimeType: file.type || "application/octet-stream",
+        mimeType,
         buffer,
       };
     } else if (pastedText.trim().length > 0) {

@@ -158,9 +158,23 @@ export function TrainingAiImportModal({
       const ex: ResolvedTrainingExerciseItem = clone[categoryIdx].exercises[exerciseIdx];
       ex.matchStatus = "MATCHED";
       ex.exercisePublicId = candidate.exercisePublicId;
-      ex.exerciseNameSnapshot = candidate.name;
+      // CRITICAL: NEVER overwrite exerciseNameSnapshot!
+      // Verbatim source truth is preserved. Candidate name is metadata for display only.
+      ex.matchedExerciseName = candidate.name;
       ex.muscleGroupSnapshot = candidate.muscleGroupPrimary;
       ex.equipmentSnapshot = candidate.equipment;
+      return clone;
+    });
+  };
+
+  const handleUnlinkExercise = (categoryIdx: number, exerciseIdx: number) => {
+    setEditableCategories((prev) => {
+      const clone = JSON.parse(JSON.stringify(prev));
+      const ex: ResolvedTrainingExerciseItem = clone[categoryIdx].exercises[exerciseIdx];
+      ex.matchStatus = "NOT_FOUND";
+      ex.exercisePublicId = null;
+      ex.matchedExerciseName = null;
+      // CRITICAL: exerciseNameSnapshot remains 100% unchanged!
       return clone;
     });
   };
@@ -172,10 +186,6 @@ export function TrainingAiImportModal({
       return clone;
     });
   };
-
-  const hasUnresolvedItems = editableCategories.some((cat) =>
-    cat.exercises.some((ex) => ex.matchStatus !== "MATCHED" || !ex.exercisePublicId)
-  );
 
   const totalExercisesCount = editableCategories.reduce((acc, cat) => acc + cat.exercises.length, 0);
 
@@ -335,7 +345,7 @@ export function TrainingAiImportModal({
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf,.txt,.md,.docx"
+                      accept=".pdf,.txt,.md,.docx,.png,.jpg,.jpeg,.webp"
                       onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                       className="hidden"
                     />
@@ -345,7 +355,7 @@ export function TrainingAiImportModal({
                         {selectedFile ? selectedFile.name : "Clique para selecionar o arquivo"}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Formatos aceitos: PDF, TXT, MD ou DOCX (até 15MB)
+                        Formatos aceitos: PDF, Imagem (PNG, JPG, WEBP), TXT, MD ou DOCX (até 15MB)
                       </p>
                     </div>
                   </div>
@@ -432,34 +442,22 @@ export function TrainingAiImportModal({
                 <div className="bg-muted/30 border border-border/50 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                   <div>
                     <span className="font-semibold text-foreground block">
-                      Resultado da Extração Canônica
+                      Resultado da Extração Canônica (100% Fiel à Fonte)
                     </span>
                     <span className="text-muted-foreground text-[11px]">
                       {proposal.stats.totalExercises} exercícios identificados •{" "}
                       <span className="text-emerald-500 font-semibold">
-                        {proposal.stats.matchedCount} encontrados
+                        {editableCategories.reduce((acc, c) => acc + c.exercises.filter((e) => e.exercisePublicId).length, 0)} vinculados à biblioteca
                       </span>
-                      {proposal.stats.ambiguousCount > 0 && (
-                        <span className="text-amber-400 font-semibold ml-1">
-                          • {proposal.stats.ambiguousCount} precisam de revisão
-                        </span>
-                      )}
-                      {proposal.stats.notFoundCount > 0 && (
-                        <span className="text-rose-400 font-semibold ml-1">
-                          • {proposal.stats.notFoundCount} não encontrados
-                        </span>
-                      )}
+                      {" • "}
+                      <span className="text-muted-foreground font-semibold">
+                        {editableCategories.reduce((acc, c) => acc + c.exercises.filter((e) => !e.exercisePublicId).length, 0)} mantidos com texto original da fonte
+                      </span>
                     </span>
                   </div>
 
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                      hasUnresolvedItems
-                        ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                        : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                    }`}
-                  >
-                    {hasUnresolvedItems ? "Precisa de Revisão" : "Pronto para Criar"}
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                    ✓ Pronto para Criar
                   </span>
                 </div>
 
@@ -521,67 +519,89 @@ export function TrainingAiImportModal({
                         {cat.exercises.map((ex, eIdx) => (
                           <div
                             key={ex.id || `e-${eIdx}`}
-                            className="bg-background/80 border border-border/40 rounded-lg p-2.5 space-y-2 text-xs"
+                            className="bg-background/80 border border-border/40 rounded-xl p-3.5 space-y-2.5 text-xs shadow-2xs"
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <div className="font-semibold text-foreground flex items-center gap-1.5 flex-wrap">
-                                  <span>{ex.exerciseNameCandidate}</span>
-                                  {ex.groupName && (
-                                    <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/40">
-                                      {ex.groupName}
-                                    </span>
-                                  )}
+                            <div className="flex items-start justify-between gap-2.5 flex-wrap">
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                                    Original do Arquivo:
+                                  </span>
+                                  <div className="font-bold text-foreground text-sm flex items-center gap-1.5 flex-wrap mt-0.5">
+                                    <span>{ex.exerciseNameSnapshot}</span>
+                                    {ex.notes?.includes("REVIEW_REQUIRED") && (
+                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                                        Revisar Leitura
+                                      </span>
+                                    )}
+                                    {ex.groupName && (
+                                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/40">
+                                        {ex.groupName}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
+
                                 <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
                                   {ex.sets || 3} séries × {ex.reps ? (ex.repsMax && ex.repsMax > ex.reps ? `${ex.reps}–${ex.repsMax} reps` : `${ex.reps} reps`) : ex.durationSeconds ? formatDurationNatural(ex.durationSeconds, ex.durationUnit) : "livre"}
                                   {ex.load ? ` • Carga: ${ex.load} kg` : ""}
                                   {ex.restSeconds ? ` • Descanso: ${ex.restSeconds}s` : ""}
+                                  {ex.notes && !ex.notes.includes("REVIEW_REQUIRED") ? ` • Obs: ${ex.notes}` : ""}
+                                </div>
+
+                                {/* Status da biblioteca */}
+                                <div className="pt-1.5 border-t border-border/30 flex items-center gap-2 flex-wrap text-[11px]">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Biblioteca Trevo One:
+                                  </span>
+                                  {ex.exercisePublicId ? (
+                                    <div className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                      <span>Vinculado a: <strong>{ex.matchedExerciseName || ex.exerciseNameSnapshot}</strong></span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUnlinkExercise(cIdx, eIdx)}
+                                        className="text-[10px] text-muted-foreground hover:text-rose-400 underline ml-1 cursor-pointer"
+                                        title="Desvincular da biblioteca"
+                                      >
+                                        (desvincular)
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="inline-flex items-center gap-1.5 text-muted-foreground bg-muted/40 border border-border/40 px-2 py-0.5 rounded-md">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
+                                      <span>Não vinculado à biblioteca</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {ex.matchStatus === "MATCHED" && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                    ✓ Encontrado
-                                  </span>
-                                )}
-                                {ex.matchStatus === "AMBIGUOUS" && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                    ⚠ Ambíguo
-                                  </span>
-                                )}
-                                {ex.matchStatus === "NOT_FOUND" && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                                    ✕ Não Encontrado
-                                  </span>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveExercise(cIdx, eIdx)}
-                                  className="text-muted-foreground hover:text-rose-400 p-0.5"
-                                  title="Remover exercício"
-                                >
-                                  ✕
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveExercise(cIdx, eIdx)}
+                                className="text-muted-foreground hover:text-rose-400 p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg hover:bg-muted/50 cursor-pointer shrink-0"
+                                title="Remover exercício da ficha"
+                              >
+                                ✕
+                              </button>
                             </div>
 
-                            {/* If Ambiguous, show candidate picker */}
-                            {ex.matchStatus === "AMBIGUOUS" && ex.candidates.length > 0 && (
-                              <div className="pt-1 border-t border-border/30 space-y-1">
-                                <span className="text-[10px] text-amber-400 font-medium block">
-                                  Selecione o exercício correspondente na biblioteca:
+                            {/* Ações Opcionais de Vinculação para itens não vinculados com candidatos */}
+                            {!ex.exercisePublicId && ex.candidates && ex.candidates.length > 0 && (
+                              <div className="pt-1.5 border-t border-border/30 space-y-1.5">
+                                <span className="text-[10px] text-amber-500 font-medium block">
+                                  Sugestões para vincular (opcional — padrão é manter como está):
                                 </span>
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className="flex flex-wrap gap-1.5 items-center">
                                   {ex.candidates.map((cand) => (
                                     <button
                                       key={cand.exercisePublicId}
                                       type="button"
                                       onClick={() => handleResolveCandidate(cIdx, eIdx, cand)}
-                                      className="px-2 py-1 bg-muted/60 hover:bg-emerald-500/20 hover:text-emerald-400 rounded text-[10px] font-medium border border-border/40 transition"
+                                      className="px-2 py-1 bg-muted/60 hover:bg-emerald-500/20 hover:text-emerald-400 text-foreground rounded text-[10px] font-medium border border-border/40 transition cursor-pointer min-h-[32px] flex items-center gap-1"
                                     >
-                                      {cand.name}
+                                      <span>+ Vincular:</span>
+                                      <span className="font-semibold">{cand.name}</span>
                                     </button>
                                   ))}
                                 </div>
@@ -613,11 +633,9 @@ export function TrainingAiImportModal({
                     <span>
                       {state === "SAVING"
                         ? "Salvando rascunho..."
-                        : hasUnresolvedItems
-                        ? "Salvar rascunho com pendências"
                         : selectedStudentId || targetStudentMembershipId
-                        ? "Salvar rascunho"
-                        : "Salvar como rascunho"}
+                        ? "Salvar rascunho de treino"
+                        : "Salvar rascunho"}
                     </span>
                     <span>→</span>
                   </button>

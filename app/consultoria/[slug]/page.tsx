@@ -9,12 +9,21 @@ import { resolveTrainingAccessContext } from "@/lib/training-v2/access";
 import { listStudentWorkoutCards } from "@/lib/training-v2/assignment-repository";
 import { listWorkoutsForProfessional } from "@/lib/training-v2/workout-repository";
 import { resolveNutritionAccessContext } from "@/lib/nutrition-v2/access";
-import { getStudentAuthoritativeNutrition } from "@/lib/nutrition-v2/assignment-repository";
+import {
+  getStudentAuthoritativeNutrition,
+  listEligibleStudentsForNutrition,
+} from "@/lib/nutrition-v2/assignment-repository";
 import { listPlansForConsultancy } from "@/lib/nutrition-v2/plan-repository";
+import {
+  listUpcomingConsultationsForProfessional,
+  CONSULTATION_STATUS_LABELS,
+} from "@/lib/consultancies/consultations";
+import { getConsultancyLocalDate } from "@/lib/consultancies/timezone";
 import { getStudentOwnProgressHistory } from "@/lib/consultancies/progress";
 import { getStudentPhotoEvaluationsData } from "@/lib/consultancies/photo-evaluations";
 import { listInfluencerMissions } from "@/lib/consultancies/missions";
 import { getReferrerDashboardData } from "@/lib/referrals/service";
+import { listPersonalStudents } from "@/lib/consultancies/personal-student-hub";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
 import { listUnreadAnnouncementsForUser } from "@/lib/consultancies/announcements";
 import { DashboardContext } from "@/components/dashboard/dashboard-context";
@@ -26,6 +35,11 @@ import { getPendingCheckinForStudent } from "@/lib/nutrition-v2/checkin-reposito
 import { trackMemberActivity } from "@/lib/monitoring/activity-tracker";
 import { DashboardPersonalView } from "@/components/dashboard/dashboard-personal-view";
 import { DashboardNutritionistView } from "@/components/dashboard/dashboard-nutritionist-view";
+import {
+  isPlanActive,
+  isPlanDraft,
+  getPlanCanonicalStatus,
+} from "@/lib/nutrition-v2/plan-classification";
 import { DashboardInfluencerView } from "@/components/dashboard/dashboard-influencer-view";
 import { DashboardAdminView } from "@/components/dashboard/dashboard-admin-view";
 import { DashboardCombinedPersonalAdminView } from "@/components/dashboard/dashboard-combined-personal-admin-view";
@@ -69,7 +83,15 @@ export default async function ConsultancyPage({ params }: PageProps) {
 
   // MULTI-ROLE UNIFIED EXPERIENCE: Load real data for all active roles held by the user
   const isMultiRolePersonalAdmin = isPersonal && isConsultancyAdmin && !effectiveState.isPreview;
+  const isCombinedPersonalAdmin = isMultiRolePersonalAdmin;
+  const isPurePersonal =
+    (effectiveMode === "PERSONAL" && !isConsultancyAdmin) ||
+    (effectiveState.isPreview && effectiveMode === "PERSONAL");
   const isMultiRoleNutritionistAdmin = isNutritionist && isConsultancyAdmin && !effectiveState.isPreview;
+  const isCombinedNutritionistAdmin = isMultiRoleNutritionistAdmin && !isPersonal;
+  const isPureNutritionist =
+    (effectiveMode === "NUTRITIONIST" && !isConsultancyAdmin) ||
+    (effectiveState.isPreview && effectiveMode === "NUTRITIONIST");
   const isMultiRoleStudentInfluencer = isStudent && isInfluencer && !effectiveState.isPreview;
 
   const needStudentData =
@@ -139,9 +161,13 @@ export default async function ConsultancyPage({ params }: PageProps) {
         try {
           const tCtx = await resolveTrainingAccessContext(slug);
           if (!tCtx || !tCtx.canAuthorTraining) return null;
-          const res = await listWorkoutsForProfessional(tCtx, { limit: 4 });
+          const [res, personalStudents] = await Promise.all([
+            listWorkoutsForProfessional(tCtx, { limit: 6 }),
+            listPersonalStudents({ consultancyId: context.consultancyId }).catch(() => null),
+          ]);
           return {
             total: res.total,
+            totalStudents: personalStudents ? personalStudents.length : null,
             items: res.items.map((w) => ({
               publicId: w.publicId,
               title: w.title,
@@ -164,16 +190,130 @@ export default async function ConsultancyPage({ params }: PageProps) {
         try {
           const nCtx = await resolveNutritionAccessContext(slug);
           if (!nCtx || !nCtx.canAuthorNutrition) return null;
-          const res = await listPlansForConsultancy(nCtx, { pageSize: 4 });
+          const res = await listPlansForConsultancy(nCtx, { pageSize: 50 });
           return {
             total: res.total,
             items: res.items.map((p) => ({
               publicId: p.publicId,
-              title: p.currentVersion?.title || "Plano Alimentar",
-              studentName: null,
-              status: p.status,
+              title: p.currentVersion?.title || "Plano alimentar",
+              studentName: p.assignedStudentName || null,
+              subtitle: p.currentVersion?.subtitle || null,
+              status: p.currentVersion?.status || p.status,
+              planLifecycleStatus: p.status,
+              currentVersionStatus: p.currentVersion?.status,
+              hasDraftRevision: isPlanActive(p) && p.currentVersion?.status === "DRAFT",
+              activeAssignmentsCount: p.activeAssignmentsCount,
               versionNumber: p.currentVersion?.versionNumber,
+              updatedAt: p.updatedAt,
+              mealsCount: p.mealsCount,
             })),
+          };
+        } catch {
+          return null;
+        }
+      })()
+    : Promise.resolve(null);
+
+  // Nutritionist Cockpit Data (consultas de hoje, próxima consulta e alunos para atenção)
+  const nutritionistCockpitPromise = needNutritionistData
+    ? (async () => {
+        try {
+          const nCtx = await resolveNutritionAccessContext(slug);
+          const tz = context.consultancyTimezone || "America/Sao_Paulo";
+          const todayDateStr = getConsultancyLocalDate(tz, new Date());
+
+          // Sem .catch(() => []) mascarador: falha em query crítica rejeita o bloco e vira null ("—")
+          const [upcomingConsultations, personalStudentsList, eligibleStudents] = await Promise.all([
+            context.membershipId
+              ? listUpcomingConsultationsForProfessional(context.consultancyId, context.membershipId, 50)
+              : Promise.resolve(null),
+            listPersonalStudents({ consultancyId: context.consultancyId }),
+            nCtx && nCtx.canAuthorNutrition
+              ? listEligibleStudentsForNutrition(nCtx, undefined, 50)
+              : Promise.resolve(null),
+          ]);
+
+          const todayConsultations = upcomingConsultations
+            ? upcomingConsultations
+                .filter((c) => {
+                  const itemDateStr = getConsultancyLocalDate(tz, c.scheduledStartAt);
+                  return itemDateStr === todayDateStr;
+                })
+                .map((c) => ({
+                  publicId: c.publicId,
+                  patientName: c.counterpartName,
+                  timeFormatted: new Intl.DateTimeFormat("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: tz,
+                  }).format(c.scheduledStartAt),
+                  status: c.status,
+                  statusLabel: CONSULTATION_STATUS_LABELS[c.status] || "Agendada",
+                  canJoinNow: c.canJoinNow,
+                  href: `/consultoria/${slug}/consultas`,
+                }))
+            : null;
+
+          // eslint-disable-next-line react-hooks/purity
+          const nowMs = Date.now();
+          const nextConsultationItem = upcomingConsultations
+            ? upcomingConsultations.find((c) => {
+                return (
+                  (c.status === "IN_PROGRESS" || c.status === "SCHEDULED") &&
+                  c.scheduledEndAt.getTime() >= nowMs
+                );
+              })
+            : null;
+
+          const nextConsultation = nextConsultationItem
+            ? {
+                publicId: nextConsultationItem.publicId,
+                patientName: nextConsultationItem.counterpartName,
+                timeFormatted: (() => {
+                  const itemDateStr = getConsultancyLocalDate(tz, nextConsultationItem.scheduledStartAt);
+                  const timeStr = new Intl.DateTimeFormat("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: tz,
+                  }).format(nextConsultationItem.scheduledStartAt);
+                  if (itemDateStr === todayDateStr) {
+                    return `hoje ${timeStr}`;
+                  }
+                  const dateStr = new Intl.DateTimeFormat("pt-BR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    timeZone: tz,
+                  }).format(nextConsultationItem.scheduledStartAt);
+                  return `${dateStr} ${timeStr}`;
+                })(),
+                status: nextConsultationItem.status,
+                statusLabel: CONSULTATION_STATUS_LABELS[nextConsultationItem.status] || "Agendada",
+                canJoinNow: nextConsultationItem.canJoinNow,
+                href: `/consultoria/${slug}/consultas`,
+              }
+            : null;
+
+          const studentsWithoutPlan = eligibleStudents
+            ? eligibleStudents
+                .filter((s) => !s.activeAssignment)
+                .slice(0, 5)
+                .map((s) => ({
+                  id: `no-plan-${s.membershipPublicId}`,
+                  patientName: s.studentName,
+                  reason: "Paciente sem plano alimentar ativo",
+                  actionLabel: "Criar plano",
+                  actionHref: `/consultoria/${slug}/planos-v2/novo?studentId=${s.membershipPublicId}`,
+                  severity: "warning" as const,
+                }))
+            : null;
+
+          const totalActivePatients = personalStudentsList ? personalStudentsList.length : null;
+
+          return {
+            todayConsultations,
+            nextConsultation,
+            totalActivePatients,
+            studentsWithoutPlan,
           };
         } catch {
           return null;
@@ -196,6 +336,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
     todayCheckin,
     pendingNutritionCheckin,
     referrerData,
+    nutritionistCockpitResult,
   ] = await Promise.all([
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer) ? getStudentOnboardingStatus(session.userId, slug).catch(() => null) : Promise.resolve(null),
     needStudentData && (effectiveMode === "STUDENT" || isMultiRoleStudentInfluencer)
@@ -234,7 +375,55 @@ export default async function ConsultancyPage({ params }: PageProps) {
     needInfluencerData && context.membershipId
       ? getReferrerDashboardData(context.consultancyId, context.membershipId).catch(() => null)
       : Promise.resolve(null),
+    nutritionistCockpitPromise,
   ]);
+
+  // Derived metrics for Nutritionist cockpit
+  // Não truncar sobre pageSize: só calcula se todos os planos da consultoria couberam na página (total <= items.length)
+  const isPlansFullyLoaded =
+    nutritionPlansResult !== null && nutritionPlansResult.total <= nutritionPlansResult.items.length;
+
+  const nutritionistActivePlansCount = isPlansFullyLoaded
+    ? (nutritionPlansResult?.items || []).filter(isPlanActive).length
+    : null;
+
+  // Em "Rascunhos" só conta plano novo nunca publicado (excluindo ativos e encerrados/arquivados)
+  const nutritionistDraftPlansCount = isPlansFullyLoaded
+    ? (nutritionPlansResult?.items || []).filter(isPlanDraft).length
+    : null;
+
+  const nutritionistDraftPlans = (nutritionPlansResult?.items || []).filter((p) => {
+    const lc = p.planLifecycleStatus || p.status;
+    if (lc === "ENDED" || lc === "ARCHIVED") return false;
+    return (
+      isPlanDraft(p) ||
+      p.hasDraftRevision ||
+      (isPlanActive(p) && p.currentVersionStatus === "DRAFT")
+    );
+  });
+  const nutritionistDraftAttentionItems = nutritionistDraftPlans.slice(0, 5).map((p) => {
+    const canonical = getPlanCanonicalStatus(p);
+    const reason = isPlanActive(p)
+      ? canonical.subLabel || `Nova versão em rascunho (V${p.versionNumber || 2})`
+      : `Rascunho não publicado${p.versionNumber ? ` (V${p.versionNumber})` : ""}`;
+    return {
+      id: `draft-${p.publicId}`,
+      patientName: p.studentName || "Plano individual",
+      reason,
+      actionLabel: "Continuar edição",
+      actionHref: `/consultoria/${slug}/planos-v2/${p.publicId}`,
+      severity: "warning" as const,
+    };
+  });
+  const nutritionistAttentionItems =
+    nutritionistCockpitResult !== null
+      ? [
+          ...nutritionistDraftAttentionItems,
+          ...(nutritionistCockpitResult.studentsWithoutPlan || []),
+        ].slice(0, 5)
+      : null;
+  const nutritionistActivePatientsCount =
+    nutritionistCockpitResult?.totalActivePatients ?? null;
 
   const hasPendingPhotoEvaluation = !!(
     studentPhotoEvaluations?.activeRequest &&
@@ -306,40 +495,47 @@ export default async function ConsultancyPage({ params }: PageProps) {
       maxWidth="full"
     >
       <div className="w-full max-w-[1536px] 2xl:max-w-[1680px] space-y-6 sm:space-y-8">
-        {/* Context Header Compacto (oculta badges redundantes quando há seletor de papel ativo) */}
-        <DashboardContext
-          userName={session.fullName}
-          consultancyName={context.consultancyName}
-          roles={context.roles}
-          hideRoleBadges={
-            !effectiveState.isPreview && (
-              (isPersonal && isConsultancyAdmin) ||
-              (isNutritionist && isConsultancyAdmin && !isPersonal)
-            )
-          }
-        />
+        {/* Context Header Compacto (oculta para Nutricionista e Personal que possuem cabeçalho unificado próprio) */}
+        {!(isPureNutritionist || isCombinedNutritionistAdmin || isPurePersonal || isCombinedPersonalAdmin) && (
+          <DashboardContext
+            userName={session.fullName}
+            consultancyName={context.consultancyName}
+            roles={context.roles}
+            hideRoleBadges={false}
+          />
+        )}
 
         {/* 1. Visão Combinada Personal + Admin (quando possui ambos os papéis e não está em preview manual) */}
-        {!effectiveState.isPreview && isPersonal && isConsultancyAdmin && (
+        {isCombinedPersonalAdmin && (
           <DashboardCombinedPersonalAdminView
             consultancySlug={context.consultancySlug}
             consultancyName={context.consultancyName}
+            userName={session.fullName}
             overview={adminOverview}
             platformAccess={context.platformAccess}
             recentPlans={personalPlansResult?.items || []}
             totalPlans={personalPlansResult?.total}
+            totalStudents={personalPlansResult?.totalStudents ?? adminOverview?.students}
           />
         )}
 
         {/* 2. Visão Combinada Nutricionista + Admin (quando possui ambos os papéis e não está em preview manual) */}
-        {!effectiveState.isPreview && isNutritionist && isConsultancyAdmin && !isPersonal && (
+        {isCombinedNutritionistAdmin && (
           <DashboardCombinedNutritionistAdminView
             consultancySlug={context.consultancySlug}
             consultancyName={context.consultancyName}
+            userName={session.fullName}
+            timezone={context.consultancyTimezone || "America/Sao_Paulo"}
             overview={adminOverview}
             platformAccess={context.platformAccess}
             recentPlans={nutritionPlansResult?.items || []}
             totalPlans={nutritionPlansResult?.total}
+            activePlansCount={nutritionistActivePlansCount}
+            draftPlansCount={nutritionistDraftPlansCount}
+            totalStudents={nutritionistActivePatientsCount}
+            todayConsultations={nutritionistCockpitResult?.todayConsultations ?? null}
+            nextConsultation={nutritionistCockpitResult?.nextConsultation || null}
+            attentionItems={nutritionistAttentionItems}
           />
         )}
 
@@ -382,22 +578,31 @@ export default async function ConsultancyPage({ params }: PageProps) {
         )}
 
         {/* 4. Visão do Personal Trainer (Puro ou Preview) */}
-        {((effectiveMode === "PERSONAL" && !isConsultancyAdmin) || (effectiveState.isPreview && effectiveMode === "PERSONAL")) && (
+        {isPurePersonal && (
           <DashboardPersonalView
             consultancySlug={context.consultancySlug}
+            consultancyName={context.consultancyName}
+            userName={session.fullName}
             recentPlans={personalPlansResult?.items || []}
             totalPlans={personalPlansResult?.total}
-            totalStudents={adminOverview?.students}
+            totalStudents={personalPlansResult?.totalStudents ?? adminOverview?.students}
           />
         )}
 
         {/* 5. Visão do Nutricionista (Puro ou Preview) */}
-        {((effectiveMode === "NUTRITIONIST" && !isConsultancyAdmin) || (effectiveState.isPreview && effectiveMode === "NUTRITIONIST")) && (
+        {isPureNutritionist && (
           <DashboardNutritionistView
             consultancySlug={context.consultancySlug}
+            userName={session.fullName}
+            timezone={context.consultancyTimezone || "America/Sao_Paulo"}
             recentPlans={nutritionPlansResult?.items || []}
             totalPlans={nutritionPlansResult?.total}
-            totalStudents={adminOverview?.students}
+            activePlansCount={nutritionistActivePlansCount}
+            draftPlansCount={nutritionistDraftPlansCount}
+            totalStudents={nutritionistActivePatientsCount}
+            todayConsultations={nutritionistCockpitResult?.todayConsultations ?? null}
+            nextConsultation={nutritionistCockpitResult?.nextConsultation || null}
+            attentionItems={nutritionistAttentionItems}
           />
         )}
 

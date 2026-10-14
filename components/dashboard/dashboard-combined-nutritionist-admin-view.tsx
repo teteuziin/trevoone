@@ -2,7 +2,12 @@
 
 import React, { useState } from "react";
 import { Tabs, type TabItem } from "@/components/ui/tabs";
-import { DashboardNutritionistView, type NutritionistPlanSummaryItem } from "./dashboard-nutritionist-view";
+import {
+  DashboardNutritionistView,
+  type NutritionistPlanSummaryItem,
+  type AttentionItem,
+  type TodayConsultationItem,
+} from "./dashboard-nutritionist-view";
 import { DashboardAdminView } from "./dashboard-admin-view";
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
@@ -11,20 +16,36 @@ interface DashboardCombinedNutritionistAdminViewProps {
   consultancySlug: string;
   consultancyName?: string;
   consultancyLogoUrl?: string | null;
+  userName?: string;
+  timezone?: string;
   overview: ConsultancyAdminOverview | null;
   platformAccess?: PlatformEffectiveAccessState;
   recentPlans: NutritionistPlanSummaryItem[];
   totalPlans?: number;
+  activePlansCount?: number | null;
+  draftPlansCount?: number | null;
+  totalStudents?: number | null;
+  todayConsultations?: TodayConsultationItem[] | null;
+  nextConsultation?: TodayConsultationItem | null;
+  attentionItems?: AttentionItem[] | null;
 }
 
 export function DashboardCombinedNutritionistAdminView({
   consultancySlug,
   consultancyName,
   consultancyLogoUrl,
+  userName,
+  timezone,
   overview,
   platformAccess,
   recentPlans,
   totalPlans = 0,
+  activePlansCount,
+  draftPlansCount,
+  totalStudents,
+  todayConsultations = null,
+  nextConsultation,
+  attentionItems = null,
 }: DashboardCombinedNutritionistAdminViewProps) {
   const [activeTab, setActiveTab] = useState<"nutri" | "admin">("nutri");
 
@@ -70,9 +91,16 @@ export function DashboardCombinedNutritionistAdminView({
       {activeTab === "nutri" ? (
         <DashboardNutritionistView
           consultancySlug={consultancySlug}
+          userName={userName}
+          timezone={timezone}
           recentPlans={recentPlans}
           totalPlans={totalPlans}
-          totalStudents={overview?.students}
+          activePlansCount={activePlansCount}
+          draftPlansCount={draftPlansCount}
+          totalStudents={totalStudents !== undefined && totalStudents !== null ? totalStudents : overview?.students}
+          todayConsultations={todayConsultations}
+          nextConsultation={nextConsultation}
+          attentionItems={attentionItems}
           hideRoleBadge={true}
         />
       ) : (

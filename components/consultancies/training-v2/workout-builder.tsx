@@ -908,16 +908,24 @@ export function WorkoutBuilder({
         ...prev,
         blocks: prev.blocks.map((b) => {
           if (b.publicId !== input.blockPublicId) return b;
-          const updatedItems = (b.items || []).map((it) =>
-            input.itemPublicIds.includes(it.publicId)
-              ? {
-                  ...it,
-                  combinationPublicId: newComb.publicId,
-                  combinationType: newComb.combinationType,
-                  subBlockPublicId: newComb.subBlockPublicId ?? it.subBlockPublicId,
-                }
-              : it
-          );
+          const selectedItems = (b.items || []).filter((it) => input.itemPublicIds.includes(it.publicId));
+          const minSortOrder = selectedItems.length > 0
+            ? Math.min(...selectedItems.map((it) => it.sortOrder))
+            : 0;
+
+          const updatedItems = (b.items || []).map((it) => {
+            const selIdx = input.itemPublicIds.indexOf(it.publicId);
+            if (selIdx !== -1) {
+              return {
+                ...it,
+                combinationPublicId: newComb.publicId,
+                combinationType: newComb.combinationType,
+                subBlockPublicId: newComb.subBlockPublicId ?? it.subBlockPublicId,
+                sortOrder: minSortOrder + selIdx,
+              };
+            }
+            return it;
+          });
           const combItems = updatedItems
             .filter((it) => input.itemPublicIds.includes(it.publicId))
             .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -1052,32 +1060,48 @@ export function WorkoutBuilder({
     itemPublicId: string,
     direction: "up" | "down"
   ) {
-    // Optimistic swap
+    // Optimistic swap with pre-sorted items and distinct order assignment
     setVersion((prev) => ({
       ...prev,
       blocks: prev.blocks.map((b) => {
         const comb = (b.combinations || []).find((c) => c.publicId === combinationPublicId);
         if (!comb) return b;
-        const combItems = (b.items || []).filter(
-          (it) => it.combinationPublicId === combinationPublicId
-        );
+        const combItems = (b.items || [])
+          .filter((it) => it.combinationPublicId === combinationPublicId)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
         const idx = combItems.findIndex((it) => it.publicId === itemPublicId);
         if (idx === -1) return b;
         const targetIdx = direction === "up" ? idx - 1 : idx + 1;
         if (targetIdx < 0 || targetIdx >= combItems.length) return b;
 
-        const itemA = combItems[idx];
-        const itemB = combItems[targetIdx];
-        const updatedItems = (b.items || []).map((it) => {
-          if (it.publicId === itemA.publicId) return { ...it, sortOrder: itemB.sortOrder };
-          if (it.publicId === itemB.publicId) return { ...it, sortOrder: itemA.sortOrder };
-          return it;
-        });
-        const newCombItems = updatedItems
-          .filter((it) => it.combinationPublicId === combinationPublicId)
-          .sort((a, b) => a.sortOrder - b.sortOrder);
+        const reorderedCombItems = [...combItems];
+        const [moved] = reorderedCombItems.splice(idx, 1);
+        reorderedCombItems.splice(targetIdx, 0, moved);
+
+        const currentOrders = combItems.map((it) => it.sortOrder).sort((a, b) => a - b);
+        const hasDuplicates = currentOrders.some((val, i) => i > 0 && val === currentOrders[i - 1]);
+        const ordersToAssign = hasDuplicates
+          ? reorderedCombItems.map((_, i) => currentOrders[0] + i)
+          : currentOrders;
+
+        const finalCombItems = reorderedCombItems.map((it, i) => ({
+          ...it,
+          sortOrder: ordersToAssign[i],
+        }));
+
+        const orderMap = new Map(finalCombItems.map((it) => [it.publicId, it.sortOrder]));
+        const updatedItems = (b.items || []).map((it) =>
+          orderMap.has(it.publicId) ? { ...it, sortOrder: orderMap.get(it.publicId)! } : it
+        );
+
         const updatedCombs = (b.combinations || []).map((c) =>
-          c.publicId === combinationPublicId ? { ...c, items: newCombItems } : c
+          c.publicId === combinationPublicId
+            ? {
+                ...c,
+                sortOrder: Math.min(...finalCombItems.map((it) => it.sortOrder)),
+                items: finalCombItems,
+              }
+            : c
         );
         return {
           ...b,
@@ -1742,54 +1766,15 @@ export function WorkoutBuilder({
               </div>
             </div>
 
-            {/* Panel Quick Actions */}
-            <div className="space-y-2 pt-1">
-              {isDraft ? (
-                <button
-                  type="button"
-                  onClick={handleOpenPublishDialog}
-                  className="w-full py-2.5 px-3 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center justify-center gap-2 min-h-[38px] cursor-pointer"
-                >
-                  <SendIcon className="w-3.5 h-3.5" />
-                  <span>Publicar ficha</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsAssignModalOpen(true)}
-                  className="w-full py-2.5 px-3 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center justify-center gap-2 min-h-[38px] cursor-pointer"
-                >
-                  <UserCheckIcon className="w-4 h-4" />
-                  <span>Atribuir ao aluno</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setIsPreviewOpen(true)}
-                className="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[36px] cursor-pointer"
-              >
-                <EyeIcon className="w-3.5 h-3.5 text-blue-500" />
-                <span>Pré-visualizar como aluno</span>
-              </button>
-
-              <a
-                href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[36px] cursor-pointer"
-              >
-                <DownloadIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
-                <span>Baixar PDF</span>
-              </a>
-
+            {/* Panel Utility Actions */}
+            <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
               <button
                 type="button"
                 disabled={isPending}
                 onClick={handleSaveAsModel}
-                className="w-full py-2 px-3 rounded-lg text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[34px] cursor-pointer"
+                className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[36px] cursor-pointer"
               >
-                <BookmarkIcon className="w-3.5 h-3.5" />
+                <BookmarkIcon className="w-3.5 h-3.5 text-amber-500" />
                 <span>Salvar como modelo</span>
               </button>
 
@@ -1797,9 +1782,9 @@ export function WorkoutBuilder({
                 type="button"
                 disabled={isPending}
                 onClick={handleDuplicateFicha}
-                className="w-full py-2 px-3 rounded-lg text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[34px] cursor-pointer"
+                className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[36px] cursor-pointer"
               >
-                <CopyIcon className="w-3.5 h-3.5" />
+                <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
                 <span>Duplicar ficha</span>
               </button>
             </div>

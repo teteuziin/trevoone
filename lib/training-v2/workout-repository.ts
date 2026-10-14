@@ -64,6 +64,7 @@ export type AddBlockInput = {
 export type AddItemInput = {
   exercisePublicId?: string | null;
   subBlockPublicId?: string | null;
+  combinationPublicId?: string | null;
   customSnapshot?: {
     exerciseName: string;
     muscleGroup?: string | null;
@@ -803,6 +804,8 @@ export async function addItemToDraftBlock(
 
     let subBlockId: number | null = null;
     let subBlockTitle: string | null = null;
+    let effectiveSubBlockPublicId: string | null = input.subBlockPublicId || null;
+
     if (input.subBlockPublicId) {
       const [sbRows] = await connection.execute<RowDataPacket[]>(
         `SELECT id, title FROM workout_sub_blocks WHERE public_id = ? AND block_id = ? LIMIT 1;`,
@@ -814,21 +817,87 @@ export async function addItemToDraftBlock(
       }
     }
 
+    let combinationId: number | null = null;
+    let effectiveCombinationPublicId: string | null = null;
+    let effectiveCombinationType: WorkoutCombinationType | null = null;
+
+    if (input.combinationPublicId) {
+      const [combRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id, public_id, sub_block_id, combination_type FROM workout_item_combinations WHERE public_id = ? AND block_id = ? LIMIT 1;`,
+        [input.combinationPublicId, b.id]
+      );
+      if (combRows.length > 0) {
+        combinationId = Number(combRows[0].id);
+        effectiveCombinationPublicId = String(combRows[0].public_id);
+        effectiveCombinationType = combRows[0].combination_type as WorkoutCombinationType;
+        if (!subBlockId && combRows[0].sub_block_id) {
+          subBlockId = Number(combRows[0].sub_block_id);
+          const [sbPubRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT public_id, title FROM workout_sub_blocks WHERE id = ? LIMIT 1;`,
+            [subBlockId]
+          );
+          if (sbPubRows.length > 0) {
+            effectiveSubBlockPublicId = String(sbPubRows[0].public_id);
+            if (!subBlockTitle) subBlockTitle = String(sbPubRows[0].title);
+          }
+        }
+      }
+    }
+
+    let sortOrder: number;
+    if (combinationId != null) {
+      // Adding directly into a combination (Caso B): place right after combination's existing items
+      const [combItemRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT MAX(sort_order) AS max_order FROM workout_block_items WHERE combination_id = ?;`,
+        [combinationId]
+      );
+      const maxCombOrder = combItemRows[0]?.max_order != null ? Number(combItemRows[0].max_order) : null;
+      if (maxCombOrder != null) {
+        sortOrder = maxCombOrder + 1;
+      } else {
+        const [combOrderRows] = await connection.execute<RowDataPacket[]>(
+          `SELECT sort_order FROM workout_item_combinations WHERE id = ? LIMIT 1;`,
+          [combinationId]
+        );
+        sortOrder = combOrderRows[0]?.sort_order != null ? Number(combOrderRows[0].sort_order) : 0;
+      }
+
+      // Shift subsequent items in the block at or after this position
+      await connection.execute(
+        `UPDATE workout_block_items SET sort_order = sort_order + 1 WHERE block_id = ? AND sort_order >= ?;`,
+        [b.id, sortOrder]
+      );
+    } else if (input.sortOrder !== undefined && input.sortOrder !== null) {
+      // Explicit sortOrder requested (Caso C): shift items at or after this position
+      sortOrder = input.sortOrder;
+      await connection.execute(
+        `UPDATE workout_block_items SET sort_order = sort_order + 1 WHERE block_id = ? AND sort_order >= ?;`,
+        [b.id, sortOrder]
+      );
+    } else {
+      // Natural append (Caso A & Caso D): place at the end of the block
+      const [orderRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM workout_block_items WHERE block_id = ?;`,
+        [b.id]
+      );
+      sortOrder = Number(orderRows[0]?.next_order ?? 0);
+    }
+
     const itemPublicId = crypto.randomUUID();
-    const sortOrder = input.sortOrder ?? 0;
     const configJson = input.methodConfig ? JSON.stringify(input.methodConfig) : null;
 
     const [itemRes] = await connection.execute<ResultSetHeader>(
       `INSERT INTO workout_block_items (
-        public_id, block_id, sub_block_id, exercise_id, sort_order, exercise_name_snapshot,
+        public_id, block_id, sub_block_id, combination_id, exercise_id, sort_order, exercise_name_snapshot,
         muscle_group_snapshot, equipment_snapshot, instructions_snapshot,
         prescription_mode, target_cadence, target_rpe, target_rir, duration_unit,
         method_config_json, custom_video_url, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         itemPublicId,
         b.id,
         subBlockId,
+        combinationId,
         exerciseId,
         sortOrder,
         nameSnapshot,
@@ -846,6 +915,19 @@ export async function addItemToDraftBlock(
       ]
     );
     const itemId = itemRes.insertId;
+
+    // Resync combinations' sort_order with min(sort_order) of their items
+    await connection.execute(
+      `UPDATE workout_item_combinations wic
+       JOIN (
+         SELECT combination_id, MIN(sort_order) AS min_order
+         FROM workout_block_items
+         WHERE block_id = ? AND combination_id IS NOT NULL
+         GROUP BY combination_id
+       ) items_agg ON items_agg.combination_id = wic.id
+       SET wic.sort_order = items_agg.min_order, wic.updated_at = NOW(3);`,
+      [b.id]
+    );
 
     const pinnedMedia: BlockItemMediaDto[] = [];
     if (exerciseId) {
@@ -892,7 +974,10 @@ export async function addItemToDraftBlock(
     return {
       publicId: itemPublicId,
       exercisePublicId: input.exercisePublicId || null,
-      subBlockPublicId: input.subBlockPublicId || null,
+      customExercisePublicId: null,
+      combinationPublicId: effectiveCombinationPublicId,
+      combinationType: effectiveCombinationType,
+      subBlockPublicId: effectiveSubBlockPublicId,
       subBlockTitle,
       sortOrder,
       exerciseNameSnapshot: nameSnapshot,
@@ -6179,9 +6264,31 @@ export async function addItemToCombination(
       throw new TrainingAuthorizationError("O exercício deve pertencer ao mesmo treino.", "INVALID_TARGET", 400);
     }
 
+    // Determine target sort_order: place after the combination's current items
+    const [combItemRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT MAX(sort_order) AS max_order FROM workout_block_items WHERE combination_id = ?;`,
+      [comb.id]
+    );
+    const maxCombOrder = combItemRows[0]?.max_order != null ? Number(combItemRows[0].max_order) : null;
+    const targetOrder = maxCombOrder != null ? maxCombOrder + 1 : Number(item.sort_order);
+
+    // Shift any other items in the block at or above targetOrder (excluding this item)
     await connection.execute(
-      `UPDATE workout_block_items SET combination_id = ?, sub_block_id = ?, updated_at = NOW(3) WHERE id = ?;`,
-      [comb.id, comb.sub_block_id, item.id]
+      `UPDATE workout_block_items SET sort_order = sort_order + 1 WHERE block_id = ? AND id != ? AND sort_order >= ?;`,
+      [comb.block_id, item.id, targetOrder]
+    );
+
+    await connection.execute(
+      `UPDATE workout_block_items SET combination_id = ?, sub_block_id = ?, sort_order = ?, updated_at = NOW(3) WHERE id = ?;`,
+      [comb.id, comb.sub_block_id, targetOrder, item.id]
+    );
+
+    // Sync combination sort_order = MIN(sort_order)
+    await connection.execute(
+      `UPDATE workout_item_combinations
+       SET sort_order = (SELECT MIN(sort_order) FROM workout_block_items WHERE combination_id = ?), updated_at = NOW(3)
+       WHERE id = ?;`,
+      [comb.id, comb.id]
     );
 
     await connection.commit();
@@ -6326,6 +6433,106 @@ export async function reorderWorkoutItemCombination(
   }
 }
 
+export async function reorderItemsInCombination(
+  ctx: TrainingAccessContext,
+  combinationPublicId: string,
+  orderedItemPublicIds: string[]
+): Promise<void> {
+  assertCanAuthorTraining(ctx);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [combRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT wic.id, wic.block_id, wv.status, w.consultancy_id
+       FROM workout_item_combinations wic
+       INNER JOIN workout_blocks wb ON wb.id = wic.block_id
+       INNER JOIN workout_versions wv ON wv.id = wb.workout_version_id
+       INNER JOIN workouts w ON w.id = wv.workout_id
+       WHERE wic.public_id = ? AND w.deleted_at IS NULL
+       LIMIT 1;`,
+      [combinationPublicId]
+    );
+
+    if (!combRows || combRows.length === 0) {
+      throw new TrainingAuthorizationError("Combinação não encontrada.", "NOT_FOUND", 404);
+    }
+    const comb = combRows[0];
+
+    if (Number(comb.consultancy_id) !== ctx.consultancyId) {
+      throw new TrainingAuthorizationError("Acesso negado.", "FORBIDDEN", 403);
+    }
+    if (comb.status !== "DRAFT") {
+      throw new TrainingAuthorizationError("Não é permitido alterar uma versão já publicada.", "IMMUTABLE_VERSION", 400);
+    }
+
+    const [items] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, public_id, sort_order
+       FROM workout_block_items
+       WHERE combination_id = ?
+       ORDER BY sort_order ASC, id ASC;`,
+      [comb.id]
+    );
+
+    if (items.length !== orderedItemPublicIds.length) {
+      throw new TrainingAuthorizationError("Lista de exercícios inválida para reordenação.", "VALIDATION_FAILED", 400);
+    }
+
+    const itemMap = new Map<string, RowDataPacket>();
+    for (const it of items) {
+      itemMap.set(String(it.public_id), it);
+    }
+
+    for (const pId of orderedItemPublicIds) {
+      if (!itemMap.has(pId)) {
+        throw new TrainingAuthorizationError("Exercício não pertence a esta combinação.", "VALIDATION_FAILED", 400);
+      }
+    }
+
+    const existingOrders = items.map((i) => Number(i.sort_order)).sort((a, b) => a - b);
+    const hasDuplicates = existingOrders.some((val, idx) => idx > 0 && val === existingOrders[idx - 1]);
+    const ordersToAssign = hasDuplicates
+      ? orderedItemPublicIds.map((_, i) => existingOrders[0] + i)
+      : existingOrders;
+
+    // Step 1: Assign safe negative temporary sort orders to avoid collisions
+    for (let i = 0; i < orderedItemPublicIds.length; i++) {
+      const it = itemMap.get(orderedItemPublicIds[i])!;
+      await connection.execute(
+        `UPDATE workout_block_items SET sort_order = ? WHERE id = ?;`,
+        [-1 * (i + 1), it.id]
+      );
+    }
+
+    // Step 2: Assign final sequential sort orders
+    for (let i = 0; i < orderedItemPublicIds.length; i++) {
+      const it = itemMap.get(orderedItemPublicIds[i])!;
+      await connection.execute(
+        `UPDATE workout_block_items SET sort_order = ?, updated_at = NOW(3) WHERE id = ?;`,
+        [ordersToAssign[i], it.id]
+      );
+    }
+
+    // Step 3: Keep workout_item_combinations sort_order in sync with min(sort_order)
+    await connection.execute(
+      `UPDATE workout_item_combinations
+       SET sort_order = (SELECT MIN(sort_order) FROM workout_block_items WHERE combination_id = ?), updated_at = NOW(3)
+       WHERE id = ?;`,
+      [comb.id, comb.id]
+    );
+
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 export async function moveItemInCombination(
   ctx: TrainingAccessContext,
   combinationPublicId: string,
@@ -6337,9 +6544,8 @@ export async function moveItemInCombination(
   const pool = getDbPool();
   const connection = await pool.getConnection();
 
+  let orderedIds: string[] = [];
   try {
-    await connection.beginTransaction();
-
     const [combRows] = await connection.execute<RowDataPacket[]>(
       `SELECT wic.id, wv.status, w.consultancy_id
        FROM workout_item_combinations wic
@@ -6367,7 +6573,7 @@ export async function moveItemInCombination(
       `SELECT id, public_id, sort_order
        FROM workout_block_items
        WHERE combination_id = ?
-       ORDER BY sort_order ASC;`,
+       ORDER BY sort_order ASC, id ASC;`,
       [comb.id]
     );
 
@@ -6377,18 +6583,16 @@ export async function moveItemInCombination(
     const swapIdx = direction === "UP" ? idx - 1 : idx + 1;
     if (swapIdx < 0 || swapIdx >= items.length) return;
 
-    const currentOrder = items[idx].sort_order;
-    const swapOrder = items[swapIdx].sort_order;
-
-    await connection.execute(`UPDATE workout_block_items SET sort_order = ? WHERE id = ?;`, [swapOrder, items[idx].id]);
-    await connection.execute(`UPDATE workout_block_items SET sort_order = ? WHERE id = ?;`, [currentOrder, items[swapIdx].id]);
-
-    await connection.commit();
-  } catch (err) {
-    await connection.rollback();
-    throw err;
+    const reordered = items.map((i) => String(i.public_id));
+    const [moved] = reordered.splice(idx, 1);
+    reordered.splice(swapIdx, 0, moved);
+    orderedIds = reordered;
   } finally {
     connection.release();
+  }
+
+  if (orderedIds.length > 0) {
+    await reorderItemsInCombination(ctx, combinationPublicId, orderedIds);
   }
 }
 

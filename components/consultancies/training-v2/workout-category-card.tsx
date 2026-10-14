@@ -605,6 +605,7 @@ export function WorkoutCategoryCard({
     index: number;
     total: number;
     subBlockPublicId?: string;
+    combinationPublicId?: string;
   } | null>(null);
   const [executionModalItem, setExecutionModalItem] = useState<WorkoutBlockItemDto | null>(null);
 
@@ -1296,6 +1297,7 @@ export function WorkoutCategoryCard({
                                   index: idx,
                                   total: tot,
                                   subBlockPublicId: subBlock.publicId,
+                                  combinationPublicId: entry.combination.publicId,
                                 })
                               }
                               onOpenExecutionModal={(it) => setExecutionModalItem(it)}
@@ -1474,7 +1476,12 @@ export function WorkoutCategoryCard({
                         onOpenEditCombination={(c) => setEditingCombination(c)}
                         onOpenQuickEdit={(it) => setQuickEditingItem(it)}
                         onOpenActions={(it, idx, tot) =>
-                          setActionsSheetItem({ item: it, index: idx, total: tot })
+                          setActionsSheetItem({
+                            item: it,
+                            index: idx,
+                            total: tot,
+                            combinationPublicId: entry.combination.publicId,
+                          })
                         }
                         onOpenExecutionModal={(it) => setExecutionModalItem(it)}
                         onMoveItemInCombination={onMoveItemInCombination}
@@ -1707,7 +1714,9 @@ export function WorkoutCategoryCard({
       {editingCombination && (
         <EditCombinationSheet
           isOpen={true}
-          combination={editingCombination}
+          combination={
+            combinations.find((c) => c.publicId === editingCombination.publicId) || editingCombination
+          }
           onClose={() => setEditingCombination(null)}
           onSave={async (input) => {
             if (onUpdateCombination) {
@@ -1753,6 +1762,7 @@ export function WorkoutCategoryCard({
           totalItems={actionsSheetItem.total}
           allCategories={allCategories}
           categoryPublicId={category.publicId}
+          inCombination={Boolean(actionsSheetItem.combinationPublicId)}
           onClose={() => setActionsSheetItem(null)}
           onOpenConfigureSequence={onOpenConfigureSequence ? () => {
             const it = actionsSheetItem.item;
@@ -1781,14 +1791,24 @@ export function WorkoutCategoryCard({
             await onDeleteExercise(id);
           }}
           onMoveUp={async () => {
-            const idx = actionsSheetItem.index;
+            const it = actionsSheetItem.item;
+            const combId = actionsSheetItem.combinationPublicId;
             setActionsSheetItem(null);
-            await onMoveExerciseUp(category.publicId, idx);
+            if (combId && onMoveItemInCombination) {
+              await onMoveItemInCombination(combId, it.publicId, "up");
+            } else {
+              await onMoveExerciseUp(category.publicId, actionsSheetItem.index);
+            }
           }}
           onMoveDown={async () => {
-            const idx = actionsSheetItem.index;
+            const it = actionsSheetItem.item;
+            const combId = actionsSheetItem.combinationPublicId;
             setActionsSheetItem(null);
-            await onMoveExerciseDown(category.publicId, idx);
+            if (combId && onMoveItemInCombination) {
+              await onMoveItemInCombination(combId, it.publicId, "down");
+            } else {
+              await onMoveExerciseDown(category.publicId, actionsSheetItem.index);
+            }
           }}
           onMoveToCategory={async (targetCatId) => {
             const id = actionsSheetItem.item.publicId;
@@ -2010,7 +2030,7 @@ export function LegacyCombinationCard({
             <button
               type="button"
               onClick={() => setIsSeqModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer min-h-[44px] sm:min-h-[32px]"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors cursor-pointer min-h-[32px]"
               title="Ver sequência de execução guiada"
             >
               <VideoIcon className="w-3.5 h-3.5" />
@@ -3179,7 +3199,7 @@ export type UnifiedCombinationBlockProps = {
   onMoveEntryDown?: () => void;
   onOpenEditCombination: (combination: WorkoutItemCombinationDto) => void;
   onOpenQuickEdit: (item: WorkoutBlockItemDto) => void;
-  onOpenActions: (item: WorkoutBlockItemDto, index: number, total: number) => void;
+  onOpenActions: (item: WorkoutBlockItemDto, index: number, total: number, combinationPublicId?: string) => void;
   onOpenExecutionModal?: (item: WorkoutBlockItemDto) => void;
   onMoveItemInCombination?: (
     combinationPublicId: string,
@@ -3214,6 +3234,8 @@ export function UnifiedCombinationBlock({
   const [, startTransition] = useTransition();
   const [isCombMenuOpen, setIsCombMenuOpen] = useState(false);
   const [isSeqModalOpen, setIsSeqModalOpen] = useState(false);
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
   const combSeqExp = useMemo(() => buildSequenceMediaFromCombination(combination, items), [combination, items]);
 
   const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
@@ -3254,7 +3276,7 @@ export function UnifiedCombinationBlock({
           </div>
         ) : null}
 
-        {/* Line 2: Dedicated Primary Action Bar */}
+        {/* Line 2: Action Bar */}
         <div className="flex items-center gap-2 w-full pt-0.5">
           {combSeqExp?.hasPlayableMedia ? (
             <button
@@ -3262,11 +3284,11 @@ export function UnifiedCombinationBlock({
               onClick={() => setIsSeqModalOpen(true)}
               aria-label="Ver sequência de execução guiada"
               data-testid="combination-view-sequence-btn"
-              className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              className="inline-flex items-center justify-center gap-1.5 min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all cursor-pointer"
               title="Ver sequência de execução guiada"
             >
-              <VideoIcon className="w-4 h-4 shrink-0" />
-              <span className="truncate font-black">Ver sequência</span>
+              <VideoIcon className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Ver sequência</span>
             </button>
           ) : isDraft ? (
             <button
@@ -3406,7 +3428,7 @@ export function UnifiedCombinationBlock({
             <button
               type="button"
               onClick={() => setIsSeqModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer min-h-[32px]"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors cursor-pointer min-h-[32px]"
               title="Ver sequência de execução guiada"
             >
               <VideoIcon className="w-3.5 h-3.5" />
@@ -3512,7 +3534,51 @@ export function UnifiedCombinationBlock({
           const summary = getItemPrescriptionSummary(item);
 
           return (
-            <div key={item.publicId} className="space-y-0">
+            <div
+              key={item.publicId}
+              draggable={isDraft}
+              onDragStart={(e) => {
+                if (!isDraft) return;
+                e.dataTransfer.setData("text/plain", item.publicId);
+                e.dataTransfer.effectAllowed = "move";
+                setDraggedItemId(item.publicId);
+              }}
+              onDragOver={(e) => {
+                if (!isDraft) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dragOverItemId !== item.publicId) {
+                  setDragOverItemId(item.publicId);
+                }
+              }}
+              onDragLeave={() => {
+                if (dragOverItemId === item.publicId) {
+                  setDragOverItemId(null);
+                }
+              }}
+              onDrop={async (e) => {
+                if (!isDraft) return;
+                e.preventDefault();
+                const sourcePublicId = e.dataTransfer.getData("text/plain") || draggedItemId;
+                setDraggedItemId(null);
+                setDragOverItemId(null);
+                if (!sourcePublicId || sourcePublicId === item.publicId) return;
+                const fromIdx = items.findIndex((it) => it.publicId === sourcePublicId);
+                const toIdx = items.findIndex((it) => it.publicId === item.publicId);
+                if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+                const direction = toIdx < fromIdx ? "up" : "down";
+                if (onMoveItemInCombination) {
+                  await onMoveItemInCombination(combination.publicId, sourcePublicId, direction);
+                }
+              }}
+              onDragEnd={() => {
+                setDraggedItemId(null);
+                setDragOverItemId(null);
+              }}
+              className={`space-y-0 transition-all ${
+                dragOverItemId === item.publicId ? "bg-emerald-500/10 ring-1 ring-emerald-500/30" : ""
+              }`}
+            >
               <div className="p-2.5 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/20 transition-colors w-full max-w-full min-w-0">
                 {/* Left: Letter Badge + Info */}
                 <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
@@ -3547,18 +3613,18 @@ export function UnifiedCombinationBlock({
                 {/* Right: Internal Order (↑ / ↓) + Quick Edit + Actions */}
                 {isDraft && (
                   <div className="flex items-center gap-1 shrink-0">
-                    {/* Internal reorder touch buttons: shown on sm+ desktop/tablet, hidden on mobile */}
+                    {/* Internal reorder touch buttons: shown on mobile and desktop */}
                     {onMoveItemInCombination && (
-                      <div className="hidden sm:flex items-center gap-0.5">
+                      <div className="flex items-center gap-0.5">
                         <button
                           type="button"
                           disabled={idx === 0}
                           onClick={() => onMoveItemInCombination(combination.publicId, item.publicId, "up")}
                           aria-label="Mover para cima na combinação"
                           title="Mover para cima na combinação"
-                          className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                          className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
                         >
-                          <ArrowUp className="w-3.5 h-3.5" />
+                          <ArrowUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                         </button>
                         <button
                           type="button"
@@ -3566,9 +3632,9 @@ export function UnifiedCombinationBlock({
                           onClick={() => onMoveItemInCombination(combination.publicId, item.publicId, "down")}
                           aria-label="Mover para baixo na combinação"
                           title="Mover para baixo na combinação"
-                          className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                          className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
                         >
-                          <ArrowDown className="w-3.5 h-3.5" />
+                          <ArrowDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                         </button>
                       </div>
                     )}
@@ -3587,7 +3653,7 @@ export function UnifiedCombinationBlock({
                     {/* Item Actions (•••): min-h-[44px] min-w-[44px] on mobile */}
                     <button
                       type="button"
-                      onClick={() => onOpenActions(item, idx, items.length)}
+                      onClick={() => onOpenActions(item, idx, items.length, combination.publicId)}
                       aria-label="Ações do exercício"
                       className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] cursor-pointer"
                     >
@@ -4152,7 +4218,31 @@ export function EditCombinationSheet({
   const [, startTransition] = useTransition();
 
   const ACTIVITY_PRESETS = ["Caminhada leve", "Polichinelo", "Prancha", "Mobilidade"];
-  const items = combination.items || [];
+  const [itemsOverride, setItemsOverride] = useState<WorkoutBlockItemDto[] | null>(null);
+  const [prevCombItems, setPrevCombItems] = useState(combination.items);
+
+  if (combination.items !== prevCombItems) {
+    setPrevCombItems(combination.items);
+    setItemsOverride(null);
+  }
+
+  const currentItems = itemsOverride ?? [...(combination.items || [])].sort((a, b) => a.sortOrder - b.sortOrder);
+
+  async function handleMoveItemLocally(itemPublicId: string, direction: "up" | "down") {
+    const idx = currentItems.findIndex((it) => it.publicId === itemPublicId);
+    if (idx < 0) return;
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= currentItems.length) return;
+
+    const next = [...currentItems];
+    const [moved] = next.splice(idx, 1);
+    next.splice(targetIdx, 0, moved);
+    setItemsOverride(next);
+
+    if (onMoveItem) {
+      await onMoveItem(combination.publicId, itemPublicId, direction);
+    }
+  }
 
   async function handleSave() {
     setIsSaving(true);
@@ -4178,7 +4268,7 @@ export function EditCombinationSheet({
             Editar Combinação
           </div>
           <div className="text-sm sm:text-base font-extrabold text-[var(--text-primary)]">
-            {COMBINATION_TYPE_LABELS[combType]} ({items.length} exercícios)
+            {COMBINATION_TYPE_LABELS[combType]} ({currentItems.length} exercícios)
           </div>
         </div>
       }
@@ -4314,7 +4404,7 @@ export function EditCombinationSheet({
             Exercícios na combinação
           </label>
           <div className="space-y-1.5">
-            {items.map((it, idx) => (
+            {currentItems.map((it, idx) => (
               <div
                 key={it.publicId}
                 className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between gap-2"
@@ -4334,7 +4424,7 @@ export function EditCombinationSheet({
                       <button
                         type="button"
                         disabled={idx === 0}
-                        onClick={() => startTransition(() => onMoveItem(combination.publicId, it.publicId, "up"))}
+                        onClick={() => startTransition(() => handleMoveItemLocally(it.publicId, "up"))}
                         aria-label="Mover para cima"
                         className="w-9 h-9 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] flex items-center justify-center disabled:opacity-30 cursor-pointer min-h-[36px] min-w-[36px]"
                       >
@@ -4342,8 +4432,8 @@ export function EditCombinationSheet({
                       </button>
                       <button
                         type="button"
-                        disabled={idx === items.length - 1}
-                        onClick={() => startTransition(() => onMoveItem(combination.publicId, it.publicId, "down"))}
+                        disabled={idx === currentItems.length - 1}
+                        onClick={() => startTransition(() => handleMoveItemLocally(it.publicId, "down"))}
                         aria-label="Mover para baixo"
                         className="w-9 h-9 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] flex items-center justify-center disabled:opacity-30 cursor-pointer min-h-[36px] min-w-[36px]"
                       >
@@ -4351,7 +4441,7 @@ export function EditCombinationSheet({
                       </button>
                     </>
                   )}
-                  {onRemoveItem && items.length > 2 && (
+                  {onRemoveItem && currentItems.length > 2 && (
                     <button
                       type="button"
                       onClick={() => {
@@ -4466,6 +4556,7 @@ export function ExerciseActionsSheet({
   totalItems,
   allCategories,
   categoryPublicId,
+  inCombination = false,
   onClose,
   onOpenQuickEdit,
   onOpenExecutionModal,
@@ -4483,6 +4574,7 @@ export function ExerciseActionsSheet({
   totalItems: number;
   allCategories?: { publicId: string; title: string }[];
   categoryPublicId: string;
+  inCombination?: boolean;
   onClose: () => void;
   onOpenQuickEdit: () => void;
   onOpenExecutionModal: () => void;
@@ -4591,7 +4683,7 @@ export function ExerciseActionsSheet({
             className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] disabled:opacity-40 cursor-pointer"
           >
             <ArrowUp className="w-4 h-4 text-amber-500" />
-            <span>Mover para Cima</span>
+            <span>{inCombination ? "Mover para Cima no Bi-set" : "Mover para Cima"}</span>
           </button>
 
           <button
@@ -4601,10 +4693,10 @@ export function ExerciseActionsSheet({
             className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] disabled:opacity-40 cursor-pointer"
           >
             <ArrowDown className="w-4 h-4 text-amber-500" />
-            <span>Mover para Baixo</span>
+            <span>{inCombination ? "Mover para Baixo no Bi-set" : "Mover para Baixo"}</span>
           </button>
 
-          {otherCategories.length > 0 && (
+          {!inCombination && otherCategories.length > 0 && (
             <button
               type="button"
               onClick={() => setIsMovingCategory(true)}

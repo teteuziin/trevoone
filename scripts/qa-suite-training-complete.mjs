@@ -163,6 +163,18 @@ export async function runTrainingSuite() {
     assert.equal(newOp.deduplicated, false);
   });
 
+  // 7. BI-SET & ITEM ORDERING INVARIANTS (20 DETERMINISTIC TESTS)
+  const { runAllTests: runBiSetOrderingTests } = await import("./test-training-biset-order.mjs");
+  const biSetResult = runBiSetOrderingTests();
+  passedCount += biSetResult.passed;
+  totalCount += biSetResult.total;
+
+  // 8. PERSONAL TRAINER HOME REDESIGN (20 DETERMINISTIC TESTS)
+  const { runPersonalHomeRedesignTests } = await import("./test-personal-home-redesign.mjs");
+  const homeResult = runPersonalHomeRedesignTests();
+  passedCount += homeResult.passed;
+  totalCount += homeResult.total;
+
   console.log(`\nTRAINING SUITE PASS: ${passedCount}/${totalCount} testes executados com sucesso!\n`);
   return { passedCount, totalCount };
 }

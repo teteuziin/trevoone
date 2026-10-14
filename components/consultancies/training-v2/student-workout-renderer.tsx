@@ -1402,7 +1402,9 @@ function ItemOrCombinationList({
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      const combItems = items.filter((i) => i.combinationPublicId === item.combinationPublicId);
+      const combItems = items
+        .filter((i) => i.combinationPublicId === item.combinationPublicId)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
       units.push({
         type: "combination",
         combination: comb as WorkoutItemCombinationDto,

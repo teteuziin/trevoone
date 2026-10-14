@@ -124,7 +124,9 @@ export function StudentRuntimeFocusedView({
           let isLastInCombRound = true;
 
           if (combination) {
-            const combItems = block.items.filter((it) => it.combinationPublicId === combination.publicId);
+            const combItems = (block.items || [])
+              .filter((it) => it.combinationPublicId === combination.publicId)
+              .sort((a, b) => a.sortOrder - b.sortOrder);
             const memberIdx = combItems.findIndex((it) => it.publicId === item.publicId);
             combLetter = String.fromCharCode(65 + Math.max(0, memberIdx));
             if (memberIdx >= 0 && memberIdx < combItems.length - 1) {

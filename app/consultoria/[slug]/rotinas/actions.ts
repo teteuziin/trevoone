@@ -48,6 +48,7 @@ import {
   removeItemFromCombination,
   reorderWorkoutItemCombination,
   moveItemInCombination,
+  reorderItemsInCombination,
   duplicateWorkoutItemCombination,
   createCustomExerciseInWorkout,
   convertUnresolvedToCustomExercise,
@@ -258,7 +259,9 @@ export async function addExerciseItemToBlockAction(
   exercisePublicId: string,
   notes?: string,
   subBlockPublicId?: string | null,
-  durationUnit?: "SECONDS" | "MINUTES" | null
+  durationUnit?: "SECONDS" | "MINUTES" | null,
+  sortOrder?: number | null,
+  combinationPublicId?: string | null
 ): Promise<ActionResponse<WorkoutBlockItemDto>> {
   try {
     const { ctx } = await requireConsultancyProfessionalContext(slug);
@@ -270,8 +273,10 @@ export async function addExerciseItemToBlockAction(
     const item = await addItemToDraftBlock(ctx, blockPublicId, {
       exercisePublicId: exercisePublicId.trim(),
       subBlockPublicId: subBlockPublicId?.trim() || null,
+      combinationPublicId: combinationPublicId?.trim() || null,
       durationUnit: durationUnit || null,
       notes: notes?.trim() || null,
+      sortOrder: sortOrder !== undefined && sortOrder !== null ? sortOrder : undefined,
     });
 
     // Provide default initial set if none exist
@@ -1713,6 +1718,27 @@ export async function moveItemInCombinationAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Erro ao mover exercício na combinação.",
+    };
+  }
+}
+
+/**
+ * Reorders items inside a combination with an explicit list of ordered item public IDs.
+ */
+export async function reorderItemsInCombinationAction(
+  slug: string,
+  combinationPublicId: string,
+  orderedItemPublicIds: string[]
+): Promise<ActionResponse<{ success: boolean }>> {
+  try {
+    const { ctx } = await requireConsultancyProfessionalContext(slug);
+    await reorderItemsInCombination(ctx, combinationPublicId, orderedItemPublicIds);
+    revalidatePath(`/consultoria/${slug}/rotinas`);
+    return { ok: true, data: { success: true } };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erro ao reordenar exercícios da combinação.",
     };
   }
 }

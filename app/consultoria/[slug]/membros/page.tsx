@@ -21,19 +21,22 @@ type PageProps = {
   params: Promise<{
     slug: string;
   }>;
-  searchParams: Promise<{
+  searchParams?: Promise<{
     q?: string;
     page?: string;
   }>;
 };
 
-function formatDate(date: Date): string {
-  const d = date.getUTCDate().toString().padStart(2, "0");
-  const m = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  const y = date.getUTCFullYear();
-  const h = date.getUTCHours().toString().padStart(2, "0");
-  const min = date.getUTCMinutes().toString().padStart(2, "0");
-  return `${d}/${m}/${y} ${h}:${min}`;
+function formatDate(date: unknown): string {
+  if (!date) return "—";
+  const d = date instanceof Date ? date : new Date(String(date));
+  if (isNaN(d.getTime())) return "—";
+  const day = d.getUTCDate().toString().padStart(2, "0");
+  const month = (d.getUTCMonth() + 1).toString().padStart(2, "0");
+  const year = d.getUTCFullYear();
+  const hours = d.getUTCHours().toString().padStart(2, "0");
+  const minutes = d.getUTCMinutes().toString().padStart(2, "0");
+  return `${day}/${month}/${year} às ${hours}:${minutes}`;
 }
 
 export default async function ConsultancyMembersPage({
@@ -41,7 +44,9 @@ export default async function ConsultancyMembersPage({
   searchParams,
 }: PageProps) {
   const { slug } = await params;
-  const { q, page } = await searchParams;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const q = resolvedSearchParams?.q;
+  const page = resolvedSearchParams?.page;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -62,9 +67,18 @@ export default async function ConsultancyMembersPage({
   const pageNum = Number(page);
   const validPage = !isNaN(pageNum) && pageNum >= 1 ? Math.floor(pageNum) : 1;
 
-  // Buscar membros e convites em paralelo
-  const [{ members, total, page: currentPage, totalPages }, invitations] =
-    await Promise.all([
+  // Buscar membros e convites em paralelo com resiliência
+  let membersResult = {
+    members: [] as import("@/lib/consultancies/admin").ConsultancyMemberItem[],
+    total: 0,
+    page: 1,
+    pageSize: 25,
+    totalPages: 1,
+  };
+  let invitations: import("@/lib/consultancies/invitations").ConsultancyInvitationItem[] = [];
+
+  try {
+    const [fetchedMembers, fetchedInvitations] = await Promise.all([
       listConsultancyMembers({
         consultancyId: context.consultancyId,
         query,
@@ -73,6 +87,13 @@ export default async function ConsultancyMembersPage({
       }),
       listConsultancyInvitations(context.consultancyId),
     ]);
+    membersResult = fetchedMembers;
+    invitations = fetchedInvitations;
+  } catch (err) {
+    console.error("[ConsultancyMembersPage] Error fetching members or invitations:", err);
+  }
+
+  const { members, total, page: currentPage, totalPages } = membersResult;
 
   return (
     <ConsultancyAppShell
@@ -85,6 +106,7 @@ export default async function ConsultancyMembersPage({
       userPublicId={session.userPublicId}
       hasProfilePhoto={session.hasProfilePhoto}
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+      consultancyPublicId={context.consultancyPublicId}
     >
       <div className="w-full max-w-5xl mx-auto space-y-8 pb-12">
         {/* Page Header */}

@@ -201,7 +201,7 @@ export async function listConsultancyMembers(params: {
     }
 
     listSql += `
-      GROUP BY cm.id, cm.public_id, u.full_name, u.email, cm.status
+      GROUP BY cm.id, cm.public_id, u.id, u.public_id, u.full_name, u.email, cm.status
       ORDER BY u.full_name ASC, cm.id ASC
       LIMIT ${pageSize} OFFSET ${offset};
     `;
@@ -225,6 +225,7 @@ export async function listConsultancyMembers(params: {
 
       return {
         membershipPublicId: String(r.membership_public_id),
+        userPublicId: r.user_public_id ? String(r.user_public_id) : undefined,
         fullName: String(r.full_name),
         email: String(r.email),
         status,

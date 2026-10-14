@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useRef, useCallback, useEffect } from "react";
 import type {
   WorkoutBlockDto,
   WorkoutBlockItemDto,
@@ -3951,34 +3951,96 @@ export function QuickEditExerciseSheet({
   const [videoUrl, setVideoUrl] = useState<string | null>(item.customVideoUrl ?? null);
   const [saveToLibrary, setSaveToLibrary] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  const isDirtyRef = useRef(false);
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const latestValuesRef = useRef({
+    sets,
+    repsDraft,
+    load,
+    rest,
+    notes,
+    videoUrl,
+    saveToLibrary,
+  });
+
+  useEffect(() => {
+    latestValuesRef.current = {
+      sets,
+      repsDraft,
+      load,
+      rest,
+      notes,
+      videoUrl,
+      saveToLibrary,
+    };
+  }, [sets, repsDraft, load, rest, notes, videoUrl, saveToLibrary]);
 
   const REPS_CHIPS = ["8-10", "10-12", "12-15", "Falha"];
   const REST_CHIPS = [30, 45, 60, 90, 120];
 
-  async function handleSave() {
+  const flushSave = useCallback(async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const cur = latestValuesRef.current;
+    const parsedReps = parseRepsInput(cur.repsDraft);
+    const numLoad = cur.load.trim() !== "" && !isNaN(Number(cur.load)) ? Number(cur.load) : null;
+    setAutosaveStatus("saving");
     setIsSaving(true);
     try {
-      const parsedReps = parseRepsInput(repsDraft);
-      const numLoad = load.trim() !== "" && !isNaN(Number(load)) ? Number(load) : null;
       await onSave({
-        seriesCount: Math.max(1, Math.min(20, sets)),
+        seriesCount: Math.max(1, Math.min(20, cur.sets)),
         reps: parsedReps?.repsMin ?? 10,
         targetRepsMax: parsedReps?.repsMax ?? null,
-        restSeconds: Math.max(0, rest),
+        restSeconds: Math.max(0, cur.rest),
         loadKg: numLoad,
-        notes: notes.trim() || null,
-        customVideoUrl: videoUrl,
-        saveToExerciseLibrary: saveToLibrary,
+        notes: cur.notes.trim() || null,
+        customVideoUrl: cur.videoUrl,
+        saveToExerciseLibrary: cur.saveToLibrary,
       });
+      isDirtyRef.current = false;
+      setAutosaveStatus("saved");
+    } catch {
+      setAutosaveStatus("idle");
     } finally {
       setIsSaving(false);
     }
+  }, [onSave]);
+
+  const scheduleSave = useCallback(() => {
+    isDirtyRef.current = true;
+    setAutosaveStatus("saving");
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = setTimeout(() => {
+      flushSave();
+    }, 600);
+  }, [flushSave]);
+
+  async function handleCloseWithFlush() {
+    if (isDirtyRef.current || saveTimerRef.current) {
+      await flushSave();
+    }
+    onClose();
   }
+
+  // Flush on unmount if dirty
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <BottomSheet
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleCloseWithFlush}
       title={
         <div className="space-y-0.5">
           <div className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
@@ -3990,21 +4052,30 @@ export function QuickEditExerciseSheet({
         </div>
       }
       footer={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-3 w-full">
+          <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+            {autosaveStatus === "saving" ? (
+              <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                Salvando…
+              </span>
+            ) : autosaveStatus === "saved" ? (
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                Salvo automaticamente
+              </span>
+            ) : (
+              <span className="text-[var(--text-tertiary)] font-medium">Salvo automaticamente</span>
+            )}
+          </div>
           <button
             type="button"
             disabled={isSaving}
-            onClick={handleSave}
-            className="flex-1 py-3 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all min-h-[48px] flex items-center justify-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+            onClick={handleCloseWithFlush}
+            className="py-2.5 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all min-h-[44px] flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
           >
-            {isSaving ? "Salvando..." : "Salvar Alterações"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="py-3 px-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] font-bold text-sm min-h-[48px] cursor-pointer"
-          >
-            Cancelar
+            <Check className="w-4 h-4" />
+            <span>Concluir</span>
           </button>
         </div>
       }
@@ -4018,7 +4089,14 @@ export function QuickEditExerciseSheet({
           <div className="flex items-center justify-between p-2 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
             <button
               type="button"
-              onClick={() => setSets((s) => Math.max(1, s - 1))}
+              onClick={() => {
+                setSets((s) => {
+                  const n = Math.max(1, s - 1);
+                  latestValuesRef.current.sets = n;
+                  scheduleSave();
+                  return n;
+                });
+              }}
               aria-label="Diminuir séries"
               className="w-12 h-12 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
             >
@@ -4030,7 +4108,14 @@ export function QuickEditExerciseSheet({
             </div>
             <button
               type="button"
-              onClick={() => setSets((s) => Math.min(20, s + 1))}
+              onClick={() => {
+                setSets((s) => {
+                  const n = Math.min(20, s + 1);
+                  latestValuesRef.current.sets = n;
+                  scheduleSave();
+                  return n;
+                });
+              }}
               aria-label="Aumentar séries"
               className="w-12 h-12 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
             >
@@ -4047,7 +4132,14 @@ export function QuickEditExerciseSheet({
           <input
             type="text"
             value={repsDraft}
-            onChange={(e) => setRepsDraft(e.target.value)}
+            onChange={(e) => {
+              setRepsDraft(e.target.value);
+              latestValuesRef.current.repsDraft = e.target.value;
+              scheduleSave();
+            }}
+            onBlur={() => {
+              if (isDirtyRef.current) flushSave();
+            }}
             placeholder="Ex: 10, 8-12, Falha"
             className="w-full px-4 py-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] text-base font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[48px]"
           />
@@ -4056,7 +4148,11 @@ export function QuickEditExerciseSheet({
               <button
                 key={chip}
                 type="button"
-                onClick={() => setRepsDraft(chip)}
+                onClick={() => {
+                  setRepsDraft(chip);
+                  latestValuesRef.current.repsDraft = chip;
+                  scheduleSave();
+                }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer min-h-[36px] ${
                   repsDraft === chip
                     ? "bg-emerald-600 text-white border-emerald-600"
@@ -4079,7 +4175,10 @@ export function QuickEditExerciseSheet({
               type="button"
               onClick={() => {
                 const cur = Number(load) || 0;
-                setLoad(String(Math.max(0, cur - 2.5)));
+                const nextVal = String(Math.max(0, cur - 2.5));
+                setLoad(nextVal);
+                latestValuesRef.current.load = nextVal;
+                scheduleSave();
               }}
               className="px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] font-bold text-xs min-h-[44px] cursor-pointer"
             >
@@ -4089,7 +4188,14 @@ export function QuickEditExerciseSheet({
               type="text"
               inputMode="decimal"
               value={load}
-              onChange={(e) => setLoad(e.target.value)}
+              onChange={(e) => {
+                setLoad(e.target.value);
+                latestValuesRef.current.load = e.target.value;
+                scheduleSave();
+              }}
+              onBlur={() => {
+                if (isDirtyRef.current) flushSave();
+              }}
               placeholder="0"
               className="flex-1 px-4 py-3 text-center rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] text-base font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[48px]"
             />
@@ -4097,7 +4203,10 @@ export function QuickEditExerciseSheet({
               type="button"
               onClick={() => {
                 const cur = Number(load) || 0;
-                setLoad(String(cur + 2.5));
+                const nextVal = String(cur + 2.5);
+                setLoad(nextVal);
+                latestValuesRef.current.load = nextVal;
+                scheduleSave();
               }}
               className="px-3.5 py-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] font-bold text-xs min-h-[44px] cursor-pointer"
             >
@@ -4114,7 +4223,14 @@ export function QuickEditExerciseSheet({
           <div className="flex items-center justify-between p-2 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)]">
             <button
               type="button"
-              onClick={() => setRest((r) => Math.max(0, r - 15))}
+              onClick={() => {
+                setRest((r) => {
+                  const nextVal = Math.max(0, r - 15);
+                  latestValuesRef.current.rest = nextVal;
+                  scheduleSave();
+                  return nextVal;
+                });
+              }}
               aria-label="Diminuir descanso"
               className="w-12 h-12 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
             >
@@ -4126,7 +4242,14 @@ export function QuickEditExerciseSheet({
             </div>
             <button
               type="button"
-              onClick={() => setRest((r) => Math.min(600, r + 15))}
+              onClick={() => {
+                setRest((r) => {
+                  const nextVal = Math.min(600, r + 15);
+                  latestValuesRef.current.rest = nextVal;
+                  scheduleSave();
+                  return nextVal;
+                });
+              }}
               aria-label="Aumentar descanso"
               className="w-12 h-12 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
             >
@@ -4138,7 +4261,11 @@ export function QuickEditExerciseSheet({
               <button
                 key={chip}
                 type="button"
-                onClick={() => setRest(chip)}
+                onClick={() => {
+                  setRest(chip);
+                  latestValuesRef.current.rest = chip;
+                  scheduleSave();
+                }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer min-h-[36px] ${
                   rest === chip
                     ? "bg-emerald-600 text-white border-emerald-600"
@@ -4158,7 +4285,14 @@ export function QuickEditExerciseSheet({
           </label>
           <textarea
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e) => {
+              setNotes(e.target.value);
+              latestValuesRef.current.notes = e.target.value;
+              scheduleSave();
+            }}
+            onBlur={() => {
+              if (isDirtyRef.current) flushSave();
+            }}
             rows={2}
             placeholder="Ex: Drop-set na última, cadência 3010..."
             className="w-full px-3 py-2 text-xs sm:text-sm font-medium rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none"
@@ -4176,7 +4310,12 @@ export function QuickEditExerciseSheet({
           exerciseName={item.exerciseNameSnapshot}
           onVideoChange={(newUrl, toLibrary) => {
             setVideoUrl(newUrl);
-            if (toLibrary !== undefined) setSaveToLibrary(toLibrary);
+            latestValuesRef.current.videoUrl = newUrl;
+            if (toLibrary !== undefined) {
+              setSaveToLibrary(toLibrary);
+              latestValuesRef.current.saveToLibrary = toLibrary;
+            }
+            scheduleSave();
           }}
           disabled={isSaving}
         />
@@ -4215,7 +4354,78 @@ export function EditCombinationSheet({
     combination.title ? combination.title.replace(/•?\s*Descanso Ativo:.*$/i, "").trim() : ""
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [, startTransition] = useTransition();
+
+  const isDirtyRef = useRef(false);
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const latestCombRef = useRef({
+    combType,
+    isRestActive,
+    activeActivity,
+    customTitle,
+    rest,
+  });
+  useEffect(() => {
+    latestCombRef.current = {
+      combType,
+      isRestActive,
+      activeActivity,
+      customTitle,
+      rest,
+    };
+  }, [combType, isRestActive, activeActivity, customTitle, rest]);
+
+  const flushSave = useCallback(async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const cur = latestCombRef.current;
+    const formattedTitle = formatActiveRestTitle(cur.isRestActive, cur.activeActivity, cur.customTitle);
+    setAutosaveStatus("saving");
+    setIsSaving(true);
+    try {
+      await onSave({
+        combinationType: cur.combType,
+        title: formattedTitle,
+        restAfterSeconds: cur.rest,
+      });
+      isDirtyRef.current = false;
+      setAutosaveStatus("saved");
+    } catch {
+      setAutosaveStatus("idle");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [onSave]);
+
+  const scheduleSave = useCallback(() => {
+    isDirtyRef.current = true;
+    setAutosaveStatus("saving");
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = setTimeout(() => {
+      flushSave();
+    }, 600);
+  }, [flushSave]);
+
+  async function handleCloseWithFlush() {
+    if (isDirtyRef.current || saveTimerRef.current) {
+      await flushSave();
+    }
+    onClose();
+  }
+
+  // Flush on unmount if dirty
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
 
   const ACTIVITY_PRESETS = ["Caminhada leve", "Polichinelo", "Prancha", "Mobilidade"];
   const [itemsOverride, setItemsOverride] = useState<WorkoutBlockItemDto[] | null>(null);
@@ -4244,24 +4454,10 @@ export function EditCombinationSheet({
     }
   }
 
-  async function handleSave() {
-    setIsSaving(true);
-    try {
-      const formattedTitle = formatActiveRestTitle(isRestActive, activeActivity, customTitle);
-      await onSave({
-        combinationType: combType,
-        title: formattedTitle,
-        restAfterSeconds: rest,
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
   return (
     <BottomSheet
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleCloseWithFlush}
       title={
         <div className="space-y-0.5">
           <div className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
@@ -4273,21 +4469,30 @@ export function EditCombinationSheet({
         </div>
       }
       footer={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-3 w-full">
+          <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+            {autosaveStatus === "saving" ? (
+              <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                Salvando…
+              </span>
+            ) : autosaveStatus === "saved" ? (
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                Salvo automaticamente
+              </span>
+            ) : (
+              <span className="text-[var(--text-tertiary)] font-medium">Salvo automaticamente</span>
+            )}
+          </div>
           <button
             type="button"
             disabled={isSaving}
-            onClick={handleSave}
-            className="flex-1 py-3 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all min-h-[48px] flex items-center justify-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+            onClick={handleCloseWithFlush}
+            className="py-2.5 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all min-h-[44px] flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
           >
-            {isSaving ? "Salvando..." : "Salvar Alterações"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="py-3 px-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] font-bold text-sm min-h-[48px] cursor-pointer"
-          >
-            Cancelar
+            <Check className="w-4 h-4" />
+            <span>Concluir</span>
           </button>
         </div>
       }
@@ -4303,7 +4508,11 @@ export function EditCombinationSheet({
               <button
                 key={t}
                 type="button"
-                onClick={() => setCombType(t)}
+                onClick={() => {
+                  setCombType(t);
+                  latestCombRef.current.combType = t;
+                  scheduleSave();
+                }}
                 className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all min-h-[44px] cursor-pointer ${
                   combType === t
                     ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
@@ -4324,7 +4533,11 @@ export function EditCombinationSheet({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setIsRestActive(false)}
+              onClick={() => {
+                setIsRestActive(false);
+                latestCombRef.current.isRestActive = false;
+                scheduleSave();
+              }}
               className={`flex-1 py-2 rounded-xl text-xs font-bold min-h-[44px] transition-all cursor-pointer ${
                 !isRestActive
                   ? "bg-emerald-600 text-white shadow-xs"
@@ -4335,7 +4548,11 @@ export function EditCombinationSheet({
             </button>
             <button
               type="button"
-              onClick={() => setIsRestActive(true)}
+              onClick={() => {
+                setIsRestActive(true);
+                latestCombRef.current.isRestActive = true;
+                scheduleSave();
+              }}
               className={`flex-1 py-2 rounded-xl text-xs font-bold min-h-[44px] transition-all cursor-pointer ${
                 isRestActive
                   ? "bg-emerald-600 text-white shadow-xs"
@@ -4350,7 +4567,14 @@ export function EditCombinationSheet({
           <div className="flex items-center justify-between p-2 rounded-xl bg-[var(--surface)] border border-[var(--border-subtle)]">
             <button
               type="button"
-              onClick={() => setRest((r) => Math.max(0, r - 15))}
+              onClick={() => {
+                setRest((r) => {
+                  const nextVal = Math.max(0, r - 15);
+                  latestCombRef.current.rest = nextVal;
+                  scheduleSave();
+                  return nextVal;
+                });
+              }}
               className="w-11 h-11 rounded-lg bg-[var(--surface-subtle)] text-[var(--text-primary)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
             >
               -
@@ -4361,7 +4585,14 @@ export function EditCombinationSheet({
             </div>
             <button
               type="button"
-              onClick={() => setRest((r) => Math.min(600, r + 15))}
+              onClick={() => {
+                setRest((r) => {
+                  const nextVal = Math.min(600, r + 15);
+                  latestCombRef.current.rest = nextVal;
+                  scheduleSave();
+                  return nextVal;
+                });
+              }}
               className="w-11 h-11 rounded-lg bg-[var(--surface-subtle)] text-[var(--text-primary)] font-black text-xl flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
             >
               +
@@ -4374,7 +4605,14 @@ export function EditCombinationSheet({
               <input
                 type="text"
                 value={activeActivity}
-                onChange={(e) => setActiveActivity(e.target.value)}
+                onChange={(e) => {
+                  setActiveActivity(e.target.value);
+                  latestCombRef.current.activeActivity = e.target.value;
+                  scheduleSave();
+                }}
+                onBlur={() => {
+                  if (isDirtyRef.current) flushSave();
+                }}
                 placeholder="Atividade (ex: Caminhada leve, polichinelo...)"
                 className="w-full px-3 py-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-xs font-bold text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[44px]"
               />
@@ -4383,7 +4621,11 @@ export function EditCombinationSheet({
                   <button
                     key={act}
                     type="button"
-                    onClick={() => setActiveActivity(act)}
+                    onClick={() => {
+                      setActiveActivity(act);
+                      latestCombRef.current.activeActivity = act;
+                      scheduleSave();
+                    }}
                     className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer min-h-[32px] ${
                       activeActivity === act
                         ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40 font-bold"

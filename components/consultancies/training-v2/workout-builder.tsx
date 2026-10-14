@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type {
   WorkoutRootDto,
@@ -59,6 +59,25 @@ import { SequenceConfigurationModal } from "./sequence-configuration-modal";
 import { WorkoutAssignModal } from "./workout-assign-modal";
 import { TemplateAssignModal } from "./template-assign-modal";
 import { StudentWorkoutRenderer } from "./student-workout-renderer";
+import { StudioExerciseLibrarySidebar } from "./studio-exercise-library-sidebar";
+
+function AlertCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" />
+      <line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SparklesIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  );
+}
 
 function DownloadIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -215,6 +234,13 @@ export function WorkoutBuilder({
   const [isPending, startTransition] = useTransition();
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
+  // Autosave State Engine
+  type AutosaveStatus = "saved" | "saving" | "error";
+  const [saveStatus, setSaveStatus] = useState<AutosaveStatus>("saved");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+  const [isLibrarySidebarOpen, setIsLibrarySidebarOpen] = useState(true);
+
   // Metadata state
   const [isMetadataExpanded, setIsMetadataExpanded] = useState(false);
   const [title, setTitle] = useState(version.title || workout.title);
@@ -226,6 +252,141 @@ export function WorkoutBuilder({
     version.estimatedDurationMinutes || workout.estimatedDurationMinutes || 50
   );
   const [notes, setNotes] = useState(version.notes || "");
+
+  // Autosave refs
+  const pendingMetadataRef = useRef<{
+    title: string;
+    objective: string;
+    difficultyLevel: DifficultyLevel | string;
+    estimatedDurationMinutes: number;
+    notes: string;
+  } | null>(null);
+  const metadataTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const revisionRef = useRef<number>(0);
+  const retryLastSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const flushPendingMetadataRef = useRef<(() => Promise<void>) | null>(null);
+
+  // Flush pending metadata directly to server
+  const flushPendingMetadata = useCallback(async () => {
+    if (!pendingMetadataRef.current || !isDraft) return;
+    const payload = { ...pendingMetadataRef.current };
+    pendingMetadataRef.current = null;
+    if (metadataTimerRef.current) {
+      clearTimeout(metadataTimerRef.current);
+      metadataTimerRef.current = null;
+    }
+
+    const currentRev = ++revisionRef.current;
+    setSaveStatus("saving");
+    setSaveErrorMessage(null);
+
+    try {
+      const res = await updateWorkoutDraftMetadataAction(
+        consultancySlug,
+        version.publicId,
+        {
+          title: payload.title.trim() || workout.title,
+          objective: payload.objective.trim() || null,
+          difficultyLevel: payload.difficultyLevel as DifficultyLevel,
+          estimatedDurationMinutes: Number(payload.estimatedDurationMinutes) || null,
+          notes: payload.notes.trim() || null,
+        }
+      );
+      if (res.ok && res.data) {
+        if (revisionRef.current === currentRev) {
+          setVersion(res.data);
+          setSaveStatus("saved");
+          setLastSavedAt(new Date());
+        }
+      } else {
+        setSaveStatus("error");
+        setSaveErrorMessage(res.error || "Erro ao salvar alterações");
+        retryLastSaveRef.current = () => flushPendingMetadataRef.current?.() || Promise.resolve();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar alterações";
+      setSaveStatus("error");
+      setSaveErrorMessage(msg);
+      retryLastSaveRef.current = () => flushPendingMetadataRef.current?.() || Promise.resolve();
+    }
+  }, [consultancySlug, isDraft, version.publicId, workout.title]);
+
+  useEffect(() => {
+    flushPendingMetadataRef.current = flushPendingMetadata;
+  }, [flushPendingMetadata]);
+
+  // Schedule debounced metadata save (600ms)
+  const scheduleMetadataSave = useCallback(
+    (overrides: Partial<{
+      title: string;
+      objective: string;
+      difficultyLevel: DifficultyLevel | string;
+      estimatedDurationMinutes: number;
+      notes: string;
+    }>) => {
+      if (!isDraft) return;
+      const current = {
+        title,
+        objective,
+        difficultyLevel,
+        estimatedDurationMinutes,
+        notes,
+        ...overrides,
+      };
+      pendingMetadataRef.current = current;
+      setSaveStatus("saving");
+      setSaveErrorMessage(null);
+
+      if (metadataTimerRef.current) {
+        clearTimeout(metadataTimerRef.current);
+      }
+      metadataTimerRef.current = setTimeout(() => {
+        flushPendingMetadata();
+      }, 600);
+    },
+    [difficultyLevel, estimatedDurationMinutes, flushPendingMetadata, isDraft, notes, objective, title]
+  );
+
+  // Beforeunload & navigation flush protection
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingMetadataRef.current) {
+        flushPendingMetadata();
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      if (pendingMetadataRef.current) {
+        flushPendingMetadata();
+      }
+    };
+  }, [flushPendingMetadata]);
+
+  // Unified runner for structural actions with Autosave guarantees
+  async function runWithAutosave<T>(action: () => Promise<T>): Promise<T> {
+    if (pendingMetadataRef.current) {
+      await flushPendingMetadata();
+    }
+    setSaveStatus("saving");
+    setSaveErrorMessage(null);
+    try {
+      const result = await action();
+      setSaveStatus("saved");
+      setLastSavedAt(new Date());
+      return result;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar alteração";
+      setSaveStatus("error");
+      setSaveErrorMessage(msg);
+      retryLastSaveRef.current = async () => {
+        await runWithAutosave(action);
+      };
+      throw err;
+    }
+  }
 
   // Category creation inline state
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -273,25 +434,32 @@ export function WorkoutBuilder({
     setTimeout(() => setFeedbackMessage(null), 3500);
   }
 
-  // Save metadata
-  async function handleSaveMetadata() {
-    startTransition(async () => {
-      const res = await updateWorkoutDraftMetadataAction(
+
+  // Add Exercise directly to Category (used by Studio Sidebar and Quick Actions)
+  async function handleAddExerciseToCategory(categoryPublicId: string, exercisePublicId: string) {
+    return runWithAutosave(async () => {
+      const res = await addExerciseItemToBlockAction(
         consultancySlug,
-        version.publicId,
-        {
-          title: title.trim(),
-          objective: objective.trim() || null,
-          difficultyLevel: difficultyLevel as DifficultyLevel,
-          estimatedDurationMinutes: Number(estimatedDurationMinutes) || null,
-          notes: notes.trim() || null,
-        }
+        categoryPublicId,
+        exercisePublicId,
+        undefined,
+        undefined
       );
       if (res.ok && res.data) {
-        setVersion(res.data);
-        notify("Ficha atualizada com sucesso.");
+        const newItem = res.data;
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) =>
+            b.publicId === categoryPublicId
+              ? { ...b, items: [...(b.items || []), newItem] }
+              : b
+          ),
+        }));
+        notify(`Exercício "${newItem.exerciseNameSnapshot}" adicionado.`);
+        return newItem;
       } else {
-        notify(res.error || "Erro ao salvar ficha.");
+        notify(res.error || "Erro ao adicionar exercício.");
+        throw new Error(res.error || "Erro ao adicionar exercício.");
       }
     });
   }
@@ -299,7 +467,7 @@ export function WorkoutBuilder({
   // Create Category
   async function handleCreateCategory() {
     if (!newCategoryName.trim()) return;
-    startTransition(async () => {
+    await runWithAutosave(async () => {
       const res = await createCategoryAction(
         consultancySlug,
         version.publicId,
@@ -315,52 +483,62 @@ export function WorkoutBuilder({
         notify(`Categoria "${res.data.title}" criada.`);
       } else {
         notify(res.error || "Erro ao criar categoria.");
+        throw new Error(res.error || "Erro ao criar categoria.");
       }
     });
   }
 
   // Rename Category
   async function handleRenameCategory(categoryPublicId: string, newTitle: string) {
-    const res = await renameCategoryAction(consultancySlug, categoryPublicId, newTitle);
-    if (res.ok && res.data) {
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) =>
-          b.publicId === categoryPublicId ? { ...b, title: newTitle } : b
-        ),
-      }));
-      notify("Categoria renomeada.");
-    } else {
-      notify(res.error || "Erro ao renomear categoria.");
-    }
+    await runWithAutosave(async () => {
+      const res = await renameCategoryAction(consultancySlug, categoryPublicId, newTitle);
+      if (res.ok && res.data) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) =>
+            b.publicId === categoryPublicId ? { ...b, title: newTitle } : b
+          ),
+        }));
+        notify("Categoria renomeada.");
+      } else {
+        notify(res.error || "Erro ao renomear categoria.");
+        throw new Error(res.error || "Erro ao renomear categoria.");
+      }
+    });
   }
 
   // Duplicate Category
   async function handleDuplicateCategory(categoryPublicId: string) {
-    const res = await duplicateCategoryAction(consultancySlug, categoryPublicId);
-    if (res.ok && res.data) {
-      setVersion((prev) => ({
-        ...prev,
-        blocks: [...prev.blocks, res.data!],
-      }));
-      notify("Categoria duplicada com sucesso.");
-    } else {
-      notify(res.error || "Erro ao duplicar categoria.");
-    }
+    await runWithAutosave(async () => {
+      const res = await duplicateCategoryAction(consultancySlug, categoryPublicId);
+      if (res.ok && res.data) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: [...prev.blocks, res.data!],
+        }));
+        notify("Categoria duplicada com sucesso.");
+      } else {
+        notify(res.error || "Erro ao duplicar categoria.");
+        throw new Error(res.error || "Erro ao duplicar categoria.");
+      }
+    });
   }
 
   // Delete Category
   async function handleDeleteCategory(categoryPublicId: string) {
-    const res = await deleteCategoryAction(consultancySlug, categoryPublicId);
-    if (res.ok) {
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.filter((b) => b.publicId !== categoryPublicId),
-      }));
-      notify("Categoria removida.");
-    } else {
-      notify(res.error || "Erro ao remover categoria.");
-    }
+    await runWithAutosave(async () => {
+      const res = await deleteCategoryAction(consultancySlug, categoryPublicId);
+      if (res.ok) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.filter((b) => b.publicId !== categoryPublicId),
+        }));
+        notify("Categoria removida.");
+      } else {
+        notify(res.error || "Erro ao remover categoria.");
+        throw new Error(res.error || "Erro ao remover categoria.");
+      }
+    });
   }
 
   // Reorder Categories
@@ -374,12 +552,15 @@ export function WorkoutBuilder({
 
     setVersion((prev) => ({ ...prev, blocks: reordered }));
 
-    const ids = reordered.map((b) => b.publicId);
-    const res = await reorderCategoriesAction(consultancySlug, version.publicId, ids);
-    if (!res.ok) {
-      setVersion((prev) => ({ ...prev, blocks: categories }));
-      notify(res.error || "Erro ao reordenar categorias.");
-    }
+    await runWithAutosave(async () => {
+      const ids = reordered.map((b) => b.publicId);
+      const res = await reorderCategoriesAction(consultancySlug, version.publicId, ids);
+      if (!res.ok) {
+        setVersion((prev) => ({ ...prev, blocks: categories }));
+        notify(res.error || "Erro ao reordenar categorias.");
+        throw new Error(res.error || "Erro ao reordenar categorias.");
+      }
+    });
   }
 
   // Add Exercise from Picker (or resolve unmatched exercise)
@@ -389,53 +570,59 @@ export function WorkoutBuilder({
       setResolvingItemPublicId(null);
       setActiveCategoryForPicker(null);
       setActiveSubBlockForPicker(null);
-      const res = await resolveUnmatchedExerciseItemAction(
-        consultancySlug,
-        itemToResolve,
-        exercisePublicId
-      );
-      if (res.ok && res.data) {
-        const updatedItem = res.data;
-        setVersion((prev) => ({
-          ...prev,
-          blocks: prev.blocks.map((b) => ({
-            ...b,
-            items: (b.items || []).map((i) =>
-              i.publicId === itemToResolve ? updatedItem : i
-            ),
-          })),
-        }));
-        notify(`Exercício "${updatedItem.exerciseNameSnapshot}" vinculado com sucesso!`);
-      } else {
-        notify(res.error || "Erro ao vincular exercício da biblioteca.");
-      }
+      await runWithAutosave(async () => {
+        const res = await resolveUnmatchedExerciseItemAction(
+          consultancySlug,
+          itemToResolve,
+          exercisePublicId
+        );
+        if (res.ok && res.data) {
+          const updatedItem = res.data;
+          setVersion((prev) => ({
+            ...prev,
+            blocks: prev.blocks.map((b) => ({
+              ...b,
+              items: (b.items || []).map((i) =>
+                i.publicId === itemToResolve ? updatedItem : i
+              ),
+            })),
+          }));
+          notify(`Exercício "${updatedItem.exerciseNameSnapshot}" vinculado com sucesso!`);
+        } else {
+          notify(res.error || "Erro ao vincular exercício da biblioteca.");
+          throw new Error(res.error || "Erro ao vincular exercício da biblioteca.");
+        }
+      });
       return;
     }
 
     if (!activeCategoryForPicker) return;
     const catId = activeCategoryForPicker;
     const subBlockId = activeSubBlockForPicker;
-    const res = await addExerciseItemToBlockAction(
-      consultancySlug,
-      catId,
-      exercisePublicId,
-      undefined,
-      subBlockId
-    );
-    if (res.ok && res.data) {
-      const newItem = res.data;
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) =>
-          b.publicId === catId
-            ? { ...b, items: [...(b.items || []), newItem] }
-            : b
-        ),
-      }));
-      notify(`Exercício "${newItem.exerciseNameSnapshot}" adicionado.`);
-    } else {
-      notify(res.error || "Erro ao adicionar exercício.");
-    }
+    await runWithAutosave(async () => {
+      const res = await addExerciseItemToBlockAction(
+        consultancySlug,
+        catId,
+        exercisePublicId,
+        undefined,
+        subBlockId
+      );
+      if (res.ok && res.data) {
+        const newItem = res.data;
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) =>
+            b.publicId === catId
+              ? { ...b, items: [...(b.items || []), newItem] }
+              : b
+          ),
+        }));
+        notify(`Exercício "${newItem.exerciseNameSnapshot}" adicionado.`);
+      } else {
+        notify(res.error || "Erro ao adicionar exercício.");
+        throw new Error(res.error || "Erro ao adicionar exercício.");
+      }
+    });
   }
 
   function handleOpenCreateCustomExercise(
@@ -463,104 +650,111 @@ export function WorkoutBuilder({
   async function handleSaveCustomExercise(data: CustomExerciseFormData) {
     if (!customModalTarget) return;
 
-    if (customModalTarget.convertingItemPublicId) {
-      const res = await convertUnresolvedToCustomExerciseAction(consultancySlug, {
-        itemPublicId: customModalTarget.convertingItemPublicId,
+    await runWithAutosave(async () => {
+      if (customModalTarget.convertingItemPublicId) {
+        const res = await convertUnresolvedToCustomExerciseAction(consultancySlug, {
+          itemPublicId: customModalTarget.convertingItemPublicId,
+          name: data.name,
+          muscleGroupPrimary: data.muscleGroup,
+          equipment: data.equipment,
+          instructions: data.instructions,
+          customVideoUrl: data.videoUrl,
+          mediaAssetPublicId: data.videoKey,
+          saveToLibrary: data.saveToMyLibrary,
+          notes: data.notes,
+          isSequence: data.isSequence || data.type === "SEQUENCE",
+          sequenceMovements: data.sequenceMovements,
+        });
+        if (res.ok && res.data) {
+          const converted = res.data;
+          setVersion((prev) => ({
+            ...prev,
+            blocks: prev.blocks.map((b) => ({
+              ...b,
+              items: (b.items || []).map((i) =>
+                i.publicId === customModalTarget.convertingItemPublicId ? converted : i
+              ),
+            })),
+          }));
+          notify(
+            data.isSequence || data.type === "SEQUENCE"
+              ? `Sequência "${data.name}" configurada com sucesso e liberada para publicação!`
+              : `Exercício "${data.name}" personalizado com sucesso e liberado para publicação!`
+          );
+          setIsCustomModalOpen(false);
+          setCustomModalTarget(null);
+        } else {
+          notify(res.error || "Erro ao personalizar exercício.");
+          throw new Error(res.error || "Erro ao personalizar exercício.");
+        }
+        return;
+      }
+
+      const catId = customModalTarget.categoryPublicId;
+      const sbId = customModalTarget.subBlockPublicId;
+      const res = await createCustomExerciseAction(consultancySlug, catId, {
         name: data.name,
-        muscleGroupPrimary: data.muscleGroup,
+        muscleGroup: data.muscleGroup,
         equipment: data.equipment,
         instructions: data.instructions,
+        subBlockPublicId: sbId,
         customVideoUrl: data.videoUrl,
         mediaAssetPublicId: data.videoKey,
         saveToLibrary: data.saveToMyLibrary,
         notes: data.notes,
         isSequence: data.isSequence || data.type === "SEQUENCE",
         sequenceMovements: data.sequenceMovements,
+        sets: [
+          {
+            setType: "NORMAL",
+            targetReps: 10,
+            targetRestSeconds: data.restSeconds ?? 60,
+          },
+        ],
       });
       if (res.ok && res.data) {
-        const converted = res.data;
+        const newItem = res.data;
         setVersion((prev) => ({
           ...prev,
-          blocks: prev.blocks.map((b) => ({
-            ...b,
-            items: (b.items || []).map((i) =>
-              i.publicId === customModalTarget.convertingItemPublicId ? converted : i
-            ),
-          })),
+          blocks: prev.blocks.map((b) =>
+            b.publicId === catId
+              ? { ...b, items: [...(b.items || []), newItem] }
+              : b
+          ),
         }));
-        notify(
-          data.isSequence || data.type === "SEQUENCE"
-            ? `Sequência "${data.name}" configurada com sucesso e liberada para publicação!`
-            : `Exercício "${data.name}" personalizado com sucesso e liberado para publicação!`
-        );
+        notify(`Exercício personalizado "${newItem.exerciseNameSnapshot}" criado com sucesso.`);
         setIsCustomModalOpen(false);
         setCustomModalTarget(null);
       } else {
-        notify(res.error || "Erro ao personalizar exercício.");
+        notify(res.error || "Erro ao criar exercício.");
+        throw new Error(res.error || "Erro ao criar exercício.");
       }
-      return;
-    }
-
-    const catId = customModalTarget.categoryPublicId;
-    const sbId = customModalTarget.subBlockPublicId;
-    const res = await createCustomExerciseAction(consultancySlug, catId, {
-      name: data.name,
-      muscleGroup: data.muscleGroup,
-      equipment: data.equipment,
-      instructions: data.instructions,
-      subBlockPublicId: sbId,
-      customVideoUrl: data.videoUrl,
-      mediaAssetPublicId: data.videoKey,
-      saveToLibrary: data.saveToMyLibrary,
-      notes: data.notes,
-      isSequence: data.isSequence || data.type === "SEQUENCE",
-      sequenceMovements: data.sequenceMovements,
-      sets: [
-        {
-          setType: "NORMAL",
-          targetReps: 10,
-          targetRestSeconds: data.restSeconds ?? 60,
-        },
-      ],
     });
-    if (res.ok && res.data) {
-      const newItem = res.data;
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) =>
-          b.publicId === catId
-            ? { ...b, items: [...(b.items || []), newItem] }
-            : b
-        ),
-      }));
-      notify(`Exercício personalizado "${newItem.exerciseNameSnapshot}" criado com sucesso.`);
-      setIsCustomModalOpen(false);
-      setCustomModalTarget(null);
-    } else {
-      notify(res.error || "Erro ao criar exercício.");
-    }
   }
 
   // Duplicate Exercise
   async function handleDuplicateExercise(itemPublicId: string) {
-    const res = await duplicateExerciseAction(consultancySlug, itemPublicId);
-    if (res.ok && res.data) {
-      const duplicated = res.data;
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) => {
-          const hasItem = b.items?.some((i) => i.publicId === itemPublicId);
-          if (!hasItem) return b;
-          return {
-            ...b,
-            items: [...(b.items || []), duplicated],
-          };
-        }),
-      }));
-      notify("Exercício duplicado.");
-    } else {
-      notify(res.error || "Erro ao duplicar exercício.");
-    }
+    await runWithAutosave(async () => {
+      const res = await duplicateExerciseAction(consultancySlug, itemPublicId);
+      if (res.ok && res.data) {
+        const duplicated = res.data;
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => {
+            const hasItem = b.items?.some((i) => i.publicId === itemPublicId);
+            if (!hasItem) return b;
+            return {
+              ...b,
+              items: [...(b.items || []), duplicated],
+            };
+          }),
+        }));
+        notify("Exercício duplicado.");
+      } else {
+        notify(res.error || "Erro ao duplicar exercício.");
+        throw new Error(res.error || "Erro ao duplicar exercício.");
+      }
+    });
   }
 
   // Move Exercise to Category
@@ -568,55 +762,61 @@ export function WorkoutBuilder({
     itemPublicId: string,
     targetCategoryPublicId: string
   ) {
-    const res = await moveExerciseToCategoryAction(
-      consultancySlug,
-      itemPublicId,
-      targetCategoryPublicId
-    );
-    if (res.ok) {
-      // Find item
-      let movedItem: WorkoutBlockItemDto | null = null;
-      version.blocks.forEach((b) => {
-        const found = b.items?.find((i) => i.publicId === itemPublicId);
-        if (found) movedItem = found;
-      });
+    await runWithAutosave(async () => {
+      const res = await moveExerciseToCategoryAction(
+        consultancySlug,
+        itemPublicId,
+        targetCategoryPublicId
+      );
+      if (res.ok) {
+        // Find item
+        let movedItem: WorkoutBlockItemDto | null = null;
+        version.blocks.forEach((b) => {
+          const found = b.items?.find((i) => i.publicId === itemPublicId);
+          if (found) movedItem = found;
+        });
 
-      if (movedItem) {
-        const itemToMove: WorkoutBlockItemDto = movedItem;
-        setVersion((prev) => ({
-          ...prev,
-          blocks: prev.blocks.map((b) => {
-            if (b.publicId === targetCategoryPublicId) {
-              return { ...b, items: [...(b.items || []), itemToMove] };
-            }
-            return {
-              ...b,
-              items: b.items ? b.items.filter((i) => i.publicId !== itemPublicId) : [],
-            };
-          }),
-        }));
+        if (movedItem) {
+          const itemToMove: WorkoutBlockItemDto = movedItem;
+          setVersion((prev) => ({
+            ...prev,
+            blocks: prev.blocks.map((b) => {
+              if (b.publicId === targetCategoryPublicId) {
+                return { ...b, items: [...(b.items || []), itemToMove] };
+              }
+              return {
+                ...b,
+                items: b.items ? b.items.filter((i) => i.publicId !== itemPublicId) : [],
+              };
+            }),
+          }));
+        }
+        notify("Exercício movido para a nova categoria.");
+      } else {
+        notify(res.error || "Erro ao mover exercício.");
+        throw new Error(res.error || "Erro ao mover exercício.");
       }
-      notify("Exercício movido para a nova categoria.");
-    } else {
-      notify(res.error || "Erro ao mover exercício.");
-    }
+    });
   }
 
   // Delete Exercise
   async function handleDeleteExercise(itemPublicId: string) {
-    const res = await deleteExerciseAction(consultancySlug, itemPublicId);
-    if (res.ok) {
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) => ({
-          ...b,
-          items: b.items ? b.items.filter((i) => i.publicId !== itemPublicId) : [],
-        })),
-      }));
-      notify("Exercício removido.");
-    } else {
-      notify(res.error || "Erro ao remover exercício.");
-    }
+    await runWithAutosave(async () => {
+      const res = await deleteExerciseAction(consultancySlug, itemPublicId);
+      if (res.ok) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => ({
+            ...b,
+            items: b.items ? b.items.filter((i) => i.publicId !== itemPublicId) : [],
+          })),
+        }));
+        notify("Exercício removido.");
+      } else {
+        notify(res.error || "Erro ao remover exercício.");
+        throw new Error(res.error || "Erro ao remover exercício.");
+      }
+    });
   }
 
   // Reorder Exercises in Category
@@ -642,11 +842,14 @@ export function WorkoutBuilder({
       ),
     }));
 
-    const ids = reordered.map((i) => i.publicId);
-    const res = await reorderExercisesAction(consultancySlug, categoryPublicId, ids);
-    if (!res.ok) {
-      notify(res.error || "Erro ao reordenar exercícios.");
-    }
+    await runWithAutosave(async () => {
+      const ids = reordered.map((i) => i.publicId);
+      const res = await reorderExercisesAction(consultancySlug, categoryPublicId, ids);
+      if (!res.ok) {
+        notify(res.error || "Erro ao reordenar exercícios.");
+        throw new Error(res.error || "Erro ao reordenar exercícios.");
+      }
+    });
   }
 
   // Reorder all exercises in a category (supports moving combination blocks and standalone exercises as units)
@@ -687,10 +890,13 @@ export function WorkoutBuilder({
       }),
     }));
 
-    const res = await reorderExercisesAction(consultancySlug, categoryPublicId, itemPublicIds);
-    if (!res.ok) {
-      notify(res.error || "Erro ao reordenar exercícios.");
-    }
+    await runWithAutosave(async () => {
+      const res = await reorderExercisesAction(consultancySlug, categoryPublicId, itemPublicIds);
+      if (!res.ok) {
+        notify(res.error || "Erro ao reordenar exercícios.");
+        throw new Error(res.error || "Erro ao reordenar exercícios.");
+      }
+    });
   }
 
   // Update Exercise Quick Config
@@ -698,33 +904,36 @@ export function WorkoutBuilder({
     itemPublicId: string,
     config: QuickConfigInput
   ) {
-    const res = await updateExerciseQuickConfigAction(consultancySlug, itemPublicId, config);
-    if (res.ok && res.data) {
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) => ({
-          ...b,
-          items: b.items
-            ? b.items.map((i) =>
-                i.publicId === itemPublicId
-                  ? {
-                      ...i,
-                      sets: res.data!,
-                      notes: config.notes ?? i.notes,
-                      customVideoUrl:
-                        config.customVideoUrl !== undefined
-                          ? config.customVideoUrl
-                          : i.customVideoUrl,
-                    }
-                  : i
-              )
-            : [],
-        })),
-      }));
-      notify("Exercício configurado com sucesso.");
-    } else {
-      notify(res.error || "Erro ao configurar exercício.");
-    }
+    await runWithAutosave(async () => {
+      const res = await updateExerciseQuickConfigAction(consultancySlug, itemPublicId, config);
+      if (res.ok && res.data) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => ({
+            ...b,
+            items: b.items
+              ? b.items.map((i) =>
+                  i.publicId === itemPublicId
+                    ? {
+                        ...i,
+                        sets: res.data!,
+                        notes: config.notes ?? i.notes,
+                        customVideoUrl:
+                          config.customVideoUrl !== undefined
+                            ? config.customVideoUrl
+                            : i.customVideoUrl,
+                      }
+                    : i
+                )
+              : [],
+          })),
+        }));
+        notify("Exercício configurado com sucesso.");
+      } else {
+        notify(res.error || "Erro ao configurar exercício.");
+        throw new Error(res.error || "Erro ao configurar exercício.");
+      }
+    });
   }
 
   // Duplicate Ficha
@@ -770,69 +979,81 @@ export function WorkoutBuilder({
 
   // Create Sub-Block (Grupo)
   async function handleCreateSubBlock(categoryPublicId: string, title: string) {
-    const res = await createSubBlockAction(consultancySlug, categoryPublicId, title);
-    if (res.ok && res.data) {
-      const newSubBlock = res.data;
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) =>
-          b.publicId === categoryPublicId
-            ? { ...b, subBlocks: [...(b.subBlocks || []), newSubBlock] }
-            : b
-        ),
-      }));
-      notify(`Grupo "${title}" criado.`);
-    } else {
-      notify(res.error || "Erro ao criar grupo.");
-    }
+    await runWithAutosave(async () => {
+      const res = await createSubBlockAction(consultancySlug, categoryPublicId, title);
+      if (res.ok && res.data) {
+        const newSubBlock = res.data;
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) =>
+            b.publicId === categoryPublicId
+              ? { ...b, subBlocks: [...(b.subBlocks || []), newSubBlock] }
+              : b
+          ),
+        }));
+        notify(`Grupo "${title}" criado.`);
+      } else {
+        notify(res.error || "Erro ao criar grupo.");
+        throw new Error(res.error || "Erro ao criar grupo.");
+      }
+    });
   }
 
   // Rename Sub-Block (Grupo)
   async function handleRenameSubBlock(subBlockPublicId: string, newTitle: string) {
-    const res = await renameSubBlockAction(consultancySlug, subBlockPublicId, newTitle);
-    if (res.ok && res.data) {
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) => ({
-          ...b,
-          subBlocks: (b.subBlocks || []).map((sb) =>
-            sb.publicId === subBlockPublicId ? { ...sb, title: newTitle } : sb
-          ),
-        })),
-      }));
-      notify("Grupo renomeado.");
-    } else {
-      notify(res.error || "Erro ao renomear grupo.");
-    }
+    await runWithAutosave(async () => {
+      const res = await renameSubBlockAction(consultancySlug, subBlockPublicId, newTitle);
+      if (res.ok && res.data) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => ({
+            ...b,
+            subBlocks: (b.subBlocks || []).map((sb) =>
+              sb.publicId === subBlockPublicId ? { ...sb, title: newTitle } : sb
+            ),
+          })),
+        }));
+        notify("Grupo renomeado.");
+      } else {
+        notify(res.error || "Erro ao renomear grupo.");
+        throw new Error(res.error || "Erro ao renomear grupo.");
+      }
+    });
   }
 
   // Duplicate Sub-Block (Grupo)
   async function handleDuplicateSubBlock(subBlockPublicId: string) {
-    const res = await duplicateSubBlockAction(consultancySlug, subBlockPublicId);
-    if (res.ok && res.data) {
-      router.refresh();
-      notify("Grupo duplicado com sucesso.");
-    } else {
-      notify(res.error || "Erro ao duplicar grupo.");
-    }
+    await runWithAutosave(async () => {
+      const res = await duplicateSubBlockAction(consultancySlug, subBlockPublicId);
+      if (res.ok && res.data) {
+        router.refresh();
+        notify("Grupo duplicado com sucesso.");
+      } else {
+        notify(res.error || "Erro ao duplicar grupo.");
+        throw new Error(res.error || "Erro ao duplicar grupo.");
+      }
+    });
   }
 
   // Delete Sub-Block (Grupo)
   async function handleDeleteSubBlock(subBlockPublicId: string) {
-    const res = await deleteSubBlockAction(consultancySlug, subBlockPublicId);
-    if (res.ok) {
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) => ({
-          ...b,
-          subBlocks: (b.subBlocks || []).filter((sb) => sb.publicId !== subBlockPublicId),
-          items: (b.items || []).filter((i) => i.subBlockPublicId !== subBlockPublicId),
-        })),
-      }));
-      notify("Grupo excluído.");
-    } else {
-      notify(res.error || "Erro ao excluir grupo.");
-    }
+    await runWithAutosave(async () => {
+      const res = await deleteSubBlockAction(consultancySlug, subBlockPublicId);
+      if (res.ok) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => ({
+            ...b,
+            subBlocks: (b.subBlocks || []).filter((sb) => sb.publicId !== subBlockPublicId),
+            items: (b.items || []).filter((i) => i.subBlockPublicId !== subBlockPublicId),
+          })),
+        }));
+        notify("Grupo excluído.");
+      } else {
+        notify(res.error || "Erro ao excluir grupo.");
+        throw new Error(res.error || "Erro ao excluir grupo.");
+      }
+    });
   }
 
   // Move Sub-Block (Grupo) Up/Down
@@ -858,11 +1079,14 @@ export function WorkoutBuilder({
       ),
     }));
 
-    const ids = reordered.map((sb) => sb.publicId);
-    const res = await reorderSubBlocksAction(consultancySlug, categoryPublicId, ids);
-    if (!res.ok) {
-      notify(res.error || "Erro ao reordenar grupos.");
-    }
+    await runWithAutosave(async () => {
+      const ids = reordered.map((sb) => sb.publicId);
+      const res = await reorderSubBlocksAction(consultancySlug, categoryPublicId, ids);
+      if (!res.ok) {
+        notify(res.error || "Erro ao reordenar grupos.");
+        throw new Error(res.error || "Erro ao reordenar grupos.");
+      }
+    });
   }
 
   // Delete Workout or Draft
@@ -901,60 +1125,63 @@ export function WorkoutBuilder({
       notify("Crie um novo rascunho antes de adicionar combinações.");
       return;
     }
-    const res = await createItemCombinationAction(consultancySlug, input);
-    if (res.ok && res.data) {
-      const newComb = res.data;
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) => {
-          if (b.publicId !== input.blockPublicId) return b;
-          const selectedItems = (b.items || []).filter((it) => input.itemPublicIds.includes(it.publicId));
-          const minSortOrder = selectedItems.length > 0
-            ? Math.min(...selectedItems.map((it) => it.sortOrder))
-            : 0;
+    await runWithAutosave(async () => {
+      const res = await createItemCombinationAction(consultancySlug, input);
+      if (res.ok && res.data) {
+        const newComb = res.data;
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => {
+            if (b.publicId !== input.blockPublicId) return b;
+            const selectedItems = (b.items || []).filter((it) => input.itemPublicIds.includes(it.publicId));
+            const minSortOrder = selectedItems.length > 0
+              ? Math.min(...selectedItems.map((it) => it.sortOrder))
+              : 0;
 
-          const updatedItems = (b.items || []).map((it) => {
-            const selIdx = input.itemPublicIds.indexOf(it.publicId);
-            if (selIdx !== -1) {
-              return {
-                ...it,
-                combinationPublicId: newComb.publicId,
-                combinationType: newComb.combinationType,
-                subBlockPublicId: newComb.subBlockPublicId ?? it.subBlockPublicId,
-                sortOrder: minSortOrder + selIdx,
-              };
-            }
-            return it;
-          });
-          const combItems = updatedItems
-            .filter((it) => input.itemPublicIds.includes(it.publicId))
-            .sort((a, b) => a.sortOrder - b.sortOrder);
-          const fullNewComb: WorkoutItemCombinationDto = {
-            ...newComb,
-            items: combItems,
-          };
-          const updatedCombs = [
-            ...(b.combinations || []).filter((c) => c.publicId !== newComb.publicId),
-            fullNewComb,
-          ];
-          const updatedSubBlocks = (b.subBlocks || []).map((sb) => ({
-            ...sb,
-            items: updatedItems.filter((it) => it.subBlockPublicId === sb.publicId),
-            combinations: updatedCombs.filter((c) => c.subBlockPublicId === sb.publicId),
-          }));
+            const updatedItems = (b.items || []).map((it) => {
+              const selIdx = input.itemPublicIds.indexOf(it.publicId);
+              if (selIdx !== -1) {
+                return {
+                  ...it,
+                  combinationPublicId: newComb.publicId,
+                  combinationType: newComb.combinationType,
+                  subBlockPublicId: newComb.subBlockPublicId ?? it.subBlockPublicId,
+                  sortOrder: minSortOrder + selIdx,
+                };
+              }
+              return it;
+            });
+            const combItems = updatedItems
+              .filter((it) => input.itemPublicIds.includes(it.publicId))
+              .sort((a, b) => a.sortOrder - b.sortOrder);
+            const fullNewComb: WorkoutItemCombinationDto = {
+              ...newComb,
+              items: combItems,
+            };
+            const updatedCombs = [
+              ...(b.combinations || []).filter((c) => c.publicId !== newComb.publicId),
+              fullNewComb,
+            ];
+            const updatedSubBlocks = (b.subBlocks || []).map((sb) => ({
+              ...sb,
+              items: updatedItems.filter((it) => it.subBlockPublicId === sb.publicId),
+              combinations: updatedCombs.filter((c) => c.subBlockPublicId === sb.publicId),
+            }));
 
-          return {
-            ...b,
-            items: updatedItems,
-            combinations: updatedCombs,
-            subBlocks: updatedSubBlocks,
-          };
-        }),
-      }));
-      notify("Combinação criada com sucesso!");
-    } else {
-      notify(res.error || "Erro ao criar combinação.");
-    }
+            return {
+              ...b,
+              items: updatedItems,
+              combinations: updatedCombs,
+              subBlocks: updatedSubBlocks,
+            };
+          }),
+        }));
+        notify("Combinação criada com sucesso!");
+      } else {
+        notify(res.error || "Erro ao criar combinação.");
+        throw new Error(res.error || "Erro ao criar combinação.");
+      }
+    });
   }
 
   async function handleUpdateCombination(
@@ -965,94 +1192,106 @@ export function WorkoutBuilder({
       restAfterSeconds?: number;
     }
   ) {
-    const res = await updateItemCombinationAction(consultancySlug, combinationPublicId, input);
-    if (res.ok && res.data) {
-      const updatedComb = res.data;
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) => ({
-          ...b,
-          combinations: (b.combinations || []).map((c) =>
-            c.publicId === combinationPublicId ? { ...c, ...updatedComb } : c
-          ),
-          items: (b.items || []).map((it) =>
-            it.combinationPublicId === combinationPublicId
-              ? {
-                  ...it,
-                  combinationType: updatedComb.combinationType || it.combinationType,
-                }
-              : it
-          ),
-        })),
-      }));
-      notify("Combinação atualizada.");
-    } else {
-      notify(res.error || "Erro ao atualizar combinação.");
-    }
+    await runWithAutosave(async () => {
+      const res = await updateItemCombinationAction(consultancySlug, combinationPublicId, input);
+      if (res.ok && res.data) {
+        const updatedComb = res.data;
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => ({
+            ...b,
+            combinations: (b.combinations || []).map((c) =>
+              c.publicId === combinationPublicId ? { ...c, ...updatedComb } : c
+            ),
+            items: (b.items || []).map((it) =>
+              it.combinationPublicId === combinationPublicId
+                ? {
+                    ...it,
+                    combinationType: updatedComb.combinationType || it.combinationType,
+                  }
+                : it
+            ),
+          })),
+        }));
+        notify("Combinação atualizada.");
+      } else {
+        notify(res.error || "Erro ao atualizar combinação.");
+        throw new Error(res.error || "Erro ao atualizar combinação.");
+      }
+    });
   }
 
   async function handleUngroupCombination(combinationPublicId: string) {
-    const res = await ungroupItemCombinationAction(consultancySlug, combinationPublicId);
-    if (res.ok) {
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) => {
-          const updatedItems = (b.items || []).map((it) =>
-            it.combinationPublicId === combinationPublicId
-              ? { ...it, combinationPublicId: null, combinationType: null }
-              : it
-          );
-          const updatedCombs = (b.combinations || []).filter((c) => c.publicId !== combinationPublicId);
-          const updatedSubBlocks = (b.subBlocks || []).map((sb) => ({
-            ...sb,
-            items: updatedItems.filter((it) => it.subBlockPublicId === sb.publicId),
-            combinations: updatedCombs.filter((c) => c.subBlockPublicId === sb.publicId),
-          }));
-          return {
-            ...b,
-            items: updatedItems,
-            combinations: updatedCombs,
-            subBlocks: updatedSubBlocks,
-          };
-        }),
-      }));
-      notify("Combinação desfeita. Todos os exercícios foram preservados.");
-    } else {
-      notify(res.error || "Erro ao desfazer combinação.");
-    }
+    await runWithAutosave(async () => {
+      const res = await ungroupItemCombinationAction(consultancySlug, combinationPublicId);
+      if (res.ok) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => {
+            const updatedItems = (b.items || []).map((it) =>
+              it.combinationPublicId === combinationPublicId
+                ? { ...it, combinationPublicId: null, combinationType: null }
+                : it
+            );
+            const updatedCombs = (b.combinations || []).filter((c) => c.publicId !== combinationPublicId);
+            const updatedSubBlocks = (b.subBlocks || []).map((sb) => ({
+              ...sb,
+              items: updatedItems.filter((it) => it.subBlockPublicId === sb.publicId),
+              combinations: updatedCombs.filter((c) => c.subBlockPublicId === sb.publicId),
+            }));
+            return {
+              ...b,
+              items: updatedItems,
+              combinations: updatedCombs,
+              subBlocks: updatedSubBlocks,
+            };
+          }),
+        }));
+        notify("Combinação desfeita. Todos os exercícios foram preservados.");
+      } else {
+        notify(res.error || "Erro ao desfazer combinação.");
+        throw new Error(res.error || "Erro ao desfazer combinação.");
+      }
+    });
   }
 
   async function handleDeleteCombination(combinationPublicId: string, deleteItems?: boolean) {
-    const res = await deleteItemCombinationAction(consultancySlug, combinationPublicId, deleteItems);
-    if (res.ok) {
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) => ({
-          ...b,
-          combinations: (b.combinations || []).filter((c) => c.publicId !== combinationPublicId),
-          items: deleteItems
-            ? (b.items || []).filter((it) => it.combinationPublicId !== combinationPublicId)
-            : (b.items || []).map((it) =>
-                it.combinationPublicId === combinationPublicId
-                  ? { ...it, combinationPublicId: null, combinationType: null }
-                  : it
-              ),
-        })),
-      }));
-      notify("Combinação excluída.");
-    } else {
-      notify(res.error || "Erro ao excluir combinação.");
-    }
+    await runWithAutosave(async () => {
+      const res = await deleteItemCombinationAction(consultancySlug, combinationPublicId, deleteItems);
+      if (res.ok) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => ({
+            ...b,
+            combinations: (b.combinations || []).filter((c) => c.publicId !== combinationPublicId),
+            items: deleteItems
+              ? (b.items || []).filter((it) => it.combinationPublicId !== combinationPublicId)
+              : (b.items || []).map((it) =>
+                  it.combinationPublicId === combinationPublicId
+                    ? { ...it, combinationPublicId: null, combinationType: null }
+                    : it
+                ),
+          })),
+        }));
+        notify("Combinação excluída.");
+      } else {
+        notify(res.error || "Erro ao excluir combinação.");
+        throw new Error(res.error || "Erro ao excluir combinação.");
+      }
+    });
   }
 
   async function handleDuplicateCombination(combinationPublicId: string) {
-    const res = await duplicateItemCombinationAction(consultancySlug, combinationPublicId);
-    if (res.ok && res.data) {
-      router.refresh();
-      notify("Combinação duplicada com sucesso.");
-    } else {
-      notify(res.error || "Erro ao duplicar combinação.");
-    }
+    await runWithAutosave(async () => {
+      const res = await duplicateItemCombinationAction(consultancySlug, combinationPublicId);
+      if (res.ok && res.data) {
+        router.refresh();
+        notify("Combinação duplicada com sucesso.");
+      } else {
+        notify(res.error || "Erro ao duplicar combinação.");
+        throw new Error(res.error || "Erro ao duplicar combinação.");
+      }
+    });
   }
 
   async function handleMoveItemInCombination(
@@ -1111,60 +1350,66 @@ export function WorkoutBuilder({
       }),
     }));
 
-    const res = await moveItemInCombinationAction(
-      consultancySlug,
-      combinationPublicId,
-      itemPublicId,
-      direction
-    );
-    if (!res.ok) {
-      notify(res.error || "Erro ao mover exercício na combinação.");
-    }
+    await runWithAutosave(async () => {
+      const res = await moveItemInCombinationAction(
+        consultancySlug,
+        combinationPublicId,
+        itemPublicId,
+        direction
+      );
+      if (!res.ok) {
+        notify(res.error || "Erro ao mover exercício na combinação.");
+        throw new Error(res.error || "Erro ao mover exercício na combinação.");
+      }
+    });
   }
 
   async function handleRemoveItemFromCombination(
     combinationPublicId: string,
     itemPublicId: string
   ) {
-    const res = await removeItemFromCombinationAction(
-      consultancySlug,
-      combinationPublicId,
-      itemPublicId
-    );
-    if (res.ok) {
-      setVersion((prev) => ({
-        ...prev,
-        blocks: prev.blocks.map((b) => {
-          const remainingItems = (b.items || []).filter(
-            (it) => it.combinationPublicId === combinationPublicId && it.publicId !== itemPublicId
-          );
-          const shouldAutoUngroup = remainingItems.length <= 1;
+    await runWithAutosave(async () => {
+      const res = await removeItemFromCombinationAction(
+        consultancySlug,
+        combinationPublicId,
+        itemPublicId
+      );
+      if (res.ok) {
+        setVersion((prev) => ({
+          ...prev,
+          blocks: prev.blocks.map((b) => {
+            const remainingItems = (b.items || []).filter(
+              (it) => it.combinationPublicId === combinationPublicId && it.publicId !== itemPublicId
+            );
+            const shouldAutoUngroup = remainingItems.length <= 1;
 
-          return {
-            ...b,
-            items: (b.items || []).map((it) => {
-              if (it.publicId === itemPublicId) {
-                return { ...it, combinationPublicId: null, combinationType: null };
-              }
-              if (shouldAutoUngroup && it.combinationPublicId === combinationPublicId) {
-                return { ...it, combinationPublicId: null, combinationType: null };
-              }
-              return it;
-            }),
-            combinations: shouldAutoUngroup
-              ? (b.combinations || []).filter((c) => c.publicId !== combinationPublicId)
-              : (b.combinations || []).map((c) =>
-                  c.publicId === combinationPublicId
-                    ? { ...c, items: (c.items || []).filter((it) => it.publicId !== itemPublicId) }
-                    : c
-                ),
-          };
-        }),
-      }));
-      notify("Exercício desvinculado da combinação.");
-    } else {
-      notify(res.error || "Erro ao desvincular exercício.");
-    }
+            return {
+              ...b,
+              items: (b.items || []).map((it) => {
+                if (it.publicId === itemPublicId) {
+                  return { ...it, combinationPublicId: null, combinationType: null };
+                }
+                if (shouldAutoUngroup && it.combinationPublicId === combinationPublicId) {
+                  return { ...it, combinationPublicId: null, combinationType: null };
+                }
+                return it;
+              }),
+              combinations: shouldAutoUngroup
+                ? (b.combinations || []).filter((c) => c.publicId !== combinationPublicId)
+                : (b.combinations || []).map((c) =>
+                    c.publicId === combinationPublicId
+                      ? { ...c, items: (c.items || []).filter((it) => it.publicId !== itemPublicId) }
+                      : c
+                  ),
+            };
+          }),
+        }));
+        notify("Exercício desvinculado da combinação.");
+      } else {
+        notify(res.error || "Erro ao desvincular exercício.");
+        throw new Error(res.error || "Erro ao desvincular exercício.");
+      }
+    });
   }
 
   // Guard for Publishing - opens interactive publish dialog
@@ -1189,11 +1434,11 @@ export function WorkoutBuilder({
       {/* Top Header — De-cardified Clean Prescription Tool Bar */}
       <div className="w-full max-w-full min-w-0 pb-5 sm:pb-6 border-b border-[var(--border-subtle)] space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full max-w-full min-w-0">
-          {/* Ficha Title and Sub-details */}
+          {/* Ficha Title, Autosave Indicator and Sub-details */}
           <div className="space-y-1.5 flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
-                FICHA DE TREINO
+                TRAINING STUDIO
               </span>
               <span
                 className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
@@ -1211,11 +1456,61 @@ export function WorkoutBuilder({
                   Modelo
                 </span>
               )}
+
+              {/* Live Autosave Indicator */}
+              {isDraft && (
+                <div data-testid="builder-autosave-indicator" className="inline-flex items-center">
+                  {saveStatus === "saving" && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      <span>Salvando…</span>
+                    </span>
+                  )}
+                  {saveStatus === "saved" && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                      <CheckIcon className="w-3 h-3 text-emerald-500" />
+                      <span>Salvo{lastSavedAt ? ` às ${lastSavedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
+                    </span>
+                  )}
+                  {saveStatus === "error" && (
+                    <span
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25"
+                      title={saveErrorMessage || "Erro ao salvar alterações no servidor"}
+                    >
+                      <AlertCircleIcon className="w-3 h-3 text-rose-500" />
+                      <span>Erro ao salvar</span>
+                      <button
+                        type="button"
+                        onClick={() => retryLastSaveRef.current?.()}
+                        className="underline ml-1 font-bold hover:text-rose-700 cursor-pointer"
+                      >
+                        Tentar novamente
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-black text-[var(--text-primary)] tracking-tight truncate">
-              {title}
-            </h1>
+            {isDraft ? (
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTitle(val);
+                  scheduleMetadataSave({ title: val });
+                }}
+                onBlur={flushPendingMetadata}
+                placeholder="Nome da ficha de treino"
+                className="text-xl sm:text-2xl font-black text-[var(--text-primary)] tracking-tight bg-transparent border-b border-transparent hover:border-[var(--border-default)] focus:border-emerald-500 focus:outline-none transition-all py-0.5 max-w-xl w-full"
+                title="Clique para editar o nome da ficha (salvamento automático)"
+              />
+            ) : (
+              <h1 className="text-xl sm:text-2xl font-black text-[var(--text-primary)] tracking-tight truncate">
+                {title}
+              </h1>
+            )}
 
             <div className="flex items-center gap-2 sm:gap-3 text-xs text-[var(--text-secondary)] font-medium flex-wrap">
               {objective && <span>{objective}</span>}
@@ -1239,6 +1534,20 @@ export function WorkoutBuilder({
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto min-w-0">
             {/* Desktop Only Inline Actions */}
             <div className="hidden sm:flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsLibrarySidebarOpen(!isLibrarySidebarOpen)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors min-h-[38px] flex items-center gap-1.5 cursor-pointer ${
+                  isLibrarySidebarOpen
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                    : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-subtle)]"
+                }`}
+                title="Abrir/fechar biblioteca Studio lateral"
+              >
+                <SparklesIcon className="w-3.5 h-3.5 text-emerald-500" />
+                <span>{isLibrarySidebarOpen ? "Biblioteca Studio" : "+ Biblioteca"}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setIsMetadataExpanded(!isMetadataExpanded)}
@@ -1273,18 +1582,6 @@ export function WorkoutBuilder({
 
             {/* Core Action Buttons (Mobile: full width row / Desktop: inline) */}
             <div data-testid="mobile-builder-header" className="flex items-center gap-2 flex-wrap w-full sm:w-auto min-w-0 flex-1 sm:flex-initial">
-              {isDraft && (
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={handleSaveMetadata}
-                  className="flex-1 sm:flex-initial px-3 sm:px-3.5 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center"
-                >
-                  <CheckIcon className="w-4 h-4" />
-                  <span>Salvar</span>
-                </button>
-              )}
-
               {isDraft && (
                 <button
                   type="button"
@@ -1426,7 +1723,11 @@ export function WorkoutBuilder({
                   type="text"
                   value={title}
                   disabled={!isDraft}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    scheduleMetadataSave({ title: e.target.value });
+                  }}
+                  onBlur={flushPendingMetadata}
                   placeholder="Ex: Hipertrofia — Matheus"
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
                 />
@@ -1440,7 +1741,11 @@ export function WorkoutBuilder({
                   type="text"
                   value={objective}
                   disabled={!isDraft}
-                  onChange={(e) => setObjective(e.target.value)}
+                  onChange={(e) => {
+                    setObjective(e.target.value);
+                    scheduleMetadataSave({ objective: e.target.value });
+                  }}
+                  onBlur={flushPendingMetadata}
                   placeholder="Ex: Ganho de massa muscular"
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
                 />
@@ -1455,7 +1760,11 @@ export function WorkoutBuilder({
                 <select
                   value={difficultyLevel}
                   disabled={!isDraft}
-                  onChange={(e) => setDifficultyLevel(e.target.value)}
+                  onChange={(e) => {
+                    setDifficultyLevel(e.target.value);
+                    scheduleMetadataSave({ difficultyLevel: e.target.value });
+                  }}
+                  onBlur={flushPendingMetadata}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
                 >
                   <option value="BEGINNER">Iniciante</option>
@@ -1474,9 +1783,12 @@ export function WorkoutBuilder({
                   max={240}
                   value={estimatedDurationMinutes}
                   disabled={!isDraft}
-                  onChange={(e) =>
-                    setEstimatedDurationMinutes(parseInt(e.target.value, 10) || 50)
-                  }
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10) || 50;
+                    setEstimatedDurationMinutes(n);
+                    scheduleMetadataSave({ estimatedDurationMinutes: n });
+                  }}
+                  onBlur={flushPendingMetadata}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[40px]"
                 />
               </div>
@@ -1490,22 +1802,28 @@ export function WorkoutBuilder({
                 rows={2}
                 value={notes}
                 disabled={!isDraft}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => {
+                  setNotes(e.target.value);
+                  scheduleMetadataSave({ notes: e.target.value });
+                }}
+                onBlur={flushPendingMetadata}
                 placeholder="Orientações pré-treino, recomendações de aquecimento..."
                 className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
             </div>
 
             {isDraft && (
-              <div className="flex justify-end pt-1">
+              <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] text-xs text-[var(--text-tertiary)]">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <CheckIcon className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Alterações salvas automaticamente no rascunho</span>
+                </span>
                 <button
                   type="button"
-                  disabled={isPending}
-                  onClick={handleSaveMetadata}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white min-h-[38px] flex items-center gap-1.5 cursor-pointer"
+                  onClick={() => setIsMetadataExpanded(false)}
+                  className="px-3.5 py-1.5 rounded-xl font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] cursor-pointer"
                 >
-                  <CheckIcon className="w-3.5 h-3.5" />
-                  <span>Salvar dados</span>
+                  Fechar
                 </button>
               </div>
             )}
@@ -1515,8 +1833,12 @@ export function WorkoutBuilder({
 
       {/* Main Workspace (Center Focus + Desktop Lateral Summary) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full max-w-full min-w-0">
-        {/* Central Categories List (12 cols on mobile, 9 cols on desktop) */}
-        <div className="w-full max-w-full min-w-0 lg:col-span-8 xl:col-span-9 space-y-4">
+        {/* Central Categories List (12 cols on mobile, 8 or 12 on desktop depending on lateral sidebar) */}
+        <div
+          className={`w-full max-w-full min-w-0 space-y-4 ${
+            isLibrarySidebarOpen ? "lg:col-span-8 xl:col-span-8" : "lg:col-span-12"
+          }`}
+        >
           {categories.length === 0 ? (
             <div className="p-8 sm:p-12 text-center rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface)] space-y-4">
               <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
@@ -1721,75 +2043,96 @@ export function WorkoutBuilder({
           )}
         </div>
 
-        {/* Desktop Sticky Summary Panel (Hidden on mobile) */}
-        <aside className="hidden lg:block lg:col-span-4 xl:col-span-3 sticky top-6 space-y-4">
-          <div className="p-4 sm:p-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] shadow-2xs space-y-4">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
-                RESUMO DA FICHA
-              </span>
-              <h3 className="text-sm font-extrabold text-[var(--text-primary)] truncate mt-0.5">
-                {title}
-              </h3>
-            </div>
+        {/* Desktop Sticky Studio Lateral Sidebar (Hidden on mobile) */}
+        {isLibrarySidebarOpen && (
+          <aside className="hidden lg:block lg:col-span-4 xl:col-span-4 sticky top-6 space-y-4">
+            {/* Studio Library Panel */}
+            <StudioExerciseLibrarySidebar
+              consultancySlug={consultancySlug}
+              categories={allCategoriesSimple}
+              selectedCategoryPublicId={categories[activeMobileCategoryIndex]?.publicId || categories[0]?.publicId || null}
+              onSelectCategory={(catId) => {
+                const idx = categories.findIndex((c) => c.publicId === catId);
+                if (idx !== -1) setActiveMobileCategoryIndex(idx);
+              }}
+              onAddExercise={async (catId, exercisePublicId) => {
+                await handleAddExerciseToCategory(catId, exercisePublicId);
+              }}
+              onOpenCustomModal={(catId) => {
+                handleOpenCreateCustomExercise(catId);
+              }}
+              onClose={() => setIsLibrarySidebarOpen(false)}
+            />
 
-            <div className="space-y-2 text-xs text-[var(--text-secondary)] border-y border-[var(--border-subtle)] py-3">
-              <div className="flex items-center justify-between">
-                <span>Categorias:</span>
-                <span className="font-bold text-[var(--text-primary)]">
-                  {categories.length}
+            {/* Desktop Sticky Summary Panel */}
+            <div className="p-4 sm:p-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] shadow-2xs space-y-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                  RESUMO DA FICHA
                 </span>
+                <h3 className="text-sm font-extrabold text-[var(--text-primary)] truncate mt-0.5">
+                  {title}
+                </h3>
               </div>
-              <div className="flex items-center justify-between">
-                <span>Exercícios totais:</span>
-                <span className="font-bold text-[var(--text-primary)]">
-                  {totalExercises}
-                </span>
+
+              <div className="space-y-2 text-xs text-[var(--text-secondary)] border-y border-[var(--border-subtle)] py-3">
+                <div className="flex items-center justify-between">
+                  <span>Categorias:</span>
+                  <span className="font-bold text-[var(--text-primary)]">
+                    {categories.length}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Exercícios totais:</span>
+                  <span className="font-bold text-[var(--text-primary)]">
+                    {totalExercises}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Duração estimada:</span>
+                  <span className="font-bold text-[var(--text-primary)]">
+                    ~{estimatedDurationMinutes} min
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Status:</span>
+                  <span
+                    className={`font-bold text-[10px] px-2 py-0.5 rounded-full ${
+                      isDraft
+                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    }`}
+                  >
+                    {isDraft ? "Rascunho" : "Publicado"}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span>Duração estimada:</span>
-                <span className="font-bold text-[var(--text-primary)]">
-                  ~{estimatedDurationMinutes} min
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Status:</span>
-                <span
-                  className={`font-bold text-[10px] px-2 py-0.5 rounded-full ${
-                    isDraft
-                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  }`}
+
+              {/* Panel Utility Actions */}
+              <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleSaveAsModel}
+                  className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[36px] cursor-pointer"
                 >
-                  {isDraft ? "Rascunho" : "Publicado"}
-                </span>
+                  <BookmarkIcon className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Salvar como modelo</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleDuplicateFicha}
+                  className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[36px] cursor-pointer"
+                >
+                  <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Duplicar ficha</span>
+                </button>
               </div>
             </div>
-
-            {/* Panel Utility Actions */}
-            <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={handleSaveAsModel}
-                className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[36px] cursor-pointer"
-              >
-                <BookmarkIcon className="w-3.5 h-3.5 text-amber-500" />
-                <span>Salvar como modelo</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={handleDuplicateFicha}
-                className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2 min-h-[36px] cursor-pointer"
-              >
-                <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
-                <span>Duplicar ficha</span>
-              </button>
-            </div>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
 
       {/* Unified Exercise Picker Modal */}

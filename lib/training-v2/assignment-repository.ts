@@ -86,6 +86,27 @@ function isValidDateString(d: string): boolean {
   return !isNaN(parsed.getTime());
 }
 
+export function formatDateYmd(val: unknown): string {
+  if (!val) return "";
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return "";
+    const y = val.getUTCFullYear();
+    const m = String(val.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(val.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  const str = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const y = parsed.getUTCFullYear();
+    const m = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return str;
+}
+
 /**
  * Creates an assignment binding a PUBLISHED workout version to a student membership.
  * Enforces strict consultancy tenant consistency, verifies student role,
@@ -243,8 +264,8 @@ export async function createAssignment(
           workoutPublicId: v.workout_public_id,
           workoutVersionPublicId: v.public_id,
           assignedByMembershipPublicId: ctx.membershipPublicId!,
-          startsOn: String(existing.starts_on),
-          endsOn: existing.ends_on ? String(existing.ends_on) : null,
+          startsOn: formatDateYmd(existing.starts_on),
+          endsOn: existing.ends_on ? formatDateYmd(existing.ends_on) : null,
           status: "ACTIVE",
           notesForStudent: existing.notes_for_student ? String(existing.notes_for_student) : null,
           version: existingTree!,
@@ -554,8 +575,8 @@ export async function listAssignmentsForProfessional(
         currentPublishedVersionPublicId: r.current_published_version_public_id ? String(r.current_published_version_public_id) : null,
         currentPublishedVersionNumber: curPubVer,
         hasNewerPublishedVersion: hasNewer,
-        startsOn: String(r.starts_on),
-        endsOn: r.ends_on ? String(r.ends_on) : null,
+        startsOn: formatDateYmd(r.starts_on),
+        endsOn: r.ends_on ? formatDateYmd(r.ends_on) : null,
         status: r.status as "ACTIVE" | "ENDED",
         notesForStudent: r.notes_for_student ? String(r.notes_for_student) : null,
         createdAt: new Date(r.created_at),
@@ -621,8 +642,8 @@ export async function listStudentWorkoutCards(
       estimatedDurationMinutes: r.estimated_duration_minutes != null ? Number(r.estimated_duration_minutes) : null,
       difficultyLevel: r.difficulty_level ? String(r.difficulty_level) : null,
       blockCount: Number(r.block_count || 0),
-      startsOn: String(r.starts_on),
-      endsOn: r.ends_on ? String(r.ends_on) : null,
+      startsOn: formatDateYmd(r.starts_on),
+      endsOn: r.ends_on ? formatDateYmd(r.ends_on) : null,
       notesForStudent: r.notes_for_student ? String(r.notes_for_student) : null,
     }));
   } finally {
@@ -773,8 +794,8 @@ export async function getStudentWorkoutView(
     return {
       assignmentPublicId: String(a.public_id),
       consultancyName: String(a.consultancy_name),
-      startsOn: String(a.starts_on),
-      endsOn: a.ends_on ? String(a.ends_on) : null,
+      startsOn: formatDateYmd(a.starts_on),
+      endsOn: a.ends_on ? formatDateYmd(a.ends_on) : null,
       versionNumber: Number(a.version_number),
       title: String(a.title),
       subtitle: a.subtitle ? String(a.subtitle) : null,
@@ -923,8 +944,8 @@ export async function getActiveAssignmentForStudentAndWorkout(
     assignmentPublicId: String(r.public_id),
     versionPublicId: String(r.version_public_id),
     versionNumber: Number(r.version_number),
-    startsOn: String(r.starts_on),
-    endsOn: r.ends_on ? String(r.ends_on) : null,
+    startsOn: formatDateYmd(r.starts_on),
+    endsOn: r.ends_on ? formatDateYmd(r.ends_on) : null,
   };
 }
 

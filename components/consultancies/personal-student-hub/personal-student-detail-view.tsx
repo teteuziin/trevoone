@@ -123,6 +123,22 @@ function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+export function formatDisplayDate(dateVal: unknown): string {
+  if (!dateVal) return "—";
+  const str = String(dateVal).trim();
+  const ymdMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return `${d}/${m}/${y}`;
+  }
+  const parsed = new Date(str);
+  if (isNaN(parsed.getTime())) return str;
+  const d = String(parsed.getUTCDate()).padStart(2, "0");
+  const m = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+  const y = parsed.getUTCFullYear();
+  return `${d}/${m}/${y}`;
+}
+
 export function PersonalStudentDetailView({
   consultancySlug,
   detail,
@@ -177,10 +193,14 @@ export function PersonalStudentDetailView({
     desktopTabs.push({ key: "avaliacoes", label: "Avaliações", icon: ScaleIcon, count: measurements.length });
   }
 
-  // Active workout
-  const activeWorkout = workouts.find((w) => w.status === "ACTIVE") || (workouts.length > 0 ? workouts[0] : null);
-  // Active nutrition plan
-  const activeNutritionPlan = nutrition.find((n) => n.status === "ACTIVE") || (nutrition.length > 0 ? nutrition[0] : null);
+  // Real active workout vs latest prescribed workout
+  const activeWorkout = workouts.find((w) => w.status === "ACTIVE") || null;
+  const latestPrescribedWorkout = workouts.length > 0 ? workouts[0] : null;
+
+  // Real active nutrition plan
+  const activeNutritionPlan = nutrition.find((n) => n.status === "ACTIVE") || null;
+
+  const hasBiometrics = !!(overview.weightKg || overview.heightCm || overview.age || overview.sex);
 
   // Mobile action sheet options
   const mobileActionSheetOptions: ActionSheetOption[] = [
@@ -362,79 +382,106 @@ export function PersonalStudentDetailView({
           <div className="space-y-3.5" data-testid="mobile-tab-resumo">
             {/* Radar / Alert Banner (if any) */}
             {studentMonitoring && studentMonitoring.state !== "OK" && (
-              <div
-                className={`p-3.5 rounded-2xl border space-y-1.5 ${
-                  studentMonitoring.state === "CRITICAL"
-                    ? "bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400"
-                    : "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider">
-                    {studentMonitoring.state === "CRITICAL" ? "Alerta Crítico" : "Requer Atenção"}
-                  </span>
-                  <Badge variant={studentMonitoring.state === "CRITICAL" ? "danger" : "warning"} size="sm">
-                    Radar
-                  </Badge>
+              studentMonitoring.state === "INSUFFICIENT_DATA" ? (
+                <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Radar</span>
+                  <span>Sem treinos ou check-ins recentes registrados.</span>
                 </div>
-                <p className="text-xs font-semibold">
-                  {studentMonitoring.alerts.find((a) => a.status === "OPEN")?.statement ||
-                    "Aluno com queda de frequência ou pendências registradas."}
-                </p>
-              </div>
+              ) : (
+                <div
+                  className={`p-3.5 rounded-2xl border space-y-1.5 ${
+                    studentMonitoring.state === "CRITICAL"
+                      ? "bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400"
+                      : "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">
+                      {studentMonitoring.state === "CRITICAL" ? "Alerta Crítico" : "Requer Atenção"}
+                    </span>
+                    <Badge variant={studentMonitoring.state === "CRITICAL" ? "danger" : "warning"} size="sm">
+                      Radar
+                    </Badge>
+                  </div>
+                  <p className="text-xs font-semibold">
+                    {studentMonitoring.alerts.find((a) => a.status === "OPEN")?.statement ||
+                      "Aluno com queda de frequência ou pendências registradas."}
+                  </p>
+                </div>
+              )
             )}
 
-            {/* Quick Metrics 2x2 Grid */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                  Peso Atual
-                </span>
-                <p className="text-base font-bold text-[var(--text-primary)]">
-                  {overview.weightKg ? `${overview.weightKg} kg` : "—"}
-                </p>
-                {overview.lastWeightRecordedOn && (
-                  <p className="text-[10px] text-[var(--text-secondary)]">em {overview.lastWeightRecordedOn}</p>
+            {/* Quick Metrics: Compact and grouped without wasting vertical screen space */}
+            {hasBiometrics ? (
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                    Peso Atual
+                  </span>
+                  <p className="text-base font-bold text-[var(--text-primary)]">
+                    {overview.weightKg ? `${overview.weightKg} kg` : "—"}
+                  </p>
+                  {overview.lastWeightRecordedOn && (
+                    <p className="text-[10px] text-[var(--text-secondary)]">
+                      em {formatDisplayDate(overview.lastWeightRecordedOn)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                    Altura
+                  </span>
+                  <p className="text-base font-bold text-[var(--text-primary)]">
+                    {overview.heightCm ? `${overview.heightCm} cm` : "—"}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                    Idade
+                  </span>
+                  <p className="text-base font-bold text-[var(--text-primary)]">
+                    {overview.age ? `${overview.age} anos` : "—"}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                    Sexo
+                  </span>
+                  <p className="text-base font-bold text-[var(--text-primary)]">
+                    {overview.sex || "—"}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs text-xs text-[var(--text-secondary)] flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] shrink-0">Biometria:</span>
+                  <span>Dados biométricos não informados pelo aluno.</span>
+                </div>
+                {overview.hasAnamnesis && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileTab("mais")}
+                    className="text-xs font-semibold text-[var(--brand)] hover:underline shrink-0"
+                  >
+                    Anamnese &rarr;
+                  </button>
                 )}
               </div>
-
-              <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                  Altura
-                </span>
-                <p className="text-base font-bold text-[var(--text-primary)]">
-                  {overview.heightCm ? `${overview.heightCm} cm` : "—"}
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                  Idade
-                </span>
-                <p className="text-base font-bold text-[var(--text-primary)]">
-                  {overview.age ? `${overview.age} anos` : "—"}
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                  Sessões Feitas
-                </span>
-                <p className="text-base font-bold text-[var(--text-primary)]">
-                  {overview.completedWorkoutsCount}
-                </p>
-              </div>
-            </div>
+            )}
 
             {/* Treino Atual Card */}
             <MobileCard className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
                   <DumbbellIcon className="w-4 h-4 text-[var(--brand)]" />
-                  <span>Treino Atual</span>
+                  <span>Treino</span>
                 </div>
-                <Badge variant={activeWorkout ? "success" : "neutral"} size="sm">
-                  {activeWorkout ? "Ativo" : "Sem treino"}
+                <Badge variant={activeWorkout ? "success" : latestPrescribedWorkout ? "neutral" : "neutral"} size="sm">
+                  {activeWorkout ? "Ativo" : latestPrescribedWorkout ? "Histórico" : "Sem treino"}
                 </Badge>
               </div>
 
@@ -444,7 +491,7 @@ export function PersonalStudentDetailView({
                     {activeWorkout.title}
                   </p>
                   <p className="text-[11px] text-[var(--text-secondary)]">
-                    Versão {activeWorkout.versionNumber} • Início: {activeWorkout.startsOn}
+                    Versão {activeWorkout.versionNumber} • Início: {formatDisplayDate(activeWorkout.startsOn)}
                   </p>
                   <Link
                     href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
@@ -453,6 +500,24 @@ export function PersonalStudentDetailView({
                     <span>Abrir no Criador</span>
                     <ChevronRightIcon className="w-3.5 h-3.5" />
                   </Link>
+                </div>
+              ) : latestPrescribedWorkout ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-bold text-[var(--text-primary)]">
+                    {latestPrescribedWorkout.title}
+                  </p>
+                  <p className="text-[11px] text-[var(--text-secondary)]">
+                    Último treino • Início: {formatDisplayDate(latestPrescribedWorkout.startsOn)}
+                    {latestPrescribedWorkout.endsOn ? ` • Encerrado: ${formatDisplayDate(latestPrescribedWorkout.endsOn)}` : ""}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewWorkoutSheetOpen(true)}
+                    className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] transition-colors cursor-pointer"
+                  >
+                    <PlusIcon className="w-3.5 h-3.5" />
+                    <span>+ Prescrever novo treino</span>
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -489,7 +554,7 @@ export function PersonalStudentDetailView({
                     {activeNutritionPlan.title}
                   </p>
                   <p className="text-[11px] text-[var(--text-secondary)]">
-                    Versão {activeNutritionPlan.versionNumber} • Início: {activeNutritionPlan.startsOn}
+                    Versão {activeNutritionPlan.versionNumber} • Início: {formatDisplayDate(activeNutritionPlan.startsOn)}
                   </p>
                   <Link
                     href={`/consultoria/${consultancySlug}/planos-v2/${activeNutritionPlan.planPublicId}`}
@@ -604,7 +669,7 @@ export function PersonalStudentDetailView({
                     </div>
 
                     <div className="text-[11px] text-[var(--text-tertiary)] space-y-0.5">
-                      <p>Início: {w.startsOn} {w.endsOn ? `• Término: ${w.endsOn}` : ""}</p>
+                      <p>Início: {formatDisplayDate(w.startsOn)} {w.endsOn ? `• Término: ${formatDisplayDate(w.endsOn)}` : ""}</p>
                       {w.notesForStudent && (
                         <p className="italic text-[var(--text-secondary)] line-clamp-2">
                           &quot;{w.notesForStudent}&quot;
@@ -704,7 +769,7 @@ export function PersonalStudentDetailView({
                         {n.title}
                       </h3>
                       <p className="text-[11px] text-[var(--text-secondary)]">
-                        Início: {n.startsOn} {n.endsOn ? `• Término: ${n.endsOn}` : ""}
+                        Início: {formatDisplayDate(n.startsOn)} {n.endsOn ? `• Término: ${formatDisplayDate(n.endsOn)}` : ""}
                       </p>
                     </div>
 
@@ -1107,6 +1172,8 @@ export function PersonalStudentDetailView({
                             ? "danger"
                             : studentMonitoring.state === "ATTENTION"
                             ? "warning"
+                            : studentMonitoring.state === "INSUFFICIENT_DATA"
+                            ? "neutral"
                             : "success"
                         }
                         size="sm"
@@ -1115,6 +1182,8 @@ export function PersonalStudentDetailView({
                           ? "Estado Crítico"
                           : studentMonitoring.state === "ATTENTION"
                           ? "Requer Atenção"
+                          : studentMonitoring.state === "INSUFFICIENT_DATA"
+                          ? "Sem dados suficientes"
                           : "Em Dia"}
                       </Badge>
                     </div>
@@ -1245,50 +1314,64 @@ export function PersonalStudentDetailView({
               </Link>
             </div>
 
-            {/* Quick Metrics Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-1">
+            {/* Quick Metrics: Compact and grouped without wasting screen space */}
+            {hasBiometrics ? (
+              <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-3">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                  Idade
+                  Dados Biométricos
                 </span>
-                <p className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
-                  {overview.age ? `${overview.age} anos` : "Não informada"}
-                </p>
-                {overview.birthDate && (
-                  <p className="text-[11px] text-[var(--text-secondary)]">{overview.birthDate}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">Idade</span>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">
+                      {overview.age ? `${overview.age} anos` : "—"}
+                    </p>
+                    {overview.birthDate && (
+                      <p className="text-[10px] text-[var(--text-secondary)]">{formatDisplayDate(overview.birthDate)}</p>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">Sexo</span>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">
+                      {overview.sex || "—"}
+                    </p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">Altura</span>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">
+                      {overview.heightCm ? `${overview.heightCm} cm` : "—"}
+                    </p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">Peso Atual</span>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">
+                      {overview.weightKg ? `${overview.weightKg} kg` : "—"}
+                    </p>
+                    {overview.lastWeightRecordedOn && (
+                      <p className="text-[10px] text-[var(--text-secondary)]">
+                        em {formatDisplayDate(overview.lastWeightRecordedOn)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="px-5 py-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-[var(--text-secondary)]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Biometria:</span>
+                  <span>Dados biométricos (Idade, Sexo, Altura e Peso) ainda não informados na anamnese.</span>
+                </div>
+                {overview.hasAnamnesis && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("anamnese")}
+                    className="text-xs font-semibold text-[var(--brand)] hover:underline shrink-0 cursor-pointer"
+                  >
+                    Ver anamnese &rarr;
+                  </button>
                 )}
               </div>
-
-              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                  Sexo
-                </span>
-                <p className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
-                  {overview.sex || "Não informado"}
-                </p>
-              </div>
-
-              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                  Altura
-                </span>
-                <p className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
-                  {overview.heightCm ? `${overview.heightCm} cm` : "Não informada"}
-                </p>
-              </div>
-
-              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                  Peso Atual
-                </span>
-                <p className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
-                  {overview.weightKg ? `${overview.weightKg} kg` : "Não informado"}
-                </p>
-                {overview.lastWeightRecordedOn && (
-                  <p className="text-[11px] text-[var(--text-secondary)]">em {overview.lastWeightRecordedOn}</p>
-                )}
-              </div>
-            </div>
+            )}
 
             {/* Module Status Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
@@ -1300,11 +1383,19 @@ export function PersonalStudentDetailView({
                       Rotinas de Treino
                     </span>
                     <Badge variant={overview.activeWorkoutsCount > 0 ? "brand" : "neutral"} size="sm">
-                      {overview.activeWorkoutsCount} ativo(s)
+                      {overview.activeWorkoutsCount > 0
+                        ? `${overview.activeWorkoutsCount} ativo`
+                        : overview.latestWorkoutTitle
+                        ? "Histórico"
+                        : "Sem treino"}
                     </Badge>
                   </div>
                   <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-1">
-                    {overview.latestWorkoutTitle || "Nenhum treino prescrito"}
+                    {overview.activeWorkoutsCount > 0
+                      ? overview.latestWorkoutTitle
+                      : overview.latestWorkoutTitle
+                      ? `${overview.latestWorkoutTitle} (encerrado)`
+                      : "Nenhum treino prescrito"}
                   </p>
                   <p className="text-xs text-[var(--text-secondary)]">
                     {overview.completedWorkoutsCount} {overview.completedWorkoutsCount === 1 ? "sessão concluída" : "sessões concluídas"}
@@ -1703,7 +1794,7 @@ export function PersonalStudentDetailView({
                         </div>
 
                         <div className="text-xs text-[var(--text-secondary)] space-y-0.5 pt-1">
-                          <p>Início: {w.startsOn} {w.endsOn ? `• Término: ${w.endsOn}` : ""}</p>
+                          <p>Início: {formatDisplayDate(w.startsOn)} {w.endsOn ? `• Término: ${formatDisplayDate(w.endsOn)}` : ""}</p>
                           {w.notesForStudent && (
                             <p className="italic text-[var(--text-tertiary)] line-clamp-2">
                               &quot;{w.notesForStudent}&quot;

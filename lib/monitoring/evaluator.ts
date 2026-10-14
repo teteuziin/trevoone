@@ -4,7 +4,7 @@ import { getDbConnection } from "@/lib/db/mysql";
 
 export type MonitoringSeverity = "LOW" | "ATTENTION" | "CRITICAL";
 export type MonitoringStatus = "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
-export type StudentRadarState = "OK" | "ATTENTION" | "CRITICAL";
+export type StudentRadarState = "OK" | "ATTENTION" | "CRITICAL" | "INSUFFICIENT_DATA";
 
 export interface MonitoringAlert {
   id: number;
@@ -318,6 +318,9 @@ export async function evaluateStudentMonitoring(
       state = "CRITICAL";
     } else if (activeAlerts.some((a) => a.severity === "ATTENTION")) {
       state = "ATTENTION";
+    } else if (!lastActiveAt && completedWorkoutsLast7d === 0 && recentCheckinsCount === 0) {
+      // UNKNOWN != ZERO: Lack of records does not prove good adherence
+      state = "INSUFFICIENT_DATA";
     }
 
     const reasons = activeAlerts.map((a) => a.statement);

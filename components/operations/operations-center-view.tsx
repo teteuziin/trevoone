@@ -138,6 +138,7 @@ export function OperationsCenterView({
     OK: { label: "Em Dia", className: "bg-[var(--success-soft)] text-[var(--success-foreground)] border-[var(--success-border)]" },
     ATTENTION: { label: "Atenção", className: "bg-[var(--warning-soft)] text-[var(--warning-foreground)] border-[var(--warning-border)]" },
     CRITICAL: { label: "Crítico", className: "bg-[var(--danger-soft)] text-[var(--danger-foreground)] border-[var(--danger-border)]" },
+    INSUFFICIENT_DATA: { label: "Sem dados suficientes", className: "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)]" },
   };
 
   const teamStatusBadges: Record<ProfessionalRadarStatus, { label: string; className: string }> = {

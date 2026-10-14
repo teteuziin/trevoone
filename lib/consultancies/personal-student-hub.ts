@@ -2,6 +2,27 @@ import { getDbConnection } from "@/lib/db/mysql";
 import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { COMPLETE_ANAMNESIS_FORM_V1, PHYSICAL_ASSESSMENT_FORM_V1 } from "./intake-schemas";
 
+export function formatDateYmd(val: unknown): string {
+  if (!val) return "";
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return "";
+    const y = val.getUTCFullYear();
+    const m = String(val.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(val.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  const str = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const y = parsed.getUTCFullYear();
+    const m = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return str;
+}
+
 export interface PersonalStudentSummary {
   membershipPublicId: string;
   userPublicId: string;
@@ -230,7 +251,7 @@ export async function listPersonalStudents(params: {
         latestWorkoutTitle: r.latest_workout_title ? String(r.latest_workout_title) : null,
         latestWorkoutStatus: r.latest_workout_status ? String(r.latest_workout_status) : null,
         latestAssignmentStatus: (r.latest_assignment_status as "ACTIVE" | "ENDED") || null,
-        latestAssignmentStartsOn: r.latest_assignment_starts_on ? String(r.latest_assignment_starts_on) : null,
+        latestAssignmentStartsOn: r.latest_assignment_starts_on ? formatDateYmd(r.latest_assignment_starts_on) : null,
       }));
     } catch (enrichmentError) {
       console.error("[PersonalStudentHub] Enriched list query failed, falling back to core list:", enrichmentError);
@@ -602,8 +623,8 @@ export async function getPersonalStudentDetail(params: {
       difficultyLevel: String(r.difficulty_level || "INTERMEDIATE"),
       versionNumber: Number(r.version_number || 1),
       status: r.assignment_status as "ACTIVE" | "ENDED",
-      startsOn: String(r.starts_on),
-      endsOn: r.ends_on ? String(r.ends_on) : null,
+      startsOn: formatDateYmd(r.starts_on),
+      endsOn: r.ends_on ? formatDateYmd(r.ends_on) : null,
       notesForStudent: r.notes_for_student ? String(r.notes_for_student) : null,
       assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : new Date().toISOString(),
     }));
@@ -788,8 +809,8 @@ export async function getPersonalStudentDetail(params: {
         title: String(r.plan_title),
         versionNumber: Number(r.version_number || 1),
         status: (r.assignment_status as "ACTIVE" | "ENDED") || "ACTIVE",
-        startsOn: String(r.starts_on),
-        endsOn: r.ends_on ? String(r.ends_on) : null,
+        startsOn: formatDateYmd(r.starts_on),
+        endsOn: r.ends_on ? formatDateYmd(r.ends_on) : null,
         notesForStudent: r.notes_for_student ? String(r.notes_for_student) : null,
         assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : new Date().toISOString(),
       }));

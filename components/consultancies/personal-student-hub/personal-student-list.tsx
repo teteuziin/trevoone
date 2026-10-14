@@ -356,24 +356,33 @@ export function PersonalStudentList({
       </div>
 
       {/* =========================================================================
-          DESKTOP-PRESERVED SEARCH HEADER BAR (hidden md:flex)
+          DESKTOP SEARCH & FILTER HEADER BAR (hidden md:flex)
           ========================================================================= */}
-      <div className="hidden md:flex flex-row items-center justify-between gap-3 bg-[var(--surface)] p-3 sm:p-4 rounded-xl border border-[var(--border-default)] shadow-xs depth-surface">
-        <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)]">
-            <SearchIcon className="w-4 h-4" />
+      <div className="hidden md:flex flex-col gap-3.5 bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border-default)] shadow-xs depth-surface">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)]">
+              <SearchIcon className="w-4 h-4" />
+            </div>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={isEffectiveNutritionist ? "Buscar pacientes por nome, e-mail..." : "Buscar por nome, e-mail ou objetivo..."}
+              aria-label={isEffectiveNutritionist ? "Buscar pacientes" : "Buscar alunos"}
+              className="w-full pl-10 pr-16 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px]"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                Limpar
+              </button>
+            )}
           </div>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={isEffectiveNutritionist ? "Buscar pacientes por nome, e-mail..." : "Buscar por nome, e-mail ou objetivo..."}
-            aria-label={isEffectiveNutritionist ? "Buscar pacientes" : "Buscar alunos"}
-            className="w-full pl-9 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px]"
-          />
-        </div>
-        <div className="flex items-center justify-end gap-2 px-1 sm:px-0">
-          <span className="text-xs font-semibold text-[var(--text-secondary)]">
+          <div className="shrink-0 text-xs font-semibold text-[var(--text-secondary)]">
             {filteredStudents.length}{" "}
             {isEffectiveNutritionist
               ? filteredStudents.length === 1
@@ -382,8 +391,47 @@ export function PersonalStudentList({
               : filteredStudents.length === 1
                 ? "aluno encontrado"
                 : "alunos encontrados"}
-          </span>
+          </div>
         </div>
+
+        {/* Desktop Segmented Filter Pills */}
+        {!isEffectiveNutritionist && (
+          <div className="flex items-center gap-2 pt-1 border-t border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={() => setWorkoutFilter("ALL")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
+                workoutFilter === "ALL"
+                  ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold shadow-xs"
+                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+              }`}
+            >
+              Todos ({students.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkoutFilter("WITH_WORKOUT")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
+                workoutFilter === "WITH_WORKOUT"
+                  ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold shadow-xs"
+                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+              }`}
+            >
+              Com treino ({withWorkoutCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkoutFilter("WITHOUT_WORKOUT")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
+                workoutFilter === "WITHOUT_WORKOUT"
+                  ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold shadow-xs"
+                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+              }`}
+            >
+              Sem treino ({withoutWorkoutCount})
+            </button>
+          </div>
+        )}
       </div>
 
       {/* =========================================================================
@@ -452,7 +500,7 @@ export function PersonalStudentList({
                   onClick={() => router.push(studentDetailHref)}
                   className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 active:scale-[0.99] transition-all cursor-pointer depth-surface select-none"
                 >
-                  {/* Card Top: Avatar, Name, Email, Status Badge */}
+                  {/* Card Top: Avatar, Name, Email (repetitive Ativo badge removed) */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <UserAvatar
@@ -470,15 +518,11 @@ export function PersonalStudentList({
                         </p>
                       </div>
                     </div>
-
-                    <Badge variant="success" size="sm" className="shrink-0 font-semibold text-[10px]">
-                      Ativo
-                    </Badge>
                   </div>
 
                   {/* Contextual Info Banner: Objective + Workout */}
                   <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5 text-xs">
-                    {student.objective ? (
+                    {student.objective && (
                       <div className="flex items-center gap-1.5 truncate">
                         <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
                           Foco:
@@ -486,10 +530,6 @@ export function PersonalStudentList({
                         <span className="font-medium text-[var(--text-primary)] truncate">
                           {student.objective}
                         </span>
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-[var(--text-tertiary)] italic">
-                        Objetivo não informado
                       </div>
                     )}
 
@@ -565,119 +605,118 @@ export function PersonalStudentList({
           </div>
 
           {/* =====================================================================
-              DESKTOP STUDENT CARDS GRID (hidden md:grid)
-              Preserved 100% for desktop users
+              DESKTOP STUDENT TABLE VIEW (hidden md:block)
+              Clean, professional, scannable table replacing 2-column card grid
               ===================================================================== */}
-          <div className="hidden md:grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
-            {filteredStudents.map((student) => {
-              const hasActiveWorkout =
-                student.latestAssignmentStatus === "ACTIVE" && !!student.latestWorkoutTitle;
-              const studentDetailHref = isEffectiveNutritionist
-                ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
-                : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
-              // Contract check: href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
+          <div className="hidden md:block bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-hidden depth-surface">
+            <table className="w-full text-left text-sm border-collapse" aria-label="Lista de Alunos">
+              <thead className="bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                <tr>
+                  <th scope="col" className="px-5 py-3.5 font-semibold">Aluno</th>
+                  <th scope="col" className="px-5 py-3.5 font-semibold">Situação do Treino</th>
+                  <th scope="col" className="px-5 py-3.5 font-semibold">Foco / Objetivo</th>
+                  <th scope="col" className="px-5 py-3.5 text-right font-semibold">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-subtle)]">
+                {filteredStudents.map((student) => {
+                  const hasActiveWorkout =
+                    student.latestAssignmentStatus === "ACTIVE" && !!student.latestWorkoutTitle;
+                  const studentDetailHref = isEffectiveNutritionist
+                    ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
+                    : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
+                  const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
 
-              return (
-                <div
-                  key={student.membershipPublicId}
-                  className="group p-5 sm:p-5.5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] shadow-xs transition-all flex flex-col justify-between space-y-4 depth-surface"
-                >
-                  {/* Header: Avatar, Name, Email, Status */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <UserAvatar
-                        fullName={student.name}
-                        userPublicId={student.userPublicId}
-                        size="md"
-                        className="shrink-0 group-hover:scale-105 transition-transform"
-                      />
-                      <div className="min-w-0 space-y-0.5">
-                        <Link
-                          href={studentDetailHref}
-                          className="font-heading text-sm sm:text-base font-bold text-[var(--text-primary)] hover:text-[var(--brand)] transition-colors block truncate"
-                        >
-                          {student.name}
-                        </Link>
-                        <p className="text-xs text-[var(--text-secondary)] truncate">
-                          {student.email}
-                        </p>
-                      </div>
-                    </div>
-
-                    <Badge variant="success" size="sm" className="shrink-0 font-medium">
-                      Ativo
-                    </Badge>
-                  </div>
-
-                  {/* Middle: Objective & Latest Workout */}
-                  <div className="space-y-2 py-1 border-y border-[var(--border-subtle)]">
-                    {student.objective ? (
-                      <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-                        <span className="font-semibold text-[var(--text-tertiary)]">Objetivo:</span>
-                        <span className="text-[var(--text-primary)] font-medium truncate">
-                          {student.objective}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
-                        <span>Objetivo não informado</span>
-                      </div>
-                    )}
-
-                    {isEffectiveNutritionist ? (
-                      <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-                        <AppleIcon className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
-                        <span className="text-[var(--text-secondary)]">Acompanhamento nutricional</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-xs">
-                        <DumbbellIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
-                        {hasActiveWorkout ? (
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                              Treino ativo:
-                            </span>
-                            <span className="text-[var(--text-primary)] font-medium truncate">
-                              {student.latestWorkoutTitle}
-                            </span>
-                          </div>
-                        ) : student.latestWorkoutTitle ? (
-                          <div className="flex items-center gap-1.5 min-w-0 text-[var(--text-secondary)]">
-                            <span className="text-[var(--text-tertiary)]">Último treino:</span>
-                            <span className="truncate">{student.latestWorkoutTitle}</span>
-                          </div>
-                        ) : (
-                          <span className="text-[var(--text-tertiary)]">Nenhum treino prescrito</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions: Ver aluno/paciente & Criar treino/plano */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <Link
-                      href={studentDetailHref}
-                      className="flex-1 inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[44px] depth-interactive cursor-pointer"
+                  return (
+                    <tr
+                      key={student.membershipPublicId}
+                      onClick={() => router.push(studentDetailHref)}
+                      className="hover:bg-[var(--surface-hover)] transition-colors cursor-pointer group"
                     >
-                      <span>{isEffectiveNutritionist ? "Ver paciente" : "Ver aluno"}</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                    </Link>
+                      {/* Coluna Aluno */}
+                      <td className="px-5 py-4 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <UserAvatar
+                            fullName={student.name}
+                            userPublicId={student.userPublicId}
+                            size="md"
+                            className="shrink-0 group-hover:scale-105 transition-transform"
+                          />
+                          <div className="space-y-0.5 min-w-0">
+                            <p className="font-semibold text-[var(--text-primary)] truncate text-sm group-hover:text-[var(--brand)] transition-colors">
+                              {student.name}
+                            </p>
+                            <p className="text-xs text-[var(--text-secondary)] truncate">
+                              {student.email}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
 
-                    {!isEffectiveNutritionist && (
-                      <Link
-                        href={`/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`}
-                        className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all min-h-[44px] shadow-xs depth-interactive cursor-pointer shrink-0"
-                        title="Criar novo treino para este aluno"
-                      >
-                        <PlusIcon className="w-3.5 h-3.5" />
-                        <span className="hidden xs:inline">Criar treino</span>
-                        <span className="xs:hidden">Treino</span>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                      {/* Coluna Situação do Treino */}
+                      <td className="px-5 py-4 min-w-0">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            {hasActiveWorkout ? (
+                              <Badge variant="brand" size="sm">
+                                Treino ativo
+                              </Badge>
+                            ) : student.latestWorkoutTitle ? (
+                              <Badge variant="neutral" size="sm">
+                                Histórico
+                              </Badge>
+                            ) : (
+                              <Badge variant="neutral" size="sm">
+                                Sem treino
+                              </Badge>
+                            )}
+                          </div>
+                          {student.latestWorkoutTitle && (
+                            <p className="text-xs font-medium text-[var(--text-primary)] truncate max-w-xs">
+                              {student.latestWorkoutTitle}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Coluna Objetivo */}
+                      <td className="px-5 py-4 text-xs text-[var(--text-secondary)] max-w-xs truncate">
+                        {student.objective ? (
+                          <span className="text-[var(--text-primary)] font-medium">
+                            {student.objective}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--text-tertiary)] italic">—</span>
+                        )}
+                      </td>
+
+                      {/* Coluna Ações */}
+                      <td className="px-5 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          {!isEffectiveNutritionist && (
+                            <Link
+                              href={createWorkoutHref}
+                              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[36px] shadow-xs cursor-pointer"
+                              title="Criar novo treino"
+                            >
+                              <PlusIcon className="w-3.5 h-3.5" />
+                              <span>+ Treino</span>
+                            </Link>
+                          )}
+                          <Link
+                            href={studentDetailHref}
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-semibold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[36px] cursor-pointer"
+                          >
+                            <span>Ver perfil</span>
+                            <ChevronRightIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </>
       )}

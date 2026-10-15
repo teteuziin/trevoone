@@ -1760,8 +1760,8 @@ export function WorkoutBuilder({
           <div className="flex items-center justify-between gap-3 w-full pb-3 border-b border-white/[0.07] flex-wrap">
             {/* Left: Badges & Autosave */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                <SparklesIcon className="w-3 h-3 text-emerald-400" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/[0.05] text-zinc-300 border border-white/[0.08]">
+                <SparklesIcon className="w-3 h-3 text-zinc-400" />
                 TRAINING STUDIO
               </span>
               <span
@@ -1795,7 +1795,7 @@ export function WorkoutBuilder({
                     </span>
                   )}
                   {saveStatus === "saved" && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.15)] whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/[0.04] text-zinc-300 border border-white/[0.08] whitespace-nowrap">
                       <CheckIcon className="w-3 h-3 text-emerald-400" />
                       <span>Salvo{lastSavedAt ? ` às ${lastSavedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
                     </span>
@@ -1827,12 +1827,12 @@ export function WorkoutBuilder({
                 onClick={() => setIsLibrarySidebarOpen(!isLibrarySidebarOpen)}
                 className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all min-h-[38px] flex items-center gap-2 cursor-pointer backdrop-blur-md ${
                   isLibrarySidebarOpen
-                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                    : "bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border-white/[0.1]"
+                    ? "bg-white/[0.08] text-white border-white/20"
+                    : "bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border-white/[0.1]"
                 }`}
                 title="Abrir/fechar biblioteca Studio lateral"
               >
-                <BookOpenIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <BookOpenIcon className="w-3.5 h-3.5 text-zinc-400" />
                 <span>Biblioteca Studio</span>
                 {isLibrarySidebarOpen && (
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -1842,10 +1842,10 @@ export function WorkoutBuilder({
               <button
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/[0.1] backdrop-blur-md transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/[0.1] backdrop-blur-md transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
                 title="Pré-visualizar como aluno"
               >
-                <EyeIcon className="w-3.5 h-3.5 text-teal-400" />
+                <EyeIcon className="w-3.5 h-3.5 text-zinc-400" />
                 <span>Pré-visualizar</span>
               </button>
 
@@ -2027,7 +2027,7 @@ export function WorkoutBuilder({
                   : "Intermediário"}
               </span>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-200">
-                <ClockIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <ClockIcon className="w-3.5 h-3.5 text-zinc-400" />
                 <span>~{estimatedDurationMinutes} min</span>
               </span>
               <button
@@ -2036,7 +2036,7 @@ export function WorkoutBuilder({
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-300 hover:text-white transition-colors cursor-pointer text-xs font-semibold"
                 title="Editar metas e duração da ficha"
               >
-                <SlidersIcon className="w-3 h-3 text-emerald-400" />
+                <SlidersIcon className="w-3 h-3 text-zinc-400" />
                 <span>{isMetadataExpanded ? "Ocultar dados" : "Dados da ficha"}</span>
               </button>
             </div>

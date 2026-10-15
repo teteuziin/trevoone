@@ -81,7 +81,7 @@ export default async function WorkoutEditorPage({ params, searchParams }: PagePr
       maxWidth="full"
     >
       <div className="w-full max-w-full min-w-0 max-w-[1440px] 2xl:max-w-[1600px] mx-auto space-y-6 pb-20">
-        <div className="flex items-center justify-between gap-4">
+        <div className="hidden sm:flex items-center justify-between gap-4">
           <Link
             href={
               student

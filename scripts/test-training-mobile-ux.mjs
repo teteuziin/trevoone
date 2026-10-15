@@ -398,57 +398,48 @@ runTest("23. MobileExerciseCard includes quick reorder touch buttons and more me
 // 6. Section 16 — Mobile Combination Cards & Ver Sequência UX Suite
 console.log("\n--- SECTION 16: MOBILE COMBINATION CARDS & VER SEQUÊNCIA ---");
 
-runTest("MOBILE COMBINATION HEADER WRAPS: PASS", () => {
+runTest("MOBILE COMBINATION HEADER: PASS", () => {
   assert.ok(
-    categoryCardCode.includes('className="sm:hidden px-3 py-2.5 bg-[var(--surface-subtle)]/40 border-b border-[var(--border-subtle)] space-y-2 w-full max-w-full min-w-0"'),
-    "Dedicated mobile combination header exists with vertical flow and wrapping container"
+    categoryCardCode.includes('data-testid="mobile-combination-block"'),
+    "Dedicated mobile combination block exists"
   );
   assert.ok(
-    categoryCardCode.includes("flex items-center justify-between gap-2 min-w-0 w-full flex-wrap"),
-    "Combination header line 1 wraps to avoid horizontal compression"
+    categoryCardCode.includes('{typeLabel}'),
+    "Combination header renders type label"
+  );
+  assert.ok(
+    categoryCardCode.includes('voltas'),
+    "Combination header renders voltas indicator"
   );
 });
 
-runTest("VER SEQUENCIA >= 44PX: PASS", () => {
+runTest("VER SEQUENCIA DISCREET SECONDARY ACTION: PASS", () => {
   assert.ok(
     categoryCardCode.includes('data-testid="combination-view-sequence-btn"'),
     "data-testid combination-view-sequence-btn exists"
   );
   assert.ok(
-    categoryCardCode.includes('className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-emerald-600'),
-    "Mobile Ver Sequência button has min-h-[44px] touch target"
-  );
-});
-
-runTest("VER SEQUENCIA NOT TRUNCATED: PASS", () => {
-  assert.ok(
-    categoryCardCode.includes('<span className="truncate font-black">Ver sequência</span>'),
-    "Ver Sequência button has full readable text"
+    categoryCardCode.includes('<span className="truncate">Ver sequência</span>'),
+    "Ver Sequência button has readable text"
   );
   assert.ok(
     categoryCardCode.includes('aria-label="Ver sequência de execução guiada"'),
     "Ver Sequência button has accessible label"
   );
-});
-
-runTest("VER SEQUENCIA PRIMARY ACTION: PASS", () => {
+  // Must NOT be giant green primary CTA
   assert.ok(
-    categoryCardCode.includes('bg-emerald-600 hover:bg-emerald-700 shadow-xs active:scale-[0.99]'),
-    "Ver Sequência is prominent primary CTA button"
+    !categoryCardCode.includes('className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-emerald-600'),
+    "Ver Sequência must NOT be an oversized green primary button"
   );
 });
 
-runTest("SECONDARY ACTIONS DO NOT COMPRESS PRIMARY: PASS", () => {
-  assert.ok(
-    categoryCardCode.includes('<div className="flex items-center gap-2 w-full pt-0.5">'),
-    "Dedicated Line 2 action row exists for combination actions"
-  );
+runTest("COMBINATION MORE MENU >= 44PX: PASS", () => {
   assert.ok(
     categoryCardCode.includes('aria-label="Opções da combinação"'),
     "Combination options menu button exists"
   );
   assert.ok(
-    categoryCardCode.includes('w-11 h-11 min-h-[44px] min-w-[44px] rounded-xl'),
+    categoryCardCode.includes('min-h-[44px] min-w-[44px]'),
     "Mobile combination more menu has >= 44x44px touch target"
   );
 });
@@ -470,14 +461,14 @@ runTest("CIRCUIT MOBILE: PASS", () => {
   assert.ok(categoryCardCode.includes('CIRCUIT: "Circuito"'), "Circuit type label defined");
 });
 
-runTest("ITEM ACTIONS >= 44PX: PASS", () => {
+runTest("ITEM ACTIONS >= 44PX & TAP-TO-EDIT: PASS", () => {
   assert.ok(
-    categoryCardCode.includes('min-h-[44px] sm:min-h-[28px] flex items-center gap-1 cursor-pointer'),
-    "Internal combination item quick edit has min-h-[44px] on mobile"
+    categoryCardCode.includes('onOpenQuickEdit(item)'),
+    "Internal combination item row triggers quick edit directly"
   );
   assert.ok(
-    categoryCardCode.includes('min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] cursor-pointer'),
-    "Internal combination item actions menu has min 44x44px touch target on mobile"
+    categoryCardCode.includes('min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]'),
+    "Internal combination item actions and steppers have min 44x44px touch target on mobile"
   );
 });
 

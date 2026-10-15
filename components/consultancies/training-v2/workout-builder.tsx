@@ -57,9 +57,18 @@ import {
 import { WorkoutPublishDialog } from "./workout-publish-dialog";
 import { SequenceConfigurationModal } from "./sequence-configuration-modal";
 import { WorkoutAssignModal } from "./workout-assign-modal";
+import Link from "next/link";
 import { TemplateAssignModal } from "./template-assign-modal";
 import { StudentWorkoutRenderer } from "./student-workout-renderer";
 import { StudioExerciseLibrarySidebar } from "./studio-exercise-library-sidebar";
+
+function ArrowLeftIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+    </svg>
+  );
+}
 
 function AlertCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -413,6 +422,23 @@ export function WorkoutBuilder({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [activeMobileCategoryIndex, setActiveMobileCategoryIndex] = useState<number>(0);
+  const tabsContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const backHref = initialStudentPublicId
+    ? `/consultoria/${consultancySlug}/progresso/alunos/${initialStudentPublicId}`
+    : `/consultoria/${consultancySlug}/rotinas${workout.isTemplate ? "?tab=templates" : ""}`;
+
+  // Keep active category tab centered smoothly on mobile without page overflow
+  useEffect(() => {
+    if (activeMobileCategoryIndex >= 0 && tabsContainerRef.current) {
+      const activeEl = tabsContainerRef.current.querySelector<HTMLElement>(
+        `[data-category-tab="${activeMobileCategoryIndex}"]`
+      );
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
+    }
+  }, [activeMobileCategoryIndex]);
 
   const categories = useMemo(() => version.blocks || [], [version.blocks]);
   const totalExercises = categories.reduce(
@@ -1422,7 +1448,7 @@ export function WorkoutBuilder({
   }
 
   return (
-    <div className="w-full max-w-full min-w-0 space-y-6">
+    <div className="w-full max-w-full min-w-0 space-y-6 overflow-x-hidden">
       {/* Toast Feedback Notification */}
       {feedbackMessage && (
         <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-[var(--surface)] border border-emerald-500 shadow-xl text-xs sm:text-sm font-bold text-[var(--text-primary)] flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200">
@@ -1431,9 +1457,248 @@ export function WorkoutBuilder({
         </div>
       )}
 
-      {/* Top Header — De-cardified Clean Prescription Tool Bar */}
+      {/* Top Header — Mobile Compact 3-Line & Desktop Full Prescription Tool Bar */}
       <div className="w-full max-w-full min-w-0 pb-5 sm:pb-6 border-b border-[var(--border-subtle)] space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full max-w-full min-w-0">
+        {/* Mobile Header (<sm): Compact 3-line layout requested by owner */}
+        <div data-testid="compact-mobile-header" className="sm:hidden space-y-2.5 w-full max-w-full min-w-0">
+          {/* Mobile Line 1: Voltar · Estado de salvamento · Mais opções */}
+          <div className="flex items-center justify-between gap-2 w-full min-w-0">
+            <Link
+              href={backHref}
+              aria-label="Voltar para rotinas"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] min-h-[44px] shrink-0"
+            >
+              <ArrowLeftIcon className="w-4 h-4" />
+              <span>Voltar</span>
+            </Link>
+
+            {/* Live Autosave Indicator */}
+            {isDraft ? (
+              <div data-testid="builder-autosave-indicator" className="inline-flex items-center">
+                {saveStatus === "saving" && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    <span>Salvando…</span>
+                  </span>
+                )}
+                {saveStatus === "saved" && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                    <CheckIcon className="w-3 h-3 text-emerald-500" />
+                    <span>Salvo{lastSavedAt ? ` às ${lastSavedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
+                  </span>
+                )}
+                {saveStatus === "error" && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25"
+                    title={saveErrorMessage || "Erro ao salvar alterações no servidor"}
+                  >
+                    <AlertCircleIcon className="w-3 h-3 text-rose-500" />
+                    <span>Erro ao salvar</span>
+                    <button
+                      type="button"
+                      onClick={() => retryLastSaveRef.current?.()}
+                      className="underline ml-0.5 font-bold hover:text-rose-700 cursor-pointer"
+                    >
+                      Tentar
+                    </button>
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                Versão Oficial
+              </span>
+            )}
+
+            {/* Mais opções button */}
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+                aria-label="Mais opções do treino"
+                className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] flex items-center justify-center cursor-pointer transition-colors"
+                title="Mais opções do treino"
+              >
+                <span className="font-extrabold tracking-widest leading-none">•••</span>
+              </button>
+              {isHeaderMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setIsHeaderMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 w-52 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                    <div className="p-1 space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          setIsMetadataExpanded(!isMetadataExpanded);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                      >
+                        <SlidersIcon className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>{isMetadataExpanded ? "Ocultar dados da ficha" : "Dados da ficha"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          setIsPreviewOpen(true);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                      >
+                        <EyeIcon className="w-3.5 h-3.5 text-teal-500" />
+                        <span>Pré-visualizar como aluno</span>
+                      </button>
+                      <a
+                        href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setIsHeaderMenuOpen(false)}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                      >
+                        <DownloadIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+                        <span>Baixar PDF</span>
+                      </a>
+                    </div>
+                    <div className="p-1 space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          handleDuplicateFicha();
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                      >
+                        <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Duplicar treino</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          handleSaveAsModel();
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                      >
+                        <BookmarkIcon className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Salvar como modelo</span>
+                      </button>
+                    </div>
+                    <div className="p-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsHeaderMenuOpen(false);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                      >
+                        <TrashIcon className="w-3.5 h-3.5" />
+                        <span>{isDraft ? "Excluir rascunho" : "Excluir treino"}</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Line 2: Status do treino · Nome do treino */}
+          <div className="flex items-center gap-2 w-full min-w-0">
+            <span
+              data-testid="builder-status-badge"
+              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${
+                isDraft
+                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+              }`}
+            >
+              {isDraft
+                ? `Rascunho V${version.versionNumber}`
+                : `Publicado V${version.versionNumber}`}
+            </span>
+            {workout.isTemplate && (
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] shrink-0">
+                Modelo
+              </span>
+            )}
+            {isDraft ? (
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTitle(val);
+                  scheduleMetadataSave({ title: val });
+                }}
+                onBlur={flushPendingMetadata}
+                placeholder="Nome da ficha de treino"
+                className="text-lg font-black text-[var(--text-primary)] tracking-tight bg-transparent border-b border-transparent hover:border-[var(--border-default)] focus:border-emerald-500 focus:outline-none transition-all py-0.5 flex-1 min-w-0"
+                title="Clique para editar o nome da ficha (salvamento automático)"
+              />
+            ) : (
+              <h1 className="text-lg font-black text-[var(--text-primary)] tracking-tight truncate flex-1 min-w-0">
+                {title}
+              </h1>
+            )}
+          </div>
+
+          {/* Mobile Line 3: Objetivo, nível e duração, quando disponíveis */}
+          <div data-testid="mobile-header-meta" className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-medium flex-wrap">
+            {objective && <span className="truncate max-w-[140px]">{objective}</span>}
+            {objective && <span className="opacity-40">•</span>}
+            <span>
+              {difficultyLevel === "BEGINNER"
+                ? "Iniciante"
+                : difficultyLevel === "ADVANCED"
+                ? "Avançado"
+                : "Intermediário"}
+            </span>
+            <span className="opacity-40">•</span>
+            <span className="flex items-center gap-1">
+              <ClockIcon className="w-3.5 h-3.5" />
+              ~{estimatedDurationMinutes} min
+            </span>
+          </div>
+
+          {/* Mobile Action: Publicar treino, somente quando permitido */}
+          <div data-testid="mobile-builder-header" className="w-full pt-1">
+            {isDraft && (
+              <button
+                type="button"
+                data-testid="publish-workout-button"
+                onClick={handleOpenPublishDialog}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
+              >
+                <SendIcon className="w-4 h-4" />
+                <span>Publicar treino</span>
+              </button>
+            )}
+
+            {!isDraft && (
+              <div className="flex items-center gap-2 w-full">
+                <button
+                  type="button"
+                  onClick={() => setIsAssignModalOpen(true)}
+                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                >
+                  <UserCheckIcon className="w-4 h-4" />
+                  <span>Atribuir ao aluno</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateNewVersion}
+                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  <span>Editar (novo rascunho)</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Header (>=sm): Preserved full horizontal prescription toolbar */}
+        <div className="hidden sm:flex sm:flex-row sm:items-center justify-between gap-4 w-full max-w-full min-w-0">
           {/* Ficha Title, Autosave Indicator and Sub-details */}
           <div className="space-y-1.5 flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -1585,6 +1850,7 @@ export function WorkoutBuilder({
               {isDraft && (
                 <button
                   type="button"
+                  data-testid="publish-workout-button"
                   onClick={handleOpenPublishDialog}
                   className="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center"
                 >
@@ -1867,45 +2133,53 @@ export function WorkoutBuilder({
             <>
               {/* Category / Day Tabs (Desktop & Mobile) */}
               {categories.length > 1 && (
-                <div
-                  data-testid="mobile-category-tabs"
-                  className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none border-b border-[var(--border-subtle)]"
-                >
-                  {categories.map((cat, idx) => {
-                    const isActive = activeMobileCategoryIndex === idx;
-                    return (
-                      <button
-                        key={cat.publicId}
-                        type="button"
-                        onClick={() => setActiveMobileCategoryIndex(idx)}
-                        className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs font-bold whitespace-nowrap min-h-[44px] sm:min-h-[36px] transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                          isActive
-                            ? "bg-emerald-600 text-white shadow-2xs"
-                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                        }`}
-                      >
-                        <span>{cat.title || `Treino ${idx + 1}`}</span>
-                        <span
-                          className={`text-[10px] font-semibold ${
-                            isActive ? "text-emerald-100" : "text-[var(--text-tertiary)]"
-                          }`}
-                        >
-                          ({cat.items?.length || 0})
-                        </span>
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={() => setActiveMobileCategoryIndex(-1)}
-                    className={`px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold whitespace-nowrap min-h-[44px] sm:min-h-[36px] transition-all shrink-0 cursor-pointer ${
-                      activeMobileCategoryIndex === -1
-                        ? "bg-emerald-600 text-white shadow-2xs"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                    }`}
+                <div className="relative w-full max-w-full min-w-0">
+                  <div
+                    ref={tabsContainerRef}
+                    data-testid="mobile-category-tabs"
+                    className="flex items-center gap-2 overflow-x-auto pb-2.5 pt-0.5 no-scrollbar scroll-smooth w-full touch-pan-x overscroll-x-contain"
                   >
-                    Ver todos
-                  </button>
+                    {categories.map((cat, idx) => {
+                      const isActive = activeMobileCategoryIndex === idx;
+                      return (
+                        <button
+                          key={cat.publicId}
+                          data-category-tab={idx}
+                          type="button"
+                          onClick={() => setActiveMobileCategoryIndex(idx)}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+                            isActive
+                              ? "bg-emerald-600 text-white shadow-xs border border-emerald-600"
+                              : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]"
+                          }`}
+                          title={cat.title || `Treino ${idx + 1}`}
+                        >
+                          <span className="truncate max-w-[180px] sm:max-w-none">{cat.title || `Treino ${idx + 1}`}</span>
+                          <span
+                            className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                              isActive ? "bg-emerald-700/60 text-white" : "bg-[var(--surface-sunken)] text-[var(--text-tertiary)]"
+                            }`}
+                          >
+                            {cat.items?.length || 0}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      data-category-tab={-1}
+                      onClick={() => setActiveMobileCategoryIndex(-1)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all shrink-0 cursor-pointer ${
+                        activeMobileCategoryIndex === -1
+                          ? "bg-emerald-600 text-white shadow-xs border border-emerald-600"
+                          : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]"
+                      }`}
+                    >
+                      Ver todos ({categories.length})
+                    </button>
+                  </div>
+                  {/* Subtle visual continuity hint for mobile horizontal scroll */}
+                  <div className="pointer-events-none absolute right-0 top-0 bottom-2.5 w-6 bg-gradient-to-l from-[var(--surface)] to-transparent sm:hidden" />
                 </div>
               )}
 

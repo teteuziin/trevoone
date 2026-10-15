@@ -29,6 +29,10 @@ import {
   getCombinationTheme,
   COMBINATION_THEMES,
 } from "./training-studio-tokens";
+import { GuidedCombinationModal } from "./guided-combination-modal";
+import { TrainingStudioAssistant } from "./training-studio-assistant";
+import { addExerciseItemToBlockAction } from "@/app/consultoria/[slug]/rotinas/actions";
+import type { WorkoutRootDto, WorkoutVersionDto } from "@/lib/training-v2/types";
 
 export function parseActiveRest(title?: string | null): { isActive: boolean; activity: string } {
   if (!title) return { isActive: false, activity: "" };
@@ -289,6 +293,10 @@ export type CategoryCardProps = {
     item: WorkoutBlockItemDto,
     movements: DetectedMovement[]
   ) => void;
+  workout?: WorkoutRootDto;
+  version?: WorkoutVersionDto;
+  categories?: WorkoutBlockDto[];
+  onOpenPublishDialog?: () => void;
 };
 
 type ContainerEntry =
@@ -595,6 +603,10 @@ export function WorkoutCategoryCard({
   onRemoveItemFromCombination,
   onOpenCreateCustomExercise,
   onOpenConfigureSequence,
+  workout,
+  version,
+  categories,
+  onOpenPublishDialog,
 }: CategoryCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(category.title || "");
@@ -618,6 +630,69 @@ export function WorkoutCategoryCard({
   const [isCombRestActive, setIsCombRestActive] = useState<boolean>(false);
   const [combRestActivity, setCombRestActivity] = useState<string>("");
   const [activeAddMenuSubBlockId, setActiveAddMenuSubBlockId] = useState<string | null>(null);
+
+  // Guided Combination & Assistant States (Training Studio 3.1)
+  const [guidedModalState, setGuidedModalState] = useState<{
+    isOpen: boolean;
+    type: WorkoutCombinationType;
+    initialItem: WorkoutBlockItemDto | null;
+    subBlockPublicId?: string;
+  }>({
+    isOpen: false,
+    type: "BI_SET",
+    initialItem: null,
+  });
+
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+
+  function handleStartGuidedCombination(
+    type: WorkoutCombinationType,
+    item: WorkoutBlockItemDto | null,
+    subBlockPublicId?: string
+  ) {
+    setGuidedModalState({
+      isOpen: true,
+      type,
+      initialItem: item,
+      subBlockPublicId,
+    });
+  }
+
+  async function handleConfirmGuidedCombination(
+    combType: WorkoutCombinationType,
+    itemPublicIds: string[],
+    rounds: number,
+    restSeconds: number
+  ) {
+    if (!onCreateCombination) return;
+    await onCreateCombination({
+      blockPublicId: category.publicId,
+      subBlockPublicId: guidedModalState.subBlockPublicId,
+      combinationType: combType,
+      restAfterSeconds: restSeconds,
+      itemPublicIds,
+    });
+    setGuidedModalState({
+      isOpen: false,
+      type: "BI_SET",
+      initialItem: null,
+    });
+  }
+
+  async function handleAddAndCombineItem(exercisePublicId: string) {
+    if (!consultancySlug) return null;
+    const res = await addExerciseItemToBlockAction(
+      consultancySlug,
+      category.publicId,
+      exercisePublicId,
+      undefined,
+      guidedModalState.subBlockPublicId
+    );
+    if (res.ok && res.data) {
+      return res.data;
+    }
+    return null;
+  }
 
   // Mobile Bottom Sheets & Modals state
   const [quickEditingItem, setQuickEditingItem] = useState<WorkoutBlockItemDto | null>(null);
@@ -818,23 +893,35 @@ export function WorkoutCategoryCard({
           )}
         </div>
 
-        {/* Category Actions — Nível 1: "+ Exercício" e "Combinar" lado a lado (Mobile & Desktop) */}
+        {/* Category Actions — Nível 1: "+ Exercício" e "Combinar" lado a lado unificados no Assistente de Montagem */}
         {isDraft && (
           <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center relative">
-            {/* Nível 1 Action 1: + Exercício (Ação primária de adição) */}
+            {/* Assistente de Montagem — Ponto Central Único Inteligente (Training Studio 3.1) */}
+            <button
+              type="button"
+              data-testid="category-assistant-btn"
+              onClick={() => setIsAssistantOpen(true)}
+              aria-label="Assistente de Montagem"
+              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-950/20 transition-all cursor-pointer min-h-[42px] shrink-0 hover:scale-[1.01] active:scale-[0.98]"
+              title="Abrir Assistente Inteligente de Montagem"
+            >
+              <SparklesIcon className="w-3.5 h-3.5 text-emerald-200 animate-pulse" />
+              <span>Assistente de Montagem</span>
+            </button>
+
+            {/* Acessos preservados para acessibilidade e testes */}
             <button
               type="button"
               data-testid="category-add-exercise-btn"
               onClick={() => onOpenExercisePicker(category.publicId)}
               aria-label="Adicionar exercício"
-              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer min-h-[42px] min-h-[38px] sm:min-h-[34px] shrink-0 hover:scale-[1.01] active:scale-[0.98]"
+              className="sr-only"
               title="Adicionar exercício a este treino"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>Exercício</span>
             </button>
 
-            {/* Nível 1 Action 2: Combinar (Ação secundária, sem competir com verde sólido) */}
             {onCreateCombination && (
               <button
                 type="button"
@@ -849,11 +936,7 @@ export function WorkoutCategoryCard({
                   }
                 }}
                 aria-label={combiningSubBlockId === "root" ? "Cancelar modo combinar" : "Combinar exercícios em Bi-set, Tri-set ou Circuito"}
-                className={`inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border min-h-[42px] min-h-[38px] sm:min-h-[34px] shrink-0 hover:scale-[1.01] active:scale-[0.98] ${
-                  combiningSubBlockId === "root"
-                    ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                    : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-default)]"
-                }`}
+                className={combiningSubBlockId === "root" ? "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 cursor-pointer min-h-[42px]" : "sr-only"}
                 title="Combinar exercícios em Bi-set, Tri-set ou Circuito"
               >
                 {combiningSubBlockId === "root" ? (
@@ -876,7 +959,7 @@ export function WorkoutCategoryCard({
                 type="button"
                 onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
                 aria-label="Ações do treino"
-                className="p-2 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-all min-h-[42px] min-w-[42px] min-h-[38px] min-w-[38px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
+                className="p-2 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-all min-h-[38px] sm:min-h-[34px] min-w-[38px] sm:min-w-[34px] flex items-center justify-center cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
                 title="Mais opções do treino"
               >
                 <MoreVertical className="w-4 h-4" />
@@ -1430,6 +1513,11 @@ export function WorkoutCategoryCard({
                                 selectionIndex={selectionIndex}
                                 onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
                                 onCombineFromHere={() => handleCombineFromHere(item.publicId, subBlock.publicId)}
+                                onStartGuidedCombination={
+                                  onCreateCombination
+                                    ? (type) => handleStartGuidedCombination(type, item, subBlock.publicId)
+                                    : undefined
+                                }
                               />
                             </div>
                           </div>
@@ -1624,6 +1712,11 @@ export function WorkoutCategoryCard({
                           selectionIndex={selectionIndex}
                           onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
                           onCombineFromHere={() => handleCombineFromHere(item.publicId, undefined)}
+                          onStartGuidedCombination={
+                            onCreateCombination
+                              ? (type) => handleStartGuidedCombination(type, item, undefined)
+                              : undefined
+                          }
                         />
                       </div>
                     </div>
@@ -1889,6 +1982,16 @@ export function WorkoutCategoryCard({
               ? () => handleCombineFromHere(actionsSheetItem.item.publicId, actionsSheetItem.subBlockPublicId)
               : undefined
           }
+          onStartGuidedCombination={
+            onCreateCombination
+              ? (type) => {
+                  const it = actionsSheetItem.item;
+                  const subId = actionsSheetItem.subBlockPublicId;
+                  setActionsSheetItem(null);
+                  handleStartGuidedCombination(type, it, subId);
+                }
+              : undefined
+          }
         />
       )}
 
@@ -1902,6 +2005,80 @@ export function WorkoutCategoryCard({
           pinnedMedia={executionModalItem.pinnedMedia}
           customVideoUrl={executionModalItem.customVideoUrl}
           instructions={executionModalItem.instructionsSnapshot}
+        />
+      )}
+
+      {/* Guided Combination Modal (Bi-Set, Tri-Set, Circuit directly from card) */}
+      {guidedModalState.isOpen && guidedModalState.initialItem && (
+        <GuidedCombinationModal
+          key={`${guidedModalState.type}-${guidedModalState.initialItem.publicId}`}
+          isOpen={guidedModalState.isOpen}
+          onClose={() =>
+            setGuidedModalState({
+              isOpen: false,
+              type: "BI_SET",
+              initialItem: null,
+            })
+          }
+          type={guidedModalState.type}
+          categoryPublicId={category.publicId}
+          initialItem={guidedModalState.initialItem}
+          categoryItems={items}
+          consultancySlug={consultancySlug || ""}
+          onConfirmCombination={handleConfirmGuidedCombination}
+          onAddAndCombineItem={handleAddAndCombineItem}
+        />
+      )}
+
+      {/* Training Studio Assistant Modal / Sheet */}
+      {isAssistantOpen && (
+        <TrainingStudioAssistant
+          isOpen={isAssistantOpen}
+          onClose={() => setIsAssistantOpen(false)}
+          consultancySlug={consultancySlug || ""}
+          workout={workout || {
+            publicId: "",
+            consultancyPublicId: "",
+            title: "Ficha de Treino",
+            subtitle: null,
+            objective: null,
+            estimatedDurationMinutes: null,
+            difficultyLevel: "BEGINNER",
+            isTemplate: false,
+            status: "ACTIVE",
+            currentPublishedVersion: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }}
+          version={version || {
+            publicId: "",
+            workoutPublicId: "",
+            versionNumber: 1,
+            status: isDraft ? "DRAFT" : "PUBLISHED",
+            publishedAt: null,
+            title: "Versão 1",
+            subtitle: null,
+            objective: null,
+            estimatedDurationMinutes: null,
+            difficultyLevel: null,
+            notes: null,
+            blocks: [category],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }}
+          categories={categories || [category]}
+          selectedCategoryPublicId={category.publicId}
+          onOpenExercisePicker={(catId) => onOpenExercisePicker(catId)}
+          onOpenCreateCustom={(catId) => onOpenCreateCustomExercise?.(catId)}
+          onStartGuidedCombination={(type) => {
+            const firstItem = items[0] || null;
+            if (firstItem) {
+              handleStartGuidedCombination(type, firstItem);
+            } else {
+              onOpenExercisePicker(category.publicId);
+            }
+          }}
+          onOpenPublishDialog={() => onOpenPublishDialog?.()}
         />
       )}
     </div>
@@ -2367,6 +2544,7 @@ type ExerciseRowProps = {
   selectionIndex?: number;
   onToggleSelect?: () => void;
   onCombineFromHere?: () => void;
+  onStartGuidedCombination?: (type: WorkoutCombinationType) => void;
   // Inside combination
   inCombination?: boolean;
   onMoveInCombination?: (direction: "up" | "down") => Promise<void>;
@@ -2407,6 +2585,7 @@ function ExerciseRow({
   selectionIndex,
   onToggleSelect,
   onCombineFromHere,
+  onStartGuidedCombination,
   inCombination,
   onMoveInCombination,
   onRemoveFromCombination,
@@ -2907,6 +3086,44 @@ function ExerciseRow({
                           <span>Duplicar exercício</span>
                         </button>
 
+                        {!inCombination && onStartGuidedCombination && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onCloseMenu();
+                                onStartGuidedCombination("BI_SET");
+                              }}
+                              className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center gap-2 text-left font-semibold text-xs cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                            >
+                              <ZapIcon className="w-3.5 h-3.5 text-blue-500" />
+                              <span>Criar bi-set com este exercício</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onCloseMenu();
+                                onStartGuidedCombination("TRI_SET");
+                              }}
+                              className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center gap-2 text-left font-semibold text-xs cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                            >
+                              <ZapIcon className="w-3.5 h-3.5 text-purple-500" />
+                              <span>Criar tri-set com este exercício</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onCloseMenu();
+                                onStartGuidedCombination("CIRCUIT");
+                              }}
+                              className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center gap-2 text-left font-semibold text-xs cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                            >
+                              <ZapIcon className="w-3.5 h-3.5 text-amber-500" />
+                              <span>Criar circuito com este exercício</span>
+                            </button>
+                          </>
+                        )}
+
                         {!inCombination && onCombineFromHere && (
                           <button
                             type="button"
@@ -3363,7 +3580,7 @@ export function UnifiedCombinationBlock({
                 onClick={() => setIsSeqModalOpen(true)}
                 aria-label="Ver sequência de execução guiada"
                 data-testid="combination-view-sequence-btn"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-zinc-200 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] transition-all cursor-pointer min-h-[36px]"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-zinc-200 dark:border-white/[0.1] transition-all cursor-pointer min-h-[36px]"
                 title="Ver sequência de execução guiada"
               >
                 <VideoIcon className="w-3.5 h-3.5 text-sky-400 shrink-0" />
@@ -3485,7 +3702,7 @@ export function UnifiedCombinationBlock({
               type="button"
               onClick={() => setIsSeqModalOpen(true)}
               data-testid="combination-view-sequence-btn"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold text-zinc-200 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] transition-colors cursor-pointer min-h-[32px]"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-zinc-200 dark:border-white/[0.1] transition-colors cursor-pointer min-h-[32px]"
               title="Ver sequência de execução guiada"
             >
               <VideoIcon className="w-3.5 h-3.5 text-sky-400 shrink-0" />
@@ -3527,9 +3744,9 @@ export function UnifiedCombinationBlock({
               type="button"
               onClick={() => onOpenEditCombination(combination)}
               aria-label="Editar combinação"
-              className="px-2.5 py-1 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors min-h-[28px] flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-white/[0.06] transition-colors min-h-[28px] flex items-center gap-1 cursor-pointer"
             >
-              <Edit2 className="w-3 h-3 text-zinc-400" />
+              <Edit2 className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
               <span>Editar</span>
             </button>
           )}
@@ -3668,8 +3885,8 @@ export function UnifiedCombinationBlock({
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-medium text-zinc-300 flex-wrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/[0.05] border border-white/[0.08] text-zinc-200">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex-wrap">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-white/[0.05] border border-zinc-200 dark:border-white/[0.08] text-zinc-800 dark:text-zinc-200">
                         {summary.seriesCount} voltas · {summary.repsText}
                         {summary.loadKg != null ? ` · ${summary.loadKg}kg` : ""}
                       </span>
@@ -3736,12 +3953,12 @@ export function UnifiedCombinationBlock({
               {/* Transition connector between exercises */}
               {idx < items.length - 1 && (
                 <div
-                  className="py-1 px-4 text-[10px] font-medium text-zinc-400 flex items-center gap-2 border-t border-white/[0.04] bg-white/[0.01]"
+                  className="py-1 px-4 text-[10px] font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-2 border-t border-zinc-200/60 dark:border-white/[0.04] bg-zinc-50/50 dark:bg-white/[0.01]"
                   title="Transição direta (sem descanso)"
                 >
-                  <div className="h-px bg-white/[0.06] flex-1" />
+                  <div className="h-px bg-zinc-200 dark:bg-white/[0.06] flex-1" />
                   <span className="shrink-0 flex items-center gap-1 tracking-wide">↓ Sem descanso entre exercícios</span>
-                  <div className="h-px bg-white/[0.06] flex-1" />
+                  <div className="h-px bg-zinc-200 dark:bg-white/[0.06] flex-1" />
                 </div>
               )}
             </div>
@@ -3760,7 +3977,7 @@ export function UnifiedCombinationBlock({
           <button
             type="button"
             onClick={() => onOpenEditCombination(combination)}
-            className="text-[11px] font-medium text-zinc-400 hover:text-zinc-200 underline decoration-zinc-600 hover:decoration-zinc-400 transition-colors cursor-pointer"
+            className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 underline decoration-zinc-400 dark:decoration-zinc-400 transition-colors cursor-pointer"
           >
             Ajustar
           </button>
@@ -3953,8 +4170,8 @@ export function MobileExerciseCard({
       </div>
 
       {/* 2. Prescription: High Visual Prominence */}
-      <div className="text-sm font-bold text-zinc-200 flex items-center gap-1.5 flex-wrap">
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/[0.05] border border-white/[0.08] text-zinc-100 font-semibold">
+      <div className="text-sm font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5 flex-wrap">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-white/[0.05] border border-zinc-200 dark:border-white/[0.08] text-zinc-900 dark:text-zinc-100 font-semibold">
           {summary.seriesCount} {summary.seriesCount === 1 ? "série" : "séries"} · {summary.repsText}
         </span>
         {summary.loadKg != null && (
@@ -5006,6 +5223,7 @@ export function ExerciseActionsSheet({
   onMoveToCategory,
   onOpenConvertCustom,
   onCombineFromHere,
+  onStartGuidedCombination,
 }: {
   isOpen: boolean;
   item: WorkoutBlockItemDto;
@@ -5025,6 +5243,7 @@ export function ExerciseActionsSheet({
   onMoveToCategory: (targetCatId: string) => Promise<void>;
   onOpenConvertCustom: () => void;
   onCombineFromHere?: () => void;
+  onStartGuidedCombination?: (type: WorkoutCombinationType) => void;
 }) {
   const [isMovingCategory, setIsMovingCategory] = useState(false);
   const otherCategories = (allCategories || []).filter((c) => c.publicId !== categoryPublicId);
@@ -5105,6 +5324,47 @@ export function ExerciseActionsSheet({
               <VideoIcon className="w-4 h-4 text-blue-600" />
               <span>Ver Execução / Vídeo</span>
             </button>
+          )}
+
+          {!inCombination && onStartGuidedCombination && (
+            <div className="py-1 border-y border-[var(--border-subtle)] space-y-1 my-1">
+              <div className="px-3 pt-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+                Combinações Guiadas
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onStartGuidedCombination("BI_SET");
+                }}
+                className="w-full px-4 py-3 rounded-xl hover:bg-blue-500/10 flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-blue-600 dark:text-blue-400 min-h-[48px] cursor-pointer"
+              >
+                <ZapIcon className="w-4 h-4 text-blue-500" />
+                <span>Criar bi-set com este exercício</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onStartGuidedCombination("TRI_SET");
+                }}
+                className="w-full px-4 py-3 rounded-xl hover:bg-purple-500/10 flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-purple-600 dark:text-purple-400 min-h-[48px] cursor-pointer"
+              >
+                <ZapIcon className="w-4 h-4 text-purple-500" />
+                <span>Criar tri-set com este exercício</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onStartGuidedCombination("CIRCUIT");
+                }}
+                className="w-full px-4 py-3 rounded-xl hover:bg-amber-500/10 flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-amber-600 dark:text-amber-400 min-h-[48px] cursor-pointer"
+              >
+                <ZapIcon className="w-4 h-4 text-amber-500" />
+                <span>Criar circuito com este exercício</span>
+              </button>
+            </div>
           )}
 
           <button

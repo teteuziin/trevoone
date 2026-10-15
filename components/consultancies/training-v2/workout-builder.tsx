@@ -2269,6 +2269,10 @@ export function WorkoutBuilder({
                       allCategories={allCategoriesSimple}
                       isDraft={isDraft}
                       consultancySlug={consultancySlug}
+                      workout={workout}
+                      version={version}
+                      categories={categories}
+                      onOpenPublishDialog={handleOpenPublishDialog}
                       onOpenExercisePicker={(catId, subBlockId) => {
                         setActiveCategoryForPicker(catId);
                         setActiveSubBlockForPicker(subBlockId || null);

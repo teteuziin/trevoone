@@ -672,6 +672,12 @@ export function WorkoutCategoryCard({
     });
   }
 
+  function handleCombineFromHere(itemPublicId: string, subBlockId?: string) {
+    setCombiningSubBlockId(subBlockId ?? "root");
+    setSelectedExerciseIds([itemPublicId]);
+    setNewCombType("BI_SET");
+  }
+
   function handleConfirmCreateCombination(targetSubBlockId?: string) {
     if (selectedExerciseIds.length < 2 || !onCreateCombination) return;
     const formattedTitle = formatActiveRestTitle(isCombRestActive, combRestActivity);
@@ -796,40 +802,56 @@ export function WorkoutCategoryCard({
           )}
         </div>
 
-        {/* Category Actions */}
+        {/* Category Actions — Nível 1: "+ Exercício" e "Combinar" lado a lado (Mobile & Desktop) */}
         {isDraft && (
           <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center relative">
-            {/* Desktop Only Inline Buttons (Avoid competing on mobile) */}
-            {!hasSubBlocks && (
-              <div className="hidden sm:flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => onOpenExercisePicker(category.publicId)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Exercício</span>
-                </button>
+            {/* Nível 1 Action 1: + Exercício (Ação primária de adição) */}
+            <button
+              type="button"
+              data-testid="category-add-exercise-btn"
+              onClick={() => onOpenExercisePicker(category.publicId)}
+              aria-label="Adicionar exercício"
+              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer min-h-[38px] sm:min-h-[34px] shrink-0"
+              title="Adicionar exercício a este treino"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Exercício</span>
+            </button>
 
-                {onCreateCombination && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCombiningSubBlockId(combiningSubBlockId === "root" ? null : "root");
-                      setSelectedExerciseIds([]);
-                    }}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-colors cursor-pointer border min-h-[34px] ${
-                      combiningSubBlockId === "root"
-                        ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                        : "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
-                    }`}
-                    title="Combinar exercícios em Bi-set, Tri-set ou Circuito"
-                  >
-                    <ZapIcon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{combiningSubBlockId === "root" ? "Cancelar" : "Combinar"}</span>
-                  </button>
+            {/* Nível 1 Action 2: Combinar (Ação secundária, sem competir com verde sólido) */}
+            {onCreateCombination && (
+              <button
+                type="button"
+                data-testid="category-combine-btn"
+                onClick={() => {
+                  if (combiningSubBlockId === "root") {
+                    setCombiningSubBlockId(null);
+                    setSelectedExerciseIds([]);
+                  } else {
+                    setCombiningSubBlockId("root");
+                    setSelectedExerciseIds([]);
+                  }
+                }}
+                aria-label={combiningSubBlockId === "root" ? "Cancelar modo combinar" : "Combinar exercícios em Bi-set, Tri-set ou Circuito"}
+                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer border min-h-[38px] sm:min-h-[34px] shrink-0 ${
+                  combiningSubBlockId === "root"
+                    ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                    : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-default)]"
+                }`}
+                title="Combinar exercícios em Bi-set, Tri-set ou Circuito"
+              >
+                {combiningSubBlockId === "root" ? (
+                  <>
+                    <span className="text-xs font-extrabold leading-none">✕</span>
+                    <span>Cancelar</span>
+                  </>
+                ) : (
+                  <>
+                    <ZapIcon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>Combinar</span>
+                  </>
                 )}
-              </div>
+              </button>
             )}
 
             {/* Discreet Menu [...] on Mobile & Desktop */}
@@ -838,7 +860,8 @@ export function WorkoutCategoryCard({
                 type="button"
                 onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
                 aria-label="Ações do treino"
-                className="p-2 sm:p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center cursor-pointer"
+                className="p-2 sm:p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors min-h-[38px] min-w-[38px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center cursor-pointer"
+                title="Mais opções do treino"
               >
                 <MoreVertical className="w-4 h-4" />
               </button>
@@ -1017,7 +1040,7 @@ export function WorkoutCategoryCard({
                       )}
                     </div>
 
-                    {/* SubBlock Actions */}
+                    {/* SubBlock Actions — Nível 1: "+ Exercício" e "Combinar" lado a lado */}
                     {isDraft && (
                       <div className="flex items-center gap-1.5 shrink-0 relative">
                         {/* + Exercício Popover */}
@@ -1029,10 +1052,11 @@ export function WorkoutCategoryCard({
                                 activeAddMenuSubBlockId === subBlock.publicId ? null : subBlock.publicId
                               )
                             }
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors cursor-pointer"
+                            aria-label="Adicionar exercício ao grupo"
+                            className="inline-flex items-center gap-1 px-2.5 sm:px-2 py-1.5 sm:py-1 rounded-xl text-xs sm:text-[11px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors cursor-pointer min-h-[38px] sm:min-h-[32px] shrink-0"
                           >
-                            <Plus className="w-3 h-3" />
-                            <span className="hidden xs:inline">Exercício</span>
+                            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                            <span>Exercício</span>
                           </button>
 
                           {activeAddMenuSubBlockId === subBlock.publicId && (
@@ -1092,17 +1116,25 @@ export function WorkoutCategoryCard({
                               setCombiningSubBlockId(isCombiningThisSb ? null : subBlock.publicId);
                               setSelectedExerciseIds([]);
                             }}
-                            className={`inline-flex items-center gap-1.5 px-3 py-2 sm:px-2 sm:py-1 rounded-xl text-xs sm:text-[11px] font-bold transition-colors cursor-pointer border min-h-[44px] sm:min-h-[32px] ${
+                            aria-label={isCombiningThisSb ? "Cancelar modo combinar no grupo" : "Combinar exercícios no grupo"}
+                            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-2 py-1.5 sm:py-1 rounded-xl text-xs sm:text-[11px] font-bold transition-colors cursor-pointer border min-h-[38px] sm:min-h-[32px] shrink-0 ${
                               isCombiningThisSb
-                                ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                                : "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
+                                ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                                : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-default)]"
                             }`}
                             title="Combinar exercícios em Bi-set, Tri-set ou Circuito"
                           >
-                            <ZapIcon className="w-3.5 h-3.5 sm:w-3 sm:h-3 shrink-0" />
-                            <span className="inline">
-                              {isCombiningThisSb ? "Cancelar" : "Combinar"}
-                            </span>
+                            {isCombiningThisSb ? (
+                              <>
+                                <span className="text-xs font-extrabold leading-none">✕</span>
+                                <span>Cancelar</span>
+                              </>
+                            ) : (
+                              <>
+                                <ZapIcon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                <span>Combinar</span>
+                              </>
+                            )}
                           </button>
                         )}
 
@@ -1116,7 +1148,7 @@ export function WorkoutCategoryCard({
                               )
                             }
                             aria-label="Ações do grupo"
-                            className="p-2 sm:p-1 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] flex items-center justify-center"
+                            className="p-2 sm:p-1 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors cursor-pointer min-h-[38px] min-w-[38px] sm:min-h-[32px] sm:min-w-[32px] flex items-center justify-center shrink-0"
                           >
                             <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                           </button>
@@ -1293,6 +1325,10 @@ export function WorkoutCategoryCard({
                           ? async () => { await handleMoveEntryInContainer(entries, entryIdx, "down", subBlock.publicId); }
                           : () => onMoveExerciseDown(category.publicId, itemIdx);
 
+                        const selIdx = selectedExerciseIds.indexOf(item.publicId);
+                        const isItemSel = selIdx !== -1;
+                        const selectionIndex = isItemSel ? selIdx + 1 : undefined;
+
                         return (
                           <div key={item.publicId}>
                             {/* Mobile View: Dedicated MobileExerciseCard */}
@@ -1305,7 +1341,8 @@ export function WorkoutCategoryCard({
                                 categoryPublicId={category.publicId}
                                 allCategories={allCategories}
                                 isSelectionMode={isCombiningThisSb}
-                                isSelected={selectedExerciseIds.includes(item.publicId)}
+                                isSelected={isItemSel}
+                                selectionIndex={selectionIndex}
                                 onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
                                 onOpenQuickEdit={() => setQuickEditingItem(item)}
                                 onOpenActions={() =>
@@ -1372,8 +1409,10 @@ export function WorkoutCategoryCard({
                                 }
                                 onOpenConfigureSequence={onOpenConfigureSequence}
                                 isSelectionMode={isCombiningThisSb}
-                                isSelected={selectedExerciseIds.includes(item.publicId)}
+                                isSelected={isItemSel}
+                                selectionIndex={selectionIndex}
                                 onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
+                                onCombineFromHere={() => handleCombineFromHere(item.publicId, subBlock.publicId)}
                               />
                             </div>
                           </div>
@@ -1476,6 +1515,10 @@ export function WorkoutCategoryCard({
                     ? async () => { await handleMoveEntryInContainer(flatEntries, entryIdx, "down", null); }
                     : () => onMoveExerciseDown(category.publicId, itemIdx);
 
+                  const selIdx = selectedExerciseIds.indexOf(item.publicId);
+                  const isItemSel = selIdx !== -1;
+                  const selectionIndex = isItemSel ? selIdx + 1 : undefined;
+
                   return (
                     <div key={item.publicId}>
                       {/* Mobile View: Dedicated MobileExerciseCard */}
@@ -1488,7 +1531,8 @@ export function WorkoutCategoryCard({
                           categoryPublicId={category.publicId}
                           allCategories={allCategories}
                           isSelectionMode={combiningSubBlockId === "root"}
-                          isSelected={selectedExerciseIds.includes(item.publicId)}
+                          isSelected={isItemSel}
+                          selectionIndex={selectionIndex}
                           onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
                           onOpenQuickEdit={() => setQuickEditingItem(item)}
                           onOpenActions={() =>
@@ -1550,8 +1594,10 @@ export function WorkoutCategoryCard({
                           }
                           onOpenConfigureSequence={onOpenConfigureSequence}
                           isSelectionMode={combiningSubBlockId === "root"}
-                          isSelected={selectedExerciseIds.includes(item.publicId)}
+                          isSelected={isItemSel}
+                          selectionIndex={selectionIndex}
                           onToggleSelect={() => handleToggleSelectExercise(item.publicId)}
+                          onCombineFromHere={() => handleCombineFromHere(item.publicId, undefined)}
                         />
                       </div>
                     </div>
@@ -1812,6 +1858,11 @@ export function WorkoutCategoryCard({
               }
             );
           }}
+          onCombineFromHere={
+            onCreateCombination
+              ? () => handleCombineFromHere(actionsSheetItem.item.publicId, actionsSheetItem.subBlockPublicId)
+              : undefined
+          }
         />
       )}
 
@@ -2286,7 +2337,9 @@ type ExerciseRowProps = {
   // Selection mode for combinations
   isSelectionMode?: boolean;
   isSelected?: boolean;
+  selectionIndex?: number;
   onToggleSelect?: () => void;
+  onCombineFromHere?: () => void;
   // Inside combination
   inCombination?: boolean;
   onMoveInCombination?: (direction: "up" | "down") => Promise<void>;
@@ -2324,7 +2377,9 @@ function ExerciseRow({
   onOpenConfigureSequence,
   isSelectionMode,
   isSelected,
+  selectionIndex,
   onToggleSelect,
+  onCombineFromHere,
   inCombination,
   onMoveInCombination,
   onRemoveFromCombination,
@@ -2495,14 +2550,14 @@ function ExerciseRow({
             aria-label={isSelected ? "Exercício selecionado" : "Selecionar exercício"}
           >
             <div
-              className={`w-7 h-7 sm:w-6 sm:h-6 rounded-xl flex items-center justify-center border-2 transition-all ${
+              className={`w-7 h-7 sm:w-6 sm:h-6 rounded-xl flex items-center justify-center border-2 transition-all font-black text-xs ${
                 isSelected
                   ? "bg-emerald-600 border-emerald-600 text-white shadow-xs scale-105"
-                  : "border-emerald-500/60 bg-[var(--surface)] hover:border-emerald-600"
+                  : "border-emerald-500/60 bg-[var(--surface)] hover:border-emerald-600 text-[var(--text-tertiary)]"
               }`}
             >
               {isSelected ? (
-                <Check className="w-4 h-4 sm:w-3.5 sm:h-3.5 stroke-[3]" />
+                <span>{selectionIndex ?? 1}</span>
               ) : (
                 <span className="w-2 h-2 rounded-full bg-emerald-500/30" />
               )}
@@ -2520,7 +2575,8 @@ function ExerciseRow({
 
               {isSelectionMode && !inCombination && isSelected && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold bg-emerald-600 text-white shadow-xs shrink-0">
-                  ✓ Selecionado
+                  <span>✓ Selecionado</span>
+                  <span>(#{selectionIndex ?? 1})</span>
                 </span>
               )}
 
@@ -2808,6 +2864,20 @@ function ExerciseRow({
                           <Copy className="w-3.5 h-3.5 text-blue-500" />
                           <span>Duplicar exercício</span>
                         </button>
+
+                        {!inCombination && onCombineFromHere && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onCloseMenu();
+                              onCombineFromHere();
+                            }}
+                            className="w-full px-3 py-2 sm:py-1.5 rounded-xl hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-2 text-left font-semibold text-xs cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                          >
+                            <ZapIcon className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Combinar a partir daqui</span>
+                          </button>
+                        )}
 
                         {!inCombination && (
                           <button
@@ -3672,6 +3742,7 @@ export function MobileExerciseCard({
   isDraft,
   isSelectionMode,
   isSelected,
+  selectionIndex,
   onToggleSelect,
   onOpenQuickEdit,
   onOpenActions,
@@ -3688,6 +3759,7 @@ export function MobileExerciseCard({
   allCategories?: { publicId: string; title: string }[];
   isSelectionMode?: boolean;
   isSelected?: boolean;
+  selectionIndex?: number;
   onToggleSelect?: () => void;
   onOpenQuickEdit: () => void;
   onOpenActions: () => void;
@@ -3713,26 +3785,42 @@ export function MobileExerciseCard({
       <div
         data-testid="mobile-exercise-card-selectable"
         onClick={onToggleSelect}
+        role="checkbox"
+        aria-checked={isSelected}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggleSelect?.();
+          }
+        }}
         className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
           isSelected
-            ? "border-emerald-500 bg-emerald-500/10 shadow-xs"
-            : "border-[var(--border-default)] bg-[var(--surface)] hover:border-emerald-500/40"
+            ? "border-emerald-500 bg-emerald-500/15 dark:bg-emerald-950/40 shadow-sm ring-2 ring-emerald-500/30"
+            : "border-dashed border-[var(--border-default)] bg-[var(--surface)] hover:border-emerald-500/40"
         }`}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div
-            className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center shrink-0 transition-colors ${
+            className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center shrink-0 transition-all font-black text-xs ${
               isSelected
-                ? "border-emerald-600 bg-emerald-600 text-white"
-                : "border-[var(--border-strong)] bg-[var(--surface-subtle)]"
+                ? "border-emerald-600 bg-emerald-600 text-white shadow-xs scale-105"
+                : "border-[var(--border-strong)] bg-[var(--surface-subtle)] text-[var(--text-tertiary)]"
             }`}
           >
-            {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
+            {isSelected ? (selectionIndex ?? 1) : "+"}
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] line-clamp-2 break-words">
-              {item.exerciseNameSnapshot}
-            </h4>
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] line-clamp-2 break-words">
+                {item.exerciseNameSnapshot}
+              </h4>
+              {isSelected && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-2xs shrink-0">
+                  {selectionIndex ?? 1}º na combinação
+                </span>
+              )}
+            </div>
             {item.notes && item.notes.trim() && (
               <p className="text-[11px] font-medium text-amber-700/90 dark:text-amber-400/90">
                 ⚡ Método: {item.notes.trim()}
@@ -4851,6 +4939,7 @@ export function ExerciseActionsSheet({
   onMoveDown,
   onMoveToCategory,
   onOpenConvertCustom,
+  onCombineFromHere,
 }: {
   isOpen: boolean;
   item: WorkoutBlockItemDto;
@@ -4869,6 +4958,7 @@ export function ExerciseActionsSheet({
   onMoveDown: () => Promise<void>;
   onMoveToCategory: (targetCatId: string) => Promise<void>;
   onOpenConvertCustom: () => void;
+  onCombineFromHere?: () => void;
 }) {
   const [isMovingCategory, setIsMovingCategory] = useState(false);
   const otherCategories = (allCategories || []).filter((c) => c.publicId !== categoryPublicId);
@@ -4959,6 +5049,20 @@ export function ExerciseActionsSheet({
             <Copy className="w-4 h-4 text-blue-500" />
             <span>Duplicar Exercício</span>
           </button>
+
+          {!inCombination && onCombineFromHere && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onCombineFromHere();
+              }}
+              className="w-full px-4 py-3 rounded-xl hover:bg-emerald-500/10 flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 min-h-[48px] cursor-pointer"
+            >
+              <ZapIcon className="w-4 h-4 text-emerald-600" />
+              <span>Combinar a partir daqui</span>
+            </button>
+          )}
 
           <button
             type="button"

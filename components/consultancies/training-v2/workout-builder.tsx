@@ -1912,8 +1912,8 @@ export function WorkoutBuilder({
                   <>
                     <div className="fixed inset-0 z-30" onClick={() => setIsHeaderMenuOpen(false)} />
                     <div className="absolute right-0 top-full mt-1.5 w-52 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
-                      {/* Mobile-Only Quick Access Actions */}
-                      <div className="p-1 space-y-0.5 sm:hidden">
+                      {/* Nível 3 Menu Actions (Dados da ficha, pré-visualizar, baixar PDF) */}
+                      <div className="p-1 space-y-0.5">
                         <button
                           type="button"
                           onClick={() => {

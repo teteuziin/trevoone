@@ -174,14 +174,16 @@ runTest("3.2 Botões de ação rápida com altura mínima ergonômica (min-h-[42
 // ============================================================================
 console.log("\n--- 4. CARDS DE BI-SETS E EXERCÍCIOS COM PROFUNDIDADE VISUAL ---");
 
-runTest("4.1 Container de Bi-Set / Super-Set com barra vertical lateral esmeralda e cabeçalho claro", () => {
+runTest("4.1 Container de Bi-Set / Super-Set com barra vertical lateral semântica e cabeçalho claro", () => {
   assert.ok(
     categoryContent.includes('data-testid="mobile-combination-block"'),
     "Combination block has data-testid"
   );
   assert.ok(
-    categoryContent.includes("border-l-4 border-l-emerald-500"),
-    "Combination block features distinctive emerald left border line"
+    categoryContent.includes("theme.borderLeftClass") ||
+      categoryContent.includes("border-l-4 border-l-blue-500") ||
+      categoryContent.includes("border-l-4 border-l-emerald-500"),
+    "Combination block features distinctive semantic left border line"
   );
   assert.ok(
     categoryContent.includes('data-testid="combination-view-sequence-btn"'),
@@ -189,10 +191,13 @@ runTest("4.1 Container de Bi-Set / Super-Set com barra vertical lateral esmerald
   );
 });
 
-runTest("4.2 Linhas de exercícios com avatar de letra (A., B.) em fundo esmeralda", () => {
+runTest("4.2 Linhas de exercícios com avatar de letra (A., B.) em estilo semântico", () => {
   assert.ok(
-    categoryContent.includes("bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black"),
-    "Combination exercise items display stylized order letter avatar"
+    categoryContent.includes("theme.letterAvatarClass") ||
+      categoryContent.includes("border-blue-500/30") ||
+      categoryContent.includes("bg-blue-500/15") ||
+      categoryContent.includes("bg-emerald-500/15 border border-emerald-500/30"),
+    "Combination exercise items display stylized order letter avatar with semantic color"
   );
   assert.ok(
     categoryContent.includes("py-3 px-3.5 sm:px-4 sm:py-3"),

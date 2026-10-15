@@ -25,6 +25,10 @@ import {
 } from "@/lib/training-v2/sequence-media";
 import { SequenceExecutionModal } from "./sequence-execution-modal";
 import { ExerciseVideoEditorSection } from "./exercise-video-editor-section";
+import {
+  getCombinationTheme,
+  COMBINATION_THEMES,
+} from "./training-studio-tokens";
 
 export function parseActiveRest(title?: string | null): { isActive: boolean; activity: string } {
   if (!title) return { isActive: false, activity: "" };
@@ -86,11 +90,11 @@ export const COMBINATION_TYPE_LABELS: Record<WorkoutCombinationType, string> = {
 };
 
 export const COMBINATION_BADGE_STYLES: Record<WorkoutCombinationType, string> = {
-  BI_SET: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
-  TRI_SET: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
-  SUPERSET: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
-  GIANT_SET: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
-  CIRCUIT: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25",
+  BI_SET: COMBINATION_THEMES.BI_SET.badgeClass,
+  TRI_SET: COMBINATION_THEMES.TRI_SET.badgeClass,
+  SUPERSET: COMBINATION_THEMES.SUPERSET.badgeClass,
+  GIANT_SET: COMBINATION_THEMES.GIANT_SET.badgeClass,
+  CIRCUIT: COMBINATION_THEMES.CIRCUIT.badgeClass,
 };
 
 function MoreVertical({ className = "w-4 h-4" }: { className?: string }) {
@@ -422,7 +426,7 @@ function CombinationFloatingActionBar({
                 aria-pressed={isActive}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all min-h-[44px] sm:min-h-[40px] flex items-center gap-1 cursor-pointer shrink-0 ${
                   isActive
-                    ? "bg-emerald-600 text-white shadow-xs scale-102"
+                    ? `${COMBINATION_THEMES[t]?.selectorActiveClass || "bg-blue-600 text-white shadow-sm ring-2 ring-blue-500/40"} scale-102`
                     : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)]"
                 }`}
               >
@@ -530,7 +534,11 @@ function CombinationFloatingActionBar({
             type="button"
             disabled={selectedCount < 2}
             onClick={onConfirm}
-            className="flex-1 py-3 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[48px]"
+            className={`flex-1 py-3 px-5 rounded-2xl ${
+              selectedCount < 2
+                ? "bg-emerald-600 hover:bg-emerald-700"
+                : COMBINATION_THEMES[combinationType]?.selectorActiveClass || "bg-blue-600 hover:bg-blue-500"
+            } text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[48px]`}
           >
             <ZapIcon className="w-4 h-4 shrink-0" />
             <span>
@@ -1990,7 +1998,8 @@ export function LegacyCombinationCard({
   const [, startTransition] = useTransition();
 
   const items = useMemo(() => combination.items || [], [combination.items]);
-  const badgeStyle = COMBINATION_BADGE_STYLES[combination.combinationType] || COMBINATION_BADGE_STYLES.BI_SET;
+  const theme = getCombinationTheme(combination.combinationType);
+  const badgeStyle = theme.badgeClass;
   const label = COMBINATION_TYPE_LABELS[combination.combinationType] || "Combinação";
   const combSeqExp = useMemo(() => buildSequenceMediaFromCombination(combination, items), [combination, items]);
 
@@ -2017,9 +2026,9 @@ export function LegacyCombinationCard({
   }
 
   return (
-    <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/[0.03] dark:bg-emerald-950/10 p-3 sm:p-4 space-y-3 shadow-xs transition-all">
+    <div className={`rounded-2xl border-2 ${theme.borderClass} ${theme.borderLeftClass} ${theme.headerBgClass} p-3 sm:p-4 space-y-3 shadow-xs transition-all`}>
       {/* Combination Header */}
-      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-emerald-500/20">
+      <div className={`flex items-center justify-between gap-2 pb-2.5 border-b ${theme.borderClass}`}>
         <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
           {/* Badge */}
           <span
@@ -3313,6 +3322,7 @@ export function UnifiedCombinationBlock({
   onUngroupCombination,
 }: UnifiedCombinationBlockProps) {
   const items = useMemo(() => combination.items || [], [combination.items]);
+  const theme = getCombinationTheme(combination.combinationType);
   const typeLabel = COMBINATION_TYPE_LABELS[combination.combinationType] || combination.combinationType;
   const activeRest = parseActiveRest(combination.title);
   const restSec = combination.restAfterSeconds ?? 60;
@@ -3329,14 +3339,14 @@ export function UnifiedCombinationBlock({
     <div
       data-testid="mobile-combination-block"
       data-block-type="unified-combination-block"
-      className="rounded-2xl border border-[var(--border-subtle)] dark:border-white/[0.08] border-l-4 border-l-emerald-500 bg-[var(--surface)] dark:bg-zinc-900/80 dark:backdrop-blur-md shadow-md hover:shadow-xl hover:border-emerald-500/30 transition-all w-full max-w-full min-w-0 overflow-hidden"
+      className={`rounded-2xl border border-[var(--border-subtle)] dark:border-white/[0.08] ${theme.borderLeftClass} bg-[var(--surface)] dark:bg-zinc-900/80 dark:backdrop-blur-md shadow-md hover:shadow-xl hover:${theme.borderClass} transition-all w-full max-w-full min-w-0 overflow-hidden`}
     >
       {/* Mobile Block Header (<sm) — dedicated compact ergonomic layout */}
-      <div className="sm:hidden px-4 py-3 bg-[var(--surface-subtle)]/50 border-b border-[var(--border-subtle)] w-full max-w-full min-w-0">
+      <div className={`sm:hidden px-4 py-3 ${theme.headerBgClass} border-b border-[var(--border-subtle)] w-full max-w-full min-w-0`}>
         <div className="flex items-center justify-between gap-2 w-full">
           {/* Header Title: BI-SET · 3 voltas */}
           <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-violet-400 bg-violet-500/15 border border-violet-500/30 px-2 py-0.5 rounded-md shrink-0">
+            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-wider ${theme.badgeClass} px-2 py-0.5 rounded-md shrink-0`}>
               {typeLabel}
             </span>
             <span className="text-xs font-bold text-[var(--text-tertiary)]">·</span>
@@ -3450,9 +3460,9 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Desktop Header (>=sm) — preserved horizontal flow */}
-      <div className="hidden sm:flex px-4 py-2.5 bg-[var(--surface-subtle)]/30 dark:bg-white/[0.02] border-b border-[var(--border-subtle)] dark:border-white/[0.06] items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0">
+      <div className={`hidden sm:flex px-4 py-2.5 ${theme.headerBgClass} border-b border-[var(--border-subtle)] dark:border-white/[0.06] items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0`}>
         <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-          <span className="text-xs font-black uppercase tracking-wider text-violet-400 shrink-0 px-2 py-0.5 rounded-md bg-violet-500/15 border border-violet-500/30">
+          <span className={`text-xs font-black uppercase tracking-wider ${theme.badgeClass} shrink-0 px-2 py-0.5 rounded-md`}>
             {typeLabel}
           </span>
           <span className="text-xs font-bold text-[var(--text-tertiary)]">·</span>
@@ -3644,7 +3654,7 @@ export function UnifiedCombinationBlock({
               >
                 {/* Left: Letter Badge + Info */}
                 <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                  <div className="w-7 h-7 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                  <div className={`w-7 h-7 rounded-xl ${theme.letterAvatarClass} text-xs flex items-center justify-center shrink-0 shadow-2xs`}>
                     {letter}.
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
@@ -4616,20 +4626,22 @@ export function EditCombinationSheet({
     }
   }
 
-  return (
-    <BottomSheet
-      isOpen={isOpen}
-      onClose={handleCloseWithFlush}
-      title={
-        <div className="space-y-0.5">
-          <div className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
-            Editar Combinação
+    const currentTheme = getCombinationTheme(combType);
+
+    return (
+      <BottomSheet
+        isOpen={isOpen}
+        onClose={handleCloseWithFlush}
+        title={
+          <div className="space-y-0.5">
+            <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-extrabold uppercase tracking-wide ${currentTheme.badgeClass}`}>
+              Editar {COMBINATION_TYPE_LABELS[combType]}
+            </div>
+            <div className="text-sm sm:text-base font-extrabold text-[var(--text-primary)]">
+              {COMBINATION_TYPE_LABELS[combType]} ({currentItems.length} exercícios)
+            </div>
           </div>
-          <div className="text-sm sm:text-base font-extrabold text-[var(--text-primary)]">
-            {COMBINATION_TYPE_LABELS[combType]} ({currentItems.length} exercícios)
-          </div>
-        </div>
-      }
+        }
       footer={
         <div className="flex items-center justify-between gap-3 w-full">
           <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
@@ -4677,7 +4689,7 @@ export function EditCombinationSheet({
                 }}
                 className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all min-h-[44px] cursor-pointer ${
                   combType === t
-                    ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                    ? `${COMBINATION_THEMES[t]?.selectorActiveClass || "bg-blue-600 text-white border-blue-600 shadow-xs"}`
                     : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-default)]"
                 }`}
               >
@@ -4814,7 +4826,7 @@ export function EditCombinationSheet({
                 className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between gap-2"
               >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                  <span className={`w-6 h-6 rounded-lg ${currentTheme.letterAvatarClass} text-xs flex items-center justify-center shrink-0`}>
                     {String.fromCharCode(65 + idx)}
                   </span>
                   <span className="text-xs font-bold text-[var(--text-primary)] truncate">

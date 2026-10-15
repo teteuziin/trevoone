@@ -1479,18 +1479,20 @@ export function PersonalStudentDetailView({
               <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
                 Registros Fotográficos de Evolução
               </h2>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
-                className="font-bold min-h-[44px]"
-              >
-                {photos.length === 0 ? "Solicitar fotos" : "+ Solicitar novas fotos"}
-              </Button>
+              {photos.length > 0 && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
+                  className="font-bold min-h-[44px]"
+                >
+                  + Solicitar novas fotos
+                </Button>
+              )}
             </div>
 
             {photos.length === 0 ? (
-              <div className="p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
+              <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3.5 shadow-xs depth-surface">
                 <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
                   <PhotoIcon className="w-6 h-6" />
                 </div>
@@ -1587,18 +1589,20 @@ export function PersonalStudentDetailView({
               <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
                 Anamnese &amp; Histórico Clínico
               </h2>
-              <Button
-                variant={anamnesis.length === 0 ? "primary" : "secondary"}
-                size="sm"
-                onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
-                className="font-bold min-h-[44px]"
-              >
-                {anamnesis.length === 0 ? "Solicitar anamnese" : "Solicitar atualização"}
-              </Button>
+              {anamnesis.length > 0 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
+                  className="font-bold min-h-[44px]"
+                >
+                  Solicitar atualização
+                </Button>
+              )}
             </div>
 
             {anamnesis.length === 0 ? (
-              <div className="p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
+              <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3.5 shadow-xs depth-surface">
                 <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
                   <ClipboardCheckIcon className="w-6 h-6" />
                 </div>
@@ -1655,18 +1659,20 @@ export function PersonalStudentDetailView({
               <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
                 Formulários &amp; Questionários
               </h2>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
-                className="font-bold min-h-[44px]"
-              >
-                + Solicitar formulário
-              </Button>
+              {forms.length > 0 && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
+                  className="font-bold min-h-[44px]"
+                >
+                  + Solicitar formulário
+                </Button>
+              )}
             </div>
 
             {forms.length === 0 ? (
-              <div className="p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
+              <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3.5 shadow-xs depth-surface">
                 <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
                   <FileTextIcon className="w-6 h-6" />
                 </div>
@@ -1684,7 +1690,7 @@ export function PersonalStudentDetailView({
                   onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
                   className="font-bold min-h-[44px]"
                 >
-                  + Solicitar formulário
+                  Solicitar formulário
                 </Button>
               </div>
             ) : (
@@ -1733,18 +1739,20 @@ export function PersonalStudentDetailView({
               <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
                 Treinos Atribuídos ao Aluno
               </h2>
-              <button
-                type="button"
-                onClick={() => setIsNewWorkoutSheetOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] shadow-xs cursor-pointer"
-              >
-                <PlusIcon className="w-3.5 h-3.5" />
-                <span>Criar treino</span>
-              </button>
+              {workouts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsNewWorkoutSheetOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] shadow-xs cursor-pointer"
+                >
+                  <PlusIcon className="w-3.5 h-3.5" />
+                  <span>Criar treino</span>
+                </button>
+              )}
             </div>
 
             {workouts.length === 0 ? (
-              <div className="p-8 sm:p-12 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
+              <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3.5 shadow-xs depth-surface">
                 <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
                   <DumbbellIcon className="w-6 h-6" />
                 </div>

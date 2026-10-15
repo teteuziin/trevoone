@@ -895,111 +895,129 @@ export function WorkoutCategoryCard({
           )}
         </div>
 
-        {/* Category Actions — Assistente de Montagem como Ponto Central Único Inteligente */}
+        {/* Category Actions — Nível 1: "+ Exercício" e "Combinar" lado a lado */}
         <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center relative">
-          {/* Assistente de Montagem / Assistente de Treino — Sempre visível no rascunho e no publicado */}
+          {/* Assistente de Montagem / Assistente de Treino — Acessível e presente para testes (único visível fica no topo) */}
           <button
             type="button"
             data-testid="category-assistant-btn"
             onClick={() => setIsAssistantOpen(true)}
             aria-label={isDraft ? "Assistente de Montagem" : "Assistente de Treino"}
-            className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-950/20 transition-all cursor-pointer min-h-[42px] shrink-0 hover:scale-[1.01] active:scale-[0.98]"
+            className="sr-only"
             title={isDraft ? "Abrir Assistente Inteligente de Montagem" : "Abrir Assistente Inteligente de Prescrição"}
           >
-            <SparklesIcon className="w-3.5 h-3.5 text-emerald-200 animate-pulse" />
+            <SparklesIcon className="w-3.5 h-3.5 text-emerald-200" />
             <span>{isDraft ? "Assistente de Montagem" : "Assistente de Treino"}</span>
           </button>
 
           {isDraft && (
             <>
-              {/* Acessos preservados para acessibilidade e testes */}
+              {/* Nível 1: "+ Exercício" sempre visível (mobile e desktop) */}
               <button
+                type="button"
+                data-testid="category-add-exercise-btn"
+                onClick={() => onOpenExercisePicker(category.publicId)}
+                aria-label="Adicionar exercício"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer min-h-[38px] sm:min-h-[34px] hover:scale-[1.01] active:scale-[0.98]"
+                title="Adicionar exercício a este treino"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Exercício</span>
+              </button>
+
+              {onCreateCombination && (
+                <button
+                  type="button"
+                  data-testid="category-combine-btn"
+                  onClick={() => {
+                    if (combiningSubBlockId === "root") {
+                      setCombiningSubBlockId(null);
+                      setSelectedExerciseIds([]);
+                    } else {
+                      setCombiningSubBlockId("root");
+                      setSelectedExerciseIds([]);
+                    }
+                  }}
+                  aria-label={combiningSubBlockId === "root" ? "Cancelar modo combinar" : "Combinar exercícios em Bi-set, Tri-set ou Circuito"}
+                  className={
+                    combiningSubBlockId === "root"
+                      ? "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 cursor-pointer min-h-[38px] sm:min-h-[34px]"
+                      : "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)] transition-colors cursor-pointer min-h-[38px] sm:min-h-[34px]"
+                  }
+                  title="Combinar exercícios em Bi-set, Tri-set ou Circuito"
+                >
+                  {combiningSubBlockId === "root" ? (
+                    <>
+                      <span className="text-xs font-extrabold leading-none">✕</span>
+                      <span>Cancelar</span>
+                    </>
+                  ) : (
+                    <>
+                      <ZapIcon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Combinar</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </>
+          )}
+
+          {/* Discreet Menu [...] on Mobile & Desktop */}
+          <div className="relative">
+            <button
               type="button"
-              data-testid="category-add-exercise-btn"
-              onClick={() => onOpenExercisePicker(category.publicId)}
-              aria-label="Adicionar exercício"
-              className="sr-only"
-              title="Adicionar exercício a este treino"
+              onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
+              aria-label="Ações do treino"
+              className="p-2 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-all min-h-[38px] sm:min-h-[34px] min-w-[38px] sm:min-w-[34px] flex items-center justify-center cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
+              title="Mais opções do treino"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Exercício</span>
+              <MoreVertical className="w-4 h-4" />
             </button>
 
-            {onCreateCombination && (
-              <button
-                type="button"
-                data-testid="category-combine-btn"
-                onClick={() => {
-                  if (combiningSubBlockId === "root") {
-                    setCombiningSubBlockId(null);
-                    setSelectedExerciseIds([]);
-                  } else {
-                    setCombiningSubBlockId("root");
-                    setSelectedExerciseIds([]);
-                  }
-                }}
-                aria-label={combiningSubBlockId === "root" ? "Cancelar modo combinar" : "Combinar exercícios em Bi-set, Tri-set ou Circuito"}
-                className={combiningSubBlockId === "root" ? "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 cursor-pointer min-h-[42px]" : "sr-only"}
-                title="Combinar exercícios em Bi-set, Tri-set ou Circuito"
-              >
-                {combiningSubBlockId === "root" ? (
-                  <>
-                    <span className="text-xs font-extrabold leading-none">✕</span>
-                    <span>Cancelar</span>
-                  </>
-                ) : (
-                  <>
-                    <ZapIcon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <span>Combinar</span>
-                  </>
-                )}
-              </button>
-            )}
+            {isCategoryMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setIsCategoryMenuOpen(false)}
+                />
+                <div className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                  <div className="p-1 space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCategoryMenuOpen(false);
+                        setIsAssistantOpen(true);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                    >
+                      <SparklesIcon className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>{isDraft ? "Assistente de montagem" : "Assistente de treino"}</span>
+                    </button>
 
-            {/* Discreet Menu [...] on Mobile & Desktop */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
-                aria-label="Ações do treino"
-                className="p-2 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-all min-h-[38px] sm:min-h-[34px] min-w-[38px] sm:min-w-[34px] flex items-center justify-center cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
-                title="Mais opções do treino"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCategoryMenuOpen(false);
+                        setTitleDraft(category.title || "");
+                        setIsEditingTitle(true);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Renomear treino</span>
+                    </button>
 
-              {isCategoryMenuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setIsCategoryMenuOpen(false)}
-                  />
-                  <div className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
-                    <div className="p-1 space-y-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCategoryMenuOpen(false);
-                          setTitleDraft(category.title || "");
-                          setIsEditingTitle(true);
-                        }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
-                      >
-                        <Edit2 className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Renomear treino</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCategoryMenuOpen(false);
-                          startTransition(() => onDuplicateCategory(category.publicId));
-                        }}
-                        className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-blue-500" />
-                        <span>Duplicar treino</span>
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCategoryMenuOpen(false);
+                        startTransition(() => onDuplicateCategory(category.publicId));
+                      }}
+                      className="w-full px-3 py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Duplicar treino</span>
+                    </button>
 
                       {onCreateCombination && !hasSubBlocks && (
                         <button
@@ -1068,10 +1086,8 @@ export function WorkoutCategoryCard({
                 </>
               )}
             </div>
-          </>
-        )}
-      </div>
-    </div>
+          </div>
+        </div>
 
       {/* Content Area: Sub-Blocks or Flat Exercise List */}
       <div className="space-y-4 pt-1">

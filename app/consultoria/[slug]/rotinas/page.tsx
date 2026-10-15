@@ -133,23 +133,19 @@ export default async function ConsultancyWorkoutsPage({
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
         {/* =========================================================================
-            1. HERO SPOTLIGHT CINEMATOGRÁFICO (NETFLIX / APPLE FITNESS+ EDITION)
+            1. CABEÇALHO SÓLIDO (SEM DEGRADÊS OU LUZES AMBIENTES)
             ========================================================================= */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-emerald-950/30 p-6 sm:p-7 shadow-2xl transition-all">
-          {/* Ambient Lighting Orbs */}
-          <div className="absolute -top-16 -right-16 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+        <div className="rounded-3xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
             <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-bold tracking-wider uppercase">
-                <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-wider uppercase">
+                <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400" />
                 <span>MÓDULO DE TREINAMENTO · PERSONAL TRAINER</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans">
+              <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight font-sans">
                 {pageTitle}
               </h1>
-              <p className="text-xs sm:text-sm text-zinc-300 font-sans leading-relaxed">
+              <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 font-sans leading-relaxed">
                 {pageSubtitle}
               </p>
             </div>
@@ -164,13 +160,13 @@ export default async function ConsultancyWorkoutsPage({
         {/* =========================================================================
             2. ABAS DE CONTEXTO E NAVEGAÇÃO DE MODO DE VISÃO
             ========================================================================= */}
-        <div className="flex items-center gap-1.5 p-1.5 bg-gradient-to-r from-zinc-900/90 to-zinc-950 border border-white/[0.08] rounded-2xl w-full sm:w-fit shadow-md">
+        <div className="flex items-center gap-1.5 p-1.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/[0.08] rounded-2xl w-full sm:w-fit shadow-xs">
           <Link
             href={`/consultoria/${slug}/rotinas`}
             className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center cursor-pointer ${
               !isTemplatesTab && !isAssignmentsTab
-                ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
-                : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
+                ? "bg-emerald-500 text-zinc-950 font-bold shadow-xs"
+                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-white/[0.05]"
             }`}
           >
             Treinos
@@ -179,8 +175,8 @@ export default async function ConsultancyWorkoutsPage({
             href={`/consultoria/${slug}/rotinas?tab=templates`}
             className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center cursor-pointer ${
               isTemplatesTab
-                ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
-                : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
+                ? "bg-emerald-500 text-zinc-950 font-bold shadow-xs"
+                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-white/[0.05]"
             }`}
           >
             Modelos
@@ -189,8 +185,8 @@ export default async function ConsultancyWorkoutsPage({
             href={`/consultoria/${slug}/rotinas?tab=assignments`}
             className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center cursor-pointer ${
               isAssignmentsTab
-                ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
-                : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
+                ? "bg-emerald-500 text-zinc-950 font-bold shadow-xs"
+                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-white/[0.05]"
             }`}
           >
             Prescrições
@@ -208,7 +204,7 @@ export default async function ConsultancyWorkoutsPage({
             {/* =====================================================================
                 3. BARRA DE CONTROLE: BUSCA E FILTROS DE STATUS
                 ===================================================================== */}
-            <div className="p-3.5 sm:p-4 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-r from-zinc-900/90 to-zinc-950 shadow-md space-y-3">
+            <div className="p-3.5 sm:p-4 rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 shadow-xs space-y-3">
               <div className="flex flex-col sm:flex-row gap-3">
                 {/* Search Input */}
                 <form method="GET" className="relative flex-1">
@@ -220,7 +216,7 @@ export default async function ConsultancyWorkoutsPage({
                     name="q"
                     defaultValue={q || ""}
                     placeholder={isTemplatesTab ? "Buscar por título do modelo..." : "Buscar por título do treino..."}
-                    className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm rounded-xl border border-white/[0.08] bg-zinc-900/60 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white placeholder-zinc-500 transition-all min-h-[40px]"
+                    className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm rounded-xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-zinc-950/60 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 transition-all min-h-[40px]"
                   />
                 </form>
 
@@ -244,8 +240,8 @@ export default async function ConsultancyWorkoutsPage({
                         href={url.pathname + url.search}
                         className={`px-3.5 py-1.5 rounded-xl text-xs select-none transition-all min-h-[36px] flex items-center justify-center whitespace-nowrap cursor-pointer ${
                           isActive
-                            ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
-                            : "bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06] font-medium"
+                            ? "bg-emerald-500 text-zinc-950 font-bold shadow-xs"
+                            : "bg-zinc-100 dark:bg-white/[0.04] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white border border-zinc-200 dark:border-white/[0.06] font-medium"
                         }`}
                       >
                         {statusTab.label}
@@ -257,15 +253,15 @@ export default async function ConsultancyWorkoutsPage({
             </div>
 
             {/* =====================================================================
-                4. CATÁLOGO DE FICHAS: ESTILO POSTER / RICH ROWS
+                4. CATÁLOGO DE FICHAS: SOLID CARDS
                 ===================================================================== */}
             {items.length === 0 ? (
-              <div className="p-8 sm:p-12 text-center rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-zinc-900/60 shadow-md space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-emerald-400">
+              <div className="p-8 sm:p-12 text-center rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 shadow-xs space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] flex items-center justify-center mx-auto text-emerald-500">
                   <DumbbellIcon className="w-6 h-6" />
                 </div>
                 <div className="space-y-1 max-w-md mx-auto">
-                  <h3 className="text-base font-bold text-white">
+                  <h3 className="text-base font-bold text-zinc-900 dark:text-white">
                     {q || validStatus !== "ALL"
                       ? isTemplatesTab
                         ? "Nenhum modelo encontrado para os filtros informados."
@@ -274,7 +270,7 @@ export default async function ConsultancyWorkoutsPage({
                       ? "Você ainda não criou nenhum modelo de ficha."
                       : "Você ainda não criou nenhuma ficha."}
                   </h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed">
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
                     {q || validStatus !== "ALL"
                       ? "Tente ajustar sua busca ou limpar os filtros de status."
                       : isTemplatesTab
@@ -289,7 +285,7 @@ export default async function ConsultancyWorkoutsPage({
                   <Link
                     href={isTemplatesTab ? `/consultoria/${slug}/rotinas/novo?isTemplate=true` : `/consultoria/${slug}/rotinas/novo`}
                   >
-                    <Button variant="primary" size="sm" className="font-bold min-h-[44px] flex items-center gap-1.5 shadow-md shadow-emerald-500/20 bg-emerald-500 hover:bg-emerald-400 text-zinc-950">
+                    <Button variant="primary" size="sm" className="font-bold min-h-[44px] flex items-center gap-1.5 shadow-xs bg-emerald-500 hover:bg-emerald-400 text-zinc-950">
                       <PlusIcon className="w-4 h-4" />
                       <span>{isTemplatesTab ? "Criar modelo" : "Criar ficha"}</span>
                     </Button>
@@ -302,13 +298,10 @@ export default async function ConsultancyWorkoutsPage({
                   return (
                     <React.Fragment key={w.publicId}>
                       {/* MOBILE CARD (sm:hidden) */}
-                      <div className="sm:hidden p-4 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-b from-zinc-900/95 via-zinc-900/90 to-zinc-950 shadow-md space-y-3 relative overflow-hidden group">
-                        {/* Top ambient highlight */}
-                        <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-emerald-500/10 blur-xl pointer-events-none" />
-
+                      <div className="sm:hidden p-4 rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 shadow-xs space-y-3 relative group">
                         <div className="space-y-1.5 relative z-10">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="text-base font-bold text-white leading-snug group-hover:text-emerald-300 transition-colors">
+                            <h3 className="text-base font-bold text-zinc-900 dark:text-white leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">
                               {w.title}
                             </h3>
                             {w.hasActiveDraft ? (
@@ -327,24 +320,24 @@ export default async function ConsultancyWorkoutsPage({
                           </div>
 
                           {w.objective && (
-                            <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
                               {w.objective}
                             </p>
                           )}
 
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 pt-0.5">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 pt-0.5">
                             {w.isTemplate ? (
-                              <span className="font-semibold text-zinc-300">
+                              <span className="font-semibold text-zinc-700 dark:text-zinc-300">
                                 Modelo • {w.blocksCount} {w.blocksCount === 1 ? "categoria" : "categorias"}
                               </span>
                             ) : (
                               <>
                                 {(w.activeAssignmentsCount ?? 0) === 0 ? (
-                                  <span className="font-medium text-amber-400">
+                                  <span className="font-medium text-amber-600 dark:text-amber-400">
                                     Sem aluno atribuído
                                   </span>
                                 ) : w.assignedStudentName ? (
-                                  <span className="font-semibold text-emerald-400">
+                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                                     Aluno: {w.assignedStudentName}
                                   </span>
                                 ) : null}
@@ -366,7 +359,7 @@ export default async function ConsultancyWorkoutsPage({
                         </div>
 
                         {/* Mobile Primary Action (Abrir treino / Usar modelo) & Secondary Actions (min-h-[44px]) */}
-                        <div className="pt-2.5 border-t border-white/[0.06] min-h-[44px] relative z-10">
+                        <div className="pt-2.5 border-t border-zinc-100 dark:border-white/[0.06] min-h-[44px] relative z-10">
                           <WorkoutCardActions
                             consultancySlug={slug}
                             workoutPublicId={w.publicId}
@@ -378,13 +371,13 @@ export default async function ConsultancyWorkoutsPage({
                       </div>
 
                       {/* DESKTOP ROW (hidden sm:flex) */}
-                      <div className="hidden sm:flex p-4 sm:p-5 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-b from-zinc-900/95 via-zinc-900/90 to-zinc-950 shadow-md hover:border-emerald-500/40 hover:shadow-xl hover:shadow-emerald-950/20 transition-all flex-row items-center justify-between gap-4 group relative overflow-hidden">
+                      <div className="hidden sm:flex p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 shadow-xs hover:border-emerald-500/40 transition-all flex-row items-center justify-between gap-4 group relative overflow-hidden">
                         {/* Hover left accent bar */}
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity w-1 absolute left-0 inset-y-0 bg-emerald-500 rounded-r-full" />
 
                         <div className="space-y-1.5 min-w-0 flex-1 relative z-10">
                           <div className="flex items-center gap-2.5 flex-wrap">
-                            <h3 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
+                            <h3 className="text-base font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors truncate">
                               {w.title}
                             </h3>
                             {/* Status Badge */}
@@ -409,20 +402,20 @@ export default async function ConsultancyWorkoutsPage({
                           </div>
 
                           {w.objective && (
-                            <p className="text-xs text-zinc-400 truncate">
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400 truncate">
                               {w.objective}
                             </p>
                           )}
 
-                          <div className="flex flex-wrap items-center gap-2.5 text-xs text-zinc-400">
+                          <div className="flex flex-wrap items-center gap-2.5 text-xs text-zinc-500 dark:text-zinc-400">
                             {!w.isTemplate && (
                               <>
                                 {(w.activeAssignmentsCount ?? 0) === 0 ? (
-                                  <span className="font-medium text-amber-400">
+                                  <span className="font-medium text-amber-600 dark:text-amber-400">
                                     Sem aluno atribuído
                                   </span>
                                 ) : w.assignedStudentName ? (
-                                  <span className="font-semibold text-emerald-400">
+                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                                     Aluno: {w.assignedStudentName}
                                   </span>
                                 ) : null}

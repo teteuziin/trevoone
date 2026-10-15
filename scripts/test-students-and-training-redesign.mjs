@@ -28,11 +28,11 @@ const studentListPath = path.join(rootDir, "components/consultancies/personal-st
 assert.ok(fs.existsSync(studentListPath), "personal-student-list.tsx must exist");
 const studentListCode = fs.readFileSync(studentListPath, "utf-8");
 
-test("1.1 Hero Spotlight com gradiente cinematográfico e luz ambiente esmeralda", () => {
+test("1.1 Hero Spotlight com superfície sólida e sem degradês decorativos", () => {
   assert.ok(
-    studentListCode.includes("from-zinc-900/95 via-zinc-950 to-emerald-950/30") &&
-    studentListCode.includes("bg-emerald-500/15 rounded-full blur-3xl"),
-    "Deve conter o container Hero com gradiente profundo e luz ambiente"
+    studentListCode.includes("border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900") &&
+    !studentListCode.includes("from-zinc-900/95 via-zinc-950 to-emerald-950/30"),
+    "Deve conter o container Hero com superfície sólida e sem degradês decorativos"
   );
 });
 
@@ -105,8 +105,8 @@ test("2.1 Hero Spotlight com título imponente e badge 'MÓDULO DE TREINAMENTO �
     "Deve conter a badge de status e luz ambiente no topo do catálogo"
   );
   assert.ok(
-    rotinasCode.includes("from-zinc-900/95 via-zinc-950 to-emerald-950/30"),
-    "Deve utilizar o gradiente cinematográfico no Hero de Treinos"
+    rotinasCode.includes("border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900"),
+    "Deve utilizar superfícies sólidas adaptáveis sem degradês decorativos no Hero de Treinos"
   );
 });
 

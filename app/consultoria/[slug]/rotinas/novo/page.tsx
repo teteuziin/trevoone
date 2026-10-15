@@ -340,7 +340,7 @@ export default async function NewWorkoutPage({ params, searchParams }: PageProps
                 className="w-full sm:w-auto font-bold min-h-[44px] flex items-center justify-center gap-2 shadow-xs hover:brightness-105 active:scale-[0.98] transition-all font-sans"
               >
                 <DumbbellIcon className="w-4 h-4" />
-                <span>{isTemplate ? "Criar Modelo de Treino" : "Criar Ficha de Treino"}</span>
+                <span>{isTemplate ? "Criar Modelo de Treino" : "Criar ficha e montar exercícios"}</span>
               </Button>
             </div>
           </form>

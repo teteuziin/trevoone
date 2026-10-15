@@ -240,16 +240,16 @@ export function TrainingAiImportModal({
       {/* Modal */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150"
           onClick={handleClose}
         >
           <div
-            className="w-full sm:max-w-2xl bg-card border-t sm:border border-border rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xl animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-150 max-h-[92vh] sm:max-h-[90vh] overflow-y-auto pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-6"
+            className="w-full sm:max-w-2xl bg-white dark:bg-zinc-900 border-t sm:border border-zinc-200 dark:border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xl animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-150 max-h-[92vh] sm:max-h-[90vh] overflow-y-auto pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-6 text-zinc-900 dark:text-zinc-100"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Mobile Drag Handle */}
             <div className="pb-1 flex justify-center sm:hidden">
-              <div className="w-12 h-1.5 rounded-full bg-[var(--border-strong)]" />
+              <div className="w-12 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700" />
             </div>
 
             {/* Header */}
@@ -340,7 +340,7 @@ export function TrainingAiImportModal({
                 {mode === "FILE" ? (
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-border/60 hover:border-emerald-500/50 rounded-2xl p-8 text-center cursor-pointer transition bg-muted/10 hover:bg-muted/20 space-y-3"
+                    className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-emerald-500 rounded-2xl p-8 text-center cursor-pointer transition bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 space-y-3"
                   >
                     <input
                       ref={fileInputRef}

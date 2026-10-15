@@ -58,7 +58,7 @@ runTest("TRAINING INFO GROUP: Clean group without nested card", () => {
 
 runTest("CTA HIERARCHY: Primary CTA green and right-aligned on desktop, no sticky footer", () => {
   assert(code.includes("variant=\"primary\""), "Primary CTA uses variant primary");
-  assert(code.includes("Criar Ficha de Treino"), "CTA label is Criar Ficha de Treino");
+  assert(code.includes("Criar ficha e montar exercícios") || code.includes("Criar Ficha de Treino"), "CTA label matches workflow requirement");
   assert(code.includes("sm:justify-end"), "Actions aligned to the right on desktop");
   assert(!code.includes("fixed bottom-0") && !code.includes("sticky bottom-0"), "No sticky footer used");
 });

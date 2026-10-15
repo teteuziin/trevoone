@@ -153,40 +153,41 @@ export async function evaluateStudentMonitoring(
       });
     }
 
-    // CRITICAL: Prolonged inactivity (> 7 days without workout and without check-in)
+    // ATTENTION: Prolonged inactivity (> 7 days without workout and without check-in)
+    // Lack of recorded app activity is an operational adherence concern (ATTENTION), NOT a critical clinical emergency.
+    const hasAnyActivityRecorded = Boolean(lastWorkoutDate || recentCheckins.length > 0 || lastActiveAt);
     const daysSinceLastWorkout = lastWorkoutDate
       ? Math.floor((Date.now() - new Date(lastWorkoutDate).getTime()) / (1000 * 60 * 60 * 24))
-      : 14;
+      : null;
     const daysSinceLastCheckin = recentCheckins.length > 0
       ? Math.floor((Date.now() - new Date(recentCheckins[0].checkin_date).getTime()) / (1000 * 60 * 60 * 24))
-      : 14;
+      : null;
 
-    if (hasActiveAssignment && daysSinceLastWorkout >= 7 && daysSinceLastCheckin >= 7) {
-      triggeredSignals.push({
-        alertType: "PROLONGED_INACTIVITY",
-        severity: "CRITICAL",
-        fingerprint: `student:${studentMemberId}:prolonged_inactivity`,
-        statement: "Nenhuma sessão de treino ou check-in registrado no TREVO ONE nos últimos 7 dias.",
-        evidence: {
-          daysSinceLastWorkout,
-          daysSinceLastCheckin,
-          lastWorkoutDate,
-        },
-      });
-    }
-
-    // ATTENTION: Low workout adherence (0 completed in last 5 days with active assignment)
-    if (hasActiveAssignment && daysSinceLastWorkout >= 5 && !(daysSinceLastWorkout >= 7 && daysSinceLastCheckin >= 7)) {
-      triggeredSignals.push({
-        alertType: "LOW_WORKOUT_ADHERENCE",
-        severity: "ATTENTION",
-        fingerprint: `student:${studentMemberId}:low_workout_adherence`,
-        statement: "Nenhuma sessão de treino foi concluída no TREVO ONE nos últimos 5 dias.",
-        evidence: {
-          daysSinceLastWorkout,
-          lastWorkoutDate,
-        },
-      });
+    if (hasActiveAssignment && hasAnyActivityRecorded) {
+      if ((daysSinceLastWorkout !== null && daysSinceLastWorkout >= 7) || (daysSinceLastCheckin !== null && daysSinceLastCheckin >= 7)) {
+        triggeredSignals.push({
+          alertType: "PROLONGED_INACTIVITY",
+          severity: "ATTENTION",
+          fingerprint: `student:${studentMemberId}:prolonged_inactivity`,
+          statement: "Acompanhamento pendente: sem sessão de treino ou check-in registrado no TREVO ONE nos últimos 7 dias.",
+          evidence: {
+            daysSinceLastWorkout,
+            daysSinceLastCheckin,
+            lastWorkoutDate,
+          },
+        });
+      } else if (daysSinceLastWorkout !== null && daysSinceLastWorkout >= 5) {
+        triggeredSignals.push({
+          alertType: "LOW_WORKOUT_ADHERENCE",
+          severity: "ATTENTION",
+          fingerprint: `student:${studentMemberId}:low_workout_adherence`,
+          statement: "Nenhuma sessão de treino foi concluída no TREVO ONE nos últimos 5 dias.",
+          evidence: {
+            daysSinceLastWorkout,
+            lastWorkoutDate,
+          },
+        });
+      }
     }
 
     // ATTENTION: Frequent off-plan diet (>= 3 out of last 5 check-ins)
@@ -206,7 +207,7 @@ export async function evaluateStudentMonitoring(
     }
 
     // ATTENTION: Missing daily check-ins (no check-in in last 4 days)
-    if (daysSinceLastCheckin >= 4 && daysSinceLastCheckin < 7) {
+    if (daysSinceLastCheckin !== null && daysSinceLastCheckin >= 4 && daysSinceLastCheckin < 7) {
       triggeredSignals.push({
         alertType: "MISSING_CHECKINS",
         severity: "ATTENTION",
@@ -318,8 +319,8 @@ export async function evaluateStudentMonitoring(
       state = "CRITICAL";
     } else if (activeAlerts.some((a) => a.severity === "ATTENTION")) {
       state = "ATTENTION";
-    } else if (!lastActiveAt && completedWorkoutsLast7d === 0 && recentCheckinsCount === 0) {
-      // UNKNOWN != ZERO: Lack of records does not prove good adherence
+    } else if (!hasAnyActivityRecorded || (!lastActiveAt && completedWorkoutsLast7d === 0 && recentCheckinsCount === 0)) {
+      // UNKNOWN != ZERO: Lack of records is insufficient data, not proven adherence
       state = "INSUFFICIENT_DATA";
     }
 

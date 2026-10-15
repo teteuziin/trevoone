@@ -179,7 +179,7 @@ export function ConsultancyActivityCenterView({
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">Central de Atividades</h1>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-[var(--text-secondary)]">
-            Acompanhe em tempo real e com transparência tudo o que acontece na consultoria.
+            Acompanhe com transparência e rastreabilidade tudo o que acontece na consultoria.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -504,7 +504,7 @@ export function ConsultancyActivityCenterView({
         </div>
       ) : (
         /* Table View */
-        <div className="bg-card/40 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden shadow-xs">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/40 border-b border-border/50 text-muted-foreground uppercase font-semibold text-[10px] tracking-wider">

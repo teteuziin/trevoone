@@ -171,7 +171,7 @@ export function PersonalStudentList({
     setIsFilterSheetOpen(false);
   }
 
-  // Action sheet options generator for mobile
+  // Action sheet options generator for mobile (organized by purpose)
   const actionSheetOptions: ActionSheetOption[] = useMemo(() => {
     if (!actionSheetStudent) return [];
     const student = actionSheetStudent;
@@ -180,49 +180,71 @@ export function PersonalStudentList({
       : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
     const studentEvolutionHref = isEffectiveNutritionist
       ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}?tab=evolucao`
-      : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
+      : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?tab=evolucao`;
+    const studentPhotosHref = `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?tab=fotos`;
     const newWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
     const newPlanHref = `/consultoria/${consultancySlug}/planos-v2/novo?student=${student.membershipPublicId}`;
 
     const opts: ActionSheetOption[] = [
+      // 1. PRINCIPAL
       {
         id: "view-profile",
         label: isEffectiveNutritionist ? "Ver paciente" : "Ver perfil completo",
-        icon: <UserIcon className="w-5 h-5 text-[var(--brand)]" />,
+        icon: <UserIcon className="w-5 h-5 text-emerald-500" />,
         onClick: () => router.push(studentProfileHref),
       },
     ];
 
+    // 2. TREINOS
     if (isPersonal || isAdmin) {
       opts.push({
         id: "create-workout",
         label: "Criar treino personalizado",
-        icon: <DumbbellIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
+        icon: <DumbbellIcon className="w-5 h-5 text-zinc-400" />,
         onClick: () => router.push(newWorkoutHref),
       });
+      if (student.latestWorkoutTitle && student.latestAssignmentStatus === "ACTIVE") {
+        opts.push({
+          id: "view-current-workout",
+          label: `Ver treino atual (${student.latestWorkoutTitle})`,
+          icon: <DumbbellIcon className="w-5 h-5 text-emerald-400" />,
+          onClick: () => router.push(`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}?tab=treinos`),
+        });
+      }
     }
 
-    if (isNutritionist || isAdmin) {
+    // 3. ACOMPANHAMENTO
+    opts.push({
+      id: "view-evolution",
+      label: isEffectiveNutritionist ? "Evolução do paciente" : "Evolução do aluno",
+      icon: <ChartIcon className="w-5 h-5 text-zinc-400" />,
+      onClick: () => router.push(studentEvolutionHref),
+    });
+
+    opts.push({
+      id: "view-photos",
+      label: "Fotos e avaliações",
+      icon: <UserIcon className="w-5 h-5 text-zinc-400" />,
+      onClick: () => router.push(studentPhotosHref),
+    });
+
+    // 4. NUTRIÇÃO (apenas se tiver papel real de nutricionista)
+    const hasRealNutritionRole = isEffectiveNutritionist || userRoles.includes("NUTRITIONIST");
+    if (hasRealNutritionRole) {
       opts.push({
         id: "create-nutrition",
         label: "Criar plano alimentar",
-        icon: <AppleIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
+        icon: <AppleIcon className="w-5 h-5 text-emerald-400" />,
         onClick: () => router.push(newPlanHref),
       });
     }
 
-    opts.push({
-      id: "view-evolution",
-      label: isEffectiveNutritionist ? "Evolução do paciente" : "Evolução do aluno",
-      icon: <ChartIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
-      onClick: () => router.push(studentEvolutionHref),
-    });
-
+    // 5. CONTATO
     if (student.email) {
       opts.push({
         id: "send-email",
         label: isEffectiveNutritionist ? "Enviar e-mail para paciente" : "Enviar e-mail para aluno",
-        icon: <MailIcon className="w-5 h-5 text-[var(--text-tertiary)]" />,
+        icon: <MailIcon className="w-5 h-5 text-zinc-400" />,
         onClick: () => {
           window.location.href = `mailto:${student.email}`;
         },
@@ -230,7 +252,7 @@ export function PersonalStudentList({
     }
 
     return opts;
-  }, [actionSheetStudent, consultancySlug, isPersonal, isNutritionist, isEffectiveNutritionist, isAdmin, router]);
+  }, [actionSheetStudent, consultancySlug, isPersonal, isEffectiveNutritionist, isAdmin, userRoles, router]);
 
   // If no students in consultancy at all
   if (students.length === 0) {
@@ -294,24 +316,20 @@ export function PersonalStudentList({
   return (
     <div className="space-y-5">
       {/* =========================================================================
-          HERO BANNER "SPOTLIGHT" CINEMATOGRÁFICO (NETFLIX / APPLE FITNESS+ EDITION)
+          HERO BANNER "SPOTLIGHT" - FUNDO SÓLIDO SEM DEGRADÊ
           ========================================================================= */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-emerald-950/30 p-5 sm:p-7 shadow-2xl transition-all">
-        {/* Ambient Glow Orbs */}
-        <div className="absolute -top-16 -right-16 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="relative overflow-hidden rounded-3xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 p-5 sm:p-7 shadow-sm transition-all">
         <div className="relative z-10 flex flex-col gap-4">
           {/* Top Row: Back navigation & Pill Badge */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <Link
               href={`/consultoria/${consultancySlug}`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-emerald-400 transition-colors group cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors group cursor-pointer"
             >
               <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
               <span>Visão geral</span>
             </Link>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] sm:text-xs font-bold tracking-wider uppercase">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-xs font-bold tracking-wider uppercase">
               <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
               <span>{isEffectiveNutritionist ? "GESTÃO DE PACIENTES ATIVA" : "GESTÃO DE ALUNOS ATIVA"}</span>
             </div>
@@ -319,17 +337,17 @@ export function PersonalStudentList({
 
           {/* Title & Subtitle */}
           <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans">
+            <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight font-sans">
               {isEffectiveNutritionist ? "Pacientes da Consultoria" : "Alunos da Consultoria"}
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-300 font-sans leading-relaxed max-w-2xl">
+            <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 font-sans leading-relaxed max-w-2xl">
               {isEffectiveNutritionist
                 ? "Acompanhe prontuário, planos alimentares e a evolução clínica de cada paciente."
                 : "Acompanhe seus alunos, informações, avaliações e crie rotinas de treino."}
             </p>
           </div>
 
-          {/* Bento Strip Compacto de KPIs */}
+          {/* Bento Strip Compacto de KPIs - Superfícies Sólidas */}
           <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5 pt-1">
             {/* KPI 1: Total */}
             <button
@@ -337,21 +355,21 @@ export function PersonalStudentList({
               onClick={() => setWorkoutFilter("ALL")}
               className={`p-3 sm:p-4 rounded-2xl border transition-all text-left flex flex-col justify-between cursor-pointer ${
                 workoutFilter === "ALL"
-                  ? "bg-emerald-500/10 border-emerald-500/40 shadow-lg shadow-emerald-950/20"
-                  : "bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.08]"
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/40"
+                  : "bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-zinc-200 dark:border-white/[0.08]"
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-zinc-400">Total</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400">Total</span>
               </div>
               <div className="pt-2">
-                <span className="text-xl sm:text-2xl font-black text-white tabular-nums block font-sans">
+                <span className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white tabular-nums block font-sans">
                   {students.length}
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
+                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
                   {isEffectiveNutritionist ? "Pacientes" : "Alunos Ativos"}
                 </span>
               </div>
@@ -363,21 +381,21 @@ export function PersonalStudentList({
               onClick={() => setWorkoutFilter("WITH_WORKOUT")}
               className={`p-3 sm:p-4 rounded-2xl border transition-all text-left flex flex-col justify-between cursor-pointer ${
                 workoutFilter === "WITH_WORKOUT"
-                  ? "bg-emerald-500/10 border-emerald-500/40 shadow-lg shadow-emerald-950/20"
-                  : "bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.08]"
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/40"
+                  : "bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-zinc-200 dark:border-white/[0.08]"
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <DumbbellIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-emerald-400">Ativos</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400">Ativos</span>
               </div>
               <div className="pt-2">
-                <span className="text-xl sm:text-2xl font-black text-emerald-400 tabular-nums block font-sans">
+                <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums block font-sans">
                   {withWorkoutCount}
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
+                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
                   Com treino
                 </span>
               </div>
@@ -389,21 +407,21 @@ export function PersonalStudentList({
               onClick={() => setWorkoutFilter("WITHOUT_WORKOUT")}
               className={`p-3 sm:p-4 rounded-2xl border transition-all text-left flex flex-col justify-between cursor-pointer ${
                 workoutFilter === "WITHOUT_WORKOUT"
-                  ? "bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-950/20"
-                  : "bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.08]"
+                  ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500/40"
+                  : "bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-zinc-200 dark:border-white/[0.08]"
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs">
                   !
                 </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-amber-400">Pendente</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-amber-600 dark:text-amber-400">Pendente</span>
               </div>
               <div className="pt-2">
-                <span className="text-xl sm:text-2xl font-black text-amber-400 tabular-nums block font-sans">
+                <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 tabular-nums block font-sans">
                   {withoutWorkoutCount}
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
+                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
                   Sem treino
                 </span>
               </div>
@@ -473,9 +491,9 @@ export function PersonalStudentList({
       </div>
 
       {/* =========================================================================
-          BARRA DE CONTROLE AVANÇADA (DESKTOP SEARCH & FILTER BAR)
+          BARRA DE CONTROLE AVANÇADA (DESKTOP SEARCH & FILTER BAR) - FUNDO SÓLIDO
           ========================================================================= */}
-      <div className="hidden md:flex flex-col gap-3.5 bg-gradient-to-r from-zinc-900/90 to-zinc-950 p-4 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 shadow-md">
+      <div className="hidden md:flex flex-col gap-3.5 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-white/[0.08] shadow-sm">
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
@@ -487,19 +505,19 @@ export function PersonalStudentList({
               onChange={(e) => setSearch(e.target.value)}
               placeholder={isEffectiveNutritionist ? "Buscar pacientes por nome, e-mail..." : "Buscar por nome, e-mail ou objetivo..."}
               aria-label={isEffectiveNutritionist ? "Buscar pacientes" : "Buscar alunos"}
-              className="w-full pl-10 pr-16 py-2.5 text-xs sm:text-sm rounded-xl border border-white/[0.08] bg-zinc-900/60 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white placeholder-zinc-500 transition-all min-h-[44px]"
+              className="w-full pl-10 pr-16 py-2.5 text-xs sm:text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-zinc-900 dark:text-white placeholder-zinc-500 transition-all min-h-[44px]"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer"
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-semibold text-zinc-400 hover:text-zinc-700 dark:hover:text-white cursor-pointer"
               >
                 Limpar
               </button>
             )}
           </div>
-          <div className="shrink-0 text-xs font-semibold text-zinc-400">
+          <div className="shrink-0 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
             {filteredStudents.length}{" "}
             {isEffectiveNutritionist
               ? filteredStudents.length === 1
@@ -513,14 +531,14 @@ export function PersonalStudentList({
 
         {/* Desktop Filter Chips */}
         {!isEffectiveNutritionist && (
-          <div className="flex items-center gap-2 pt-1 border-t border-white/[0.06]">
+          <div className="flex items-center gap-2 pt-1 border-t border-zinc-200 dark:border-white/[0.06]">
             <button
               type="button"
               onClick={() => setWorkoutFilter("ALL")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
                 workoutFilter === "ALL"
-                  ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
-                  : "bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]"
+                  ? "bg-emerald-500 text-zinc-950 font-bold shadow-sm"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/[0.06]"
               }`}
             >
               Todos ({students.length})
@@ -530,8 +548,8 @@ export function PersonalStudentList({
               onClick={() => setWorkoutFilter("WITH_WORKOUT")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
                 workoutFilter === "WITH_WORKOUT"
-                  ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
-                  : "bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]"
+                  ? "bg-emerald-500 text-zinc-950 font-bold shadow-sm"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/[0.06]"
               }`}
             >
               Com treino ({withWorkoutCount})
@@ -541,8 +559,8 @@ export function PersonalStudentList({
               onClick={() => setWorkoutFilter("WITHOUT_WORKOUT")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
                 workoutFilter === "WITHOUT_WORKOUT"
-                  ? "bg-amber-500 text-zinc-950 font-bold shadow-md shadow-amber-500/20"
-                  : "bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]"
+                  ? "bg-amber-500 text-zinc-950 font-bold shadow-sm"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/[0.06]"
               }`}
             >
               Sem treino ({withoutWorkoutCount})
@@ -556,15 +574,15 @@ export function PersonalStudentList({
           ========================================================================= */}
       {filteredStudents.length === 0 ? (
         <div className="space-y-3">
-          <div className="p-8 sm:p-12 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-zinc-900/60 text-center space-y-3 shadow-md">
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-zinc-400">
-              <UserIcon className="w-6 h-6 text-emerald-400" />
+          <div className="p-8 sm:p-12 rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 text-center space-y-3 shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto text-zinc-400">
+              <UserIcon className="w-6 h-6 text-emerald-500" />
             </div>
             <div className="space-y-1 max-w-sm mx-auto">
-              <p className="font-heading text-sm sm:text-base font-bold text-white">
+              <p className="font-heading text-sm sm:text-base font-bold text-zinc-900 dark:text-white">
                 Nenhum {isEffectiveNutritionist ? "paciente" : "aluno"} encontrado
               </p>
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
                 {search
                   ? `Nenhum resultado corresponde à busca "${search}".`
                   : `Nenhum ${isEffectiveNutritionist ? "paciente" : "aluno"} corresponde aos filtros aplicados.`}
@@ -573,7 +591,7 @@ export function PersonalStudentList({
             <button
               type="button"
               onClick={handleResetFilters}
-              className="text-xs font-bold text-emerald-400 hover:underline pt-1 inline-block cursor-pointer min-h-[44px]"
+              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline pt-1 inline-block cursor-pointer min-h-[44px]"
             >
               Limpar busca e filtros
             </button>
@@ -582,8 +600,7 @@ export function PersonalStudentList({
       ) : (
         <>
           {/* =====================================================================
-              MOBILE STUDENT CARDS (md:hidden)
-              Thumb-friendly, full card tap, contextual actions, touch >= 44px
+              MOBILE STUDENT CARDS (md:hidden) - FUNDO SÓLIDO
               ===================================================================== */}
           <div className="md:hidden space-y-3" data-testid="mobile-student-list">
             {filteredStudents.map((student) => {
@@ -598,11 +615,8 @@ export function PersonalStudentList({
                   key={student.membershipPublicId}
                   data-testid="mobile-student-card"
                   onClick={() => router.push(studentDetailHref)}
-                  className="p-4 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-b from-zinc-900/95 via-zinc-900/90 to-zinc-950 shadow-md space-y-3 active:scale-[0.99] transition-all cursor-pointer relative overflow-hidden group select-none"
+                  className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3 active:scale-[0.99] transition-all cursor-pointer relative overflow-hidden group select-none hover:border-emerald-500/40"
                 >
-                  {/* Subtle top ambient glow */}
-                  <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-emerald-500/10 blur-xl pointer-events-none" />
-
                   {/* Card Top: Avatar, Name, Email, Objective */}
                   <div className="flex items-start justify-between gap-3 relative z-10">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -611,58 +625,58 @@ export function PersonalStudentList({
                           fullName={student.name}
                           userPublicId={student.userPublicId}
                           size="md"
-                          className="shrink-0 ring-1 ring-white/10"
+                          className="shrink-0 ring-1 ring-zinc-200 dark:ring-white/10"
                         />
                         <span
-                          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-zinc-950 ${
-                            hasActiveWorkout ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" : "bg-amber-400"
+                          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-950 ${
+                            hasActiveWorkout ? "bg-emerald-500" : "bg-amber-400"
                           }`}
                         />
                       </div>
                       <div className="min-w-0 flex-1 space-y-0.5">
-                        <span className="font-heading text-sm font-bold text-white group-hover:text-emerald-300 transition-colors block truncate">
+                        <span className="font-heading text-sm font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors block truncate">
                           {student.name}
                         </span>
-                        <p className="text-[11px] text-zinc-400 truncate">
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                           {student.email}
                         </p>
                       </div>
                     </div>
 
                     {student.objective && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white/[0.06] text-zinc-300 border border-white/[0.08] shrink-0 max-w-[120px] truncate">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 shrink-0 max-w-[120px] truncate">
                         {student.objective}
                       </span>
                     )}
                   </div>
 
                   {/* Contextual Info Banner: Workout status */}
-                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1 text-xs relative z-10">
+                  <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 space-y-1 text-xs relative z-10">
                     <div className="flex items-center gap-1.5 min-w-0">
                       {isEffectiveNutritionist ? (
                         <>
-                          <AppleIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          <span className="text-zinc-300 font-medium">Acompanhamento nutricional</span>
+                          <AppleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span className="text-zinc-700 dark:text-zinc-300 font-medium">Acompanhamento nutricional</span>
                         </>
                       ) : (
                         <>
-                          <DumbbellIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <DumbbellIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           {hasActiveWorkout ? (
                             <div className="flex items-center gap-1 min-w-0 truncate">
-                              <span className="font-semibold text-emerald-400">
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                                 Treino:
                               </span>
-                              <span className="text-zinc-200 font-medium truncate">
+                              <span className="text-zinc-900 dark:text-zinc-200 font-medium truncate">
                                 {student.latestWorkoutTitle}
                               </span>
                             </div>
                           ) : student.latestWorkoutTitle ? (
-                            <div className="flex items-center gap-1 min-w-0 text-zinc-400 truncate">
+                            <div className="flex items-center gap-1 min-w-0 text-zinc-500 dark:text-zinc-400 truncate">
                               <span>Último:</span>
                               <span className="truncate">{student.latestWorkoutTitle}</span>
                             </div>
                           ) : (
-                            <span className="text-amber-400/90 font-medium">Nenhum treino prescrito</span>
+                            <span className="text-amber-600 dark:text-amber-400/90 font-medium">Nenhum treino prescrito</span>
                           )}
                         </>
                       )}
@@ -676,7 +690,7 @@ export function PersonalStudentList({
                   >
                     <Link
                       href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
-                      className="flex-1 inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-zinc-200 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-colors min-h-[44px] cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-zinc-700 dark:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] cursor-pointer"
                     >
                       <span>{isEffectiveNutritionist ? "Ver paciente" : "Ver perfil"}</span>
                       <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400" />
@@ -685,7 +699,7 @@ export function PersonalStudentList({
                     {!isEffectiveNutritionist && (
                       <Link
                         href={`/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`}
-                        className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 shadow-md shadow-emerald-500/20 transition-all min-h-[44px] cursor-pointer shrink-0"
+                        className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 shadow-sm transition-all min-h-[44px] cursor-pointer shrink-0"
                         title="Criar novo treino"
                       >
                         <PlusIcon className="w-3.5 h-3.5" />
@@ -697,7 +711,7 @@ export function PersonalStudentList({
                       type="button"
                       aria-label={isEffectiveNutritionist ? "Mais opções para este paciente" : "Mais opções para este aluno"}
                       onClick={() => setActionSheetStudent(student)}
-                      className="inline-flex items-center justify-center rounded-xl p-2.5 text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-colors min-h-[44px] min-w-[44px] cursor-pointer shrink-0"
+                      className="inline-flex items-center justify-center rounded-xl p-2.5 text-zinc-600 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] min-w-[44px] cursor-pointer shrink-0"
                     >
                       <MoreDotsIcon className="w-5 h-5" />
                     </button>
@@ -708,8 +722,7 @@ export function PersonalStudentList({
           </div>
 
           {/* =====================================================================
-              DESKTOP STUDENT CARDS GRID (hidden md:grid)
-              Rich Bento Poster cards with subtle glowing border & rapid CTAs
+              DESKTOP STUDENT CARDS GRID (hidden md:grid) - FUNDO SÓLIDO
               ===================================================================== */}
           <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-3.5" data-testid="desktop-student-grid">
             {filteredStudents.map((student) => {
@@ -719,11 +732,8 @@ export function PersonalStudentList({
               return (
                 <div
                   key={student.membershipPublicId}
-                  className="p-4 sm:p-5 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-b from-zinc-900/95 via-zinc-900/90 to-zinc-950 shadow-md hover:border-emerald-500/40 hover:shadow-xl hover:shadow-emerald-950/20 hover:-translate-y-0.5 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[175px]"
+                  className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:border-emerald-500/40 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[175px]"
                 >
-                  {/* Subtle top ambient glow */}
-                  <div className="absolute -top-12 -right-12 w-28 h-28 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity" />
-
                   {/* Top: Avatar, Name, Email and Objective */}
                   <div className="space-y-3 relative z-10">
                     <div className="flex items-start justify-between gap-3">
@@ -733,64 +743,64 @@ export function PersonalStudentList({
                             fullName={student.name}
                             userPublicId={student.userPublicId}
                             size="md"
-                            className="shrink-0 ring-1 ring-white/10 group-hover:scale-105 transition-transform"
+                            className="shrink-0 ring-1 ring-zinc-200 dark:ring-white/10 group-hover:scale-105 transition-transform"
                           />
                           <span
-                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-zinc-950 ${
-                              hasActiveWorkout ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" : "bg-amber-400"
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-950 ${
+                              hasActiveWorkout ? "bg-emerald-500" : "bg-amber-400"
                             }`}
                           />
                         </div>
                         <div className="min-w-0 flex-1 space-y-0.5">
                           <Link
                             href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
-                            className="font-semibold text-white group-hover:text-emerald-300 transition-colors block truncate text-sm sm:text-base font-sans"
+                            className="font-semibold text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors block truncate text-sm sm:text-base font-sans"
                           >
                             {student.name}
                           </Link>
-                          <p className="text-xs text-zinc-400 truncate">
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                             {student.email}
                           </p>
                         </div>
                       </div>
 
                       {student.objective && (
-                        <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-white/[0.06] text-zinc-300 border border-white/[0.08] shrink-0 max-w-[130px] truncate">
+                        <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 shrink-0 max-w-[130px] truncate">
                           {student.objective}
                         </span>
                       )}
                     </div>
 
                     {/* Workout Status Banner */}
-                    <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between gap-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-2 min-w-0 truncate">
-                        <DumbbellIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <DumbbellIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                         {hasActiveWorkout ? (
                           <div className="flex items-center gap-1.5 truncate">
-                            <span className="font-semibold text-emerald-400">
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                               Treino ativo:
                             </span>
-                            <span className="text-zinc-200 truncate font-medium">
+                            <span className="text-zinc-900 dark:text-zinc-200 truncate font-medium">
                               {student.latestWorkoutTitle}
                             </span>
                           </div>
                         ) : student.latestWorkoutTitle ? (
-                          <div className="flex items-center gap-1.5 truncate text-zinc-400">
+                          <div className="flex items-center gap-1.5 truncate text-zinc-500 dark:text-zinc-400">
                             <span>Último:</span>
                             <span className="truncate">{student.latestWorkoutTitle}</span>
                           </div>
                         ) : (
-                          <span className="text-amber-400/90 font-medium">Sem treino prescrito</span>
+                          <span className="text-amber-600 dark:text-amber-400/90 font-medium">Sem treino prescrito</span>
                         )}
                       </div>
                     </div>
                   </div>
 
                   {/* Actions Bottom Bar */}
-                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/[0.06] mt-3 relative z-10">
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800 mt-3 relative z-10">
                     <Link
                       href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-emerald-500/30 transition-all min-h-[38px] cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 hover:border-emerald-500/30 transition-all min-h-[38px] cursor-pointer"
                     >
                       <span>Ver perfil</span>
                       <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
@@ -799,7 +809,7 @@ export function PersonalStudentList({
                     {!isEffectiveNutritionist && (
                       <Link
                         href={`/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`}
-                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 shadow-md shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all min-h-[38px] cursor-pointer shrink-0"
+                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all min-h-[38px] cursor-pointer shrink-0"
                         title="Criar novo treino"
                       >
                         <PlusIcon className="w-3.5 h-3.5" />
@@ -811,7 +821,7 @@ export function PersonalStudentList({
                       type="button"
                       aria-label="Mais opções"
                       onClick={() => setActionSheetStudent(student)}
-                      className="inline-flex items-center justify-center rounded-xl p-2 text-zinc-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-colors min-h-[38px] min-w-[38px] cursor-pointer shrink-0"
+                      className="inline-flex items-center justify-center rounded-xl p-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[38px] min-w-[38px] cursor-pointer shrink-0"
                     >
                       <MoreDotsIcon className="w-4 h-4" />
                     </button>

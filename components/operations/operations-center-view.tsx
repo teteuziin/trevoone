@@ -267,7 +267,7 @@ export function OperationsCenterView({
       {activeTab === "today" && (
         <div className="space-y-6">
           {/* Supervisor Trevo Summary Card */}
-          <div className="bg-gradient-to-br from-[var(--surface)] to-[var(--surface-subtle)] border border-[var(--border-strong)] rounded-3xl p-6 shadow-sm depth-base space-y-3">
+          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-xs depth-base space-y-3">
             <div className="flex items-center gap-2.5">
               <span className="w-8 h-8 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[var(--brand-foreground)] flex items-center justify-center font-bold text-sm">
                 ✦
@@ -282,7 +282,7 @@ export function OperationsCenterView({
               </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-[var(--text-primary)] leading-relaxed font-medium bg-[var(--surface)]/80 p-4 rounded-2xl border border-[var(--border-subtle)]">
+            <p className="text-xs sm:text-sm text-[var(--text-primary)] leading-relaxed font-medium bg-[var(--surface-subtle)] p-4 rounded-2xl border border-[var(--border-subtle)]">
               {supervisorSummary.narrative}
             </p>
 

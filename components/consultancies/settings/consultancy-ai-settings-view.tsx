@@ -156,16 +156,16 @@ export function ConsultancyAiSettingsView({
       </div>
 
       {/* Consultancy Quota Card */}
-      <div className="bg-card/50 border border-border/50 rounded-xl p-5 space-y-3 shadow-xs">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 space-y-3 shadow-xs">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-emerald-500 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
             Teto Diário da Consultoria
           </span>
           <span
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
               consultancyQuota.isEnabled
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                : "bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/20"
             }`}
           >
             {consultancyQuota.isEnabled ? "Ativo" : "Desativado pela Plataforma"}
@@ -174,32 +174,32 @@ export function ConsultancyAiSettingsView({
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
           <div>
-            <span className="text-xs text-muted-foreground">Limite Plataforma:</span>
-            <div className="text-xl font-bold font-mono text-foreground mt-0.5">
-              {consultancyQuota.dailyLimit} <span className="text-xs font-normal text-muted-foreground">/ dia</span>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">Limite Plataforma:</span>
+            <div className="text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-0.5">
+              {consultancyQuota.dailyLimit} <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">/ dia</span>
             </div>
           </div>
           <div>
-            <span className="text-xs text-muted-foreground">Utilizado Hoje:</span>
-            <div className="text-xl font-bold font-mono text-foreground mt-0.5">
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">Utilizado Hoje:</span>
+            <div className="text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-0.5">
               {consultancyQuota.usedToday}
             </div>
           </div>
           <div>
-            <span className="text-xs text-muted-foreground">Restante Hoje:</span>
-            <div className="text-xl font-bold font-mono text-emerald-400 mt-0.5">
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">Restante Hoje:</span>
+            <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
               {consultancyQuota.remainingToday}
             </div>
           </div>
         </div>
 
-        <p className="text-[11px] text-muted-foreground border-t border-border/30 pt-3">
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 border-t border-zinc-100 dark:border-zinc-800 pt-3">
           O teto diário da consultoria é o limite máximo compartilhado por todos os profissionais. Para aumentá-lo, fale com a equipe da plataforma TREVO ONE.
         </p>
       </div>
 
       {/* Role Defaults Card */}
-      <div className="bg-card/50 border border-border/50 rounded-xl p-5 space-y-4 shadow-xs">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xs">
         <div>
           <h2 className="text-base font-bold text-foreground">
             Limites Padrão por Função & Recursos de IA
@@ -299,7 +299,7 @@ export function ConsultancyAiSettingsView({
       </div>
 
       {/* Member Overrides Card */}
-      <div className="bg-card/50 border border-border/50 rounded-xl p-5 space-y-4 shadow-xs">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xs">
         <div>
           <h2 className="text-base font-bold text-foreground">
             Exceções Individuais por Profissional
@@ -322,7 +322,7 @@ export function ConsultancyAiSettingsView({
         )}
 
         {/* Add Override Form */}
-        <form onSubmit={handleAddMemberOverride} className="bg-muted/20 border border-border/40 p-4 rounded-xl space-y-3">
+        <form onSubmit={handleAddMemberOverride} className="bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="sm:col-span-2">
               <label className="block font-medium text-foreground mb-1">

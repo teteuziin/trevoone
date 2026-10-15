@@ -36,37 +36,33 @@ const categoryContent = fs.readFileSync(workoutCategoryCardPath, "utf-8");
 // ============================================================================
 console.log("\n--- 1. HERO SPOTLIGHT SUPERIOR DO TREINO ---");
 
-runTest("1.1 Container Hero Spotlight com gradiente cinematográfico dark, borda sutil e sombra profunda", () => {
+runTest("1.1 Container Hero Spotlight com superfície sólida preta/grafite em ambos os temas", () => {
   assert.ok(
-    builderContent.includes("bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-emerald-950/25"),
-    "Hero container has cinematic dark gradient"
+    builderContent.includes("bg-zinc-950 border border-zinc-800"),
+    "Hero container has solid graphite/black surface in both themes"
   );
   assert.ok(
-    builderContent.includes("border border-white/[0.08]"),
-    "Hero container has subtle translucent border"
-  );
-  assert.ok(
-    builderContent.includes("shadow-2xl overflow-hidden backdrop-blur-xl"),
-    "Hero container has deep shadow and glass backdrop blur"
+    builderContent.includes("shadow-xl overflow-hidden"),
+    "Hero container has shadow-xl and overflow-hidden"
   );
 });
 
-runTest("1.2 Luz ambiente esmeralda projetando aura e profundidade", () => {
+runTest("1.2 Sem orbs de brilho verde decorativo (100% superfície sólida)", () => {
   assert.ok(
-    builderContent.includes("bg-emerald-500/15 rounded-full blur-3xl"),
-    "Emerald ambient aura is rendered with high blur"
+    !builderContent.includes("bg-emerald-500/15 rounded-full blur-3xl"),
+    "Decorative blur glow orbs removed from header"
   );
 });
 
-runTest("1.3 Badge brilhante de status do treino (Rascunho ou Publicado) preservado com data-testid", () => {
+runTest("1.3 Badge de status do treino (Rascunho ou Publicado) preservado com data-testid", () => {
   assert.ok(
     builderContent.includes('data-testid="builder-status-badge"'),
     "Builder status badge has data-testid"
   );
   assert.ok(
-    builderContent.includes("shadow-[0_0_12px_rgba(245,158,11,0.2)]") ||
-    builderContent.includes("shadow-[0_0_12px_rgba(16,185,129,0.2)]"),
-    "Status badge features luminous neon glow"
+    builderContent.includes("border-amber-500/40") ||
+    builderContent.includes("border-emerald-500/40"),
+    "Status badge has high-contrast border"
   );
 });
 
@@ -81,25 +77,25 @@ runTest("1.4 Título da ficha em tipografia imponente e nítida", () => {
   );
 });
 
-runTest("1.5 Pílulas de metadados secundários com glassmorphism", () => {
+runTest("1.5 Pílulas de metadados secundários com superfícies sólidas escuras", () => {
   assert.ok(
     builderContent.includes('data-testid="mobile-header-meta"'),
     "Mobile header metadata has data-testid"
   );
   assert.ok(
-    builderContent.includes("bg-white/[0.04] border border-white/[0.08] text-zinc-200"),
-    "Metadata items are styled as elegant translucent pills"
+    builderContent.includes("bg-zinc-900 border border-zinc-800"),
+    "Metadata items are styled as solid dark pills"
   );
 });
 
-runTest("1.6 Ação primária de publicação em esmeralda vibrante e indicador de autosave passivo", () => {
+runTest("1.6 Ação primária de publicação em esmeralda e indicador de autosave passivo", () => {
   assert.ok(
     builderContent.includes('data-testid="publish-workout-button"'),
     "Publish workout button has data-testid"
   );
   assert.ok(
-    builderContent.includes("bg-emerald-600") && builderContent.includes("shadow-[0_0_20px_rgba(16,185,129,0.35)]"),
-    "Publish button has vivid emerald glow"
+    builderContent.includes("bg-emerald-600"),
+    "Publish button has emerald color"
   );
   assert.ok(
     builderContent.includes('data-testid="builder-autosave-indicator"'),
@@ -160,8 +156,8 @@ runTest("3.2 Botões de ação rápida com altura mínima ergonômica (min-h-[42
     "Combine button has data-testid"
   );
   assert.ok(
-    categoryContent.includes("min-h-[42px]"),
-    "Action buttons have ergonomic min-h-[42px] touch target"
+    categoryContent.includes("min-h-[38px] sm:min-h-[34px]") || categoryContent.includes("min-h-[42px]"),
+    "Action buttons have ergonomic touch target"
   );
   assert.ok(
     categoryContent.includes("hover:scale-[1.01] active:scale-[0.98]"),

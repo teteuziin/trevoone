@@ -1467,18 +1467,22 @@ export function WorkoutBuilder({
         </div>
       )}
 
-      {/* Top Header — Mobile Compact 3-Line & Desktop Full Prescription Tool Bar */}
-      <div className="w-full max-w-full min-w-0 pb-5 sm:pb-6 border-b border-[var(--border-subtle)] space-y-4">
+      {/* Top Header — Hero Spotlight Superior (Estilo Netflix / Apple Fitness+ Edition) */}
+      <div className="relative rounded-2xl sm:rounded-3xl p-4 sm:p-6 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-emerald-950/25 border border-white/[0.08] shadow-2xl overflow-hidden backdrop-blur-xl w-full max-w-full min-w-0 space-y-4">
+        {/* Ambient Emerald Glow Accent */}
+        <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-600/10 rounded-full blur-3xl" />
+
         {/* Mobile Header (<sm): Compact 3-line layout requested by owner */}
-        <div data-testid="compact-mobile-header" className="sm:hidden space-y-2.5 w-full max-w-full min-w-0">
+        <div data-testid="compact-mobile-header" className="sm:hidden space-y-3 w-full max-w-full min-w-0 relative z-10">
           {/* Mobile Line 1: Voltar · Estado de salvamento · Mais opções */}
           <div className="flex items-center justify-between gap-2 w-full min-w-0">
             <Link
               href={backHref}
               aria-label="Voltar para rotinas"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] min-h-[44px] shrink-0"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-300 hover:text-white min-h-[44px] shrink-0 transition-colors"
             >
-              <ArrowLeftIcon className="w-4 h-4" />
+              <ArrowLeftIcon className="w-4 h-4 text-emerald-400" />
               <span>Voltar</span>
             </Link>
 
@@ -1489,28 +1493,28 @@ export function WorkoutBuilder({
                 className="inline-flex items-center justify-center min-w-[110px] h-7 px-1 text-center shrink-0"
               >
                 {saveStatus === "saving" && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 whitespace-nowrap">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.15)] whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                     <span>Salvando…</span>
                   </span>
                 )}
                 {saveStatus === "saved" && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 whitespace-nowrap">
-                    <CheckIcon className="w-3 h-3 text-emerald-500" />
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.15)] whitespace-nowrap">
+                    <CheckIcon className="w-3 h-3 text-emerald-400" />
                     <span>Salvo{lastSavedAt ? ` às ${lastSavedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
                   </span>
                 )}
                 {saveStatus === "error" && (
                   <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 whitespace-nowrap"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.15)] whitespace-nowrap"
                     title={saveErrorMessage || "Erro ao salvar alterações no servidor"}
                   >
-                    <AlertCircleIcon className="w-3 h-3 text-rose-500" />
+                    <AlertCircleIcon className="w-3 h-3 text-rose-400" />
                     <span>Erro ao salvar</span>
                     <button
                       type="button"
                       onClick={() => retryLastSaveRef.current?.()}
-                      className="underline ml-0.5 font-bold hover:text-rose-700 cursor-pointer"
+                      className="underline ml-0.5 font-bold hover:text-white cursor-pointer"
                     >
                       Tentar
                     </button>
@@ -1518,7 +1522,7 @@ export function WorkoutBuilder({
                 )}
               </div>
             ) : (
-              <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08]">
                 Versão Oficial
               </span>
             )}
@@ -1529,7 +1533,7 @@ export function WorkoutBuilder({
                 type="button"
                 onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
                 aria-label="Mais opções do treino"
-                className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] flex items-center justify-center cursor-pointer transition-colors"
+                className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-white/[0.1] backdrop-blur-md flex items-center justify-center cursor-pointer transition-all"
                 title="Mais opções do treino"
               >
                 <span className="font-extrabold tracking-widest leading-none">•••</span>
@@ -1537,7 +1541,7 @@ export function WorkoutBuilder({
               {isHeaderMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setIsHeaderMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1.5 w-52 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl bg-zinc-900 border border-white/[0.1] shadow-2xl z-40 py-1.5 text-xs font-semibold text-zinc-200 divide-y divide-white/[0.06] animate-in fade-in zoom-in-95 duration-100 backdrop-blur-xl">
                     <div className="p-1 space-y-0.5">
                       <button
                         type="button"
@@ -1545,9 +1549,9 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           setIsMetadataExpanded(!isMetadataExpanded);
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
                       >
-                        <SlidersIcon className="w-3.5 h-3.5 text-emerald-500" />
+                        <SlidersIcon className="w-3.5 h-3.5 text-emerald-400" />
                         <span>{isMetadataExpanded ? "Ocultar dados da ficha" : "Dados da ficha"}</span>
                       </button>
                       <button
@@ -1556,9 +1560,9 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           setIsPreviewOpen(true);
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
                       >
-                        <EyeIcon className="w-3.5 h-3.5 text-teal-500" />
+                        <EyeIcon className="w-3.5 h-3.5 text-teal-400" />
                         <span>Pré-visualizar como aluno</span>
                       </button>
                       <a
@@ -1566,9 +1570,9 @@ export function WorkoutBuilder({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => setIsHeaderMenuOpen(false)}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
                       >
-                        <DownloadIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+                        <DownloadIcon className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Baixar PDF</span>
                       </a>
                     </div>
@@ -1579,9 +1583,9 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           handleDuplicateFicha();
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
                       >
-                        <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
+                        <CopyIcon className="w-3.5 h-3.5 text-blue-400" />
                         <span>Duplicar treino</span>
                       </button>
                       <button
@@ -1590,9 +1594,9 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           handleSaveAsModel();
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
                       >
-                        <BookmarkIcon className="w-3.5 h-3.5 text-amber-500" />
+                        <BookmarkIcon className="w-3.5 h-3.5 text-amber-400" />
                         <span>Salvar como modelo</span>
                       </button>
                     </div>
@@ -1603,7 +1607,7 @@ export function WorkoutBuilder({
                           setIsHeaderMenuOpen(false);
                           setIsDeleteDialogOpen(true);
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                        className="w-full px-3 py-2.5 rounded-xl hover:bg-rose-500/15 text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] transition-colors"
                       >
                         <TrashIcon className="w-3.5 h-3.5" />
                         <span>{isDraft ? "Excluir rascunho" : "Excluir treino"}</span>
@@ -1619,10 +1623,10 @@ export function WorkoutBuilder({
           <div className="flex items-center gap-2 w-full min-w-0">
             <span
               data-testid="builder-status-badge"
-              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${
+              className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full shrink-0 tracking-wider ${
                 isDraft
-                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                  ? "bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]"
+                  : "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
               }`}
             >
               {isDraft
@@ -1630,7 +1634,7 @@ export function WorkoutBuilder({
                 : `Publicado V${version.versionNumber}`}
             </span>
             {workout.isTemplate && (
-              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] shrink-0">
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-300 border border-white/[0.1] shrink-0">
                 Modelo
               </span>
             )}
@@ -1645,31 +1649,33 @@ export function WorkoutBuilder({
                 }}
                 onBlur={flushPendingMetadata}
                 placeholder="Nome da ficha de treino"
-                className="text-lg font-black text-[var(--text-primary)] tracking-tight bg-transparent border-b border-transparent hover:border-[var(--border-default)] focus:border-emerald-500 focus:outline-none transition-all py-0.5 flex-1 min-w-0"
+                className="text-lg font-black text-white tracking-tight bg-transparent border-b border-transparent hover:border-white/20 focus:border-emerald-500 focus:outline-none transition-all py-0.5 flex-1 min-w-0"
                 title="Clique para editar o nome da ficha (salvamento automático)"
               />
             ) : (
-              <h1 className="text-lg font-black text-[var(--text-primary)] tracking-tight truncate flex-1 min-w-0">
+              <h1 className="text-lg font-black text-white tracking-tight truncate flex-1 min-w-0">
                 {title}
               </h1>
             )}
           </div>
 
           {/* Mobile Line 3: Objetivo, nível e duração, quando disponíveis */}
-          <div data-testid="mobile-header-meta" className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-medium flex-wrap">
-            {objective && <span className="truncate max-w-[140px]">{objective}</span>}
-            {objective && <span className="opacity-40">•</span>}
-            <span>
+          <div data-testid="mobile-header-meta" className="flex items-center gap-1.5 text-xs text-zinc-300 font-medium flex-wrap">
+            {objective && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-200 truncate max-w-[150px]">
+                {objective}
+              </span>
+            )}
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-200">
               {difficultyLevel === "BEGINNER"
                 ? "Iniciante"
                 : difficultyLevel === "ADVANCED"
                 ? "Avançado"
                 : "Intermediário"}
             </span>
-            <span className="opacity-40">•</span>
-            <span className="flex items-center gap-1">
-              <ClockIcon className="w-3.5 h-3.5" />
-              ~{estimatedDurationMinutes} min
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-200">
+              <ClockIcon className="w-3.5 h-3.5 text-emerald-400" />
+              <span>~{estimatedDurationMinutes} min</span>
             </span>
           </div>
 
@@ -1680,7 +1686,7 @@ export function WorkoutBuilder({
                 type="button"
                 data-testid="publish-workout-button"
                 onClick={handleOpenPublishDialog}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.35)] min-h-[44px] flex items-center justify-center gap-2 cursor-pointer text-center hover:scale-[1.01] active:scale-[0.98]"
               >
                 <SendIcon className="w-4 h-4" />
                 <span>Publicar treino</span>
@@ -1692,7 +1698,7 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={() => setIsAssignModalOpen(true)}
-                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.35)] min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
                 >
                   <UserCheckIcon className="w-4 h-4" />
                   <span>Atribuir ao aluno</span>
@@ -1700,7 +1706,7 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={handleCreateNewVersion}
-                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 border border-white/[0.1] transition-all min-h-[44px] flex items-center justify-center gap-1.5 cursor-pointer text-center backdrop-blur-md"
                 >
                   <PlusIcon className="w-4 h-4" />
                   <span>Editar (novo rascunho)</span>
@@ -1711,18 +1717,19 @@ export function WorkoutBuilder({
         </div>
 
         {/* Desktop Header (>=sm): Preserved full horizontal prescription toolbar */}
-        <div className="hidden sm:flex sm:flex-row sm:items-center justify-between gap-4 w-full max-w-full min-w-0">
+        <div className="hidden sm:flex sm:flex-row sm:items-center justify-between gap-4 w-full max-w-full min-w-0 relative z-10">
           {/* Ficha Title, Autosave Indicator and Sub-details */}
-          <div className="space-y-1.5 flex-1 min-w-0">
+          <div className="space-y-2 flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                <SparklesIcon className="w-3 h-3 text-emerald-400" />
                 TRAINING STUDIO
               </span>
               <span
-                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider ${
                   isDraft
-                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                    : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                    ? "bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]"
+                    : "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
                 }`}
               >
                 {isDraft
@@ -1730,7 +1737,7 @@ export function WorkoutBuilder({
                   : `Publicado V${version.versionNumber}`}
               </span>
               {workout.isTemplate && (
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-300 border border-white/[0.1]">
                   Modelo
                 </span>
               )}
@@ -1742,28 +1749,28 @@ export function WorkoutBuilder({
                   className="inline-flex items-center min-w-[145px] h-7 shrink-0"
                 >
                   {saveStatus === "saving" && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 whitespace-nowrap">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.15)] whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                       <span>Salvando…</span>
                     </span>
                   )}
                   {saveStatus === "saved" && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 whitespace-nowrap">
-                      <CheckIcon className="w-3 h-3 text-emerald-500" />
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.15)] whitespace-nowrap">
+                      <CheckIcon className="w-3 h-3 text-emerald-400" />
                       <span>Salvo{lastSavedAt ? ` às ${lastSavedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
                     </span>
                   )}
                   {saveStatus === "error" && (
                     <span
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 whitespace-nowrap"
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.15)] whitespace-nowrap"
                       title={saveErrorMessage || "Erro ao salvar alterações no servidor"}
                     >
-                      <AlertCircleIcon className="w-3 h-3 text-rose-500" />
+                      <AlertCircleIcon className="w-3 h-3 text-rose-400" />
                       <span>Erro ao salvar</span>
                       <button
                         type="button"
                         onClick={() => retryLastSaveRef.current?.()}
-                        className="underline ml-1 font-bold hover:text-rose-700 cursor-pointer"
+                        className="underline ml-1 font-bold hover:text-white cursor-pointer"
                       >
                         Tentar novamente
                       </button>
@@ -1784,29 +1791,31 @@ export function WorkoutBuilder({
                 }}
                 onBlur={flushPendingMetadata}
                 placeholder="Nome da ficha de treino"
-                className="text-xl sm:text-2xl font-black text-[var(--text-primary)] tracking-tight bg-transparent border-b border-transparent hover:border-[var(--border-default)] focus:border-emerald-500 focus:outline-none transition-all py-0.5 max-w-xl w-full"
+                className="text-2xl sm:text-3xl font-black text-white tracking-tight bg-transparent border-b border-transparent hover:border-white/20 focus:border-emerald-500 focus:outline-none transition-all py-0.5 max-w-xl w-full"
                 title="Clique para editar o nome da ficha (salvamento automático)"
               />
             ) : (
-              <h1 className="text-xl sm:text-2xl font-black text-[var(--text-primary)] tracking-tight truncate">
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight truncate">
                 {title}
               </h1>
             )}
 
-            <div className="flex items-center gap-2 sm:gap-3 text-xs text-[var(--text-secondary)] font-medium flex-wrap">
-              {objective && <span>{objective}</span>}
-              {objective && <span className="opacity-40">•</span>}
-              <span>
+            <div className="flex items-center gap-2 text-xs text-zinc-300 font-medium flex-wrap">
+              {objective && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-200">
+                  {objective}
+                </span>
+              )}
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-200">
                 {difficultyLevel === "BEGINNER"
                   ? "Iniciante"
                   : difficultyLevel === "ADVANCED"
                   ? "Avançado"
                   : "Intermediário"}
               </span>
-              <span className="opacity-40">•</span>
-              <span className="flex items-center gap-1">
-                <ClockIcon className="w-3.5 h-3.5" />
-                ~{estimatedDurationMinutes} min
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-200">
+                <ClockIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span>~{estimatedDurationMinutes} min</span>
               </span>
             </div>
           </div>
@@ -1818,34 +1827,34 @@ export function WorkoutBuilder({
               <button
                 type="button"
                 onClick={() => setIsLibrarySidebarOpen(!isLibrarySidebarOpen)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors min-h-[38px] flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer backdrop-blur-md ${
                   isLibrarySidebarOpen
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                    : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-subtle)]"
+                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                    : "bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border-white/[0.1]"
                 }`}
                 title="Abrir/fechar biblioteca Studio lateral"
               >
-                <SparklesIcon className="w-3.5 h-3.5 text-emerald-500" />
+                <SparklesIcon className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{isLibrarySidebarOpen ? "Biblioteca Studio" : "+ Biblioteca"}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsMetadataExpanded(!isMetadataExpanded)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors min-h-[38px] flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-white/[0.1] backdrop-blur-md transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer"
                 title="Editar dados da ficha"
               >
-                <SlidersIcon className="w-3.5 h-3.5" />
+                <SlidersIcon className="w-3.5 h-3.5 text-zinc-400" />
                 <span>{isMetadataExpanded ? "Ocultar dados" : "Dados da ficha"}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors min-h-[38px] flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-white/[0.1] backdrop-blur-md transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer"
                 title="Pré-visualizar como aluno"
               >
-                <EyeIcon className="w-3.5 h-3.5" />
+                <EyeIcon className="w-3.5 h-3.5 text-teal-400" />
                 <span>Pré-visualizar</span>
               </button>
 
@@ -1853,10 +1862,10 @@ export function WorkoutBuilder({
                 href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] transition-all min-h-[38px] flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 hover:text-white border border-white/[0.1] backdrop-blur-md transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer"
                 title="Baixar ficha de treino em PDF"
               >
-                <DownloadIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+                <DownloadIcon className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Baixar PDF</span>
               </a>
             </div>
@@ -1868,7 +1877,7 @@ export function WorkoutBuilder({
                   type="button"
                   data-testid="publish-workout-button"
                   onClick={handleOpenPublishDialog}
-                  className="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center"
+                  className="flex-1 sm:flex-initial px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.35)] min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-2 cursor-pointer min-w-0 text-center hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <SendIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   <span>Publicar</span>
@@ -1879,7 +1888,7 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={() => setIsAssignModalOpen(true)}
-                  className="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center"
+                  className="flex-1 sm:flex-initial px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.35)] min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-2 cursor-pointer min-w-0 text-center"
                 >
                   <UserCheckIcon className="w-4 h-4" />
                   <span>Atribuir ao aluno</span>
@@ -1890,7 +1899,7 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={handleCreateNewVersion}
-                  className="flex-1 sm:flex-initial px-3 sm:px-3.5 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-all min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center"
+                  className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 border border-white/[0.1] transition-all min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center backdrop-blur-md"
                 >
                   <PlusIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   <span>Editar (novo rascunho)</span>
@@ -1903,7 +1912,7 @@ export function WorkoutBuilder({
                   type="button"
                   onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
                   aria-label="Mais opções do treino"
-                  className="p-2.5 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="p-2.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-white/[0.1] transition-all min-h-[44px] min-w-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer backdrop-blur-md"
                   title="Mais opções do treino"
                 >
                   <span className="font-extrabold tracking-widest leading-none">•••</span>
@@ -1911,7 +1920,7 @@ export function WorkoutBuilder({
                 {isHeaderMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-30" onClick={() => setIsHeaderMenuOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1.5 w-52 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl z-40 py-1.5 text-xs font-semibold text-[var(--text-primary)] divide-y divide-[var(--border-subtle)] animate-in fade-in zoom-in-95 duration-100">
+                    <div className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl bg-zinc-900 border border-white/[0.1] shadow-2xl z-40 py-1.5 text-xs font-semibold text-zinc-200 divide-y divide-white/[0.06] animate-in fade-in zoom-in-95 duration-100 backdrop-blur-xl">
                       {/* Nível 3 Menu Actions (Dados da ficha, pré-visualizar, baixar PDF) */}
                       <div className="p-1 space-y-0.5">
                         <button
@@ -1920,9 +1929,9 @@ export function WorkoutBuilder({
                             setIsHeaderMenuOpen(false);
                             setIsMetadataExpanded(!isMetadataExpanded);
                           }}
-                          className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
                         >
-                          <SlidersIcon className="w-3.5 h-3.5 text-emerald-500" />
+                          <SlidersIcon className="w-3.5 h-3.5 text-emerald-400" />
                           <span>{isMetadataExpanded ? "Ocultar dados da ficha" : "Dados da ficha"}</span>
                         </button>
                         <button
@@ -1931,9 +1940,9 @@ export function WorkoutBuilder({
                             setIsHeaderMenuOpen(false);
                             setIsPreviewOpen(true);
                           }}
-                          className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
                         >
-                          <EyeIcon className="w-3.5 h-3.5 text-teal-500" />
+                          <EyeIcon className="w-3.5 h-3.5 text-teal-400" />
                           <span>Pré-visualizar como aluno</span>
                         </button>
                         <a
@@ -1941,9 +1950,9 @@ export function WorkoutBuilder({
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={() => setIsHeaderMenuOpen(false)}
-                          className="w-full px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px]"
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
                         >
-                          <DownloadIcon className="w-3.5 h-3.5 text-[var(--brand)]" />
+                          <DownloadIcon className="w-3.5 h-3.5 text-emerald-400" />
                           <span>Baixar PDF</span>
                         </a>
                       </div>
@@ -1955,9 +1964,9 @@ export function WorkoutBuilder({
                             setIsHeaderMenuOpen(false);
                             handleDuplicateFicha();
                           }}
-                          className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                          className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px] text-zinc-200 hover:text-white transition-colors"
                         >
-                          <CopyIcon className="w-3.5 h-3.5 text-blue-500" />
+                          <CopyIcon className="w-3.5 h-3.5 text-blue-400" />
                           <span>Duplicar treino</span>
                         </button>
                         <button
@@ -1966,9 +1975,9 @@ export function WorkoutBuilder({
                             setIsHeaderMenuOpen(false);
                             handleSaveAsModel();
                           }}
-                          className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                          className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px] text-zinc-200 hover:text-white transition-colors"
                         >
-                          <BookmarkIcon className="w-3.5 h-3.5 text-amber-500" />
+                          <BookmarkIcon className="w-3.5 h-3.5 text-amber-400" />
                           <span>Salvar como modelo</span>
                         </button>
                       </div>
@@ -1979,7 +1988,7 @@ export function WorkoutBuilder({
                             setIsHeaderMenuOpen(false);
                             setIsDeleteDialogOpen(true);
                           }}
-                          className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px]"
+                          className="w-full px-3 py-2.5 sm:py-2 rounded-xl hover:bg-rose-500/15 text-rose-400 flex items-center gap-2 text-left cursor-pointer min-h-[40px] sm:min-h-[34px] transition-colors"
                         >
                           <TrashIcon className="w-3.5 h-3.5" />
                           <span>{isDraft ? "Excluir rascunho" : "Excluir treino"}</span>
@@ -2147,7 +2156,7 @@ export function WorkoutBuilder({
             </div>
           ) : (
             <>
-              {/* Category / Day Tabs (Desktop & Mobile) */}
+              {/* Category / Day Tabs (Desktop & Mobile) — Floating Pills Edition */}
               {categories.length > 1 && (
                 <div className="relative w-full max-w-full min-w-0">
                   <div
@@ -2163,17 +2172,19 @@ export function WorkoutBuilder({
                           data-category-tab={idx}
                           type="button"
                           onClick={() => setActiveMobileCategoryIndex(idx)}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+                          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all flex items-center gap-2 shrink-0 cursor-pointer backdrop-blur-md hover:scale-[1.01] active:scale-[0.98] ${
                             isActive
-                              ? "bg-emerald-600 text-white shadow-xs border border-emerald-600"
+                              ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
                               : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]"
                           }`}
                           title={cat.title || `Treino ${idx + 1}`}
                         >
                           <span className="truncate max-w-[180px] sm:max-w-none">{cat.title || `Treino ${idx + 1}`}</span>
                           <span
-                            className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                              isActive ? "bg-emerald-700/60 text-white" : "bg-[var(--surface-sunken)] text-[var(--text-tertiary)]"
+                            className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                              isActive
+                                ? "bg-emerald-500/25 text-emerald-200 border border-emerald-500/30"
+                                : "bg-[var(--surface-sunken)] text-[var(--text-tertiary)]"
                             }`}
                           >
                             {cat.items?.length || 0}
@@ -2185,9 +2196,9 @@ export function WorkoutBuilder({
                       type="button"
                       data-category-tab={-1}
                       onClick={() => setActiveMobileCategoryIndex(-1)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all shrink-0 cursor-pointer ${
+                      className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap min-h-[44px] transition-all shrink-0 cursor-pointer backdrop-blur-md hover:scale-[1.01] active:scale-[0.98] ${
                         activeMobileCategoryIndex === -1
-                          ? "bg-emerald-600 text-white shadow-xs border border-emerald-600"
+                          ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
                           : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]"
                       }`}
                     >
@@ -2195,7 +2206,7 @@ export function WorkoutBuilder({
                     </button>
                   </div>
                   {/* Subtle visual continuity hint for mobile horizontal scroll */}
-                  <div className="pointer-events-none absolute right-0 top-0 bottom-2.5 w-6 bg-gradient-to-l from-[var(--surface)] to-transparent sm:hidden" />
+                  <div className="pointer-events-none absolute right-0 top-0 bottom-2.5 w-8 bg-gradient-to-l from-[var(--surface)] to-transparent sm:hidden" />
                 </div>
               )}
 

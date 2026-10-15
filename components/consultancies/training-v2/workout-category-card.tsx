@@ -811,7 +811,7 @@ export function WorkoutCategoryCard({
               data-testid="category-add-exercise-btn"
               onClick={() => onOpenExercisePicker(category.publicId)}
               aria-label="Adicionar exercício"
-              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer min-h-[38px] sm:min-h-[34px] shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer min-h-[42px] min-h-[38px] sm:min-h-[34px] shrink-0 hover:scale-[1.01] active:scale-[0.98]"
               title="Adicionar exercício a este treino"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -833,7 +833,7 @@ export function WorkoutCategoryCard({
                   }
                 }}
                 aria-label={combiningSubBlockId === "root" ? "Cancelar modo combinar" : "Combinar exercícios em Bi-set, Tri-set ou Circuito"}
-                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer border min-h-[38px] sm:min-h-[34px] shrink-0 ${
+                className={`inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border min-h-[42px] min-h-[38px] sm:min-h-[34px] shrink-0 hover:scale-[1.01] active:scale-[0.98] ${
                   combiningSubBlockId === "root"
                     ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30"
                     : "bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-default)]"
@@ -860,7 +860,7 @@ export function WorkoutCategoryCard({
                 type="button"
                 onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
                 aria-label="Ações do treino"
-                className="p-2 sm:p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors min-h-[38px] min-w-[38px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center cursor-pointer"
+                className="p-2 sm:p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-all min-h-[42px] min-w-[42px] min-h-[38px] min-w-[38px] sm:min-h-[34px] sm:min-w-[34px] flex items-center justify-center cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
                 title="Mais opções do treino"
               >
                 <MoreVertical className="w-4 h-4" />
@@ -3296,10 +3296,10 @@ export function UnifiedCombinationBlock({
     <div
       data-testid="mobile-combination-block"
       data-block-type="unified-combination-block"
-      className="rounded-xl border border-[var(--border-subtle)] border-l-4 border-l-emerald-500 bg-[var(--surface)] shadow-2xs overflow-hidden transition-all w-full max-w-full min-w-0"
+      className="rounded-2xl border border-[var(--border-subtle)] border-l-4 border-l-emerald-500 bg-[var(--surface)] shadow-md overflow-hidden transition-all w-full max-w-full min-w-0"
     >
       {/* Mobile Block Header (<sm) — dedicated compact ergonomic layout */}
-      <div className="sm:hidden px-3.5 py-2.5 bg-[var(--surface-subtle)]/40 border-b border-[var(--border-subtle)] w-full max-w-full min-w-0">
+      <div className="sm:hidden px-4 py-3 bg-[var(--surface-subtle)]/50 border-b border-[var(--border-subtle)] w-full max-w-full min-w-0">
         <div className="flex items-center justify-between gap-2 w-full">
           {/* Header Title: BI-SET · 3 voltas */}
           <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
@@ -3320,10 +3320,10 @@ export function UnifiedCombinationBlock({
                 onClick={() => setIsSeqModalOpen(true)}
                 aria-label="Ver sequência de execução guiada"
                 data-testid="combination-view-sequence-btn"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] transition-all cursor-pointer min-h-[36px]"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all cursor-pointer min-h-[36px]"
                 title="Ver sequência de execução guiada"
               >
-                <VideoIcon className="w-3.5 h-3.5 text-emerald-600" />
+                <VideoIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span className="truncate">Ver sequência</span>
               </button>
             )}
@@ -3604,34 +3604,34 @@ export function UnifiedCombinationBlock({
                     onOpenQuickEdit(item);
                   }
                 }}
-                className={`p-3 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/30 transition-colors w-full max-w-full min-w-0 select-none ${
+                className={`py-3 px-3.5 sm:px-4 sm:py-3 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/40 transition-colors w-full max-w-full min-w-0 select-none ${
                   isDraft ? "cursor-pointer active:scale-[0.99]" : ""
                 }`}
               >
                 {/* Left: Letter Badge + Info */}
                 <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center shrink-0">
+                  <div className="w-7 h-7 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
                     {letter}.
                   </div>
-                  <div className="min-w-0 flex-1 space-y-0.5">
+                  <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] line-clamp-2 break-words">
+                      <h4 className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] line-clamp-2 break-words">
                         {item.exerciseNameSnapshot}
                       </h4>
                       {item.isCustomExercise && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
                           Personalizado
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex-wrap">
-                      <span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
                         {summary.seriesCount} voltas · {summary.repsText}
                         {summary.loadKg != null ? ` · ${summary.loadKg}kg` : ""}
                       </span>
                     </div>
                     {item.notes && item.notes.trim() && (
-                      <div className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700/90 dark:text-amber-400/90 break-words">
+                      <div className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md break-words">
                         ⚡ {item.notes.trim()}
                       </div>
                     )}
@@ -3681,7 +3681,7 @@ export function UnifiedCombinationBlock({
                         onOpenActions(item, idx, items.length, combination.publicId);
                       }}
                       aria-label="Ações do exercício"
-                      className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] cursor-pointer"
+                      className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] cursor-pointer"
                     >
                       <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
@@ -3692,7 +3692,7 @@ export function UnifiedCombinationBlock({
               {/* Transition connector between exercises */}
               {idx < items.length - 1 && (
                 <div
-                  className="py-1 px-4 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 border-t border-[var(--border-subtle)]/40 bg-[var(--surface-subtle)]/10"
+                  className="py-1.5 px-4 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 border-t border-[var(--border-subtle)]/40 bg-emerald-500/[0.04]"
                   title="Transição direta (sem descanso)"
                 >
                   <span>↓ Sem descanso entre exercícios</span>
@@ -3704,7 +3704,7 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Combination Footer: Rest between rounds */}
-      <div className="px-3.5 sm:px-4 py-2.5 bg-[var(--surface-subtle)]/30 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2 text-xs font-semibold text-[var(--text-secondary)]">
+      <div className="px-4 py-3 bg-[var(--surface-subtle)]/40 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2 text-xs font-semibold text-[var(--text-secondary)]">
         <span>
           Descanso após a volta:{" "}
           <strong className="text-[var(--text-primary)] font-black">{restSec}s</strong>
@@ -3852,19 +3852,19 @@ export function MobileExerciseCard({
         }
       }}
       aria-label={isDraft ? `Editar prescrição de ${item.exerciseNameSnapshot}` : undefined}
-      className={`p-3.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--border-default)] transition-all space-y-2.5 select-none ${
+      className={`p-4 sm:p-4.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-emerald-500/30 hover:shadow-md transition-all space-y-3 select-none ${
         isDraft ? "cursor-pointer active:scale-[0.99]" : ""
       }`}
     >
       {/* 1. Header: Exercise Name, Group & Video */}
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <h4 className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] leading-snug line-clamp-2 break-words">
               {item.exerciseNameSnapshot}
             </h4>
             {item.isCustomExercise && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
                 Personalizado
               </span>
             )}
@@ -3906,7 +3906,7 @@ export function MobileExerciseCard({
 
       {/* 2. Prescription: High Visual Prominence */}
       <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 flex-wrap">
-        <span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
           {summary.seriesCount} {summary.seriesCount === 1 ? "série" : "séries"} · {summary.repsText}
         </span>
         {summary.loadKg != null && (

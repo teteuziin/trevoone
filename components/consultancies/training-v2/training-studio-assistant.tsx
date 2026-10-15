@@ -26,6 +26,7 @@ type TrainingStudioAssistantProps = {
   onOpenCreateCustom: (categoryPublicId: string) => void;
   onStartGuidedCombination: (type: WorkoutCombinationType) => void;
   onOpenPublishDialog: () => void;
+  onCreateDraft?: () => void;
 };
 
 // Web Speech API interface declarations
@@ -67,6 +68,7 @@ export function TrainingStudioAssistant({
   onOpenCreateCustom,
   onStartGuidedCombination,
   onOpenPublishDialog,
+  onCreateDraft,
 }: TrainingStudioAssistantProps) {
   const [commandInput, setCommandInput] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -77,9 +79,9 @@ export function TrainingStudioAssistant({
     return Boolean(win.SpeechRecognition || win.webkitSpeechRecognition);
   });
 
-  // Assistant Flow States: "idle" | "searching" | "ambiguity" | "draft_warning" | "confirm_assignment" | "assigning" | "assignment_success" | "assignment_error"
+  // Assistant Flow States: "idle" | "searching" | "ambiguity" | "draft_warning" | "published_warning" | "confirm_assignment" | "assigning" | "assignment_success" | "assignment_error"
   const [flowState, setFlowState] = useState<
-    "idle" | "searching" | "ambiguity" | "draft_warning" | "confirm_assignment" | "assigning" | "assignment_success" | "assignment_error"
+    "idle" | "searching" | "ambiguity" | "draft_warning" | "published_warning" | "confirm_assignment" | "assigning" | "assignment_success" | "assignment_error"
   >("idle");
 
   const [matchedStudents, setMatchedStudents] = useState<StudentSearchResult[]>([]);
@@ -224,6 +226,27 @@ export function TrainingStudioAssistant({
         return;
       }
 
+      // Check if command is an assembly/edit action
+      const isAssemblyAction =
+        normalized.includes("bi-set") ||
+        normalized.includes("biset") ||
+        normalized.includes("tri-set") ||
+        normalized.includes("triset") ||
+        normalized.includes("circuito") ||
+        normalized.includes("personalizado") ||
+        normalized.includes("criar exercicio") ||
+        normalized.includes("novo exercicio") ||
+        normalized.startsWith("adicione") ||
+        normalized.startsWith("adicionar") ||
+        normalized.startsWith("buscar") ||
+        normalized.includes("exercicio");
+
+      // Published workouts cannot be modified directly (Section 4 Rule)
+      if (isAssemblyAction && version.status !== "DRAFT") {
+        setFlowState("published_warning");
+        return;
+      }
+
       // 2. Combination: Bi-Set Intent
       if (normalized.includes("bi-set") || normalized.includes("biset")) {
         handleClose();
@@ -278,7 +301,7 @@ export function TrainingStudioAssistant({
         `Comando não compreendido: "${trimmed}". Tente comandos como: "Envie esse treino para Anny Santos", "Criar bi-set" ou "Adicionar supino".`
       );
     },
-    [effectiveCategoryId, handleClose, handleStudentAssignmentFlow, onOpenCreateCustom, onOpenExercisePicker, onStartGuidedCombination]
+    [effectiveCategoryId, handleClose, handleStudentAssignmentFlow, onOpenCreateCustom, onOpenExercisePicker, onStartGuidedCombination, version.status]
   );
 
   // Voice Recognition Handler
@@ -526,6 +549,44 @@ export function TrainingStudioAssistant({
             </div>
           )}
 
+          {/* STATE: PUBLISHED WARNING (Section 4 Rule: Prompt to create new draft) */}
+          {flowState === "published_warning" && (
+            <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/30 space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="text-xl">🔒</span>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-black text-blue-950 dark:text-blue-200">
+                    Versão Publicada (V{version.versionNumber}) — Somente Leitura
+                  </h4>
+                  <p className="text-xs text-blue-900 dark:text-blue-300 leading-relaxed">
+                    Esta versão já foi publicada e é imutável para garantir a segurança dos alunos. Para adicionar exercícios ou criar novas combinações, crie um novo rascunho de edição.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1 flex-wrap">
+                {onCreateDraft && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleClose();
+                      onCreateDraft();
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>Criar novo rascunho para editar</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setFlowState("idle")}
+                  className="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/[0.06] cursor-pointer"
+                >
+                  Voltar
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* STATE: AMBIGUITY RESOLUTION (Rule 15 - Step 3) */}
           {flowState === "ambiguity" && (
             <div className="space-y-3">
@@ -704,6 +765,18 @@ export function TrainingStudioAssistant({
           {/* Quick Action Chips (Always available in idle) */}
           {flowState === "idle" && (
             <div className="space-y-3">
+              {version.status !== "DRAFT" && (
+                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-xs text-blue-900 dark:text-blue-300 flex items-center justify-between gap-2">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <span>🔒</span>
+                    <span>Versão Publicada (V{version.versionNumber})</span>
+                  </span>
+                  <span className="text-[11px] text-blue-700 dark:text-blue-400">
+                    Atribuição direta ao aluno ativa
+                  </span>
+                </div>
+              )}
+
               <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block">
                 Ações Rápidas do Assistente:
               </span>
@@ -712,6 +785,10 @@ export function TrainingStudioAssistant({
                 <button
                   type="button"
                   onClick={() => {
+                    if (version.status !== "DRAFT") {
+                      setFlowState("published_warning");
+                      return;
+                    }
                     handleClose();
                     onOpenExercisePicker(effectiveCategoryId);
                   }}
@@ -729,6 +806,10 @@ export function TrainingStudioAssistant({
                 <button
                   type="button"
                   onClick={() => {
+                    if (version.status !== "DRAFT") {
+                      setFlowState("published_warning");
+                      return;
+                    }
                     handleClose();
                     onStartGuidedCombination("BI_SET");
                   }}
@@ -746,6 +827,10 @@ export function TrainingStudioAssistant({
                 <button
                   type="button"
                   onClick={() => {
+                    if (version.status !== "DRAFT") {
+                      setFlowState("published_warning");
+                      return;
+                    }
                     handleClose();
                     onStartGuidedCombination("TRI_SET");
                   }}
@@ -763,6 +848,10 @@ export function TrainingStudioAssistant({
                 <button
                   type="button"
                   onClick={() => {
+                    if (version.status !== "DRAFT") {
+                      setFlowState("published_warning");
+                      return;
+                    }
                     handleClose();
                     onStartGuidedCombination("CIRCUIT");
                   }}
@@ -780,6 +869,10 @@ export function TrainingStudioAssistant({
                 <button
                   type="button"
                   onClick={() => {
+                    if (version.status !== "DRAFT") {
+                      setFlowState("published_warning");
+                      return;
+                    }
                     handleClose();
                     onOpenCreateCustom(effectiveCategoryId);
                   }}

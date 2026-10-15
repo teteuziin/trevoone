@@ -245,12 +245,14 @@ export function AppearanceSegmentedControl({
     }
     try {
       localStorage.setItem("trevo_theme", newTheme);
-      if (newTheme === "dark") {
+      const prefersDark = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const isDark = newTheme === "dark" || (newTheme === "system" && prefersDark);
+      if (isDark) {
         document.documentElement.setAttribute("data-theme", "dark");
-      } else if (newTheme === "light") {
-        document.documentElement.setAttribute("data-theme", "light");
+        document.documentElement.classList.add("dark");
       } else {
-        document.documentElement.removeAttribute("data-theme");
+        document.documentElement.setAttribute("data-theme", "light");
+        document.documentElement.classList.remove("dark");
       }
       window.dispatchEvent(new Event("trevo-theme-change"));
     } catch {
@@ -401,12 +403,14 @@ export function ConsultancyNavigation({
   function handleThemeSelect(newTheme: ThemeMode) {
     try {
       localStorage.setItem("trevo_theme", newTheme);
-      if (newTheme === "dark") {
+      const prefersDark = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const isDark = newTheme === "dark" || (newTheme === "system" && prefersDark);
+      if (isDark) {
         document.documentElement.setAttribute("data-theme", "dark");
-      } else if (newTheme === "light") {
-        document.documentElement.setAttribute("data-theme", "light");
+        document.documentElement.classList.add("dark");
       } else {
-        document.documentElement.removeAttribute("data-theme");
+        document.documentElement.setAttribute("data-theme", "light");
+        document.documentElement.classList.remove("dark");
       }
       window.dispatchEvent(new Event("trevo-theme-change"));
     } catch {

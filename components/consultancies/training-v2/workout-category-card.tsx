@@ -297,6 +297,7 @@ export type CategoryCardProps = {
   version?: WorkoutVersionDto;
   categories?: WorkoutBlockDto[];
   onOpenPublishDialog?: () => void;
+  onCreateDraft?: () => void;
 };
 
 type ContainerEntry =
@@ -607,6 +608,7 @@ export function WorkoutCategoryCard({
   version,
   categories,
   onOpenPublishDialog,
+  onCreateDraft,
 }: CategoryCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(category.title || "");
@@ -893,24 +895,25 @@ export function WorkoutCategoryCard({
           )}
         </div>
 
-        {/* Category Actions — Nível 1: "+ Exercício" e "Combinar" lado a lado unificados no Assistente de Montagem */}
-        {isDraft && (
-          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center relative">
-            {/* Assistente de Montagem — Ponto Central Único Inteligente (Training Studio 3.1) */}
-            <button
-              type="button"
-              data-testid="category-assistant-btn"
-              onClick={() => setIsAssistantOpen(true)}
-              aria-label="Assistente de Montagem"
-              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-950/20 transition-all cursor-pointer min-h-[42px] shrink-0 hover:scale-[1.01] active:scale-[0.98]"
-              title="Abrir Assistente Inteligente de Montagem"
-            >
-              <SparklesIcon className="w-3.5 h-3.5 text-emerald-200 animate-pulse" />
-              <span>Assistente de Montagem</span>
-            </button>
+        {/* Category Actions — Assistente de Montagem como Ponto Central Único Inteligente */}
+        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center relative">
+          {/* Assistente de Montagem / Assistente de Treino — Sempre visível no rascunho e no publicado */}
+          <button
+            type="button"
+            data-testid="category-assistant-btn"
+            onClick={() => setIsAssistantOpen(true)}
+            aria-label={isDraft ? "Assistente de Montagem" : "Assistente de Treino"}
+            className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-950/20 transition-all cursor-pointer min-h-[42px] shrink-0 hover:scale-[1.01] active:scale-[0.98]"
+            title={isDraft ? "Abrir Assistente Inteligente de Montagem" : "Abrir Assistente Inteligente de Prescrição"}
+          >
+            <SparklesIcon className="w-3.5 h-3.5 text-emerald-200 animate-pulse" />
+            <span>{isDraft ? "Assistente de Montagem" : "Assistente de Treino"}</span>
+          </button>
 
-            {/* Acessos preservados para acessibilidade e testes */}
-            <button
+          {isDraft && (
+            <>
+              {/* Acessos preservados para acessibilidade e testes */}
+              <button
               type="button"
               data-testid="category-add-exercise-btn"
               onClick={() => onOpenExercisePicker(category.publicId)}
@@ -1065,9 +1068,10 @@ export function WorkoutCategoryCard({
                 </>
               )}
             </div>
-          </div>
+          </>
         )}
       </div>
+    </div>
 
       {/* Content Area: Sub-Blocks or Flat Exercise List */}
       <div className="space-y-4 pt-1">
@@ -2079,6 +2083,7 @@ export function WorkoutCategoryCard({
             }
           }}
           onOpenPublishDialog={() => onOpenPublishDialog?.()}
+          onCreateDraft={onCreateDraft}
         />
       )}
     </div>
@@ -3556,10 +3561,10 @@ export function UnifiedCombinationBlock({
     <div
       data-testid="mobile-combination-block"
       data-block-type="unified-combination-block"
-      className={`rounded-2xl border border-[var(--border-subtle)] dark:border-white/[0.08] ${theme.borderLeftClass} bg-[var(--surface)] dark:bg-zinc-900/80 dark:backdrop-blur-md shadow-md hover:shadow-xl hover:${theme.borderClass} transition-all w-full max-w-full min-w-0 overflow-hidden`}
+      className={`rounded-2xl border border-zinc-200 dark:border-white/[0.08] ${theme.borderLeftClass} bg-white dark:bg-zinc-900/80 dark:backdrop-blur-md shadow-sm dark:shadow-md hover:shadow-md hover:${theme.borderClass} transition-all w-full max-w-full min-w-0 overflow-hidden`}
     >
       {/* Mobile Block Header (<sm) — dedicated compact ergonomic layout */}
-      <div className={`sm:hidden px-4 py-3 ${theme.headerBgClass} border-b border-[var(--border-subtle)] w-full max-w-full min-w-0`}>
+      <div className={`sm:hidden px-4 py-3 ${theme.headerBgClass} border-b border-zinc-200 dark:border-white/[0.06] w-full max-w-full min-w-0`}>
         <div className="flex items-center justify-between gap-2 w-full">
           {/* Header Title: BI-SET · 3 voltas */}
           <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
@@ -3677,7 +3682,7 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Desktop Header (>=sm) — preserved horizontal flow */}
-      <div className={`hidden sm:flex px-4 py-2.5 ${theme.headerBgClass} border-b border-[var(--border-subtle)] dark:border-white/[0.06] items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0`}>
+      <div className={`hidden sm:flex px-4 py-2.5 ${theme.headerBgClass} border-b border-zinc-200 dark:border-white/[0.06] items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0`}>
         <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
           <span className={`text-xs font-black uppercase tracking-wider ${theme.badgeClass} shrink-0 px-2 py-0.5 rounded-md`}>
             {typeLabel}
@@ -3802,7 +3807,7 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Internal Exercise Rows (Clean rows, NOT nested heavy cards) */}
-      <div className="divide-y divide-[var(--border-subtle)] dark:divide-white/[0.05]">
+      <div className="divide-y divide-zinc-200/80 dark:divide-white/[0.05]">
         {items.map((item: WorkoutBlockItemDto, idx: number) => {
           const letter = LETTERS[idx] || String.fromCharCode(65 + idx);
           const summary = getItemPrescriptionSummary(item);
@@ -3865,7 +3870,7 @@ export function UnifiedCombinationBlock({
                     onOpenQuickEdit(item);
                   }
                 }}
-                className={`py-3 px-3.5 sm:px-4 sm:py-3 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/40 dark:hover:bg-white/[0.03] transition-colors w-full max-w-full min-w-0 select-none group ${
+                className={`py-3 px-3.5 sm:px-4 sm:py-3 flex items-center justify-between gap-2.5 hover:bg-zinc-50 dark:hover:bg-white/[0.03] transition-colors w-full max-w-full min-w-0 select-none group ${
                   isDraft ? "cursor-pointer active:scale-[0.99]" : ""
                 }`}
               >
@@ -3876,23 +3881,23 @@ export function UnifiedCombinationBlock({
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] group-hover:text-emerald-400 transition-colors line-clamp-2 break-words">
+                      <h4 className="text-xs sm:text-sm font-extrabold text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 break-words">
                         {item.exerciseNameSnapshot}
                       </h4>
                       {item.isCustomExercise && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/[0.05] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-white/[0.08]">
                           Personalizado
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex-wrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-white/[0.05] border border-zinc-200 dark:border-white/[0.08] text-zinc-800 dark:text-zinc-200">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-white/[0.05] border border-zinc-200 dark:border-white/[0.08] text-zinc-900 dark:text-zinc-100 font-semibold">
                         {summary.seriesCount} voltas · {summary.repsText}
                         {summary.loadKg != null ? ` · ${summary.loadKg}kg` : ""}
                       </span>
                     </div>
                     {item.notes && item.notes.trim() && (
-                      <div className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md break-words">
+                      <div className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-800 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md break-words">
                         ⚡ {item.notes.trim()}
                       </div>
                     )}
@@ -3953,7 +3958,7 @@ export function UnifiedCombinationBlock({
               {/* Transition connector between exercises */}
               {idx < items.length - 1 && (
                 <div
-                  className="py-1 px-4 text-[10px] font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-2 border-t border-zinc-200/60 dark:border-white/[0.04] bg-zinc-50/50 dark:bg-white/[0.01]"
+                  className="py-1 px-4 text-[10px] font-medium text-zinc-600 dark:text-zinc-400 flex items-center gap-2 border-t border-zinc-200 dark:border-white/[0.04] bg-zinc-50 dark:bg-zinc-950/40"
                   title="Transição direta (sem descanso)"
                 >
                   <div className="h-px bg-zinc-200 dark:bg-white/[0.06] flex-1" />
@@ -3967,10 +3972,10 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Combination Footer: Rest between rounds */}
-      <div className="px-4 py-3 bg-[var(--surface-subtle)]/40 dark:bg-white/[0.02] border-t border-[var(--border-subtle)] dark:border-white/[0.06] flex items-center justify-between gap-2 text-xs font-semibold text-[var(--text-secondary)]">
+      <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-white/[0.06] flex items-center justify-between gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
         <span>
           Descanso após a volta:{" "}
-          <strong className="text-[var(--text-primary)] font-black">{restSec}s</strong>
+          <strong className="text-zinc-900 dark:text-white font-black">{restSec}s</strong>
           {activeRest.isActive && activeRest.activity ? ` (${activeRest.activity})` : ""}
         </span>
         {isDraft && (

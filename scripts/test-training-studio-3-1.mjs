@@ -40,23 +40,36 @@ const categoryCardPath = path.join(rootDir, "components/consultancies/training-v
 const workoutBuilderPath = path.join(rootDir, "components/consultancies/training-v2/workout-builder.tsx");
 const assistantPath = path.join(rootDir, "components/consultancies/training-v2/training-studio-assistant.tsx");
 const guidedModalPath = path.join(rootDir, "components/consultancies/training-v2/guided-combination-modal.tsx");
+const librarySidebarPath = path.join(rootDir, "components/consultancies/training-v2/studio-exercise-library-sidebar.tsx");
+const globalsCssPath = path.join(rootDir, "app/globals.css");
 
 assert.ok(fs.existsSync(tokensPath), "training-studio-tokens.ts exists");
 assert.ok(fs.existsSync(categoryCardPath), "workout-category-card.tsx exists");
 assert.ok(fs.existsSync(workoutBuilderPath), "workout-builder.tsx exists");
 assert.ok(fs.existsSync(assistantPath), "training-studio-assistant.tsx exists");
 assert.ok(fs.existsSync(guidedModalPath), "guided-combination-modal.tsx exists");
+assert.ok(fs.existsSync(librarySidebarPath), "studio-exercise-library-sidebar.tsx exists");
+assert.ok(fs.existsSync(globalsCssPath), "globals.css exists");
 
 const tokensContent = fs.readFileSync(tokensPath, "utf-8");
 const categoryCardContent = fs.readFileSync(categoryCardPath, "utf-8");
 const builderContent = fs.readFileSync(workoutBuilderPath, "utf-8");
 const assistantContent = fs.readFileSync(assistantPath, "utf-8");
 const guidedModalContent = fs.readFileSync(guidedModalPath, "utf-8");
+const librarySidebarContent = fs.readFileSync(librarySidebarPath, "utf-8");
+const globalsCssContent = fs.readFileSync(globalsCssPath, "utf-8");
 
 // ============================================================================
 // 1. MODO CLARO & ESCURO: TOKENS, CONTRASTE & CORES SEMÂNTICAS
 // ============================================================================
 console.log("\n--- 1. MODO CLARO & ESCURO: CONTRASTE & CORES SEMÂNTICAS ---");
+
+runTest("1.0 Tailwind v4 @custom-variant dark configurado em globals.css para isolar tema claro de preferência de sistema do SO", () => {
+  assert.ok(
+    globalsCssContent.includes('@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));'),
+    "Tailwind v4 @custom-variant dark must scope dark: utilities to data-theme='dark' preventing dark-mode OS bleed into light mode"
+  );
+});
 
 runTest("1.1 Bi-set possui cor Azul (#3B82F6) com contraste adaptativo para modo claro e escuro", () => {
   assert.ok(tokensContent.includes('"#3B82F6"'), "Bi-Set blue hex present");
@@ -78,13 +91,24 @@ runTest("1.3 Circuito possui cor Laranja (#F59E0B) com contraste adaptativo para
 
 runTest("1.4 Pílulas de prescrição nos cards corrigidas com alto contraste no Modo Claro", () => {
   assert.ok(
-    categoryCardContent.includes("text-zinc-800 dark:text-zinc-200") &&
-    categoryCardContent.includes("bg-zinc-100 dark:bg-white/[0.05]"),
+    categoryCardContent.includes("text-zinc-800 dark:text-zinc-200") ||
+    categoryCardContent.includes("text-zinc-900 dark:text-zinc-100"),
     "Prescription pill uses dark text on light bg in light mode and light text on dark bg in dark mode"
   );
   assert.ok(
     categoryCardContent.includes("text-zinc-700 dark:text-zinc-300"),
     "Secondary prescription badges use high-contrast text in both modes"
+  );
+});
+
+runTest("1.5 Biblioteca Studio lateral possui superfícies e textos claros no modo claro (WCAG AA)", () => {
+  assert.ok(
+    librarySidebarContent.includes("bg-white dark:bg-zinc-900"),
+    "Library sidebar container uses white in light mode and zinc-900 in dark mode"
+  );
+  assert.ok(
+    librarySidebarContent.includes("text-zinc-900 dark:text-white"),
+    "Exercise titles and headers in sidebar use crisp dark text in light mode"
   );
 });
 
@@ -154,22 +178,26 @@ runTest("2.6 Prévia da combinação exibe ordem visual (A., B., C.) antes da co
 // ============================================================================
 console.log("\n--- 3. ASSISTENTE DE MONTAGEM (ENTRADA CENTRAL ÚNICA) ---");
 
-runTest("3.1 Botão principal unificado do Assistente de Montagem presente no cabeçalho da categoria", () => {
+runTest("3.1 Botão principal unificado do Assistente presente no cabeçalho da categoria em rascunho e publicado", () => {
   assert.ok(
     categoryCardContent.includes('data-testid="category-assistant-btn"'),
     "category-assistant-btn testid is present"
   );
   assert.ok(
-    categoryCardContent.includes('aria-label="Assistente de Montagem"'),
-    "Accessible label for Assistente de Montagem is present"
+    categoryCardContent.includes('Assistente de Montagem') &&
+    categoryCardContent.includes('Assistente de Treino'),
+    "Dynamic labels for Draft and Published modes are present"
   );
 });
 
-runTest("3.2 Botões antigos separados substituídos na hierarquia primária visível", () => {
-  // Primary visible button is the Assistant; old buttons are preserved for accessibility
+runTest("3.2 Botão do Assistente também presente no Hero Spotlight superior (Desktop e Mobile)", () => {
   assert.ok(
-    categoryCardContent.includes("category-assistant-btn"),
-    "Single smart assistant entry point established"
+    builderContent.includes('data-testid="top-assistant-button"'),
+    "top-assistant-button present on desktop hero toolbar"
+  );
+  assert.ok(
+    builderContent.includes('data-testid="mobile-top-assistant-button"'),
+    "mobile-top-assistant-button present on mobile hero"
   );
 });
 

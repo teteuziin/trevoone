@@ -6,8 +6,13 @@ import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import {
   createConsultancyInvitation,
   revokeConsultancyInvitation,
+  resendConsultancyInvitation,
 } from "@/lib/consultancies/invitations";
-import { deactivateConsultancyMember } from "@/lib/consultancies/admin";
+import {
+  deactivateConsultancyMember,
+  updateConsultancyMemberRoles,
+  toggleConsultancyMemberStatus,
+} from "@/lib/consultancies/admin";
 
 export type InvitationFormState = {
   success: boolean;
@@ -167,3 +172,159 @@ export async function deactivateMemberAction(
     message: "Membro desligado da consultoria com sucesso.",
   };
 }
+
+export type ResendInvitationState = {
+  success: boolean;
+  error?: string;
+  invitationPath?: string;
+};
+
+export async function resendInvitationAction(
+  slug: string,
+  invitationPublicId: string
+): Promise<ResendInvitationState> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return {
+      success: false,
+      error: "Sessão expirada. Faça login novamente.",
+    };
+  }
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return {
+      success: false,
+      error: "Você não possui permissão de administrador nesta consultoria.",
+    };
+  }
+
+  const result = await resendConsultancyInvitation({
+    consultancyId: context.consultancyId,
+    actorUserId: session.userId,
+    invitationPublicId,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  try {
+    revalidatePath(`/consultoria/${slug}/membros`);
+  } catch {
+    // Ignorado fora do contexto HTTP
+  }
+
+  return {
+    success: true,
+    invitationPath: result.invitationPath,
+  };
+}
+
+export type UpdateMemberRolesState = {
+  success: boolean;
+  error?: string;
+};
+
+export async function updateMemberRolesAction(
+  slug: string,
+  memberPublicId: string,
+  roles: string[]
+): Promise<UpdateMemberRolesState> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return {
+      success: false,
+      error: "Sessão expirada. Faça login novamente.",
+    };
+  }
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return {
+      success: false,
+      error: "Você não possui permissão de administrador nesta consultoria.",
+    };
+  }
+
+  const result = await updateConsultancyMemberRoles({
+    consultancyId: context.consultancyId,
+    actorUserId: session.userId,
+    memberPublicId,
+    roles,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  try {
+    revalidatePath(`/consultoria/${slug}/membros`);
+    revalidatePath(`/consultoria/${slug}`);
+  } catch {
+    // Ignorado fora do contexto HTTP
+  }
+
+  return {
+    success: true,
+  };
+}
+
+export type ToggleMemberStatusState = {
+  success: boolean;
+  error?: string;
+};
+
+export async function toggleMemberStatusAction(
+  slug: string,
+  memberPublicId: string,
+  targetStatus: "ACTIVE" | "SUSPENDED"
+): Promise<ToggleMemberStatusState> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return {
+      success: false,
+      error: "Sessão expirada. Faça login novamente.",
+    };
+  }
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context || !context.roles.includes("CONSULTANCY_ADMIN")) {
+    return {
+      success: false,
+      error: "Você não possui permissão de administrador nesta consultoria.",
+    };
+  }
+
+  const result = await toggleConsultancyMemberStatus({
+    consultancyId: context.consultancyId,
+    actorUserId: session.userId,
+    memberPublicId,
+    targetStatus,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  try {
+    revalidatePath(`/consultoria/${slug}/membros`);
+    revalidatePath(`/consultoria/${slug}`);
+  } catch {
+    // Ignorado fora do contexto HTTP
+  }
+
+  return {
+    success: true,
+  };
+}
+

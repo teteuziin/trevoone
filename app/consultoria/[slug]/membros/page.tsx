@@ -1,21 +1,19 @@
 // Consultancy members and invitations directory
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth/session";
 import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import {
   listConsultancyMembers,
-  ADMIN_ROLE_LABELS,
+  getConsultancyMembersOperationalCounters,
+  type ConsultancyMemberItem,
+  type ConsultancyMembersOperationalCounters,
 } from "@/lib/consultancies/admin";
-import { listConsultancyInvitations } from "@/lib/consultancies/invitations";
+import {
+  listConsultancyInvitations,
+  type ConsultancyInvitationItem,
+} from "@/lib/consultancies/invitations";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
-import { InvitationForm } from "@/components/consultancies/invitation-form";
-import { InvitationRevokeButton } from "@/components/consultancies/invitation-revoke-button";
-import { DeactivateMemberButton } from "@/components/consultancies/deactivate-member-button";
-import { PageHeader } from "@/components/ui/page-header";
-import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { UserAvatar } from "@/components/account/user-avatar";
+import { ConsultancyMembersManager } from "@/components/consultancies/members/consultancy-members-manager";
 
 type PageProps = {
   params: Promise<{
@@ -27,6 +25,7 @@ type PageProps = {
   }>;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatDate(date: unknown): string {
   if (!date) return "—";
   const d = date instanceof Date ? date : new Date(String(date));
@@ -46,7 +45,6 @@ export default async function ConsultancyMembersPage({
   const { slug } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const q = resolvedSearchParams?.q;
-  const page = resolvedSearchParams?.page;
 
   const session = await getCurrentSession();
   if (!session) {
@@ -64,36 +62,42 @@ export default async function ConsultancyMembersPage({
   }
 
   const query = typeof q === "string" ? q.trim() : "";
-  const pageNum = Number(page);
-  const validPage = !isNaN(pageNum) && pageNum >= 1 ? Math.floor(pageNum) : 1;
 
-  // Buscar membros e convites em paralelo com resiliência
+  // Buscar membros, convites e contadores operacionais em paralelo com resiliência
   let membersResult = {
-    members: [] as import("@/lib/consultancies/admin").ConsultancyMemberItem[],
+    members: [] as ConsultancyMemberItem[],
     total: 0,
     page: 1,
-    pageSize: 25,
+    pageSize: 250,
     totalPages: 1,
   };
-  let invitations: import("@/lib/consultancies/invitations").ConsultancyInvitationItem[] = [];
+  let invitations: ConsultancyInvitationItem[] = [];
+  let counters: ConsultancyMembersOperationalCounters = {
+    activeMembers: 0,
+    suspendedMembers: 0,
+    pendingInvitations: 0,
+    totalInvitations: 0,
+    isError: false,
+  };
 
   try {
-    const [fetchedMembers, fetchedInvitations] = await Promise.all([
+    const [fetchedMembers, fetchedInvitations, fetchedCounters] = await Promise.all([
       listConsultancyMembers({
         consultancyId: context.consultancyId,
         query,
-        page: validPage,
-        pageSize: 25,
+        page: 1,
+        pageSize: 250,
       }),
       listConsultancyInvitations(context.consultancyId),
+      getConsultancyMembersOperationalCounters(context.consultancyId),
     ]);
     membersResult = fetchedMembers;
     invitations = fetchedInvitations;
+    counters = fetchedCounters;
   } catch (err) {
-    console.error("[ConsultancyMembersPage] Error fetching members or invitations:", err);
+    console.error("[ConsultancyMembersPage] Error fetching members, invitations or counters:", err);
+    counters.isError = true;
   }
-
-  const { members, total, page: currentPage, totalPages } = membersResult;
 
   return (
     <ConsultancyAppShell
@@ -108,442 +112,17 @@ export default async function ConsultancyMembersPage({
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
     >
-      <div className="w-full max-w-5xl mx-auto space-y-8 pb-12">
-        {/* Page Header */}
-        <PageHeader
-          title="Membros e Convites"
-          description="Gerencie os participantes, convites pendentes e permissões de acesso da consultoria."
-          backHref={`/consultoria/${slug}`}
-          backLabel="Voltar à visão geral"
+      <div className="w-full max-w-5xl mx-auto">
+        <ConsultancyMembersManager
+          slug={slug}
+          consultancyName={context.consultancyName}
+          currentUserId={session.userId}
+          currentMembershipPublicId={context.membershipPublicId}
+          initialMembers={membersResult.members}
+          initialInvitations={invitations}
+          counters={counters}
+          initialQuery={query}
         />
-
-        {/* 1. Formulário de Novo Convite */}
-        <section aria-labelledby="invitation-form-heading">
-          <InvitationForm slug={slug} />
-        </section>
-
-        {/* 2. Listagem de Convites Recentes */}
-        {invitations.length > 0 && (
-          <section aria-labelledby="invitations-list-heading" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 id="invitations-list-heading" className="text-sm sm:text-base font-bold text-[var(--text-primary)] tracking-tight">
-                Convites recentes ({invitations.length})
-              </h2>
-            </div>
-
-            {/* Desktop Table */}
-            <div className="hidden md:block bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  <tr>
-                    <th scope="col" className="px-5 py-3.5 font-semibold">
-                      Convidado
-                    </th>
-                    <th scope="col" className="px-5 py-3.5 font-semibold">
-                      Funções
-                    </th>
-                    <th scope="col" className="px-5 py-3.5 font-semibold">
-                      Expiração
-                    </th>
-                    <th scope="col" className="px-5 py-3.5 font-semibold">
-                      Status
-                    </th>
-                    <th scope="col" className="px-5 py-3.5 text-right font-semibold">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)]">
-                  {invitations.map((inv) => (
-                    <tr key={inv.publicId} className="hover:bg-[var(--surface-hover)] transition-colors">
-                      <td className="px-5 py-4 min-w-0">
-                        <div className="space-y-0.5">
-                          <p className="font-semibold text-[var(--text-primary)] truncate text-sm">
-                            {inv.email}
-                          </p>
-                          <p className="text-[11px] text-[var(--text-tertiary)]">
-                            Criado em {formatDate(inv.createdAt)}
-                          </p>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex flex-wrap gap-1.5">
-                          {inv.roles.map((role) => (
-                            <Badge key={role} variant="brand" size="sm">
-                              {ADMIN_ROLE_LABELS[role] || role}
-                            </Badge>
-                          ))}
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-xs text-[var(--text-secondary)] whitespace-nowrap">
-                        {formatDate(inv.expiresAt)}
-                      </td>
-
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <Badge
-                          variant={
-                            inv.status === "PENDING"
-                              ? "warning"
-                              : inv.status === "ACCEPTED"
-                              ? "success"
-                              : inv.status === "REVOKED"
-                              ? "danger"
-                              : "neutral"
-                          }
-                          size="sm"
-                        >
-                          {inv.statusLabel}
-                        </Badge>
-                      </td>
-
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
-                        {inv.status === "PENDING" && (
-                          <InvitationRevokeButton
-                            slug={slug}
-                            invitationPublicId={inv.publicId}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Cards */}
-            <div className="md:hidden space-y-3">
-              {invitations.map((inv) => (
-                <div
-                  key={inv.publicId}
-                  className="bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border-default)] shadow-xs space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 space-y-0.5">
-                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                        {inv.email}
-                      </p>
-                      <p className="text-[11px] text-[var(--text-tertiary)]">
-                        Criado em {formatDate(inv.createdAt)}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={
-                        inv.status === "PENDING"
-                          ? "warning"
-                          : inv.status === "ACCEPTED"
-                          ? "success"
-                          : inv.status === "REVOKED"
-                          ? "danger"
-                          : "neutral"
-                      }
-                      size="sm"
-                    >
-                      {inv.statusLabel}
-                    </Badge>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {inv.roles.map((role) => (
-                      <Badge key={role} variant="brand" size="sm">
-                        {ADMIN_ROLE_LABELS[role] || role}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2.5 border-t border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
-                    <span>Expira em: {formatDate(inv.expiresAt)}</span>
-                    {inv.status === "PENDING" && (
-                      <InvitationRevokeButton
-                        slug={slug}
-                        invitationPublicId={inv.publicId}
-                      />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 3. Diretório de Membros */}
-        <section aria-labelledby="members-directory-heading" className="space-y-4 pt-4 border-t border-[var(--border-subtle)]">
-          <div className="space-y-1">
-            <h2 id="members-directory-heading" className="text-base font-bold text-[var(--text-primary)] tracking-tight">
-              Diretório de Membros
-            </h2>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-              Pessoas atualmente vinculadas à consultoria ({total} {total === 1 ? "membro registrado" : "membros registrados"}).
-            </p>
-          </div>
-
-          {/* Search Bar */}
-          <div className="bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border-default)] shadow-xs">
-            <form method="get" className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-              <div className="relative flex-1">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)]">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  name="q"
-                  id="members_search_input"
-                  aria-label="Buscar membros por nome ou e-mail"
-                  defaultValue={query}
-                  placeholder="Buscar por nome ou e-mail..."
-                  className="w-full h-10.5 pl-10 pr-4 text-xs sm:text-sm bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] transition-colors"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto h-10.5 px-5 bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors focus-visible:outline-[var(--brand)] flex items-center justify-center min-h-[44px]"
-                >
-                  Buscar
-                </button>
-
-                {query.length > 0 && (
-                  <Link
-                    href={`/consultoria/${slug}/membros`}
-                    className="w-full sm:w-auto h-10.5 px-4 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] text-xs sm:text-sm font-medium rounded-xl border border-[var(--border-default)] transition-colors flex items-center justify-center min-h-[44px]"
-                  >
-                    Limpar
-                  </Link>
-                )}
-              </div>
-            </form>
-          </div>
-
-          {/* Members Directory Content */}
-          {members.length === 0 ? (
-            <EmptyState
-              title={
-                query.length > 0
-                  ? "Nenhum membro encontrado para esta busca"
-                  : "Nenhum membro registrado"
-              }
-              description={
-                query.length > 0
-                  ? "Tente buscar utilizando outros termos ou limpe o filtro de busca."
-                  : "Esta consultoria ainda não possui membros registrados."
-              }
-            />
-          ) : (
-            <div className="space-y-4">
-              {/* Desktop Table */}
-              <div className="hidden md:block bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-hidden">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                    <tr>
-                      <th scope="col" className="px-5 py-3.5 font-semibold">
-                        Membro
-                      </th>
-                      <th scope="col" className="px-5 py-3.5 font-semibold">
-                        Funções
-                      </th>
-                      <th scope="col" className="px-5 py-3.5 font-semibold">
-                        Status
-                      </th>
-                      <th scope="col" className="px-5 py-3.5 text-right font-semibold">
-                        Ações
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--border-subtle)]">
-                    {members.map((member) => (
-                      <tr key={member.membershipPublicId} className="hover:bg-[var(--surface-hover)] transition-colors">
-                        <td className="px-5 py-4 min-w-0">
-                          <div className="flex items-center gap-3">
-                            <UserAvatar fullName={member.fullName} userPublicId={member.userPublicId} size="sm" />
-                            <div className="space-y-0.5 min-w-0">
-                              <p className="font-semibold text-[var(--text-primary)] truncate text-sm">
-                                {member.fullName}
-                              </p>
-                            <p className="text-xs text-[var(--text-secondary)] truncate">
-                              {member.email}
-                            </p>
-                          </div>
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <div className="flex flex-wrap gap-1.5">
-                            {member.roles.length > 0 ? (
-                              member.roles.map((role) => (
-                                <Badge key={role} variant="brand" size="sm">
-                                  {ADMIN_ROLE_LABELS[role] || role}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-xs text-[var(--text-tertiary)] italic">
-                                Sem papéis
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <Badge
-                            variant={
-                              member.status === "ACTIVE"
-                                ? "success"
-                                : member.status === "INVITED"
-                                ? "warning"
-                                : member.status === "SUSPENDED"
-                                ? "danger"
-                                : "neutral"
-                            }
-                            size="sm"
-                          >
-                            {member.statusLabel}
-                          </Badge>
-                        </td>
-
-                        <td className="px-5 py-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
-                            {member.roles.includes("STUDENT") && member.status === "ACTIVE" && (
-                              <Link
-                                href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
-                                className="inline-flex items-center justify-center px-3.5 py-1.5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-primary)] text-xs font-semibold rounded-xl shadow-2xs transition-colors focus-visible:outline-[var(--brand)]"
-                              >
-                                Ver onboarding
-                              </Link>
-                            )}
-                            {member.status === "ACTIVE" && member.membershipPublicId !== context.membershipPublicId && (
-                              <DeactivateMemberButton
-                                slug={slug}
-                                memberPublicId={member.membershipPublicId}
-                                memberName={member.fullName}
-                              />
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Cards */}
-              <div className="md:hidden space-y-3">
-                {members.map((member) => (
-                  <div
-                    key={member.membershipPublicId}
-                    className="bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border-default)] shadow-xs space-y-3"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 space-y-0.5">
-                        <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                          {member.fullName}
-                        </p>
-                        <p className="text-xs text-[var(--text-secondary)] truncate">
-                          {member.email}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={
-                          member.status === "ACTIVE"
-                            ? "success"
-                            : member.status === "INVITED"
-                            ? "warning"
-                            : member.status === "SUSPENDED"
-                            ? "danger"
-                            : "neutral"
-                        }
-                        size="sm"
-                      >
-                        {member.statusLabel}
-                      </Badge>
-                    </div>
-
-                    <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-wrap gap-1.5">
-                      {member.roles.length > 0 ? (
-                        member.roles.map((role) => (
-                          <Badge key={role} variant="brand" size="sm">
-                            {ADMIN_ROLE_LABELS[role] || role}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs text-[var(--text-tertiary)] italic">
-                          Sem papéis
-                        </span>
-                      )}
-                    </div>
-
-                    {(member.status === "ACTIVE" && (member.roles.includes("STUDENT") || member.membershipPublicId !== context.membershipPublicId)) && (
-                      <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end gap-3 flex-wrap">
-                        {member.roles.includes("STUDENT") && member.status === "ACTIVE" && (
-                          <Link
-                            href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
-                            className="inline-flex items-center text-xs font-semibold text-[var(--brand-foreground)] hover:underline min-h-[44px]"
-                          >
-                            Ver onboarding →
-                          </Link>
-                        )}
-                        {member.status === "ACTIVE" && member.membershipPublicId !== context.membershipPublicId && (
-                          <DeactivateMemberButton
-                            slug={slug}
-                            memberPublicId={member.membershipPublicId}
-                            memberName={member.fullName}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <nav
-                  aria-label="Paginação do diretório de membros"
-                  className="bg-[var(--surface)] px-4 py-3 rounded-2xl border border-[var(--border-default)] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-sm"
-                >
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] text-center sm:text-left">
-                    Mostrando página <span className="font-semibold text-[var(--text-primary)]">{currentPage}</span> de{" "}
-                    <span className="font-semibold text-[var(--text-primary)]">{totalPages}</span> ({total} {total === 1 ? "membro" : "membros"})
-                  </p>
-
-                  <div className="flex items-center gap-2">
-                    {currentPage > 1 ? (
-                      <Link
-                        href={`/consultoria/${slug}/membros?page=${currentPage - 1}${
-                          query ? `&q=${encodeURIComponent(query)}` : ""
-                        }`}
-                        className="px-3.5 py-2 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] text-xs font-semibold rounded-xl border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)] min-h-[44px] flex items-center justify-center"
-                      >
-                        Anterior
-                      </Link>
-                    ) : (
-                      <span className="px-3.5 py-2 bg-[var(--surface-subtle)] text-[var(--text-tertiary)] text-xs font-medium rounded-xl border border-[var(--border-subtle)] cursor-not-allowed select-none min-h-[44px] flex items-center justify-center">
-                        Anterior
-                      </span>
-                    )}
-
-                    {currentPage < totalPages ? (
-                      <Link
-                        href={`/consultoria/${slug}/membros?page=${currentPage + 1}${
-                          query ? `&q=${encodeURIComponent(query)}` : ""
-                        }`}
-                        className="px-3.5 py-2 bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] text-xs font-semibold rounded-xl border border-[var(--border-default)] transition-colors focus-visible:outline-[var(--brand)] min-h-[44px] flex items-center justify-center"
-                      >
-                        Próxima
-                      </Link>
-                    ) : (
-                      <span className="px-3.5 py-2 bg-[var(--surface-subtle)] text-[var(--text-tertiary)] text-xs font-medium rounded-xl border border-[var(--border-subtle)] cursor-not-allowed select-none min-h-[44px] flex items-center justify-center">
-                        Próxima
-                      </span>
-                    )}
-                  </div>
-                </nav>
-              )}
-            </div>
-          )}
-        </section>
       </div>
     </ConsultancyAppShell>
   );

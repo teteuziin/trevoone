@@ -345,7 +345,7 @@ export async function listConsultancyInvitations(
       WHERE ci.consultancy_id = ?
       GROUP BY ci.id, ci.public_id, ci.email, ci.created_at, ci.expires_at, ci.accepted_at, ci.revoked_at
       ORDER BY ci.created_at DESC, ci.id DESC
-      LIMIT 25;`,
+      LIMIT 500;`,
       [consultancyId]
     );
 
@@ -532,6 +532,143 @@ export async function revokeConsultancyInvitation(params: {
     }
   }
 }
+
+export type ResendConsultancyInvitationParams = {
+  consultancyId: number;
+  actorUserId: number;
+  invitationPublicId: string;
+};
+
+/**
+ * Reenvia / renova um convite pendente ou expirado na consultoria com validade de mais 7 dias.
+ */
+export async function resendConsultancyInvitation(
+  params: ResendConsultancyInvitationParams
+): Promise<{ success: true; invitationPath: string } | { success: false; error: string }> {
+  const { consultancyId, actorUserId, invitationPublicId } = params;
+
+  if (!consultancyId || typeof consultancyId !== "number" || consultancyId <= 0) {
+    return { success: false, error: "Consultoria inválida." };
+  }
+  if (!actorUserId || typeof actorUserId !== "number" || actorUserId <= 0) {
+    return { success: false, error: "Usuário não autenticado." };
+  }
+  if (!invitationPublicId || typeof invitationPublicId !== "string" || invitationPublicId.trim().length === 0) {
+    return { success: false, error: "Identificador de convite inválido." };
+  }
+
+  let connection;
+  try {
+    connection = await getDbConnection();
+    await connection.beginTransaction();
+
+    // 1. Revalidar permissão do ator como CONSULTANCY_ADMIN
+    const [actorRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT c.id
+       FROM consultancies c
+       INNER JOIN consultancy_members cm ON cm.consultancy_id = c.id
+       INNER JOIN consultancy_member_roles cmr ON cmr.member_id = cm.id
+       WHERE c.id = ?
+         AND c.status = 'ACTIVE'
+         AND c.deleted_at IS NULL
+         AND cm.user_id = ?
+         AND cm.status = 'ACTIVE'
+         AND cmr.role = 'CONSULTANCY_ADMIN'
+       LIMIT 1
+       FOR UPDATE;`,
+      [consultancyId, actorUserId]
+    );
+
+    if (!Array.isArray(actorRows) || actorRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Você não possui permissão para gerenciar convites nesta consultoria." };
+    }
+
+    // 2. Localizar o convite dentro da consultoria
+    const [invRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, email, accepted_at
+       FROM consultancy_invitations
+       WHERE public_id = ? AND consultancy_id = ?
+       LIMIT 1
+       FOR UPDATE;`,
+      [invitationPublicId.trim(), consultancyId]
+    );
+
+    if (!Array.isArray(invRows) || invRows.length === 0) {
+      await connection.rollback();
+      return { success: false, error: "Convite não encontrado nesta consultoria." };
+    }
+
+    const inv = invRows[0];
+    if (inv.accepted_at !== null) {
+      await connection.rollback();
+      return { success: false, error: "Este convite já foi aceito e não pode ser reenviado." };
+    }
+
+    // 3. Gerar novo token de alta entropia (32 bytes base64url)
+    const rawToken = crypto.randomBytes(32).toString("base64url");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    // 4. Atualizar o convite: novo hash de token, nova validade de 7 dias e limpar revoked_at se houver
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      `UPDATE consultancy_invitations
+       SET token_hash = ?,
+           expires_at = DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 7 DAY),
+           revoked_at = NULL
+       WHERE id = ? AND consultancy_id = ?;`,
+      [tokenHash, inv.id, consultancyId]
+    );
+
+    if (updateResult.affectedRows !== 1) {
+      await connection.rollback();
+      return { success: false, error: "Não foi possível renovar o convite." };
+    }
+
+    // 5. Auditoria
+    const auditPublicId = crypto.randomUUID();
+    await connection.execute<ResultSetHeader>(
+      `INSERT INTO audit_events (
+        public_id, actor_user_id, consultancy_id, action,
+        target_type, target_public_id, metadata_json, created_at
+      ) VALUES (?, ?, ?, 'CONSULTANCY_INVITATION_RESENT', 'CONSULTANCY_INVITATION', ?, ?, UTC_TIMESTAMP(3));`,
+      [
+        auditPublicId,
+        actorUserId,
+        consultancyId,
+        invitationPublicId.trim(),
+        JSON.stringify({ email: inv.email }),
+      ]
+    );
+
+    await recordConsultancyActivity({
+      consultancyId,
+      actorUserId,
+      actorRole: "CONSULTANCY_ADMIN",
+      action: "CONSULTANCY_INVITATION_RESENT",
+      module: "MEMBERS",
+      resourceType: "invitation",
+      resourcePublicId: invitationPublicId.trim(),
+      summary: `Convite para ${inv.email} reenviado`,
+      metadata: { invitationPublicId },
+      connection,
+    }).catch(() => {});
+
+    await connection.commit();
+
+    return {
+      success: true,
+      invitationPath: `/convite/${rawToken}`,
+    };
+  } catch {
+    if (connection) {
+      try { await connection.rollback(); } catch {}
+    }
+    return { success: false, error: "Erro ao reenviar convite." };
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
 
 export async function getInvitationPreviewByToken(
   token: string

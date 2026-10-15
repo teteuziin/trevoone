@@ -39,8 +39,6 @@ function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-
-
 type PageProps = {
   params: Promise<{
     slug: string;
@@ -134,56 +132,65 @@ export default async function ConsultancyWorkoutsPage({
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
-        {/* Header Cockpit */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
-                Módulo de Treinamento
-              </span>
-              <Badge variant="brand" size="sm">
-                Personal Trainer
-              </Badge>
-            </div>
-            <h1 className="font-heading text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-              {pageTitle}
-            </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium max-w-2xl leading-relaxed">
-              {pageSubtitle}
-            </p>
-          </div>
+        {/* =========================================================================
+            1. HERO SPOTLIGHT CINEMATOGRÁFICO (NETFLIX / APPLE FITNESS+ EDITION)
+            ========================================================================= */}
+        <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-emerald-950/30 p-6 sm:p-7 shadow-2xl transition-all">
+          {/* Ambient Lighting Orbs */}
+          <div className="absolute -top-16 -right-16 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <WorkoutCreationSheet consultancySlug={slug} isTemplatesTab={isTemplatesTab} />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-bold tracking-wider uppercase">
+                <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                <span>MÓDULO DE TREINAMENTO · PERSONAL TRAINER</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans">
+                {pageTitle}
+              </h1>
+              <p className="text-xs sm:text-sm text-zinc-300 font-sans leading-relaxed">
+                {pageSubtitle}
+              </p>
+            </div>
+
+            {/* CTAs de Alto Impacto integrados com WorkoutCreationSheet */}
+            <div className="shrink-0">
+              <WorkoutCreationSheet consultancySlug={slug} isTemplatesTab={isTemplatesTab} />
+            </div>
+          </div>
         </div>
 
-        {/* View Mode Navigation Tabs: Treinos vs Modelos vs Prescrições */}
-        <div className="flex items-center gap-1 p-1 bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-2xl w-full sm:w-fit shadow-inner">
+        {/* =========================================================================
+            2. ABAS DE CONTEXTO E NAVEGAÇÃO DE MODO DE VISÃO
+            ========================================================================= */}
+        <div className="flex items-center gap-1.5 p-1.5 bg-gradient-to-r from-zinc-900/90 to-zinc-950 border border-white/[0.08] rounded-2xl w-full sm:w-fit shadow-md">
           <Link
             href={`/consultoria/${slug}/rotinas`}
-            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center depth-interactive ${
+            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center cursor-pointer ${
               !isTemplatesTab && !isAssignmentsTab
-                ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
+                ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
             }`}
           >
             Treinos
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=templates`}
-            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center depth-interactive ${
+            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center cursor-pointer ${
               isTemplatesTab
-                ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
+                ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
             }`}
           >
             Modelos
           </Link>
           <Link
             href={`/consultoria/${slug}/rotinas?tab=assignments`}
-            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center depth-interactive ${
+            className={`flex-1 sm:flex-initial text-center px-4 py-2 text-xs font-semibold rounded-xl select-none transition-all min-h-[40px] flex items-center justify-center cursor-pointer ${
               isAssignmentsTab
-                ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
+                ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
             }`}
           >
             Prescrições
@@ -198,25 +205,27 @@ export default async function ConsultancyWorkoutsPage({
           />
         ) : (
           <>
-            {/* Filter Bar */}
-            <div className="p-3.5 sm:p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs space-y-3 depth-surface">
+            {/* =====================================================================
+                3. BARRA DE CONTROLE: BUSCA E FILTROS DE STATUS
+                ===================================================================== */}
+            <div className="p-3.5 sm:p-4 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-r from-zinc-900/90 to-zinc-950 shadow-md space-y-3">
               <div className="flex flex-col sm:flex-row gap-3">
                 {/* Search Input */}
                 <form method="GET" className="relative flex-1">
                   {isTemplatesTab && <input type="hidden" name="tab" value="templates" />}
                   <input type="hidden" name="status" value={validStatus} />
-                  <SearchIcon className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <SearchIcon className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     name="q"
                     defaultValue={q || ""}
                     placeholder={isTemplatesTab ? "Buscar por título do modelo..." : "Buscar por título do treino..."}
-                    className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[40px]"
+                    className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm rounded-xl border border-white/[0.08] bg-zinc-900/60 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white placeholder-zinc-500 transition-all min-h-[40px]"
                   />
                 </form>
 
-                {/* Status Tabs */}
-                <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                {/* Status Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
                   {[
                     { id: "ALL", label: "Todos" },
                     { id: "DRAFT", label: "Rascunhos" },
@@ -233,10 +242,10 @@ export default async function ConsultancyWorkoutsPage({
                       <Link
                         key={statusTab.id}
                         href={url.pathname + url.search}
-                        className={`px-3 py-1.5 rounded-xl text-xs select-none transition-all min-h-[36px] flex items-center justify-center whitespace-nowrap depth-interactive ${
+                        className={`px-3.5 py-1.5 rounded-xl text-xs select-none transition-all min-h-[36px] flex items-center justify-center whitespace-nowrap cursor-pointer ${
                           isActive
-                            ? "bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-xs font-bold"
-                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent font-medium"
+                            ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
+                            : "bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06] font-medium"
                         }`}
                       >
                         {statusTab.label}
@@ -247,14 +256,16 @@ export default async function ConsultancyWorkoutsPage({
               </div>
             </div>
 
-            {/* Workouts Grid */}
+            {/* =====================================================================
+                4. CATÁLOGO DE FICHAS: ESTILO POSTER / RICH ROWS
+                ===================================================================== */}
             {items.length === 0 ? (
-              <div className="p-8 sm:p-12 text-center rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface space-y-4">
-                <div className="w-12 h-12 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-default)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
+              <div className="p-8 sm:p-12 text-center rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-zinc-900/60 shadow-md space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-emerald-400">
                   <DumbbellIcon className="w-6 h-6" />
                 </div>
                 <div className="space-y-1 max-w-md mx-auto">
-                  <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  <h3 className="text-base font-bold text-white">
                     {q || validStatus !== "ALL"
                       ? isTemplatesTab
                         ? "Nenhum modelo encontrado para os filtros informados."
@@ -263,7 +274,7 @@ export default async function ConsultancyWorkoutsPage({
                       ? "Você ainda não criou nenhum modelo de ficha."
                       : "Você ainda não criou nenhuma ficha."}
                   </h3>
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  <p className="text-xs text-zinc-400 leading-relaxed">
                     {q || validStatus !== "ALL"
                       ? "Tente ajustar sua busca ou limpar os filtros de status."
                       : isTemplatesTab
@@ -278,7 +289,7 @@ export default async function ConsultancyWorkoutsPage({
                   <Link
                     href={isTemplatesTab ? `/consultoria/${slug}/rotinas/novo?isTemplate=true` : `/consultoria/${slug}/rotinas/novo`}
                   >
-                    <Button variant="primary" size="sm" className="font-bold min-h-[44px] flex items-center gap-1.5 shadow-sm">
+                    <Button variant="primary" size="sm" className="font-bold min-h-[44px] flex items-center gap-1.5 shadow-md shadow-emerald-500/20 bg-emerald-500 hover:bg-emerald-400 text-zinc-950">
                       <PlusIcon className="w-4 h-4" />
                       <span>{isTemplatesTab ? "Criar modelo" : "Criar ficha"}</span>
                     </Button>
@@ -291,10 +302,13 @@ export default async function ConsultancyWorkoutsPage({
                   return (
                     <React.Fragment key={w.publicId}>
                       {/* MOBILE CARD (sm:hidden) */}
-                      <div className="sm:hidden p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-2xs space-y-3 depth-surface">
-                        <div className="space-y-1.5">
+                      <div className="sm:hidden p-4 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-b from-zinc-900/95 via-zinc-900/90 to-zinc-950 shadow-md space-y-3 relative overflow-hidden group">
+                        {/* Top ambient highlight */}
+                        <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-emerald-500/10 blur-xl pointer-events-none" />
+
+                        <div className="space-y-1.5 relative z-10">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="text-base font-bold text-[var(--text-primary)] leading-snug">
+                            <h3 className="text-base font-bold text-white leading-snug group-hover:text-emerald-300 transition-colors">
                               {w.title}
                             </h3>
                             {w.hasActiveDraft ? (
@@ -313,24 +327,24 @@ export default async function ConsultancyWorkoutsPage({
                           </div>
 
                           {w.objective && (
-                            <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
+                            <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
                               {w.objective}
                             </p>
                           )}
 
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)] pt-0.5">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 pt-0.5">
                             {w.isTemplate ? (
-                              <span className="font-semibold text-[var(--text-secondary)]">
+                              <span className="font-semibold text-zinc-300">
                                 Modelo • {w.blocksCount} {w.blocksCount === 1 ? "categoria" : "categorias"}
                               </span>
                             ) : (
                               <>
                                 {(w.activeAssignmentsCount ?? 0) === 0 ? (
-                                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                                  <span className="font-medium text-amber-400">
                                     Sem aluno atribuído
                                   </span>
                                 ) : w.assignedStudentName ? (
-                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  <span className="font-semibold text-emerald-400">
                                     Aluno: {w.assignedStudentName}
                                   </span>
                                 ) : null}
@@ -346,13 +360,13 @@ export default async function ConsultancyWorkoutsPage({
                             )}
                           </div>
 
-                          <p className="text-[11px] text-[var(--text-tertiary)] pt-0.5">
+                          <p className="text-[11px] text-zinc-500 pt-0.5">
                             Atualizado em {new Date(w.updatedAt).toLocaleDateString("pt-BR")}
                           </p>
                         </div>
 
                         {/* Mobile Primary Action (Abrir treino / Usar modelo) & Secondary Actions (min-h-[44px]) */}
-                        <div className="pt-2.5 border-t border-[var(--border-subtle)] min-h-[44px]">
+                        <div className="pt-2.5 border-t border-white/[0.06] min-h-[44px] relative z-10">
                           <WorkoutCardActions
                             consultancySlug={slug}
                             workoutPublicId={w.publicId}
@@ -364,10 +378,13 @@ export default async function ConsultancyWorkoutsPage({
                       </div>
 
                       {/* DESKTOP ROW (hidden sm:flex) */}
-                      <div className="hidden sm:flex p-3.5 sm:p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] shadow-2xs hover:border-[var(--border-strong)] transition-all flex-row items-center justify-between gap-3">
-                        <div className="space-y-1 min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                      <div className="hidden sm:flex p-4 sm:p-5 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-b from-zinc-900/95 via-zinc-900/90 to-zinc-950 shadow-md hover:border-emerald-500/40 hover:shadow-xl hover:shadow-emerald-950/20 transition-all flex-row items-center justify-between gap-4 group relative overflow-hidden">
+                        {/* Hover left accent bar */}
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity w-1 absolute left-0 inset-y-0 bg-emerald-500 rounded-r-full" />
+
+                        <div className="space-y-1.5 min-w-0 flex-1 relative z-10">
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <h3 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
                               {w.title}
                             </h3>
                             {/* Status Badge */}
@@ -392,20 +409,20 @@ export default async function ConsultancyWorkoutsPage({
                           </div>
 
                           {w.objective && (
-                            <p className="text-xs text-[var(--text-secondary)] truncate">
+                            <p className="text-xs text-zinc-400 truncate">
                               {w.objective}
                             </p>
                           )}
 
-                          <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-[var(--text-tertiary)]">
+                          <div className="flex flex-wrap items-center gap-2.5 text-xs text-zinc-400">
                             {!w.isTemplate && (
                               <>
                                 {(w.activeAssignmentsCount ?? 0) === 0 ? (
-                                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                                  <span className="font-medium text-amber-400">
                                     Sem aluno atribuído
                                   </span>
                                 ) : w.assignedStudentName ? (
-                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  <span className="font-semibold text-emerald-400">
                                     Aluno: {w.assignedStudentName}
                                   </span>
                                 ) : null}
@@ -426,13 +443,15 @@ export default async function ConsultancyWorkoutsPage({
                           </div>
                         </div>
 
-                        <WorkoutCardActions
-                          consultancySlug={slug}
-                          workoutPublicId={w.publicId}
-                          workoutTitle={w.title}
-                          isDraft={Boolean(w.hasActiveDraft)}
-                          isTemplate={Boolean(w.isTemplate)}
-                        />
+                        <div className="relative z-10 shrink-0">
+                          <WorkoutCardActions
+                            consultancySlug={slug}
+                            workoutPublicId={w.publicId}
+                            workoutTitle={w.title}
+                            isDraft={Boolean(w.hasActiveDraft)}
+                            isTemplate={Boolean(w.isTemplate)}
+                          />
+                        </div>
                       </div>
                     </React.Fragment>
                   );
@@ -450,14 +469,15 @@ export default async function ConsultancyWorkoutsPage({
                   if (validStatus !== "ALL") url.searchParams.set("status", validStatus);
                   url.searchParams.set("page", String(p));
 
+                  const isCurrent = p === currentPage;
                   return (
                     <Link
                       key={p}
                       href={url.pathname + url.search}
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-semibold select-none transition-all depth-interactive ${
-                        currentPage === p
-                          ? "bg-[var(--brand)] text-[var(--brand-foreground)] font-bold shadow-xs"
-                          : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border-default)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                      className={`w-9 h-9 rounded-xl text-xs font-semibold flex items-center justify-center transition-all cursor-pointer ${
+                        isCurrent
+                          ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
+                          : "bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.08]"
                       }`}
                     >
                       {p}

@@ -5,7 +5,6 @@ import { resolveConsultancyContext } from "@/lib/consultancies/context";
 import { resolveEffectiveViewMode } from "@/lib/consultancies/view-mode-server";
 import { listPersonalStudents } from "@/lib/consultancies/personal-student-hub";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
-import { PageHeader } from "@/components/ui/page-header";
 import { PersonalStudentList } from "@/components/consultancies/personal-student-hub/personal-student-list";
 
 interface PageProps {
@@ -61,18 +60,6 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
       viewModeState={effectiveState}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-16">
-        <PageHeader
-          eyebrow={isNutritionist ? "Pacientes" : "Central de Alunos"}
-          title={isNutritionist ? "Pacientes da Consultoria" : "Alunos da Consultoria"}
-          description={
-            isNutritionist
-              ? "Acompanhe prontuário, plano alimentar e evolução dos seus pacientes."
-              : "Acompanhe seus alunos, informações, avaliações e crie rotinas de treino."
-          }
-          backHref={`/consultoria/${slug}`}
-          backLabel="Visão geral"
-        />
-
         <PersonalStudentList
           consultancySlug={slug}
           students={students}

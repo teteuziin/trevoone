@@ -3,8 +3,6 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/account/user-avatar";
 import {
   MobileSearchBar,
@@ -116,7 +114,7 @@ export function PersonalStudentList({
   const isAdmin = effectiveMode === "ADMIN" || effectiveMode === "CONSULTANCY_ADMIN" || userRoles.includes("CONSULTANCY_ADMIN");
   const isEffectiveNutritionist = effectiveMode === "NUTRITIONIST" || (!effectiveMode && isNutritionist && !isPersonal);
 
-  // Objective distinct values
+  // Distinct objectives
   const availableObjectives = useMemo(() => {
     const set = new Set<string>();
     for (const s of students) {
@@ -127,7 +125,7 @@ export function PersonalStudentList({
     return Array.from(set);
   }, [students]);
 
-  // Counts for segmented controls
+  // Operational Counters
   const withWorkoutCount = useMemo(
     () => students.filter((s) => s.latestAssignmentStatus === "ACTIVE" && !!s.latestWorkoutTitle).length,
     [students]
@@ -141,7 +139,7 @@ export function PersonalStudentList({
 
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
-      // 1. Search text
+      // 1. Text Search
       if (search.trim()) {
         const q = search.toLowerCase().trim();
         const matchesName = s.name.toLowerCase().includes(q);
@@ -247,12 +245,12 @@ export function PersonalStudentList({
                 ? "Assim que novos pacientes forem vinculados à consultoria, eles aparecerão aqui para prontuário, planos e evolução."
                 : "Assim que novos alunos forem vinculados à consultoria, eles aparecerão aqui para acompanhamento, treinos e evolução."
             }
-            icon={<UserIcon className="w-7 h-7 text-[var(--brand)]" />}
+            icon={<UserIcon className="w-7 h-7 text-emerald-400" />}
             action={
               isAdmin ? (
                 <Link
                   href={`/consultoria/${consultancySlug}/membros`}
-                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[48px] shadow-sm depth-interactive"
+                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-zinc-950 bg-emerald-500 hover:bg-emerald-400 min-h-[48px] shadow-sm"
                 >
                   <PlusIcon className="w-4 h-4" />
                   <span>+ Convidar primeiro {isEffectiveNutritionist ? "paciente" : "aluno"}</span>
@@ -263,15 +261,15 @@ export function PersonalStudentList({
         </div>
 
         {/* Preserved desktop container */}
-        <div className="hidden md:block p-8 sm:p-12 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-4 shadow-xs depth-surface">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
+        <div className="hidden md:block p-8 sm:p-12 rounded-3xl border border-white/[0.08] bg-zinc-900/60 text-center space-y-4 shadow-md">
+          <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-emerald-400">
             <UserIcon className="w-6 h-6" />
           </div>
           <div className="space-y-1 max-w-sm mx-auto">
-            <p className="font-heading text-base font-bold text-[var(--text-primary)]">
+            <p className="font-heading text-base font-bold text-white">
               Nenhum {isEffectiveNutritionist ? "paciente" : "aluno"} disponível nesta consultoria
             </p>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
               {isEffectiveNutritionist
                 ? "Assim que novos pacientes forem cadastrados ou vinculados à consultoria, eles aparecerão aqui para prontuário, planos alimentares e evolução."
                 : "Assim que novos alunos forem cadastrados ou vinculados à consultoria, eles aparecerão aqui para acompanhamento e montagem de treinos."}
@@ -281,7 +279,7 @@ export function PersonalStudentList({
             <div className="pt-2">
               <Link
                 href={`/consultoria/${consultancySlug}/membros`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px]"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 min-h-[44px]"
               >
                 <PlusIcon className="w-4 h-4" />
                 <span>+ Convidar {isEffectiveNutritionist ? "paciente" : "aluno"}</span>
@@ -294,9 +292,128 @@ export function PersonalStudentList({
   }
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-5">
       {/* =========================================================================
-          MOBILE-NATIVE SEARCH & FILTER CONTROLS (md:hidden)
+          HERO BANNER "SPOTLIGHT" CINEMATOGRÁFICO (NETFLIX / APPLE FITNESS+ EDITION)
+          ========================================================================= */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-emerald-950/30 p-5 sm:p-7 shadow-2xl transition-all">
+        {/* Ambient Glow Orbs */}
+        <div className="absolute -top-16 -right-16 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col gap-4">
+          {/* Top Row: Back navigation & Pill Badge */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <Link
+              href={`/consultoria/${consultancySlug}`}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-emerald-400 transition-colors group cursor-pointer"
+            >
+              <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
+              <span>Visão geral</span>
+            </Link>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] sm:text-xs font-bold tracking-wider uppercase">
+              <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <span>{isEffectiveNutritionist ? "GESTÃO DE PACIENTES ATIVA" : "GESTÃO DE ALUNOS ATIVA"}</span>
+            </div>
+          </div>
+
+          {/* Title & Subtitle */}
+          <div className="space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans">
+              {isEffectiveNutritionist ? "Pacientes da Consultoria" : "Alunos da Consultoria"}
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-300 font-sans leading-relaxed max-w-2xl">
+              {isEffectiveNutritionist
+                ? "Acompanhe prontuário, planos alimentares e a evolução clínica de cada paciente."
+                : "Acompanhe seus alunos, informações, avaliações e crie rotinas de treino."}
+            </p>
+          </div>
+
+          {/* Bento Strip Compacto de KPIs */}
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5 pt-1">
+            {/* KPI 1: Total */}
+            <button
+              type="button"
+              onClick={() => setWorkoutFilter("ALL")}
+              className={`p-3 sm:p-4 rounded-2xl border transition-all text-left flex flex-col justify-between cursor-pointer ${
+                workoutFilter === "ALL"
+                  ? "bg-emerald-500/10 border-emerald-500/40 shadow-lg shadow-emerald-950/20"
+                  : "bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.08]"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[10px] sm:text-xs font-semibold text-zinc-400">Total</span>
+              </div>
+              <div className="pt-2">
+                <span className="text-xl sm:text-2xl font-black text-white tabular-nums block font-sans">
+                  {students.length}
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
+                  {isEffectiveNutritionist ? "Pacientes" : "Alunos Ativos"}
+                </span>
+              </div>
+            </button>
+
+            {/* KPI 2: Com Treino */}
+            <button
+              type="button"
+              onClick={() => setWorkoutFilter("WITH_WORKOUT")}
+              className={`p-3 sm:p-4 rounded-2xl border transition-all text-left flex flex-col justify-between cursor-pointer ${
+                workoutFilter === "WITH_WORKOUT"
+                  ? "bg-emerald-500/10 border-emerald-500/40 shadow-lg shadow-emerald-950/20"
+                  : "bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.08]"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <DumbbellIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[10px] sm:text-xs font-semibold text-emerald-400">Ativos</span>
+              </div>
+              <div className="pt-2">
+                <span className="text-xl sm:text-2xl font-black text-emerald-400 tabular-nums block font-sans">
+                  {withWorkoutCount}
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
+                  Com treino
+                </span>
+              </div>
+            </button>
+
+            {/* KPI 3: Sem Treino */}
+            <button
+              type="button"
+              onClick={() => setWorkoutFilter("WITHOUT_WORKOUT")}
+              className={`p-3 sm:p-4 rounded-2xl border transition-all text-left flex flex-col justify-between cursor-pointer ${
+                workoutFilter === "WITHOUT_WORKOUT"
+                  ? "bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-950/20"
+                  : "bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.08]"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">
+                  !
+                </div>
+                <span className="text-[10px] sm:text-xs font-semibold text-amber-400">Pendente</span>
+              </div>
+              <div className="pt-2">
+                <span className="text-xl sm:text-2xl font-black text-amber-400 tabular-nums block font-sans">
+                  {withoutWorkoutCount}
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
+                  Sem treino
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          BARRA DE CONTROLE AVANÇADA (MOBILE SEARCH & FILTERS)
           ========================================================================= */}
       <div className="md:hidden space-y-2.5">
         <MobileSearchBar
@@ -307,7 +424,7 @@ export function PersonalStudentList({
           activeFiltersCount={activeFiltersCount}
         />
 
-        {/* Mobile Segmented Control for fast 1-tap thumb filtering (hidden for nutritionist) */}
+        {/* Mobile Segmented Control for fast 1-tap thumb filtering */}
         {!isEffectiveNutritionist && (
           <MobileSegmentedControl
             options={[
@@ -328,7 +445,7 @@ export function PersonalStudentList({
               <button
                 type="button"
                 onClick={() => setWorkoutFilter("ALL")}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 min-h-[32px] cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 min-h-[32px] cursor-pointer"
               >
                 <span>{workoutFilter === "WITH_WORKOUT" ? "Com treino ativo" : "Sem treino prescrito"}</span>
                 <span className="text-xs">✕</span>
@@ -338,7 +455,7 @@ export function PersonalStudentList({
               <button
                 type="button"
                 onClick={() => setSelectedObjective("ALL")}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border-default)] min-h-[32px] cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/[0.06] text-zinc-200 border border-white/[0.08] min-h-[32px] cursor-pointer"
               >
                 <span>Objetivo: {selectedObjective}</span>
                 <span className="text-xs">✕</span>
@@ -347,7 +464,7 @@ export function PersonalStudentList({
             <button
               type="button"
               onClick={handleResetFilters}
-              className="text-[11px] font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] underline ml-1 cursor-pointer min-h-[32px] flex items-center"
+              className="text-[11px] font-semibold text-zinc-400 hover:text-white underline ml-1 cursor-pointer min-h-[32px] flex items-center"
             >
               Limpar tudo
             </button>
@@ -356,12 +473,12 @@ export function PersonalStudentList({
       </div>
 
       {/* =========================================================================
-          DESKTOP SEARCH & FILTER HEADER BAR (hidden md:flex)
+          BARRA DE CONTROLE AVANÇADA (DESKTOP SEARCH & FILTER BAR)
           ========================================================================= */}
-      <div className="hidden md:flex flex-col gap-3.5 bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border-default)] shadow-xs depth-surface">
+      <div className="hidden md:flex flex-col gap-3.5 bg-gradient-to-r from-zinc-900/90 to-zinc-950 p-4 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 shadow-md">
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)]">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
               <SearchIcon className="w-4 h-4" />
             </div>
             <input
@@ -370,19 +487,19 @@ export function PersonalStudentList({
               onChange={(e) => setSearch(e.target.value)}
               placeholder={isEffectiveNutritionist ? "Buscar pacientes por nome, e-mail..." : "Buscar por nome, e-mail ou objetivo..."}
               aria-label={isEffectiveNutritionist ? "Buscar pacientes" : "Buscar alunos"}
-              className="w-full pl-10 pr-16 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all min-h-[44px]"
+              className="w-full pl-10 pr-16 py-2.5 text-xs sm:text-sm rounded-xl border border-white/[0.08] bg-zinc-900/60 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white placeholder-zinc-500 transition-all min-h-[44px]"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer"
               >
                 Limpar
               </button>
             )}
           </div>
-          <div className="shrink-0 text-xs font-semibold text-[var(--text-secondary)]">
+          <div className="shrink-0 text-xs font-semibold text-zinc-400">
             {filteredStudents.length}{" "}
             {isEffectiveNutritionist
               ? filteredStudents.length === 1
@@ -394,16 +511,16 @@ export function PersonalStudentList({
           </div>
         </div>
 
-        {/* Desktop Segmented Filter Pills */}
+        {/* Desktop Filter Chips */}
         {!isEffectiveNutritionist && (
-          <div className="flex items-center gap-2 pt-1 border-t border-[var(--border-subtle)]">
+          <div className="flex items-center gap-2 pt-1 border-t border-white/[0.06]">
             <button
               type="button"
               onClick={() => setWorkoutFilter("ALL")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
                 workoutFilter === "ALL"
-                  ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold shadow-xs"
-                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+                  ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
+                  : "bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]"
               }`}
             >
               Todos ({students.length})
@@ -413,8 +530,8 @@ export function PersonalStudentList({
               onClick={() => setWorkoutFilter("WITH_WORKOUT")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
                 workoutFilter === "WITH_WORKOUT"
-                  ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold shadow-xs"
-                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+                  ? "bg-emerald-500 text-zinc-950 font-bold shadow-md shadow-emerald-500/20"
+                  : "bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]"
               }`}
             >
               Com treino ({withWorkoutCount})
@@ -424,8 +541,8 @@ export function PersonalStudentList({
               onClick={() => setWorkoutFilter("WITHOUT_WORKOUT")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
                 workoutFilter === "WITHOUT_WORKOUT"
-                  ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold shadow-xs"
-                  : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+                  ? "bg-amber-500 text-zinc-950 font-bold shadow-md shadow-amber-500/20"
+                  : "bg-white/[0.04] text-zinc-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]"
               }`}
             >
               Sem treino ({withoutWorkoutCount})
@@ -435,44 +552,28 @@ export function PersonalStudentList({
       </div>
 
       {/* =========================================================================
-          EMPTY SEARCH & FILTER RESULTS (SHARED)
+          ESTADO VAZIO (ZERO RESULTADOS)
           ========================================================================= */}
       {filteredStudents.length === 0 ? (
         <div className="space-y-3">
-          {/* Mobile empty state */}
-          <div className="md:hidden">
-            <MobileEmptyState
-              title={isEffectiveNutritionist ? "Nenhum paciente encontrado" : "Nenhum aluno encontrado"}
-              description={
-                isEffectiveNutritionist
-                  ? `Nenhum paciente corresponde aos filtros aplicados${search ? ` para "${search}"` : ""}.`
-                  : `Nenhum aluno corresponde aos filtros aplicados${search ? ` para "${search}"` : ""}.`
-              }
-              action={
-                <Button
-                  variant="primary"
-                  size="md"
-                  onClick={handleResetFilters}
-                  className="w-full min-h-[44px] font-bold text-xs"
-                >
-                  Limpar busca e filtros
-                </Button>
-              }
-            />
-          </div>
-
-          {/* Desktop empty state */}
-          <div className="hidden md:block p-8 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-2 shadow-xs depth-surface">
-            <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
-              Nenhum {isEffectiveNutritionist ? "paciente" : "aluno"} corresponde aos critérios de busca
-            </p>
-            <p className="text-xs text-[var(--text-secondary)]">
-              Verifique a grafia ou limpe o campo de busca para ver todos os {isEffectiveNutritionist ? "pacientes" : "alunos"}.
-            </p>
+          <div className="p-8 sm:p-12 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-zinc-900/60 text-center space-y-3 shadow-md">
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-zinc-400">
+              <UserIcon className="w-6 h-6 text-emerald-400" />
+            </div>
+            <div className="space-y-1 max-w-sm mx-auto">
+              <p className="font-heading text-sm sm:text-base font-bold text-white">
+                Nenhum {isEffectiveNutritionist ? "paciente" : "aluno"} encontrado
+              </p>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                {search
+                  ? `Nenhum resultado corresponde à busca "${search}".`
+                  : `Nenhum ${isEffectiveNutritionist ? "paciente" : "aluno"} corresponde aos filtros aplicados.`}
+              </p>
+            </div>
             <button
               type="button"
               onClick={handleResetFilters}
-              className="text-xs font-bold text-[var(--brand)] hover:underline pt-2 inline-block cursor-pointer min-h-[44px]"
+              className="text-xs font-bold text-emerald-400 hover:underline pt-1 inline-block cursor-pointer min-h-[44px]"
             >
               Limpar busca e filtros
             </button>
@@ -482,7 +583,7 @@ export function PersonalStudentList({
         <>
           {/* =====================================================================
               MOBILE STUDENT CARDS (md:hidden)
-              Thumb-friendly, full card tap, contextual actions, no cramped table
+              Thumb-friendly, full card tap, contextual actions, touch >= 44px
               ===================================================================== */}
           <div className="md:hidden space-y-3" data-testid="mobile-student-list">
             {filteredStudents.map((student) => {
@@ -491,73 +592,77 @@ export function PersonalStudentList({
               const studentDetailHref = isEffectiveNutritionist
                 ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
                 : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
-              const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
 
               return (
                 <div
                   key={student.membershipPublicId}
                   data-testid="mobile-student-card"
                   onClick={() => router.push(studentDetailHref)}
-                  className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3 active:scale-[0.99] transition-all cursor-pointer depth-surface select-none"
+                  className="p-4 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-b from-zinc-900/95 via-zinc-900/90 to-zinc-950 shadow-md space-y-3 active:scale-[0.99] transition-all cursor-pointer relative overflow-hidden group select-none"
                 >
-                  {/* Card Top: Avatar, Name, Email (repetitive Ativo badge removed) */}
-                  <div className="flex items-start justify-between gap-3">
+                  {/* Subtle top ambient glow */}
+                  <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-emerald-500/10 blur-xl pointer-events-none" />
+
+                  {/* Card Top: Avatar, Name, Email, Objective */}
+                  <div className="flex items-start justify-between gap-3 relative z-10">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <UserAvatar
-                        fullName={student.name}
-                        userPublicId={student.userPublicId}
-                        size="md"
-                        className="shrink-0"
-                      />
+                      <div className="relative shrink-0">
+                        <UserAvatar
+                          fullName={student.name}
+                          userPublicId={student.userPublicId}
+                          size="md"
+                          className="shrink-0 ring-1 ring-white/10"
+                        />
+                        <span
+                          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-zinc-950 ${
+                            hasActiveWorkout ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" : "bg-amber-400"
+                          }`}
+                        />
+                      </div>
                       <div className="min-w-0 flex-1 space-y-0.5">
-                        <span className="font-heading text-sm font-bold text-[var(--text-primary)] block truncate">
+                        <span className="font-heading text-sm font-bold text-white group-hover:text-emerald-300 transition-colors block truncate">
                           {student.name}
                         </span>
-                        <p className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <p className="text-[11px] text-zinc-400 truncate">
                           {student.email}
                         </p>
                       </div>
                     </div>
+
+                    {student.objective && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white/[0.06] text-zinc-300 border border-white/[0.08] shrink-0 max-w-[120px] truncate">
+                        {student.objective}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Contextual Info Banner: Objective + Workout */}
-                  <div className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1.5 text-xs">
-                    {student.objective && (
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
-                          Foco:
-                        </span>
-                        <span className="font-medium text-[var(--text-primary)] truncate">
-                          {student.objective}
-                        </span>
-                      </div>
-                    )}
-
+                  {/* Contextual Info Banner: Workout status */}
+                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1 text-xs relative z-10">
                     <div className="flex items-center gap-1.5 min-w-0">
                       {isEffectiveNutritionist ? (
                         <>
-                          <AppleIcon className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
-                          <span className="text-[var(--text-secondary)]">Acompanhamento nutricional</span>
+                          <AppleIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span className="text-zinc-300 font-medium">Acompanhamento nutricional</span>
                         </>
                       ) : (
                         <>
-                          <DumbbellIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
+                          <DumbbellIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                           {hasActiveWorkout ? (
                             <div className="flex items-center gap-1 min-w-0 truncate">
-                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              <span className="font-semibold text-emerald-400">
                                 Treino:
                               </span>
-                              <span className="text-[var(--text-primary)] font-medium truncate">
+                              <span className="text-zinc-200 font-medium truncate">
                                 {student.latestWorkoutTitle}
                               </span>
                             </div>
                           ) : student.latestWorkoutTitle ? (
-                            <div className="flex items-center gap-1 min-w-0 text-[var(--text-secondary)] truncate">
-                              <span className="text-[var(--text-tertiary)]">Último:</span>
+                            <div className="flex items-center gap-1 min-w-0 text-zinc-400 truncate">
+                              <span>Último:</span>
                               <span className="truncate">{student.latestWorkoutTitle}</span>
                             </div>
                           ) : (
-                            <span className="text-[var(--text-tertiary)]">Nenhum treino prescrito</span>
+                            <span className="text-amber-400/90 font-medium">Nenhum treino prescrito</span>
                           )}
                         </>
                       )}
@@ -566,22 +671,21 @@ export function PersonalStudentList({
 
                   {/* Actions: Primary CTA + Contextual Action + More Sheet */}
                   <div
-                    className="flex items-center gap-2 pt-0.5"
+                    className="flex items-center gap-2 pt-0.5 relative z-10"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Link
-                      href={studentDetailHref}
-                      className="flex-1 inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[44px] depth-interactive cursor-pointer"
+                      href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
+                      className="flex-1 inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-zinc-200 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-colors min-h-[44px] cursor-pointer"
                     >
-                      <span>{isEffectiveNutritionist ? "Ver paciente" : "Ver aluno"}</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+                      <span>{isEffectiveNutritionist ? "Ver paciente" : "Ver perfil"}</span>
+                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400" />
                     </Link>
 
-                    {/* For Personal Trainer, preserve workout button. For Nutritionist, 'Ver paciente' is the single clean primary action */}
                     {!isEffectiveNutritionist && (
                       <Link
-                        href={createWorkoutHref}
-                        className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] shadow-xs cursor-pointer shrink-0"
+                        href={`/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`}
+                        className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 shadow-md shadow-emerald-500/20 transition-all min-h-[44px] cursor-pointer shrink-0"
                         title="Criar novo treino"
                       >
                         <PlusIcon className="w-3.5 h-3.5" />
@@ -589,12 +693,11 @@ export function PersonalStudentList({
                       </Link>
                     )}
 
-                    {/* Secondary Contextual Actions via ActionSheet */}
                     <button
                       type="button"
                       aria-label={isEffectiveNutritionist ? "Mais opções para este paciente" : "Mais opções para este aluno"}
                       onClick={() => setActionSheetStudent(student)}
-                      className="inline-flex items-center justify-center rounded-xl p-2.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[44px] min-w-[44px] cursor-pointer shrink-0"
+                      className="inline-flex items-center justify-center rounded-xl p-2.5 text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-colors min-h-[44px] min-w-[44px] cursor-pointer shrink-0"
                     >
                       <MoreDotsIcon className="w-5 h-5" />
                     </button>
@@ -605,175 +708,151 @@ export function PersonalStudentList({
           </div>
 
           {/* =====================================================================
-              DESKTOP STUDENT TABLE VIEW (hidden md:block)
-              Clean, professional, scannable table replacing 2-column card grid
+              DESKTOP STUDENT CARDS GRID (hidden md:grid)
+              Rich Bento Poster cards with subtle glowing border & rapid CTAs
               ===================================================================== */}
-          <div className="hidden md:block bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-hidden depth-surface">
-            <table className="w-full text-left text-sm border-collapse" aria-label="Lista de Alunos">
-              <thead className="bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
-                <tr>
-                  <th scope="col" className="px-5 py-3.5 font-semibold">Aluno</th>
-                  <th scope="col" className="px-5 py-3.5 font-semibold">Situação do Treino</th>
-                  <th scope="col" className="px-5 py-3.5 font-semibold">Foco / Objetivo</th>
-                  <th scope="col" className="px-5 py-3.5 text-right font-semibold">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-subtle)]">
-                {filteredStudents.map((student) => {
-                  const hasActiveWorkout =
-                    student.latestAssignmentStatus === "ACTIVE" && !!student.latestWorkoutTitle;
-                  const studentDetailHref = isEffectiveNutritionist
-                    ? `/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`
-                    : `/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`;
-                  const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
+          <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-3.5" data-testid="desktop-student-grid">
+            {filteredStudents.map((student) => {
+              const hasActiveWorkout =
+                student.latestAssignmentStatus === "ACTIVE" && !!student.latestWorkoutTitle;
 
-                  return (
-                    <tr
-                      key={student.membershipPublicId}
-                      onClick={() => router.push(studentDetailHref)}
-                      className="hover:bg-[var(--surface-hover)] transition-colors cursor-pointer group"
-                    >
-                      {/* Coluna Aluno */}
-                      <td className="px-5 py-4 min-w-0">
-                        <div className="flex items-center gap-3">
+              return (
+                <div
+                  key={student.membershipPublicId}
+                  className="p-4 sm:p-5 rounded-2xl border border-white/[0.08] dark:border-white/[0.08] border-zinc-200/80 bg-gradient-to-b from-zinc-900/95 via-zinc-900/90 to-zinc-950 shadow-md hover:border-emerald-500/40 hover:shadow-xl hover:shadow-emerald-950/20 hover:-translate-y-0.5 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[175px]"
+                >
+                  {/* Subtle top ambient glow */}
+                  <div className="absolute -top-12 -right-12 w-28 h-28 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity" />
+
+                  {/* Top: Avatar, Name, Email and Objective */}
+                  <div className="space-y-3 relative z-10">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="relative shrink-0">
                           <UserAvatar
                             fullName={student.name}
                             userPublicId={student.userPublicId}
                             size="md"
-                            className="shrink-0 group-hover:scale-105 transition-transform"
+                            className="shrink-0 ring-1 ring-white/10 group-hover:scale-105 transition-transform"
                           />
-                          <div className="space-y-0.5 min-w-0">
-                            <p className="font-semibold text-[var(--text-primary)] truncate text-sm group-hover:text-[var(--brand)] transition-colors">
-                              {student.name}
-                            </p>
-                            <p className="text-xs text-[var(--text-secondary)] truncate">
-                              {student.email}
-                            </p>
-                          </div>
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-zinc-950 ${
+                              hasActiveWorkout ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" : "bg-amber-400"
+                            }`}
+                          />
                         </div>
-                      </td>
-
-                      {/* Coluna Situação do Treino */}
-                      <td className="px-5 py-4 min-w-0">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            {hasActiveWorkout ? (
-                              <Badge variant="brand" size="sm">
-                                Treino ativo
-                              </Badge>
-                            ) : student.latestWorkoutTitle ? (
-                              <Badge variant="neutral" size="sm">
-                                Histórico
-                              </Badge>
-                            ) : (
-                              <Badge variant="neutral" size="sm">
-                                Sem treino
-                              </Badge>
-                            )}
-                          </div>
-                          {student.latestWorkoutTitle && (
-                            <p className="text-xs font-medium text-[var(--text-primary)] truncate max-w-xs">
-                              {student.latestWorkoutTitle}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Coluna Objetivo */}
-                      <td className="px-5 py-4 text-xs text-[var(--text-secondary)] max-w-xs truncate">
-                        {student.objective ? (
-                          <span className="text-[var(--text-primary)] font-medium">
-                            {student.objective}
-                          </span>
-                        ) : (
-                          <span className="text-[var(--text-tertiary)] italic">—</span>
-                        )}
-                      </td>
-
-                      {/* Coluna Ações */}
-                      <td className="px-5 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-2">
-                          {!isEffectiveNutritionist && (
-                            <Link
-                              href={createWorkoutHref}
-                              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[36px] shadow-xs cursor-pointer"
-                              title="Criar novo treino"
-                            >
-                              <PlusIcon className="w-3.5 h-3.5" />
-                              <span>+ Treino</span>
-                            </Link>
-                          )}
+                        <div className="min-w-0 flex-1 space-y-0.5">
                           <Link
-                            href={studentDetailHref}
-                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl font-semibold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[36px] cursor-pointer"
+                            href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
+                            className="font-semibold text-white group-hover:text-emerald-300 transition-colors block truncate text-sm sm:text-base font-sans"
                           >
-                            <span>Ver perfil</span>
-                            <ChevronRightIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+                            {student.name}
                           </Link>
+                          <p className="text-xs text-zinc-400 truncate">
+                            {student.email}
+                          </p>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+
+                      {student.objective && (
+                        <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-white/[0.06] text-zinc-300 border border-white/[0.08] shrink-0 max-w-[130px] truncate">
+                          {student.objective}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Workout Status Banner */}
+                    <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2 min-w-0 truncate">
+                        <DumbbellIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        {hasActiveWorkout ? (
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="font-semibold text-emerald-400">
+                              Treino ativo:
+                            </span>
+                            <span className="text-zinc-200 truncate font-medium">
+                              {student.latestWorkoutTitle}
+                            </span>
+                          </div>
+                        ) : student.latestWorkoutTitle ? (
+                          <div className="flex items-center gap-1.5 truncate text-zinc-400">
+                            <span>Último:</span>
+                            <span className="truncate">{student.latestWorkoutTitle}</span>
+                          </div>
+                        ) : (
+                          <span className="text-amber-400/90 font-medium">Sem treino prescrito</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions Bottom Bar */}
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/[0.06] mt-3 relative z-10">
+                    <Link
+                      href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-emerald-500/30 transition-all min-h-[38px] cursor-pointer"
+                    >
+                      <span>Ver perfil</span>
+                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
+
+                    {!isEffectiveNutritionist && (
+                      <Link
+                        href={`/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`}
+                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 shadow-md shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all min-h-[38px] cursor-pointer shrink-0"
+                        title="Criar novo treino"
+                      >
+                        <PlusIcon className="w-3.5 h-3.5" />
+                        <span>+ Treino</span>
+                      </Link>
+                    )}
+
+                    <button
+                      type="button"
+                      aria-label="Mais opções"
+                      onClick={() => setActionSheetStudent(student)}
+                      className="inline-flex items-center justify-center rounded-xl p-2 text-zinc-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-colors min-h-[38px] min-w-[38px] cursor-pointer shrink-0"
+                    >
+                      <MoreDotsIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </>
       )}
 
-      {/* =========================================================================
-          MOBILE FILTER BOTTOM SHEET
-          ========================================================================= */}
+      {/* MOBILE FILTER BOTTOM SHEET */}
       <MobileBottomSheet
         isOpen={isFilterSheetOpen}
         onClose={() => setIsFilterSheetOpen(false)}
-        title={isEffectiveNutritionist ? "Filtros de Pacientes" : "Filtros de Alunos"}
-        subtitle={isEffectiveNutritionist ? "Refine a lista por objetivo" : "Refine a lista por situação de treino ou objetivo"}
-        footer={
-          <div className="flex items-center gap-2.5">
-            <Button
-              variant="ghost"
-              size="md"
-              onClick={handleResetFilters}
-              className="flex-1 min-h-[48px] font-semibold text-xs"
-            >
-              Limpar filtros
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => setIsFilterSheetOpen(false)}
-              className="flex-1 min-h-[48px] font-bold text-xs"
-            >
-              Aplicar filtros
-            </Button>
-          </div>
-        }
+        title="Filtros de Alunos"
+        subtitle="Refine a lista por situação de treino ou objetivo"
       >
-        <div className="space-y-4">
+        <div className="space-y-4 py-2">
           {!isEffectiveNutritionist && (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider block">
-                Situação de Treino
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                Situação do Treino
               </label>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: "ALL", label: `Todos os alunos (${students.length})` },
-                  { id: "WITH_WORKOUT", label: `Com treino ativo (${withWorkoutCount})` },
-                  { id: "WITHOUT_WORKOUT", label: `Sem treino prescrito (${withoutWorkoutCount})` },
+                  { id: "ALL", label: "Todos" },
+                  { id: "WITH_WORKOUT", label: "Com treino" },
+                  { id: "WITHOUT_WORKOUT", label: "Sem treino" },
                 ].map((opt) => (
                   <button
                     key={opt.id}
                     type="button"
                     onClick={() => setWorkoutFilter(opt.id as "ALL" | "WITH_WORKOUT" | "WITHOUT_WORKOUT")}
-                    className={`w-full min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                    className={`py-2 px-2 text-xs rounded-xl font-semibold border transition-all ${
                       workoutFilter === opt.id
-                        ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold shadow-xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)]"
+                        ? "bg-emerald-500 text-zinc-950 border-emerald-500 font-bold"
+                        : "bg-white/[0.04] text-zinc-300 border-white/[0.08]"
                     }`}
                   >
-                    <span>{opt.label}</span>
-                    {workoutFilter === opt.id && <span>✓</span>}
+                    {opt.label}
                   </button>
                 ))}
               </div>
@@ -781,51 +860,64 @@ export function PersonalStudentList({
           )}
 
           {availableObjectives.length > 0 && (
-            <div className={`space-y-2 ${!isEffectiveNutritionist ? "pt-2 border-t border-[var(--border-subtle)]" : ""}`}>
-              <label className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider block">
-                {isEffectiveNutritionist ? "Objetivo do Paciente" : "Objetivo do Aluno"}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                Objetivo
               </label>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => setSelectedObjective("ALL")}
-                  className={`w-full min-h-[40px] px-3 py-2 rounded-xl text-xs flex items-center justify-between cursor-pointer ${
+                  className={`py-1.5 px-3 text-xs rounded-xl font-semibold border transition-all ${
                     selectedObjective === "ALL"
-                      ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                      ? "bg-emerald-500 text-zinc-950 border-emerald-500 font-bold"
+                      : "bg-white/[0.04] text-zinc-300 border-white/[0.08]"
                   }`}
                 >
-                  <span>Todos os objetivos</span>
-                  {selectedObjective === "ALL" && <span>✓</span>}
+                  Todos
                 </button>
                 {availableObjectives.map((obj) => (
                   <button
                     key={obj}
                     type="button"
                     onClick={() => setSelectedObjective(obj)}
-                    className={`w-full min-h-[40px] px-3 py-2 rounded-xl text-xs flex items-center justify-between cursor-pointer ${
+                    className={`py-1.5 px-3 text-xs rounded-xl font-semibold border transition-all ${
                       selectedObjective === obj
-                        ? "bg-[var(--brand)] text-[var(--text-inverse)] font-bold"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                        ? "bg-emerald-500 text-zinc-950 border-emerald-500 font-bold"
+                        : "bg-white/[0.04] text-zinc-300 border-white/[0.08]"
                     }`}
                   >
-                    <span className="truncate">{obj}</span>
-                    {selectedObjective === obj && <span>✓</span>}
+                    {obj}
                   </button>
                 ))}
               </div>
             </div>
           )}
+
+          <div className="pt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="flex-1 py-2.5 rounded-xl font-semibold text-xs text-zinc-400 hover:text-white bg-white/[0.04] border border-white/[0.08]"
+            >
+              Limpar filtros
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFilterSheetOpen(false)}
+              className="flex-1 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400"
+            >
+              Aplicar
+            </button>
+          </div>
         </div>
       </MobileBottomSheet>
 
-      {/* =========================================================================
-          MOBILE ACTION SHEET (••• Contextual menu per student)
-          ========================================================================= */}
+      {/* MOBILE ACTION SHEET FOR CONTEXTUAL STUDENT ACTIONS */}
       <MobileActionSheet
-        isOpen={!!actionSheetStudent}
+        isOpen={Boolean(actionSheetStudent)}
         onClose={() => setActionSheetStudent(null)}
-        title={actionSheetStudent ? `Ações para ${actionSheetStudent.name}` : undefined}
+        title={actionSheetStudent?.name || "Opções do Aluno"}
         options={actionSheetOptions}
       />
     </div>

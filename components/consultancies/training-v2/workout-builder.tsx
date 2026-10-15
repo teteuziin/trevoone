@@ -303,20 +303,32 @@ export function WorkoutBuilder({
       );
       if (res.ok && res.data) {
         if (revisionRef.current === currentRev) {
-          setVersion(res.data);
+          setVersion((prev) => ({
+            ...prev,
+            title: res.data!.title,
+            objective: res.data!.objective,
+            difficultyLevel: res.data!.difficultyLevel,
+            estimatedDurationMinutes: res.data!.estimatedDurationMinutes,
+            notes: res.data!.notes,
+            updatedAt: res.data!.updatedAt,
+          }));
           setSaveStatus("saved");
           setLastSavedAt(new Date());
         }
       } else {
-        setSaveStatus("error");
-        setSaveErrorMessage(res.error || "Erro ao salvar alterações");
-        retryLastSaveRef.current = () => flushPendingMetadataRef.current?.() || Promise.resolve();
+        if (revisionRef.current === currentRev) {
+          setSaveStatus("error");
+          setSaveErrorMessage(res.error || "Erro ao salvar alterações");
+          retryLastSaveRef.current = () => flushPendingMetadataRef.current?.() || Promise.resolve();
+        }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro ao salvar alterações";
-      setSaveStatus("error");
-      setSaveErrorMessage(msg);
-      retryLastSaveRef.current = () => flushPendingMetadataRef.current?.() || Promise.resolve();
+      if (revisionRef.current === currentRev) {
+        const msg = err instanceof Error ? err.message : "Erro ao salvar alterações";
+        setSaveStatus("error");
+        setSaveErrorMessage(msg);
+        retryLastSaveRef.current = () => flushPendingMetadataRef.current?.() || Promise.resolve();
+      }
     }
   }, [consultancySlug, isDraft, version.publicId, workout.title]);
 
@@ -954,7 +966,6 @@ export function WorkoutBuilder({
               : [],
           })),
         }));
-        notify("Exercício configurado com sucesso.");
       } else {
         notify(res.error || "Erro ao configurar exercício.");
         throw new Error(res.error || "Erro ao configurar exercício.");
@@ -1239,7 +1250,6 @@ export function WorkoutBuilder({
             ),
           })),
         }));
-        notify("Combinação atualizada.");
       } else {
         notify(res.error || "Erro ao atualizar combinação.");
         throw new Error(res.error || "Erro ao atualizar combinação.");
@@ -1474,22 +1484,25 @@ export function WorkoutBuilder({
 
             {/* Live Autosave Indicator */}
             {isDraft ? (
-              <div data-testid="builder-autosave-indicator" className="inline-flex items-center">
+              <div
+                data-testid="builder-autosave-indicator"
+                className="inline-flex items-center justify-center min-w-[110px] h-7 px-1 text-center shrink-0"
+              >
                 {saveStatus === "saving" && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 whitespace-nowrap">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                     <span>Salvando…</span>
                   </span>
                 )}
                 {saveStatus === "saved" && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 whitespace-nowrap">
                     <CheckIcon className="w-3 h-3 text-emerald-500" />
                     <span>Salvo{lastSavedAt ? ` às ${lastSavedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
                   </span>
                 )}
                 {saveStatus === "error" && (
                   <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 whitespace-nowrap"
                     title={saveErrorMessage || "Erro ao salvar alterações no servidor"}
                   >
                     <AlertCircleIcon className="w-3 h-3 text-rose-500" />
@@ -1724,22 +1737,25 @@ export function WorkoutBuilder({
 
               {/* Live Autosave Indicator */}
               {isDraft && (
-                <div data-testid="builder-autosave-indicator" className="inline-flex items-center">
+                <div
+                  data-testid="builder-autosave-indicator"
+                  className="inline-flex items-center min-w-[145px] h-7 shrink-0"
+                >
                   {saveStatus === "saving" && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 whitespace-nowrap">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                       <span>Salvando…</span>
                     </span>
                   )}
                   {saveStatus === "saved" && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 whitespace-nowrap">
                       <CheckIcon className="w-3 h-3 text-emerald-500" />
                       <span>Salvo{lastSavedAt ? ` às ${lastSavedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
                     </span>
                   )}
                   {saveStatus === "error" && (
                     <span
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25"
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 whitespace-nowrap"
                       title={saveErrorMessage || "Erro ao salvar alterações no servidor"}
                     >
                       <AlertCircleIcon className="w-3 h-3 text-rose-500" />

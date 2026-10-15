@@ -1672,12 +1672,13 @@ export function WorkoutCategoryCard({
       {quickEditingItem && (
         <QuickEditExerciseSheet
           isOpen={true}
-          item={quickEditingItem}
+          item={
+            items.find((i) => i.publicId === quickEditingItem.publicId) || quickEditingItem
+          }
           consultancySlug={consultancySlug}
           onClose={() => setQuickEditingItem(null)}
           onSave={async (config) => {
             await onUpdateExerciseQuickConfig(quickEditingItem.publicId, config);
-            setQuickEditingItem(null);
           }}
         />
       )}
@@ -1694,7 +1695,6 @@ export function WorkoutCategoryCard({
             if (onUpdateCombination) {
               await onUpdateCombination(editingCombination.publicId, input);
             }
-            setEditingCombination(null);
           }}
           onUngroup={async () => {
             if (onUngroupCombination) {

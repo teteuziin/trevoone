@@ -338,7 +338,7 @@ assert(
 
 assert(
   studentDetailContent.includes("min-h-[48px]") &&
-  studentDetailContent.includes("+ Criar treino"),
+  (studentDetailContent.includes("Criar treino") || studentDetailContent.includes("+ Criar treino")),
   "48. Mobile student profile features prominent 48px primary action CTA"
 );
 

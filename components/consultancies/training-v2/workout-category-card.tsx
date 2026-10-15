@@ -60,6 +60,14 @@ function ZapIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function Link2Icon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+    </svg>
+  );
+}
+
 function ClockIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -527,8 +535,8 @@ function CombinationFloatingActionBar({
             <ZapIcon className="w-4 h-4 shrink-0" />
             <span>
               {selectedCount < 2
-                ? "Selecione 2+ exercícios para criar"
-                : `Criar ${COMBINATION_TYPE_LABELS[combinationType]} (${selectedCount})`}
+                ? "Selecione 2+ exercícios para agrupar"
+                : `Agrupar em ${COMBINATION_TYPE_LABELS[combinationType]} (${selectedCount})`}
             </span>
           </button>
           <button
@@ -1357,6 +1365,7 @@ export function WorkoutCategoryCard({
                                 onOpenConfigureSequence={onOpenConfigureSequence}
                                 onMoveUp={handleItemMoveUp}
                                 onMoveDown={handleItemMoveDown}
+                                onCombineFromHere={() => handleCombineFromHere(item.publicId, subBlock.publicId)}
                               />
                             </div>
                             {/* Desktop View: Preserved ExerciseRow */}
@@ -1542,6 +1551,7 @@ export function WorkoutCategoryCard({
                           onOpenConfigureSequence={onOpenConfigureSequence}
                           onMoveUp={handleItemMoveUp}
                           onMoveDown={handleItemMoveDown}
+                          onCombineFromHere={() => handleCombineFromHere(item.publicId, undefined)}
                         />
                       </div>
                       {/* Desktop View: Preserved ExerciseRow */}
@@ -2769,6 +2779,21 @@ function ExerciseRow({
                 </>
               )}
 
+              {!inCombination && onCombineFromHere && !isSelectionMode && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCombineFromHere();
+                  }}
+                  aria-label="Combinar exercício"
+                  title="Combinar em Bi-Set (1 clique)"
+                  className="p-2 sm:p-1 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] sm:w-7 sm:h-7 flex items-center justify-center cursor-pointer"
+                >
+                  <Link2Icon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                </button>
+              )}
+
               <div className="relative">
                 <button
                   type="button"
@@ -3750,6 +3775,7 @@ export function MobileExerciseCard({
   onOpenConfigureSequence,
   onMoveUp,
   onMoveDown,
+  onCombineFromHere,
 }: {
   item: WorkoutBlockItemDto;
   itemIndex: number;
@@ -3770,6 +3796,7 @@ export function MobileExerciseCard({
   ) => void;
   onMoveUp: () => Promise<void>;
   onMoveDown: () => Promise<void>;
+  onCombineFromHere?: () => void;
 }) {
   const [, startTransition] = useTransition();
   const summary = getItemPrescriptionSummary(item);
@@ -3974,6 +4001,22 @@ export function MobileExerciseCard({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Direct Combine Button (1-touch) */}
+            {onCombineFromHere && !isSelectionMode && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCombineFromHere();
+                }}
+                aria-label="Combinar exercício"
+                title="Combinar em Bi-Set (1 toque)"
+                className="w-11 h-11 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+              >
+                <Link2Icon className="w-4 h-4" />
+              </button>
+            )}
+
             {/* Quick Reorder Touch Steppers (>= 44px targets) */}
             <div className="flex items-center gap-1">
               <button

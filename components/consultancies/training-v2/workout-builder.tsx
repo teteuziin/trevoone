@@ -88,6 +88,42 @@ function SparklesIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function BookOpenIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+    </svg>
+  );
+}
+
+function UserPlusIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+      <circle cx="8.5" cy="7" r="4" />
+      <line x1="20" y1="8" x2="20" y2="14" strokeLinecap="round" />
+      <line x1="23" y1="11" x2="17" y2="11" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function Edit3Icon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
+function LightbulbIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+    </svg>
+  );
+}
+
 function DownloadIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -433,6 +469,8 @@ export function WorkoutBuilder({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(1);
   const [activeMobileCategoryIndex, setActiveMobileCategoryIndex] = useState<number>(0);
   const tabsContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -1827,21 +1865,21 @@ export function WorkoutBuilder({
               <button
                 type="button"
                 onClick={() => setIsLibrarySidebarOpen(!isLibrarySidebarOpen)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer backdrop-blur-md ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all min-h-[38px] flex items-center gap-2 cursor-pointer backdrop-blur-md ${
                   isLibrarySidebarOpen
                     ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                    : "bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border-white/[0.1]"
+                    : "bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border-white/[0.1]"
                 }`}
                 title="Abrir/fechar biblioteca Studio lateral"
               >
-                <SparklesIcon className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{isLibrarySidebarOpen ? "Biblioteca Studio" : "+ Biblioteca"}</span>
+                <BookOpenIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Biblioteca Studio</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsMetadataExpanded(!isMetadataExpanded)}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-white/[0.1] backdrop-blur-md transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/[0.1] backdrop-blur-md transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
                 title="Editar dados da ficha"
               >
                 <SlidersIcon className="w-3.5 h-3.5 text-zinc-400" />
@@ -1851,7 +1889,7 @@ export function WorkoutBuilder({
               <button
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-white/[0.1] backdrop-blur-md transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/[0.1] backdrop-blur-md transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
                 title="Pré-visualizar como aluno"
               >
                 <EyeIcon className="w-3.5 h-3.5 text-teal-400" />
@@ -1862,12 +1900,25 @@ export function WorkoutBuilder({
                 href={`/api/consultancies/${consultancySlug}/treinos/${workout.publicId}/pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 hover:text-white border border-white/[0.1] backdrop-blur-md transition-all min-h-[40px] flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/[0.1] backdrop-blur-md transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
                 title="Baixar ficha de treino em PDF"
               >
                 <DownloadIcon className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Baixar PDF</span>
               </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTutorialStep(1);
+                  setIsTutorialOpen(true);
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/[0.1] backdrop-blur-md transition-all min-h-[38px] flex items-center gap-2 cursor-pointer"
+                title="Guia rápido do Studio"
+              >
+                <LightbulbIcon className="w-3.5 h-3.5 text-amber-400" />
+                <span>Guia Rápido</span>
+              </button>
             </div>
 
             {/* Core Action Buttons (Mobile: full width row / Desktop: inline) */}
@@ -1877,7 +1928,7 @@ export function WorkoutBuilder({
                   type="button"
                   data-testid="publish-workout-button"
                   onClick={handleOpenPublishDialog}
-                  className="flex-1 sm:flex-initial px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.35)] min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-2 cursor-pointer min-w-0 text-center hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex-1 sm:flex-initial px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.35)] min-h-[38px] flex items-center justify-center gap-2 cursor-pointer min-w-0 text-center hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <SendIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   <span>Publicar</span>
@@ -1888,9 +1939,9 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={() => setIsAssignModalOpen(true)}
-                  className="flex-1 sm:flex-initial px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.35)] min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-2 cursor-pointer min-w-0 text-center"
+                  className="flex-1 sm:flex-initial px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-[0_0_20px_rgba(16,185,129,0.35)] min-h-[38px] flex items-center justify-center gap-2 cursor-pointer min-w-0 text-center"
                 >
-                  <UserCheckIcon className="w-4 h-4" />
+                  <UserPlusIcon className="w-4 h-4" />
                   <span>Atribuir ao aluno</span>
                 </button>
               )}
@@ -1899,9 +1950,9 @@ export function WorkoutBuilder({
                 <button
                   type="button"
                   onClick={handleCreateNewVersion}
-                  className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 border border-white/[0.1] transition-all min-h-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer min-w-0 text-center backdrop-blur-md"
+                  className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/[0.1] transition-all min-h-[38px] flex items-center justify-center gap-2 cursor-pointer min-w-0 text-center backdrop-blur-md"
                 >
-                  <PlusIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                  <Edit3Icon className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-zinc-300" />
                   <span>Editar (novo rascunho)</span>
                 </button>
               )}
@@ -1912,7 +1963,7 @@ export function WorkoutBuilder({
                   type="button"
                   onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
                   aria-label="Mais opções do treino"
-                  className="p-2.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-white/[0.1] transition-all min-h-[44px] min-w-[44px] sm:min-h-[40px] flex items-center justify-center gap-1.5 cursor-pointer backdrop-blur-md"
+                  className="p-2.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-white/[0.1] transition-all min-h-[38px] min-w-[38px] flex items-center justify-center gap-1.5 cursor-pointer backdrop-blur-md"
                   title="Mais opções do treino"
                 >
                   <span className="font-extrabold tracking-widest leading-none">•••</span>
@@ -1920,9 +1971,21 @@ export function WorkoutBuilder({
                 {isHeaderMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-30" onClick={() => setIsHeaderMenuOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl bg-zinc-900 border border-white/[0.1] shadow-2xl z-40 py-1.5 text-xs font-semibold text-zinc-200 divide-y divide-white/[0.06] animate-in fade-in zoom-in-95 duration-100 backdrop-blur-xl">
-                      {/* Nível 3 Menu Actions (Dados da ficha, pré-visualizar, baixar PDF) */}
+                    <div className="absolute right-0 top-full mt-1.5 w-56 rounded-2xl bg-zinc-900 border border-white/[0.1] shadow-2xl z-40 py-1.5 text-xs font-semibold text-zinc-200 divide-y divide-white/[0.06] animate-in fade-in zoom-in-95 duration-100 backdrop-blur-xl">
+                      {/* Nível 3 Menu Actions (Dados da ficha, pré-visualizar, baixar PDF, tutorial) */}
                       <div className="p-1 space-y-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            setTutorialStep(1);
+                            setIsTutorialOpen(true);
+                          }}
+                          className="w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.06] flex items-center gap-2 text-left cursor-pointer min-h-[40px] text-zinc-200 hover:text-white transition-colors"
+                        >
+                          <LightbulbIcon className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Guia Rápido (Tutorial)</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -2634,6 +2697,138 @@ export function WorkoutBuilder({
               >
                 {isPending ? "Excluindo..." : "Excluir"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Tutorial Modal (Guia Rápido) */}
+      {isTutorialOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-zinc-950/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl p-6 text-zinc-100 flex flex-col space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+                  <LightbulbIcon className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-zinc-100">Guia Rápido do Studio</h3>
+                  <p className="text-xs text-zinc-400">Passo {tutorialStep} de 4</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTutorialOpen(false)}
+                className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label="Fechar tutorial"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Progress Dots */}
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 3, 4].map((step) => (
+                <button
+                  key={step}
+                  type="button"
+                  onClick={() => setTutorialStep(step)}
+                  className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                    tutorialStep === step
+                      ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                      : tutorialStep > step
+                      ? "bg-emerald-500/40"
+                      : "bg-white/10"
+                  }`}
+                  aria-label={`Ir para passo ${step}`}
+                />
+              ))}
+            </div>
+
+            {/* Step Content */}
+            <div className="py-2 space-y-3 min-h-[140px]">
+              {tutorialStep === 1 && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-right-2 duration-150">
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
+                    <BookOpenIcon className="w-3.5 h-3.5" />
+                    <span>Passo 1: Adicionar exercícios</span>
+                  </div>
+                  <h4 className="text-lg font-bold text-white">Monte as categorias e selecione movimentos</h4>
+                  <p className="text-xs text-zinc-300 leading-relaxed">
+                    Utilize o botão <strong className="text-emerald-400">+ Exercício</strong> em cada dia da rotina para buscar em nossa base com mais de 300 movimentos ou abra a <strong className="text-emerald-400">Biblioteca Studio</strong> lateral para arrastar e filtrar com facilidade.
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 2 && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-right-2 duration-150">
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
+                    <SparklesIcon className="w-3.5 h-3.5" />
+                    <span>Passo 2: Combinar em Bi-Set</span>
+                  </div>
+                  <h4 className="text-lg font-bold text-white">Agrupe exercícios com 1 clique</h4>
+                  <p className="text-xs text-zinc-300 leading-relaxed">
+                    Clique no ícone de conexão direta (<strong className="text-emerald-400">🔗</strong>) na linha de qualquer exercício ou no botão <strong className="text-emerald-400">Combinar</strong> do cabeçalho do dia. Marque os exercícios desejados e clique em <strong className="text-emerald-400">[ Agrupar em Bi-Set ]</strong> na barra inferior.
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 3 && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-right-2 duration-150">
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
+                    <CheckIcon className="w-3.5 h-3.5" />
+                    <span>Passo 3: Autosave em background</span>
+                  </div>
+                  <h4 className="text-lg font-bold text-white">Tudo é salvo silenciosamente</h4>
+                  <p className="text-xs text-zinc-300 leading-relaxed">
+                    Você não precisa se preocupar em apertar &quot;Salvar&quot; o tempo todo. Cada alteração de carga, séries, repetições, notas e reordenação é persistida de forma invisível em background sem fechar abas ou gerar travamentos.
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 4 && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-right-2 duration-150">
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
+                    <SendIcon className="w-3.5 h-3.5" />
+                    <span>Passo 4: Publicar treino</span>
+                  </div>
+                  <h4 className="text-lg font-bold text-white">Disponibilize para o aluno</h4>
+                  <p className="text-xs text-zinc-300 leading-relaxed">
+                    Quando terminar de montar a ficha, clique no botão esmeralda <strong className="text-emerald-400">Publicar</strong>. A ficha será finalizada, ficando pronta para ser atribuída a um aluno específico ou reutilizada como modelo para outros alunos.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Navigation */}
+            <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                disabled={tutorialStep === 1}
+                onClick={() => setTutorialStep((prev) => Math.max(1, prev - 1))}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              >
+                ← Anterior
+              </button>
+
+              {tutorialStep < 4 ? (
+                <button
+                  type="button"
+                  onClick={() => setTutorialStep((prev) => Math.min(4, prev + 1))}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all cursor-pointer"
+                >
+                  Próximo →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsTutorialOpen(false)}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all cursor-pointer"
+                >
+                  Entendido, começar! ✓
+                </button>
+              )}
             </div>
           </div>
         </div>

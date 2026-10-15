@@ -211,8 +211,8 @@ console.log("\n--- VELOCIDADE DE MONTAGEM & ACEITE ---");
 assert(
   categoryCardContent.includes('data-testid="category-combine-btn"') &&
   categoryCardContent.includes('data-testid="mobile-exercise-card-selectable"') &&
-  categoryCardContent.includes('Criar ${COMBINATION_TYPE_LABELS[combinationType]}'),
-  "7.1 Fluxo rápido de Bi-set: 1 toque (Combinar) + 2 toques (exercícios) + 1 toque (Criar) garantido"
+  (categoryCardContent.includes('Agrupar em ${COMBINATION_TYPE_LABELS[combinationType]}') || categoryCardContent.includes('Criar ${COMBINATION_TYPE_LABELS[combinationType]}')),
+  "7.1 Fluxo rápido de Bi-set: 1 toque (Combinar) + 2 toques (exercícios) + 1 toque (Criar/Agrupar) garantido"
 );
 
 // 7.2 Alternative 3-tap/4-tap via 'Combinar a partir daqui'

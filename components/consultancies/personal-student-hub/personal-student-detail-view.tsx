@@ -33,6 +33,17 @@ interface PersonalStudentDetailViewProps {
 type TabKey = "visao-geral" | "radar" | "fotos" | "anamnese" | "formularios" | "treinos" | "avaliacoes";
 type MobileTabKey = "resumo" | "treinos" | "nutricao" | "evolucao" | "mais";
 
+function LayoutGridIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">
@@ -182,7 +193,7 @@ export function PersonalStudentDetailView({
 
   // Desktop tabs list
   const desktopTabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }> = [
-    { key: "visao-geral", label: "Visão Geral", icon: FileTextIcon },
+    { key: "visao-geral", label: "Visão Geral", icon: LayoutGridIcon },
     { key: "fotos", label: "Fotos", icon: PhotoIcon, count: photos.length },
     { key: "anamnese", label: "Anamnese", icon: ClipboardCheckIcon },
     { key: "formularios", label: "Formulários", icon: FileTextIcon, count: forms.length },
@@ -338,7 +349,7 @@ export function PersonalStudentDetailView({
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs sm:text-sm text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[48px] shadow-sm depth-interactive cursor-pointer"
               >
                 <AppleIcon className="w-4 h-4" />
-                <span>+ Criar plano alimentar</span>
+                <span>Criar plano alimentar</span>
               </Link>
             ) : (
               <button
@@ -347,7 +358,7 @@ export function PersonalStudentDetailView({
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs sm:text-sm text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[48px] shadow-sm depth-interactive cursor-pointer"
               >
                 <PlusIcon className="w-4 h-4" />
-                <span>+ Criar treino</span>
+                <span>Criar treino</span>
               </button>
             )}
 
@@ -365,7 +376,7 @@ export function PersonalStudentDetailView({
         {/* Mobile Tabs: 4-5 focused categories >= 44px touch targets */}
         <MobileTabs
           tabs={[
-            { id: "resumo", label: "Resumo", icon: <FileTextIcon className="w-4 h-4" /> },
+            { id: "resumo", label: "Visão Geral", icon: <LayoutGridIcon className="w-4 h-4" /> },
             { id: "treinos", label: "Treinos", icon: <DumbbellIcon className="w-4 h-4" />, count: workouts.length },
             { id: "nutricao", label: "Nutrição", icon: <AppleIcon className="w-4 h-4" />, count: nutrition.length },
             { id: "evolucao", label: "Evolução", icon: <ScaleIcon className="w-4 h-4" />, count: measurements.length + photos.length },
@@ -626,7 +637,7 @@ export function PersonalStudentDetailView({
                 className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer"
               >
                 <PlusIcon className="w-3.5 h-3.5" />
-                <span>+ Criar treino</span>
+                <span>Criar treino</span>
               </button>
             </div>
 
@@ -1096,24 +1107,15 @@ export function PersonalStudentDetailView({
             </div>
           </div>
 
-          {/* Primary CTAs */}
+          {/* Primary CTA (Single prominent action) */}
           <div className="flex items-center gap-3 w-full md:w-auto shrink-0">
             <button
               type="button"
-              onClick={() => setActiveTab("treinos")}
-              className="flex-1 md:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[44px] depth-interactive cursor-pointer"
-            >
-              <DumbbellIcon className="w-4 h-4 text-[var(--text-tertiary)]" />
-              <span>Ver treinos</span>
-            </button>
-
-            <button
-              type="button"
               onClick={() => setIsNewWorkoutSheetOpen(true)}
-              className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all min-h-[44px] shadow-sm depth-interactive cursor-pointer"
+              className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all min-h-[44px] shadow-sm depth-interactive cursor-pointer"
             >
               <PlusIcon className="w-4 h-4" />
-              <span>+ Criar treino</span>
+              <span>Criar treino</span>
             </button>
           </div>
         </div>
@@ -1737,7 +1739,7 @@ export function PersonalStudentDetailView({
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] shadow-xs cursor-pointer"
               >
                 <PlusIcon className="w-3.5 h-3.5" />
-                <span>+ Criar treino</span>
+                <span>Criar treino</span>
               </button>
             </div>
 

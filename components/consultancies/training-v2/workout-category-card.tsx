@@ -1462,17 +1462,25 @@ export function WorkoutCategoryCard({
             )}
 
             {items.length === 0 ? (
-              <div className="py-6 px-4 text-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)]/40 space-y-2">
-                <p className="text-xs font-semibold text-[var(--text-secondary)]">
-                  Nenhum exercício adicionado neste treino ainda.
-                </p>
+              <div className="py-8 px-4 text-center rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.02] space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto shadow-sm">
+                  <Plus className="w-6 h-6 stroke-[2.5]" />
+                </div>
+                <div className="space-y-1 max-w-sm mx-auto">
+                  <p className="text-sm font-bold text-white">
+                    Nenhum exercício neste treino ainda
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    Toque no botão abaixo ou clique em &quot;+ Adicionar&quot; na Biblioteca ao lado para montar sua divisão.
+                  </p>
+                </div>
                 {isDraft && (
                   <button
                     type="button"
                     onClick={() => onOpenExercisePicker(category.publicId)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
                     <span>Adicionar primeiro exercício</span>
                   </button>
                 )}
@@ -2755,7 +2763,7 @@ function ExerciseRow({
                   </button>
                 </>
               ) : (
-                <>
+                <div className="flex items-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
                     disabled={itemIndex === 0 || isPending}
@@ -2776,7 +2784,7 @@ function ExerciseRow({
                   >
                     <ArrowDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   </button>
-                </>
+                </div>
               )}
 
               {!inCombination && onCombineFromHere && !isSelectionMode && (
@@ -3669,7 +3677,7 @@ export function UnifiedCombinationBlock({
                   <div className="flex items-center gap-1 shrink-0">
                     {/* Internal reorder touch buttons: >= 44px on mobile */}
                     {onMoveItemInCombination && (
-                      <div className="flex items-center gap-0.5">
+                      <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button
                           type="button"
                           disabled={idx === 0}

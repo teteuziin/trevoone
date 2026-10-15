@@ -22,6 +22,14 @@ function XIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function CheckIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -82,10 +90,12 @@ export function StudioExerciseLibrarySidebar({
   const [selectedMuscle, setSelectedMuscle] = useState("Todos");
   const [exercises, setExercises] = useState<ExerciseItemDto[]>([]);
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const [previewExercise, setPreviewExercise] = useState<ExerciseItemDto | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const effectiveCategoryId = selectedCategoryPublicId || categories[0]?.publicId || null;
+  const currentCategory = categories.find((c) => c.publicId === effectiveCategoryId);
 
   useEffect(() => {
     let active = true;
@@ -115,6 +125,10 @@ export function StudioExerciseLibrarySidebar({
     setAddingId(exercisePublicId);
     try {
       await onAddExercise(effectiveCategoryId, exercisePublicId);
+      setJustAddedId(exercisePublicId);
+      setTimeout(() => {
+        setJustAddedId((cur) => (cur === exercisePublicId ? null : cur));
+      }, 1600);
     } finally {
       setAddingId(null);
     }
@@ -147,19 +161,25 @@ export function StudioExerciseLibrarySidebar({
           </button>
         </div>
 
-        {/* Target Category Selector */}
+        {/* Target Category Selector — Crystal Clear */}
         {categories.length > 0 && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase text-[var(--text-tertiary)] block">
-              Adicionar exercício em:
-            </label>
+          <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-1.5">
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                Adicionando no treino:
+              </span>
+              <span className="text-zinc-400 font-semibold truncate max-w-[140px] text-right" title={currentCategory?.title}>
+                {currentCategory?.title || `${categories.length} divisões`}
+              </span>
+            </div>
             <select
               value={effectiveCategoryId || ""}
               onChange={(e) => onSelectCategory(e.target.value)}
-              className="w-full px-2.5 py-1.5 text-xs font-bold rounded-xl border border-[var(--border-default)] dark:border-white/[0.1] bg-[var(--surface-subtle)] dark:bg-white/[0.04] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[36px]"
+              className="w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border border-white/[0.12] bg-zinc-900 text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[34px] cursor-pointer"
             >
               {categories.map((c) => (
-                <option key={c.publicId} value={c.publicId} className="dark:bg-zinc-900">
+                <option key={c.publicId} value={c.publicId} className="bg-zinc-900 text-white">
                   {c.title}
                 </option>
               ))}
@@ -269,11 +289,31 @@ export function StudioExerciseLibrarySidebar({
                   type="button"
                   disabled={isAdding || !effectiveCategoryId}
                   onClick={() => handleAdd(ex.publicId)}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/[0.05] hover:bg-emerald-600 hover:border-emerald-500 text-zinc-300 hover:text-white border border-white/[0.1] disabled:opacity-30 transition-all shrink-0 flex items-center gap-1 min-h-[30px] cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 min-h-[32px] cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98] ${
+                    addingId === ex.publicId
+                      ? "bg-white/[0.08] text-zinc-300 border border-white/20"
+                      : justAddedId === ex.publicId
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.3)] animate-in zoom-in-95 duration-150"
+                      : "bg-white/[0.05] hover:bg-emerald-600 hover:border-emerald-500 text-zinc-300 hover:text-white border border-white/[0.1]"
+                  }`}
                   title="Adicionar exercício ao treino selecionado"
                 >
-                  <PlusIcon className="w-3 h-3" />
-                  <span>{isAdding ? "..." : "Adicionar"}</span>
+                  {addingId === ex.publicId ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                      <span>Adicionando...</span>
+                    </>
+                  ) : justAddedId === ex.publicId ? (
+                    <>
+                      <CheckIcon className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />
+                      <span>Adicionado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <PlusIcon className="w-3.5 h-3.5" />
+                      <span>Adicionar</span>
+                    </>
+                  )}
                 </button>
               </div>
             );

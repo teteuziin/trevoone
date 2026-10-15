@@ -2521,7 +2521,7 @@ function ExerciseRow({
           onToggleSelect?.();
         }
       }}
-      className={`rounded-lg border transition-all w-full max-w-full min-w-0 ${
+      className={`rounded-xl border transition-all w-full max-w-full min-w-0 ${
         isSelectionMode && !inCombination
           ? isSelected
             ? "border-2 border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/30 shadow-md ring-2 ring-emerald-500/30 scale-[1.008] cursor-pointer"
@@ -2529,10 +2529,10 @@ function ExerciseRow({
           : isUnmatched
           ? "border-amber-500/40 bg-amber-500/5 hover:border-amber-500/60"
           : isCustom
-          ? "border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--border-default)]"
+          ? "border-[var(--border-subtle)] dark:border-white/[0.08] bg-[var(--surface)] dark:bg-zinc-900/60 hover:border-white/20"
           : isExpanded
-          ? "border-emerald-500 bg-[var(--surface)] shadow-md ring-2 ring-emerald-500/20"
-          : "border-[var(--border-subtle)] bg-[var(--surface)] hover:bg-[var(--surface-subtle)]/30 hover:border-[var(--border-default)]"
+          ? "border-emerald-500 bg-[var(--surface)] dark:bg-zinc-900/90 shadow-md ring-2 ring-emerald-500/20"
+          : "border-[var(--border-subtle)] dark:border-white/[0.08] bg-[var(--surface)] dark:bg-zinc-900/60 hover:bg-[var(--surface-subtle)]/30 dark:hover:bg-zinc-900/80 hover:border-white/20"
       }`}
     >
       {/* Compact Header Row */}
@@ -3321,7 +3321,7 @@ export function UnifiedCombinationBlock({
     <div
       data-testid="mobile-combination-block"
       data-block-type="unified-combination-block"
-      className="rounded-2xl border border-[var(--border-subtle)] border-l-4 border-l-emerald-500 bg-[var(--surface)] shadow-md overflow-hidden transition-all w-full max-w-full min-w-0"
+      className="rounded-2xl border border-[var(--border-subtle)] dark:border-white/[0.08] border-l-4 border-l-emerald-500 bg-[var(--surface)] dark:bg-zinc-900/80 dark:backdrop-blur-md shadow-md hover:shadow-xl hover:border-emerald-500/30 transition-all w-full max-w-full min-w-0 overflow-hidden"
     >
       {/* Mobile Block Header (<sm) — dedicated compact ergonomic layout */}
       <div className="sm:hidden px-4 py-3 bg-[var(--surface-subtle)]/50 border-b border-[var(--border-subtle)] w-full max-w-full min-w-0">
@@ -3442,9 +3442,9 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Desktop Header (>=sm) — preserved horizontal flow */}
-      <div className="hidden sm:flex px-4 py-2 bg-[var(--surface-subtle)]/30 border-b border-[var(--border-subtle)] items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0">
+      <div className="hidden sm:flex px-4 py-2.5 bg-[var(--surface-subtle)]/30 dark:bg-white/[0.02] border-b border-[var(--border-subtle)] dark:border-white/[0.06] items-center justify-between gap-2 flex-wrap w-full max-w-full min-w-0">
         <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-          <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 shrink-0">
+          <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 shrink-0 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
             {typeLabel}
           </span>
           <span className="text-xs font-bold text-[var(--text-tertiary)]">·</span>
@@ -3485,7 +3485,7 @@ export function UnifiedCombinationBlock({
                 onClick={onMoveEntryUp}
                 aria-label="Mover bloco para cima"
                 title="Mover bloco para cima"
-                className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-[var(--border-subtle)] dark:border-white/[0.08] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
               >
                 <ArrowUp className="w-3.5 h-3.5" />
               </button>
@@ -3495,7 +3495,7 @@ export function UnifiedCombinationBlock({
                 onClick={onMoveEntryDown}
                 aria-label="Mover bloco para baixo"
                 title="Mover bloco para baixo"
-                className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-[var(--border-subtle)] dark:border-white/[0.08] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
               >
                 <ArrowDown className="w-3.5 h-3.5" />
               </button>
@@ -3522,7 +3522,7 @@ export function UnifiedCombinationBlock({
                 type="button"
                 onClick={() => setIsCombMenuOpen((v) => !v)}
                 aria-label="Opções da combinação"
-                className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-[var(--border-subtle)] dark:border-white/[0.08] text-[var(--text-secondary)] flex items-center justify-center transition-colors cursor-pointer"
               >
                 <MoreVertical className="w-3.5 h-3.5" />
               </button>
@@ -3566,7 +3566,7 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Internal Exercise Rows (Clean rows, NOT nested heavy cards) */}
-      <div className="divide-y divide-[var(--border-subtle)]">
+      <div className="divide-y divide-[var(--border-subtle)] dark:divide-white/[0.05]">
         {items.map((item: WorkoutBlockItemDto, idx: number) => {
           const letter = LETTERS[idx] || String.fromCharCode(65 + idx);
           const summary = getItemPrescriptionSummary(item);
@@ -3629,7 +3629,7 @@ export function UnifiedCombinationBlock({
                     onOpenQuickEdit(item);
                   }
                 }}
-                className={`py-3 px-3.5 sm:px-4 sm:py-3 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/40 transition-colors w-full max-w-full min-w-0 select-none ${
+                className={`py-3 px-3.5 sm:px-4 sm:py-3 flex items-center justify-between gap-2.5 hover:bg-[var(--surface-subtle)]/40 dark:hover:bg-white/[0.03] transition-colors w-full max-w-full min-w-0 select-none group ${
                   isDraft ? "cursor-pointer active:scale-[0.99]" : ""
                 }`}
               >
@@ -3640,7 +3640,7 @@ export function UnifiedCombinationBlock({
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] line-clamp-2 break-words">
+                      <h4 className="text-xs sm:text-sm font-extrabold text-[var(--text-primary)] group-hover:text-emerald-400 transition-colors line-clamp-2 break-words">
                         {item.exerciseNameSnapshot}
                       </h4>
                       {item.isCustomExercise && (
@@ -3678,7 +3678,7 @@ export function UnifiedCombinationBlock({
                           }}
                           aria-label="Mover para cima na combinação"
                           title="Mover para cima na combinação"
-                          className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]"
+                          className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-[var(--border-subtle)] dark:border-white/[0.08] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]"
                         >
                           <ArrowUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                         </button>
@@ -3691,7 +3691,7 @@ export function UnifiedCombinationBlock({
                           }}
                           aria-label="Mover para baixo na combinação"
                           title="Mover para baixo na combinação"
-                          className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]"
+                          className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-[var(--border-subtle)] dark:border-white/[0.08] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px]"
                         >
                           <ArrowDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                         </button>
@@ -3706,7 +3706,7 @@ export function UnifiedCombinationBlock({
                         onOpenActions(item, idx, items.length, combination.publicId);
                       }}
                       aria-label="Ações do exercício"
-                      className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] cursor-pointer"
+                      className="w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-[var(--border-subtle)] dark:border-white/[0.08] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] cursor-pointer"
                     >
                       <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
@@ -3717,10 +3717,12 @@ export function UnifiedCombinationBlock({
               {/* Transition connector between exercises */}
               {idx < items.length - 1 && (
                 <div
-                  className="py-1.5 px-4 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 border-t border-[var(--border-subtle)]/40 bg-emerald-500/[0.04]"
+                  className="py-1 px-4 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2 border-t border-[var(--border-subtle)]/40 bg-emerald-500/[0.04]"
                   title="Transição direta (sem descanso)"
                 >
-                  <span>↓ Sem descanso entre exercícios</span>
+                  <div className="h-px bg-emerald-500/20 flex-1" />
+                  <span className="shrink-0 flex items-center gap-1">↓ Sem descanso entre exercícios</span>
+                  <div className="h-px bg-emerald-500/20 flex-1" />
                 </div>
               )}
             </div>
@@ -3729,7 +3731,7 @@ export function UnifiedCombinationBlock({
       </div>
 
       {/* Combination Footer: Rest between rounds */}
-      <div className="px-4 py-3 bg-[var(--surface-subtle)]/40 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2 text-xs font-semibold text-[var(--text-secondary)]">
+      <div className="px-4 py-3 bg-[var(--surface-subtle)]/40 dark:bg-white/[0.02] border-t border-[var(--border-subtle)] dark:border-white/[0.06] flex items-center justify-between gap-2 text-xs font-semibold text-[var(--text-secondary)]">
         <span>
           Descanso após a volta:{" "}
           <strong className="text-[var(--text-primary)] font-black">{restSec}s</strong>

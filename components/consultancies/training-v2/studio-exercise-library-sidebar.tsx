@@ -123,10 +123,10 @@ export function StudioExerciseLibrarySidebar({
   return (
     <aside
       data-testid="studio-exercise-library-sidebar"
-      className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] shadow-xs flex flex-col h-[calc(100vh-140px)] sticky top-6 overflow-hidden"
+      className="rounded-2xl border border-[var(--border-subtle)] dark:border-white/[0.08] bg-[var(--surface)] dark:bg-zinc-900/90 dark:backdrop-blur-xl shadow-xl flex flex-col h-[calc(100vh-140px)] sticky top-6 overflow-hidden"
     >
       {/* Header */}
-      <div className="p-4 border-b border-[var(--border-subtle)] space-y-3 shrink-0 bg-[var(--surface)]">
+      <div className="p-4 border-b border-[var(--border-subtle)] dark:border-white/[0.06] space-y-3 shrink-0 bg-[var(--surface)] dark:bg-zinc-900/95">
         <div className="flex items-center justify-between gap-2">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)] block">
@@ -140,7 +140,7 @@ export function StudioExerciseLibrarySidebar({
             type="button"
             onClick={onClose}
             aria-label="Recolher biblioteca lateral"
-            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
             title="Recolher painel"
           >
             <XIcon className="w-4 h-4" />
@@ -156,10 +156,10 @@ export function StudioExerciseLibrarySidebar({
             <select
               value={effectiveCategoryId || ""}
               onChange={(e) => onSelectCategory(e.target.value)}
-              className="w-full px-2.5 py-1.5 text-xs font-bold rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[36px]"
+              className="w-full px-2.5 py-1.5 text-xs font-bold rounded-xl border border-[var(--border-default)] dark:border-white/[0.1] bg-[var(--surface-subtle)] dark:bg-white/[0.04] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[36px]"
             >
               {categories.map((c) => (
-                <option key={c.publicId} value={c.publicId}>
+                <option key={c.publicId} value={c.publicId} className="dark:bg-zinc-900">
                   {c.title}
                 </option>
               ))}
@@ -175,7 +175,7 @@ export function StudioExerciseLibrarySidebar({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar exercício..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[36px]"
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-[var(--border-default)] dark:border-white/[0.1] bg-[var(--surface-subtle)] dark:bg-white/[0.04] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[36px]"
           />
           {searchQuery && (
             <button
@@ -199,8 +199,8 @@ export function StudioExerciseLibrarySidebar({
                 onClick={() => setSelectedMuscle(chip)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                   isActive
-                    ? "bg-emerald-600 text-white shadow-2xs"
-                    : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]"
+                    ? "bg-emerald-600 text-white shadow-2xs shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                    : "bg-[var(--surface-subtle)] dark:bg-white/[0.04] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] dark:border-white/[0.06]"
                 }`}
               >
                 {chip}
@@ -241,11 +241,11 @@ export function StudioExerciseLibrarySidebar({
             return (
               <div
                 key={ex.publicId}
-                className="p-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)]/40 hover:bg-[var(--surface-subtle)] hover:border-emerald-500/30 transition-all flex items-center justify-between gap-2 text-left"
+                className="p-2.5 rounded-xl border border-[var(--border-subtle)] dark:border-white/[0.06] bg-[var(--surface-subtle)]/40 dark:bg-white/[0.02] hover:bg-[var(--surface-subtle)] dark:hover:bg-white/[0.06] hover:border-emerald-500/30 transition-all flex items-center justify-between gap-2 text-left group"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-[var(--text-primary)] truncate">
+                    <span className="text-xs font-bold text-[var(--text-primary)] group-hover:text-emerald-400 transition-colors truncate">
                       {ex.name}
                     </span>
                     {hasVideo && (
@@ -269,7 +269,7 @@ export function StudioExerciseLibrarySidebar({
                   type="button"
                   disabled={isAdding || !effectiveCategoryId}
                   onClick={() => handleAdd(ex.publicId)}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 transition-colors shrink-0 flex items-center gap-1 min-h-[30px] cursor-pointer shadow-2xs"
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 transition-all shrink-0 flex items-center gap-1 min-h-[30px] cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
                   title="Adicionar exercício ao treino selecionado"
                 >
                   <PlusIcon className="w-3 h-3" />
@@ -282,7 +282,7 @@ export function StudioExerciseLibrarySidebar({
       </div>
 
       {/* Footer / Custom Exercise Action */}
-      <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--surface)] shrink-0">
+      <div className="p-3 border-t border-[var(--border-subtle)] dark:border-white/[0.06] bg-[var(--surface)] dark:bg-zinc-900/95 shrink-0">
         <button
           type="button"
           disabled={!effectiveCategoryId}

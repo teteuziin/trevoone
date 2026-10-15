@@ -376,19 +376,19 @@ export function ConsultancyMembersManager({
           aria-live="polite"
           className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium transition-all duration-200 animate-in fade-in slide-in-from-top-2 max-w-sm flex items-center gap-2.5 ${
             toastMessage.type === "success"
-              ? "bg-[var(--surface)] text-[var(--brand-foreground)] border-[var(--brand-soft-border)] shadow-[var(--brand-soft)]"
+              ? "bg-white dark:bg-zinc-900 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 shadow-md"
               : toastMessage.type === "error"
-              ? "bg-[var(--surface)] text-[var(--danger)] border-[var(--danger-soft-border)]"
-              : "bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border-default)]"
+              ? "bg-white dark:bg-zinc-900 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 shadow-md"
+              : "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border-zinc-200 dark:border-zinc-800 shadow-md"
           }`}
         >
           {toastMessage.type === "success" && (
-            <svg className="w-4 h-4 shrink-0 text-[var(--brand)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           )}
           {toastMessage.type === "error" && (
-            <svg className="w-4 h-4 shrink-0 text-[var(--danger)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           )}
@@ -397,22 +397,22 @@ export function ConsultancyMembersManager({
       )}
 
       {/* 1. OPERATIONAL HEADER COMPACTO COM CONTADORES REAIS */}
-      <div className="bg-[var(--surface)] p-5 sm:p-6 rounded-2xl border border-[var(--border-default)] shadow-xs space-y-5">
+      <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <Link
               href={`/consultoria/${slug}`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors mb-1 min-h-[36px]"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors mb-1 min-h-[36px]"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15 19l-7-7 7-7" />
               </svg>
               <span>Voltar à visão geral</span>
             </Link>
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
               Membros e Convites
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+            <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
               Gerencie os participantes, convites ativos e permissões de acesso da consultoria.
             </p>
           </div>
@@ -443,40 +443,40 @@ export function ConsultancyMembersManager({
         </div>
 
         {/* Linha Operacional: Contadores Reais */}
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-4 pt-4 border-t border-[var(--border-subtle)]">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
           {/* Membros Ativos */}
-          <div className="bg-[var(--surface-subtle)] p-3 sm:p-3.5 rounded-xl border border-[var(--border-subtle)] space-y-0.5">
-            <p className="text-[11px] sm:text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
+          <div className="bg-zinc-50 dark:bg-zinc-800/60 p-3 sm:p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-0.5">
+            <p className="text-[11px] sm:text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
               Membros Ativos
             </p>
-            <p className="text-lg sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
+            <p className="text-lg sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
               {counters.isError ? "—" : counters.activeMembers}
             </p>
           </div>
 
           {/* Convites Pendentes */}
-          <div className="bg-[var(--surface-subtle)] p-3 sm:p-3.5 rounded-xl border border-[var(--border-subtle)] space-y-0.5">
-            <p className="text-[11px] sm:text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
+          <div className="bg-zinc-50 dark:bg-zinc-800/60 p-3 sm:p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-0.5">
+            <p className="text-[11px] sm:text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
               Convites Pendentes
             </p>
-            <p className="text-lg sm:text-2xl font-extrabold text-[var(--warning)] tracking-tight">
+            <p className="text-lg sm:text-2xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">
               {counters.isError ? "—" : counters.pendingInvitations}
             </p>
           </div>
 
           {/* Suspensos */}
-          <div className="bg-[var(--surface-subtle)] p-3 sm:p-3.5 rounded-xl border border-[var(--border-subtle)] space-y-0.5">
-            <p className="text-[11px] sm:text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
+          <div className="bg-zinc-50 dark:bg-zinc-800/60 p-3 sm:p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-0.5">
+            <p className="text-[11px] sm:text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
               Suspensos
             </p>
-            <p className="text-lg sm:text-2xl font-extrabold text-[var(--text-secondary)] tracking-tight">
+            <p className="text-lg sm:text-2xl font-extrabold text-zinc-600 dark:text-zinc-400 tracking-tight">
               {counters.isError ? "—" : counters.suspendedMembers}
             </p>
           </div>
         </div>
 
         {counters.isError && (
-          <p className="text-xs text-[var(--danger)] font-medium pt-1">
+          <p className="text-xs text-rose-600 dark:text-rose-400 font-medium pt-1">
             Contadores operacionais indisponíveis no momento.
           </p>
         )}
@@ -484,7 +484,7 @@ export function ConsultancyMembersManager({
 
       {/* 2. ORGANIZAÇÃO EM ABAS ("Membros" e "Convites") */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
           <div role="tablist" aria-orientation="horizontal" className="flex items-center gap-1 -mb-px">
             <button
               type="button"
@@ -493,16 +493,16 @@ export function ConsultancyMembersManager({
               onClick={() => setActiveTab("members")}
               className={`h-11 px-4 sm:px-5 font-semibold text-xs sm:text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer select-none min-h-[44px] ${
                 activeTab === "members"
-                  ? "border-[var(--brand)] text-[var(--text-primary)]"
-                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)]"
+                  ? "border-emerald-600 dark:border-emerald-400 text-zinc-900 dark:text-zinc-100"
+                  : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700"
               }`}
             >
               <span>Membros</span>
               <span
                 className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
                   activeTab === "members"
-                    ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)]"
-                    : "bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300"
+                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
                 }`}
               >
                 {members.length}
@@ -516,16 +516,16 @@ export function ConsultancyMembersManager({
               onClick={() => setActiveTab("invitations")}
               className={`h-11 px-4 sm:px-5 font-semibold text-xs sm:text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer select-none min-h-[44px] ${
                 activeTab === "invitations"
-                  ? "border-[var(--brand)] text-[var(--text-primary)]"
-                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)]"
+                  ? "border-emerald-600 dark:border-emerald-400 text-zinc-900 dark:text-zinc-100"
+                  : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700"
               }`}
             >
               <span>Convites</span>
               <span
                 className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
                   activeTab === "invitations"
-                    ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)]"
-                    : "bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300"
+                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
                 }`}
               >
                 {invitations.length}
@@ -540,10 +540,10 @@ export function ConsultancyMembersManager({
         {activeTab === "members" && (
           <div className="space-y-4 animate-in fade-in-50 duration-150">
             {/* Search & Filters Toolbar */}
-            <div className="bg-[var(--surface)] p-3.5 sm:p-4 rounded-2xl border border-[var(--border-default)] shadow-xs space-y-3">
+            <div className="bg-white dark:bg-zinc-900 p-3.5 sm:p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-3">
               {/* Live Search Input with 300ms debounce */}
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)]">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400 dark:text-zinc-500">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
@@ -554,14 +554,14 @@ export function ConsultancyMembersManager({
                   onChange={(e) => setMemberSearch(e.target.value)}
                   placeholder="Buscar membros por nome ou e-mail..."
                   aria-label="Buscar membros por nome ou e-mail"
-                  className="w-full h-11 pl-10 pr-10 text-xs sm:text-sm bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
+                  className="w-full h-11 pl-10 pr-10 text-xs sm:text-sm bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors min-h-[44px]"
                 />
                 {memberSearch.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setMemberSearch("")}
                     aria-label="Limpar busca"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -574,7 +574,7 @@ export function ConsultancyMembersManager({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
                 {/* Status Chips */}
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                  <span className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">
+                  <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">
                     Status:
                   </span>
                   {(
@@ -593,8 +593,8 @@ export function ConsultancyMembersManager({
                       }}
                       className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap min-h-[36px] cursor-pointer select-none ${
                         memberStatusFilter === chip.id
-                          ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)]"
-                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]"
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-bold"
+                          : "bg-zinc-50 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-700"
                       }`}
                     >
                       {chip.label}
@@ -604,7 +604,7 @@ export function ConsultancyMembersManager({
 
                 {/* Role Chips */}
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                  <span className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">
+                  <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">
                     Função:
                   </span>
                   {(
@@ -626,8 +626,8 @@ export function ConsultancyMembersManager({
                       }}
                       className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap min-h-[36px] cursor-pointer select-none ${
                         memberRoleFilter === chip.id
-                          ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)]"
-                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]"
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-bold"
+                          : "bg-zinc-50 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-700"
                       }`}
                     >
                       {chip.label}
@@ -654,9 +654,9 @@ export function ConsultancyMembersManager({
             ) : (
               <div className="space-y-4">
                 {/* Desktop Table */}
-                <div className="hidden md:block bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-visible">
+                <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs overflow-visible">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/70 border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                       <tr>
                         <th scope="col" className="px-5 py-3.5 font-semibold">
                           Membro
@@ -672,29 +672,29 @@ export function ConsultancyMembersManager({
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border-subtle)]">
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                       {paginatedMembers.map((member) => {
                         const isSelf = member.membershipPublicId === currentMembershipPublicId;
                         const isStudent = member.roles.includes("STUDENT");
                         const isMenuOpen = openMemberMenuId === member.membershipPublicId;
 
                         return (
-                          <tr key={member.membershipPublicId} className="hover:bg-[var(--surface-hover)] transition-colors">
+                          <tr key={member.membershipPublicId} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                             <td className="px-5 py-4 min-w-0">
                               <div className="flex items-center gap-3">
                                 <UserAvatar fullName={member.fullName} userPublicId={member.userPublicId} size="sm" />
                                 <div className="space-y-0.5 min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <p className="font-semibold text-[var(--text-primary)] truncate text-sm">
+                                    <p className="font-semibold text-zinc-900 dark:text-zinc-100 truncate text-sm">
                                       {member.fullName}
                                     </p>
                                     {isSelf && (
-                                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
                                         Você
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-xs text-[var(--text-secondary)] truncate">
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                                     {member.email}
                                   </p>
                                 </div>
@@ -710,7 +710,7 @@ export function ConsultancyMembersManager({
                                     </Badge>
                                   ))
                                 ) : (
-                                  <span className="text-xs text-[var(--text-tertiary)] italic">
+                                  <span className="text-xs text-zinc-400 dark:text-zinc-500 italic">
                                     Sem papéis
                                   </span>
                                 )}
@@ -739,7 +739,7 @@ export function ConsultancyMembersManager({
                                   type="button"
                                   onClick={() => setOpenMemberMenuId(isMenuOpen ? null : member.membershipPublicId)}
                                   aria-label="Abrir menu de ações do membro"
-                                  className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] active:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)] transition-colors cursor-pointer select-none"
+                                  className="w-9 h-9 rounded-xl flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:bg-zinc-200 dark:active:bg-zinc-700 border border-transparent hover:border-zinc-200 dark:border-zinc-700 transition-colors cursor-pointer select-none"
                                 >
                                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                     <circle cx="12" cy="12" r="2" />
@@ -749,15 +749,15 @@ export function ConsultancyMembersManager({
                                 </button>
 
                                 {isMenuOpen && (
-                                  <div className="absolute right-5 mt-1 w-52 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl shadow-xl py-1.5 z-40 text-xs font-medium space-y-0.5 animate-in fade-in-50 zoom-in-95 duration-100">
+                                  <div className="absolute right-5 mt-1 w-52 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl py-1.5 z-40 text-xs font-medium space-y-0.5 animate-in fade-in-50 zoom-in-95 duration-100 text-zinc-900 dark:text-zinc-100">
                                     {/* Ver Onboarding / Perfil */}
                                     {isStudent && member.status === "ACTIVE" && (
                                       <Link
                                         href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
                                         onClick={() => setOpenMemberMenuId(null)}
-                                        className="flex items-center gap-2 px-3.5 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors min-h-[36px]"
+                                        className="flex items-center gap-2 px-3.5 py-2 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[36px]"
                                       >
-                                        <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <svg className="w-4 h-4 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                           <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                         </svg>
                                         <span>Ver onboarding / perfil</span>
@@ -771,9 +771,9 @@ export function ConsultancyMembersManager({
                                         setEditingRolesMember(member);
                                         setOpenMemberMenuId(null);
                                       }}
-                                      className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors min-h-[36px] cursor-pointer"
+                                      className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[36px] cursor-pointer"
                                     >
-                                      <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <svg className="w-4 h-4 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                       </svg>
                                       <span>Editar funções</span>
@@ -789,7 +789,7 @@ export function ConsultancyMembersManager({
                                               setConfirmSuspendMember(member);
                                               setOpenMemberMenuId(null);
                                             }}
-                                            className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--warning)] hover:bg-[var(--surface-hover)] transition-colors min-h-[36px] cursor-pointer"
+                                            className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors min-h-[36px] cursor-pointer"
                                           >
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                               <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -803,7 +803,7 @@ export function ConsultancyMembersManager({
                                               setConfirmReactivateMember(member);
                                               setOpenMemberMenuId(null);
                                             }}
-                                            className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--brand)] hover:bg-[var(--surface-hover)] transition-colors min-h-[36px] cursor-pointer"
+                                            className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors min-h-[36px] cursor-pointer"
                                           >
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -812,7 +812,7 @@ export function ConsultancyMembersManager({
                                           </button>
                                         ) : null}
 
-                                        <div className="border-t border-[var(--border-subtle)] my-1" />
+                                        <div className="border-t border-zinc-200 dark:border-zinc-800 my-1" />
 
                                         {/* Desligar da consultoria */}
                                         <button
@@ -821,7 +821,7 @@ export function ConsultancyMembersManager({
                                             setConfirmDeactivateMember(member);
                                             setOpenMemberMenuId(null);
                                           }}
-                                          className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-colors min-h-[36px] cursor-pointer"
+                                          className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors min-h-[36px] cursor-pointer"
                                         >
                                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -851,7 +851,7 @@ export function ConsultancyMembersManager({
                     return (
                       <div
                         key={member.membershipPublicId}
-                        className="bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border-default)] shadow-xs space-y-3 relative"
+                        className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-3 relative"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -859,16 +859,16 @@ export function ConsultancyMembersManager({
                             <UserAvatar fullName={member.fullName} userPublicId={member.userPublicId} size="sm" />
                             <div className="min-w-0 space-y-0.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                                   {member.fullName}
                                 </p>
                                 {isSelf && (
-                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
                                     Você
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-[var(--text-secondary)] truncate">
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                                 {member.email}
                               </p>
                             </div>
@@ -880,7 +880,7 @@ export function ConsultancyMembersManager({
                               type="button"
                               onClick={() => setOpenMemberMenuId(isMenuOpen ? null : member.membershipPublicId)}
                               aria-label="Abrir menu de ações do membro"
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
                             >
                               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="2" />
@@ -890,14 +890,14 @@ export function ConsultancyMembersManager({
                             </button>
 
                             {isMenuOpen && (
-                              <div className="absolute right-0 mt-1 w-52 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl shadow-xl py-1.5 z-40 text-xs font-medium space-y-0.5 animate-in fade-in-50 zoom-in-95 duration-100">
+                              <div className="absolute right-0 mt-1 w-52 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl py-1.5 z-40 text-xs font-medium space-y-0.5 animate-in fade-in-50 zoom-in-95 duration-100 text-zinc-900 dark:text-zinc-100">
                                 {isStudent && member.status === "ACTIVE" && (
                                   <Link
                                     href={`/consultoria/${slug}/membros/${member.membershipPublicId}/onboarding`}
                                     onClick={() => setOpenMemberMenuId(null)}
-                                    className="flex items-center gap-2 px-3.5 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-hover)] min-h-[44px]"
+                                    className="flex items-center gap-2 px-3.5 py-2 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 min-h-[44px]"
                                   >
-                                    <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <svg className="w-4 h-4 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                     </svg>
                                     <span>Ver onboarding / perfil</span>
@@ -910,9 +910,9 @@ export function ConsultancyMembersManager({
                                     setEditingRolesMember(member);
                                     setOpenMemberMenuId(null);
                                   }}
-                                  className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-hover)] min-h-[44px] cursor-pointer"
+                                  className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 min-h-[44px] cursor-pointer"
                                 >
-                                  <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <svg className="w-4 h-4 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
                                   <span>Editar funções</span>
@@ -927,7 +927,7 @@ export function ConsultancyMembersManager({
                                           setConfirmSuspendMember(member);
                                           setOpenMemberMenuId(null);
                                         }}
-                                        className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--warning)] hover:bg-[var(--surface-hover)] min-h-[44px] cursor-pointer"
+                                        className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 min-h-[44px] cursor-pointer"
                                       >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                           <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -941,7 +941,7 @@ export function ConsultancyMembersManager({
                                           setConfirmReactivateMember(member);
                                           setOpenMemberMenuId(null);
                                         }}
-                                        className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--brand)] hover:bg-[var(--surface-hover)] min-h-[44px] cursor-pointer"
+                                        className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 min-h-[44px] cursor-pointer"
                                       >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -950,7 +950,7 @@ export function ConsultancyMembersManager({
                                       </button>
                                     ) : null}
 
-                                    <div className="border-t border-[var(--border-subtle)] my-1" />
+                                    <div className="border-t border-zinc-200 dark:border-zinc-800 my-1" />
 
                                     <button
                                       type="button"
@@ -958,7 +958,7 @@ export function ConsultancyMembersManager({
                                         setConfirmDeactivateMember(member);
                                         setOpenMemberMenuId(null);
                                       }}
-                                      className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--danger)] hover:bg-[var(--danger-soft)] min-h-[44px] cursor-pointer"
+                                      className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 min-h-[44px] cursor-pointer"
                                     >
                                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -973,7 +973,7 @@ export function ConsultancyMembersManager({
                         </div>
 
                         {/* Status + Roles */}
-                        <div className="pt-2.5 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap">
+                        <div className="pt-2.5 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2 flex-wrap">
                           <div className="flex flex-wrap gap-1.5">
                             {member.roles.map((role) => (
                               <Badge key={role} variant="brand" size="sm">
@@ -1004,11 +1004,11 @@ export function ConsultancyMembersManager({
                 {totalMemberPages > 1 && (
                   <nav
                     aria-label="Paginação do diretório de membros"
-                    className="bg-[var(--surface)] px-4 py-3 rounded-2xl border border-[var(--border-default)] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-sm"
+                    className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-sm"
                   >
-                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] text-center sm:text-left">
-                      Página <span className="font-semibold text-[var(--text-primary)]">{memberPage}</span> de{" "}
-                      <span className="font-semibold text-[var(--text-primary)]">{totalMemberPages}</span> ({filteredMembers.length} membros)
+                    <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 text-center sm:text-left">
+                      Página <span className="font-semibold text-zinc-900 dark:text-zinc-100">{memberPage}</span> de{" "}
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">{totalMemberPages}</span> ({filteredMembers.length} membros)
                     </p>
 
                     <div className="flex items-center gap-2">
@@ -1046,10 +1046,10 @@ export function ConsultancyMembersManager({
         {activeTab === "invitations" && (
           <div className="space-y-4 animate-in fade-in-50 duration-150">
             {/* Search & Filters Toolbar */}
-            <div className="bg-[var(--surface)] p-3.5 sm:p-4 rounded-2xl border border-[var(--border-default)] shadow-xs space-y-3">
+            <div className="bg-white dark:bg-zinc-900 p-3.5 sm:p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-3">
               {/* Live Search Input */}
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)]">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400 dark:text-zinc-500">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
@@ -1060,14 +1060,14 @@ export function ConsultancyMembersManager({
                   onChange={(e) => setInviteSearch(e.target.value)}
                   placeholder="Buscar convites por e-mail..."
                   aria-label="Buscar convites por e-mail"
-                  className="w-full h-11 pl-10 pr-10 text-xs sm:text-sm bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
+                  className="w-full h-11 pl-10 pr-10 text-xs sm:text-sm bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors min-h-[44px]"
                 />
                 {inviteSearch.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setInviteSearch("")}
                     aria-label="Limpar busca"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1078,7 +1078,7 @@ export function ConsultancyMembersManager({
 
               {/* Status Chips */}
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                <span className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">
+                <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">
                   Status:
                 </span>
                 {(
@@ -1099,8 +1099,8 @@ export function ConsultancyMembersManager({
                     }}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap min-h-[36px] cursor-pointer select-none ${
                       inviteStatusFilter === chip.id
-                        ? "bg-[var(--brand-soft)] text-[var(--brand-foreground)] border border-[var(--brand-soft-border)]"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]"
+                        ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-bold"
+                        : "bg-zinc-50 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-700"
                     }`}
                   >
                     {chip.label}
@@ -1126,9 +1126,9 @@ export function ConsultancyMembersManager({
             ) : (
               <div className="space-y-4">
                 {/* Desktop Table */}
-                <div className="hidden md:block bg-[var(--surface)] rounded-2xl border border-[var(--border-default)] shadow-xs overflow-visible">
+                <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs overflow-visible">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-[var(--surface-subtle)] border-b border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/70 border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                       <tr>
                         <th scope="col" className="px-5 py-3.5 font-semibold">
                           Convidado
@@ -1147,18 +1147,18 @@ export function ConsultancyMembersManager({
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border-subtle)]">
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                       {paginatedInvitations.map((inv) => {
                         const isMenuOpen = openInviteMenuId === inv.publicId;
 
                         return (
-                          <tr key={inv.publicId} className="hover:bg-[var(--surface-hover)] transition-colors">
+                          <tr key={inv.publicId} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                             <td className="px-5 py-4 min-w-0">
                               <div className="space-y-0.5">
-                                <p className="font-semibold text-[var(--text-primary)] truncate text-sm">
+                                <p className="font-semibold text-zinc-900 dark:text-zinc-100 truncate text-sm">
                                   {inv.email}
                                 </p>
-                                <p className="text-[11px] text-[var(--text-tertiary)]">
+                                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                                   Criado em {formatDateTime(inv.createdAt)}
                                 </p>
                               </div>
@@ -1174,7 +1174,7 @@ export function ConsultancyMembersManager({
                               </div>
                             </td>
 
-                            <td className="px-5 py-4 text-xs text-[var(--text-secondary)] whitespace-nowrap">
+                            <td className="px-5 py-4 text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                               {formatDateTime(inv.expiresAt)}
                             </td>
 
@@ -1200,7 +1200,7 @@ export function ConsultancyMembersManager({
                                   type="button"
                                   onClick={() => setOpenInviteMenuId(isMenuOpen ? null : inv.publicId)}
                                   aria-label="Abrir menu de ações do convite"
-                                  className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] active:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)] transition-colors cursor-pointer select-none"
+                                  className="w-9 h-9 rounded-xl flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:bg-zinc-200 dark:active:bg-zinc-700 border border-transparent hover:border-zinc-200 dark:border-zinc-700 transition-colors cursor-pointer select-none"
                                 >
                                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                     <circle cx="12" cy="12" r="2" />
@@ -1210,7 +1210,7 @@ export function ConsultancyMembersManager({
                                 </button>
 
                                 {isMenuOpen && (
-                                  <div className="absolute right-5 mt-1 w-52 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl shadow-xl py-1.5 z-40 text-xs font-medium space-y-0.5 animate-in fade-in-50 zoom-in-95 duration-100">
+                                  <div className="absolute right-5 mt-1 w-52 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl py-1.5 z-40 text-xs font-medium space-y-0.5 animate-in fade-in-50 zoom-in-95 duration-100 text-zinc-900 dark:text-zinc-100">
                                     {inv.status === "PENDING" && (
                                       <>
                                         <button
@@ -1219,9 +1219,9 @@ export function ConsultancyMembersManager({
                                             handleCopyExistingLinkOrRenew(inv);
                                             setOpenInviteMenuId(null);
                                           }}
-                                          className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors min-h-[36px] cursor-pointer"
+                                          className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[36px] cursor-pointer"
                                         >
-                                          <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                          <svg className="w-4 h-4 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                           </svg>
                                           <span>Copiar link do convite</span>
@@ -1233,7 +1233,7 @@ export function ConsultancyMembersManager({
                                             handleResendInvitation(inv);
                                             setOpenInviteMenuId(null);
                                           }}
-                                          className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--brand)] hover:bg-[var(--surface-hover)] transition-colors min-h-[36px] cursor-pointer"
+                                          className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors min-h-[36px] cursor-pointer"
                                         >
                                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1241,7 +1241,7 @@ export function ConsultancyMembersManager({
                                           <span>Reenviar convite (7 dias)</span>
                                         </button>
 
-                                        <div className="border-t border-[var(--border-subtle)] my-1" />
+                                        <div className="border-t border-zinc-200 dark:border-zinc-800 my-1" />
 
                                         <button
                                           type="button"
@@ -1249,7 +1249,7 @@ export function ConsultancyMembersManager({
                                             setConfirmRevokeInvite(inv);
                                             setOpenInviteMenuId(null);
                                           }}
-                                          className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-colors min-h-[36px] cursor-pointer"
+                                          className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors min-h-[36px] cursor-pointer"
                                         >
                                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1266,7 +1266,7 @@ export function ConsultancyMembersManager({
                                           handleResendInvitation(inv);
                                           setOpenInviteMenuId(null);
                                         }}
-                                        className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--brand)] hover:bg-[var(--surface-hover)] transition-colors min-h-[36px] cursor-pointer"
+                                        className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors min-h-[36px] cursor-pointer"
                                       >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1276,7 +1276,7 @@ export function ConsultancyMembersManager({
                                     )}
 
                                     {(inv.status === "ACCEPTED" || inv.status === "REVOKED") && (
-                                      <div className="px-3.5 py-2 text-xs text-[var(--text-tertiary)] italic">
+                                      <div className="px-3.5 py-2 text-xs text-zinc-400 dark:text-zinc-500 italic">
                                         Nenhuma ação pendente
                                       </div>
                                     )}
@@ -1299,15 +1299,15 @@ export function ConsultancyMembersManager({
                     return (
                       <div
                         key={inv.publicId}
-                        className="bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border-default)] shadow-xs space-y-3 relative"
+                        className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-3 relative"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 space-y-0.5">
-                            <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                               {inv.email}
                             </p>
-                            <p className="text-[11px] text-[var(--text-tertiary)]">
+                            <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                               Criado em {formatDateTime(inv.createdAt)}
                             </p>
                           </div>
@@ -1330,7 +1330,7 @@ export function ConsultancyMembersManager({
                               type="button"
                               onClick={() => setOpenInviteMenuId(isMenuOpen ? null : inv.publicId)}
                               aria-label="Abrir menu de ações do convite"
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-[var(--border-subtle)] transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
                             >
                               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="2" />
@@ -1340,7 +1340,7 @@ export function ConsultancyMembersManager({
                             </button>
 
                             {isMenuOpen && (
-                              <div className="absolute right-0 top-11 w-52 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl shadow-xl py-1.5 z-40 text-xs font-medium space-y-0.5 animate-in fade-in-50 zoom-in-95 duration-100">
+                              <div className="absolute right-0 top-11 w-52 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl py-1.5 z-40 text-xs font-medium space-y-0.5 animate-in fade-in-50 zoom-in-95 duration-100 text-zinc-900 dark:text-zinc-100">
                                 {inv.status === "PENDING" && (
                                   <>
                                     <button
@@ -1349,9 +1349,9 @@ export function ConsultancyMembersManager({
                                         handleCopyExistingLinkOrRenew(inv);
                                         setOpenInviteMenuId(null);
                                       }}
-                                      className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--text-primary)] hover:bg-[var(--surface-hover)] min-h-[44px] cursor-pointer"
+                                      className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 min-h-[44px] cursor-pointer"
                                     >
-                                      <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <svg className="w-4 h-4 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                       </svg>
                                       <span>Copiar link</span>
@@ -1363,7 +1363,7 @@ export function ConsultancyMembersManager({
                                         handleResendInvitation(inv);
                                         setOpenInviteMenuId(null);
                                       }}
-                                      className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--brand)] hover:bg-[var(--surface-hover)] min-h-[44px] cursor-pointer"
+                                      className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 min-h-[44px] cursor-pointer"
                                     >
                                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1371,7 +1371,7 @@ export function ConsultancyMembersManager({
                                       <span>Reenviar convite (7 dias)</span>
                                     </button>
 
-                                    <div className="border-t border-[var(--border-subtle)] my-1" />
+                                    <div className="border-t border-zinc-200 dark:border-zinc-800 my-1" />
 
                                     <button
                                       type="button"
@@ -1379,7 +1379,7 @@ export function ConsultancyMembersManager({
                                         setConfirmRevokeInvite(inv);
                                         setOpenInviteMenuId(null);
                                       }}
-                                      className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--danger)] hover:bg-[var(--danger-soft)] min-h-[44px] cursor-pointer"
+                                      className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 min-h-[44px] cursor-pointer"
                                     >
                                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1396,7 +1396,7 @@ export function ConsultancyMembersManager({
                                       handleResendInvitation(inv);
                                       setOpenInviteMenuId(null);
                                     }}
-                                    className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-[var(--brand)] hover:bg-[var(--surface-hover)] min-h-[44px] cursor-pointer"
+                                    className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 min-h-[44px] cursor-pointer"
                                   >
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1417,7 +1417,7 @@ export function ConsultancyMembersManager({
                           ))}
                         </div>
 
-                        <div className="pt-2 border-t border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
+                        <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400">
                           <span>Expira em: {formatDateTime(inv.expiresAt)}</span>
                         </div>
                       </div>
@@ -1429,11 +1429,11 @@ export function ConsultancyMembersManager({
                 {totalInvitePages > 1 && (
                   <nav
                     aria-label="Paginação de convites"
-                    className="bg-[var(--surface)] px-4 py-3 rounded-2xl border border-[var(--border-default)] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-sm"
+                    className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-sm"
                   >
-                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] text-center sm:text-left">
-                      Página <span className="font-semibold text-[var(--text-primary)]">{invitePage}</span> de{" "}
-                      <span className="font-semibold text-[var(--text-primary)]">{totalInvitePages}</span> ({filteredInvitations.length} convites)
+                    <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 text-center sm:text-left">
+                      Página <span className="font-semibold text-zinc-900 dark:text-zinc-100">{invitePage}</span> de{" "}
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">{totalInvitePages}</span> ({filteredInvitations.length} convites)
                     </p>
 
                     <div className="flex items-center gap-2">
@@ -1661,22 +1661,22 @@ function InviteMemberModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="invite-modal-title"
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-lg bg-[var(--surface)] border border-[var(--border-default)] rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 duration-150"
+        className="w-full sm:max-w-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 duration-150 text-zinc-900 dark:text-zinc-100"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
-            <h2 id="invite-modal-title" className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
+            <h2 id="invite-modal-title" className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
               Convidar novo membro
             </h2>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+            <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
               Gere um link seguro com validade de 7 dias para convidar uma nova pessoa.
             </p>
           </div>
@@ -1684,7 +1684,7 @@ function InviteMemberModal({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] shrink-0 cursor-pointer min-h-[44px] min-w-[44px]"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shrink-0 cursor-pointer min-h-[44px] min-w-[44px]"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1693,22 +1693,22 @@ function InviteMemberModal({
         </div>
 
         {error && (
-          <div className="p-3.5 rounded-xl bg-[var(--danger-soft)] border border-[var(--danger-soft-border)] text-xs text-[var(--danger)] font-medium">
+          <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 font-medium">
             {error}
           </div>
         )}
 
         {generatedPath ? (
-          <div className="p-4 sm:p-5 rounded-2xl bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] space-y-3">
+          <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-bold text-[var(--brand-foreground)]">
+              <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
                 Convite gerado com sucesso!
               </span>
               <Badge variant="brand" size="sm">
                 Válido por 7 dias
               </Badge>
             </div>
-            <p className="text-xs text-[var(--text-secondary)]">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
               Envie o link abaixo diretamente para a pessoa convidada:
             </p>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -1716,7 +1716,7 @@ function InviteMemberModal({
                 type="text"
                 readOnly
                 value={`${typeof window !== "undefined" ? window.location.origin : ""}${generatedPath}`}
-                className="flex-1 min-h-[44px] h-11 px-3 text-xs bg-[var(--surface)] border border-[var(--brand-soft-border)] rounded-xl text-[var(--text-primary)] font-mono select-all focus:outline-none"
+                className="flex-1 min-h-[44px] h-11 px-3 text-xs bg-white dark:bg-zinc-900 border border-emerald-300 dark:border-emerald-700 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono select-all focus:outline-none"
               />
               <Button
                 type="button"
@@ -1737,8 +1737,8 @@ function InviteMemberModal({
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* E-mail */}
             <div className="space-y-1.5">
-              <label htmlFor="invite_email" className="block text-xs font-semibold text-[var(--text-secondary)]">
-                E-mail do convidado <span className="text-[var(--danger)]">*</span>
+              <label htmlFor="invite_email" className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                E-mail do convidado <span className="text-rose-600">*</span>
               </label>
               <input
                 id="invite_email"
@@ -1747,14 +1747,14 @@ function InviteMemberModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="pessoa@exemplo.com"
-                className="w-full h-11 px-3.5 text-xs sm:text-sm bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] transition-colors min-h-[44px]"
+                className="w-full h-11 px-3.5 text-xs sm:text-sm bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors min-h-[44px]"
               />
             </div>
 
             {/* Funções como Pills / Chips */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-[var(--text-secondary)]">
-                Funções na consultoria <span className="text-[var(--danger)]">*</span>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                Funções na consultoria <span className="text-rose-600">*</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {(
@@ -1774,13 +1774,13 @@ function InviteMemberModal({
                       onClick={() => toggleRole(role.id as ConsultancyRole)}
                       className={`p-3 rounded-xl border text-left font-medium text-xs transition-all flex items-center justify-between min-h-[44px] cursor-pointer select-none ${
                         isChecked
-                          ? "bg-[var(--brand-soft)] border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-semibold"
-                          : "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)]"
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 font-semibold"
+                          : "bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-600"
                       }`}
                     >
                       <span>{role.label}</span>
                       {isChecked && (
-                        <svg className="w-4 h-4 text-[var(--brand)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       )}
@@ -1863,22 +1863,22 @@ function EditMemberRolesModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-roles-title"
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 duration-150"
+        className="w-full sm:max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 duration-150 text-zinc-900 dark:text-zinc-100"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-0.5">
-            <h3 id="edit-roles-title" className="text-base font-bold text-[var(--text-primary)] tracking-tight">
+            <h3 id="edit-roles-title" className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
               Editar funções
             </h3>
-            <p className="text-xs text-[var(--text-secondary)]">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               {member.fullName} ({member.email})
             </p>
           </div>
@@ -1886,7 +1886,7 @@ function EditMemberRolesModal({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] shrink-0 cursor-pointer min-h-[44px] min-w-[44px]"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shrink-0 cursor-pointer min-h-[44px] min-w-[44px]"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1895,13 +1895,13 @@ function EditMemberRolesModal({
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-[var(--danger-soft)] border border-[var(--danger-soft-border)] text-xs text-[var(--danger)] font-medium">
+          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 font-medium">
             {error}
           </div>
         )}
 
         <div className="space-y-2">
-          <label className="block text-xs font-semibold text-[var(--text-secondary)]">
+          <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
             Selecione as funções atribuídas:
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1922,13 +1922,13 @@ function EditMemberRolesModal({
                   onClick={() => toggleRole(role.id as ConsultancyRole)}
                   className={`p-3 rounded-xl border text-left font-medium text-xs transition-all flex items-center justify-between min-h-[44px] cursor-pointer select-none ${
                     isChecked
-                      ? "bg-[var(--brand-soft)] border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-semibold"
-                      : "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 font-semibold"
+                      : "bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
                   }`}
                 >
                   <span>{role.label}</span>
                   {isChecked && (
-                    <svg className="w-4 h-4 text-[var(--brand)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   )}
@@ -1985,20 +1985,20 @@ function ConfirmationDialog({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-md bg-[var(--surface)] border border-[var(--border-default)] rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 duration-150"
+        className="w-full sm:max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 duration-150 text-zinc-900 dark:text-zinc-100"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="space-y-1.5">
-          <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
+          <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
             {title}
           </h3>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
             {description}
           </p>
         </div>
@@ -2020,10 +2020,10 @@ function ConfirmationDialog({
             onClick={onConfirm}
             className={`min-h-[44px] px-5 text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center justify-center cursor-pointer select-none ${
               confirmVariant === "danger"
-                ? "bg-[var(--danger)] hover:bg-[var(--danger-hover)] text-white"
+                ? "bg-rose-600 hover:bg-rose-700 text-white"
                 : confirmVariant === "warning"
-                ? "bg-[var(--warning)] hover:brightness-110 text-black font-bold"
-                : "bg-[var(--brand-strong)] hover:bg-[var(--brand)] text-white"
+                ? "bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                : "bg-emerald-600 hover:bg-emerald-700 text-white"
             }`}
           >
             {isPending ? "Processando..." : confirmLabel}

@@ -33,7 +33,7 @@ export function CopyPixButton({ pixKey, className = "" }: CopyPixButtonProps) {
       size="sm"
       onClick={handleCopy}
       aria-label={copied ? "Chave Pix copiada para a área de transferência" : "Copiar chave Pix"}
-      className={`min-h-[44px] sm:min-h-0 ${className}`.trim()}
+      className={`min-h-[44px] ${className}`.trim()}
     >
       {copied ? (
         <>

@@ -100,16 +100,16 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Main Column: File Preview */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 shadow-xs space-y-3">
-              <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3 text-xs">
-                <span className="font-semibold text-[var(--text-primary)] truncate">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 text-xs">
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                   {receipt.originalFileName}
                 </span>
                 <a
                   href={fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center text-[var(--brand)] hover:underline font-semibold shrink-0 min-h-[44px]"
+                  className="inline-flex items-center text-emerald-600 dark:text-emerald-400 hover:underline font-semibold shrink-0 min-h-[44px]"
                 >
                   <span>Abrir em nova aba</span>
                   <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -118,7 +118,7 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
                 </a>
               </div>
 
-              <div className="bg-[var(--surface-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden min-h-[300px] flex items-center justify-center">
+              <div className="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden min-h-[300px] flex items-center justify-center">
                 {isImage ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -134,7 +134,7 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
                   />
                 ) : (
                   <div className="p-8 text-center space-y-3">
-                    <p className="text-xs text-[var(--text-tertiary)]">Visualização direta indisponível para este tipo de arquivo.</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Visualização direta indisponível para este tipo de arquivo.</p>
                     <a href={fileUrl} download={receipt.originalFileName}>
                       <Button variant="outline" size="sm" className="min-h-[44px]">
                         Baixar Arquivo ({formatBytes(receipt.sizeBytes)})
@@ -149,47 +149,47 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
           {/* Sidebar Column: Data & Decision Actions */}
           <div className="lg:col-span-5 space-y-4">
             {/* Metadata Card */}
-            <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
-                <span className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                   Status do Envio
                 </span>
                 <ReceiptStatusBadge status={receipt.receiptStatus} size="sm" />
               </div>
 
-              <div className="space-y-3 text-xs text-[var(--text-secondary)]">
+              <div className="space-y-3 text-xs text-zinc-600 dark:text-zinc-400">
                 <div>
-                  <span className="text-[var(--text-tertiary)] block">Aluno:</span>
-                  <strong className="text-[var(--text-primary)] font-semibold text-sm">{receipt.studentName}</strong>
-                  <p className="text-[11px] text-[var(--text-tertiary)]">{receipt.studentEmail}</p>
+                  <span className="text-zinc-500 dark:text-zinc-400 block">Aluno:</span>
+                  <strong className="text-zinc-900 dark:text-zinc-100 font-semibold text-sm">{receipt.studentName}</strong>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{receipt.studentEmail}</p>
                 </div>
 
                 <div>
-                  <span className="text-[var(--text-tertiary)] block">Cobrança Vinculada:</span>
-                  <strong className="text-[var(--text-primary)] font-semibold">{receipt.chargeTitle}</strong>
+                  <span className="text-zinc-500 dark:text-zinc-400 block">Cobrança Vinculada:</span>
+                  <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">{receipt.chargeTitle}</strong>
                 </div>
 
                 <div>
-                  <span className="text-[var(--text-tertiary)] block">Valor a Liquidar:</span>
-                  <strong className="text-[var(--brand)] font-bold text-base">
+                  <span className="text-zinc-500 dark:text-zinc-400 block">Valor a Liquidar:</span>
+                  <strong className="text-emerald-600 dark:text-emerald-400 font-bold text-base">
                     {formatCentsToBrl(receipt.amountCents)}
                   </strong>
                 </div>
 
                 <div>
-                  <span className="text-[var(--text-tertiary)] block">Vencimento da Cobrança:</span>
-                  <span className="text-[var(--text-secondary)] font-medium">{formatDateBr(receipt.dueOn)}</span>
+                  <span className="text-zinc-500 dark:text-zinc-400 block">Vencimento da Cobrança:</span>
+                  <span className="text-zinc-700 dark:text-zinc-300 font-medium">{formatDateBr(receipt.dueOn)}</span>
                 </div>
 
                 <div>
-                  <span className="text-[var(--text-tertiary)] block">Enviado em:</span>
-                  <span className="text-[var(--text-secondary)] font-medium">{formatDateTime(receipt.submittedAt)}</span>
+                  <span className="text-zinc-500 dark:text-zinc-400 block">Enviado em:</span>
+                  <span className="text-zinc-700 dark:text-zinc-300 font-medium">{formatDateTime(receipt.submittedAt)}</span>
                 </div>
 
                 {receipt.reviewedAt && (
                   <div>
-                    <span className="text-[var(--text-tertiary)] block">Analisado em:</span>
-                    <span className="text-[var(--text-secondary)] font-medium">
+                    <span className="text-zinc-500 dark:text-zinc-400 block">Analisado em:</span>
+                    <span className="text-zinc-700 dark:text-zinc-300 font-medium">
                       {formatDateTime(receipt.reviewedAt)} por {receipt.reviewerName || "Administrador"}
                     </span>
                   </div>
@@ -198,7 +198,7 @@ export default async function AdminPaymentReceiptDetailPage({ params }: PageProp
             </div>
 
             {/* Decision Actions Component */}
-            <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-5 shadow-xs">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm">
               <ReceiptReviewActions
                 slug={slug}
                 receiptPublicId={receipt.receiptPublicId}

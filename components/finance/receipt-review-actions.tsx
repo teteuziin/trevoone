@@ -122,7 +122,7 @@ export function ReceiptReviewActions({
             type="button"
             variant="primary"
             size="md"
-            className="flex-1"
+            className="flex-1 min-h-[44px] font-semibold text-xs"
             onClick={() => {
               setErrorMessage(null);
               setShowApproveModal(true);
@@ -136,7 +136,7 @@ export function ReceiptReviewActions({
             type="button"
             variant="outline"
             size="md"
-            className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30"
+            className="flex-1 min-h-[44px] font-semibold text-xs border-rose-300 text-rose-700 hover:bg-rose-50 hover:border-rose-400 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/30"
             onClick={() => {
               setErrorMessage(null);
               setShowRejectModal(true);
@@ -150,20 +150,20 @@ export function ReceiptReviewActions({
 
       {/* Modal de Confirmação de Aprovação */}
       {showApproveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
           <div
-            className="w-full max-w-md bg-[var(--surface)] rounded-2xl p-6 shadow-2xl border border-[var(--border-default)] space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900 dark:text-zinc-100"
             role="dialog"
             aria-modal="true"
           >
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-[var(--text-primary)]">Aprovar Pagamento</h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Aprovar Pagamento</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Você confirma a aprovação do comprovante no valor de{" "}
-                <strong className="text-[var(--text-primary)] font-bold">{formattedAmount}</strong> para o aluno{" "}
-                <strong className="text-[var(--text-primary)] font-semibold">{studentName}</strong>?
+                <strong className="text-zinc-900 dark:text-zinc-100 font-bold">{formattedAmount}</strong> para o aluno{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">{studentName}</strong>?
               </p>
-              <p className="text-[11px] text-[var(--brand-foreground)] bg-[var(--brand-soft)] p-2.5 rounded-lg border border-[var(--brand-soft-border)] mt-2">
+              <p className="text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 mt-2">
                 A cobrança &ldquo;{chargeTitle}&rdquo; será liquidada e o acesso do aluno será liberado.
               </p>
             </div>
@@ -173,7 +173,7 @@ export function ReceiptReviewActions({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="min-h-[44px] sm:min-h-0"
+                className="min-h-[44px] px-4 font-semibold text-xs"
                 onClick={() => setShowApproveModal(false)}
                 disabled={isPending}
               >
@@ -183,7 +183,7 @@ export function ReceiptReviewActions({
                 type="button"
                 variant="primary"
                 size="sm"
-                className="min-h-[44px] sm:min-h-0"
+                className="min-h-[44px] px-4 font-semibold text-xs"
                 onClick={handleApprove}
                 disabled={isPending}
               >
@@ -196,15 +196,15 @@ export function ReceiptReviewActions({
 
       {/* Modal de Rejeição */}
       {showRejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
           <div
-            className="w-full max-w-md bg-[var(--surface)] rounded-2xl p-6 shadow-2xl border border-[var(--border-default)] space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900 dark:text-zinc-100"
             role="dialog"
             aria-modal="true"
           >
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-[var(--text-primary)]">Rejeitar Comprovante</h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Rejeitar Comprovante</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Informe o motivo da rejeição para que o aluno {studentName} possa enviar um novo comprovante correto.
               </p>
             </div>
@@ -226,7 +226,7 @@ export function ReceiptReviewActions({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="min-h-[44px] sm:min-h-0"
+                className="min-h-[44px] px-4 font-semibold text-xs"
                 onClick={() => setShowRejectModal(false)}
                 disabled={isPending}
               >
@@ -236,7 +236,7 @@ export function ReceiptReviewActions({
                 type="button"
                 variant="danger"
                 size="sm"
-                className="min-h-[44px] sm:min-h-0"
+                className="min-h-[44px] px-4 font-semibold text-xs"
                 onClick={handleReject}
                 disabled={isPending || !rejectionReason.trim()}
               >

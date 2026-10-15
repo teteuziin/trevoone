@@ -88,14 +88,14 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
         </label>
 
         {selectedStudent ? (
-          <div className="flex items-center justify-between p-3.5 bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] rounded-xl">
+          <div className="flex items-center justify-between p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-[var(--brand-soft)] border border-[var(--brand-soft-border)] text-[var(--brand-foreground)] font-semibold flex items-center justify-center text-sm shrink-0">
+              <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-700/60 text-emerald-700 dark:text-emerald-300 font-semibold flex items-center justify-center text-sm shrink-0">
                 {selectedStudent.fullName.charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">{selectedStudent.fullName}</p>
-                <p className="text-xs text-[var(--text-secondary)]">{selectedStudent.email}</p>
+                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{selectedStudent.fullName}</p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">{selectedStudent.email}</p>
               </div>
             </div>
             <button
@@ -105,7 +105,7 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
                 setSearchQuery("");
                 setSearchResults([]);
               }}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--danger)] font-semibold px-2 py-1 rounded hover:bg-[var(--surface)] transition-colors"
+              className="text-xs text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 font-semibold px-3 py-2 rounded-lg hover:bg-white dark:hover:bg-zinc-800 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 transition-colors min-h-[44px] inline-flex items-center"
             >
               Trocar aluno
             </button>
@@ -121,13 +121,13 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
             />
 
             {isSearching && (
-              <div className="absolute right-3 top-3 text-xs text-[var(--text-tertiary)]">
+              <div className="absolute right-3 top-3 text-xs text-zinc-500 dark:text-zinc-400">
                 Buscando...
               </div>
             )}
 
             {!selectedStudent && searchQuery.trim().length >= 2 && searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl shadow-lg max-h-56 overflow-y-auto z-20 divide-y divide-[var(--border-subtle)]">
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl max-h-56 overflow-y-auto z-20 divide-y divide-zinc-100 dark:divide-zinc-800">
                 {searchResults.map((student) => (
                   <button
                     key={student.membershipPublicId}
@@ -136,20 +136,20 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
                       setSelectedStudent(student);
                       setSearchResults([]);
                     }}
-                    className="w-full text-left p-3 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between"
+                    className="w-full text-left p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center justify-between min-h-[44px]"
                   >
                     <div>
-                      <p className="text-xs font-semibold text-[var(--text-primary)]">{student.fullName}</p>
-                      <p className="text-[11px] text-[var(--text-tertiary)]">{student.email}</p>
+                      <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{student.fullName}</p>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{student.email}</p>
                     </div>
-                    <span className="text-xs font-semibold text-[var(--brand)]">Selecionar</span>
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Selecionar</span>
                   </button>
                 ))}
               </div>
             )}
 
             {!selectedStudent && searchQuery.trim().length >= 2 && !isSearching && searchResults.length === 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-3 shadow-lg z-20 text-xs text-[var(--text-secondary)] text-center">
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 shadow-xl z-20 text-xs text-zinc-600 dark:text-zinc-400 text-center">
                 Nenhum aluno encontrado com essa busca.
               </div>
             )}
@@ -227,7 +227,7 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
       </FormField>
 
       {/* 6. Opção de Bloqueio de Acesso por Inadimplência */}
-      <div className="p-4 bg-[var(--surface-subtle)] rounded-xl border border-[var(--border-subtle)] flex items-start gap-3">
+      <div className="p-4 bg-zinc-50 dark:bg-zinc-800/60 rounded-xl border border-zinc-200 dark:border-zinc-800 flex items-start gap-3">
         <input
           type="checkbox"
           id="blocksAccess"
@@ -235,11 +235,11 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
           value="1"
           defaultChecked
           disabled={isSubmitting}
-          className="mt-0.5 rounded border-[var(--border-default)] text-[var(--brand)] focus:ring-[var(--brand)]"
+          className="mt-0.5 w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-600 focus:ring-emerald-500"
         />
         <label htmlFor="blocksAccess" className="text-xs leading-relaxed cursor-pointer select-none">
-          <strong className="text-[var(--text-primary)] font-semibold block">Restringir acesso em caso de atraso</strong>
-          <span className="text-[var(--text-secondary)]">
+          <strong className="text-zinc-900 dark:text-zinc-100 font-semibold block">Restringir acesso em caso de atraso</strong>
+          <span className="text-zinc-600 dark:text-zinc-400">
             Se marcado, o aluno terá acesso restrito aos módulos da consultoria após o vencimento desta cobrança até a confirmação do pagamento.
           </span>
         </label>
@@ -250,6 +250,7 @@ export function ChargeForm({ slug, hasFinanceSettings }: ChargeFormProps) {
           type="submit"
           variant="primary"
           size="md"
+          className="min-h-[44px]"
           disabled={!selectedStudent || isSubmitting}
         >
           {isSubmitting ? "Emitindo cobrança..." : "Emitir Cobrança"}

@@ -142,7 +142,7 @@ export function ReceiptUploadForm({
           Selecione a foto, print ou PDF do seu comprovante de transferência.
         </p>
 
-        <div className="relative border-2 border-dashed border-[var(--border-default)] hover:border-[var(--brand)] transition-colors rounded-xl p-4 bg-[var(--surface-subtle)] text-center">
+        <div className="relative border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-emerald-500/60 transition-colors rounded-xl p-4 bg-zinc-50 dark:bg-zinc-800/60 text-center">
           <input
             ref={fileInputRef}
             type="file"
@@ -154,31 +154,31 @@ export function ReceiptUploadForm({
 
           {!selectedFile ? (
             <div className="space-y-1.5 py-1">
-              <div className="w-10 h-10 rounded-full bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center mx-auto">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
                 </svg>
               </div>
-              <p className="text-xs font-medium text-[var(--text-primary)]">
+              <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
                 Clique para selecionar o arquivo
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)]">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Formatos aceitos: JPG, PNG, WEBP ou PDF (máx. 5 MB)
               </p>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-3 bg-[var(--surface)] p-3 rounded-lg border border-[var(--border-default)] text-left relative z-20">
+            <div className="flex items-center justify-between gap-3 bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 text-left relative z-20 shadow-xs">
               <div className="min-w-0 flex-1 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                  <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                     {selectedFile.name}
                   </p>
-                  <p className="text-[11px] text-[var(--text-tertiary)]">
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                     {formatFileSize(selectedFile.size)}
                   </p>
                 </div>
@@ -188,8 +188,9 @@ export function ReceiptUploadForm({
                 type="button"
                 onClick={handleClearFile}
                 disabled={isSubmitting}
-                className="p-1 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
+                className="w-10 h-10 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center shrink-0"
                 title="Remover arquivo"
+                aria-label="Remover arquivo"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -205,7 +206,7 @@ export function ReceiptUploadForm({
         variant="primary"
         size="md"
         disabled={!selectedFile || isSubmitting}
-        className="w-full"
+        className="w-full min-h-[44px]"
       >
         {isSubmitting ? "Enviando comprovante..." : "Enviar comprovante para análise"}
       </Button>

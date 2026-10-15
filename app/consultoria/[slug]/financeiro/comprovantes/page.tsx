@@ -107,32 +107,32 @@ export default async function AdminPaymentReceiptsQueuePage({
             {result.receipts.map((receipt) => (
               <div
                 key={receipt.receiptPublicId}
-                className="bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[var(--brand)] transition-all"
+                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-emerald-500/60 dark:hover:border-emerald-500/60 transition-all"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-sm text-[var(--text-primary)] truncate">
+                      <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">
                         {receipt.studentName}
                       </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[var(--warning-soft)] text-[var(--warning-foreground)] border border-[var(--warning-border)]">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
                         Aguardando análise
                       </span>
                     </div>
 
-                    <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 font-medium truncate">
                       {receipt.chargeTitle} —{" "}
-                      <strong className="text-[var(--text-primary)]">{formatCentsToBrl(receipt.amountCents)}</strong>
+                      <strong className="text-zinc-900 dark:text-zinc-100">{formatCentsToBrl(receipt.amountCents)}</strong>
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--text-tertiary)]">
-                      <span>Arquivo: <strong className="text-[var(--text-secondary)] font-medium">{receipt.originalFileName}</strong> ({formatBytes(receipt.sizeBytes)})</span>
-                      <span>Enviado em: <strong className="text-[var(--text-secondary)] font-medium">{formatDateTime(receipt.submittedAt)}</strong></span>
-                      <span>Vencimento: <strong className="text-[var(--text-secondary)] font-medium">{formatDateBr(receipt.dueOn)}</strong></span>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <span>Arquivo: <strong className="text-zinc-700 dark:text-zinc-300 font-medium">{receipt.originalFileName}</strong> ({formatBytes(receipt.sizeBytes)})</span>
+                      <span>Enviado em: <strong className="text-zinc-700 dark:text-zinc-300 font-medium">{formatDateTime(receipt.submittedAt)}</strong></span>
+                      <span>Vencimento: <strong className="text-zinc-700 dark:text-zinc-300 font-medium">{formatDateBr(receipt.dueOn)}</strong></span>
                     </div>
                   </div>
 
-                  <div className="pt-2 sm:pt-0 border-t border-[var(--border-subtle)] sm:border-t-0 shrink-0">
+                  <div className="pt-2 sm:pt-0 border-t border-zinc-200 dark:border-zinc-800 sm:border-t-0 shrink-0">
                     <Link href={`/consultoria/${slug}/financeiro/comprovantes/${receipt.receiptPublicId}`}>
                       <Button variant="primary" size="sm" className="min-h-[44px]">
                         Analisar Comprovante →
@@ -145,10 +145,10 @@ export default async function AdminPaymentReceiptsQueuePage({
 
             {/* Pagination */}
             {result.totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-[var(--surface)] border border-[var(--border-default)] rounded-2xl shadow-xs text-xs">
-                <p className="text-[var(--text-secondary)] text-center sm:text-left">
-                  Página <span className="font-bold text-[var(--text-primary)]">{result.page}</span> de{" "}
-                  <span className="font-bold text-[var(--text-primary)]">{result.totalPages}</span> ({result.total} comprovantes)
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm text-xs">
+                <p className="text-zinc-600 dark:text-zinc-400 text-center sm:text-left">
+                  Página <span className="font-bold text-zinc-900 dark:text-zinc-100">{result.page}</span> de{" "}
+                  <span className="font-bold text-zinc-900 dark:text-zinc-100">{result.totalPages}</span> ({result.total} comprovantes)
                 </p>
 
                 <div className="flex items-center gap-2">

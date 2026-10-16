@@ -341,7 +341,7 @@ export function DashboardPersonalView({
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5">
-                <div className="w-5 h-5 rounded-md bg-[#ECEFF2] border border-[#C5CBD3] text-[#059669] dark:bg-[#151619] dark:border-[#303238] dark:text-[#10B981] flex items-center justify-center">
+                <div className="w-5 h-5 rounded-md bg-[#ECEFF2] border border-[#C5CBD3] text-[#065F46] dark:bg-[#151619] dark:border-[#303238] dark:text-[#10B981] flex items-center justify-center">
                   <FlameIcon className="w-3 h-3" />
                 </div>
                 <h2 className="text-xs font-bold uppercase tracking-wider text-[#17191D] dark:text-white font-sans">
@@ -424,7 +424,7 @@ export function DashboardPersonalView({
             </div>
             <Link
               href={`/consultoria/${consultancySlug}/rotinas`}
-              className="text-xs text-[#059669] dark:text-[#10B981] font-semibold font-sans hover:underline"
+              className="text-xs text-[#065F46] dark:text-[#10B981] font-semibold font-sans hover:underline"
             >
               Ver todas {totalPlans !== undefined && totalPlans !== null ? `(${totalPlans})` : ""} →
             </Link>
@@ -655,7 +655,7 @@ export function DashboardPersonalView({
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-[#ECEFF2] border border-[#C5CBD3] text-[#059669] dark:bg-[#151619] dark:border-[#303238] dark:text-[#10B981] flex items-center justify-center shadow-xs">
+                <div className="w-7 h-7 rounded-xl bg-[#ECEFF2] border border-[#C5CBD3] text-[#065F46] dark:bg-[#151619] dark:border-[#303238] dark:text-[#10B981] flex items-center justify-center shadow-xs">
                   <FlameIcon className="w-4 h-4" />
                 </div>
                 <div>
@@ -782,7 +782,7 @@ export function DashboardPersonalView({
             </div>
 
             <Link href={`/consultoria/${consultancySlug}/rotinas`}>
-              <span className="text-xs text-[#059669] dark:text-[#10B981] font-semibold hover:underline font-sans cursor-pointer">
+              <span className="text-xs text-[#065F46] dark:text-[#10B981] font-semibold hover:underline font-sans cursor-pointer">
                 Ver todas {totalPlans !== undefined && totalPlans !== null ? `(${totalPlans})` : ""} →
               </span>
             </Link>
@@ -869,7 +869,7 @@ export function DashboardPersonalView({
                     aria-label="Ver em lista"
                     className={`p-1.5 rounded-lg border transition-colors cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center ${
                       viewMode === "list"
-                        ? "bg-white text-[#059669] border-[#C5CBD3] dark:bg-[#1B1D21] dark:text-[#10B981] dark:border-[#10B981]/50 shadow-2xs"
+                        ? "bg-white text-[#065F46] border-[#C5CBD3] dark:bg-[#1B1D21] dark:text-[#10B981] dark:border-[#10B981]/50 shadow-2xs"
                         : "text-[#4B5563] border-transparent hover:text-[#17191D] hover:bg-[#DFE3E8] dark:text-[#C2C8CF] dark:border-transparent dark:hover:text-white dark:hover:bg-[#1B1D21]"
                     }`}
                     title="Visualização em lista"
@@ -882,7 +882,7 @@ export function DashboardPersonalView({
                     aria-label="Ver em grade"
                     className={`p-1.5 rounded-lg border transition-colors cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center ${
                       viewMode === "grid"
-                        ? "bg-white text-[#059669] border-[#C5CBD3] dark:bg-[#1B1D21] dark:text-[#10B981] dark:border-[#10B981]/50 shadow-2xs"
+                        ? "bg-white text-[#065F46] border-[#C5CBD3] dark:bg-[#1B1D21] dark:text-[#10B981] dark:border-[#10B981]/50 shadow-2xs"
                         : "text-[#4B5563] border-transparent hover:text-[#17191D] hover:bg-[#DFE3E8] dark:text-[#C2C8CF] dark:border-transparent dark:hover:text-white dark:hover:bg-[#1B1D21]"
                     }`}
                     title="Visualização em grade"

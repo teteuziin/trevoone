@@ -870,7 +870,7 @@ export function ConsultancyNavigation({
                         <span className="truncate">{item.label}</span>
                       </div>
                       {active && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#059669] dark:bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0 shadow-2xs`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#065F46] dark:bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0 shadow-2xs`} />
                       )}
                     </Link>
                   );
@@ -905,7 +905,7 @@ export function ConsultancyNavigation({
             />
             <div className="min-w-0 flex-1">
               <p className={`text-[13px] font-semibold ${
-                isDarkOverview ? "text-[#17191D] group-hover:text-[#059669] dark:text-white dark:group-hover:text-[#10B981]" : "text-[var(--text-primary)] group-hover:text-[var(--brand)]"
+                isDarkOverview ? "text-[#17191D] group-hover:text-[#065F46] dark:text-white dark:group-hover:text-[#10B981]" : "text-[var(--text-primary)] group-hover:text-[var(--brand)]"
               } transition-colors truncate leading-tight`}>
                 {identity.fullName}
               </p>
@@ -947,7 +947,7 @@ export function ConsultancyNavigation({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
               </svg>
               {unreadNotificationsCount > 0 && (
-                <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#059669] ring-2 ring-[#ECEFF2] dark:bg-[#10B981] dark:ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
+                <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#065F46] ring-2 ring-[#ECEFF2] dark:bg-[#10B981] dark:ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
               )}
             </Link>
 
@@ -1091,7 +1091,7 @@ export function ConsultancyNavigation({
                   <NavIcon name={item.iconName} />
                   <span>{item.mobileLabel || item.label}</span>
                   {active && (
-                    <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#059669] dark:bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#065F46] dark:bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
                   )}
                 </Link>
               );
@@ -1184,7 +1184,7 @@ export function ConsultancyNavigation({
                   aria-current={active ? "page" : undefined}
                   className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] h-full py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                     active
-                      ? isDarkOverview ? "text-[#059669] dark:text-[#10B981]" : "text-[var(--brand)]"
+                      ? isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
                       : isDarkOverview ? "text-[#4B5563] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
@@ -1192,7 +1192,7 @@ export function ConsultancyNavigation({
                     className={`px-3 py-1 rounded-full relative flex items-center justify-center transition-all duration-150 ${
                       active
                         ? isDarkOverview
-                          ? "bg-emerald-500/15 text-[#059669] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
+                          ? "bg-emerald-500/15 text-[#065F46] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
                           : "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
                         : isDarkOverview
                           ? "border border-transparent group-hover:bg-[#DFE3E8] dark:group-hover:bg-[#1B1D21]"
@@ -1204,7 +1204,7 @@ export function ConsultancyNavigation({
                   <span
                     className={`text-[11px] tracking-tight truncate max-w-full leading-tight mt-1 text-center transition-colors duration-150 ${
                       active
-                        ? isDarkOverview ? "font-semibold text-[#059669] dark:text-[#10B981]" : "font-semibold text-[var(--brand)]"
+                        ? isDarkOverview ? "font-semibold text-[#065F46] dark:text-[#10B981]" : "font-semibold text-[var(--brand)]"
                         : isDarkOverview ? "font-medium text-[#4B5563] group-hover:text-[#17191D] dark:text-[#C2C8CF] dark:group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                     }`}
                   >
@@ -1223,7 +1223,7 @@ export function ConsultancyNavigation({
               aria-controls="mobile-navigation-drawer"
               className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] h-full py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                 isMoreButtonActive
-                  ? isDarkOverview ? "text-[#059669] dark:text-[#10B981]" : "text-[var(--brand)]"
+                  ? isDarkOverview ? "text-[#065F46] dark:text-[#10B981]" : "text-[var(--brand)]"
                   : isDarkOverview ? "text-[#4B5563] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
@@ -1231,7 +1231,7 @@ export function ConsultancyNavigation({
                 className={`px-3 py-1 rounded-full relative flex items-center justify-center transition-all duration-150 ${
                   isMoreButtonActive
                     ? isDarkOverview
-                      ? "bg-emerald-500/15 text-[#059669] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
+                      ? "bg-emerald-500/15 text-[#065F46] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
                       : "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
                     : isDarkOverview
                       ? "border border-transparent group-hover:bg-[#DFE3E8] dark:group-hover:bg-[#1B1D21]"
@@ -1249,13 +1249,13 @@ export function ConsultancyNavigation({
                   <circle cx="19" cy="12" r="2" />
                 </svg>
                 {unreadNotificationsCount > 0 && (
-                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#059669] ring-2 ring-[#ECEFF2] dark:bg-[#10B981] dark:ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
+                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#065F46] ring-2 ring-[#ECEFF2] dark:bg-[#10B981] dark:ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
                 )}
               </div>
               <span
                 className={`text-[11px] tracking-tight truncate max-w-full leading-tight mt-1 text-center transition-colors duration-150 ${
                   isMoreButtonActive
-                    ? isDarkOverview ? "font-semibold text-[#059669] dark:text-[#10B981]" : "font-semibold text-[var(--brand)]"
+                    ? isDarkOverview ? "font-semibold text-[#065F46] dark:text-[#10B981]" : "font-semibold text-[var(--brand)]"
                     : isDarkOverview ? "font-medium text-[#4B5563] group-hover:text-[#17191D] dark:text-[#C2C8CF] dark:group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                 }`}
               >

@@ -64,7 +64,7 @@ export function Tabs<T extends string = string>({
                 className={`ml-1 px-1.5 py-0.5 rounded-full text-[11px] font-bold leading-none ${
                   isActive
                     ? isDark
-                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
+                      ? "bg-emerald-500/15 text-[#065F46] dark:text-emerald-400 border border-emerald-500/30"
                       : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                     : isDark
                     ? "bg-[#F1F3F5] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#C2C8CF] border border-[#C5CBD3] dark:border-[#303238]"

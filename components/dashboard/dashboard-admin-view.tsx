@@ -200,7 +200,7 @@ export function DashboardAdminView({
             </div>
             <Link
               href={`/consultoria/${consultancySlug}/operacoes`}
-              className="text-xs font-semibold text-[#059669] dark:text-[#10B981] hover:underline min-h-[44px] flex items-center px-1 cursor-pointer font-sans"
+              className="text-xs font-semibold text-[#065F46] dark:text-[#10B981] hover:underline min-h-[44px] flex items-center px-1 cursor-pointer font-sans"
             >
               Ver todos →
             </Link>

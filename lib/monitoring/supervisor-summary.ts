@@ -103,9 +103,14 @@ export async function generateSupervisorSummary(
     );
   }
 
-  const headline = studentsNeedingAttention === 0
-    ? "Operação estável e sem pendências críticas hoje"
-    : `${studentsNeedingAttention} aluno(s) demandam atenção da coordenação hoje`;
+  let headline = "Operação estável e sem pendências críticas hoje";
+  if (studentsNeedingAttention > 0) {
+    headline = `${studentsNeedingAttention} aluno(s) demandam atenção da coordenação hoje`;
+  } else if (teamMembersWithPendencies > 0) {
+    headline = `${teamMembersWithPendencies} profissional(is) na equipe com pendências hoje`;
+  } else if (pendingCommissionsCount > 0 || pendingPayoutsCount > 0) {
+    headline = "Pendências financeiras no programa de afiliados aguardando ação";
+  }
 
   return {
     headline,

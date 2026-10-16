@@ -149,67 +149,67 @@ export function OperationsCenterView({
 
   return (
     <div className="space-y-6">
-      {/* Top Operations KPIs */}
+      {/* Top Operations KPIs — Solid Dark Green Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
+        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
+          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
             Alunos Atenção
           </span>
-          <span className="text-xl font-black text-[var(--warning-foreground)] mt-1 block">
+          <span className="text-xl font-black text-amber-300 mt-1 block">
             {studentsResult.studentsAttention}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
+        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
+          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
             Alertas Críticos
           </span>
-          <span className="text-xl font-black text-[var(--danger-foreground)] mt-1 block">
+          <span className="text-xl font-black text-rose-400 mt-1 block">
             {studentsResult.criticalAlertsCount}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
+        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
+          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
             Equipe Pendente
           </span>
-          <span className="text-xl font-black text-[var(--text-primary)] mt-1 block">
+          <span className="text-xl font-black text-white mt-1 block">
             {teamResult.kpis.needingAttentionCount + teamResult.kpis.criticalCount}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
+        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
+          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
             Relatos de Dor
           </span>
-          <span className="text-xl font-black text-[var(--danger-foreground)] mt-1 block">
+          <span className="text-xl font-black text-rose-400 mt-1 block">
             {supervisorSummary.facts.painReportsCount}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
+        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
+          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
             Inativos &gt; 7d
           </span>
-          <span className="text-xl font-black text-[var(--text-secondary)] mt-1 block">
+          <span className="text-xl font-black text-[#CBDDD3] mt-1 block">
             {supervisorSummary.facts.prolongedInactiveCount}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
+        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
+          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
             Comissões Pend.
           </span>
-          <span className="text-xl font-black text-[var(--warning-foreground)] mt-1 block">
+          <span className="text-xl font-black text-amber-300 mt-1 block">
             {referralsSummary.pendingCommissionsCount}
           </span>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-4 shadow-xs depth-base">
-          <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block">
+        <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-4 shadow-xs text-white">
+          <span className="text-[10px] font-semibold text-[#CBDDD3] uppercase tracking-wider block">
             Aguardando PIX
           </span>
-          <span className="text-xl font-black text-[var(--brand)] mt-1 block">
+          <span className="text-xl font-black text-[#80E8B3] mt-1 block">
             {referralsSummary.pendingPayoutsCount}
           </span>
         </div>
@@ -266,27 +266,27 @@ export function OperationsCenterView({
       {/* TAB 1: HOJE */}
       {activeTab === "today" && (
         <div className="space-y-6">
-          {/* Supervisor Trevo Summary Card */}
-          <div className="bg-[var(--surface)] border border-[var(--border-default)] rounded-3xl p-6 shadow-xs depth-base space-y-3">
+          {/* Supervisor Trevo Summary Card — Solid Dark Green */}
+          <div className="bg-[#10271F] border border-[#1e4738] rounded-3xl p-6 shadow-xs space-y-3 text-white">
             <div className="flex items-center gap-2.5">
-              <span className="w-8 h-8 rounded-xl bg-[var(--brand-soft)] border border-[var(--brand-border)] text-[var(--brand-foreground)] flex items-center justify-center font-bold text-sm">
+              <span className="w-8 h-8 rounded-xl bg-[#18352C] border border-[#234e3e] text-[#80E8B3] flex items-center justify-center font-bold text-sm">
                 ✦
               </span>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#80E8B3]">
                   Resumo do Supervisor
                 </span>
-                <h2 className="text-base font-bold text-[var(--text-primary)]">
+                <h2 className="text-base font-bold text-white">
                   {supervisorSummary.headline}
                 </h2>
               </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-[var(--text-primary)] leading-relaxed font-medium bg-[var(--surface-subtle)] p-4 rounded-2xl border border-[var(--border-subtle)]">
+            <p className="text-xs sm:text-sm text-[#CBDDD3] leading-relaxed font-medium bg-[#18352C] p-4 rounded-2xl border border-[#234e3e]">
               {supervisorSummary.narrative}
             </p>
 
-            <div className="flex items-center justify-between text-[11px] text-[var(--text-tertiary)] pt-1">
+            <div className="flex items-center justify-between text-[11px] text-[#CBDDD3]/80 pt-1">
               <span>Evidências objetivas baseadas em dados registrados no TREVO ONE</span>
               <span>Atualizado hoje</span>
             </div>
@@ -300,7 +300,7 @@ export function OperationsCenterView({
                   Alunos Demandando Ação Imediata
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Estudantes com relatos de dor, ausência prolongada ou baixa adesão.
+                  Estudantes com relatos de dor, ausência prolongada ou baixa adesão comprovada.
                 </p>
               </div>
               <button
@@ -312,59 +312,90 @@ export function OperationsCenterView({
               </button>
             </div>
 
-            {studentsResult.students.filter((s) => s.state !== "OK").length === 0 ? (
-              <div className="p-8 text-center text-xs text-[var(--success-foreground)] bg-[var(--success-soft)]/40 border border-[var(--success-border)] rounded-2xl">
-                ✓ Nenhum aluno em estado crítico ou de atenção no momento.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {studentsResult.students
-                  .filter((s) => s.state !== "OK")
-                  .slice(0, 6)
-                  .map((s) => (
-                    <div
-                      key={s.studentMemberId}
-                      className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-2.5"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <UserAvatar fullName={s.studentName} userPublicId={s.userPublicId} size="sm" />
-                          <div>
-                            <span className="font-bold text-xs text-[var(--text-primary)] block">
-                              {s.studentName}
-                            </span>
-                            <span className="text-[10px] text-[var(--text-tertiary)]">
-                              Treinos 7d: {s.metrics.completedWorkoutsLast7d} | Check-ins 7d: {s.metrics.recentCheckinsCount}
+            {(() => {
+              const confirmedPriorityStudents = studentsResult.students.filter(
+                (s) => s.state === "CRITICAL" || s.state === "ATTENTION"
+              );
+              const insufficientDataStudents = studentsResult.students.filter(
+                (s) => s.state === "INSUFFICIENT_DATA"
+              );
+
+              return (
+                <div className="space-y-3">
+                  {confirmedPriorityStudents.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-[var(--success-foreground)] bg-[var(--success-soft)]/40 border border-[var(--success-border)] rounded-2xl">
+                      ✓ Nenhum aluno com prioridade crítica ou de atenção comprovada no momento.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {confirmedPriorityStudents.slice(0, 6).map((s) => (
+                        <div
+                          key={s.studentMemberId}
+                          className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-default)] space-y-2.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <UserAvatar fullName={s.studentName} userPublicId={s.userPublicId} size="sm" />
+                              <div>
+                                <span className="font-bold text-xs text-[var(--text-primary)] block">
+                                  {s.studentName}
+                                </span>
+                                <span className="text-[10px] text-[var(--text-tertiary)]">
+                                  Treinos 7d: {s.metrics.completedWorkoutsLast7d} | Check-ins 7d: {s.metrics.recentCheckinsCount}
+                                </span>
+                              </div>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${studentStateBadges[s.state].className}`}>
+                              {studentStateBadges[s.state].label}
                             </span>
                           </div>
+
+                          <div className="text-[11px] text-[var(--text-secondary)] space-y-1">
+                            {s.reasons.map((r, i) => (
+                              <p key={i} className="flex items-start gap-1.5 leading-snug">
+                                <span className="text-[var(--danger-foreground)] font-bold">•</span>
+                                <span>{r}</span>
+                              </p>
+                            ))}
+                          </div>
+
+                          <div className="pt-1 flex items-center justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedStudentForEvidence(s)}
+                              className="text-xs font-semibold px-3 py-1 rounded-lg border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] cursor-pointer"
+                            >
+                              Ver Evidências
+                            </button>
+                          </div>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${studentStateBadges[s.state].className}`}>
-                          {studentStateBadges[s.state].label}
+                      ))}
+                    </div>
+                  )}
+
+                  {insufficientDataStudents.length > 0 && (
+                    <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-zinc-400" />
+                        <span>
+                          <strong>{insufficientDataStudents.length} aluno(s)</strong> em fase inicial (dados insuficientes para aferição — não classificados como crise).
                         </span>
                       </div>
-
-                      <div className="text-[11px] text-[var(--text-secondary)] space-y-1">
-                        {s.reasons.map((r, i) => (
-                          <p key={i} className="flex items-start gap-1.5 leading-snug">
-                            <span className="text-[var(--danger-foreground)] font-bold">•</span>
-                            <span>{r}</span>
-                          </p>
-                        ))}
-                      </div>
-
-                      <div className="pt-1 flex items-center justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedStudentForEvidence(s)}
-                          className="text-xs font-semibold px-3 py-1 rounded-lg border border-[var(--border-default)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] cursor-pointer"
-                        >
-                          Ver Evidências
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudentStatusFilter("INSUFFICIENT_DATA");
+                          setActiveTab("students");
+                        }}
+                        className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                      >
+                        Ver no Radar →
+                      </button>
                     </div>
-                  ))}
-              </div>
-            )}
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Quick Team and Referrals Pending Strip */}

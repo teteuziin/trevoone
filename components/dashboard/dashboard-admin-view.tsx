@@ -225,202 +225,216 @@ export function DashboardAdminView({
           </div>
         )}
 
-        {/* 2. HEADER DA CONSULTORIA */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-[var(--border-subtle)]">
-          <div className="flex items-center gap-3.5">
-            <ConsultancyPhotoEditor
-              consultancySlug={consultancySlug}
-              currentLogoUrl={consultancyLogoUrl}
-              consultancyName={consultancyName || "Consultoria"}
-            />
-            <div>
-              <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
-                {consultancyName || "Administração Geral"}
-              </h2>
-              <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                Painel Executivo da Consultoria
-              </p>
+        {/* 2. HEADER EXECUTIVO DA CONSULTORIA - PAINEL VERDE-ESCURO SÓLIDO */}
+        <div className="rounded-3xl border border-[#1e4738] bg-[#10271F] p-5 sm:p-6 shadow-sm text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <ConsultancyPhotoEditor
+                consultancySlug={consultancySlug}
+                currentLogoUrl={consultancyLogoUrl}
+                consultancyName={consultancyName || "Consultoria"}
+              />
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#18352C] border border-[#234e3e] text-[#80E8B3] text-[10px] font-bold tracking-wider uppercase mb-1">
+                  <span>HUB ADMINISTRATIVO</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  {consultancyName || "Administração Geral"}
+                </h2>
+                <p className="text-xs text-[#CBDDD3] mt-0.5 font-medium">
+                  Painel Executivo da Consultoria
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <Link href={`/consultoria/${consultancySlug}/operacoes`}>
-              <Button variant="secondary" size="sm" className="font-semibold rounded-lg">
-                Operações
-              </Button>
-            </Link>
-            <Link href={`/consultoria/${consultancySlug}/membros`}>
-              <Button variant="primary" size="sm" className="font-semibold rounded-lg">
-                + Convidar Membro
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2.5">
+              <Link href={`/consultoria/${consultancySlug}/operacoes`}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="font-bold rounded-xl px-4 py-2 bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] text-white transition-all min-h-[44px]"
+                >
+                  Operações
+                </Button>
+              </Link>
+              <Link href={`/consultoria/${consultancySlug}/membros`}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="font-bold rounded-xl px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-sm transition-all min-h-[44px]"
+                >
+                  + Convidar Membro
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* 3. METRICAS EXECUTIVAS (CompactCard clean grid-cols-2 sm:grid-cols-4 summary strip) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)] overflow-hidden shadow-2xs">
+        {/* 3. METRICAS EXECUTIVAS - CARDS VERDE-ESCUROS SÓLIDOS */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
           <Link
             href={`/consultoria/${consultancySlug}/membros`}
-            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+            className="p-4 sm:p-5 rounded-2xl bg-[#10271F] hover:bg-[#18352C] border border-[#1e4738] hover:border-emerald-500/50 transition-all group flex flex-col justify-between shadow-sm text-white"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium">Membros da Equipe</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+            <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider">Membros da Equipe</span>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#80E8B3] transition-colors tabular-nums">
                 {overview?.activeMembers ?? "—"}
               </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Personais e nutricionistas</span>
+              <span className="text-[10px] text-[#CBDDD3] hidden xl:inline font-medium">Personais e nutris</span>
             </div>
           </Link>
 
           <Link
             href={`/consultoria/${consultancySlug}/financeiro`}
-            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+            className="p-4 sm:p-5 rounded-2xl bg-[#10271F] hover:bg-[#18352C] border border-[#1e4738] hover:border-emerald-500/50 transition-all group flex flex-col justify-between shadow-sm text-white"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium">Financeiro</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+            <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider">Financeiro</span>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#80E8B3] transition-colors">
                 Faturas
               </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Cobranças e recebíveis</span>
+              <span className="text-[10px] text-[#CBDDD3] hidden xl:inline font-medium">Cobranças & Pix</span>
             </div>
           </Link>
 
           <Link
             href={`/consultoria/${consultancySlug}/configuracoes/ia`}
-            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+            className="p-4 sm:p-5 rounded-2xl bg-[#10271F] hover:bg-[#18352C] border border-[#1e4738] hover:border-emerald-500/50 transition-all group flex flex-col justify-between shadow-sm text-white"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium">Consumo de IA</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+            <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider">Consumo de IA</span>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#80E8B3] transition-colors">
                 Cotas
               </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Importações e limites</span>
+              <span className="text-[10px] text-[#CBDDD3] hidden xl:inline font-medium">Importações Studio</span>
             </div>
           </Link>
 
           <Link
             href={`/consultoria/${consultancySlug}/assinatura`}
-            className="p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group flex flex-col justify-between"
+            className="p-4 sm:p-5 rounded-2xl bg-[#10271F] hover:bg-[#18352C] border border-[#1e4738] hover:border-emerald-500/50 transition-all group flex flex-col justify-between shadow-sm text-white"
           >
-            <span className="text-xs text-[var(--text-tertiary)] font-medium">Assinatura</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+            <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider">Assinatura</span>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#80E8B3] transition-colors">
                 {platformAccess?.effectiveStatus === "ACTIVE" ? "Ativa" : "Gerenciar"}
               </span>
-              <span className="text-[11px] text-[var(--text-tertiary)] hidden xl:inline">Plano Trevo One</span>
+              <span className="text-[10px] text-[#CBDDD3] hidden xl:inline font-medium">Plano Trevo One</span>
             </div>
           </Link>
         </div>
 
-        {/* 4. MODULOS DE GESTÃO DA OPERAÇÃO: Lista sem card-in-card */}
-        <div className="rounded-xl bg-[var(--surface)] border border-[var(--border-default)] overflow-hidden shadow-2xs">
-          <div className="p-4 border-b border-[var(--border-subtle)]">
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">
+        {/* 4. MODULOS DE GESTÃO DA OPERAÇÃO - HUB VERDE-ESCURO */}
+        <div className="rounded-3xl bg-[#10271F] border border-[#1e4738] p-5 sm:p-6 shadow-sm text-white space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-white">
               Gestão da Operação
             </h3>
+            <span className="text-xs text-[#CBDDD3]">Atalhos centrais da consultoria</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)]">
-            <div className="divide-y divide-[var(--border-subtle)]">
-              <Link
-                href={`/consultoria/${consultancySlug}/membros`}
-                className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group cursor-pointer"
-              >
-                <div className="min-w-0 flex-1 space-y-0.5 pr-2">
-                  <span className="block text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                    Membros e Alunos
-                  </span>
-                  <span className="block text-[11px] text-[var(--text-secondary)]">
-                    Controle de acessos, convites de equipe e alunos vinculados
-                  </span>
-                </div>
-                <span className="text-xs text-[var(--brand)] font-semibold shrink-0 group-hover:translate-x-0.5 transition-transform">
-                  Gerenciar →
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <Link
+              href={`/consultoria/${consultancySlug}/membros`}
+              className="p-4 rounded-2xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all group flex items-center justify-between text-white cursor-pointer"
+            >
+              <div className="min-w-0 flex-1 space-y-0.5 pr-3">
+                <span className="block text-sm font-bold text-white group-hover:text-[#80E8B3] transition-colors truncate">
+                  Membros e Alunos
                 </span>
-              </Link>
-              <Link
-                href={`/consultoria/${consultancySlug}/atividades`}
-                className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group cursor-pointer"
-              >
-                <div className="min-w-0 flex-1 space-y-0.5 pr-2">
-                  <span className="block text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                    Central de Atividades
-                  </span>
-                  <span className="block text-[11px] text-[var(--text-secondary)]">
-                    Trilha de auditoria em tempo real de treinos, dietas e acessos
-                  </span>
-                </div>
-                <span className="text-xs text-[var(--brand)] font-semibold shrink-0 group-hover:translate-x-0.5 transition-transform">
-                  Ver trilha →
+                <span className="block text-xs text-[#CBDDD3]">
+                  Controle de acessos, convites de equipe e alunos vinculados
                 </span>
-              </Link>
-            </div>
-            <div className="divide-y divide-[var(--border-subtle)]">
-              <Link
-                href={`/consultoria/${consultancySlug}/configuracoes/ia`}
-                className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group cursor-pointer"
-              >
-                <div className="min-w-0 flex-1 space-y-0.5 pr-2">
-                  <span className="block text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                    Gestão de IA e Limites
-                  </span>
-                  <span className="block text-[11px] text-[var(--text-secondary)]">
-                    Acompanhe o saldo e uso das ferramentas de importação da equipe
-                  </span>
-                </div>
-                <span className="text-xs text-[var(--brand)] font-semibold shrink-0 group-hover:translate-x-0.5 transition-transform">
-                  Configurar →
+              </div>
+              <span className="text-xs text-[#80E8B3] font-bold shrink-0 group-hover:translate-x-1 transition-transform">
+                Gerenciar →
+              </span>
+            </Link>
+
+            <Link
+              href={`/consultoria/${consultancySlug}/atividades`}
+              className="p-4 rounded-2xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all group flex items-center justify-between text-white cursor-pointer"
+            >
+              <div className="min-w-0 flex-1 space-y-0.5 pr-3">
+                <span className="block text-sm font-bold text-white group-hover:text-[#80E8B3] transition-colors truncate">
+                  Central de Atividades
                 </span>
-              </Link>
-              <Link
-                href={`/consultoria/${consultancySlug}/operacoes`}
-                className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-[var(--surface-hover)] transition-colors group cursor-pointer"
-              >
-                <div className="min-w-0 flex-1 space-y-0.5 pr-2">
-                  <span className="block text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate">
-                    Formulários & Anamneses
-                  </span>
-                  <span className="block text-[11px] text-[var(--text-secondary)]">
-                    Configuração de questionários personalizados e onboarding
-                  </span>
-                </div>
-                <span className="text-xs text-[var(--brand)] font-semibold shrink-0 group-hover:translate-x-0.5 transition-transform">
-                  Acessar →
+                <span className="block text-xs text-[#CBDDD3]">
+                  Trilha de auditoria em tempo real de treinos, dietas e acessos
                 </span>
-              </Link>
-            </div>
+              </div>
+              <span className="text-xs text-[#80E8B3] font-bold shrink-0 group-hover:translate-x-1 transition-transform">
+                Ver trilha →
+              </span>
+            </Link>
+
+            <Link
+              href={`/consultoria/${consultancySlug}/configuracoes/ia`}
+              className="p-4 rounded-2xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all group flex items-center justify-between text-white cursor-pointer"
+            >
+              <div className="min-w-0 flex-1 space-y-0.5 pr-3">
+                <span className="block text-sm font-bold text-white group-hover:text-[#80E8B3] transition-colors truncate">
+                  Gestão de IA e Limites
+                </span>
+                <span className="block text-xs text-[#CBDDD3]">
+                  Acompanhe o saldo e uso das ferramentas de importação da equipe
+                </span>
+              </div>
+              <span className="text-xs text-[#80E8B3] font-bold shrink-0 group-hover:translate-x-1 transition-transform">
+                Configurar →
+              </span>
+            </Link>
+
+            <Link
+              href={`/consultoria/${consultancySlug}/operacoes`}
+              className="p-4 rounded-2xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all group flex items-center justify-between text-white cursor-pointer"
+            >
+              <div className="min-w-0 flex-1 space-y-0.5 pr-3">
+                <span className="block text-sm font-bold text-white group-hover:text-[#80E8B3] transition-colors truncate">
+                  Formulários & Anamneses
+                </span>
+                <span className="block text-xs text-[#CBDDD3]">
+                  Configuração de questionários personalizados e onboarding
+                </span>
+              </div>
+              <span className="text-xs text-[#80E8B3] font-bold shrink-0 group-hover:translate-x-1 transition-transform">
+                Acessar →
+              </span>
+            </Link>
           </div>
         </div>
 
-        {/* 5. GESTÃO DE PARCERIAS & AFILIADOS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* 5. GESTÃO DE PARCERIAS & AFILIADOS - CARDS VERDE-ESCUROS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <Link
             href={`/consultoria/${consultancySlug}/indicacoes`}
-            className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] transition-all flex items-center justify-between group shadow-2xs"
+            className="p-4 sm:p-5 rounded-2xl bg-[#10271F] hover:bg-[#18352C] border border-[#1e4738] hover:border-emerald-500/50 transition-all flex items-center justify-between group shadow-sm text-white"
           >
-            <div className="space-y-0.5">
-              <h4 className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-white group-hover:text-[#80E8B3] transition-colors">
                 Programa de Afiliados & Indicações
               </h4>
-              <p className="text-xs text-[var(--text-secondary)]">
+              <p className="text-xs text-[#CBDDD3]">
                 Configure comissões, regras de repasse e aprove pagamentos PIX
               </p>
             </div>
-            <span className="text-sm text-[var(--brand)] font-bold group-hover:translate-x-0.5 transition-transform shrink-0 ml-3">→</span>
+            <span className="text-sm text-[#80E8B3] font-bold group-hover:translate-x-1 transition-transform shrink-0 ml-3">→</span>
           </Link>
 
           <Link
             href={`/consultoria/${consultancySlug}/missoes/gestao`}
-            className="p-3.5 sm:p-4 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] transition-all flex items-center justify-between group shadow-2xs"
+            className="p-4 sm:p-5 rounded-2xl bg-[#10271F] hover:bg-[#18352C] border border-[#1e4738] hover:border-emerald-500/50 transition-all flex items-center justify-between group shadow-sm text-white"
           >
-            <div className="space-y-0.5">
-              <h4 className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors">
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-white group-hover:text-[#80E8B3] transition-colors">
                 Gestão de Missões VIP
               </h4>
-              <p className="text-xs text-[var(--text-secondary)]">
+              <p className="text-xs text-[#CBDDD3]">
                 Crie desafios, prazos e aprove comprovações enviadas pelos embaixadores
               </p>
             </div>
-            <span className="text-sm text-[var(--brand)] font-bold group-hover:translate-x-0.5 transition-transform shrink-0 ml-3">→</span>
+            <span className="text-sm text-[#80E8B3] font-bold group-hover:translate-x-1 transition-transform shrink-0 ml-3">→</span>
           </Link>
         </div>
       </div>

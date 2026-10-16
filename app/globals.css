@@ -535,3 +535,23 @@ body {
     max-width: 100% !important;
   }
 }
+
+/* Solid Dark Green Cards & Surfaces (V2 Executive Direction) */
+.card-dark-green {
+  background-color: #10271F !important;
+  border-color: #1e4738 !important;
+  color: #FFFFFF !important;
+}
+
+.card-dark-green-subtle {
+  background-color: #18352C !important;
+  border-color: #234e3e !important;
+  color: #CBDDD3 !important;
+}
+
+.card-dark-green-elevated {
+  background-color: #1B382D !important;
+  border-color: #2a5a48 !important;
+  color: #FFFFFF !important;
+}
+

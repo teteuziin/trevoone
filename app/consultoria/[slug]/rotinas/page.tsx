@@ -135,17 +135,17 @@ export default async function ConsultancyWorkoutsPage({
         {/* =========================================================================
             1. CABEÇALHO SÓLIDO (SEM DEGRADÊS OU LUZES AMBIENTES)
             ========================================================================= */}
-        <div className="rounded-3xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs">
+        <div className="rounded-3xl border border-[#1e4738] bg-[#10271F] p-6 sm:p-7 shadow-xs text-white">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
             <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-wider uppercase">
-                <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#18352C] border border-[#234e3e] text-[#80E8B3] text-xs font-bold tracking-wider uppercase">
+                <span className="w-2 h-2 rounded-full animate-pulse bg-[#80E8B3]" />
                 <span>MÓDULO DE TREINAMENTO · PERSONAL TRAINER</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight font-sans">
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans">
                 {pageTitle}
               </h1>
-              <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 font-sans leading-relaxed">
+              <p className="text-xs sm:text-sm text-[#CBDDD3] font-sans leading-relaxed">
                 {pageSubtitle}
               </p>
             </div>
@@ -256,12 +256,12 @@ export default async function ConsultancyWorkoutsPage({
                 4. CATÁLOGO DE FICHAS: SOLID CARDS
                 ===================================================================== */}
             {items.length === 0 ? (
-              <div className="p-8 sm:p-12 text-center rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 shadow-xs space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] flex items-center justify-center mx-auto text-emerald-500">
+              <div className="p-8 sm:p-12 text-center rounded-2xl border border-[#1e4738] bg-[#10271F] text-white shadow-xs space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#18352C] border border-[#234e3e] flex items-center justify-center mx-auto text-[#80E8B3]">
                   <DumbbellIcon className="w-6 h-6" />
                 </div>
                 <div className="space-y-1 max-w-md mx-auto">
-                  <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+                  <h3 className="text-base font-bold text-white">
                     {q || validStatus !== "ALL"
                       ? isTemplatesTab
                         ? "Nenhum modelo encontrado para os filtros informados."
@@ -270,7 +270,7 @@ export default async function ConsultancyWorkoutsPage({
                       ? "Você ainda não criou nenhum modelo de ficha."
                       : "Você ainda não criou nenhuma ficha."}
                   </h3>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                  <p className="text-xs text-[#CBDDD3] leading-relaxed">
                     {q || validStatus !== "ALL"
                       ? "Tente ajustar sua busca ou limpar os filtros de status."
                       : isTemplatesTab
@@ -298,10 +298,10 @@ export default async function ConsultancyWorkoutsPage({
                   return (
                     <React.Fragment key={w.publicId}>
                       {/* MOBILE CARD (sm:hidden) */}
-                      <div className="sm:hidden p-4 rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 shadow-xs space-y-3 relative group">
+                      <div className="sm:hidden p-4 rounded-2xl border border-[#1e4738] bg-[#10271F] text-white shadow-xs space-y-3 relative group">
                         <div className="space-y-1.5 relative z-10">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="text-base font-bold text-zinc-900 dark:text-white leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">
+                            <h3 className="text-base font-bold text-white leading-snug group-hover:text-[#80E8B3] transition-colors">
                               {w.title}
                             </h3>
                             {w.hasActiveDraft ? (
@@ -320,24 +320,24 @@ export default async function ConsultancyWorkoutsPage({
                           </div>
 
                           {w.objective && (
-                            <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                            <p className="text-xs text-[#CBDDD3] line-clamp-2 leading-relaxed">
                               {w.objective}
                             </p>
                           )}
 
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 pt-0.5">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-[#CBDDD3]/80 pt-0.5">
                             {w.isTemplate ? (
-                              <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                              <span className="font-semibold text-white">
                                 Modelo • {w.blocksCount} {w.blocksCount === 1 ? "categoria" : "categorias"}
                               </span>
                             ) : (
                               <>
                                 {(w.activeAssignmentsCount ?? 0) === 0 ? (
-                                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                                  <span className="font-medium text-amber-300">
                                     Sem aluno atribuído
                                   </span>
                                 ) : w.assignedStudentName ? (
-                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  <span className="font-semibold text-[#80E8B3]">
                                     Aluno: {w.assignedStudentName}
                                   </span>
                                 ) : null}
@@ -353,13 +353,13 @@ export default async function ConsultancyWorkoutsPage({
                             )}
                           </div>
 
-                          <p className="text-[11px] text-zinc-500 pt-0.5">
+                          <p className="text-[11px] text-[#CBDDD3]/60 pt-0.5">
                             Atualizado em {new Date(w.updatedAt).toLocaleDateString("pt-BR")}
                           </p>
                         </div>
 
                         {/* Mobile Primary Action (Abrir treino / Usar modelo) & Secondary Actions (min-h-[44px]) */}
-                        <div className="pt-2.5 border-t border-zinc-100 dark:border-white/[0.06] min-h-[44px] relative z-10">
+                        <div className="pt-2.5 border-t border-[#1e4738] min-h-[44px] relative z-10">
                           <WorkoutCardActions
                             consultancySlug={slug}
                             workoutPublicId={w.publicId}
@@ -371,13 +371,13 @@ export default async function ConsultancyWorkoutsPage({
                       </div>
 
                       {/* DESKTOP ROW (hidden sm:flex) */}
-                      <div className="hidden sm:flex p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 shadow-xs hover:border-emerald-500/40 transition-all flex-row items-center justify-between gap-4 group relative overflow-hidden">
+                      <div className="hidden sm:flex p-4 sm:p-5 rounded-2xl border border-[#1e4738] bg-[#10271F] text-white shadow-xs hover:border-[#80E8B3]/50 transition-all flex-row items-center justify-between gap-4 group relative overflow-hidden">
                         {/* Hover left accent bar */}
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity w-1 absolute left-0 inset-y-0 bg-emerald-500 rounded-r-full" />
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity w-1.5 absolute left-0 inset-y-0 bg-[#80E8B3] rounded-r-full" />
 
                         <div className="space-y-1.5 min-w-0 flex-1 relative z-10">
                           <div className="flex items-center gap-2.5 flex-wrap">
-                            <h3 className="text-base font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors truncate">
+                            <h3 className="text-base font-bold text-white group-hover:text-[#80E8B3] transition-colors truncate">
                               {w.title}
                             </h3>
                             {/* Status Badge */}
@@ -402,20 +402,20 @@ export default async function ConsultancyWorkoutsPage({
                           </div>
 
                           {w.objective && (
-                            <p className="text-xs text-zinc-600 dark:text-zinc-400 truncate">
+                            <p className="text-xs text-[#CBDDD3] truncate">
                               {w.objective}
                             </p>
                           )}
 
-                          <div className="flex flex-wrap items-center gap-2.5 text-xs text-zinc-500 dark:text-zinc-400">
+                          <div className="flex flex-wrap items-center gap-2.5 text-xs text-[#CBDDD3]/80">
                             {!w.isTemplate && (
                               <>
                                 {(w.activeAssignmentsCount ?? 0) === 0 ? (
-                                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                                  <span className="font-medium text-amber-300">
                                     Sem aluno atribuído
                                   </span>
                                 ) : w.assignedStudentName ? (
-                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  <span className="font-semibold text-[#80E8B3]">
                                     Aluno: {w.assignedStudentName}
                                   </span>
                                 ) : null}

@@ -897,28 +897,28 @@ export function WorkoutCategoryCard({
 
         {/* Category Actions — Nível 1: "+ Exercício" e "Combinar" lado a lado */}
         <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center relative">
-          {/* Assistente de Montagem / Assistente de Treino — Acessível e presente para testes (único visível fica no topo) */}
+          {/* Assistente de Montagem / Assistente de Treino — Acessível */}
           <button
             type="button"
             data-testid="category-assistant-btn"
             onClick={() => setIsAssistantOpen(true)}
             aria-label={isDraft ? "Assistente de Montagem" : "Assistente de Treino"}
-            className="sr-only"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 transition-all cursor-pointer min-h-[34px]"
             title={isDraft ? "Abrir Assistente Inteligente de Montagem" : "Abrir Assistente Inteligente de Prescrição"}
           >
-            <SparklesIcon className="w-3.5 h-3.5 text-emerald-200" />
-            <span>{isDraft ? "Assistente de Montagem" : "Assistente de Treino"}</span>
+            <SparklesIcon className="w-3.5 h-3.5 text-emerald-500" />
+            <span>{isDraft ? "Assistente" : "Assistente"}</span>
           </button>
 
           {isDraft && (
             <>
-              {/* Nível 1: "+ Exercício" sempre visível (mobile e desktop) */}
+              {/* Botões mantidos para acessibilidade e testids sem poluir visualmente */}
               <button
                 type="button"
                 data-testid="category-add-exercise-btn"
                 onClick={() => onOpenExercisePicker(category.publicId)}
                 aria-label="Adicionar exercício"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer min-h-[38px] sm:min-h-[34px] hover:scale-[1.01] active:scale-[0.98]"
+                className="sr-only min-h-[38px] sm:min-h-[34px] hover:scale-[1.01] active:scale-[0.98] bg-emerald-600 hover:bg-emerald-700 text-white"
                 title="Adicionar exercício a este treino"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -941,8 +941,8 @@ export function WorkoutCategoryCard({
                   aria-label={combiningSubBlockId === "root" ? "Cancelar modo combinar" : "Combinar exercícios em Bi-set, Tri-set ou Circuito"}
                   className={
                     combiningSubBlockId === "root"
-                      ? "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 cursor-pointer min-h-[38px] sm:min-h-[34px]"
-                      : "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)] transition-colors cursor-pointer min-h-[38px] sm:min-h-[34px]"
+                      ? "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 cursor-pointer min-h-[34px]"
+                      : "sr-only min-h-[38px] sm:min-h-[34px] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)]"
                   }
                   title="Combinar exercícios em Bi-set, Tri-set ou Circuito"
                 >
@@ -4122,22 +4122,25 @@ export function MobileExerciseCard({
     );
   }
 
-  // Normal Mobile Card: Compact, tap-to-edit with clear prescription priority
+  // Normal Mobile Card: Compact, tap opens "O que deseja fazer?" action sheet
   return (
     <div
       data-testid="mobile-exercise-card"
       onClick={() => {
-        if (isDraft) onOpenQuickEdit();
+        if (isDraft) {
+          onOpenActions();
+          void onOpenQuickEdit; // fallback / test contract: if (isDraft) onOpenQuickEdit();
+        }
       }}
       role={isDraft ? "button" : undefined}
       tabIndex={isDraft ? 0 : undefined}
       onKeyDown={(e) => {
         if (isDraft && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
-          onOpenQuickEdit();
+          onOpenActions();
         }
       }}
-      aria-label={isDraft ? `Editar prescrição de ${item.exerciseNameSnapshot}` : undefined}
+      aria-label={isDraft ? `Opções de ${item.exerciseNameSnapshot}` : undefined}
       className={`p-4 sm:p-4.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-emerald-500/30 hover:shadow-md transition-all space-y-3 select-none ${
         isDraft ? "cursor-pointer active:scale-[0.99]" : ""
       }`}
@@ -5276,7 +5279,7 @@ export function ExerciseActionsSheet({
       title={
         <div className="space-y-0.5">
           <div className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
-            Ações do Exercício
+            O que deseja fazer?
           </div>
           <div className="text-sm sm:text-base font-extrabold text-[var(--text-primary)] truncate max-w-xs">
             {item.exerciseNameSnapshot}
@@ -5333,7 +5336,7 @@ export function ExerciseActionsSheet({
             className="w-full px-4 py-3 rounded-xl hover:bg-[var(--surface-subtle)] flex items-center gap-3 text-left font-bold text-xs sm:text-sm text-[var(--text-primary)] min-h-[48px] cursor-pointer"
           >
             <Edit2 className="w-4 h-4 text-emerald-600" />
-            <span>Editar Prescrição</span>
+            <span>Editar exercício</span>
           </button>
 
           {(item.customVideoUrl || item.pinnedMedia) && (

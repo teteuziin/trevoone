@@ -10,7 +10,6 @@ import {
   formatCentsToBrl,
 } from "@/lib/consultancies/finance";
 import { ConsultancyAppShell } from "@/components/consultancies/consultancy-app-shell";
-import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FinanceStatusBadge } from "@/components/finance/finance-ui-badges";
@@ -88,15 +87,25 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
     >
       <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
-        {/* Header Principal */}
-        <PageHeader
-          eyebrow="ADMINISTRAÇÃO DA CONSULTORIA"
-          title="Gestão Financeira"
-          description="Controle de cobranças dos alunos, análise de comprovantes Pix e configurações de recebimento."
-          actions={
-            <div className="flex items-center gap-2 flex-wrap">
+        {/* Header Principal — Solid Dark Green */}
+        <div className="rounded-3xl border border-[#1e4738] bg-[#10271F] p-6 sm:p-7 shadow-xs text-white">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#18352C] border border-[#234e3e] text-[#80E8B3] text-xs font-bold tracking-wider uppercase">
+                <span className="w-2 h-2 rounded-full animate-pulse bg-[#80E8B3]" />
+                <span>ADMINISTRAÇÃO DA CONSULTORIA</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans">
+                Gestão Financeira
+              </h1>
+              <p className="text-xs sm:text-sm text-[#CBDDD3] font-sans leading-relaxed">
+                Controle de cobranças dos alunos, análise de comprovantes Pix e configurações de recebimento.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
               <Link href={`/consultoria/${slug}/financeiro?aba=${activeTab === "configuracoes" ? "cobrancas" : "configuracoes"}`}>
-                <Button variant={activeTab === "configuracoes" ? "primary" : "outline"} size="sm" className="min-h-[44px] flex items-center">
+                <Button variant={activeTab === "configuracoes" ? "primary" : "outline"} size="sm" className="min-h-[44px] flex items-center bg-[#18352C] border-[#234e3e] text-[#CBDDD3] hover:text-white hover:bg-[#1B382D]">
                   <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -106,7 +115,7 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
               </Link>
 
               <Link href={`/consultoria/${slug}/financeiro/nova-cobranca`}>
-                <Button variant="primary" size="sm" className="min-h-[44px] flex items-center">
+                <Button variant="primary" size="sm" className="min-h-[44px] flex items-center bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold">
                   <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
@@ -114,8 +123,8 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                 </Button>
               </Link>
             </div>
-          }
-        />
+          </div>
+        </div>
 
         {/* Warning Banner se não tiver Pix cadastrado */}
         {!settings && activeTab !== "configuracoes" && (
@@ -162,32 +171,32 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
           </div>
         )}
 
-        {/* Operational KPI Grid */}
+        {/* Operational KPI Grid — Solid Dark Green Cards */}
         {activeTab === "cobrancas" && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-1">
-              <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            <div className="bg-[#10271F] border border-[#1e4738] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1 text-white">
+              <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider">
                 A Receber
               </span>
-              <p className="text-xl sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              <p className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
                 {formatCentsToBrl(dashboard.toReceiveCents)}
               </p>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-1">
-              <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            <div className="bg-[#10271F] border border-[#1e4738] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1 text-white">
+              <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider">
                 Recebido Este Mês
               </span>
-              <p className="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight">
+              <p className="text-xl sm:text-2xl font-extrabold text-[#80E8B3] tracking-tight">
                 {formatCentsToBrl(dashboard.paidThisMonthCents)}
               </p>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-1">
-              <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            <div className="bg-[#10271F] border border-[#1e4738] rounded-2xl p-4 sm:p-5 shadow-xs space-y-1 text-white">
+              <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider">
                 Cobranças Vencidas
               </span>
-              <p className="text-xl sm:text-2xl font-extrabold text-rose-600 dark:text-rose-400 tracking-tight">
+              <p className="text-xl sm:text-2xl font-extrabold text-rose-400 tracking-tight">
                 {dashboard.overdueCount}
               </p>
             </div>
@@ -278,34 +287,34 @@ export default async function ConsultancyFinancePage({ params, searchParams }: P
                     <Link
                       key={charge.publicId}
                       href={`/consultoria/${slug}/financeiro/cobrancas/${charge.publicId}`}
-                      className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xs hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-sm transition-all group"
+                      className="block bg-[#10271F] border border-[#1e4738] rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[#80E8B3]/50 hover:shadow-sm transition-all group text-white"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate max-w-[240px]">
+                            <span className="font-bold text-sm text-white group-hover:text-[#80E8B3] transition-colors truncate max-w-[240px]">
                               {charge.studentName}
                             </span>
                             <FinanceStatusBadge status={charge.derivedStatus} size="sm" />
                           </div>
 
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium truncate">
+                          <p className="text-xs text-[#CBDDD3] font-medium truncate">
                             {charge.title}
                           </p>
 
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-400 dark:text-zinc-500">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#CBDDD3]/80">
                             <span>
-                              Vencimento: <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">{formatDateBr(charge.dueOn)}</strong>
+                              Vencimento: <strong className="text-white font-semibold">{formatDateBr(charge.dueOn)}</strong>
                             </span>
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-zinc-200 dark:border-zinc-800 sm:border-t-0 shrink-0">
-                          <span className="text-base sm:text-lg font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-[#1e4738] sm:border-t-0 shrink-0">
+                          <span className="text-base sm:text-lg font-extrabold text-white tracking-tight">
                             {formatCentsToBrl(charge.amountCents)}
                           </span>
 
-                          <span className="inline-flex items-center text-xs font-semibold text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
+                          <span className="inline-flex items-center text-xs font-semibold text-[#80E8B3] group-hover:text-[#80E8B3]/80">
                             <span>Detalhes</span>
                             <svg className="w-4 h-4 ml-0.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

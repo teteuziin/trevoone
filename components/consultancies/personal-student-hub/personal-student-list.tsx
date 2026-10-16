@@ -316,20 +316,20 @@ export function PersonalStudentList({
   return (
     <div className="space-y-5">
       {/* =========================================================================
-          HERO BANNER "SPOTLIGHT" - FUNDO SÓLIDO SEM DEGRADÊ
+          HERO BANNER "SPOTLIGHT" - PAINEL VERDE-ESCURO SÓLIDO
           ========================================================================= */}
-      <div className="relative overflow-hidden rounded-3xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 p-5 sm:p-7 shadow-sm transition-all">
+      <div className="relative overflow-hidden rounded-3xl border border-[#1e4738] bg-[#10271F] p-5 sm:p-7 shadow-sm transition-all text-white">
         <div className="relative z-10 flex flex-col gap-4">
           {/* Top Row: Back navigation & Pill Badge */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <Link
               href={`/consultoria/${consultancySlug}`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors group cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CBDDD3] hover:text-[#80E8B3] transition-colors group cursor-pointer"
             >
               <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
               <span>Visão geral</span>
             </Link>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-xs font-bold tracking-wider uppercase">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#18352C] border border-[#234e3e] text-[#80E8B3] text-[10px] sm:text-xs font-bold tracking-wider uppercase">
               <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
               <span>{isEffectiveNutritionist ? "GESTÃO DE PACIENTES ATIVA" : "GESTÃO DE ALUNOS ATIVA"}</span>
             </div>
@@ -337,17 +337,17 @@ export function PersonalStudentList({
 
           {/* Title & Subtitle */}
           <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight font-sans">
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans">
               {isEffectiveNutritionist ? "Pacientes da Consultoria" : "Alunos da Consultoria"}
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 font-sans leading-relaxed max-w-2xl">
+            <p className="text-xs sm:text-sm text-[#CBDDD3] font-sans leading-relaxed max-w-2xl">
               {isEffectiveNutritionist
                 ? "Acompanhe prontuário, planos alimentares e a evolução clínica de cada paciente."
                 : "Acompanhe seus alunos, informações, avaliações e crie rotinas de treino."}
             </p>
           </div>
 
-          {/* Bento Strip Compacto de KPIs - Superfícies Sólidas */}
+          {/* Bento Strip Compacto de KPIs - Verde-Escuro Sólido */}
           <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5 pt-1">
             {/* KPI 1: Total */}
             <button
@@ -355,21 +355,21 @@ export function PersonalStudentList({
               onClick={() => setWorkoutFilter("ALL")}
               className={`p-3 sm:p-4 rounded-2xl border transition-all text-left flex flex-col justify-between cursor-pointer ${
                 workoutFilter === "ALL"
-                  ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/40"
-                  : "bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-zinc-200 dark:border-white/[0.08]"
+                  ? "bg-[#1B382D] border-emerald-500/50 shadow-sm"
+                  : "bg-[#18352C] hover:bg-[#1B382D] border-[#234e3e]"
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#10271F] border border-[#1e4738] text-[#80E8B3] flex items-center justify-center">
                   <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400">Total</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-[#CBDDD3]">Total</span>
               </div>
               <div className="pt-2">
-                <span className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white tabular-nums block font-sans">
+                <span className="text-xl sm:text-2xl font-black text-white tabular-nums block font-sans">
                   {students.length}
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
+                <span className="text-[9px] sm:text-[10px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-0.5 truncate">
                   {isEffectiveNutritionist ? "Pacientes" : "Alunos Ativos"}
                 </span>
               </div>
@@ -381,21 +381,21 @@ export function PersonalStudentList({
               onClick={() => setWorkoutFilter("WITH_WORKOUT")}
               className={`p-3 sm:p-4 rounded-2xl border transition-all text-left flex flex-col justify-between cursor-pointer ${
                 workoutFilter === "WITH_WORKOUT"
-                  ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/40"
-                  : "bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-zinc-200 dark:border-white/[0.08]"
+                  ? "bg-[#1B382D] border-emerald-500/50 shadow-sm"
+                  : "bg-[#18352C] hover:bg-[#1B382D] border-[#234e3e]"
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#10271F] border border-[#1e4738] text-[#80E8B3] flex items-center justify-center">
                   <DumbbellIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400">Ativos</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-[#80E8B3]">Ativos</span>
               </div>
               <div className="pt-2">
-                <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums block font-sans">
+                <span className="text-xl sm:text-2xl font-black text-[#80E8B3] tabular-nums block font-sans">
                   {withWorkoutCount}
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
+                <span className="text-[9px] sm:text-[10px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-0.5 truncate">
                   Com treino
                 </span>
               </div>
@@ -407,21 +407,21 @@ export function PersonalStudentList({
               onClick={() => setWorkoutFilter("WITHOUT_WORKOUT")}
               className={`p-3 sm:p-4 rounded-2xl border transition-all text-left flex flex-col justify-between cursor-pointer ${
                 workoutFilter === "WITHOUT_WORKOUT"
-                  ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500/40"
-                  : "bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-zinc-200 dark:border-white/[0.08]"
+                  ? "bg-[#1B382D] border-amber-500/50 shadow-sm"
+                  : "bg-[#18352C] hover:bg-[#1B382D] border-[#234e3e]"
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#10271F] border border-[#1e4738] text-amber-400 flex items-center justify-center font-bold text-xs">
                   !
                 </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-amber-600 dark:text-amber-400">Pendente</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-amber-300">Pendente</span>
               </div>
               <div className="pt-2">
-                <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 tabular-nums block font-sans">
+                <span className="text-xl sm:text-2xl font-black text-amber-300 tabular-nums block font-sans">
                   {withoutWorkoutCount}
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-0.5 truncate">
+                <span className="text-[9px] sm:text-[10px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-0.5 truncate">
                   Sem treino
                 </span>
               </div>
@@ -600,7 +600,7 @@ export function PersonalStudentList({
       ) : (
         <>
           {/* =====================================================================
-              MOBILE STUDENT CARDS (md:hidden) - FUNDO SÓLIDO
+              MOBILE STUDENT CARDS (md:hidden) - VERDE-ESCURO SÓLIDO
               ===================================================================== */}
           <div className="md:hidden space-y-3" data-testid="mobile-student-list">
             {filteredStudents.map((student) => {
@@ -615,7 +615,7 @@ export function PersonalStudentList({
                   key={student.membershipPublicId}
                   data-testid="mobile-student-card"
                   onClick={() => router.push(studentDetailHref)}
-                  className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3 active:scale-[0.99] transition-all cursor-pointer relative overflow-hidden group select-none hover:border-emerald-500/40"
+                  className="p-4 rounded-2xl border border-[#1e4738] bg-[#10271F] shadow-sm space-y-3 active:scale-[0.99] transition-all cursor-pointer relative overflow-hidden group select-none hover:border-emerald-500/50 text-white"
                 >
                   {/* Card Top: Avatar, Name, Email, Objective */}
                   <div className="flex items-start justify-between gap-3 relative z-10">
@@ -625,58 +625,58 @@ export function PersonalStudentList({
                           fullName={student.name}
                           userPublicId={student.userPublicId}
                           size="md"
-                          className="shrink-0 ring-1 ring-zinc-200 dark:ring-white/10"
+                          className="shrink-0 ring-1 ring-[#234e3e]"
                         />
                         <span
-                          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-950 ${
-                            hasActiveWorkout ? "bg-emerald-500" : "bg-amber-400"
+                          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#10271F] ${
+                            hasActiveWorkout ? "bg-emerald-400" : "bg-amber-400"
                           }`}
                         />
                       </div>
                       <div className="min-w-0 flex-1 space-y-0.5">
-                        <span className="font-heading text-sm font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors block truncate">
+                        <span className="font-heading text-sm font-bold text-white group-hover:text-[#80E8B3] transition-colors block truncate">
                           {student.name}
                         </span>
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                        <p className="text-[11px] text-[#CBDDD3] truncate">
                           {student.email}
                         </p>
                       </div>
                     </div>
 
                     {student.objective && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 shrink-0 max-w-[120px] truncate">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#18352C] text-[#CBDDD3] border border-[#234e3e] shrink-0 max-w-[120px] truncate">
                         {student.objective}
                       </span>
                     )}
                   </div>
 
                   {/* Contextual Info Banner: Workout status */}
-                  <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 space-y-1 text-xs relative z-10">
+                  <div className="p-2.5 rounded-xl bg-[#18352C] border border-[#234e3e] space-y-1 text-xs relative z-10 text-white">
                     <div className="flex items-center gap-1.5 min-w-0">
                       {isEffectiveNutritionist ? (
                         <>
-                          <AppleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span className="text-zinc-700 dark:text-zinc-300 font-medium">Acompanhamento nutricional</span>
+                          <AppleIcon className="w-3.5 h-3.5 text-[#80E8B3] shrink-0" />
+                          <span className="text-[#CBDDD3] font-medium">Acompanhamento nutricional</span>
                         </>
                       ) : (
                         <>
-                          <DumbbellIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <DumbbellIcon className="w-3.5 h-3.5 text-[#80E8B3] shrink-0" />
                           {hasActiveWorkout ? (
                             <div className="flex items-center gap-1 min-w-0 truncate">
-                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              <span className="font-semibold text-[#80E8B3]">
                                 Treino:
                               </span>
-                              <span className="text-zinc-900 dark:text-zinc-200 font-medium truncate">
+                              <span className="text-white font-medium truncate">
                                 {student.latestWorkoutTitle}
                               </span>
                             </div>
                           ) : student.latestWorkoutTitle ? (
-                            <div className="flex items-center gap-1 min-w-0 text-zinc-500 dark:text-zinc-400 truncate">
+                            <div className="flex items-center gap-1 min-w-0 text-[#CBDDD3] truncate">
                               <span>Último:</span>
                               <span className="truncate">{student.latestWorkoutTitle}</span>
                             </div>
                           ) : (
-                            <span className="text-amber-600 dark:text-amber-400/90 font-medium">Nenhum treino prescrito</span>
+                            <span className="text-amber-300 font-medium">Nenhum treino prescrito</span>
                           )}
                         </>
                       )}
@@ -690,10 +690,10 @@ export function PersonalStudentList({
                   >
                     <Link
                       href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
-                      className="flex-1 inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-zinc-700 dark:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] transition-colors min-h-[44px] cursor-pointer"
                     >
                       <span>{isEffectiveNutritionist ? "Ver paciente" : "Ver perfil"}</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400" />
+                      <ChevronRightIcon className="w-3.5 h-3.5 text-[#CBDDD3]" />
                     </Link>
 
                     {!isEffectiveNutritionist && (
@@ -711,7 +711,7 @@ export function PersonalStudentList({
                       type="button"
                       aria-label={isEffectiveNutritionist ? "Mais opções para este paciente" : "Mais opções para este aluno"}
                       onClick={() => setActionSheetStudent(student)}
-                      className="inline-flex items-center justify-center rounded-xl p-2.5 text-zinc-600 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] min-w-[44px] cursor-pointer shrink-0"
+                      className="inline-flex items-center justify-center rounded-xl p-2.5 text-[#CBDDD3] hover:text-white bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] transition-colors min-h-[44px] min-w-[44px] cursor-pointer shrink-0"
                     >
                       <MoreDotsIcon className="w-5 h-5" />
                     </button>
@@ -722,7 +722,7 @@ export function PersonalStudentList({
           </div>
 
           {/* =====================================================================
-              DESKTOP STUDENT CARDS GRID (hidden md:grid) - FUNDO SÓLIDO
+              DESKTOP STUDENT CARDS GRID (hidden md:grid) - VERDE-ESCURO SÓLIDO
               ===================================================================== */}
           <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-3.5" data-testid="desktop-student-grid">
             {filteredStudents.map((student) => {
@@ -732,7 +732,7 @@ export function PersonalStudentList({
               return (
                 <div
                   key={student.membershipPublicId}
-                  className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:border-emerald-500/40 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[175px]"
+                  className="p-4 sm:p-5 rounded-2xl border border-[#1e4738] bg-[#10271F] shadow-sm hover:border-emerald-500/50 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[175px] text-white"
                 >
                   {/* Top: Avatar, Name, Email and Objective */}
                   <div className="space-y-3 relative z-10">
@@ -743,67 +743,67 @@ export function PersonalStudentList({
                             fullName={student.name}
                             userPublicId={student.userPublicId}
                             size="md"
-                            className="shrink-0 ring-1 ring-zinc-200 dark:ring-white/10 group-hover:scale-105 transition-transform"
+                            className="shrink-0 ring-1 ring-[#234e3e] group-hover:scale-105 transition-transform"
                           />
                           <span
-                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-950 ${
-                              hasActiveWorkout ? "bg-emerald-500" : "bg-amber-400"
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#10271F] ${
+                              hasActiveWorkout ? "bg-emerald-400" : "bg-amber-400"
                             }`}
                           />
                         </div>
                         <div className="min-w-0 flex-1 space-y-0.5">
                           <Link
                             href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
-                            className="font-semibold text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors block truncate text-sm sm:text-base font-sans"
+                            className="font-semibold text-white group-hover:text-[#80E8B3] transition-colors block truncate text-sm sm:text-base font-sans"
                           >
                             {student.name}
                           </Link>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                          <p className="text-xs text-[#CBDDD3] truncate">
                             {student.email}
                           </p>
                         </div>
                       </div>
 
                       {student.objective && (
-                        <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 shrink-0 max-w-[130px] truncate">
+                        <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#18352C] text-[#CBDDD3] border border-[#234e3e] shrink-0 max-w-[130px] truncate">
                           {student.objective}
                         </span>
                       )}
                     </div>
 
                     {/* Workout Status Banner */}
-                    <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between gap-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-[#18352C] border border-[#234e3e] flex items-center justify-between gap-2 text-xs text-white">
                       <div className="flex items-center gap-2 min-w-0 truncate">
-                        <DumbbellIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <DumbbellIcon className="w-3.5 h-3.5 text-[#80E8B3] shrink-0" />
                         {hasActiveWorkout ? (
                           <div className="flex items-center gap-1.5 truncate">
-                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span className="font-semibold text-[#80E8B3]">
                               Treino ativo:
                             </span>
-                            <span className="text-zinc-900 dark:text-zinc-200 truncate font-medium">
+                            <span className="text-white truncate font-medium">
                               {student.latestWorkoutTitle}
                             </span>
                           </div>
                         ) : student.latestWorkoutTitle ? (
-                          <div className="flex items-center gap-1.5 truncate text-zinc-500 dark:text-zinc-400">
+                          <div className="flex items-center gap-1.5 truncate text-[#CBDDD3]">
                             <span>Último:</span>
                             <span className="truncate">{student.latestWorkoutTitle}</span>
                           </div>
                         ) : (
-                          <span className="text-amber-600 dark:text-amber-400/90 font-medium">Sem treino prescrito</span>
+                          <span className="text-amber-300 font-medium">Sem treino prescrito</span>
                         )}
                       </div>
                     </div>
                   </div>
 
                   {/* Actions Bottom Bar */}
-                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800 mt-3 relative z-10">
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-[#1e4738] mt-3 relative z-10">
                     <Link
                       href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 hover:border-emerald-500/30 transition-all min-h-[38px] cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all min-h-[38px] cursor-pointer"
                     >
                       <span>Ver perfil</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
+                      <ChevronRightIcon className="w-3.5 h-3.5 text-[#CBDDD3] group-hover:translate-x-0.5 transition-transform" />
                     </Link>
 
                     {!isEffectiveNutritionist && (
@@ -821,7 +821,7 @@ export function PersonalStudentList({
                       type="button"
                       aria-label="Mais opções"
                       onClick={() => setActionSheetStudent(student)}
-                      className="inline-flex items-center justify-center rounded-xl p-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[38px] min-w-[38px] cursor-pointer shrink-0"
+                      className="inline-flex items-center justify-center rounded-xl p-2 text-[#CBDDD3] hover:text-white bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] transition-colors min-h-[38px] min-w-[38px] cursor-pointer shrink-0"
                     >
                       <MoreDotsIcon className="w-4 h-4" />
                     </button>

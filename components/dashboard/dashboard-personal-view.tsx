@@ -219,20 +219,20 @@ export function DashboardPersonalView({
           </div>
         )}
 
-        {/* 2. Hero Spotlight Compacto Mobile - Superfície Sólida */}
-        <div className="relative overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 p-4 space-y-3.5 shadow-sm">
+        {/* 2. Hero Spotlight Compacto Mobile - Verde-Escuro Sólido */}
+        <div className="relative overflow-hidden rounded-2xl border border-[#1e4738] bg-[#10271F] p-4.5 space-y-3.5 shadow-sm text-white">
           {/* Top Pill Badge */}
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold tracking-wider uppercase">
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-500 dark:bg-emerald-400" />
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#18352C] border border-[#234e3e] text-[#80E8B3] text-[10px] font-bold tracking-wider uppercase">
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-400" />
             <span>STUDIO DE PRESCRIÇÃO ATIVO</span>
           </div>
 
           {/* Saudação */}
           <div className="space-y-0.5">
-            <h1 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight font-sans">
+            <h1 className="text-xl font-black text-white tracking-tight font-sans">
               {greeting}{firstName ? `, ${firstName}` : ""}
             </h1>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400 font-sans">
+            <p className="text-xs text-[#CBDDD3] font-sans">
               Gerencie suas fichas e acompanhe seus alunos.
             </p>
           </div>
@@ -248,29 +248,29 @@ export function DashboardPersonalView({
             </Link>
             <Link
               href={`/consultoria/${consultancySlug}/rotinas?action=import`}
-              className="min-h-[48px] rounded-xl font-semibold text-xs bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-white/[0.12] text-zinc-900 dark:text-zinc-100 flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all font-sans"
+              className="min-h-[48px] rounded-xl font-semibold text-xs bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] text-white flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all font-sans"
             >
-              <SparklesIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <SparklesIcon className="w-3.5 h-3.5 text-[#80E8B3]" />
               <span>Importar</span>
             </Link>
           </div>
 
-          {/* Bento Strip Compacto Mobile (3 Cards Sólidos) */}
+          {/* Bento Strip Compacto Mobile (3 Cards Verde-Escuros Sólidos) */}
           <div className="grid grid-cols-3 gap-2 pt-1">
             <Link
               href={`/consultoria/${consultancySlug}/progresso/alunos`}
               title="Alunos"
-              className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-white/[0.08] hover:border-emerald-500/40 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
+              className="p-2.5 rounded-xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
             >
               <div className="flex items-center justify-between">
-                <UsersIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-[10px] text-zinc-400 font-bold">→</span>
+                <UsersIcon className="w-3.5 h-3.5 text-[#80E8B3]" />
+                <span className="text-[10px] text-[#CBDDD3] font-bold">→</span>
               </div>
               <div>
-                <span className="text-lg font-black text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-lg font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
                   {displayStudents}
                 </span>
-                <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-1">
+                <span className="text-[9px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
                   ALUNOS ATIVOS
                 </span>
               </div>
@@ -279,17 +279,17 @@ export function DashboardPersonalView({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas`}
               title="Fichas de treino"
-              className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-white/[0.08] hover:border-emerald-500/40 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
+              className="p-2.5 rounded-xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
             >
               <div className="flex items-center justify-between">
-                <DumbbellIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-[10px] text-zinc-400 font-bold">→</span>
+                <DumbbellIcon className="w-3.5 h-3.5 text-[#80E8B3]" />
+                <span className="text-[10px] text-[#CBDDD3] font-bold">→</span>
               </div>
               <div>
-                <span className="text-lg font-black text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-lg font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
                   {displayPlans}
                 </span>
-                <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-1">
+                <span className="text-[9px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
                   Fichas
                 </span>
               </div>
@@ -298,17 +298,17 @@ export function DashboardPersonalView({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas?action=import`}
               title="Inteligência de Prescrição"
-              className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-white/[0.08] hover:border-emerald-500/40 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
+              className="p-2.5 rounded-xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
             >
               <div className="flex items-center justify-between">
-                <FlameIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-[10px] text-zinc-400 font-bold">IA</span>
+                <FlameIcon className="w-3.5 h-3.5 text-[#80E8B3]" />
+                <span className="text-[10px] text-[#CBDDD3] font-bold">IA</span>
               </div>
               <div>
-                <span className="text-lg font-black text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-lg font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
                   {totalRecentBlocks > 0 ? totalRecentBlocks : "Studio"}
                 </span>
-                <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-1">
+                <span className="text-[9px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
                   {totalRecentBlocks > 0 ? "Blocos" : "Importar"}
                 </span>
               </div>
@@ -316,7 +316,7 @@ export function DashboardPersonalView({
           </div>
         </div>
 
-        {/* 3. Trilho Estilo Netflix: Acesso Rápido Mobile */}
+        {/* 3. Trilho Estilo Netflix: Acesso Rápido Mobile (Cards Verde-Escuros Sólidos) */}
         {recentPlans && recentPlans.length > 0 && (
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between px-1">
@@ -345,46 +345,50 @@ export function DashboardPersonalView({
                   <Link
                     key={`mob-rail-${plan.publicId}`}
                     href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
-                    className="min-w-[240px] max-w-[260px] snap-start shrink-0 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 flex flex-col justify-between min-h-[150px] shadow-sm active:scale-[0.98] transition-all group hover:border-emerald-500/40"
+                    className="min-w-[240px] max-w-[260px] snap-start shrink-0 rounded-2xl border border-[#1e4738] bg-[#10271F] p-3.5 flex flex-col justify-between min-h-[150px] shadow-sm active:scale-[0.98] transition-all group hover:border-emerald-500/50 text-white"
                   >
                     <div>
                       {/* Top Meta Line */}
                       <div className="flex items-center justify-between gap-1.5">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                          <DumbbellIcon className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#18352C] text-[#CBDDD3] border border-[#234e3e]">
+                          <DumbbellIcon className="w-2.5 h-2.5 text-[#80E8B3]" />
                           <span>{blocks} {blocks === 1 ? "bloco" : "blocos"}</span>
                         </span>
                         {isDraft && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                             Rascunho
                           </span>
                         )}
                       </div>
 
                       {/* Title */}
-                      <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 line-clamp-2 mt-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      <h3 className="text-xs font-bold text-white line-clamp-2 mt-2 group-hover:text-[#80E8B3] transition-colors">
                         {plan.title}
                       </h3>
                       {plan.subtitle && (
-                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                        <p className="text-[10px] text-[#CBDDD3] truncate mt-0.5">
                           {plan.subtitle}
                         </p>
                       )}
                     </div>
 
-                    {/* Density indicator & CTA */}
-                    <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-1.5">
+                    {/* Density indicator & CTA with explicit semantics */}
+                    <div className="pt-2 border-t border-[#1e4738] space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] text-[#CBDDD3] font-medium">
+                        <span>Densidade</span>
+                        <span>{blocks} {blocks === 1 ? "bloco" : "blocos"}</span>
+                      </div>
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4].map((seg) => (
                           <div
                             key={seg}
                             className={`h-1 flex-1 rounded-full ${
-                              seg <= blocks ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-800"
+                              seg <= blocks ? "bg-emerald-400" : "bg-[#18352C]"
                             }`}
                           />
                         ))}
                       </div>
-                      <div className="flex items-center justify-between text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-[#80E8B3]">
                         <span>Abrir no Studio</span>
                         <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                       </div>
@@ -520,19 +524,19 @@ export function DashboardPersonalView({
         data-testid="personal-desktop-view"
         className="hidden md:block space-y-6 w-full animate-in fade-in duration-150"
       >
-        {/* 1. Hero Banner "Spotlight" - Fundo Sólido sem degradê */}
-        <div className="relative overflow-hidden rounded-3xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-sm transition-all">
+        {/* 1. Hero Banner "Spotlight" - Painel Verde-Escuro Sólido Executivo */}
+        <div className="relative overflow-hidden rounded-3xl border border-[#1e4738] bg-[#10271F] p-6 sm:p-7 shadow-sm transition-all text-white">
           {/* Top Row: Pill Badge + Context */}
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-wider uppercase">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#18352C] border border-[#234e3e] text-[#80E8B3] text-xs font-bold tracking-wider uppercase">
                 <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400" />
                 <span>STUDIO DE PRESCRIÇÃO ATIVO</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight font-sans">
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans">
                 Visão geral dos treinos
               </h1>
-              <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 font-sans leading-relaxed">
+              <p className="text-xs sm:text-sm text-[#CBDDD3] font-sans leading-relaxed">
                 {firstName ? `Olá, ${firstName}. ` : ""}Gerencie suas fichas e acompanhe seus alunos.
               </p>
             </div>
@@ -553,36 +557,36 @@ export function DashboardPersonalView({
                 <Button
                   variant="secondary"
                   size="md"
-                  className="font-semibold text-sm rounded-xl px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 border border-zinc-200 dark:border-white/[0.12] hover:border-emerald-500/40 text-zinc-900 dark:text-zinc-100 transition-all font-sans min-h-[44px] flex items-center gap-2 active:scale-[0.98]"
+                  className="font-semibold text-sm rounded-xl px-4 py-2.5 bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 text-white transition-all font-sans min-h-[44px] flex items-center gap-2 active:scale-[0.98]"
                 >
-                  <SparklesIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <SparklesIcon className="w-4 h-4 text-[#80E8B3]" />
                   <span>Importar treino</span>
                 </Button>
               </Link>
             </div>
           </div>
 
-          {/* Bento Strip Compacto (3 Cards Integrados Sólidos) */}
-          <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-6 mt-6 border-t border-zinc-200 dark:border-white/[0.08]">
+          {/* Bento Strip Compacto (3 Cards Integrados Verde-Escuros Sólidos) */}
+          <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-6 mt-6 border-t border-[#1e4738]">
             {/* Card 1: Alunos */}
             <Link
               href={`/consultoria/${consultancySlug}/progresso/alunos`}
               title="Alunos"
-              className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-white/[0.08] hover:border-emerald-500/40 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer"
+              className="p-4 rounded-2xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer text-white"
             >
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-[#10271F] border border-[#1e4738] text-[#80E8B3] flex items-center justify-center">
                   <UsersIcon className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all">
+                <span className="text-xs font-semibold text-[#CBDDD3] group-hover:text-[#80E8B3] group-hover:translate-x-0.5 transition-all">
                   Ver alunos →
                 </span>
               </div>
               <div className="pt-2">
-                <span className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
                   {displayStudents}
                 </span>
-                <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-1">
+                <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
                   ALUNOS ATIVOS
                 </span>
               </div>
@@ -592,21 +596,21 @@ export function DashboardPersonalView({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas`}
               title="Fichas de treino"
-              className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-white/[0.08] hover:border-emerald-500/40 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer"
+              className="p-4 rounded-2xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer text-white"
             >
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-[#10271F] border border-[#1e4738] text-[#80E8B3] flex items-center justify-center">
                   <DumbbellIcon className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all">
+                <span className="text-xs font-semibold text-[#CBDDD3] group-hover:text-[#80E8B3] group-hover:translate-x-0.5 transition-all">
                   Ver todas →
                 </span>
               </div>
               <div className="pt-2">
-                <span className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
                   {displayPlans}
                 </span>
-                <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-1">
+                <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
                   Fichas de treino
                 </span>
               </div>
@@ -616,21 +620,21 @@ export function DashboardPersonalView({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas?action=import`}
               title="Importar treino com IA"
-              className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-white/[0.08] hover:border-emerald-500/40 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer col-span-1 sm:col-span-2 lg:col-span-1"
+              className="p-4 rounded-2xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer col-span-1 sm:col-span-2 lg:col-span-1 text-white"
             >
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-[#10271F] border border-[#1e4738] text-[#80E8B3] flex items-center justify-center">
                   <FlameIcon className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all">
+                <span className="text-xs font-semibold text-[#CBDDD3] group-hover:text-[#80E8B3] group-hover:translate-x-0.5 transition-all">
                   Importar com IA →
                 </span>
               </div>
               <div className="pt-2">
-                <span className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
                   {totalRecentBlocks > 0 ? `${totalRecentBlocks}` : "IA Studio"}
                 </span>
-                <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mt-1">
+                <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
                   {totalRecentBlocks > 0 ? "Blocos Prescritos" : "Importador Rápido"}
                 </span>
               </div>
@@ -638,7 +642,7 @@ export function DashboardPersonalView({
           </div>
         </div>
 
-        {/* 2. Trilho Estilo Netflix: "Em Destaque / Acesso Rápido" (Carrossel Horizontal Animado) */}
+        {/* 2. Trilho Estilo Netflix: "Em Destaque / Acesso Rápido" (Cards Verde-Escuros Sólidos) */}
         {recentPlans && recentPlans.length > 0 && (
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between px-1">
@@ -674,7 +678,7 @@ export function DashboardPersonalView({
               </div>
             </div>
 
-            {/* Poster Cards Carrossel */}
+            {/* Poster Cards Carrossel - Verde-Escuro Sólido */}
             <div
               ref={desktopRailRef}
               className="flex gap-3.5 overflow-x-auto snap-x snap-mandatory pb-2 no-scrollbar scroll-smooth"
@@ -688,38 +692,42 @@ export function DashboardPersonalView({
                   <Link
                     key={`rail-${plan.publicId}`}
                     href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
-                    className="min-w-[270px] sm:min-w-[290px] max-w-[320px] snap-start shrink-0 group relative overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4.5 transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/40 hover:shadow-md flex flex-col justify-between min-h-[175px] cursor-pointer"
+                    className="min-w-[270px] sm:min-w-[290px] max-w-[320px] snap-start shrink-0 group relative overflow-hidden rounded-2xl border border-[#1e4738] bg-[#10271F] p-4.5 transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/50 hover:shadow-md flex flex-col justify-between min-h-[175px] cursor-pointer text-white"
                   >
                     <div className="space-y-2.5 relative z-10">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                          <DumbbellIcon className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#18352C] text-[#CBDDD3] border border-[#234e3e]">
+                          <DumbbellIcon className="w-3 h-3 text-[#80E8B3]" />
                           <span>{blocks} {blocks === 1 ? "bloco" : "blocos"}</span>
                         </span>
                         {isDraft && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                             Rascunho
                           </span>
                         )}
                         {isArchived && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[#18352C] text-[#CBDDD3] border border-[#234e3e]">
                             Arquivada
                           </span>
                         )}
                       </div>
 
-                      <h3 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 line-clamp-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug">
+                      <h3 className="text-sm sm:text-base font-bold text-white line-clamp-2 group-hover:text-[#80E8B3] transition-colors leading-snug">
                         {plan.title}
                       </h3>
                       {plan.subtitle && (
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                        <p className="text-xs text-[#CBDDD3] truncate">
                           {plan.subtitle}
                         </p>
                       )}
                     </div>
 
-                    {/* Density indicator & CTA */}
-                    <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 space-y-2 mt-3 relative z-10">
+                    {/* Density indicator & CTA with explicit semantics */}
+                    <div className="pt-3 border-t border-[#1e4738] space-y-2 mt-3 relative z-10">
+                      <div className="flex items-center justify-between text-[11px] text-[#CBDDD3] font-medium">
+                        <span>Densidade de blocos</span>
+                        <span className="text-white font-bold">{blocks} {blocks === 1 ? "bloco" : "blocos"}</span>
+                      </div>
                       {/* Segmented Density Bar */}
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((seg) => (
@@ -727,14 +735,14 @@ export function DashboardPersonalView({
                             key={seg}
                             className={`h-1 flex-1 rounded-full transition-all ${
                               seg <= blocks
-                                ? "bg-emerald-500 group-hover:bg-emerald-400"
-                                : "bg-zinc-200 dark:bg-zinc-800"
+                                ? "bg-emerald-400 group-hover:bg-emerald-300"
+                                : "bg-[#18352C]"
                             }`}
                           />
                         ))}
                       </div>
 
-                      <div className="flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-500 transition-colors">
+                      <div className="flex items-center justify-between text-xs font-bold text-[#80E8B3] group-hover:text-emerald-300 transition-colors">
                         <span>Abrir no Studio</span>
                         <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                       </div>
@@ -953,37 +961,37 @@ export function DashboardPersonalView({
                       <Link
                         key={`grid-${plan.publicId}`}
                         href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
-                        className="p-4 rounded-2xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] hover:border-emerald-500/40 transition-all group flex flex-col justify-between min-h-[140px] shadow-2xs hover:shadow-md cursor-pointer"
+                        className="p-4 rounded-2xl bg-[#10271F] hover:bg-[#18352C] border border-[#1e4738] hover:border-emerald-500/50 transition-all group flex flex-col justify-between min-h-[140px] shadow-sm text-white cursor-pointer"
                       >
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between gap-1.5">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                              <DumbbellIcon className="w-3 h-3" />
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#18352C] text-[#CBDDD3] border border-[#234e3e]">
+                              <DumbbellIcon className="w-3 h-3 text-[#80E8B3]" />
                               <span>{blocks} {blocks === 1 ? "bloco" : "blocos"}</span>
                             </span>
                             {isDraft && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                                 Rascunho
                               </span>
                             )}
                             {isArchived && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]">
+                              <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[#18352C] text-[#CBDDD3] border border-[#234e3e]">
                                 Arquivada
                               </span>
                             )}
                           </div>
 
-                          <h3 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 mt-1">
+                          <h3 className="text-sm font-bold text-white group-hover:text-[#80E8B3] transition-colors line-clamp-2 mt-1">
                             {plan.title}
                           </h3>
                           {plan.subtitle && (
-                            <p className="text-xs text-[var(--text-tertiary)] truncate">
+                            <p className="text-xs text-[#CBDDD3] truncate">
                               {plan.subtitle}
                             </p>
                           )}
                         </div>
 
-                        <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs font-semibold text-[var(--text-secondary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        <div className="pt-2 border-t border-[#1e4738] flex items-center justify-between text-xs font-semibold text-[#80E8B3] group-hover:text-emerald-300 transition-colors">
                           <span>Abrir ficha</span>
                           <span className="group-hover:translate-x-1 transition-transform">→</span>
                         </div>

@@ -397,22 +397,22 @@ export function ConsultancyMembersManager({
       )}
 
       {/* 1. OPERATIONAL HEADER COMPACTO COM CONTADORES REAIS */}
-      <div className="bg-white dark:bg-zinc-900 p-5 sm:p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-5">
+      <div className="bg-[#10271F] text-white p-5 sm:p-6 rounded-2xl border border-[#1e4738] shadow-xs space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <Link
               href={`/consultoria/${slug}`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors mb-1 min-h-[36px]"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CBDDD3] hover:text-white transition-colors mb-1 min-h-[36px]"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15 19l-7-7 7-7" />
               </svg>
               <span>Voltar à visão geral</span>
             </Link>
-            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
               Membros e Convites
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs sm:text-sm text-[#CBDDD3]">
               Gerencie os participantes, convites ativos e permissões de acesso da consultoria.
             </p>
           </div>
@@ -435,7 +435,7 @@ export function ConsultancyMembersManager({
                 </svg>
               }
               onClick={() => setIsInviteDialogOpen(true)}
-              className="w-full sm:w-auto h-11 px-5 font-semibold text-sm rounded-xl shadow-xs inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap min-h-[44px] cursor-pointer"
+              className="w-full sm:w-auto h-11 px-5 font-bold text-sm rounded-xl shadow-xs inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap min-h-[44px] cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-zinc-950"
             >
               <span className="whitespace-nowrap">Convidar membro</span>
             </Button>
@@ -443,40 +443,40 @@ export function ConsultancyMembersManager({
         </div>
 
         {/* Linha Operacional: Contadores Reais */}
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-4 pt-4 border-t border-[#1e4738]">
           {/* Membros Ativos */}
-          <div className="bg-zinc-50 dark:bg-zinc-800/60 p-3 sm:p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-0.5">
-            <p className="text-[11px] sm:text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+          <div className="bg-[#18352C] p-3 sm:p-3.5 rounded-xl border border-[#234e3e] space-y-0.5">
+            <p className="text-[11px] sm:text-xs font-medium text-[#CBDDD3] uppercase tracking-wider">
               Membros Ativos
             </p>
-            <p className="text-lg sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
+            <p className="text-lg sm:text-2xl font-extrabold text-[#80E8B3] tracking-tight">
               {counters.isError ? "—" : counters.activeMembers}
             </p>
           </div>
 
           {/* Convites Pendentes */}
-          <div className="bg-zinc-50 dark:bg-zinc-800/60 p-3 sm:p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-0.5">
-            <p className="text-[11px] sm:text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+          <div className="bg-[#18352C] p-3 sm:p-3.5 rounded-xl border border-[#234e3e] space-y-0.5">
+            <p className="text-[11px] sm:text-xs font-medium text-[#CBDDD3] uppercase tracking-wider">
               Convites Pendentes
             </p>
-            <p className="text-lg sm:text-2xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">
+            <p className="text-lg sm:text-2xl font-extrabold text-amber-300 tracking-tight">
               {counters.isError ? "—" : counters.pendingInvitations}
             </p>
           </div>
 
           {/* Suspensos */}
-          <div className="bg-zinc-50 dark:bg-zinc-800/60 p-3 sm:p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-0.5">
-            <p className="text-[11px] sm:text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+          <div className="bg-[#18352C] p-3 sm:p-3.5 rounded-xl border border-[#234e3e] space-y-0.5">
+            <p className="text-[11px] sm:text-xs font-medium text-[#CBDDD3] uppercase tracking-wider">
               Suspensos
             </p>
-            <p className="text-lg sm:text-2xl font-extrabold text-zinc-600 dark:text-zinc-400 tracking-tight">
+            <p className="text-lg sm:text-2xl font-extrabold text-[#CBDDD3]/80 tracking-tight">
               {counters.isError ? "—" : counters.suspendedMembers}
             </p>
           </div>
         </div>
 
         {counters.isError && (
-          <p className="text-xs text-rose-600 dark:text-rose-400 font-medium pt-1">
+          <p className="text-xs text-rose-300 font-medium pt-1">
             Contadores operacionais indisponíveis no momento.
           </p>
         )}
@@ -851,7 +851,7 @@ export function ConsultancyMembersManager({
                     return (
                       <div
                         key={member.membershipPublicId}
-                        className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-3 relative"
+                        className="bg-[#10271F] text-white p-4 rounded-2xl border border-[#1e4738] shadow-xs space-y-3 relative"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -859,16 +859,16 @@ export function ConsultancyMembersManager({
                             <UserAvatar fullName={member.fullName} userPublicId={member.userPublicId} size="sm" />
                             <div className="min-w-0 space-y-0.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                                <p className="text-sm font-semibold text-white truncate">
                                   {member.fullName}
                                 </p>
                                 {isSelf && (
-                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-[#18352C] text-[#80E8B3] border border-[#234e3e]">
                                     Você
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                              <p className="text-xs text-[#CBDDD3] truncate">
                                 {member.email}
                               </p>
                             </div>
@@ -880,7 +880,7 @@ export function ConsultancyMembersManager({
                               type="button"
                               onClick={() => setOpenMemberMenuId(isMenuOpen ? null : member.membershipPublicId)}
                               aria-label="Abrir menu de ações do membro"
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-[#CBDDD3] hover:text-white hover:bg-[#18352C] border border-[#234e3e] transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
                             >
                               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="2" />
@@ -973,7 +973,7 @@ export function ConsultancyMembersManager({
                         </div>
 
                         {/* Status + Roles */}
-                        <div className="pt-2.5 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="pt-2.5 border-t border-[#1e4738] flex items-center justify-between gap-2 flex-wrap">
                           <div className="flex flex-wrap gap-1.5">
                             {member.roles.map((role) => (
                               <Badge key={role} variant="brand" size="sm">
@@ -1299,15 +1299,15 @@ export function ConsultancyMembersManager({
                     return (
                       <div
                         key={inv.publicId}
-                        className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-3 relative"
+                        className="bg-[#10271F] text-white p-4 rounded-2xl border border-[#1e4738] shadow-xs space-y-3 relative"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 space-y-0.5">
-                            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                            <p className="text-sm font-semibold text-white truncate">
                               {inv.email}
                             </p>
-                            <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                            <p className="text-[11px] text-[#CBDDD3]">
                               Criado em {formatDateTime(inv.createdAt)}
                             </p>
                           </div>
@@ -1330,7 +1330,7 @@ export function ConsultancyMembersManager({
                               type="button"
                               onClick={() => setOpenInviteMenuId(isMenuOpen ? null : inv.publicId)}
                               aria-label="Abrir menu de ações do convite"
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-[#CBDDD3] hover:text-white hover:bg-[#18352C] border border-[#234e3e] transition-colors min-h-[44px] min-w-[44px] cursor-pointer"
                             >
                               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="2" />

@@ -487,8 +487,12 @@ export function ConsultancyNavigation({
         pathname !== `${baseSlugHref}/planos-v2` &&
         !pathname.startsWith(`${baseSlugHref}/planos-v2/prontuario`)));
 
+  const isStudentChat =
+    Boolean(pathname) &&
+    pathname === `${baseSlugHref}/progresso/alunos`;
+
   const shouldHideMobileBottomNav =
-    isStudentRuntime || isWorkoutBuilder || isNutritionBuilder || isKeyboardOpen;
+    isStudentRuntime || isWorkoutBuilder || isNutritionBuilder || isStudentChat || isKeyboardOpen;
 
   function isItemActive(itemHref?: string | null): boolean {
     if (!pathname || !itemHref) return false;

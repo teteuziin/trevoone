@@ -66,8 +66,11 @@ export default async function ProfessionalStudentsProgressListPage({
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={effectiveState}
+      themeVariant="dark-overview"
+      maxWidth="full"
+      className="!p-0 !pb-0 flex flex-col flex-1 h-[100dvh] lg:h-svh overflow-hidden"
     >
-      <div className="w-full max-w-5xl mx-auto space-y-6 pb-16">
+      <div className="w-full h-full flex flex-col flex-1 min-h-0 overflow-hidden">
         <PersonalStudentList
           consultancySlug={slug}
           students={students}

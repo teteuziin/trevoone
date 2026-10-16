@@ -24,47 +24,61 @@ function runTest(name, fn) {
 const assistantFile = path.resolve("components/consultancies/personal-student-hub/guided-student-assistant.tsx");
 const listFile = path.resolve("components/consultancies/personal-student-hub/personal-student-list.tsx");
 const pageFile = path.resolve("app/consultoria/[slug]/progresso/alunos/page.tsx");
+const navFile = path.resolve("components/consultancies/consultancy-navigation.tsx");
 const actionsFile = path.resolve("app/consultoria/[slug]/progresso/student-request-actions.ts");
 
 assert.ok(fs.existsSync(assistantFile), "guided-student-assistant.tsx must exist");
 assert.ok(fs.existsSync(listFile), "personal-student-list.tsx must exist");
 assert.ok(fs.existsSync(pageFile), "alunos/page.tsx must exist");
+assert.ok(fs.existsSync(navFile), "consultancy-navigation.tsx must exist");
 assert.ok(fs.existsSync(actionsFile), "student-request-actions.ts must exist");
 
 const assistantCode = fs.readFileSync(assistantFile, "utf-8");
 const listCode = fs.readFileSync(listFile, "utf-8");
 const pageCode = fs.readFileSync(pageFile, "utf-8");
+const navCode = fs.readFileSync(navFile, "utf-8");
 const actionsCode = fs.readFileSync(actionsFile, "utf-8");
 
 // -----------------------------------------------------------------------------
-// 1. ABERTURA EM PAINEL GRANDE TIPO CHAT
+// 1. OCUPAÇÃO DA ÁREA ÚTIL & AUSÊNCIA DE MODAL FLUTUANTE
 // -----------------------------------------------------------------------------
-runTest("1.1 Painel grande estilo chat com abertura em slide e layout viewport", () => {
+runTest("1.1 Chat ocupa toda a área de trabalho útil sem modal flutuante", () => {
   assert.ok(
-    assistantCode.includes("slide-in-from-right-6") &&
-    assistantCode.includes("motion-reduce:animate-none"),
-    "Entrada em slide suave pela direita com respeito a prefers-reduced-motion"
+    assistantCode.includes("w-full h-full flex flex-col flex-1 min-h-0") &&
+    pageCode.includes('maxWidth="full"') &&
+    pageCode.includes("!p-0 !pb-0"),
+    "Chat preenche 100% da área útil sem margens brancas ou padding concorrente"
   );
   assert.ok(
-    assistantCode.includes("max-w-5xl") &&
-    assistantCode.includes("max-w-3xl mx-auto"),
-    "Painel amplo e coluna de mensagens centralizada em largura confortável"
+    !assistantCode.includes("max-h-[920px]") &&
+    !assistantCode.includes("h-[calc(100vh-6.5rem)]"),
+    "Removido aspecto de modal flutuante, bordas cortadas e dimensões fixas restritivas"
   );
   assert.ok(
-    assistantCode.includes("h-[calc(100dvh-5.5rem)]") || assistantCode.includes("h-[calc(100vh-6.5rem)]"),
-    "Altura otimizada ocupando a área útil sem tela dupla"
+    assistantCode.includes("max-w-3xl lg:max-w-4xl mx-auto"),
+    "Coluna de mensagens centralizada em largura confortável para leitura e expansão de widgets"
   );
 });
 
-runTest("1.2 Cabeçalho compacto com identificação e retorno claro", () => {
+runTest("1.2 Cabeçalho limpo 'Alunos' e proteção mobile sem sobreposição", () => {
   assert.ok(
-    assistantCode.includes("Assistente de Alunos") &&
-    assistantCode.includes("100% Sem IA"),
-    "Cabeçalho com identificação do assistente sem IA"
+    /<h1[^>]*>\s*Alunos\s*<\/h1>/.test(assistantCode),
+    "Cabeçalho simples 'Alunos' sem jargões ou títulos genéricos"
   );
   assert.ok(
-    assistantCode.includes("Voltar para a Visão Geral") || assistantCode.includes("consultoria/${consultancySlug}"),
-    "Retorno previsível e botão de voltar disponível"
+    !assistantCode.includes("100% Sem IA") &&
+    !assistantCode.includes("Navegação conversacional por etapas e dados determinísticos"),
+    "Removidos selos técnicos e descrições promocionais da interface"
+  );
+  assert.ok(
+    assistantCode.includes("Trocar aluno") &&
+    assistantCode.includes("consultoria/${consultancySlug}"),
+    "Identificação clara do aluno ativo com 'Trocar aluno' e botão de voltar funcional"
+  );
+  assert.ok(
+    navCode.includes("isStudentChat") &&
+    navCode.includes("shouldHideMobileBottomNav"),
+    "Navegação inferior mobile oculta na rota do chat para não cobrir a área de digitação"
   );
 });
 
@@ -116,7 +130,7 @@ runTest("2.3 Correção de imagens quebradas e exibição de iniciais limpas", (
 // -----------------------------------------------------------------------------
 // 3. A ESCOLHA VIRA MENSAGEM & RECOLHIMENTO
 // -----------------------------------------------------------------------------
-runTest("3.1 Escolha registrada como mensagem do usuário e recolhimento limpo da lista", () => {
+runTest("3.1 Escolha registrada como mensagem do usuário e texto natural da pergunta", () => {
   assert.ok(
     assistantCode.includes("text: `Quero ver ${student.name}.`") ||
     assistantCode.includes("Quero ver ${student.name}"),
@@ -127,9 +141,9 @@ runTest("3.1 Escolha registrada como mensagem do usuário e recolhimento limpo d
     "Lista inicial recolhida para deixar a conversa limpa"
   );
   assert.ok(
-    assistantCode.includes("text: `O que você gostaria de ver de ${student.name}?`") ||
-    assistantCode.includes("O que você gostaria de ver de ${student.name}"),
-    "Assistente responde perguntando o que deseja ver daquele aluno"
+    assistantCode.includes("text: `O que você quer ver de ${student.name}?`") ||
+    assistantCode.includes("O que você quer ver de ${student.name}"),
+    "Assistente responde com frase curta e natural: 'O que você quer ver de [nome]?'"
   );
 });
 
@@ -147,11 +161,11 @@ runTest("3.2 Sugestões discretas de atalho (Visão Geral, Fotos, Anamnese, Form
 // -----------------------------------------------------------------------------
 // 4. CAMPO DE DIGITAÇÃO NA PARTE INFERIOR
 // -----------------------------------------------------------------------------
-runTest("4.1 Campo de texto fixo com placeholder contextual e teclas de atalho", () => {
+runTest("4.1 Campo de texto fixo com placeholder contextual e ajuda de teclado desktop", () => {
   assert.ok(
-    assistantCode.includes("Digite o que deseja ver deste aluno") &&
-    assistantCode.includes("Digite o nome do aluno ou escolha acima"),
-    "Placeholder contextual baseado na presença de aluno selecionado"
+    assistantCode.includes("O que você quer consultar?") &&
+    assistantCode.includes("Digite o nome do aluno…"),
+    "Placeholders contextuais específicos ('Digite o nome do aluno…' / 'O que você quer consultar?')"
   );
   assert.ok(
     assistantCode.includes("e.key === \"Enter\" && !e.shiftKey"),
@@ -164,6 +178,11 @@ runTest("4.1 Campo de texto fixo com placeholder contextual e teclas de atalho",
   assert.ok(
     assistantCode.includes("setInputText(trimmed)"),
     "Preservação do texto digitado caso ocorra falha"
+  );
+  assert.ok(
+    assistantCode.includes("hidden sm:block") &&
+    assistantCode.includes("Pressione <strong>Enter</strong>"),
+    "Instrução de teclado oculta no mobile e discreta no desktop"
   );
 });
 
@@ -204,7 +223,7 @@ runTest("5.2 Diferenciação estrita de intenções (consultar vs criar vs envia
 });
 
 // -----------------------------------------------------------------------------
-// 6. RESPOSTAS INTERATIVAS DENTRO DA CONVERSA
+// 6. RESPOSTAS INTERATIVAS E FRASES ESPECÍFICAS
 // -----------------------------------------------------------------------------
 runTest("6.1 Visão Geral: blocos informativos reais na conversa", () => {
   assert.ok(
@@ -222,44 +241,38 @@ runTest("6.1 Visão Geral: blocos informativos reais na conversa", () => {
   );
 });
 
-runTest("6.2 Fotos: galeria por data, zoom e comparador antes e depois", () => {
+runTest("6.2 Fotos: frases curtas, galeria por data, zoom e comparador", () => {
   assert.ok(
-    assistantCode.includes("FotosWidget"),
-    "Widget de Fotos na conversa"
+    assistantCode.includes("Fotos de ") &&
+    assistantCode.includes("Nenhuma foto cadastrada."),
+    "Frases curtas especificadas para fotos"
   );
   assert.ok(
-    assistantCode.includes("setSelectedZoomPhoto"),
-    "Modal de ampliação / zoom de fotos (Lightbox)"
-  );
-  assert.ok(
-    assistantCode.includes("isPhotoComparatorOpen") &&
-    assistantCode.includes("Comparar Antes e Depois"),
-    "Comparador de fotos antes e depois lado a lado"
+    assistantCode.includes("setSelectedZoomPhoto") &&
+    assistantCode.includes("isPhotoComparatorOpen"),
+    "Modal de ampliação e comparador lado a lado preservados"
   );
 });
 
 runTest("6.3 Anamnese e Formulários: respostas, histórico e fluxo de envio guiado", () => {
   assert.ok(
-    assistantCode.includes("AnamneseWidget") &&
-    assistantCode.includes("FormulariosWidget"),
-    "Widgets de Anamnese e Formulários presentes"
+    assistantCode.includes("Anamnese respondida em") &&
+    assistantCode.includes("Este aluno ainda não respondeu à anamnese.") &&
+    assistantCode.includes("Escolha o formulário que deseja enviar"),
+    "Frases curtas e específicas para anamneses e formulários"
   );
   assert.ok(
     assistantCode.includes("confirmedSend") &&
     assistantCode.includes("Confirmo o envio para este aluno"),
     "Confirmação explícita obrigatória antes do envio"
   );
-  assert.ok(
-    assistantCode.includes("requestStudentAnamnesisAction") &&
-    assistantCode.includes("requestStudentCustomFormAction"),
-    "Integração com as actions oficiais do servidor"
-  );
 });
 
 runTest("6.4 Treinos: roteamento determinístico (1 ativo abre fluxo, múltiplos dá opções, nenhum avisa)", () => {
   assert.ok(
-    assistantCode.includes("TreinosWidget"),
-    "Widget de Treinos presente"
+    assistantCode.includes("Treino ativo:") &&
+    assistantCode.includes("Nenhum treino ativo prescrito para este aluno."),
+    "Frases curtas e objetivas sobre treinos"
   );
   assert.ok(
     assistantCode.includes("activeWorkouts.length === 1") &&
@@ -269,12 +282,13 @@ runTest("6.4 Treinos: roteamento determinístico (1 ativo abre fluxo, múltiplos
 });
 
 // -----------------------------------------------------------------------------
-// 7. SEGURANÇA E NÃO PERSISTÊNCIA DE DADOS SENSÍVEIS
+// 7. SEGURANÇA, ISOLAMENTO E ROLAGEM INTELIGENTE
 // -----------------------------------------------------------------------------
-runTest("7.1 Prevenção de race condition e sem persistência sensível em localStorage", () => {
+runTest("7.1 Rolagem inteligente: não interrompe leitura de mensagens anteriores", () => {
   assert.ok(
-    assistantCode.includes("latestRequestIdRef"),
-    "Identificador de requisição utilizado para descartar respostas defasadas"
+    assistantCode.includes("isNearBottomRef") &&
+    assistantCode.includes("distanceToBottom < 160"),
+    "Auto-scroll condicional: só rola ao final se o usuário já estiver próximo da base"
   );
   assert.ok(
     !assistantCode.includes("localStorage.setItem('chat_messages'") &&
@@ -284,16 +298,26 @@ runTest("7.1 Prevenção de race condition e sem persistência sensível em loca
 });
 
 // -----------------------------------------------------------------------------
-// 8. IDENTIDADE VISUAL PRETO/GRAFITE
+// 8. TEMAS COMPATÍVEIS COM A TELA INICIAL
 // -----------------------------------------------------------------------------
-runTest("8.1 Design preto/grafite sólido (#151619, #0B0C0E) sem verde-escuro (#10271F)", () => {
+runTest("8.1 Tema Claro cinza suave (#DDE1E6 / #ECEFF2) e Escuro grafite (#202226 / #0B0C0E)", () => {
   assert.ok(
-    assistantCode.includes("bg-[#151619]") && assistantCode.includes("bg-[#0B0C0E]"),
-    "Superfícies preto/grafite sólido aplicadas"
+    assistantCode.includes("bg-[#DDE1E6] dark:bg-[#202226]") &&
+    assistantCode.includes("bg-[#ECEFF2] dark:bg-[#0B0C0E]"),
+    "Fundo geral e superfícies de cabeçalho/input adaptadas aos temas da Visão Geral"
   );
   assert.ok(
-    !assistantCode.includes("#10271F"),
-    "Ausência de cartões verde-escuros antigos"
+    assistantCode.includes("text-[#17191D] dark:text-[#FFFFFF]") ||
+    assistantCode.includes("text-[#17191D] dark:text-white"),
+    "Texto escuro no modo claro e texto claro no modo escuro"
+  );
+  assert.ok(
+    assistantCode.includes("text-[#065F46] dark:text-emerald-400"),
+    "Verde com alto contraste calibrado (#065F46) no modo claro"
+  );
+  assert.ok(
+    pageCode.includes('themeVariant="dark-overview"'),
+    "Página de alunos configurada com o themeVariant oficial do shell"
   );
 });
 

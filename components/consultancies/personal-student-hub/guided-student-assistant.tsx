@@ -144,6 +144,14 @@ function LayoutGridIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+function UsersIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+    </svg>
+  );
+}
+
 // ============================================================================
 // CLEAN STUDENT AVATAR (NO BROKEN IMAGES, NO LEAKY "FOTO" TEXT)
 // ============================================================================
@@ -448,7 +456,7 @@ export function GuidedStudentAssistant({
           id: `msg-assistant-section-prompt-${Date.now()}`,
           sender: "assistant",
           timestamp: new Date(),
-          text: `O que você gostaria de ver de ${initialStudent.name}?`,
+          text: `O que você quer ver de ${initialStudent.name}?`,
           widget: { type: "SECTION_PROMPT", student: initialStudent },
         },
       ];
@@ -494,9 +502,32 @@ export function GuidedStudentAssistant({
   // Interactive Form Detail Modal
   const [activeFormAnswerDetail, setActiveFormAnswerDetail] = useState<StudentFormAnswer | null>(null);
 
-  // Refs
+  // Refs & Smart Scroll
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const isNearBottomRef = useRef<boolean>(true);
+
+  // User scroll listener: only auto-scroll if near bottom
+  const handleScroll = useCallback(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isNearBottomRef.current = distanceToBottom < 160;
+  }, []);
+
+  const scrollToBottom = useCallback((force = false) => {
+    if (force || isNearBottomRef.current) {
+      chatScrollRef.current?.scrollTo({
+        top: chatScrollRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
   // Fetch Student Detail with race-condition guard
   const fetchStudentDetail = useCallback(
@@ -523,15 +554,6 @@ export function GuidedStudentAssistant({
     },
     [consultancySlug, detailsCache]
   );
-
-  // Scroll to bottom smoothly when messages change
-  const scrollToBottom = useCallback(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
 
   // Handle Student Selection
   const handleSelectStudent = useCallback(
@@ -563,16 +585,19 @@ export function GuidedStudentAssistant({
             id: `msg-assistant-section-prompt-${Date.now()}`,
             sender: "assistant",
             timestamp: new Date(),
-            text: `O que você gostaria de ver de ${student.name}?`,
+            text: `O que você quer ver de ${student.name}?`,
             widget: { type: "SECTION_PROMPT", student },
           },
         ];
       });
 
+      isNearBottomRef.current = true;
+      setTimeout(() => scrollToBottom(true), 50);
+
       // Focus input for next request
       setTimeout(() => textareaRef.current?.focus(), 150);
     },
-    [fetchStudentDetail]
+    [fetchStudentDetail, scrollToBottom]
   );
 
   // Handle Changing Student (Reset to selection)
@@ -883,6 +908,8 @@ export function GuidedStudentAssistant({
         students,
       });
       executeIntent(intent, trimmed);
+      isNearBottomRef.current = true;
+      setTimeout(() => scrollToBottom(true), 50);
     } catch {
       // Preserve input text on error
       setInputText(trimmed);
@@ -1036,56 +1063,48 @@ export function GuidedStudentAssistant({
   );
 
   return (
-    <div className="w-full flex justify-center py-2 sm:py-4 px-1 sm:px-4">
+    <div className="w-full h-full flex flex-col flex-1 min-h-0 bg-[#DDE1E6] dark:bg-[#202226] text-[#17191D] dark:text-[#FFFFFF] overflow-hidden">
       {/* =====================================================================
-          CHAT CONTAINER (90% viewport desktop, full on mobile, slide-in right)
+          FULL-SCREEN CONVERSATIONAL WORKSPACE (Alunos)
           ===================================================================== */}
       <section
-        aria-label="Assistente de Alunos"
-        className="w-full max-w-5xl h-[calc(100dvh-5.5rem)] sm:h-[calc(100vh-6.5rem)] max-h-[920px] rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-[#303238] bg-[#151619] shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-6 duration-200 motion-reduce:animate-none"
+        aria-label="Alunos"
+        className="w-full h-full flex flex-col flex-1 min-h-0 overflow-hidden"
       >
         {/* COMPACT TOP HEADER */}
-        <header className="px-4 sm:px-6 py-3.5 border-b border-zinc-200 dark:border-[#282A30] bg-[#0B0C0E] flex items-center justify-between gap-3 shrink-0">
+        <header className="px-4 sm:px-6 lg:px-8 py-3.5 border-b border-[#C5CBD3] dark:border-[#282A30] bg-[#ECEFF2] dark:bg-[#0B0C0E] flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#1B1D21] border border-white/10 flex items-center justify-center text-emerald-400 shrink-0">
-              <SparklesBubbleIcon className="w-5 h-5" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 flex items-center justify-center text-[#065F46] dark:text-emerald-400 shrink-0 shadow-xs">
+              <UsersIcon className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
-                  Assistente de Alunos
-                </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-                  100% Sem IA
-                </span>
-              </div>
-              <p className="text-[11px] text-[#9CA3AF] truncate hidden sm:block">
-                Navegação conversacional por etapas e dados determinísticos
-              </p>
+              <h1 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white tracking-tight truncate">
+                Alunos
+              </h1>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             {selectedStudent && (
-              <div className="flex items-center gap-2 bg-[#1B1D21] border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white">
+              <div className="flex items-center gap-2 bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 rounded-xl px-2.5 py-1 text-xs text-[#17191D] dark:text-white shadow-xs">
                 <StudentAvatar name={selectedStudent.name} userPublicId={selectedStudent.userPublicId} size="xs" />
-                <span className="font-semibold truncate max-w-[110px] sm:max-w-[150px]">{selectedStudent.name}</span>
+                <span className="font-semibold truncate max-w-[110px] sm:max-w-[160px]">{selectedStudent.name}</span>
                 <button
                   type="button"
                   onClick={handleChangeStudent}
-                  className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 ml-1 underline cursor-pointer"
+                  className="text-[11px] font-bold text-[#065F46] dark:text-emerald-400 hover:underline ml-1 cursor-pointer"
                   title="Trocar aluno ativo"
                 >
-                  Trocar
+                  Trocar aluno
                 </button>
               </div>
             )}
 
             <Link
               href={`/consultoria/${consultancySlug}`}
-              className="p-2 rounded-xl text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] border border-white/10 transition-colors"
-              title="Voltar para a Visão Geral"
-              aria-label="Voltar para a Visão Geral"
+              className="p-2 rounded-xl text-[#4B5563] dark:text-[#9CA3AF] hover:text-[#17191D] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] border border-[#C5CBD3] dark:border-white/10 transition-colors cursor-pointer"
+              title="Voltar ao painel"
+              aria-label="Voltar ao painel"
             >
               <ArrowLeftIcon className="w-4 h-4" />
             </Link>
@@ -1093,8 +1112,12 @@ export function GuidedStudentAssistant({
         </header>
 
         {/* SCROLLABLE MESSAGE THREAD */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-5 scroll-smooth">
-          <div className="max-w-3xl mx-auto w-full space-y-5">
+        <div
+          ref={chatScrollRef}
+          onScroll={handleScroll}
+          className="w-full flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 scroll-smooth"
+        >
+          <div className="max-w-3xl lg:max-w-4xl mx-auto w-full space-y-5">
             {messages.map((msg) => {
               const isAssistant = msg.sender === "assistant";
 
@@ -1106,7 +1129,7 @@ export function GuidedStudentAssistant({
                   }`}
                 >
                   {isAssistant && (
-                    <div className="w-8 h-8 rounded-lg bg-[#0B0C0E] border border-white/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+                    <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#0B0C0E] border border-[#C5CBD3] dark:border-white/10 flex items-center justify-center text-[#065F46] dark:text-emerald-400 shrink-0 mt-0.5 shadow-xs">
                       <SparklesBubbleIcon className="w-4 h-4" />
                     </div>
                   )}
@@ -1114,32 +1137,38 @@ export function GuidedStudentAssistant({
                   <div
                     className={`${
                       isAssistant
-                        ? "flex-1 rounded-2xl bg-[#1B1D21] border border-white/10 p-4 sm:p-5 space-y-3.5 text-white shadow-sm"
-                        : "rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-3 sm:p-4 text-white max-w-[85%] sm:max-w-[75%] shadow-sm ml-auto"
+                        ? "flex-1 rounded-2xl bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 p-4 sm:p-5 space-y-3.5 text-[#17191D] dark:text-white shadow-xs"
+                        : "rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 p-3 sm:p-4 text-emerald-950 dark:text-white max-w-[85%] sm:max-w-[75%] shadow-xs ml-auto"
                     }`}
                   >
                     {msg.text && (
-                      <p className="text-xs sm:text-sm font-medium leading-relaxed font-sans text-white">
+                      <p
+                        className={`text-xs sm:text-sm leading-relaxed font-sans ${
+                          isAssistant
+                            ? "text-[#17191D] dark:text-white font-medium"
+                            : "text-emerald-950 dark:text-white font-semibold"
+                        }`}
+                      >
                         {msg.text}
                       </p>
                     )}
 
                     {/* WIDGET: STUDENT SELECTOR EMBEDDED IN CHAT */}
                     {msg.widget?.type === "STUDENT_SELECTOR" && (
-                      <div className="pt-2 border-t border-white/10 space-y-3">
+                      <div className="pt-2 border-t border-[#C5CBD3] dark:border-white/10 space-y-3">
                         {msg.widget.collapsed && selectedStudent ? (
-                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-white">
+                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8F9FA] dark:bg-[#0B0C0E] border border-[#C5CBD3] dark:border-white/10 text-xs text-[#17191D] dark:text-white">
                             <div className="flex items-center gap-2 min-w-0">
-                              <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-                              <span className="text-[#9CA3AF]">Aluno selecionado:</span>
-                              <span className="font-bold text-white truncate">{selectedStudent.name}</span>
+                              <CheckCircleIcon className="w-4 h-4 text-[#065F46] dark:text-emerald-400 shrink-0" />
+                              <span className="text-[#4B5563] dark:text-[#9CA3AF]">Aluno selecionado:</span>
+                              <span className="font-bold text-[#17191D] dark:text-white truncate">{selectedStudent.name}</span>
                             </div>
                             <button
                               type="button"
                               onClick={handleChangeStudent}
-                              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer shrink-0 ml-2"
+                              className="text-xs font-bold text-[#065F46] dark:text-emerald-400 hover:underline cursor-pointer shrink-0 ml-2"
                             >
-                              Trocar
+                              Trocar aluno
                             </button>
                           </div>
                         ) : (
@@ -1479,16 +1508,16 @@ export function GuidedStudentAssistant({
                 </div>
               );
             })}
-            <div ref={chatBottomRef} className="h-2" />
+            <div ref={chatBottomRef} className="h-6" />
           </div>
         </div>
 
         {/* =====================================================================
             PINNED BOTTOM INPUT BAR (TEXTFIELD + SEND BUTTON)
             ===================================================================== */}
-        <footer className="p-3 sm:p-4 border-t border-zinc-200 dark:border-[#282A30] bg-[#0B0C0E] shrink-0">
-          <div className="max-w-3xl mx-auto flex items-end gap-2.5">
-            <div className="relative flex-1 rounded-2xl bg-[#151619] border border-white/10 focus-within:border-emerald-500 shadow-inner transition-colors px-3 py-2 flex items-center">
+        <footer className="px-4 sm:px-6 lg:px-8 py-3 border-t border-[#C5CBD3] dark:border-[#282A30] bg-[#ECEFF2] dark:bg-[#0B0C0E] shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+          <div className="max-w-3xl lg:max-w-4xl mx-auto flex items-end gap-2.5">
+            <div className="relative flex-1 rounded-2xl bg-white dark:bg-[#151619] border border-[#C5CBD3] dark:border-white/10 focus-within:border-emerald-600 dark:focus-within:border-emerald-500 shadow-xs transition-colors px-3 py-2 flex items-center">
               <textarea
                 ref={textareaRef}
                 value={inputText}
@@ -1497,11 +1526,11 @@ export function GuidedStudentAssistant({
                 rows={1}
                 placeholder={
                   selectedStudent
-                    ? "Digite o que deseja ver deste aluno (ex: fotos, anamnese, treinos)..."
-                    : "Digite o nome do aluno ou escolha acima..."
+                    ? "O que você quer consultar?"
+                    : "Digite o nome do aluno…"
                 }
                 aria-label="Mensagem para o assistente"
-                className="w-full bg-transparent text-white placeholder-zinc-500 text-xs sm:text-sm resize-none focus:outline-none min-h-[32px] max-h-[120px] font-sans leading-normal"
+                className="w-full bg-transparent text-[#17191D] dark:text-white placeholder-[#6B7280] dark:placeholder-zinc-400 text-xs sm:text-sm resize-none focus:outline-none min-h-[32px] max-h-[120px] font-sans leading-normal"
               />
             </div>
 
@@ -1515,8 +1544,8 @@ export function GuidedStudentAssistant({
               <SendPlaneIcon className="w-5 h-5" />
             </button>
           </div>
-          <div className="max-w-3xl mx-auto text-center pt-1.5 text-[10px] text-[#9CA3AF]">
-            <span>Pressione <strong>Enter</strong> para enviar ou <strong>Shift + Enter</strong> para quebra de linha</span>
+          <div className="hidden sm:block max-w-3xl lg:max-w-4xl mx-auto text-center pt-1.5 text-[10px] text-[#4B5563] dark:text-[#9CA3AF]">
+            <span>Pressione <strong>Enter</strong> para enviar · <strong>Shift + Enter</strong> para quebra de linha</span>
           </div>
         </footer>
       </section>
@@ -1978,7 +2007,7 @@ function FotosWidget({
     return (
       <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-3">
         <p className="text-xs text-zinc-400">
-          Este aluno ainda não possui registros fotográficos cadastrados.
+          Nenhuma foto cadastrada.
         </p>
         <button
           type="button"
@@ -1986,7 +2015,7 @@ function FotosWidget({
           disabled={isSending}
           className="px-3.5 py-2 rounded-xl text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-50"
         >
-          {isSending ? "Solicitando..." : "Solicitar envio de fotos ao aluno"}
+          {isSending ? "Solicitando..." : "Solicitar envio de fotos"}
         </button>
       </div>
     );
@@ -2018,7 +2047,7 @@ function FotosWidget({
           return (
             <div key={ev.requestPublicId} className="p-3.5 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-2.5">
               <div className="flex items-center justify-between text-xs font-bold text-white">
-                <span className="text-emerald-400">{dateStr}</span>
+                <span className="text-emerald-400">Fotos de {student.name} · {dateStr}</span>
                 <span className="text-zinc-500 text-[11px]">4 fotos</span>
               </div>
 
@@ -2142,6 +2171,14 @@ function AnamneseWidget({
         <div className="space-y-3">
           {anamnesis && anamnesis.length > 0 ? (
             <div className="space-y-2.5">
+              <div className="text-xs font-semibold text-emerald-400">
+                {(() => {
+                  const intakeForm = detail?.forms?.find((f) => f.formType === "INTAKE");
+                  return intakeForm?.submittedAt
+                    ? `Anamnese respondida em ${formatDisplayDate(intakeForm.submittedAt)}.`
+                    : "Anamnese respondida.";
+                })()}
+              </div>
               {anamnesis.map((sec, sIdx) => (
                 <div key={sIdx} className="p-3.5 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-2">
                   <div className="text-xs font-bold text-emerald-400">{sec.title}</div>
@@ -2157,13 +2194,13 @@ function AnamneseWidget({
             </div>
           ) : (
             <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-2 text-xs text-zinc-400">
-              <p>Este aluno ainda não possui uma anamnese respondida.</p>
+              <p>Este aluno ainda não respondeu à anamnese.</p>
               <button
                 type="button"
                 onClick={() => setTab("send")}
                 className="text-emerald-400 font-bold hover:underline cursor-pointer"
               >
-                Enviar solicitação de anamnese agora
+                Enviar solicitação de anamnese
               </button>
             </div>
           )}
@@ -2325,7 +2362,7 @@ function FormulariosWidget({
                 onClick={() => setTab("send")}
                 className="text-emerald-400 font-bold hover:underline cursor-pointer"
               >
-                Enviar um formulário agora
+                Enviar formulário
               </button>
             </div>
           ) : (
@@ -2356,7 +2393,7 @@ function FormulariosWidget({
       {/* SEND FORM */}
       {tab === "send" && (
         <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs">
-          <div className="font-bold text-white">Selecione o modelo para enviar a {student.name}:</div>
+          <div className="font-bold text-white">Escolha o formulário que deseja enviar:</div>
 
           {availableTemplates.length === 0 ? (
             <p className="text-zinc-400">Carregando modelos disponíveis...</p>
@@ -2458,7 +2495,7 @@ function TreinosWidget({
         <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs">
           <div className="flex items-center gap-2">
             <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="font-bold text-white">Treino ativo encontrado:</span>
+            <span className="font-bold text-white">Treino ativo: {activeWorkouts[0].title}</span>
           </div>
           <div className="p-3 rounded-lg bg-[#151619] border border-white/10 space-y-1">
             <div className="font-bold text-emerald-400 text-sm">{activeWorkouts[0].title}</div>
@@ -2504,7 +2541,7 @@ function TreinosWidget({
         // 0 Active Workouts -> Inform and Provide Official Actions
         <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs text-center">
           <p className="text-zinc-300">
-            Este aluno não possui uma ficha de treino ativa no momento.
+            Nenhum treino ativo prescrito para este aluno.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 pt-1 justify-center">
             <Link

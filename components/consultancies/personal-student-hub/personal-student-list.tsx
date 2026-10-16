@@ -37,7 +37,7 @@ export function PersonalStudentList({
   );
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* 
         ========================================================================
         CONTRACT & REGRESSION GUARD PRESERVATION:

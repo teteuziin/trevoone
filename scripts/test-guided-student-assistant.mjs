@@ -321,6 +321,98 @@ runTest("8.1 Tema Claro cinza suave (#DDE1E6 / #ECEFF2) e Escuro grafite (#20222
   );
 });
 
+// -----------------------------------------------------------------------------
+// 9. RESPONSIVIDADE MOBILE, ANTI-OVERFLOW E RETORNO DETERMINÍSTICO
+// -----------------------------------------------------------------------------
+runTest("9.1 Mobile anti-overflow: remoção de avatar lateral, min-w-0 e flex-wrap nos filtros", () => {
+  assert.ok(
+    assistantCode.includes("hidden sm:flex") &&
+    assistantCode.includes("sm:hidden flex items-center"),
+    "Avatar lateral do assistente recolhido no mobile para não esmagar os cards"
+  );
+  assert.ok(
+    assistantCode.includes("flex flex-wrap items-center gap-1.5 w-full min-w-0"),
+    "Filtros com flex-wrap para quebrar linha em telas de 320/360/375px sem overflow"
+  );
+  assert.ok(
+    assistantCode.includes("w-full min-w-0 pl-9 pr-3 py-2 text-xs rounded-xl"),
+    "Campo de busca com largura total min-w-0 sem cortes"
+  );
+  assert.ok(
+    assistantCode.includes("break-words") && assistantCode.includes("truncate block"),
+    "Nomes de alunos com quebra de linha e e-mails truncados evitando expansão do card"
+  );
+});
+
+runTest("9.2 Paginação utilizável: botões completos com área de toque >= 44px e linha própria", () => {
+  assert.ok(
+    assistantCode.includes("grid grid-cols-2 gap-2 w-full min-w-0") &&
+    assistantCode.includes("← Anterior") &&
+    assistantCode.includes("Próxima →"),
+    "Botões Anterior e Próxima em grade de 2 colunas completos"
+  );
+  assert.ok(
+    assistantCode.includes("min-h-[44px]") &&
+    assistantCode.includes("disabled:opacity-35 disabled:cursor-not-allowed"),
+    "Área de toque de pelo menos 44px e estados desabilitados nítidos"
+  );
+  assert.ok(
+    assistantCode.includes("Página {pickerPage} de {totalPickerPages}") &&
+    assistantCode.includes("text-center sm:text-left"),
+    "Informação de página em linha própria"
+  );
+});
+
+runTest("9.3 Botão de Voltar explícito no cabeçalho com área >= 44px", () => {
+  assert.ok(
+    assistantCode.includes("onClick={handleBack}") &&
+    assistantCode.includes("min-h-[44px] min-w-[44px]") &&
+    assistantCode.includes("<span>Voltar</span>"),
+    "Botão '← Voltar' visível no lado esquerdo com ícone, texto e toque confortável"
+  );
+  assert.ok(
+    assistantCode.includes("sticky top-0 z-20") &&
+    assistantCode.includes("min-h-[50px] sm:min-h-[56px]"),
+    "Cabeçalho fixo no topo e compacto no mobile respeitando o shell existente"
+  );
+});
+
+runTest("9.4 Destinos determinísticos do retorno (modal -> opções -> seleção -> painel)", () => {
+  assert.ok(
+    assistantCode.includes("if (selectedZoomPhoto)") &&
+    assistantCode.includes("if (isPhotoComparatorOpen)") &&
+    assistantCode.includes("if (activeFormAnswerDetail)"),
+    "Camada 1: Fecha galerias, comparador e modais de formulário"
+  );
+  assert.ok(
+    assistantCode.includes("isInsideConsultation") &&
+    assistantCode.includes("SECTION_PROMPT"),
+    "Camada 2: Dentro de consulta volta às opções do aluno preservando conversa"
+  );
+  assert.ok(
+    assistantCode.includes("handleChangeStudent()"),
+    "Camada 3: Nas opções volta à seleção de alunos preservando filtros"
+  );
+  assert.ok(
+    assistantCode.includes("router.push(`/consultoria/${consultancySlug}`)") ||
+    assistantCode.includes("router.push(`/consultoria/${consultancySlug}"),
+    "Camada 4: Na seleção inicial sai do assistente e vai para o painel autorizado da consultoria"
+  );
+});
+
+runTest("9.5 Altura dinâmica mobile respeitando cabeçalho do shell e teclado", () => {
+  assert.ok(
+    pageCode.includes("calc(100dvh-3.5rem") &&
+    pageCode.includes("md:h-[calc(100dvh-4rem)]") &&
+    pageCode.includes("lg:h-svh"),
+    "Altura dinâmica mobile desconta o cabeçalho de 56px/64px do shell para não empurrar o input"
+  );
+  assert.ok(
+    assistantCode.includes("pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"),
+    "Barra de digitação respeita a safe-area do smartphone"
+  );
+});
+
 console.log("\n================================================================================");
 console.log(`TOTAL TESTS: ${passed + failed}`);
 console.log(`PASSED: ${passed}`);

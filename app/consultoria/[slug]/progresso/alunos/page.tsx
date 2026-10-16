@@ -68,7 +68,7 @@ export default async function ProfessionalStudentsProgressListPage({
       viewModeState={effectiveState}
       themeVariant="dark-overview"
       maxWidth="full"
-      className="!p-0 !pb-0 flex flex-col flex-1 h-[100dvh] lg:h-svh overflow-hidden"
+      className="!p-0 !pb-0 flex flex-col flex-1 h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] md:h-[calc(100dvh-4rem)] lg:h-svh max-h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] md:max-h-[calc(100dvh-4rem)] lg:max-h-svh overflow-hidden"
     >
       <div className="w-full h-full flex flex-col flex-1 min-h-0 overflow-hidden">
         <PersonalStudentList

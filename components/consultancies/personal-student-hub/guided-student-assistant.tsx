@@ -10,6 +10,7 @@ import React, {
   useCallback,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { computeInitials } from "@/lib/auth/user-identity";
 import type {
   PersonalStudentSummary,
@@ -422,6 +423,8 @@ export function GuidedStudentAssistant({
   students,
   initialStudentPublicId,
 }: GuidedStudentAssistantProps) {
+  const router = useRouter();
+
   // Deep-linked Initial Student Resolution
   const initialStudent = useMemo(() => {
     if (!initialStudentPublicId || students.length === 0) return null;
@@ -623,6 +626,70 @@ export function GuidedStudentAssistant({
       },
     ]);
   }, []);
+
+  // Predictable Multi-Level Return Handler
+  const handleBack = useCallback(() => {
+    // Level 1: If modal/preview/comparator open -> close modal
+    if (selectedZoomPhoto) {
+      setSelectedZoomPhoto(null);
+      return;
+    }
+    if (isPhotoComparatorOpen) {
+      setIsPhotoComparatorOpen(false);
+      return;
+    }
+    if (activeFormAnswerDetail) {
+      setActiveFormAnswerDetail(null);
+      return;
+    }
+
+    // Level 2: Inside a student's context
+    if (selectedStudent) {
+      // Check if last widget was a consultation detail
+      const lastWidgetMsg = [...messages].reverse().find((m) => m.widget);
+      const lastWidgetType = lastWidgetMsg?.widget?.type;
+      const isInsideConsultation =
+        lastWidgetType === "VISAO_GERAL" ||
+        lastWidgetType === "FOTOS" ||
+        lastWidgetType === "ANAMNESE" ||
+        lastWidgetType === "FORMULARIOS" ||
+        lastWidgetType === "TREINOS";
+
+      if (isInsideConsultation) {
+        // Return to student options (SECTION_PROMPT) preserving conversation
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `msg-assistant-section-prompt-${Date.now()}`,
+            sender: "assistant",
+            timestamp: new Date(),
+            text: `O que você quer ver de ${selectedStudent.name}?`,
+            widget: { type: "SECTION_PROMPT", student: selectedStudent },
+          },
+        ]);
+        isNearBottomRef.current = true;
+        setTimeout(() => scrollToBottom(true), 50);
+        return;
+      }
+
+      // Level 3: At student options -> return to student selection
+      handleChangeStudent();
+      return;
+    }
+
+    // Level 4: At initial student selection -> return to authorized consultancy overview
+    router.push(`/consultoria/${consultancySlug}`);
+  }, [
+    selectedZoomPhoto,
+    isPhotoComparatorOpen,
+    activeFormAnswerDetail,
+    selectedStudent,
+    messages,
+    handleChangeStudent,
+    router,
+    consultancySlug,
+    scrollToBottom,
+  ]);
 
   // Prompt Need Student
   const promptNeedStudent = useCallback((userQueryText: string) => {
@@ -1071,43 +1138,47 @@ export function GuidedStudentAssistant({
         aria-label="Alunos"
         className="w-full h-full flex flex-col flex-1 min-h-0 overflow-hidden"
       >
-        {/* COMPACT TOP HEADER */}
-        <header className="px-4 sm:px-6 lg:px-8 py-3.5 border-b border-[#C5CBD3] dark:border-[#282A30] bg-[#ECEFF2] dark:bg-[#0B0C0E] flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 flex items-center justify-center text-[#065F46] dark:text-emerald-400 shrink-0 shadow-xs">
-              <UsersIcon className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white tracking-tight truncate">
-                Alunos
-              </h1>
-            </div>
-          </div>
+        {/* COMPACT TOP HEADER WITH EXPLICIT BACK BUTTON */}
+        <header className="px-3 sm:px-6 lg:px-8 py-2 sm:py-3 border-b border-[#C5CBD3] dark:border-[#282A30] bg-[#ECEFF2] dark:bg-[#0B0C0E] flex items-center justify-between gap-2 sm:gap-3 shrink-0 min-h-[50px] sm:min-h-[56px] sticky top-0 z-20">
+          {/* Left: Visible Back Control (min 44px touch area) */}
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#17191D] dark:text-white bg-white dark:bg-[#1B1D21] hover:bg-[#F3F4F6] dark:hover:bg-[#252830] border border-[#C5CBD3] dark:border-white/10 shadow-2xs transition-all cursor-pointer min-h-[44px] min-w-[44px] shrink-0 active:scale-[0.98]"
+            aria-label="Voltar"
+            title="Voltar"
+          >
+            <ArrowLeftIcon className="w-4 h-4 text-[#065F46] dark:text-emerald-400 shrink-0" />
+            <span>Voltar</span>
+          </button>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {selectedStudent && (
-              <div className="flex items-center gap-2 bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 rounded-xl px-2.5 py-1 text-xs text-[#17191D] dark:text-white shadow-xs">
-                <StudentAvatar name={selectedStudent.name} userPublicId={selectedStudent.userPublicId} size="xs" />
-                <span className="font-semibold truncate max-w-[110px] sm:max-w-[160px]">{selectedStudent.name}</span>
+          {/* Center/Right: "Alunos" or Active Student */}
+          <div className="flex items-center justify-end gap-2 min-w-0 flex-1">
+            {selectedStudent ? (
+              <div className="flex items-center justify-between gap-2 min-w-0 max-w-full bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 rounded-xl px-2.5 py-1 text-xs text-[#17191D] dark:text-white shadow-xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <StudentAvatar name={selectedStudent.name} userPublicId={selectedStudent.userPublicId} size="xs" />
+                  <span className="font-bold truncate max-w-[100px] sm:max-w-[200px]">{selectedStudent.name}</span>
+                </div>
                 <button
                   type="button"
                   onClick={handleChangeStudent}
-                  className="text-[11px] font-bold text-[#065F46] dark:text-emerald-400 hover:underline ml-1 cursor-pointer"
+                  className="text-[11px] sm:text-xs font-semibold text-[#065F46] dark:text-emerald-400 hover:underline shrink-0 ml-1.5 cursor-pointer min-h-[36px] flex items-center px-1"
                   title="Trocar aluno ativo"
                 >
                   Trocar aluno
                 </button>
               </div>
+            ) : (
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 flex items-center justify-center text-[#065F46] dark:text-emerald-400 shrink-0 shadow-xs">
+                  <UsersIcon className="w-4 h-4" />
+                </div>
+                <h1 className="text-sm sm:text-base font-bold text-[#17191D] dark:text-white tracking-tight truncate">
+                  Alunos
+                </h1>
+              </div>
             )}
-
-            <Link
-              href={`/consultoria/${consultancySlug}`}
-              className="p-2 rounded-xl text-[#4B5563] dark:text-[#9CA3AF] hover:text-[#17191D] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] border border-[#C5CBD3] dark:border-white/10 transition-colors cursor-pointer"
-              title="Voltar ao painel"
-              aria-label="Voltar ao painel"
-            >
-              <ArrowLeftIcon className="w-4 h-4" />
-            </Link>
           </div>
         </header>
 
@@ -1115,21 +1186,21 @@ export function GuidedStudentAssistant({
         <div
           ref={chatScrollRef}
           onScroll={handleScroll}
-          className="w-full flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 scroll-smooth"
+          className="w-full flex-1 min-h-0 overflow-y-auto px-2.5 sm:px-6 lg:px-8 py-3 sm:py-6 space-y-4 sm:space-y-5 scroll-smooth"
         >
-          <div className="max-w-3xl lg:max-w-4xl mx-auto w-full space-y-5">
+          <div className="max-w-3xl lg:max-w-4xl mx-auto w-full min-w-0 space-y-4 sm:space-y-5">
             {messages.map((msg) => {
               const isAssistant = msg.sender === "assistant";
 
               return (
                 <div
                   key={msg.id}
-                  className={`flex items-start gap-3 w-full animate-in fade-in duration-150 ${
+                  className={`flex items-start gap-2.5 sm:gap-3 w-full min-w-0 animate-in fade-in duration-150 ${
                     isAssistant ? "justify-start" : "justify-end"
                   }`}
                 >
                   {isAssistant && (
-                    <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#0B0C0E] border border-[#C5CBD3] dark:border-white/10 flex items-center justify-center text-[#065F46] dark:text-emerald-400 shrink-0 mt-0.5 shadow-xs">
+                    <div className="hidden sm:flex w-8 h-8 rounded-lg bg-white dark:bg-[#0B0C0E] border border-[#C5CBD3] dark:border-white/10 items-center justify-center text-[#065F46] dark:text-emerald-400 shrink-0 mt-0.5 shadow-xs">
                       <SparklesBubbleIcon className="w-4 h-4" />
                     </div>
                   )}
@@ -1137,10 +1208,17 @@ export function GuidedStudentAssistant({
                   <div
                     className={`${
                       isAssistant
-                        ? "flex-1 rounded-2xl bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 p-4 sm:p-5 space-y-3.5 text-[#17191D] dark:text-white shadow-xs"
-                        : "rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 p-3 sm:p-4 text-emerald-950 dark:text-white max-w-[85%] sm:max-w-[75%] shadow-xs ml-auto"
+                        ? "flex-1 min-w-0 w-full rounded-2xl bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 p-3 sm:p-5 space-y-3 text-[#17191D] dark:text-white shadow-xs"
+                        : "rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 p-2.5 sm:p-4 text-emerald-950 dark:text-white max-w-[90%] sm:max-w-[75%] shadow-xs ml-auto"
                     }`}
                   >
+                    {isAssistant && (
+                      <div className="sm:hidden flex items-center gap-1.5 text-[11px] font-bold text-[#065F46] dark:text-emerald-400 mb-1">
+                        <SparklesBubbleIcon className="w-3.5 h-3.5" />
+                        <span>Trevo One</span>
+                      </div>
+                    )}
+
                     {msg.text && (
                       <p
                         className={`text-xs sm:text-sm leading-relaxed font-sans ${
@@ -1155,27 +1233,27 @@ export function GuidedStudentAssistant({
 
                     {/* WIDGET: STUDENT SELECTOR EMBEDDED IN CHAT */}
                     {msg.widget?.type === "STUDENT_SELECTOR" && (
-                      <div className="pt-2 border-t border-[#C5CBD3] dark:border-white/10 space-y-3">
+                      <div className="pt-2 border-t border-[#C5CBD3] dark:border-white/10 space-y-3 w-full min-w-0">
                         {msg.widget.collapsed && selectedStudent ? (
-                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8F9FA] dark:bg-[#0B0C0E] border border-[#C5CBD3] dark:border-white/10 text-xs text-[#17191D] dark:text-white">
+                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8F9FA] dark:bg-[#0B0C0E] border border-[#C5CBD3] dark:border-white/10 text-xs text-[#17191D] dark:text-white w-full min-w-0">
                             <div className="flex items-center gap-2 min-w-0">
                               <CheckCircleIcon className="w-4 h-4 text-[#065F46] dark:text-emerald-400 shrink-0" />
-                              <span className="text-[#4B5563] dark:text-[#9CA3AF]">Aluno selecionado:</span>
+                              <span className="text-[#4B5563] dark:text-[#9CA3AF] hidden sm:inline">Aluno selecionado:</span>
                               <span className="font-bold text-[#17191D] dark:text-white truncate">{selectedStudent.name}</span>
                             </div>
                             <button
                               type="button"
                               onClick={handleChangeStudent}
-                              className="text-xs font-bold text-[#065F46] dark:text-emerald-400 hover:underline cursor-pointer shrink-0 ml-2"
+                              className="text-xs font-bold text-[#065F46] dark:text-emerald-400 hover:underline cursor-pointer shrink-0 ml-2 min-h-[36px] flex items-center"
                             >
                               Trocar aluno
                             </button>
                           </div>
                         ) : (
-                          <div className="space-y-3">
+                          <div className="space-y-3 w-full min-w-0">
                             {/* Search and Filters inside chat */}
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <div className="relative flex-1">
+                            <div className="space-y-2 w-full min-w-0">
+                              <div className="relative w-full min-w-0">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
                                   <SearchIcon className="w-3.5 h-3.5" />
                                 </div>
@@ -1188,11 +1266,11 @@ export function GuidedStudentAssistant({
                                   }}
                                   placeholder="Buscar por nome ou e-mail..."
                                   aria-label="Buscar aluno na lista"
-                                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-white/10 bg-[#0B0C0E] text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-h-[40px]"
+                                  className="w-full min-w-0 pl-9 pr-3 py-2 text-xs rounded-xl border border-white/10 bg-[#0B0C0E] text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-h-[40px]"
                                 />
                               </div>
 
-                              <div className="flex items-center gap-1 shrink-0 overflow-x-auto pb-1 sm:pb-0">
+                              <div className="flex flex-wrap items-center gap-1.5 w-full min-w-0">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1240,11 +1318,11 @@ export function GuidedStudentAssistant({
 
                             {/* Compact Student List (5 items per page) */}
                             {filteredPickerStudents.length === 0 ? (
-                              <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center text-xs text-[#9CA3AF]">
+                              <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center text-xs text-[#9CA3AF] w-full min-w-0">
                                 Nenhum aluno encontrado para &quot;{pickerSearch}&quot;.
                               </div>
                             ) : (
-                              <div className="space-y-1.5">
+                              <div className="space-y-1.5 w-full min-w-0">
                                 {paginatedPickerStudents.map((st) => {
                                   const hasWorkout =
                                     st.latestAssignmentStatus === "ACTIVE" && !!st.latestWorkoutTitle;
@@ -1254,60 +1332,62 @@ export function GuidedStudentAssistant({
                                       key={st.membershipPublicId}
                                       type="button"
                                       onClick={() => handleSelectStudent(st)}
-                                      className="w-full p-2.5 rounded-xl border border-white/10 bg-[#0B0C0E] hover:bg-[#23262C] hover:border-emerald-500/40 transition-all text-left flex items-center justify-between gap-3 min-h-[48px] cursor-pointer group"
+                                      className="w-full min-w-0 p-2.5 rounded-xl border border-white/10 bg-[#0B0C0E] hover:bg-[#23262C] hover:border-emerald-500/40 transition-all text-left flex items-center justify-between gap-2.5 min-h-[52px] cursor-pointer group"
                                     >
-                                      <div className="flex items-center gap-3 min-w-0">
+                                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                         <StudentAvatar
                                           name={st.name}
                                           userPublicId={st.userPublicId}
                                           size="sm"
                                           hasActiveWorkout={hasWorkout}
                                         />
-                                        <div className="min-w-0">
-                                          <div className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
+                                        <div className="min-w-0 flex-1">
+                                          <div className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors break-words">
                                             {st.name}
                                           </div>
-                                          <div className="text-[11px] text-[#9CA3AF] truncate">
+                                          <div className="text-[11px] text-[#9CA3AF] truncate block">
                                             {st.email}
-                                            {hasWorkout ? (
-                                              <span className="text-emerald-400 font-medium ml-1.5">
-                                                · {st.latestWorkoutTitle}
-                                              </span>
-                                            ) : (
-                                              <span className="text-amber-400 font-medium ml-1.5">
-                                                · Sem treino
-                                              </span>
-                                            )}
                                           </div>
+                                          {hasWorkout ? (
+                                            <span className="text-[10px] text-emerald-400 font-medium truncate block mt-0.5">
+                                              {st.latestWorkoutTitle}
+                                            </span>
+                                          ) : (
+                                            <span className="text-[10px] text-amber-400 font-medium truncate block mt-0.5">
+                                              Sem treino prescrito
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
-                                      <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+                                      <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
                                     </button>
                                   );
                                 })}
 
                                 {/* Pagination Controls */}
                                 {totalPickerPages > 1 && (
-                                  <div className="flex items-center justify-between pt-2 text-[11px] text-[#9CA3AF]">
-                                    <span>
+                                  <div className="pt-2 space-y-1.5 w-full min-w-0">
+                                    <div className="text-[11px] text-[#9CA3AF] text-center sm:text-left">
                                       Página {pickerPage} de {totalPickerPages} ({filteredPickerStudents.length} alunos)
-                                    </span>
-                                    <div className="flex items-center gap-1">
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 w-full min-w-0">
                                       <button
                                         type="button"
                                         disabled={pickerPage <= 1}
                                         onClick={() => setPickerPage((p) => Math.max(1, p - 1))}
-                                        className="px-2.5 py-1 rounded-lg bg-[#0B0C0E] border border-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/10 cursor-pointer"
+                                        className="py-2.5 px-3 rounded-xl bg-[#0B0C0E] border border-white/10 text-white font-medium text-xs flex items-center justify-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed hover:enabled:bg-white/10 min-h-[44px] cursor-pointer active:scale-[0.98]"
+                                        aria-label="Página anterior"
                                       >
-                                        Anterior
+                                        <span>← Anterior</span>
                                       </button>
                                       <button
                                         type="button"
                                         disabled={pickerPage >= totalPickerPages}
                                         onClick={() => setPickerPage((p) => Math.min(totalPickerPages, p + 1))}
-                                        className="px-2.5 py-1 rounded-lg bg-[#0B0C0E] border border-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/10 cursor-pointer"
+                                        className="py-2.5 px-3 rounded-xl bg-[#0B0C0E] border border-white/10 text-white font-medium text-xs flex items-center justify-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed hover:enabled:bg-white/10 min-h-[44px] cursor-pointer active:scale-[0.98]"
+                                        aria-label="Próxima página"
                                       >
-                                        Próxima
+                                        <span>Próxima →</span>
                                       </button>
                                     </div>
                                   </div>
@@ -1515,9 +1595,9 @@ export function GuidedStudentAssistant({
         {/* =====================================================================
             PINNED BOTTOM INPUT BAR (TEXTFIELD + SEND BUTTON)
             ===================================================================== */}
-        <footer className="px-4 sm:px-6 lg:px-8 py-3 border-t border-[#C5CBD3] dark:border-[#282A30] bg-[#ECEFF2] dark:bg-[#0B0C0E] shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
-          <div className="max-w-3xl lg:max-w-4xl mx-auto flex items-end gap-2.5">
-            <div className="relative flex-1 rounded-2xl bg-white dark:bg-[#151619] border border-[#C5CBD3] dark:border-white/10 focus-within:border-emerald-600 dark:focus-within:border-emerald-500 shadow-xs transition-colors px-3 py-2 flex items-center">
+        <footer className="px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 border-t border-[#C5CBD3] dark:border-[#282A30] bg-[#ECEFF2] dark:bg-[#0B0C0E] shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+          <div className="max-w-3xl lg:max-w-4xl mx-auto flex items-end gap-2 w-full min-w-0">
+            <div className="relative flex-1 min-w-0 rounded-2xl bg-white dark:bg-[#151619] border border-[#C5CBD3] dark:border-white/10 focus-within:border-emerald-600 dark:focus-within:border-emerald-500 shadow-xs transition-colors px-3 py-2 flex items-center">
               <textarea
                 ref={textareaRef}
                 value={inputText}
@@ -1530,7 +1610,7 @@ export function GuidedStudentAssistant({
                     : "Digite o nome do aluno…"
                 }
                 aria-label="Mensagem para o assistente"
-                className="w-full bg-transparent text-[#17191D] dark:text-white placeholder-[#6B7280] dark:placeholder-zinc-400 text-xs sm:text-sm resize-none focus:outline-none min-h-[32px] max-h-[120px] font-sans leading-normal"
+                className="w-full min-w-0 bg-transparent text-[#17191D] dark:text-white placeholder-[#6B7280] dark:placeholder-zinc-400 text-xs sm:text-sm resize-none focus:outline-none min-h-[32px] max-h-[120px] font-sans leading-normal"
               />
             </div>
 

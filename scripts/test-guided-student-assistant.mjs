@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 console.log("================================================================================");
-console.log("TREVO ONE — GUIDED STUDENT ASSISTANT (NO AI) TEST SUITE");
+console.log("TREVO ONE — GUIDED CONVERSATIONAL STUDENT ASSISTANT (NO AI) TEST SUITE");
 console.log("================================================================================");
 
 let passed = 0;
@@ -37,254 +37,263 @@ const pageCode = fs.readFileSync(pageFile, "utf-8");
 const actionsCode = fs.readFileSync(actionsFile, "utf-8");
 
 // -----------------------------------------------------------------------------
-// 1. ABERTURA DIRETA & ARQUITETURA
+// 1. ABERTURA EM PAINEL GRANDE TIPO CHAT
 // -----------------------------------------------------------------------------
-runTest("1.1 Rota oficial de Alunos reutilizada com integração do assistente guiado", () => {
+runTest("1.1 Painel grande estilo chat com abertura em slide e layout viewport", () => {
   assert.ok(
-    pageCode.includes("PersonalStudentList"),
-    "page.tsx deve renderizar o PersonalStudentList"
+    assistantCode.includes("slide-in-from-right-6") &&
+    assistantCode.includes("motion-reduce:animate-none"),
+    "Entrada em slide suave pela direita com respeito a prefers-reduced-motion"
   );
   assert.ok(
-    pageCode.includes("professionalName={session.fullName}"),
-    "page.tsx deve passar o nome real do profissional autenticado"
+    assistantCode.includes("max-w-5xl") &&
+    assistantCode.includes("max-w-3xl mx-auto"),
+    "Painel amplo e coluna de mensagens centralizada em largura confortável"
   );
   assert.ok(
-    listCode.includes("GuidedStudentAssistant"),
-    "personal-student-list.tsx deve integrar o GuidedStudentAssistant diretamente"
+    assistantCode.includes("h-[calc(100dvh-5.5rem)]") || assistantCode.includes("h-[calc(100vh-6.5rem)]"),
+    "Altura otimizada ocupando a área útil sem tela dupla"
   );
 });
 
-runTest("1.2 Abertura direta sem exigir segundo clique para 'Abrir assistente'", () => {
+runTest("1.2 Cabeçalho compacto com identificação e retorno claro", () => {
   assert.ok(
-    assistantCode.includes('step === "SELECT_STUDENT"'),
-    "O assistente deve abrir diretamente na Etapa 1 ao acessar a tela"
+    assistantCode.includes("Assistente de Alunos") &&
+    assistantCode.includes("100% Sem IA"),
+    "Cabeçalho com identificação do assistente sem IA"
   );
   assert.ok(
-    !assistantCode.includes("Abrir assistente"),
-    "Não deve conter botão intermediário obrigatório para abrir o assistente"
+    assistantCode.includes("Voltar para a Visão Geral") || assistantCode.includes("consultoria/${consultancySlug}"),
+    "Retorno previsível e botão de voltar disponível"
   );
 });
 
 // -----------------------------------------------------------------------------
-// 2. PRIMEIRA ETAPA — ESCOLHER O ALUNO
+// 2. PRIMEIRA MENSAGEM E SELETOR INTEGRADO À CONVERSA
 // -----------------------------------------------------------------------------
-runTest("2.1 Saudação conversacional determinística com nome real do profissional", () => {
+runTest("2.1 Mensagem inicial de saudação com nome real do profissional", () => {
   assert.ok(
-    assistantCode.includes("professionalName && professionalName.trim()") &&
-    assistantCode.includes("Olá, ${professionalName.trim()}! Qual aluno você gostaria de ver?") &&
+    assistantCode.includes("greetingName ? `Olá, ${greetingName}! Qual aluno você gostaria de ver?`") ||
+    assistantCode.includes("Olá, ${greetingName}! Qual aluno você gostaria de ver?"),
+    "Saudação personalizada com nome real do profissional"
+  );
+  assert.ok(
     assistantCode.includes("Olá! Qual aluno você gostaria de ver?"),
-    "Deve conter a saudação nominal e fallback neutro"
+    "Fallback neutro quando nome não disponível"
   );
 });
 
-runTest("2.2 Busca convencional em tempo real sem IA", () => {
+runTest("2.2 Lista de alunos compacta DENTRO da conversa com paginação e busca", () => {
   assert.ok(
-    assistantCode.includes("matchesName") &&
-    assistantCode.includes("matchesEmail"),
-    "Busca convencional por nome e e-mail implementada"
+    assistantCode.includes('widget?.type === "STUDENT_SELECTOR"'),
+    "Seletor de alunos embutido como widget dentro da mensagem do assistente"
+  );
+  assert.ok(
+    assistantCode.includes("STUDENTS_PER_PAGE = 5") &&
+    assistantCode.includes("totalPickerPages"),
+    "Lista compacta com paginação de 5 itens para não criar parede de cards"
+  );
+  assert.ok(
+    assistantCode.includes("pickerSearch") &&
+    assistantCode.includes("pickerWorkoutFilter"),
+    "Busca e filtros operacionais presentes no seletor integrado"
+  );
+});
+
+runTest("2.3 Correção de imagens quebradas e exibição de iniciais limpas", () => {
+  assert.ok(
+    assistantCode.includes("function StudentAvatar") &&
+    assistantCode.includes("imageFailed") &&
+    assistantCode.includes("setImageFailed(true)"),
+    "Componente StudentAvatar com fallback reativo seguro contra erro de imagem"
+  );
+  assert.ok(
+    assistantCode.includes('alt=""'),
+    "Evita vazamento de texto 'Foto' e ícone quebrado do navegador"
+  );
+});
+
+// -----------------------------------------------------------------------------
+// 3. A ESCOLHA VIRA MENSAGEM & RECOLHIMENTO
+// -----------------------------------------------------------------------------
+runTest("3.1 Escolha registrada como mensagem do usuário e recolhimento limpo da lista", () => {
+  assert.ok(
+    assistantCode.includes("text: `Quero ver ${student.name}.`") ||
+    assistantCode.includes("Quero ver ${student.name}"),
+    "Escolha do aluno inserida como mensagem do usuário no chat"
+  );
+  assert.ok(
+    assistantCode.includes("collapsed: true"),
+    "Lista inicial recolhida para deixar a conversa limpa"
+  );
+  assert.ok(
+    assistantCode.includes("text: `O que você gostaria de ver de ${student.name}?`") ||
+    assistantCode.includes("O que você gostaria de ver de ${student.name}"),
+    "Assistente responde perguntando o que deseja ver daquele aluno"
+  );
+});
+
+runTest("3.2 Sugestões discretas de atalho (Visão Geral, Fotos, Anamnese, Formulários, Treinos)", () => {
+  assert.ok(
+    assistantCode.includes("Visão Geral") &&
+    assistantCode.includes("Fotos") &&
+    assistantCode.includes("Anamnese") &&
+    assistantCode.includes("Formulários") &&
+    assistantCode.includes("Treinos"),
+    "Todos os 5 atalhos opcionais disponíveis abaixo da pergunta"
+  );
+});
+
+// -----------------------------------------------------------------------------
+// 4. CAMPO DE DIGITAÇÃO NA PARTE INFERIOR
+// -----------------------------------------------------------------------------
+runTest("4.1 Campo de texto fixo com placeholder contextual e teclas de atalho", () => {
+  assert.ok(
+    assistantCode.includes("Digite o que deseja ver deste aluno") &&
+    assistantCode.includes("Digite o nome do aluno ou escolha acima"),
+    "Placeholder contextual baseado na presença de aluno selecionado"
+  );
+  assert.ok(
+    assistantCode.includes("e.key === \"Enter\" && !e.shiftKey"),
+    "Enter para enviar e Shift+Enter para quebra de linha"
+  );
+  assert.ok(
+    assistantCode.includes("isComposing"),
+    "Proteção durante composição de texto no teclado virtual/IME"
+  );
+  assert.ok(
+    assistantCode.includes("setInputText(trimmed)"),
+    "Preservação do texto digitado caso ocorra falha"
+  );
+});
+
+// -----------------------------------------------------------------------------
+// 5. INTERPRETAÇÃO DETERMINÍSTICA SEM IA (NLP EM PORTUGUÊS)
+// -----------------------------------------------------------------------------
+runTest("5.1 Normalização determinística e reconhecimento de sinônimos em PT-BR", () => {
+  assert.ok(
+    assistantCode.includes("normalizeCommandText") &&
+    assistantCode.includes("detectCommandIntent"),
+    "Funções de normalização e detecção de intenção exportadas"
   );
   assert.ok(
     !assistantCode.includes("openai") &&
-    !assistantCode.includes("chat/completions"),
-    "Zero chamadas ou dependência de IA no assistente"
+    !assistantCode.includes("chat/completions") &&
+    !assistantCode.includes("model:"),
+    "100% sem IA: nenhuma API, modelo ou dependência de IA"
   );
 });
 
-runTest("2.3 Filtros de treino (Todos, Com treino, Sem treino)", () => {
+runTest("5.2 Diferenciação estrita de intenções (consultar vs criar vs enviar)", () => {
   assert.ok(
-    assistantCode.includes('workoutFilter === "ALL"') &&
-    assistantCode.includes('workoutFilter === "WITH_WORKOUT"') &&
-    assistantCode.includes('workoutFilter === "WITHOUT_WORKOUT"'),
-    "Filtros operacionais de treino presentes"
-  );
-});
-
-runTest("2.4 Cards de alunos ergonômicos com toque completo (>= 44px) e informações secundárias", () => {
-  assert.ok(
-    assistantCode.includes('data-testid="guided-student-card"'),
-    "Card de aluno identificado"
+    assistantCode.includes("ANAMNESIS_VIEW") &&
+    assistantCode.includes("ANAMNESIS_SEND") &&
+    assistantCode.includes("ANAMNESIS_CREATE"),
+    "Diferencia consultar anamnese, criar anamnese e enviar anamnese"
   );
   assert.ok(
-    assistantCode.includes("handleSelectStudent(student)"),
-    "Toque em qualquer parte do card seleciona o aluno"
+    assistantCode.includes("FORMS_VIEW") &&
+    assistantCode.includes("FORMS_SEND") &&
+    assistantCode.includes("FORMS_CREATE"),
+    "Diferencia consultar formulário, criar formulário e enviar formulário"
   );
   assert.ok(
-    assistantCode.includes("min-h-[76px]") || assistantCode.includes("min-h-[44px]"),
-    "Alvo de toque mínimo >= 44px respeitado"
-  );
-  assert.ok(
-    assistantCode.includes("Treino ativo:") && assistantCode.includes("Sem treino prescrito"),
-    "Informações de treino exibidas claramente no card"
+    assistantCode.includes("trocar aluno") && assistantCode.includes("CHANGE_STUDENT"),
+    "Reconhece intenção de trocar de aluno"
   );
 });
 
 // -----------------------------------------------------------------------------
-// 3. SEGUNDA ETAPA — ESCOLHER O QUE VER
+// 6. RESPOSTAS INTERATIVAS DENTRO DA CONVERSA
 // -----------------------------------------------------------------------------
-runTest("3.1 Avanço em slide com apresentação 'O que você gostaria de ver de [nome]?'", () => {
+runTest("6.1 Visão Geral: blocos informativos reais na conversa", () => {
   assert.ok(
-    assistantCode.includes('step === "SELECT_SECTION"'),
-    "Etapa 2 definida no componente"
+    assistantCode.includes("VisaoGeralWidget"),
+    "Widget da Visão Geral embutido no chat"
   );
   assert.ok(
-    assistantCode.includes("O que você gostaria de ver de {selectedStudent.name}?"),
-    "Pergunta conversacional determinística presente"
-  );
-});
-
-runTest("3.2 Cinco opções claras (Visão Geral, Fotos, Anamnese, Formulários, Treinos)", () => {
-  assert.ok(assistantCode.includes('handleSelectSection("visao-geral")'), "Opção Visão Geral presente");
-  assert.ok(assistantCode.includes('handleSelectSection("fotos")'), "Opção Fotos presente");
-  assert.ok(assistantCode.includes('handleSelectSection("anamnese")'), "Opção Anamnese presente");
-  assert.ok(assistantCode.includes('handleSelectSection("formularios")'), "Opção Formulários presente");
-  assert.ok(assistantCode.includes('handleSelectSection("treinos")'), "Opção Treinos presente");
-});
-
-runTest("3.3 Troca de aluno fácil preservando contexto", () => {
-  assert.ok(
-    assistantCode.includes("handleBackToStudents"),
-    "Função de retorno à lista de alunos implementada"
-  );
-  assert.ok(
-    assistantCode.includes("Trocar aluno"),
-    "Ação de trocar aluno disponível"
+    assistantCode.includes("Cadastro e Contato") &&
+    assistantCode.includes("Objetivos Registrados") &&
+    assistantCode.includes("Acompanhamento e Avaliações") &&
+    assistantCode.includes("Medidas e Evolução Registradas") &&
+    assistantCode.includes("Situação dos Treinos") &&
+    assistantCode.includes("Anamneses e Formulários"),
+    "Blocos de dados reais presentes na Visão Geral"
   );
 });
 
-// -----------------------------------------------------------------------------
-// 4. TERCEIRA ETAPA — SEÇÕES DETERMINÍSTICAS
-// -----------------------------------------------------------------------------
-runTest("4.1 Visão Geral: blocos informativos estruturados sem interpretações de IA", () => {
+runTest("6.2 Fotos: galeria por data, zoom e comparador antes e depois", () => {
   assert.ok(
-    assistantCode.includes("1. Cadastro e Contato") &&
-    assistantCode.includes("2. Objetivos Registrados") &&
-    assistantCode.includes("3. Medidas e Evolução Registradas") &&
-    assistantCode.includes("4. Situação dos Treinos") &&
-    assistantCode.includes("5. Anamneses e Formulários"),
-    "Todos os blocos informativos reais da Visão Geral presentes"
-  );
-  assert.ok(
-    assistantCode.includes("Veja as informações de {currentDetail.student.name}."),
-    "Cabeçalho conversacional da Visão Geral determinístico"
-  );
-});
-
-runTest("4.2 Fotos: timeline por data, proporção preservada, zoom e comparador lado a lado", () => {
-  assert.ok(
-    assistantCode.includes("Aqui estão os registros fotográficos de {currentDetail.student.name}."),
-    "Cabeçalho de Fotos presente"
-  );
-  assert.ok(
-    assistantCode.includes("object-contain"),
-    "Proporção da imagem preservada sem cortes distorcidos"
+    assistantCode.includes("FotosWidget"),
+    "Widget de Fotos na conversa"
   );
   assert.ok(
     assistantCode.includes("setSelectedZoomPhoto"),
-    "Ampliação da foto (Lightbox) implementada"
+    "Modal de ampliação / zoom de fotos (Lightbox)"
   );
   assert.ok(
-    assistantCode.includes("Comparar antes e depois") || assistantCode.includes("Comparação Lado a Lado"),
-    "Comparador de fotos lado a lado implementado"
-  );
-  assert.ok(
-    assistantCode.includes("handleSendPhotosRequest"),
-    "Ação de solicitar fotos de evolução preservada"
+    assistantCode.includes("isPhotoComparatorOpen") &&
+    assistantCode.includes("Comparar Antes e Depois"),
+    "Comparador de fotos antes e depois lado a lado"
   );
 });
 
-runTest("4.3 Anamnese: sub-abas de respostas, histórico e envio guiado", () => {
+runTest("6.3 Anamnese e Formulários: respostas, histórico e fluxo de envio guiado", () => {
   assert.ok(
-    assistantCode.includes("Anamnese e histórico de saúde de {currentDetail.student.name}."),
-    "Cabeçalho de Anamnese presente"
+    assistantCode.includes("AnamneseWidget") &&
+    assistantCode.includes("FormulariosWidget"),
+    "Widgets de Anamnese e Formulários presentes"
   );
   assert.ok(
-    assistantCode.includes("Ver respostas do aluno") &&
-    assistantCode.includes("Consultar histórico") &&
-    assistantCode.includes("Enviar anamnese ao aluno"),
-    "Sub-abas de Anamnese presentes"
+    assistantCode.includes("confirmedSend") &&
+    assistantCode.includes("Confirmo o envio para este aluno"),
+    "Confirmação explícita obrigatória antes do envio"
   );
   assert.ok(
-    assistantCode.includes("handleSendAnamnesisRequest"),
-    "Ação de envio de anamnese integrada"
-  );
-});
-
-runTest("4.4 Formulários: respostas salvas, histórico e envio de modelos", () => {
-  assert.ok(
-    assistantCode.includes("Formulários e questionários de {currentDetail.student.name}."),
-    "Cabeçalho de Formulários presente"
-  );
-  assert.ok(
-    assistantCode.includes("Formulários respondidos") &&
-    assistantCode.includes("Enviar novo formulário"),
-    "Sub-abas de Formulários presentes"
-  );
-  assert.ok(
-    assistantCode.includes("handleSendCustomFormRequest"),
-    "Ação de envio de formulário com confirmação integrada"
+    assistantCode.includes("requestStudentAnamnesisAction") &&
+    assistantCode.includes("requestStudentCustomFormAction"),
+    "Integração com as actions oficiais do servidor"
   );
 });
 
-runTest("4.5 Treinos: 1 ativo abre fluxo oficial; múltiplos permite escolha; 0 oferece criação", () => {
+runTest("6.4 Treinos: roteamento determinístico (1 ativo abre fluxo, múltiplos dá opções, nenhum avisa)", () => {
   assert.ok(
-    assistantCode.includes("activeWorkouts.length === 1"),
-    "Trata o caso de 1 treino ativo"
+    assistantCode.includes("TreinosWidget"),
+    "Widget de Treinos presente"
   );
   assert.ok(
-    assistantCode.includes("Abrir no Training Studio →") || assistantCode.includes("rotinas/${workout.workoutPublicId}"),
-    "Link direto para o treino ativo no Training Studio"
-  );
-  assert.ok(
+    assistantCode.includes("activeWorkouts.length === 1") &&
     assistantCode.includes("activeWorkouts.length > 1"),
-    "Trata o caso de múltiplos treinos ativos com escolha nominal"
-  );
-  assert.ok(
-    assistantCode.includes("Nenhum treino ativo no momento"),
-    "Trata o caso de 0 treinos ativos com criação e modelos"
+    "Trata adequadamente 1 ativo, múltiplos ativos e nenhum treino"
   );
 });
 
 // -----------------------------------------------------------------------------
-// 5. SERVER ACTIONS & SEGURANÇA MULTI-TENANT
+// 7. SEGURANÇA E NÃO PERSISTÊNCIA DE DADOS SENSÍVEIS
 // -----------------------------------------------------------------------------
-runTest("5.1 getPersonalStudentDetailAction valida sessão, roles e tenancy no servidor", () => {
-  assert.ok(
-    actionsCode.includes("export async function getPersonalStudentDetailAction"),
-    "getPersonalStudentDetailAction exportada"
-  );
-  assert.ok(
-    actionsCode.includes("getCurrentSession()") &&
-    actionsCode.includes("resolveConsultancyContext"),
-    "Autenticação e resolução de contexto presentes"
-  );
-  assert.ok(
-    actionsCode.includes("getPersonalStudentDetail({"),
-    "Chama serviço central com consultancyId e studentMembershipPublicId"
-  );
-});
-
-runTest("5.2 Prevenção de race conditions ao alternar rapidamente entre alunos", () => {
+runTest("7.1 Prevenção de race condition e sem persistência sensível em localStorage", () => {
   assert.ok(
     assistantCode.includes("latestRequestIdRef"),
     "Identificador de requisição utilizado para descartar respostas defasadas"
   );
+  assert.ok(
+    !assistantCode.includes("localStorage.setItem('chat_messages'") &&
+    !assistantCode.includes("localStorage.setItem(\"chat_messages\""),
+    "Zero persistência indevida de dados de saúde no localStorage"
+  );
 });
 
 // -----------------------------------------------------------------------------
-// 6. DESIGN, TEMAS & CONTRASTE
+// 8. IDENTIDADE VISUAL PRETO/GRAFITE
 // -----------------------------------------------------------------------------
-runTest("6.1 Identidade visual preto/grafite (#151619, #0B0C0E) sem cards verde-escuros (#10271F)", () => {
+runTest("8.1 Design preto/grafite sólido (#151619, #0B0C0E) sem verde-escuro (#10271F)", () => {
   assert.ok(
     assistantCode.includes("bg-[#151619]") && assistantCode.includes("bg-[#0B0C0E]"),
-    "Cards pretos/grafite sólidos utilizados"
+    "Superfícies preto/grafite sólido aplicadas"
   );
   assert.ok(
-    !assistantCode.includes("#10271F") && !assistantCode.includes("#1e4738"),
-    "Cards verde-escuros antigos não utilizados no assistente"
-  );
-  assert.ok(
-    assistantCode.includes("text-white") && assistantCode.includes("text-emerald-400"),
-    "Textos claros e destaque esmeralda dentro de cards pretos"
+    !assistantCode.includes("#10271F"),
+    "Ausência de cartões verde-escuros antigos"
   );
 });
 

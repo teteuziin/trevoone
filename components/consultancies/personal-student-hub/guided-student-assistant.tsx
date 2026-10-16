@@ -1,14 +1,20 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef, useTransition } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useTransition,
+  useCallback,
+} from "react";
 import Link from "next/link";
-import { UserAvatar } from "@/components/account/user-avatar";
+import { computeInitials } from "@/lib/auth/user-identity";
 import type {
   PersonalStudentSummary,
   PersonalStudentDetail,
   StudentFormAnswer,
-  StudentWorkoutItem,
 } from "@/lib/consultancies/personal-student-hub";
 import {
   getPersonalStudentDetailAction,
@@ -47,7 +53,87 @@ function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function LayoutGridIcon({ className = "w-5 h-5" }: { className?: string }) {
+function ChevronDownIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+function SparklesBubbleIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-1.074-.823l.42-2.31C3.606 16.297 3 14.254 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+    </svg>
+  );
+}
+
+function SendPlaneIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+    </svg>
+  );
+}
+
+function RefreshIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+    </svg>
+  );
+}
+
+function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
+    </svg>
+  );
+}
+
+function PhotoIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+    </svg>
+  );
+}
+
+function ClipboardCheckIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+    </svg>
+  );
+}
+
+function FileTextIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function XIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function LayoutGridIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
       <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -58,67 +144,59 @@ function LayoutGridIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
-function PhotoIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-    </svg>
-  );
-}
+// ============================================================================
+// CLEAN STUDENT AVATAR (NO BROKEN IMAGES, NO LEAKY "FOTO" TEXT)
+// ============================================================================
+function StudentAvatar({
+  name,
+  userPublicId,
+  size = "md",
+  hasActiveWorkout,
+}: {
+  name: string;
+  userPublicId?: string;
+  size?: "xs" | "sm" | "md" | "lg";
+  hasActiveWorkout?: boolean;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const initials = computeInitials(name);
 
-function ClipboardCheckIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-    </svg>
-  );
-}
+  const dims =
+    size === "xs"
+      ? "w-6 h-6 text-[10px]"
+      : size === "sm"
+      ? "w-8 h-8 text-xs"
+      : size === "lg"
+      ? "w-12 h-12 text-base"
+      : "w-10 h-10 text-sm";
 
-function FileTextIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-    </svg>
-  );
-}
-
-function DumbbellIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
-    </svg>
-  );
-}
-
-function PlusIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-    </svg>
-  );
-}
-
-function CheckCircleIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
-
-function XIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
-function SparklesBubbleIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-1.074-.823l.42-2.31C3.606 16.297 3 14.254 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-    </svg>
+    <div className="relative shrink-0 select-none">
+      <div
+        className={`${dims} rounded-xl bg-[#202328] border border-white/10 flex items-center justify-center font-bold text-emerald-400 overflow-hidden shadow-xs`}
+      >
+        {!imageFailed && userPublicId ? (
+          <img
+            src={`/api/users/${userPublicId}/avatar`}
+            alt=""
+            onError={() => setImageFailed(true)}
+            className="w-full h-full object-cover rounded-xl"
+          />
+        ) : (
+          <span aria-hidden="true" className="font-heading tracking-wide text-emerald-400 font-bold">
+            {initials}
+          </span>
+        )}
+      </div>
+      {typeof hasActiveWorkout === "boolean" && (
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#151619] ${
+            hasActiveWorkout ? "bg-emerald-400" : "bg-amber-400"
+          }`}
+          title={hasActiveWorkout ? "Treino ativo" : "Sem treino prescrito"}
+        />
+      )}
+    </div>
   );
 }
 
@@ -139,9 +217,188 @@ function formatDisplayDate(dateVal: unknown): string {
   return `${d}/${m}/${y}`;
 }
 
-export type AssistantStep = "SELECT_STUDENT" | "SELECT_SECTION" | "SECTION_DETAIL";
-export type SectionKey = "visao-geral" | "fotos" | "anamnese" | "formularios" | "treinos";
+// ============================================================================
+// 100% DETERMINISTIC COMMAND / INTENT NORMALIZER (SEM IA)
+// ============================================================================
+export type CommandIntent =
+  | { type: "OVERVIEW" }
+  | { type: "PHOTOS" }
+  | { type: "ANAMNESIS_VIEW" }
+  | { type: "ANAMNESIS_SEND" }
+  | { type: "ANAMNESIS_CREATE" }
+  | { type: "FORMS_VIEW" }
+  | { type: "FORMS_SEND" }
+  | { type: "FORMS_CREATE" }
+  | { type: "WORKOUTS" }
+  | { type: "CHANGE_STUDENT" }
+  | { type: "SELECT_STUDENT"; student: PersonalStudentSummary }
+  | { type: "AMBIGUOUS_STUDENT"; candidates: PersonalStudentSummary[] }
+  | { type: "HELP" }
+  | { type: "UNKNOWN" };
 
+export function normalizeCommandText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove accents
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, " ") // strip punctuation
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function detectCommandIntent(
+  rawText: string,
+  context: {
+    selectedStudent: PersonalStudentSummary | null;
+    students: PersonalStudentSummary[];
+  }
+): CommandIntent {
+  const norm = normalizeCommandText(rawText);
+  if (!norm) return { type: "UNKNOWN" };
+
+  // 1. CHANGE STUDENT
+  if (
+    norm === "trocar aluno" ||
+    norm === "trocar de aluno" ||
+    norm === "mudar aluno" ||
+    norm === "mudar de aluno" ||
+    norm === "outro aluno" ||
+    norm === "escolher outro aluno" ||
+    norm === "voltar para lista" ||
+    norm === "listar alunos" ||
+    norm === "selecionar outro aluno" ||
+    norm === "trocar" ||
+    norm === "mudar"
+  ) {
+    return { type: "CHANGE_STUDENT" };
+  }
+
+  // 2. CHECK IF USER IS TRYING TO SELECT A STUDENT BY NAME
+  // (e.g. "Anny", "ver Anny", "Quero ver Anny Santos", or if no student is active yet)
+  const candidateStudents = context.students.filter((s) => {
+    const sNorm = normalizeCommandText(s.name);
+    // Direct match, contains, or starts with
+    if (sNorm === norm) return true;
+    if (norm.startsWith("ver ") && sNorm.includes(norm.slice(4).trim())) return true;
+    if (norm.startsWith("abrir ") && sNorm.includes(norm.slice(6).trim())) return true;
+    if (norm.startsWith("quero ver ") && sNorm.includes(norm.slice(10).trim())) return true;
+    if (!context.selectedStudent && sNorm.includes(norm)) return true;
+    return false;
+  });
+
+  if (candidateStudents.length === 1) {
+    return { type: "SELECT_STUDENT", student: candidateStudents[0] };
+  }
+  if (candidateStudents.length > 1 && !context.selectedStudent) {
+    return { type: "AMBIGUOUS_STUDENT", candidates: candidateStudents };
+  }
+
+  // 3. ANAMNESE COMMANDS (Distinguish VIEW vs SEND vs CREATE strictly)
+  const hasAnamnese = norm.includes("anamnese");
+  if (hasAnamnese) {
+    if (norm.includes("criar") || norm.includes("nova") || norm.includes("fazer") || norm.includes("montar")) {
+      return { type: "ANAMNESIS_CREATE" };
+    }
+    if (norm.includes("enviar") || norm.includes("mandar") || norm.includes("solicitar") || norm.includes("pedir")) {
+      return { type: "ANAMNESIS_SEND" };
+    }
+    return { type: "ANAMNESIS_VIEW" };
+  }
+
+  // 4. FORMULARIO COMMANDS (Distinguish VIEW vs SEND vs CREATE strictly)
+  const hasForm = norm.includes("formulario") || norm.includes("formularios") || norm.includes("questionario");
+  if (hasForm) {
+    if (norm.includes("criar") || norm.includes("novo") || norm.includes("fazer") || norm.includes("montar")) {
+      return { type: "FORMS_CREATE" };
+    }
+    if (norm.includes("enviar") || norm.includes("mandar") || norm.includes("solicitar") || norm.includes("pedir")) {
+      return { type: "FORMS_SEND" };
+    }
+    return { type: "FORMS_VIEW" };
+  }
+
+  // 5. PHOTOS COMMANDS
+  if (
+    norm.includes("foto") ||
+    norm.includes("fotos") ||
+    norm.includes("imagem") ||
+    norm.includes("imagens") ||
+    norm.includes("galeria") ||
+    norm.includes("antes e depois") ||
+    norm.includes("comparar")
+  ) {
+    return { type: "PHOTOS" };
+  }
+
+  // 6. OVERVIEW COMMANDS
+  if (
+    norm.includes("visao geral") ||
+    norm.includes("resumo") ||
+    norm.includes("dados") ||
+    norm.includes("perfil") ||
+    norm.includes("cadastro") ||
+    norm.includes("objetivos") ||
+    norm.includes("informacoes") ||
+    norm.includes("info") ||
+    norm.includes("medidas") ||
+    norm.includes("evolucao") ||
+    norm.includes("prontuario")
+  ) {
+    return { type: "OVERVIEW" };
+  }
+
+  // 7. WORKOUTS COMMANDS
+  if (
+    norm.includes("treino") ||
+    norm.includes("treinos") ||
+    norm.includes("ficha") ||
+    norm.includes("fichas") ||
+    norm.includes("exercicios") ||
+    norm.includes("rotina") ||
+    norm.includes("rotinas") ||
+    norm.includes("prescricao")
+  ) {
+    return { type: "WORKOUTS" };
+  }
+
+  // 8. HELP
+  if (
+    norm === "ajuda" ||
+    norm === "comandos" ||
+    norm === "opcoes" ||
+    norm === "o que voce faz" ||
+    norm === "socorro"
+  ) {
+    return { type: "HELP" };
+  }
+
+  return { type: "UNKNOWN" };
+}
+
+// ============================================================================
+// CHAT MESSAGE DATA MODEL
+// ============================================================================
+export interface ChatMessage {
+  id: string;
+  sender: "assistant" | "user";
+  timestamp: Date;
+  text?: string;
+  widget?:
+    | { type: "STUDENT_SELECTOR"; collapsed?: boolean }
+    | { type: "AMBIGUOUS_STUDENTS"; candidates: PersonalStudentSummary[] }
+    | { type: "SECTION_PROMPT"; student: PersonalStudentSummary }
+    | { type: "VISAO_GERAL"; student: PersonalStudentSummary }
+    | { type: "FOTOS"; student: PersonalStudentSummary }
+    | { type: "ANAMNESE"; student: PersonalStudentSummary; initialMode?: "view" | "send" | "create" }
+    | { type: "FORMULARIOS"; student: PersonalStudentSummary; initialMode?: "view" | "send" | "create" }
+    | { type: "TREINOS"; student: PersonalStudentSummary }
+    | { type: "HELP" }
+    | { type: "FALLBACK" };
+}
+
+// ============================================================================
+// MAIN COMPONENT PROPS
+// ============================================================================
 export interface GuidedStudentAssistantProps {
   consultancySlug: string;
   professionalName?: string;
@@ -155,187 +412,549 @@ export function GuidedStudentAssistant({
   consultancySlug,
   professionalName,
   students,
-  effectiveMode,
-  userRoles = [],
   initialStudentPublicId,
 }: GuidedStudentAssistantProps) {
-  // Assistant State
-  const [step, setStep] = useState<AssistantStep>("SELECT_STUDENT");
-  const [slideDirection, setSlideDirection] = useState<"forward" | "backward">("forward");
-  const [selectedStudent, setSelectedStudent] = useState<PersonalStudentSummary | null>(null);
-  const [activeSection, setActiveSection] = useState<SectionKey>("visao-geral");
+  // Deep-linked Initial Student Resolution
+  const initialStudent = useMemo(() => {
+    if (!initialStudentPublicId || students.length === 0) return null;
+    return students.find((s) => s.membershipPublicId === initialStudentPublicId) || null;
+  }, [initialStudentPublicId, students]);
 
-  // Filter & Search State
-  const [search, setSearch] = useState("");
-  const [workoutFilter, setWorkoutFilter] = useState<"ALL" | "WITH_WORKOUT" | "WITHOUT_WORKOUT">("ALL");
+  // State
+  const [selectedStudent, setSelectedStudent] = useState<PersonalStudentSummary | null>(() => initialStudent);
 
-  // Student Detail Asynchronously Loaded
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const greetingName = professionalName && professionalName.trim() ? professionalName.trim() : null;
+    const initialGreeting = greetingName
+      ? `Olá, ${greetingName}! Qual aluno você gostaria de ver?`
+      : "Olá! Qual aluno você gostaria de ver?";
+
+    if (initialStudent) {
+      return [
+        {
+          id: "msg-initial-greeting",
+          sender: "assistant",
+          timestamp: new Date(),
+          text: initialGreeting,
+          widget: { type: "STUDENT_SELECTOR", collapsed: true },
+        },
+        {
+          id: `msg-user-pick-${Date.now()}`,
+          sender: "user",
+          timestamp: new Date(),
+          text: `Quero ver ${initialStudent.name}.`,
+        },
+        {
+          id: `msg-assistant-section-prompt-${Date.now()}`,
+          sender: "assistant",
+          timestamp: new Date(),
+          text: `O que você gostaria de ver de ${initialStudent.name}?`,
+          widget: { type: "SECTION_PROMPT", student: initialStudent },
+        },
+      ];
+    }
+
+    return [
+      {
+        id: "msg-initial-greeting",
+        sender: "assistant",
+        timestamp: new Date(),
+        text: initialGreeting,
+        widget: { type: "STUDENT_SELECTOR", collapsed: false },
+      },
+    ];
+  });
+  const [inputText, setInputText] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Student Filter & Search within the embedded picker
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerWorkoutFilter, setPickerWorkoutFilter] = useState<"ALL" | "WITH_WORKOUT" | "WITHOUT_WORKOUT">("ALL");
+  const [pickerPage, setPickerPage] = useState(1);
+  const STUDENTS_PER_PAGE = 5;
+
+  // Student Detail Asynchronously Loaded Cache
   const [detailsCache, setDetailsCache] = useState<Record<string, PersonalStudentDetail>>({});
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
   const latestRequestIdRef = useRef<number>(0);
 
-  // Sub-section states
-  const [anamnesisSubTab, setAnamnesisSubTab] = useState<"respostas" | "historico" | "enviar" | "criar">("respostas");
-  const [formsSubTab, setFormsSubTab] = useState<"respondidos" | "pendentes" | "enviar" | "criar">("respondidos");
-  const [selectedFormDetail, setSelectedFormDetail] = useState<StudentFormAnswer | null>(null);
-
-  // Action State (Anamnesis & Form sends)
-  const [availableTemplates, setAvailableTemplates] = useState<AvailableFormTemplateOption[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const [isSendingRequest, startTransition] = useTransition();
-  const [requestFeedback, setRequestFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
-
-  // Photos State
+  // Photos Lightbox & Comparator State
   const [selectedZoomPhoto, setSelectedZoomPhoto] = useState<{ url: string; pose: string; date: string } | null>(null);
   const [isPhotoComparatorOpen, setIsPhotoComparatorOpen] = useState(false);
   const [compareEvalA, setCompareEvalA] = useState<string>("");
   const [compareEvalB, setCompareEvalB] = useState<string>("");
   const [comparePose, setComparePose] = useState<string>("FRONT");
 
-  // Roles determination
-  const isAdmin = effectiveMode === "ADMIN" || effectiveMode === "CONSULTANCY_ADMIN" || userRoles.includes("CONSULTANCY_ADMIN");
+  // Anamnesis / Forms Send Flow State
+  const [availableTemplates, setAvailableTemplates] = useState<AvailableFormTemplateOption[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [isSendingRequest, startTransition] = useTransition();
+  const [requestFeedback, setRequestFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  // Filtered Students
-  const filteredStudents = useMemo(() => {
+  // Interactive Form Detail Modal
+  const [activeFormAnswerDetail, setActiveFormAnswerDetail] = useState<StudentFormAnswer | null>(null);
+
+  // Refs
+  const chatBottomRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Fetch Student Detail with race-condition guard
+  const fetchStudentDetail = useCallback(
+    (membershipPublicId: string) => {
+      if (detailsCache[membershipPublicId]) {
+        setIsLoadingDetail(false);
+        return;
+      }
+      const currentRequestId = ++latestRequestIdRef.current;
+      setIsLoadingDetail(true);
+
+      getPersonalStudentDetailAction(consultancySlug, membershipPublicId)
+        .then((res) => {
+          if (latestRequestIdRef.current !== currentRequestId) return;
+          if (res.success && res.detail) {
+            setDetailsCache((prev) => ({ ...prev, [membershipPublicId]: res.detail! }));
+          }
+          setIsLoadingDetail(false);
+        })
+        .catch(() => {
+          if (latestRequestIdRef.current !== currentRequestId) return;
+          setIsLoadingDetail(false);
+        });
+    },
+    [consultancySlug, detailsCache]
+  );
+
+  // Scroll to bottom smoothly when messages change
+  const scrollToBottom = useCallback(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  // Handle Student Selection
+  const handleSelectStudent = useCallback(
+    (student: PersonalStudentSummary) => {
+      setSelectedStudent(student);
+      fetchStudentDetail(student.membershipPublicId);
+
+      // Collapse the initial student selector so the thread stays compact
+      setMessages((prev) => {
+        const updated = prev.map((m) => {
+          if (m.widget?.type === "STUDENT_SELECTOR") {
+            return {
+              ...m,
+              widget: { type: "STUDENT_SELECTOR" as const, collapsed: true },
+            };
+          }
+          return m;
+        });
+
+        return [
+          ...updated,
+          {
+            id: `msg-user-pick-${Date.now()}`,
+            sender: "user",
+            timestamp: new Date(),
+            text: `Quero ver ${student.name}.`,
+          },
+          {
+            id: `msg-assistant-section-prompt-${Date.now()}`,
+            sender: "assistant",
+            timestamp: new Date(),
+            text: `O que você gostaria de ver de ${student.name}?`,
+            widget: { type: "SECTION_PROMPT", student },
+          },
+        ];
+      });
+
+      // Focus input for next request
+      setTimeout(() => textareaRef.current?.focus(), 150);
+    },
+    [fetchStudentDetail]
+  );
+
+  // Handle Changing Student (Reset to selection)
+  const handleChangeStudent = useCallback(() => {
+    setSelectedStudent(null);
+    latestRequestIdRef.current++; // cancel pending fetches
+    setRequestFeedback(null);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `msg-user-change-${Date.now()}`,
+        sender: "user",
+        timestamp: new Date(),
+        text: "Trocar de aluno.",
+      },
+      {
+        id: `msg-assistant-new-student-${Date.now()}`,
+        sender: "assistant",
+        timestamp: new Date(),
+        text: "Qual aluno você gostaria de ver agora?",
+        widget: { type: "STUDENT_SELECTOR", collapsed: false },
+      },
+    ]);
+  }, []);
+
+  // Prompt Need Student
+  const promptNeedStudent = useCallback((userQueryText: string) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `msg-user-${Date.now()}`,
+        sender: "user",
+        timestamp: new Date(),
+        text: userQueryText,
+      },
+      {
+        id: `msg-assistant-need-student-${Date.now()}`,
+        sender: "assistant",
+        timestamp: new Date(),
+        text: "Primeiro escolha qual aluno você gostaria de ver:",
+        widget: { type: "STUDENT_SELECTOR", collapsed: false },
+      },
+    ]);
+  }, []);
+
+  // Fetch initial student details if deep-linked
+  useEffect(() => {
+    let ignore = false;
+    if (initialStudent) {
+      const id = initialStudent.membershipPublicId;
+      getPersonalStudentDetailAction(consultancySlug, id)
+        .then((res) => {
+          if (!ignore && res.success && res.detail) {
+            setDetailsCache((prev) => ({ ...prev, [id]: res.detail! }));
+          }
+        })
+        .catch(() => {
+          // silent fallback
+        });
+    }
+    return () => {
+      ignore = true;
+    };
+  }, [initialStudent, consultancySlug]);
+
+  // Dispatch Intent Execution
+  const executeIntent = useCallback(
+    (intent: CommandIntent, userQueryText: string) => {
+      const timestamp = new Date();
+
+      switch (intent.type) {
+        case "CHANGE_STUDENT": {
+          handleChangeStudent();
+          break;
+        }
+
+        case "SELECT_STUDENT": {
+          handleSelectStudent(intent.student);
+          break;
+        }
+
+        case "AMBIGUOUS_STUDENT": {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-user-${Date.now()}`,
+              sender: "user",
+              timestamp,
+              text: userQueryText,
+            },
+            {
+              id: `msg-assistant-ambiguous-${Date.now()}`,
+              sender: "assistant",
+              timestamp: new Date(),
+              text: "Encontrei mais de um aluno com esse nome. Qual deles você gostaria de ver?",
+              widget: { type: "AMBIGUOUS_STUDENTS", candidates: intent.candidates },
+            },
+          ]);
+          break;
+        }
+
+        case "OVERVIEW": {
+          if (!selectedStudent) {
+            promptNeedStudent(userQueryText);
+            return;
+          }
+          fetchStudentDetail(selectedStudent.membershipPublicId);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-user-${Date.now()}`,
+              sender: "user",
+              timestamp,
+              text: userQueryText,
+            },
+            {
+              id: `msg-assistant-overview-${Date.now()}`,
+              sender: "assistant",
+              timestamp: new Date(),
+              text: `Aqui estão as informações gerais de ${selectedStudent.name}.`,
+              widget: { type: "VISAO_GERAL", student: selectedStudent },
+            },
+          ]);
+          break;
+        }
+
+        case "PHOTOS": {
+          if (!selectedStudent) {
+            promptNeedStudent(userQueryText);
+            return;
+          }
+          fetchStudentDetail(selectedStudent.membershipPublicId);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-user-${Date.now()}`,
+              sender: "user",
+              timestamp,
+              text: userQueryText,
+            },
+            {
+              id: `msg-assistant-photos-${Date.now()}`,
+              sender: "assistant",
+              timestamp: new Date(),
+              text: `Aqui estão os registros fotográficos de ${selectedStudent.name}.`,
+              widget: { type: "FOTOS", student: selectedStudent },
+            },
+          ]);
+          break;
+        }
+
+        case "ANAMNESIS_VIEW":
+        case "ANAMNESIS_SEND":
+        case "ANAMNESIS_CREATE": {
+          if (!selectedStudent) {
+            promptNeedStudent(userQueryText);
+            return;
+          }
+          fetchStudentDetail(selectedStudent.membershipPublicId);
+          const initialMode =
+            intent.type === "ANAMNESIS_SEND"
+              ? "send"
+              : intent.type === "ANAMNESIS_CREATE"
+              ? "create"
+              : "view";
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-user-${Date.now()}`,
+              sender: "user",
+              timestamp,
+              text: userQueryText,
+            },
+            {
+              id: `msg-assistant-anamnese-${Date.now()}`,
+              sender: "assistant",
+              timestamp: new Date(),
+              text:
+                initialMode === "send"
+                  ? `Preparando envio de anamnese para ${selectedStudent.name}.`
+                  : `Aqui estão as informações de anamnese de ${selectedStudent.name}.`,
+              widget: { type: "ANAMNESE", student: selectedStudent, initialMode },
+            },
+          ]);
+          break;
+        }
+
+        case "FORMS_VIEW":
+        case "FORMS_SEND":
+        case "FORMS_CREATE": {
+          if (!selectedStudent) {
+            promptNeedStudent(userQueryText);
+            return;
+          }
+          fetchStudentDetail(selectedStudent.membershipPublicId);
+          const initialMode =
+            intent.type === "FORMS_SEND"
+              ? "send"
+              : intent.type === "FORMS_CREATE"
+              ? "create"
+              : "view";
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-user-${Date.now()}`,
+              sender: "user",
+              timestamp,
+              text: userQueryText,
+            },
+            {
+              id: `msg-assistant-forms-${Date.now()}`,
+              sender: "assistant",
+              timestamp: new Date(),
+              text:
+                initialMode === "send"
+                  ? `Preparando envio de formulário para ${selectedStudent.name}.`
+                  : `Aqui estão os formulários de ${selectedStudent.name}.`,
+              widget: { type: "FORMULARIOS", student: selectedStudent, initialMode },
+            },
+          ]);
+          break;
+        }
+
+        case "WORKOUTS": {
+          if (!selectedStudent) {
+            promptNeedStudent(userQueryText);
+            return;
+          }
+          fetchStudentDetail(selectedStudent.membershipPublicId);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-user-${Date.now()}`,
+              sender: "user",
+              timestamp,
+              text: userQueryText,
+            },
+            {
+              id: `msg-assistant-workouts-${Date.now()}`,
+              sender: "assistant",
+              timestamp: new Date(),
+              text: `Acessando treinos de ${selectedStudent.name}.`,
+              widget: { type: "TREINOS", student: selectedStudent },
+            },
+          ]);
+          break;
+        }
+
+        case "HELP": {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-user-${Date.now()}`,
+              sender: "user",
+              timestamp,
+              text: userQueryText,
+            },
+            {
+              id: `msg-assistant-help-${Date.now()}`,
+              sender: "assistant",
+              timestamp: new Date(),
+              text: "Posso ajudar com visão geral, fotos, anamnese, formulários ou treinos.",
+              widget: { type: "HELP" },
+            },
+          ]);
+          break;
+        }
+
+        case "UNKNOWN":
+        default: {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-user-${Date.now()}`,
+              sender: "user",
+              timestamp,
+              text: userQueryText,
+            },
+            {
+              id: `msg-assistant-fallback-${Date.now()}`,
+              sender: "assistant",
+              timestamp: new Date(),
+              text: "Posso ajudar com visão geral, fotos, anamnese, formulários ou treinos. Qual você quer abrir?",
+              widget: { type: "FALLBACK" },
+            },
+          ]);
+          break;
+        }
+      }
+    },
+    [handleChangeStudent, handleSelectStudent, selectedStudent, fetchStudentDetail, promptNeedStudent]
+  );
+
+  // Handle Form Submit
+  const handleSendMessage = () => {
+    const trimmed = inputText.trim();
+    if (!trimmed || isProcessing) return;
+
+    setIsProcessing(true);
+    setInputText("");
+
+    try {
+      const intent = detectCommandIntent(trimmed, {
+        selectedStudent,
+        students,
+      });
+      executeIntent(intent, trimmed);
+    } catch {
+      // Preserve input text on error
+      setInputText(trimmed);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Keyboard Submit Handler
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      if ((e.nativeEvent as unknown as { isComposing?: boolean })?.isComposing) {
+        return;
+      }
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // Filtered Students inside embedded picker
+  const filteredPickerStudents = useMemo(() => {
     return students.filter((s) => {
-      if (search.trim()) {
-        const q = search.toLowerCase().trim();
+      if (pickerSearch.trim()) {
+        const q = pickerSearch.toLowerCase().trim();
         const matchesName = s.name.toLowerCase().includes(q);
         const matchesEmail = s.email.toLowerCase().includes(q);
         const matchesObjective = s.objective ? s.objective.toLowerCase().includes(q) : false;
         if (!matchesName && !matchesEmail && !matchesObjective) return false;
       }
-      if (workoutFilter === "WITH_WORKOUT") {
+      if (pickerWorkoutFilter === "WITH_WORKOUT") {
         if (!(s.latestAssignmentStatus === "ACTIVE" && !!s.latestWorkoutTitle)) return false;
-      } else if (workoutFilter === "WITHOUT_WORKOUT") {
+      } else if (pickerWorkoutFilter === "WITHOUT_WORKOUT") {
         if (s.latestAssignmentStatus === "ACTIVE" && !!s.latestWorkoutTitle) return false;
       }
       return true;
     });
-  }, [students, search, workoutFilter]);
+  }, [students, pickerSearch, pickerWorkoutFilter]);
 
-  // Operational Counters
-  const withWorkoutCount = useMemo(
-    () => students.filter((s) => s.latestAssignmentStatus === "ACTIVE" && !!s.latestWorkoutTitle).length,
-    [students]
-  );
-  const withoutWorkoutCount = useMemo(
-    () => students.filter((s) => !s.latestWorkoutTitle || s.latestAssignmentStatus !== "ACTIVE").length,
-    [students]
-  );
+  // Paginated students
+  const totalPickerPages = Math.ceil(filteredPickerStudents.length / STUDENTS_PER_PAGE) || 1;
+  const paginatedPickerStudents = useMemo(() => {
+    const start = (pickerPage - 1) * STUDENTS_PER_PAGE;
+    return filteredPickerStudents.slice(start, start + STUDENTS_PER_PAGE);
+  }, [filteredPickerStudents, pickerPage]);
 
-  // Deep-link auto-selection if initialStudentPublicId is present
-  useEffect(() => {
-    if (initialStudentPublicId && students.length > 0 && !selectedStudent) {
-      const match = students.find((s) => s.membershipPublicId === initialStudentPublicId);
-      if (match) {
-        handleSelectStudent(match);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialStudentPublicId, students]);
-
-  // Fetch Student Detail with race-condition prevention
-  function fetchStudentDetail(membershipPublicId: string) {
-    if (detailsCache[membershipPublicId]) {
-      setIsLoadingDetail(false);
-      setDetailError(null);
-      return;
-    }
-
-    const currentRequestId = ++latestRequestIdRef.current;
-    setIsLoadingDetail(true);
-    setDetailError(null);
-
-    getPersonalStudentDetailAction(consultancySlug, membershipPublicId)
-      .then((res) => {
-        // Discard stale responses if student changed while request was in-flight
-        if (latestRequestIdRef.current !== currentRequestId) {
-          return;
-        }
-        if (res.success && res.detail) {
-          setDetailsCache((prev) => ({ ...prev, [membershipPublicId]: res.detail! }));
-          setIsLoadingDetail(false);
-        } else {
-          setDetailError(res.error || "Não foi possível carregar os dados completos do aluno.");
-          setIsLoadingDetail(false);
-        }
-      })
-      .catch((err) => {
-        if (latestRequestIdRef.current !== currentRequestId) return;
-        setDetailError(err instanceof Error ? err.message : "Erro ao carregar detalhes.");
-        setIsLoadingDetail(false);
-      });
-  }
-
-  // Load available custom form templates
-  function loadFormTemplates() {
+  // Load Form Templates for Send Modal
+  const loadFormTemplates = useCallback(async () => {
     if (availableTemplates.length > 0) return;
-    getAvailableFormTemplatesAction(consultancySlug).then((res) => {
+    try {
+      const res = await getAvailableFormTemplatesAction(consultancySlug);
       if (res.success && res.templates) {
         setAvailableTemplates(res.templates);
-        if (res.templates.length > 0 && !selectedTemplateId) {
+        if (res.templates.length > 0) {
           setSelectedTemplateId(res.templates[0].publicId);
         }
       }
-    });
-  }
-
-  // Navigation handlers
-  function handleSelectStudent(student: PersonalStudentSummary) {
-    setSelectedStudent(student);
-    setSlideDirection("forward");
-    setStep("SELECT_SECTION");
-    setRequestFeedback(null);
-    fetchStudentDetail(student.membershipPublicId);
-  }
-
-  function handleBackToStudents() {
-    setSlideDirection("backward");
-    setStep("SELECT_STUDENT");
-    setRequestFeedback(null);
-  }
-
-  function handleSelectSection(section: SectionKey) {
-    setActiveSection(section);
-    setSlideDirection("forward");
-    setStep("SECTION_DETAIL");
-    setRequestFeedback(null);
-    if (section === "formularios") {
-      loadFormTemplates();
+    } catch {
+      // fallback
     }
-  }
+  }, [availableTemplates.length, consultancySlug]);
 
-  function handleBackToSections() {
-    setSlideDirection("backward");
-    setStep("SELECT_SECTION");
-    setRequestFeedback(null);
-  }
-
-  // Current active detail object
-  const currentDetail: PersonalStudentDetail | null = selectedStudent
-    ? detailsCache[selectedStudent.membershipPublicId] || null
-    : null;
-
-  // Active workout resolution
-  const activeWorkout: StudentWorkoutItem | null = currentDetail
-    ? currentDetail.workouts.find((w) => w.status === "ACTIVE") || null
-    : null;
-
-  // Send Actions
-  function handleSendAnamnesisRequest() {
-    if (!selectedStudent) return;
+  // Actions for Anamnesis / Forms
+  const handleSendAnamnesisRequest = (student: PersonalStudentSummary) => {
     startTransition(async () => {
       try {
-        const res = await requestStudentAnamnesisAction(consultancySlug, selectedStudent.membershipPublicId);
+        const res = await requestStudentAnamnesisAction(consultancySlug, student.membershipPublicId);
         if (res.success) {
           setRequestFeedback({
             type: "success",
-            message: `Solicitação de anamnese enviada com sucesso para ${selectedStudent.name}!`,
+            message: `Solicitação de anamnese enviada com sucesso para ${student.name}!`,
           });
-          // Re-fetch student detail to show updated request
-          fetchStudentDetail(selectedStudent.membershipPublicId);
+          fetchStudentDetail(student.membershipPublicId);
         } else {
           setRequestFeedback({
             type: "error",
@@ -349,23 +968,23 @@ export function GuidedStudentAssistant({
         });
       }
     });
-  }
+  };
 
-  function handleSendCustomFormRequest() {
-    if (!selectedStudent || !selectedTemplateId) return;
+  const handleSendCustomFormRequest = (student: PersonalStudentSummary) => {
+    if (!selectedTemplateId) return;
     startTransition(async () => {
       try {
         const res = await requestStudentCustomFormAction(
           consultancySlug,
-          selectedStudent.membershipPublicId,
+          student.membershipPublicId,
           selectedTemplateId
         );
         if (res.success) {
           setRequestFeedback({
             type: "success",
-            message: `Formulário enviado com sucesso para ${selectedStudent.name}!`,
+            message: `Formulário enviado com sucesso para ${student.name}!`,
           });
-          fetchStudentDetail(selectedStudent.membershipPublicId);
+          fetchStudentDetail(student.membershipPublicId);
         } else {
           setRequestFeedback({
             type: "error",
@@ -379,19 +998,18 @@ export function GuidedStudentAssistant({
         });
       }
     });
-  }
+  };
 
-  function handleSendPhotosRequest() {
-    if (!selectedStudent) return;
+  const handleSendPhotosRequest = (student: PersonalStudentSummary) => {
     startTransition(async () => {
       try {
-        const res = await requestStudentPhotosAction(consultancySlug, selectedStudent.membershipPublicId);
+        const res = await requestStudentPhotosAction(consultancySlug, student.membershipPublicId);
         if (res.success) {
           setRequestFeedback({
             type: "success",
-            message: `Solicitação de fotos enviada com sucesso para ${selectedStudent.name}!`,
+            message: `Solicitação de fotos enviada com sucesso para ${student.name}!`,
           });
-          fetchStudentDetail(selectedStudent.membershipPublicId);
+          fetchStudentDetail(student.membershipPublicId);
         } else {
           setRequestFeedback({
             type: "error",
@@ -405,1652 +1023,1503 @@ export function GuidedStudentAssistant({
         });
       }
     });
-  }
+  };
 
-  // Animation class helper
-  const slideAnimationClass =
-    slideDirection === "forward"
-      ? "animate-in fade-in slide-in-from-right-4 duration-200 motion-reduce:animate-none"
-      : "animate-in fade-in slide-in-from-left-4 duration-200 motion-reduce:animate-none";
+  // Operational Counts
+  const withWorkoutCount = useMemo(
+    () => students.filter((s) => s.latestAssignmentStatus === "ACTIVE" && !!s.latestWorkoutTitle).length,
+    [students]
+  );
+  const withoutWorkoutCount = useMemo(
+    () => students.filter((s) => !s.latestWorkoutTitle || s.latestAssignmentStatus !== "ACTIVE").length,
+    [students]
+  );
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full flex justify-center py-2 sm:py-4 px-1 sm:px-4">
       {/* =====================================================================
-          STEP 1: ESCOLHER O ALUNO
+          CHAT CONTAINER (90% viewport desktop, full on mobile, slide-in right)
           ===================================================================== */}
-      {step === "SELECT_STUDENT" && (
-        <div className={`space-y-5 ${slideAnimationClass}`}>
-          {/* Conversational Greeting Card - Solid Black/Graphite Card */}
-          <div className="p-5 sm:p-7 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] shadow-md text-white space-y-4">
-            <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#0B0C0E] border border-white/10 flex items-center justify-center text-emerald-400 shrink-0">
-                <SparklesBubbleIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 block">
-                  Assistente Guiado · Trevo One
-                </span>
-                <h1 className="text-xl sm:text-2xl font-black text-white font-sans tracking-tight">
-                  {professionalName && professionalName.trim()
-                    ? `Olá, ${professionalName.trim()}! Qual aluno você gostaria de ver?`
-                    : "Olá! Qual aluno você gostaria de ver?"}
-                </h1>
-                <p className="text-xs sm:text-sm text-[#CBDDD3] font-sans leading-relaxed">
-                  Selecione um aluno para navegar diretamente pela Visão Geral, Fotos, Anamnese, Formulários ou Treinos.
-                </p>
-              </div>
+      <section
+        aria-label="Assistente de Alunos"
+        className="w-full max-w-5xl h-[calc(100dvh-5.5rem)] sm:h-[calc(100vh-6.5rem)] max-h-[920px] rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-[#303238] bg-[#151619] shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-6 duration-200 motion-reduce:animate-none"
+      >
+        {/* COMPACT TOP HEADER */}
+        <header className="px-4 sm:px-6 py-3.5 border-b border-zinc-200 dark:border-[#282A30] bg-[#0B0C0E] flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#1B1D21] border border-white/10 flex items-center justify-center text-emerald-400 shrink-0">
+              <SparklesBubbleIcon className="w-5 h-5" />
             </div>
-
-            {/* Quick KPIs / Filter Tabs */}
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => setWorkoutFilter("ALL")}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[38px] ${
-                  workoutFilter === "ALL"
-                    ? "bg-emerald-500 text-zinc-950 font-bold shadow-xs"
-                    : "bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10"
-                }`}
-              >
-                Todos ({students.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setWorkoutFilter("WITH_WORKOUT")}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[38px] ${
-                  workoutFilter === "WITH_WORKOUT"
-                    ? "bg-emerald-500 text-zinc-950 font-bold shadow-xs"
-                    : "bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10"
-                }`}
-              >
-                Com treino ({withWorkoutCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setWorkoutFilter("WITHOUT_WORKOUT")}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[38px] ${
-                  workoutFilter === "WITHOUT_WORKOUT"
-                    ? "bg-amber-500 text-zinc-950 font-bold shadow-xs"
-                    : "bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10"
-                }`}
-              >
-                Sem treino ({withoutWorkoutCount})
-              </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
+                  Assistente de Alunos
+                </h1>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                  100% Sem IA
+                </span>
+              </div>
+              <p className="text-[11px] text-[#9CA3AF] truncate hidden sm:block">
+                Navegação conversacional por etapas e dados determinísticos
+              </p>
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="p-3 sm:p-4 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] shadow-xs flex items-center gap-3">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
-                <SearchIcon className="w-4 h-4" />
-              </div>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nome, e-mail ou objetivo..."
-                aria-label="Buscar aluno"
-                className="w-full pl-10 pr-16 py-2.5 text-xs sm:text-sm rounded-lg border border-white/10 bg-[#0B0C0E] text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
-              />
-              {search && (
+          <div className="flex items-center gap-2 shrink-0">
+            {selectedStudent && (
+              <div className="flex items-center gap-2 bg-[#1B1D21] border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white">
+                <StudentAvatar name={selectedStudent.name} userPublicId={selectedStudent.userPublicId} size="xs" />
+                <span className="font-semibold truncate max-w-[110px] sm:max-w-[150px]">{selectedStudent.name}</span>
                 <button
                   type="button"
-                  onClick={() => setSearch("")}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer"
+                  onClick={handleChangeStudent}
+                  className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 ml-1 underline cursor-pointer"
+                  title="Trocar aluno ativo"
                 >
-                  Limpar
+                  Trocar
                 </button>
-              )}
-            </div>
-            <div className="shrink-0 text-xs font-semibold text-[#CBDDD3] hidden sm:block">
-              {filteredStudents.length} {filteredStudents.length === 1 ? "aluno disponível" : "alunos disponíveis"}
-            </div>
-          </div>
-
-          {/* Empty / Error States */}
-          {students.length === 0 ? (
-            <div className="p-10 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-center space-y-3 shadow-sm text-white">
-              <div className="w-12 h-12 rounded-xl bg-[#0B0C0E] border border-white/10 flex items-center justify-center mx-auto text-emerald-400">
-                <SparklesBubbleIcon className="w-6 h-6" />
               </div>
-              <h2 className="text-base font-bold text-white font-sans">Nenhum aluno cadastrado</h2>
-              <p className="text-xs text-[#CBDDD3] max-w-md mx-auto">
-                Assim que novos alunos forem vinculados à consultoria, eles aparecerão aqui para atendimento guiado.
-              </p>
-              {isAdmin && (
-                <Link
-                  href={`/consultoria/${consultancySlug}/membros`}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 min-h-[44px] cursor-pointer"
+            )}
+
+            <Link
+              href={`/consultoria/${consultancySlug}`}
+              className="p-2 rounded-xl text-[#9CA3AF] hover:text-white hover:bg-white/[0.06] border border-white/10 transition-colors"
+              title="Voltar para a Visão Geral"
+              aria-label="Voltar para a Visão Geral"
+            >
+              <ArrowLeftIcon className="w-4 h-4" />
+            </Link>
+          </div>
+        </header>
+
+        {/* SCROLLABLE MESSAGE THREAD */}
+        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-5 scroll-smooth">
+          <div className="max-w-3xl mx-auto w-full space-y-5">
+            {messages.map((msg) => {
+              const isAssistant = msg.sender === "assistant";
+
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex items-start gap-3 w-full animate-in fade-in duration-150 ${
+                    isAssistant ? "justify-start" : "justify-end"
+                  }`}
                 >
-                  <PlusIcon className="w-4 h-4" />
-                  <span>+ Convidar primeiro aluno</span>
-                </Link>
-              )}
+                  {isAssistant && (
+                    <div className="w-8 h-8 rounded-lg bg-[#0B0C0E] border border-white/10 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+                      <SparklesBubbleIcon className="w-4 h-4" />
+                    </div>
+                  )}
+
+                  <div
+                    className={`${
+                      isAssistant
+                        ? "flex-1 rounded-2xl bg-[#1B1D21] border border-white/10 p-4 sm:p-5 space-y-3.5 text-white shadow-sm"
+                        : "rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-3 sm:p-4 text-white max-w-[85%] sm:max-w-[75%] shadow-sm ml-auto"
+                    }`}
+                  >
+                    {msg.text && (
+                      <p className="text-xs sm:text-sm font-medium leading-relaxed font-sans text-white">
+                        {msg.text}
+                      </p>
+                    )}
+
+                    {/* WIDGET: STUDENT SELECTOR EMBEDDED IN CHAT */}
+                    {msg.widget?.type === "STUDENT_SELECTOR" && (
+                      <div className="pt-2 border-t border-white/10 space-y-3">
+                        {msg.widget.collapsed && selectedStudent ? (
+                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-white">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <span className="text-[#9CA3AF]">Aluno selecionado:</span>
+                              <span className="font-bold text-white truncate">{selectedStudent.name}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleChangeStudent}
+                              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer shrink-0 ml-2"
+                            >
+                              Trocar
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {/* Search and Filters inside chat */}
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <div className="relative flex-1">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
+                                  <SearchIcon className="w-3.5 h-3.5" />
+                                </div>
+                                <input
+                                  type="text"
+                                  value={pickerSearch}
+                                  onChange={(e) => {
+                                    setPickerSearch(e.target.value);
+                                    setPickerPage(1);
+                                  }}
+                                  placeholder="Buscar por nome ou e-mail..."
+                                  aria-label="Buscar aluno na lista"
+                                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-white/10 bg-[#0B0C0E] text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-h-[40px]"
+                                />
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0 overflow-x-auto pb-1 sm:pb-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPickerWorkoutFilter("ALL");
+                                    setPickerPage(1);
+                                  }}
+                                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer min-h-[36px] ${
+                                    pickerWorkoutFilter === "ALL"
+                                      ? "bg-emerald-500 text-zinc-950 font-bold"
+                                      : "bg-[#0B0C0E] text-[#CBDDD3] border border-white/10 hover:border-white/20"
+                                  }`}
+                                >
+                                  Todos ({students.length})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPickerWorkoutFilter("WITH_WORKOUT");
+                                    setPickerPage(1);
+                                  }}
+                                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer min-h-[36px] ${
+                                    pickerWorkoutFilter === "WITH_WORKOUT"
+                                      ? "bg-emerald-500 text-zinc-950 font-bold"
+                                      : "bg-[#0B0C0E] text-[#CBDDD3] border border-white/10 hover:border-white/20"
+                                  }`}
+                                >
+                                  Com treino ({withWorkoutCount})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPickerWorkoutFilter("WITHOUT_WORKOUT");
+                                    setPickerPage(1);
+                                  }}
+                                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer min-h-[36px] ${
+                                    pickerWorkoutFilter === "WITHOUT_WORKOUT"
+                                      ? "bg-emerald-500 text-zinc-950 font-bold"
+                                      : "bg-[#0B0C0E] text-[#CBDDD3] border border-white/10 hover:border-white/20"
+                                  }`}
+                                >
+                                  Sem treino ({withoutWorkoutCount})
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Compact Student List (5 items per page) */}
+                            {filteredPickerStudents.length === 0 ? (
+                              <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center text-xs text-[#9CA3AF]">
+                                Nenhum aluno encontrado para &quot;{pickerSearch}&quot;.
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {paginatedPickerStudents.map((st) => {
+                                  const hasWorkout =
+                                    st.latestAssignmentStatus === "ACTIVE" && !!st.latestWorkoutTitle;
+
+                                  return (
+                                    <button
+                                      key={st.membershipPublicId}
+                                      type="button"
+                                      onClick={() => handleSelectStudent(st)}
+                                      className="w-full p-2.5 rounded-xl border border-white/10 bg-[#0B0C0E] hover:bg-[#23262C] hover:border-emerald-500/40 transition-all text-left flex items-center justify-between gap-3 min-h-[48px] cursor-pointer group"
+                                    >
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <StudentAvatar
+                                          name={st.name}
+                                          userPublicId={st.userPublicId}
+                                          size="sm"
+                                          hasActiveWorkout={hasWorkout}
+                                        />
+                                        <div className="min-w-0">
+                                          <div className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
+                                            {st.name}
+                                          </div>
+                                          <div className="text-[11px] text-[#9CA3AF] truncate">
+                                            {st.email}
+                                            {hasWorkout ? (
+                                              <span className="text-emerald-400 font-medium ml-1.5">
+                                                · {st.latestWorkoutTitle}
+                                              </span>
+                                            ) : (
+                                              <span className="text-amber-400 font-medium ml-1.5">
+                                                · Sem treino
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+                                    </button>
+                                  );
+                                })}
+
+                                {/* Pagination Controls */}
+                                {totalPickerPages > 1 && (
+                                  <div className="flex items-center justify-between pt-2 text-[11px] text-[#9CA3AF]">
+                                    <span>
+                                      Página {pickerPage} de {totalPickerPages} ({filteredPickerStudents.length} alunos)
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        disabled={pickerPage <= 1}
+                                        onClick={() => setPickerPage((p) => Math.max(1, p - 1))}
+                                        className="px-2.5 py-1 rounded-lg bg-[#0B0C0E] border border-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/10 cursor-pointer"
+                                      >
+                                        Anterior
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={pickerPage >= totalPickerPages}
+                                        onClick={() => setPickerPage((p) => Math.min(totalPickerPages, p + 1))}
+                                        className="px-2.5 py-1 rounded-lg bg-[#0B0C0E] border border-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/10 cursor-pointer"
+                                      >
+                                        Próxima
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* WIDGET: AMBIGUOUS STUDENTS CANDIDATES */}
+                    {msg.widget?.type === "AMBIGUOUS_STUDENTS" && (
+                      <div className="pt-2 border-t border-white/10 space-y-1.5">
+                        {msg.widget.candidates.map((cand) => (
+                          <button
+                            key={cand.membershipPublicId}
+                            type="button"
+                            onClick={() => handleSelectStudent(cand)}
+                            className="w-full p-2.5 rounded-xl border border-white/10 bg-[#0B0C0E] hover:bg-[#23262C] hover:border-emerald-500/40 transition-all text-left flex items-center justify-between gap-3 min-h-[44px] cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <StudentAvatar name={cand.name} userPublicId={cand.userPublicId} size="sm" />
+                              <div className="min-w-0">
+                                <span className="text-xs font-bold text-white block truncate">{cand.name}</span>
+                                <span className="text-[11px] text-[#9CA3AF] block truncate">{cand.email}</span>
+                              </div>
+                            </div>
+                            <span className="text-xs font-bold text-emerald-400 shrink-0">Selecionar</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* WIDGET: SECTION PROMPT SUGGESTIONS */}
+                    {msg.widget?.type === "SECTION_PROMPT" && (
+                      <div className="pt-2 border-t border-white/10 space-y-2">
+                        <span className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider block">
+                          Atalhos de navegação:
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { label: "Visão Geral", icon: LayoutGridIcon, action: "Visão Geral" },
+                            { label: "Fotos", icon: PhotoIcon, action: "Fotos" },
+                            { label: "Anamnese", icon: ClipboardCheckIcon, action: "Anamnese" },
+                            { label: "Formulários", icon: FileTextIcon, action: "Formulários" },
+                            { label: "Treinos", icon: DumbbellIcon, action: "Treinos" },
+                          ].map((item) => {
+                            const Icon = item.icon;
+                            return (
+                              <button
+                                key={item.label}
+                                type="button"
+                                onClick={() => {
+                                  executeIntent(
+                                    detectCommandIntent(item.action, {
+                                      selectedStudent,
+                                      students,
+                                    }),
+                                    item.action
+                                  );
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#0B0C0E] border border-white/10 hover:border-emerald-500/50 hover:bg-[#23262C] transition-all cursor-pointer min-h-[38px]"
+                              >
+                                <Icon className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>{item.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* WIDGET: VISAO GERAL ACCORDION (7 DETERMINISTIC BLOCKS) */}
+                    {msg.widget && msg.widget.type === "VISAO_GERAL" && (
+                      <VisaoGeralWidget
+                        student={msg.widget.student}
+                        consultancySlug={consultancySlug}
+                        detail={detailsCache[msg.widget.student.membershipPublicId]}
+                        isLoading={isLoadingDetail}
+                      />
+                    )}
+
+                    {/* WIDGET: FOTOS GALLERY & COMPARATOR */}
+                    {msg.widget && msg.widget.type === "FOTOS" && (
+                      <FotosWidget
+                        student={msg.widget.student}
+                        consultancySlug={consultancySlug}
+                        detail={detailsCache[msg.widget.student.membershipPublicId]}
+                        isLoading={isLoadingDetail}
+                        onZoom={(photo) => setSelectedZoomPhoto(photo)}
+                        onOpenComparator={() => {
+                          if (msg.widget && msg.widget.type === "FOTOS") {
+                            const evals = detailsCache[msg.widget.student.membershipPublicId]?.photos || [];
+                            if (evals.length >= 2) {
+                              setCompareEvalA(evals[evals.length - 1].requestPublicId);
+                              setCompareEvalB(evals[0].requestPublicId);
+                            }
+                            setIsPhotoComparatorOpen(true);
+                          }
+                        }}
+                        onRequestPhotos={() => {
+                          if (msg.widget && msg.widget.type === "FOTOS") {
+                            handleSendPhotosRequest(msg.widget.student);
+                          }
+                        }}
+                        isSending={isSendingRequest}
+                      />
+                    )}
+
+                    {/* WIDGET: ANAMNESE */}
+                    {msg.widget && msg.widget.type === "ANAMNESE" && (
+                      <AnamneseWidget
+                        student={msg.widget.student}
+                        consultancySlug={consultancySlug}
+                        detail={detailsCache[msg.widget.student.membershipPublicId]}
+                        isLoading={isLoadingDetail}
+                        initialMode={msg.widget.initialMode}
+                        onSendAnamnesis={() => {
+                          if (msg.widget && msg.widget.type === "ANAMNESE") {
+                            handleSendAnamnesisRequest(msg.widget.student);
+                          }
+                        }}
+                        isSending={isSendingRequest}
+                        feedback={requestFeedback}
+                      />
+                    )}
+
+                    {/* WIDGET: FORMULARIOS */}
+                    {msg.widget && msg.widget.type === "FORMULARIOS" && (
+                      <FormulariosWidget
+                        student={msg.widget.student}
+                        consultancySlug={consultancySlug}
+                        detail={detailsCache[msg.widget.student.membershipPublicId]}
+                        isLoading={isLoadingDetail}
+                        initialMode={msg.widget.initialMode}
+                        availableTemplates={availableTemplates}
+                        selectedTemplateId={selectedTemplateId}
+                        onSelectTemplateId={setSelectedTemplateId}
+                        onLoadTemplates={loadFormTemplates}
+                        onSendForm={() => {
+                          if (msg.widget && msg.widget.type === "FORMULARIOS") {
+                            handleSendCustomFormRequest(msg.widget.student);
+                          }
+                        }}
+                        onOpenFormDetail={(form) => setActiveFormAnswerDetail(form)}
+                        isSending={isSendingRequest}
+                        feedback={requestFeedback}
+                      />
+                    )}
+
+                    {/* WIDGET: TREINOS */}
+                    {msg.widget && msg.widget.type === "TREINOS" && (
+                      <TreinosWidget
+                        student={msg.widget.student}
+                        consultancySlug={consultancySlug}
+                        detail={detailsCache[msg.widget.student.membershipPublicId]}
+                        isLoading={isLoadingDetail}
+                      />
+                    )}
+
+                    {/* WIDGET: FALLBACK / HELP */}
+                    {(msg.widget?.type === "FALLBACK" || msg.widget?.type === "HELP") && (
+                      <div className="pt-2 border-t border-white/10 space-y-2">
+                        <span className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider block">
+                          Comandos suportados:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            "Visão Geral",
+                            "Ver fotos",
+                            "Anamnese",
+                            "Formulários",
+                            "Treinos",
+                            "Trocar de aluno",
+                          ].map((cmd) => (
+                            <button
+                              key={cmd}
+                              type="button"
+                              onClick={() => {
+                                executeIntent(
+                                  detectCommandIntent(cmd, {
+                                    selectedStudent,
+                                    students,
+                                  }),
+                                  cmd
+                                );
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#0B0C0E] border border-white/10 hover:border-emerald-500/40 text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+                            >
+                              {cmd}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={chatBottomRef} className="h-2" />
+          </div>
+        </div>
+
+        {/* =====================================================================
+            PINNED BOTTOM INPUT BAR (TEXTFIELD + SEND BUTTON)
+            ===================================================================== */}
+        <footer className="p-3 sm:p-4 border-t border-zinc-200 dark:border-[#282A30] bg-[#0B0C0E] shrink-0">
+          <div className="max-w-3xl mx-auto flex items-end gap-2.5">
+            <div className="relative flex-1 rounded-2xl bg-[#151619] border border-white/10 focus-within:border-emerald-500 shadow-inner transition-colors px-3 py-2 flex items-center">
+              <textarea
+                ref={textareaRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={1}
+                placeholder={
+                  selectedStudent
+                    ? "Digite o que deseja ver deste aluno (ex: fotos, anamnese, treinos)..."
+                    : "Digite o nome do aluno ou escolha acima..."
+                }
+                aria-label="Mensagem para o assistente"
+                className="w-full bg-transparent text-white placeholder-zinc-500 text-xs sm:text-sm resize-none focus:outline-none min-h-[32px] max-h-[120px] font-sans leading-normal"
+              />
             </div>
-          ) : filteredStudents.length === 0 ? (
-            <div className="p-10 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-center space-y-3 shadow-sm text-white">
-              <h2 className="text-base font-bold text-white font-sans">Nenhum resultado para a busca</h2>
-              <p className="text-xs text-[#CBDDD3]">
-                {search
-                  ? `Nenhum aluno corresponde ao termo "${search}".`
-                  : "Nenhum aluno atende aos filtros selecionados."}
-              </p>
+
+            <button
+              type="button"
+              onClick={handleSendMessage}
+              disabled={!inputText.trim() || isProcessing}
+              aria-label="Enviar mensagem"
+              className="w-11 h-11 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center font-bold shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shrink-0 cursor-pointer"
+            >
+              <SendPlaneIcon className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="max-w-3xl mx-auto text-center pt-1.5 text-[10px] text-[#9CA3AF]">
+            <span>Pressione <strong>Enter</strong> para enviar ou <strong>Shift + Enter</strong> para quebra de linha</span>
+          </div>
+        </footer>
+      </section>
+
+      {/* =====================================================================
+          MODAL: PHOTO LIGHTBOX ZOOM
+          ===================================================================== */}
+      {selectedZoomPhoto && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setSelectedZoomPhoto(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-[#151619] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-3.5 border-b border-white/10 bg-[#0B0C0E]">
+              <div className="flex items-center gap-2 text-xs font-bold text-white">
+                <span className="text-emerald-400">{selectedZoomPhoto.pose}</span>
+                <span className="text-zinc-500">·</span>
+                <span>{selectedZoomPhoto.date}</span>
+              </div>
               <button
                 type="button"
-                onClick={() => {
-                  setSearch("");
-                  setWorkoutFilter("ALL");
-                }}
-                className="text-xs font-bold text-emerald-400 hover:underline cursor-pointer min-h-[44px]"
+                onClick={() => setSelectedZoomPhoto(null)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                aria-label="Fechar ampliação"
               >
-                Limpar busca e restaurar lista
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 flex items-center justify-center bg-black/50 overflow-auto">
+              <img
+                src={selectedZoomPhoto.url}
+                alt=""
+                className="max-h-[75vh] w-auto object-contain rounded-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          MODAL: SIDE-BY-SIDE PHOTO COMPARATOR
+          ===================================================================== */}
+      {isPhotoComparatorOpen && selectedStudent && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150"
+        >
+          <div className="relative w-full max-w-5xl max-h-[95vh] bg-[#151619] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col text-white">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#0B0C0E]">
+              <div>
+                <h3 className="text-sm font-bold text-white">Comparador de Fotos · Antes e Depois</h3>
+                <p className="text-xs text-zinc-400">Comparação lado a lado de {selectedStudent.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPhotoComparatorOpen(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                aria-label="Fechar comparador"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-4">
+              {/* Comparator Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs">
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                    Foto A (Anterior)
+                  </label>
+                  <select
+                    value={compareEvalA}
+                    onChange={(e) => setCompareEvalA(e.target.value)}
+                    className="w-full bg-[#151619] border border-white/10 rounded-lg p-2 text-white text-xs focus:ring-1 focus:ring-emerald-500"
+                  >
+                    {(detailsCache[selectedStudent.membershipPublicId]?.photos || []).map((ev) => (
+                      <option key={ev.requestPublicId} value={ev.requestPublicId}>
+                        {formatDisplayDate(ev.submittedAt)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                    Foto B (Recente)
+                  </label>
+                  <select
+                    value={compareEvalB}
+                    onChange={(e) => setCompareEvalB(e.target.value)}
+                    className="w-full bg-[#151619] border border-white/10 rounded-lg p-2 text-white text-xs focus:ring-1 focus:ring-emerald-500"
+                  >
+                    {(detailsCache[selectedStudent.membershipPublicId]?.photos || []).map((ev) => (
+                      <option key={ev.requestPublicId} value={ev.requestPublicId}>
+                        {formatDisplayDate(ev.submittedAt)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                    Posição
+                  </label>
+                  <div className="flex gap-1">
+                    {[
+                      { id: "FRONT", label: "Frente" },
+                      { id: "BACK", label: "Costas" },
+                      { id: "SIDE_RIGHT", label: "Lat. D" },
+                      { id: "SIDE_LEFT", label: "Lat. E" },
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setComparePose(p.id)}
+                        className={`flex-1 py-2 rounded-lg font-bold text-[11px] transition-colors ${
+                          comparePose === p.id
+                            ? "bg-emerald-500 text-zinc-950"
+                            : "bg-[#151619] text-zinc-300 border border-white/10"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Side-by-Side Images */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 flex flex-col items-center">
+                  <span className="text-xs font-bold text-zinc-300 mb-2">Registro Anterior</span>
+                  {compareEvalA ? (
+                    <img
+                      src={`/api/consultancies/${consultancySlug}/photo-evaluations/${compareEvalA}/images/${comparePose}`}
+                      alt=""
+                      className="max-h-[50vh] w-auto object-contain rounded-lg"
+                    />
+                  ) : (
+                    <div className="h-60 flex items-center justify-center text-xs text-zinc-500">Selecione uma avaliação</div>
+                  )}
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 flex flex-col items-center">
+                  <span className="text-xs font-bold text-emerald-400 mb-2">Registro Recente</span>
+                  {compareEvalB ? (
+                    <img
+                      src={`/api/consultancies/${consultancySlug}/photo-evaluations/${compareEvalB}/images/${comparePose}`}
+                      alt=""
+                      className="max-h-[50vh] w-auto object-contain rounded-lg"
+                    />
+                  ) : (
+                    <div className="h-60 flex items-center justify-center text-xs text-zinc-500">Selecione uma avaliação</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          MODAL: FORM ANSWER Q&A DETAIL
+          ===================================================================== */}
+      {activeFormAnswerDetail && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#151619] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col text-white">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#0B0C0E]">
+              <div>
+                <h3 className="text-sm font-bold text-white">{activeFormAnswerDetail.title}</h3>
+                <p className="text-xs text-zinc-400">
+                  Respondido em {formatDisplayDate(activeFormAnswerDetail.submittedAt)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveFormAnswerDetail(null)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                aria-label="Fechar respostas do formulário"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-3">
+              {activeFormAnswerDetail.questions.map((item, idx) => (
+                <div key={idx} className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-1">
+                  <div className="text-xs font-semibold text-emerald-400">{item.question}</div>
+                  <div className="text-xs text-white whitespace-pre-wrap">{item.answer || "—"}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// WIDGET COMPONENTS EMBEDDED INSIDE CHAT RESPONSES
+// ============================================================================
+
+// 1. VISAO GERAL WIDGET (7 Expandable Deterministic Blocks)
+function VisaoGeralWidget({
+  student,
+  consultancySlug,
+  detail,
+  isLoading,
+}: {
+  student: PersonalStudentSummary;
+  consultancySlug: string;
+  detail?: PersonalStudentDetail;
+  isLoading?: boolean;
+}) {
+  const [expandedBlock, setExpandedBlock] = useState<string | null>("cadastro");
+
+  if (isLoading && !detail) {
+    return (
+      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-zinc-400 flex items-center gap-2">
+        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-400" />
+        <span>Carregando dados de {student.name}...</span>
+      </div>
+    );
+  }
+
+  const toggle = (b: string) => setExpandedBlock((curr) => (curr === b ? null : b));
+
+  return (
+    <div className="space-y-2.5 pt-1">
+      {/* Block 1: Cadastro e Contato */}
+      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => toggle("cadastro")}
+          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            Cadastro e Contato
+          </span>
+          <ChevronDownIcon
+            className={`w-4 h-4 text-zinc-400 transition-transform ${
+              expandedBlock === "cadastro" ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+        {expandedBlock === "cadastro" && (
+          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+            <div><strong>Nome:</strong> {student.name}</div>
+            <div><strong>E-mail:</strong> {student.email}</div>
+            <div><strong>Telefone:</strong> {detail?.student.phone || "Não informado"}</div>
+            <div><strong>Data de Ingresso:</strong> {formatDisplayDate(student.joinedAt)}</div>
+            <div><strong>Situação:</strong> {detail?.student.status || "Ativo"}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Block 2: Objetivos Registrados */}
+      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => toggle("objetivos")}
+          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            Objetivos Registrados
+          </span>
+          <ChevronDownIcon
+            className={`w-4 h-4 text-zinc-400 transition-transform ${
+              expandedBlock === "objetivos" ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+        {expandedBlock === "objetivos" && (
+          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+            <div>
+              <strong>Objetivo Principal:</strong>{" "}
+              {detail?.overview.objective || student.objective || "Nenhum objetivo registrado"}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Block 3: Acompanhamento e Avaliações */}
+      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => toggle("avaliacoes")}
+          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            Acompanhamento e Avaliações
+          </span>
+          <ChevronDownIcon
+            className={`w-4 h-4 text-zinc-400 transition-transform ${
+              expandedBlock === "avaliacoes" ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+        {expandedBlock === "avaliacoes" && (
+          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+            <div>
+              <strong>Total de avaliações fotográficas:</strong>{" "}
+              {detail?.photos.length || 0}
+            </div>
+            <div>
+              <strong>Última avaliação realizada:</strong>{" "}
+              {detail?.photos[0]?.submittedAt
+                ? formatDisplayDate(detail.photos[0].submittedAt)
+                : "Nenhuma avaliação fotográfica concluída"}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Block 4: Medidas e Evolução Registradas */}
+      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => toggle("medidas")}
+          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            Medidas e Evolução Registradas
+          </span>
+          <ChevronDownIcon
+            className={`w-4 h-4 text-zinc-400 transition-transform ${
+              expandedBlock === "medidas" ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+        {expandedBlock === "medidas" && (
+          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+            <div><strong>Peso Registrado:</strong> {detail?.overview.weightKg ? `${detail.overview.weightKg} kg` : "Não registrado"}</div>
+            <div><strong>Altura:</strong> {detail?.overview.heightCm ? `${detail.overview.heightCm} cm` : "Não registrada"}</div>
+            <div><strong>Data do Último Peso:</strong> {formatDisplayDate(detail?.overview.lastWeightRecordedOn)}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Block 5: Situação dos Treinos */}
+      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => toggle("treinos")}
+          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            Situação dos Treinos
+          </span>
+          <ChevronDownIcon
+            className={`w-4 h-4 text-zinc-400 transition-transform ${
+              expandedBlock === "treinos" ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+        {expandedBlock === "treinos" && (
+          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+            <div><strong>Treino Ativo:</strong> {student.latestWorkoutTitle || "Sem treino ativo"}</div>
+            <div><strong>Status da Prescrição:</strong> {student.latestAssignmentStatus || "Sem ficha"}</div>
+            <div><strong>Total de Treinos Concluídos:</strong> {detail?.overview.completedWorkoutsCount || 0}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Block 6: Anamneses e Formulários */}
+      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => toggle("anamnese")}
+          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            Anamneses e Formulários
+          </span>
+          <ChevronDownIcon
+            className={`w-4 h-4 text-zinc-400 transition-transform ${
+              expandedBlock === "anamnese" ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+        {expandedBlock === "anamnese" && (
+          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+            <div>
+              <strong>Anamnese:</strong>{" "}
+              {detail?.overview.hasAnamnesis
+                ? "Anamnese respondida e vinculada"
+                : "Nenhuma anamnese respondida"}
+            </div>
+            <div>
+              <strong>Formulários Respondidos:</strong> {detail?.forms.length || 0}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Prontuário Link */}
+      <div className="pt-2">
+        <Link
+          href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+        >
+          <span>Abrir prontuário completo de {student.name}</span>
+          <ChevronRightIcon className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// 2. FOTOS WIDGET (Gallery & Comparator)
+function FotosWidget({
+  student,
+  consultancySlug,
+  detail,
+  isLoading,
+  onZoom,
+  onOpenComparator,
+  onRequestPhotos,
+  isSending,
+}: {
+  student: PersonalStudentSummary;
+  consultancySlug: string;
+  detail?: PersonalStudentDetail;
+  isLoading?: boolean;
+  onZoom: (photo: { url: string; pose: string; date: string }) => void;
+  onOpenComparator: () => void;
+  onRequestPhotos: () => void;
+  isSending?: boolean;
+}) {
+  if (isLoading && !detail) {
+    return (
+      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-zinc-400 flex items-center gap-2">
+        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-400" />
+        <span>Carregando registros fotográficos de {student.name}...</span>
+      </div>
+    );
+  }
+
+  const evals = detail?.photos || [];
+
+  if (evals.length === 0) {
+    return (
+      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-3">
+        <p className="text-xs text-zinc-400">
+          Este aluno ainda não possui registros fotográficos cadastrados.
+        </p>
+        <button
+          type="button"
+          onClick={onRequestPhotos}
+          disabled={isSending}
+          className="px-3.5 py-2 rounded-xl text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-50"
+        >
+          {isSending ? "Solicitando..." : "Solicitar envio de fotos ao aluno"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 pt-1">
+      {/* Comparator Bar */}
+      {evals.length >= 2 && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-[#0B0C0E] border border-white/10">
+          <span className="text-xs text-zinc-300">
+            {evals.length} avaliações fotográficas registradas
+          </span>
+          <button
+            type="button"
+            onClick={onOpenComparator}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+          >
+            Comparar Antes e Depois
+          </button>
+        </div>
+      )}
+
+      {/* Evaluations Timeline */}
+      <div className="space-y-3">
+        {evals.map((ev) => {
+          const dateStr = formatDisplayDate(ev.submittedAt);
+
+          return (
+            <div key={ev.requestPublicId} className="p-3.5 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-bold text-white">
+                <span className="text-emerald-400">{dateStr}</span>
+                <span className="text-zinc-500 text-[11px]">4 fotos</span>
+              </div>
+
+              {/* 4 Poses */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { pose: "FRONT", label: "Frontal" },
+                  { pose: "BACK", label: "Costas" },
+                  { pose: "SIDE_RIGHT", label: "Lateral D" },
+                  { pose: "SIDE_LEFT", label: "Lateral E" },
+                ].map((p) => {
+                  const url = `/api/consultancies/${consultancySlug}/photo-evaluations/${ev.requestPublicId}/images/${p.pose}`;
+
+                  return (
+                    <div
+                      key={p.pose}
+                      onClick={() => onZoom({ url, pose: p.label, date: dateStr })}
+                      className="group relative aspect-[3/4] bg-[#151619] rounded-lg border border-white/10 overflow-hidden cursor-pointer hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center"
+                    >
+                      <img
+                        src={url}
+                        alt=""
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                      />
+                      <span className="absolute bottom-1 inset-x-1 px-1 py-0.5 rounded bg-black/70 text-[10px] font-bold text-white text-center truncate">
+                        {p.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// 3. ANAMNESE WIDGET
+function AnamneseWidget({
+  student,
+  consultancySlug,
+  detail,
+  isLoading,
+  initialMode = "view",
+  onSendAnamnesis,
+  isSending,
+  feedback,
+}: {
+  student: PersonalStudentSummary;
+  consultancySlug: string;
+  detail?: PersonalStudentDetail;
+  isLoading?: boolean;
+  initialMode?: "view" | "send" | "create";
+  onSendAnamnesis: () => void;
+  isSending?: boolean;
+  feedback?: { type: "success" | "error"; message: string } | null;
+}) {
+  const [tab, setTab] = useState<"view" | "send" | "create">(initialMode);
+  const [confirmedSend, setConfirmedSend] = useState(false);
+
+  if (isLoading && !detail) {
+    return (
+      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-zinc-400 flex items-center gap-2">
+        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-400" />
+        <span>Carregando anamnese de {student.name}...</span>
+      </div>
+    );
+  }
+
+  const anamnesis = detail?.anamnesis;
+
+  return (
+    <div className="space-y-3 pt-1">
+      {/* Sub Tabs */}
+      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs">
+        <button
+          type="button"
+          onClick={() => setTab("view")}
+          className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
+            tab === "view" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          Respostas
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("send")}
+          className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
+            tab === "send" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          Enviar Anamnese
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("create")}
+          className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
+            tab === "create" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          Criar Modelo
+        </button>
+      </div>
+
+      {feedback && (
+        <div
+          className={`p-3 rounded-xl text-xs font-semibold ${
+            feedback.type === "success"
+              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+              : "bg-red-500/10 text-red-400 border border-red-500/20"
+          }`}
+        >
+          {feedback.message}
+        </div>
+      )}
+
+      {/* VIEW RESPONSES */}
+      {tab === "view" && (
+        <div className="space-y-3">
+          {anamnesis && anamnesis.length > 0 ? (
+            <div className="space-y-2.5">
+              {anamnesis.map((sec, sIdx) => (
+                <div key={sIdx} className="p-3.5 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-2">
+                  <div className="text-xs font-bold text-emerald-400">{sec.title}</div>
+                  <div className="text-xs text-zinc-300 space-y-1 pt-1">
+                    {sec.items.map((it, iIdx) => (
+                      <div key={iIdx}>
+                        <strong>{it.label}:</strong> {it.value || "—"}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-2 text-xs text-zinc-400">
+              <p>Este aluno ainda não possui uma anamnese respondida.</p>
+              <button
+                type="button"
+                onClick={() => setTab("send")}
+                className="text-emerald-400 font-bold hover:underline cursor-pointer"
+              >
+                Enviar solicitação de anamnese agora
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SEND ANAMNESIS */}
+      {tab === "send" && (
+        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs">
+          <div className="font-bold text-white">Confirmar envio de anamnese:</div>
+          <div className="p-2.5 rounded-lg bg-[#151619] border border-white/10 space-y-1 text-zinc-300">
+            <div><strong>Modelo:</strong> Anamnese Geral Padrão V1 (Trevo One)</div>
+            <div><strong>Destinatário:</strong> {student.name} ({student.email})</div>
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={confirmedSend}
+              onChange={(e) => setConfirmedSend(e.target.checked)}
+              className="rounded border-white/20 bg-[#151619] text-emerald-500 focus:ring-emerald-500"
+            />
+            <span className="text-zinc-300">Confirmo o envio para este aluno</span>
+          </label>
+
+          <button
+            type="button"
+            onClick={onSendAnamnesis}
+            disabled={!confirmedSend || isSending}
+            className="w-full py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isSending ? "Enviando solicitação..." : "Enviar Solicitação de Anamnese"}
+          </button>
+        </div>
+      )}
+
+      {/* CREATE MODEL */}
+      {tab === "create" && (
+        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-3 text-xs">
+          <p className="text-zinc-300">
+            Crie novos modelos personalizados no construtor oficial de formulários da consultoria.
+          </p>
+          <Link
+            href={`/consultoria/${consultancySlug}/formularios`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+          >
+            <span>Abrir construtor de formulários</span>
+            <ChevronRightIcon className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 4. FORMULARIOS WIDGET
+function FormulariosWidget({
+  student,
+  consultancySlug,
+  detail,
+  isLoading,
+  initialMode = "view",
+  availableTemplates,
+  selectedTemplateId,
+  onSelectTemplateId,
+  onLoadTemplates,
+  onSendForm,
+  onOpenFormDetail,
+  isSending,
+  feedback,
+}: {
+  student: PersonalStudentSummary;
+  consultancySlug: string;
+  detail?: PersonalStudentDetail;
+  isLoading?: boolean;
+  initialMode?: "view" | "send" | "create";
+  availableTemplates: AvailableFormTemplateOption[];
+  selectedTemplateId: string;
+  onSelectTemplateId: (id: string) => void;
+  onLoadTemplates: () => void;
+  onSendForm: () => void;
+  onOpenFormDetail: (f: StudentFormAnswer) => void;
+  isSending?: boolean;
+  feedback?: { type: "success" | "error"; message: string } | null;
+}) {
+  const [tab, setTab] = useState<"view" | "send" | "create">(initialMode);
+  const [confirmedSend, setConfirmedSend] = useState(false);
+
+  useEffect(() => {
+    if (tab === "send") {
+      onLoadTemplates();
+    }
+  }, [tab, onLoadTemplates]);
+
+  if (isLoading && !detail) {
+    return (
+      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-zinc-400 flex items-center gap-2">
+        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-400" />
+        <span>Carregando formulários de {student.name}...</span>
+      </div>
+    );
+  }
+
+  const forms = detail?.forms || [];
+
+  return (
+    <div className="space-y-3 pt-1">
+      {/* Sub Tabs */}
+      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs">
+        <button
+          type="button"
+          onClick={() => setTab("view")}
+          className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
+            tab === "view" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          Respondidos ({forms.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("send")}
+          className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
+            tab === "send" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          Enviar Formulário
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("create")}
+          className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
+            tab === "create" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          Novo Modelo
+        </button>
+      </div>
+
+      {feedback && (
+        <div
+          className={`p-3 rounded-xl text-xs font-semibold ${
+            feedback.type === "success"
+              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+              : "bg-red-500/10 text-red-400 border border-red-500/20"
+          }`}
+        >
+          {feedback.message}
+        </div>
+      )}
+
+      {/* VIEW FORMS */}
+      {tab === "view" && (
+        <div className="space-y-2">
+          {forms.length === 0 ? (
+            <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-2 text-xs text-zinc-400">
+              <p>Este aluno ainda não possui formulários respondidos.</p>
+              <button
+                type="button"
+                onClick={() => setTab("send")}
+                className="text-emerald-400 font-bold hover:underline cursor-pointer"
+              >
+                Enviar um formulário agora
               </button>
             </div>
           ) : (
-            /* Student Cards Grid */
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3" data-testid="guided-student-list">
-              {filteredStudents.map((student) => {
-                const hasActiveWorkout =
-                  student.latestAssignmentStatus === "ACTIVE" && !!student.latestWorkoutTitle;
-
-                return (
-                  <div
-                    key={student.membershipPublicId}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleSelectStudent(student)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleSelectStudent(student);
-                      }
-                    }}
-                    className="p-4 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] hover:border-emerald-500/50 hover:bg-[#1B1D21] transition-all cursor-pointer group flex items-center justify-between gap-3 min-h-[76px] text-white shadow-xs focus-visible:outline-2 focus-visible:outline-emerald-500"
-                    data-testid="guided-student-card"
-                  >
-                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                      <div className="relative shrink-0">
-                        <UserAvatar
-                          fullName={student.name}
-                          userPublicId={student.userPublicId}
-                          size="md"
-                          className="shrink-0 ring-1 ring-white/10 group-hover:scale-105 transition-transform"
-                        />
-                        <span
-                          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#151619] ${
-                            hasActiveWorkout ? "bg-emerald-400" : "bg-amber-400"
-                          }`}
-                          title={hasActiveWorkout ? "Treino ativo" : "Sem treino prescrito"}
-                        />
-                      </div>
-
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <span className="font-heading text-sm font-bold text-white group-hover:text-emerald-400 transition-colors block truncate">
-                          {student.name}
-                        </span>
-                        <p className="text-xs text-[#CBDDD3] truncate">{student.email}</p>
-                        <div className="flex items-center gap-2 pt-0.5 flex-wrap">
-                          {hasActiveWorkout ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 truncate max-w-[200px]">
-                              <DumbbellIcon className="w-3 h-3 text-emerald-400 shrink-0" />
-                              <span className="truncate">Treino ativo: {student.latestWorkoutTitle}</span>
-                            </span>
-                          ) : (
-                            <span className="text-[11px] font-medium text-amber-300">Sem treino prescrito</span>
-                          )}
-                          {student.objective && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#0B0C0E] text-[#CBDDD3] border border-white/10 truncate max-w-[120px]">
-                              {student.objective}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all p-1">
-                      <ChevronRightIcon className="w-5 h-5" />
-                    </div>
+            forms.map((f) => (
+              <div
+                key={f.publicId}
+                className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 flex items-center justify-between gap-3 text-xs"
+              >
+                <div>
+                  <div className="font-bold text-white">{f.title}</div>
+                  <div className="text-[11px] text-zinc-400">
+                    Respondido em {formatDisplayDate(f.submittedAt)} · {f.questions.length} perguntas
                   </div>
-                );
-              })}
-            </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenFormDetail(f)}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#151619] border border-white/10 text-emerald-400 hover:text-white font-bold text-xs cursor-pointer"
+                >
+                  Ver respostas
+                </button>
+              </div>
+            ))
           )}
         </div>
       )}
 
-      {/* =====================================================================
-          STEP 2: ESCOLHER O QUE VER
-          ===================================================================== */}
-      {step === "SELECT_SECTION" && selectedStudent && (
-        <div className={`space-y-5 ${slideAnimationClass}`}>
-          {/* Top Bar Navigation & Selected Student Header */}
-          <div className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] shadow-md text-white space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={handleBackToStudents}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CBDDD3] hover:text-white transition-colors cursor-pointer min-h-[44px] px-2 rounded-lg hover:bg-white/5"
-              >
-                <ArrowLeftIcon className="w-4 h-4 text-emerald-400" />
-                <span>Trocar aluno</span>
-              </button>
+      {/* SEND FORM */}
+      {tab === "send" && (
+        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs">
+          <div className="font-bold text-white">Selecione o modelo para enviar a {student.name}:</div>
 
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/consultoria/${consultancySlug}/progresso/alunos/${selectedStudent.membershipPublicId}`}
-                  className="text-xs font-semibold text-emerald-400 hover:underline min-h-[44px] flex items-center px-2 cursor-pointer"
+          {availableTemplates.length === 0 ? (
+            <p className="text-zinc-400">Carregando modelos disponíveis...</p>
+          ) : (
+            <div className="space-y-1.5">
+              {availableTemplates.map((tpl) => (
+                <label
+                  key={tpl.publicId}
+                  className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-colors ${
+                    selectedTemplateId === tpl.publicId
+                      ? "bg-emerald-500/10 border-emerald-500/40 text-white"
+                      : "bg-[#151619] border-white/10 text-zinc-300"
+                  }`}
                 >
-                  Ver perfil completo →
-                </Link>
-              </div>
-            </div>
-
-            {/* Student Identity Banner */}
-            <div className="flex items-center gap-3.5 pt-2 border-t border-white/10">
-              <UserAvatar
-                fullName={selectedStudent.name}
-                userPublicId={selectedStudent.userPublicId}
-                size="md"
-                className="shrink-0 ring-1 ring-white/10"
-              />
-              <div className="min-w-0 flex-1">
-                <h2 className="text-base sm:text-lg font-bold text-white font-sans truncate">
-                  {selectedStudent.name}
-                </h2>
-                <p className="text-xs text-[#CBDDD3] truncate">{selectedStudent.email}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Conversational Message Bubble */}
-          <div className="p-4 sm:p-5 rounded-xl border border-emerald-500/30 bg-[#0B0C0E] shadow-sm text-white flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
-              <SparklesBubbleIcon className="w-4 h-4" />
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
-                Escolha a Seção
-              </span>
-              <p className="text-sm sm:text-base font-bold text-white font-sans">
-                O que você gostaria de ver de {selectedStudent.name}?
-              </p>
-            </div>
-          </div>
-
-          {/* 5 Primary Option Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {/* 1. Visão Geral */}
-            <button
-              type="button"
-              onClick={() => handleSelectSection("visao-geral")}
-              className="p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] hover:border-emerald-500/50 hover:bg-[#1B1D21] transition-all text-left flex flex-col justify-between group cursor-pointer min-h-[140px] text-white shadow-xs focus-visible:outline-2 focus-visible:outline-emerald-500"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="w-10 h-10 rounded-xl bg-[#0B0C0E] border border-white/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <LayoutGridIcon className="w-5 h-5" />
-                </div>
-                <ChevronRightIcon className="w-5 h-5 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
-              </div>
-              <div className="pt-3">
-                <h3 className="font-heading font-bold text-sm sm:text-base text-white group-hover:text-emerald-400 transition-colors">
-                  Visão Geral
-                </h3>
-                <p className="text-xs text-[#CBDDD3] mt-1 leading-relaxed line-clamp-2">
-                  Cadastro, objetivos registrados, medidas e situação geral.
-                </p>
-              </div>
-            </button>
-
-            {/* 2. Fotos */}
-            <button
-              type="button"
-              onClick={() => handleSelectSection("fotos")}
-              className="p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] hover:border-emerald-500/50 hover:bg-[#1B1D21] transition-all text-left flex flex-col justify-between group cursor-pointer min-h-[140px] text-white shadow-xs focus-visible:outline-2 focus-visible:outline-emerald-500"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="w-10 h-10 rounded-xl bg-[#0B0C0E] border border-white/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <PhotoIcon className="w-5 h-5" />
-                </div>
-                {currentDetail && currentDetail.photos.length > 0 && (
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    {currentDetail.photos.length} avaliações
-                  </span>
-                )}
-                <ChevronRightIcon className="w-5 h-5 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
-              </div>
-              <div className="pt-3">
-                <h3 className="font-heading font-bold text-sm sm:text-base text-white group-hover:text-emerald-400 transition-colors">
-                  Fotos
-                </h3>
-                <p className="text-xs text-[#CBDDD3] mt-1 leading-relaxed line-clamp-2">
-                  Histórico fotográfico organizado por data, poses e comparador lado a lado.
-                </p>
-              </div>
-            </button>
-
-            {/* 3. Anamnese */}
-            <button
-              type="button"
-              onClick={() => handleSelectSection("anamnese")}
-              className="p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] hover:border-emerald-500/50 hover:bg-[#1B1D21] transition-all text-left flex flex-col justify-between group cursor-pointer min-h-[140px] text-white shadow-xs focus-visible:outline-2 focus-visible:outline-emerald-500"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="w-10 h-10 rounded-xl bg-[#0B0C0E] border border-white/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <ClipboardCheckIcon className="w-5 h-5" />
-                </div>
-                {currentDetail && (
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                      currentDetail.anamnesis.length > 0
-                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                        : "bg-white/5 text-zinc-400 border-white/10"
-                    }`}
-                  >
-                    {currentDetail.anamnesis.length > 0 ? "Respondida" : "Pendente"}
-                  </span>
-                )}
-                <ChevronRightIcon className="w-5 h-5 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
-              </div>
-              <div className="pt-3">
-                <h3 className="font-heading font-bold text-sm sm:text-base text-white group-hover:text-emerald-400 transition-colors">
-                  Anamnese
-                </h3>
-                <p className="text-xs text-[#CBDDD3] mt-1 leading-relaxed line-clamp-2">
-                  Respostas de saúde, histórico médico, hábitos e envio de questionário.
-                </p>
-              </div>
-            </button>
-
-            {/* 4. Formulários */}
-            <button
-              type="button"
-              onClick={() => handleSelectSection("formularios")}
-              className="p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] hover:border-emerald-500/50 hover:bg-[#1B1D21] transition-all text-left flex flex-col justify-between group cursor-pointer min-h-[140px] text-white shadow-xs focus-visible:outline-2 focus-visible:outline-emerald-500"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="w-10 h-10 rounded-xl bg-[#0B0C0E] border border-white/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <FileTextIcon className="w-5 h-5" />
-                </div>
-                {currentDetail && currentDetail.forms.length > 0 && (
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    {currentDetail.forms.length} formulários
-                  </span>
-                )}
-                <ChevronRightIcon className="w-5 h-5 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
-              </div>
-              <div className="pt-3">
-                <h3 className="font-heading font-bold text-sm sm:text-base text-white group-hover:text-emerald-400 transition-colors">
-                  Formulários
-                </h3>
-                <p className="text-xs text-[#CBDDD3] mt-1 leading-relaxed line-clamp-2">
-                  Questionários respondidos, pendências e envio de modelos da consultoria.
-                </p>
-              </div>
-            </button>
-
-            {/* 5. Treinos */}
-            <button
-              type="button"
-              onClick={() => handleSelectSection("treinos")}
-              className="p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] hover:border-emerald-500/50 hover:bg-[#1B1D21] transition-all text-left flex flex-col justify-between group cursor-pointer min-h-[140px] text-white shadow-xs focus-visible:outline-2 focus-visible:outline-emerald-500"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="w-10 h-10 rounded-xl bg-[#0B0C0E] border border-white/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <DumbbellIcon className="w-5 h-5" />
-                </div>
-                {selectedStudent.latestAssignmentStatus === "ACTIVE" && selectedStudent.latestWorkoutTitle && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 truncate max-w-[120px]">
-                    {selectedStudent.latestWorkoutTitle}
-                  </span>
-                )}
-                <ChevronRightIcon className="w-5 h-5 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
-              </div>
-              <div className="pt-3">
-                <h3 className="font-heading font-bold text-sm sm:text-base text-white group-hover:text-emerald-400 transition-colors">
-                  Treinos
-                </h3>
-                <p className="text-xs text-[#CBDDD3] mt-1 leading-relaxed line-clamp-2">
-                  Rotinas ativas, fichas de treino e criação personalizada.
-                </p>
-              </div>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* =====================================================================
-          STEP 3: DETALHES DA SEÇÃO SELECIONADA
-          ===================================================================== */}
-      {step === "SECTION_DETAIL" && selectedStudent && (
-        <div className={`space-y-5 ${slideAnimationClass}`}>
-          {/* Header Navigation Bar */}
-          <div className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] shadow-md text-white space-y-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleBackToSections}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CBDDD3] hover:text-white transition-colors cursor-pointer min-h-[44px] px-2 rounded-lg hover:bg-white/5"
-                >
-                  <ArrowLeftIcon className="w-4 h-4 text-emerald-400" />
-                  <span>Opções do aluno</span>
-                </button>
-                <span className="text-zinc-600">·</span>
-                <button
-                  type="button"
-                  onClick={handleBackToStudents}
-                  className="text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer min-h-[44px] px-1"
-                >
-                  Trocar aluno
-                </button>
-              </div>
-
-              {/* Student identity pill */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0B0C0E] border border-white/10">
-                <UserAvatar
-                  fullName={selectedStudent.name}
-                  userPublicId={selectedStudent.userPublicId}
-                  size="sm"
-                  className="shrink-0"
-                />
-                <span className="text-xs font-bold text-white truncate max-w-[150px]">
-                  {selectedStudent.name}
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Section Switching Chips */}
-            <div className="flex items-center gap-1.5 pt-2 border-t border-white/10 overflow-x-auto no-scrollbar">
-              {(
-                [
-                  { key: "visao-geral", label: "Visão Geral", icon: LayoutGridIcon },
-                  { key: "fotos", label: "Fotos", icon: PhotoIcon },
-                  { key: "anamnese", label: "Anamnese", icon: ClipboardCheckIcon },
-                  { key: "formularios", label: "Formulários", icon: FileTextIcon },
-                  { key: "treinos", label: "Treinos", icon: DumbbellIcon },
-                ] as const
-              ).map((tab) => {
-                const IconComponent = tab.icon;
-                const isActive = activeSection === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => {
-                      setActiveSection(tab.key);
-                      setRequestFeedback(null);
-                      if (tab.key === "formularios") loadFormTemplates();
-                    }}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer min-h-[36px] whitespace-nowrap ${
-                      isActive
-                        ? "bg-emerald-500 text-zinc-950 font-bold shadow-xs"
-                        : "bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10"
-                    }`}
-                  >
-                    <IconComponent className="w-3.5 h-3.5" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Feedback Message Banner (Success / Error from Actions) */}
-          {requestFeedback && (
-            <div
-              className={`p-4 rounded-xl border flex items-center justify-between gap-3 text-xs sm:text-sm font-semibold animate-in fade-in ${
-                requestFeedback.type === "success"
-                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                  : "bg-red-500/15 border-red-500/30 text-red-400"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {requestFeedback.type === "success" && <CheckCircleIcon className="w-4 h-4 shrink-0" />}
-                <span>{requestFeedback.message}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setRequestFeedback(null)}
-                className="text-xs hover:underline cursor-pointer min-h-[32px] px-2"
-              >
-                ✕
-              </button>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="formTemplate"
+                      checked={selectedTemplateId === tpl.publicId}
+                      onChange={() => onSelectTemplateId(tpl.publicId)}
+                      className="text-emerald-500 focus:ring-emerald-500"
+                    />
+                    <span className="font-semibold text-xs">{tpl.title}</span>
+                  </div>
+                  <span className="text-[11px] text-zinc-500">{tpl.category || "Geral"}</span>
+                </label>
+              ))}
             </div>
           )}
 
-          {/* Loading / Error States for Details */}
-          {isLoadingDetail && !currentDetail ? (
-            <div className="p-12 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-center space-y-3 text-white">
-              <div className="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin mx-auto" />
-              <p className="text-xs text-[#CBDDD3]">Carregando dados de {selectedStudent.name}...</p>
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={confirmedSend}
+              onChange={(e) => setConfirmedSend(e.target.checked)}
+              className="rounded border-white/20 bg-[#151619] text-emerald-500 focus:ring-emerald-500"
+            />
+            <span className="text-zinc-300">Confirmo o envio para este aluno</span>
+          </label>
+
+          <button
+            type="button"
+            onClick={onSendForm}
+            disabled={!confirmedSend || isSending || !selectedTemplateId}
+            className="w-full py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isSending ? "Enviando formulário..." : "Enviar Formulário Selecionado"}
+          </button>
+        </div>
+      )}
+
+      {/* CREATE FORM */}
+      {tab === "create" && (
+        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-3 text-xs">
+          <p className="text-zinc-300">
+            Crie novos formulários e questionários customizados na seção oficial.
+          </p>
+          <Link
+            href={`/consultoria/${consultancySlug}/formularios`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+          >
+            <span>Ir para Gerenciamento de Formulários</span>
+            <ChevronRightIcon className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 5. TREINOS WIDGET (Single, Multiple or None)
+function TreinosWidget({
+  student,
+  consultancySlug,
+  detail,
+  isLoading,
+}: {
+  student: PersonalStudentSummary;
+  consultancySlug: string;
+  detail?: PersonalStudentDetail;
+  isLoading?: boolean;
+}) {
+  if (isLoading && !detail) {
+    return (
+      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-zinc-400 flex items-center gap-2">
+        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-400" />
+        <span>Carregando treinos de {student.name}...</span>
+      </div>
+    );
+  }
+
+  const workouts = detail?.workouts || [];
+  const activeWorkouts = workouts.filter((w) => w.status === "ACTIVE");
+
+  return (
+    <div className="space-y-3 pt-1">
+      {activeWorkouts.length === 1 ? (
+        // Exactly 1 Active Workout -> Direct Official Flow
+        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs">
+          <div className="flex items-center gap-2">
+            <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="font-bold text-white">Treino ativo encontrado:</span>
+          </div>
+          <div className="p-3 rounded-lg bg-[#151619] border border-white/10 space-y-1">
+            <div className="font-bold text-emerald-400 text-sm">{activeWorkouts[0].title}</div>
+            <div className="text-[11px] text-zinc-400">
+              Prescrito em {formatDisplayDate(activeWorkouts[0].startsOn)}
             </div>
-          ) : detailError && !currentDetail ? (
-            <div className="p-8 rounded-2xl border border-red-500/30 bg-[#151619] text-center space-y-3 text-white">
-              <p className="text-sm font-bold text-red-400">{detailError}</p>
-              <button
-                type="button"
-                onClick={() => fetchStudentDetail(selectedStudent.membershipPublicId)}
-                className="px-4 py-2 rounded-xl bg-emerald-500 text-zinc-950 font-bold text-xs hover:bg-emerald-400 cursor-pointer min-h-[44px]"
+          </div>
+          <Link
+            href={`/consultoria/${consultancySlug}/treinos/${activeWorkouts[0].assignmentPublicId}`}
+            className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+          >
+            <span>Abrir treino ativo no Training Studio</span>
+            <ChevronRightIcon className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      ) : activeWorkouts.length > 1 ? (
+        // More than 1 Active Workout -> Short Nominal Choice
+        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs">
+          <div className="font-bold text-white">
+            {student.name} possui {activeWorkouts.length} treinos ativos. Escolha qual deseja abrir:
+          </div>
+          <div className="space-y-2">
+            {activeWorkouts.map((w) => (
+              <Link
+                key={w.assignmentPublicId}
+                href={`/consultoria/${consultancySlug}/treinos/${w.assignmentPublicId}`}
+                className="flex items-center justify-between p-3 rounded-xl bg-[#151619] border border-white/10 hover:border-emerald-500/50 hover:bg-[#202328] transition-all cursor-pointer group"
               >
-                Tentar novamente
-              </button>
-            </div>
-          ) : currentDetail ? (
-            <>
-              {/* =================================================================
-                  3A. VISÃO GERAL
-                  ================================================================= */}
-              {activeSection === "visao-geral" && (
-                <div className="space-y-4">
-                  {/* Conversational heading */}
-                  <div className="p-4 rounded-xl border border-emerald-500/30 bg-[#0B0C0E] text-white flex items-center gap-3">
-                    <SparklesBubbleIcon className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-sm font-bold text-white font-sans">
-                      Veja as informações de {currentDetail.student.name}.
-                    </p>
+                <div>
+                  <div className="font-bold text-white group-hover:text-emerald-400 transition-colors">
+                    {w.title}
                   </div>
-
-                  {/* Structured Informative Blocks */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                    {/* Bloco 1: Cadastro e Contato */}
-                    <div className="p-4 sm:p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-2.5">
-                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                        1. Cadastro e Contato
-                      </h4>
-                      <div className="space-y-1 text-xs">
-                        <p className="text-white font-semibold">{currentDetail.student.name}</p>
-                        <p className="text-[#CBDDD3]">{currentDetail.student.email}</p>
-                        <p className="text-zinc-400 text-[11px]">
-                          Membro ativo desde: {formatDisplayDate(currentDetail.student.joinedAt)}
-                        </p>
-                      </div>
-                      <div className="pt-2 flex items-center gap-2">
-                        {currentDetail.student.email && (
-                          <a
-                            href={`mailto:${currentDetail.student.email}`}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#0B0C0E] border border-white/10 text-xs font-semibold text-white hover:text-emerald-400 transition-colors min-h-[36px]"
-                          >
-                            <span>✉ Enviar e-mail</span>
-                          </a>
-                        )}
-                        <Link
-                          href={`/consultoria/${consultancySlug}/progresso/alunos/${currentDetail.student.membershipPublicId}`}
-                          className="text-xs text-emerald-400 hover:underline font-semibold min-h-[36px] flex items-center px-1"
-                        >
-                          Ver perfil completo →
-                        </Link>
-                      </div>
-                    </div>
-
-                    {/* Bloco 2: Objetivos Registrados */}
-                    <div className="p-4 sm:p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-2.5">
-                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                        2. Objetivos Registrados
-                      </h4>
-                      <p className="text-xs sm:text-sm text-white font-medium">
-                        {currentDetail.overview.objective
-                          ? `Objetivo registrado: "${currentDetail.overview.objective}".`
-                          : "Nenhum objetivo específico registrado ainda no cadastro deste aluno."}
-                      </p>
-                      {currentDetail.overview.age && (
-                        <p className="text-xs text-[#CBDDD3]">
-                          Idade informada: {currentDetail.overview.age} anos
-                          {currentDetail.overview.sex ? ` · Sexo: ${currentDetail.overview.sex}` : ""}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Bloco 3: Medidas e Bioimpedância */}
-                    <div className="p-4 sm:p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-2.5">
-                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                        3. Medidas e Evolução Registradas
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="p-2.5 rounded-lg bg-[#0B0C0E] border border-white/10">
-                          <span className="text-[10px] text-zinc-400 block">Peso mais recente</span>
-                          <span className="text-sm font-bold text-white">
-                            {currentDetail.overview.weightKg != null
-                              ? `${currentDetail.overview.weightKg} kg`
-                              : "Não registrado"}
-                          </span>
-                          {currentDetail.overview.lastWeightRecordedOn && (
-                            <span className="text-[10px] text-zinc-500 block">
-                              Em {formatDisplayDate(currentDetail.overview.lastWeightRecordedOn)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-[#0B0C0E] border border-white/10">
-                          <span className="text-[10px] text-zinc-400 block">Altura</span>
-                          <span className="text-sm font-bold text-white">
-                            {currentDetail.overview.heightCm != null
-                              ? `${currentDetail.overview.heightCm} cm`
-                              : "Não registrada"}
-                          </span>
-                        </div>
-                      </div>
-                      {currentDetail.measurements.length > 0 && (
-                        <p className="text-[11px] text-[#CBDDD3]">
-                          Total de {currentDetail.measurements.length} registro(s) de medidas no histórico.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Bloco 4: Situação dos Treinos */}
-                    <div className="p-4 sm:p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-2.5">
-                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                        4. Situação dos Treinos
-                      </h4>
-                      <div className="text-xs space-y-1">
-                        {activeWorkout ? (
-                          <div className="p-2.5 rounded-lg bg-[#0B0C0E] border border-emerald-500/30 space-y-1">
-                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider block">
-                              Treino Ativo
-                            </span>
-                            <p className="text-sm font-bold text-white">{activeWorkout.title}</p>
-                            <p className="text-zinc-400 text-[11px]">
-                              Nível {activeWorkout.difficultyLevel} · Versão v{activeWorkout.versionNumber}
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="text-amber-300 font-medium">
-                            Este aluno não possui um treino ativo no momento.
-                          </p>
-                        )}
-                        <p className="text-[11px] text-zinc-400 pt-1">
-                          Total de {currentDetail.workouts.length} treino(s) prescrito(s) e{" "}
-                          {currentDetail.completedSessions.length} sessão(ões) concluída(s).
-                        </p>
-                      </div>
-                      <div className="pt-1 flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleSelectSection("treinos")}
-                          className="text-xs font-semibold text-emerald-400 hover:underline min-h-[36px] flex items-center cursor-pointer"
-                        >
-                          Ver ficha de treinos →
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Bloco 5: Anamneses e Formulários */}
-                    <div className="p-4 sm:p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-2.5">
-                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                        5. Anamneses e Formulários
-                      </h4>
-                      <div className="text-xs space-y-1 text-[#CBDDD3]">
-                        <p>
-                          {currentDetail.anamnesis.length > 0
-                            ? `Anamnese respondida (${currentDetail.anamnesis.length} seções registradas).`
-                            : "Este aluno ainda não possui uma anamnese respondida."}
-                        </p>
-                        <p>
-                          {currentDetail.forms.length > 0
-                            ? `${currentDetail.forms.length} formulário(s) personalizado(s) disponível(is).`
-                            : "Nenhum formulário personalizado enviado ou respondido."}
-                        </p>
-                      </div>
-                      <div className="pt-1 flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleSelectSection("anamnese")}
-                          className="text-xs text-emerald-400 hover:underline font-semibold min-h-[36px] flex items-center cursor-pointer"
-                        >
-                          Abrir Anamnese →
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectSection("formularios")}
-                          className="text-xs text-emerald-400 hover:underline font-semibold min-h-[36px] flex items-center cursor-pointer"
-                        >
-                          Abrir Formulários →
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Bloco 6: Avaliações e Fotos */}
-                    <div className="p-4 sm:p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-2.5">
-                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                        6. Histórico Fotográfico
-                      </h4>
-                      <p className="text-xs text-[#CBDDD3]">
-                        {currentDetail.photos.length > 0
-                          ? `Total de ${currentDetail.photos.length} avaliação(ões) fotográfica(s) registrada(s).`
-                          : "Nenhum registro fotográfico enviado por este aluno ainda."}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectSection("fotos")}
-                        className="text-xs text-emerald-400 hover:underline font-semibold min-h-[36px] flex items-center cursor-pointer"
-                      >
-                        Ver galeria de fotos →
-                      </button>
-                    </div>
+                  <div className="text-[11px] text-zinc-400">
+                    Desde {formatDisplayDate(w.startsOn)}
                   </div>
                 </div>
-              )}
-
-              {/* =================================================================
-                  3B. FOTOS
-                  ================================================================= */}
-              {activeSection === "fotos" && (
-                <div className="space-y-4">
-                  {/* Conversational heading & Action Toolbar */}
-                  <div className="p-4 rounded-xl border border-emerald-500/30 bg-[#0B0C0E] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <SparklesBubbleIcon className="w-5 h-5 text-emerald-400 shrink-0" />
-                      <p className="text-sm font-bold text-white font-sans">
-                        Aqui estão os registros fotográficos de {currentDetail.student.name}.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {currentDetail.photos.length >= 2 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsPhotoComparatorOpen(!isPhotoComparatorOpen);
-                            if (!compareEvalA && currentDetail.photos.length >= 2) {
-                              setCompareEvalA(currentDetail.photos[currentDetail.photos.length - 1].requestPublicId);
-                              setCompareEvalB(currentDetail.photos[0].requestPublicId);
-                            }
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer min-h-[38px] ${
-                            isPhotoComparatorOpen
-                              ? "bg-emerald-500 text-zinc-950 font-bold"
-                              : "bg-[#151619] text-[#CBDDD3] hover:text-white border border-white/10"
-                          }`}
-                        >
-                          {isPhotoComparatorOpen ? "✕ Fechar comparador" : "⇄ Comparar antes e depois"}
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={handleSendPhotosRequest}
-                        disabled={isSendingRequest}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition-all cursor-pointer min-h-[38px] disabled:opacity-50"
-                      >
-                        + Solicitar novas fotos
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Comparador Lado a Lado (quando ativo) */}
-                  {isPhotoComparatorOpen && currentDetail.photos.length >= 2 && (
-                    <div className="p-5 rounded-2xl border border-emerald-500/40 bg-[#151619] text-white space-y-4 shadow-lg">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-                        <h4 className="text-sm font-bold text-white font-sans">
-                          Comparação Lado a Lado de Poses
-                        </h4>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-zinc-400">Pose:</span>
-                          {(
-                            [
-                              { id: "FRONT", label: "Frente" },
-                              { id: "BACK", label: "Costas" },
-                              { id: "RIGHT", label: "Lateral D." },
-                              { id: "LEFT", label: "Lateral E." },
-                            ] as const
-                          ).map((p) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => setComparePose(p.id)}
-                              className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer ${
-                                comparePose === p.id
-                                  ? "bg-emerald-500 text-zinc-950 font-bold"
-                                  : "bg-[#0B0C0E] text-zinc-300 hover:text-white border border-white/10"
-                              }`}
-                            >
-                              {p.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Selectors for Date A and Date B */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-semibold text-zinc-400">Período Anterior (Data A):</label>
-                          <select
-                            value={compareEvalA}
-                            onChange={(e) => setCompareEvalA(e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg bg-[#0B0C0E] border border-white/10 text-white text-xs min-h-[44px]"
-                          >
-                            {currentDetail.photos.map((p) => (
-                              <option key={`a-${p.requestPublicId}`} value={p.requestPublicId}>
-                                {formatDisplayDate(p.submittedAt)} ({p.status})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-semibold text-zinc-400">Período Recente (Data B):</label>
-                          <select
-                            value={compareEvalB}
-                            onChange={(e) => setCompareEvalB(e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg bg-[#0B0C0E] border border-white/10 text-white text-xs min-h-[44px]"
-                          >
-                            {currentDetail.photos.map((p) => (
-                              <option key={`b-${p.requestPublicId}`} value={p.requestPublicId}>
-                                {formatDisplayDate(p.submittedAt)} ({p.status})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Side by Side Image Display */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                        {/* Image A */}
-                        {(() => {
-                          const evalA = currentDetail.photos.find((p) => p.requestPublicId === compareEvalA);
-                          const imgA = evalA?.images.find((i) => i.pose === comparePose);
-                          return (
-                            <div className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-2">
-                              <span className="text-xs font-bold text-zinc-300 block">
-                                Antes: {formatDisplayDate(evalA?.submittedAt)}
-                              </span>
-                              <div className="w-full aspect-[3/4] bg-black/60 rounded-lg overflow-hidden flex items-center justify-center border border-white/5">
-                                {imgA ? (
-                                  <img
-                                    src={imgA.imageUrl}
-                                    alt={`Foto anterior de ${selectedStudent.name}`}
-                                    className="w-full h-full object-contain cursor-pointer"
-                                    onClick={() =>
-                                      setSelectedZoomPhoto({
-                                        url: imgA.imageUrl,
-                                        pose: comparePose,
-                                        date: formatDisplayDate(evalA?.submittedAt),
-                                      })
-                                    }
-                                  />
-                                ) : (
-                                  <span className="text-xs text-zinc-500 italic">Foto não enviada nesta pose</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Image B */}
-                        {(() => {
-                          const evalB = currentDetail.photos.find((p) => p.requestPublicId === compareEvalB);
-                          const imgB = evalB?.images.find((i) => i.pose === comparePose);
-                          return (
-                            <div className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-2">
-                              <span className="text-xs font-bold text-emerald-400 block">
-                                Atual: {formatDisplayDate(evalB?.submittedAt)}
-                              </span>
-                              <div className="w-full aspect-[3/4] bg-black/60 rounded-lg overflow-hidden flex items-center justify-center border border-white/5">
-                                {imgB ? (
-                                  <img
-                                    src={imgB.imageUrl}
-                                    alt={`Foto recente de ${selectedStudent.name}`}
-                                    className="w-full h-full object-contain cursor-pointer"
-                                    onClick={() =>
-                                      setSelectedZoomPhoto({
-                                        url: imgB.imageUrl,
-                                        pose: comparePose,
-                                        date: formatDisplayDate(evalB?.submittedAt),
-                                      })
-                                    }
-                                  />
-                                ) : (
-                                  <span className="text-xs text-zinc-500 italic">Foto não enviada nesta pose</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Empty state if no photos */}
-                  {currentDetail.photos.length === 0 ? (
-                    <div className="p-10 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-center space-y-3 text-white">
-                      <div className="w-12 h-12 rounded-xl bg-[#0B0C0E] border border-white/10 flex items-center justify-center mx-auto text-emerald-400">
-                        <PhotoIcon className="w-6 h-6" />
-                      </div>
-                      <h4 className="text-base font-bold text-white font-sans">
-                        Nenhum registro fotográfico enviado
-                      </h4>
-                      <p className="text-xs text-[#CBDDD3] max-w-md mx-auto">
-                        Este aluno ainda não enviou fotos de evolução. Você pode solicitar um conjunto padronizado de fotos agora mesmo.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleSendPhotosRequest}
-                        disabled={isSendingRequest}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 min-h-[44px] cursor-pointer disabled:opacity-50"
-                      >
-                        <PlusIcon className="w-4 h-4" />
-                        <span>+ Solicitar fotos de evolução</span>
-                      </button>
-                    </div>
-                  ) : (
-                    /* Timeline of evaluations */
-                    <div className="space-y-4">
-                      {currentDetail.photos.map((photoEval, idx) => {
-                        const poseMap: Record<string, string> = {
-                          FRONT: "Frontal",
-                          BACK: "Costas",
-                          RIGHT: "Lateral Direita",
-                          LEFT: "Lateral Esquerda",
-                        };
-
-                        return (
-                          <div
-                            key={photoEval.requestPublicId || idx}
-                            className="p-5 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-3 shadow-xs"
-                          >
-                            <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-2.5 flex-wrap">
-                              <div>
-                                <span className="text-sm font-bold text-white font-sans">
-                                  Avaliação de {formatDisplayDate(photoEval.submittedAt)}
-                                </span>
-                                {photoEval.reviewerNotes && (
-                                  <p className="text-xs text-zinc-400 mt-0.5">{photoEval.reviewerNotes}</p>
-                                )}
-                              </div>
-                              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-white/[0.06] text-[#CBDDD3] border border-white/10">
-                                {photoEval.status === "REVIEWED" ? "Aprovada" : photoEval.status}
-                              </span>
-                            </div>
-
-                            {/* Photos Grid: 4 poses */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-                              {["FRONT", "BACK", "RIGHT", "LEFT"].map((poseKey) => {
-                                const img = photoEval.images.find((i) => i.pose === poseKey);
-                                return (
-                                  <div
-                                    key={poseKey}
-                                    className="p-2 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-1.5"
-                                  >
-                                    <span className="text-[11px] font-semibold text-zinc-300 block truncate">
-                                      {poseMap[poseKey]}
-                                    </span>
-                                    <div className="w-full aspect-[3/4] bg-black/60 rounded-lg overflow-hidden flex items-center justify-center border border-white/5 relative group">
-                                      {img ? (
-                                        <>
-                                          <img
-                                            src={img.imageUrl}
-                                            alt={`${poseMap[poseKey]} - ${selectedStudent.name}`}
-                                            className="w-full h-full object-contain cursor-pointer transition-transform group-hover:scale-105"
-                                            onClick={() =>
-                                              setSelectedZoomPhoto({
-                                                url: img.imageUrl,
-                                                pose: poseMap[poseKey],
-                                                date: formatDisplayDate(photoEval.submittedAt),
-                                              })
-                                            }
-                                          />
-                                          <div
-                                            onClick={() =>
-                                              setSelectedZoomPhoto({
-                                                url: img.imageUrl,
-                                                pose: poseMap[poseKey],
-                                                date: formatDisplayDate(photoEval.submittedAt),
-                                              })
-                                            }
-                                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-xs font-bold text-white"
-                                          >
-                                            Ampliar 🔍
-                                          </div>
-                                        </>
-                                      ) : (
-                                        <span className="text-[11px] text-zinc-600 italic">Não enviada</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Zoom Modal (Lightbox) */}
-                  {selectedZoomPhoto && (
-                    <div
-                      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in"
-                      onClick={() => setSelectedZoomPhoto(null)}
-                    >
-                      <div
-                        className="relative max-w-3xl max-h-[90vh] bg-[#151619] border border-zinc-700 rounded-2xl p-4 text-white space-y-3"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-2">
-                          <div>
-                            <h4 className="text-sm font-bold text-white">
-                              {selectedZoomPhoto.pose} · {selectedZoomPhoto.date}
-                            </h4>
-                            <p className="text-xs text-zinc-400">{selectedStudent.name}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedZoomPhoto(null)}
-                            className="p-1 rounded-lg text-zinc-400 hover:text-white min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
-                          >
-                            <XIcon className="w-5 h-5" />
-                          </button>
-                        </div>
-                        <div className="max-h-[75vh] overflow-hidden flex items-center justify-center bg-black/80 rounded-xl">
-                          <img
-                            src={selectedZoomPhoto.url}
-                            alt="Visualização ampliada da foto"
-                            className="max-h-[72vh] w-auto object-contain"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* =================================================================
-                  3C. ANAMNESE
-                  ================================================================= */}
-              {activeSection === "anamnese" && (
-                <div className="space-y-4">
-                  {/* Conversational heading */}
-                  <div className="p-4 rounded-xl border border-emerald-500/30 bg-[#0B0C0E] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <SparklesBubbleIcon className="w-5 h-5 text-emerald-400 shrink-0" />
-                      <p className="text-sm font-bold text-white font-sans">
-                        Anamnese e histórico de saúde de {currentDetail.student.name}.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Sub-tab navigation */}
-                  <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto no-scrollbar">
-                    <button
-                      type="button"
-                      onClick={() => setAnamnesisSubTab("respostas")}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer min-h-[38px] ${
-                        anamnesisSubTab === "respostas"
-                          ? "bg-emerald-500 text-zinc-950 font-bold"
-                          : "bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10"
-                      }`}
-                    >
-                      Ver respostas do aluno
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAnamnesisSubTab("historico")}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer min-h-[38px] ${
-                        anamnesisSubTab === "historico"
-                          ? "bg-emerald-500 text-zinc-950 font-bold"
-                          : "bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10"
-                      }`}
-                    >
-                      Consultar histórico
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAnamnesisSubTab("enviar")}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer min-h-[38px] ${
-                        anamnesisSubTab === "enviar"
-                          ? "bg-emerald-500 text-zinc-950 font-bold"
-                          : "bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10"
-                      }`}
-                    >
-                      Enviar anamnese ao aluno
-                    </button>
-                    <Link
-                      href={`/consultoria/${consultancySlug}/formularios`}
-                      className="px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer min-h-[38px] bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10 inline-flex items-center gap-1"
-                    >
-                      <span>Gerenciar modelos</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-500" />
-                    </Link>
-                  </div>
-
-                  {/* Sub-tab 1: Respostas */}
-                  {anamnesisSubTab === "respostas" && (
-                    <div className="space-y-3">
-                      {currentDetail.anamnesis.length === 0 ? (
-                        <div className="p-8 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-center space-y-3 text-white">
-                          <p className="text-sm font-semibold text-white">
-                            Este aluno ainda não possui uma anamnese respondida.
-                          </p>
-                          <p className="text-xs text-[#CBDDD3]">
-                            Você pode enviar uma solicitação para que o aluno preencha a anamnese padrão da consultoria.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setAnamnesisSubTab("enviar")}
-                            className="px-4 py-2 rounded-xl bg-emerald-500 text-zinc-950 font-bold text-xs hover:bg-emerald-400 cursor-pointer min-h-[44px]"
-                          >
-                            Enviar solicitação agora →
-                          </button>
-                        </div>
-                      ) : (
-                        currentDetail.anamnesis.map((section, sIdx) => (
-                          <div
-                            key={section.title || sIdx}
-                            className="p-5 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-3 shadow-xs"
-                          >
-                            <h4 className="text-sm font-bold text-emerald-400 font-sans border-b border-white/10 pb-2">
-                              {section.title}
-                            </h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                              {section.items.map((item, iIdx) => (
-                                <div key={item.label || iIdx} className="space-y-0.5">
-                                  <span className="text-[11px] font-semibold text-zinc-400 block">
-                                    {item.label}
-                                  </span>
-                                  <p className="text-xs text-white font-medium bg-[#0B0C0E] p-2.5 rounded-lg border border-white/10">
-                                    {item.value || "—"}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-
-                  {/* Sub-tab 2: Histórico */}
-                  {anamnesisSubTab === "historico" && (
-                    <div className="p-5 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-3 shadow-xs">
-                      <h4 className="text-sm font-bold text-white font-sans">
-                        Histórico de Anamnese
-                      </h4>
-                      <div className="space-y-2 text-xs">
-                        {currentDetail.anamnesis.length > 0 ? (
-                          <div className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 flex items-center justify-between gap-3">
-                            <div>
-                              <p className="font-bold text-white">Anamnese Completa de Saúde</p>
-                              <p className="text-[11px] text-zinc-400">
-                                {currentDetail.anamnesis.length} seções registradas
-                              </p>
-                            </div>
-                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                              Respondida
-                            </span>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-zinc-400 italic">Nenhum envio registrado no histórico.</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Sub-tab 3: Enviar anamnese ao aluno */}
-                  {anamnesisSubTab === "enviar" && (
-                    <div className="p-5 sm:p-6 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-4 shadow-md max-w-2xl">
-                      <div className="space-y-1">
-                        <h4 className="text-base font-bold text-white font-sans">
-                          Enviar Anamnese para o Aluno
-                        </h4>
-                        <p className="text-xs text-[#CBDDD3]">
-                          Confirme os dados antes de formalizar o envio. O aluno receberá uma notificação na plataforma.
-                        </p>
-                      </div>
-
-                      <div className="space-y-3 p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="text-zinc-400">Modelo Selecionado:</span>
-                          <span className="font-bold text-white">Anamnese de Saúde e Rotina Padrão</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-zinc-400">Aluno Destinatário:</span>
-                          <span className="font-bold text-emerald-400">{selectedStudent.name}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-zinc-400">E-mail:</span>
-                          <span className="text-white">{selectedStudent.email}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-zinc-400">Consultoria:</span>
-                          <span className="text-white">{consultancySlug}</span>
-                        </div>
-                      </div>
-
-                      <div className="pt-2">
-                        <button
-                          type="button"
-                          onClick={handleSendAnamnesisRequest}
-                          disabled={isSendingRequest}
-                          className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition-all cursor-pointer min-h-[44px] disabled:opacity-50"
-                        >
-                          {isSendingRequest ? "Enviando solicitação..." : "Confirmar e Enviar Solicitação"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* =================================================================
-                  3D. FORMULÁRIOS
-                  ================================================================= */}
-              {activeSection === "formularios" && (
-                <div className="space-y-4">
-                  {/* Conversational heading */}
-                  <div className="p-4 rounded-xl border border-emerald-500/30 bg-[#0B0C0E] text-white flex items-center gap-3">
-                    <SparklesBubbleIcon className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-sm font-bold text-white font-sans">
-                      Formulários e questionários de {currentDetail.student.name}.
-                    </p>
-                  </div>
-
-                  {/* Sub-tab navigation */}
-                  <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto no-scrollbar">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormsSubTab("respondidos");
-                        setSelectedFormDetail(null);
-                      }}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer min-h-[38px] ${
-                        formsSubTab === "respondidos"
-                          ? "bg-emerald-500 text-zinc-950 font-bold"
-                          : "bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10"
-                      }`}
-                    >
-                      Formulários respondidos ({currentDetail.forms.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormsSubTab("enviar");
-                        setSelectedFormDetail(null);
-                        loadFormTemplates();
-                      }}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer min-h-[38px] ${
-                        formsSubTab === "enviar"
-                          ? "bg-emerald-500 text-zinc-950 font-bold"
-                          : "bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10"
-                      }`}
-                    >
-                      Enviar novo formulário
-                    </button>
-                    <Link
-                      href={`/consultoria/${consultancySlug}/formularios`}
-                      className="px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer min-h-[38px] bg-[#0B0C0E] text-[#CBDDD3] hover:text-white border border-white/10 inline-flex items-center gap-1"
-                    >
-                      <span>Criar modelo</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-500" />
-                    </Link>
-                  </div>
-
-                  {/* Sub-tab 1: Respondidos */}
-                  {formsSubTab === "respondidos" && (
-                    <div className="space-y-3">
-                      {selectedFormDetail ? (
-                        /* Expanded Form Questions/Answers view */
-                        <div className="p-5 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-4 shadow-md">
-                          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
-                            <div>
-                              <h4 className="text-base font-bold text-white font-sans">
-                                {selectedFormDetail.title}
-                              </h4>
-                              <p className="text-xs text-zinc-400">
-                                Respondido em: {formatDisplayDate(selectedFormDetail.submittedAt)}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedFormDetail(null)}
-                              className="text-xs text-emerald-400 hover:underline font-semibold cursor-pointer min-h-[38px] px-2"
-                            >
-                              ← Voltar à lista de formulários
-                            </button>
-                          </div>
-
-                          <div className="space-y-3 pt-1">
-                            {selectedFormDetail.questions.length === 0 ? (
-                              <p className="text-xs text-zinc-400 italic">Nenhuma resposta registrada neste formulário.</p>
-                            ) : (
-                              selectedFormDetail.questions.map((q, idx) => (
-                                <div
-                                  key={idx}
-                                  className="p-3.5 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-1 text-xs"
-                                >
-                                  <span className="font-semibold text-zinc-300 block">{q.question}</span>
-                                  <p className="text-white font-medium">{q.answer || "—"}</p>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      ) : currentDetail.forms.length === 0 ? (
-                        <div className="p-8 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-center space-y-3 text-white">
-                          <p className="text-sm font-semibold text-white">
-                            Nenhum formulário respondido por este aluno ainda.
-                          </p>
-                          <p className="text-xs text-[#CBDDD3]">
-                            Você pode selecionar um modelo de formulário da consultoria para enviar ao aluno.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFormsSubTab("enviar");
-                              loadFormTemplates();
-                            }}
-                            className="px-4 py-2 rounded-xl bg-emerald-500 text-zinc-950 font-bold text-xs hover:bg-emerald-400 cursor-pointer min-h-[44px]"
-                          >
-                            Enviar um formulário agora →
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {currentDetail.forms.map((form) => (
-                            <div
-                              key={form.id || form.publicId}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => setSelectedFormDetail(form)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  setSelectedFormDetail(form);
-                                }
-                              }}
-                              className="p-4 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] hover:border-emerald-500/50 hover:bg-[#1B1D21] transition-all cursor-pointer flex items-center justify-between gap-3 text-white shadow-xs"
-                            >
-                              <div className="space-y-1 min-w-0 flex-1">
-                                <h5 className="font-heading font-bold text-sm text-white truncate">{form.title}</h5>
-                                <p className="text-[11px] text-[#CBDDD3]">
-                                  {form.submittedAt ? `Respondido em ${formatDisplayDate(form.submittedAt)}` : "Enviado"}
-                                </p>
-                              </div>
-                              <span className="text-xs font-semibold text-emerald-400 group-hover:underline shrink-0">
-                                Ver respostas →
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Sub-tab 2: Enviar Novo Formulário */}
-                  {formsSubTab === "enviar" && (
-                    <div className="p-5 sm:p-6 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-4 shadow-md max-w-2xl">
-                      <div className="space-y-1">
-                        <h4 className="text-base font-bold text-white font-sans">
-                          Selecionar e Enviar Formulário
-                        </h4>
-                        <p className="text-xs text-[#CBDDD3]">
-                          Escolha um modelo ativo da consultoria para enviar ao aluno.
-                        </p>
-                      </div>
-
-                      {availableTemplates.length === 0 ? (
-                        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-2 text-xs text-zinc-400">
-                          <p>Nenhum modelo personalizado cadastrado nesta consultoria.</p>
-                          <Link
-                            href={`/consultoria/${consultancySlug}/formularios`}
-                            className="text-emerald-400 hover:underline font-bold inline-block pt-1"
-                          >
-                            + Criar primeiro modelo de formulário
-                          </Link>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-zinc-300 block">
-                              Modelo de Formulário:
-                            </label>
-                            <select
-                              value={selectedTemplateId}
-                              onChange={(e) => setSelectedTemplateId(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0C0E] border border-white/10 text-white text-xs focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
-                            >
-                              {availableTemplates.map((tpl) => (
-                                <option key={tpl.publicId} value={tpl.publicId}>
-                                  {tpl.title} ({tpl.fieldsCount} perguntas)
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-zinc-400">Aluno Destinatário:</span>
-                              <span className="font-bold text-emerald-400">{selectedStudent.name}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-zinc-400">E-mail:</span>
-                              <span className="text-white">{selectedStudent.email}</span>
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={handleSendCustomFormRequest}
-                            disabled={isSendingRequest || !selectedTemplateId}
-                            className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition-all cursor-pointer min-h-[44px] disabled:opacity-50"
-                          >
-                            {isSendingRequest ? "Enviando formulário..." : "Confirmar Envio do Formulário"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* =================================================================
-                  3E. TREINOS
-                  ================================================================= */}
-              {activeSection === "treinos" && (
-                <div className="space-y-4">
-                  {/* Conversational heading */}
-                  <div className="p-4 rounded-xl border border-emerald-500/30 bg-[#0B0C0E] text-white flex items-center gap-3">
-                    <SparklesBubbleIcon className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-sm font-bold text-white font-sans">
-                      Treinos e prescrições de {currentDetail.student.name}.
-                    </p>
-                  </div>
-
-                  {(() => {
-                    const activeWorkouts = currentDetail.workouts.filter((w) => w.status === "ACTIVE");
-
-                    // CASE 1: EXACTLY 1 ACTIVE WORKOUT
-                    if (activeWorkouts.length === 1) {
-                      const workout = activeWorkouts[0];
-                      return (
-                        <div className="space-y-4">
-                          <div className="p-5 sm:p-6 rounded-2xl border border-emerald-500/40 bg-[#151619] text-white space-y-4 shadow-md">
-                            <div className="flex items-start justify-between gap-3 flex-wrap">
-                              <div>
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-md border border-emerald-500/30 inline-block">
-                                  Treino Ativo Atual
-                                </span>
-                                <h4 className="text-lg sm:text-xl font-bold text-white font-sans mt-1">
-                                  {workout.title}
-                                </h4>
-                                {workout.subtitle && (
-                                  <p className="text-xs text-[#CBDDD3] mt-0.5">{workout.subtitle}</p>
-                                )}
-                              </div>
-                              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#0B0C0E] border border-white/10 text-zinc-300">
-                                Nível: {workout.difficultyLevel} · v{workout.versionNumber}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
-                              <div className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-0.5">
-                                <span className="text-[10px] text-zinc-400 block">Início da Prescrição</span>
-                                <span className="font-bold text-white">
-                                  {formatDisplayDate(workout.startsOn)}
-                                </span>
-                              </div>
-                              <div className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-0.5">
-                                <span className="text-[10px] text-zinc-400 block">Sessões Concluídas</span>
-                                <span className="font-bold text-white">
-                                  {currentDetail.completedSessions.length} sessões realizadas
-                                </span>
-                              </div>
-                            </div>
-
-                            {workout.notesForStudent && (
-                              <div className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-[#CBDDD3]">
-                                <span className="font-bold text-white block mb-0.5">Orientações ao aluno:</span>
-                                {workout.notesForStudent}
-                              </div>
-                            )}
-
-                            {/* Direct Action Buttons */}
-                            <div className="flex flex-wrap items-center gap-3 pt-2">
-                              <Link
-                                href={`/consultoria/${consultancySlug}/rotinas/${workout.workoutPublicId}`}
-                                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition-all cursor-pointer min-h-[44px] shadow-sm"
-                              >
-                                <span>Abrir no Training Studio →</span>
-                              </Link>
-                              <Link
-                                href={`/consultoria/${consultancySlug}/progresso/alunos/${currentDetail.student.membershipPublicId}?tab=treinos`}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs bg-[#0B0C0E] hover:bg-[#1B1D21] border border-white/10 text-white transition-all cursor-pointer min-h-[44px]"
-                              >
-                                <span>Ver ficha completa</span>
-                              </Link>
-                            </div>
-                          </div>
-
-                          {/* Historical workouts list if any other exists */}
-                          {currentDetail.workouts.length > 1 && (
-                            <div className="p-4 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-2">
-                              <h5 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                                Histórico de outros treinos ({currentDetail.workouts.length - 1})
-                              </h5>
-                              <div className="space-y-1.5 pt-1">
-                                {currentDetail.workouts
-                                  .filter((w) => w.assignmentPublicId !== workout.assignmentPublicId)
-                                  .map((oldW) => (
-                                    <div
-                                      key={oldW.assignmentPublicId}
-                                      className="p-2.5 rounded-lg bg-[#0B0C0E] border border-white/10 flex items-center justify-between gap-3 text-xs"
-                                    >
-                                      <div>
-                                        <span className="font-bold text-white">{oldW.title}</span>
-                                        <span className="text-[11px] text-zinc-500 block">
-                                          Prescrito em {formatDisplayDate(oldW.startsOn)}
-                                        </span>
-                                      </div>
-                                      <Link
-                                        href={`/consultoria/${consultancySlug}/rotinas/${oldW.workoutPublicId}`}
-                                        className="text-xs text-emerald-400 hover:underline font-semibold"
-                                      >
-                                        Abrir ficha →
-                                      </Link>
-                                    </div>
-                                  ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    // CASE 2: MORE THAN 1 ACTIVE WORKOUT
-                    if (activeWorkouts.length > 1) {
-                      return (
-                        <div className="space-y-3">
-                          <p className="text-xs sm:text-sm text-[#CBDDD3]">
-                            Este aluno possui {activeWorkouts.length} treinos ativos válidos. Escolha qual deseja abrir:
-                          </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {activeWorkouts.map((workout) => (
-                              <div
-                                key={workout.assignmentPublicId}
-                                className="p-5 rounded-xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-white space-y-3 shadow-xs flex flex-col justify-between"
-                              >
-                                <div className="space-y-1">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                                    Nível {workout.difficultyLevel} · v{workout.versionNumber}
-                                  </span>
-                                  <h4 className="font-heading font-bold text-base text-white">{workout.title}</h4>
-                                  <p className="text-xs text-zinc-400">
-                                    Início em {formatDisplayDate(workout.startsOn)}
-                                  </p>
-                                </div>
-                                <div className="pt-2 flex items-center gap-2">
-                                  <Link
-                                    href={`/consultoria/${consultancySlug}/rotinas/${workout.workoutPublicId}`}
-                                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition-all cursor-pointer min-h-[40px]"
-                                  >
-                                    <span>Abrir no Studio →</span>
-                                  </Link>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    // CASE 3: NO ACTIVE WORKOUT
-                    return (
-                      <div className="p-8 sm:p-10 rounded-2xl border border-zinc-200 dark:border-[#303238] bg-[#151619] text-center space-y-4 text-white shadow-sm">
-                        <div className="w-12 h-12 rounded-xl bg-[#0B0C0E] border border-white/10 flex items-center justify-center mx-auto text-amber-400">
-                          <DumbbellIcon className="w-6 h-6" />
-                        </div>
-                        <div className="space-y-1 max-w-md mx-auto">
-                          <h4 className="text-base font-bold text-white font-sans">
-                            Nenhum treino ativo no momento
-                          </h4>
-                          <p className="text-xs text-[#CBDDD3] leading-relaxed">
-                            Este aluno não possui uma rotina de treino ativa vinculada. Você pode montar uma nova ficha personalizada ou atribuir uma rotina existente.
-                          </p>
-                        </div>
-                        <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-                          <Link
-                            href={`/consultoria/${consultancySlug}/rotinas/novo?student=${currentDetail.student.membershipPublicId}`}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 min-h-[44px] cursor-pointer shadow-sm"
-                          >
-                            <PlusIcon className="w-4 h-4" />
-                            <span>+ Criar treino personalizado</span>
-                          </Link>
-                          <Link
-                            href={`/consultoria/${consultancySlug}/rotinas`}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs text-white bg-[#0B0C0E] hover:bg-[#1B1D21] border border-white/10 min-h-[44px] cursor-pointer"
-                          >
-                            <span>Ver modelos da consultoria</span>
-                          </Link>
-                        </div>
-
-                        {/* Previous workouts if any */}
-                        {currentDetail.workouts.length > 0 && (
-                          <div className="pt-4 border-t border-white/10 text-left max-w-md mx-auto">
-                            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-2">
-                              Histórico de treinos anteriores ({currentDetail.workouts.length})
-                            </span>
-                            <div className="space-y-1">
-                              {currentDetail.workouts.map((w) => (
-                                <div
-                                  key={w.assignmentPublicId}
-                                  className="p-2 rounded-lg bg-[#0B0C0E] flex items-center justify-between text-xs"
-                                >
-                                  <span className="text-white font-medium">{w.title}</span>
-                                  <Link
-                                    href={`/consultoria/${consultancySlug}/rotinas/${w.workoutPublicId}`}
-                                    className="text-emerald-400 hover:underline"
-                                  >
-                                    Ver ficha →
-                                  </Link>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </>
-          ) : null}
+                <ChevronRightIcon className="w-4 h-4 text-zinc-500 group-hover:text-emerald-400 transition-colors shrink-0" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : (
+        // 0 Active Workouts -> Inform and Provide Official Actions
+        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs text-center">
+          <p className="text-zinc-300">
+            Este aluno não possui uma ficha de treino ativa no momento.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 pt-1 justify-center">
+            <Link
+              href={`/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+            >
+              <span>+ Criar treino personalizado</span>
+            </Link>
+            <Link
+              href={`/consultoria/${consultancySlug}/rotinas`}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-[#151619] border border-white/10 hover:bg-white/[0.06] transition-all cursor-pointer"
+            >
+              <span>Aplicar modelo da consultoria</span>
+            </Link>
+          </div>
         </div>
       )}
     </div>

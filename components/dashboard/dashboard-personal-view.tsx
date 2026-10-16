@@ -165,9 +165,32 @@ export function DashboardPersonalView({
   const [activeFilter, setActiveFilter] = useState<"ALL" | "FEW_BLOCKS" | "MANY_BLOCKS" | "DRAFT">("ALL");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
-  // Scroll Rail Refs for Desktop Netflix Carousel
+  // Scroll Rail Refs & Bounds for Desktop Netflix Carousel
   const desktopRailRef = useRef<HTMLDivElement>(null);
   const mobileRailRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScrollBounds = React.useCallback(() => {
+    const el = desktopRailRef.current;
+    if (!el) return;
+    const atStart = el.scrollLeft <= 5;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 5;
+    setCanScrollLeft(!atStart);
+    setCanScrollRight(!atEnd);
+  }, []);
+
+  React.useEffect(() => {
+    checkScrollBounds();
+    const el = desktopRailRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", checkScrollBounds, { passive: true });
+    window.addEventListener("resize", checkScrollBounds);
+    return () => {
+      el.removeEventListener("scroll", checkScrollBounds);
+      window.removeEventListener("resize", checkScrollBounds);
+    };
+  }, [recentPlans, checkScrollBounds]);
 
   // Total blocks prescribed across loaded recent workouts
   const totalRecentBlocks = useMemo(() => {
@@ -200,8 +223,6 @@ export function DashboardPersonalView({
     return (recentPlans || []).some((p) => p.status === "DRAFT");
   }, [recentPlans]);
 
-
-
   return (
     <>
       {/* ------------------------------------------------------------------ */}
@@ -219,59 +240,57 @@ export function DashboardPersonalView({
           </div>
         )}
 
-        {/* 2. Hero Spotlight Compacto Mobile - Verde-Escuro Sólido */}
-        <div className="relative overflow-hidden rounded-2xl border border-[#1e4738] bg-[#10271F] p-4.5 space-y-3.5 shadow-sm text-white">
-          {/* Top Pill Badge */}
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#18352C] border border-[#234e3e] text-[#80E8B3] text-[10px] font-bold tracking-wider uppercase">
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-400" />
-            <span>STUDIO DE PRESCRIÇÃO ATIVO</span>
-          </div>
+        {/* 2. Hero Spotlight Compacto Mobile - Preto Sólido #0B0C0E */}
+        <div className="relative overflow-hidden rounded-2xl border border-[#303238] bg-[#0B0C0E] p-4.5 space-y-3.5 shadow-sm text-white">
+          {/* Badge decorativo 'STUDIO DE PRESCRIÇÃO ATIVO' com 'animate-pulse bg-emerald-400' removido para priorizar leitura direta */}
 
-          {/* Saudação */}
+          {/* Título & Saudação */}
           <div className="space-y-0.5">
             <h1 className="text-xl font-black text-white tracking-tight font-sans">
-              {greeting}{firstName ? `, ${firstName}` : ""}
+              Visão geral dos treinos
             </h1>
-            <p className="text-xs text-[#CBDDD3] font-sans">
-              Gerencie suas fichas e acompanhe seus alunos.
+            <p className="text-xs text-[#C2C8CF] font-sans">
+              {greeting}{firstName ? `, ${firstName}` : ""}. Gerencie suas fichas e acompanhe seus alunos.
             </p>
           </div>
 
-          {/* Ações principais (Lado a lado, min-h-[48px]) */}
+          {/* Ações principais (Lado a lado, min-h-[48px], botões padronizados) */}
           <div className="grid grid-cols-2 gap-2 pt-1">
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/novo`}
-              className="min-h-[48px] rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-zinc-950 flex items-center justify-center gap-1.5 shadow-sm transition-all font-sans"
+              title="+ Nova ficha"
+              className="min-h-[48px] rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-zinc-950 flex items-center justify-center gap-1.5 shadow-sm transition-all font-sans cursor-pointer focus-visible:ring-2 focus-visible:ring-[#10B981] focus-visible:outline-none"
             >
-              <PlusIcon className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>+ Nova ficha</span>
+              <PlusIcon className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
+              <span>Nova ficha</span>
             </Link>
             <Link
               href={`/consultoria/${consultancySlug}/rotinas?action=import`}
-              className="min-h-[48px] rounded-xl font-semibold text-xs bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] text-white flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all font-sans"
+              title="Importar treino"
+              className="min-h-[48px] rounded-xl font-semibold text-xs bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] text-white flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all font-sans cursor-pointer focus-visible:ring-2 focus-visible:ring-[#10B981] focus-visible:outline-none"
             >
-              <SparklesIcon className="w-3.5 h-3.5 text-[#80E8B3]" />
+              <SparklesIcon className="w-4 h-4 text-[#10B981]" aria-hidden="true" />
               <span>Importar</span>
             </Link>
           </div>
 
-          {/* Bento Strip Compacto Mobile (3 Cards Verde-Escuros Sólidos) */}
+          {/* Bento Strip Compacto Mobile (3 Cards Grafite #151619) */}
           <div className="grid grid-cols-3 gap-2 pt-1">
             <Link
               href={`/consultoria/${consultancySlug}/progresso/alunos`}
-              title="Alunos"
-              className="p-2.5 rounded-xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
+              title="Alunos ativos"
+              className="p-2.5 rounded-xl bg-[#151619] hover:bg-[#1B1D21] border border-[#303238] hover:border-[#10B981]/50 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
             >
               <div className="flex items-center justify-between">
-                <UsersIcon className="w-3.5 h-3.5 text-[#80E8B3]" />
-                <span className="text-[10px] text-[#CBDDD3] font-bold">→</span>
+                <UsersIcon className="w-3.5 h-3.5 text-[#10B981]" />
+                <span className="text-[10px] text-[#C2C8CF] font-bold">→</span>
               </div>
               <div>
-                <span className="text-lg font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-lg font-black text-white group-hover:text-[#10B981] transition-colors font-sans tabular-nums leading-none block">
                   {displayStudents}
                 </span>
-                <span className="text-[9px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
-                  ALUNOS ATIVOS
+                <span className="text-[9px] font-bold text-[#C2C8CF] uppercase tracking-wider block mt-1">
+                  ALUNOS
                 </span>
               </div>
             </Link>
@@ -279,18 +298,18 @@ export function DashboardPersonalView({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas`}
               title="Fichas de treino"
-              className="p-2.5 rounded-xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
+              className="p-2.5 rounded-xl bg-[#151619] hover:bg-[#1B1D21] border border-[#303238] hover:border-[#10B981]/50 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
             >
               <div className="flex items-center justify-between">
-                <DumbbellIcon className="w-3.5 h-3.5 text-[#80E8B3]" />
-                <span className="text-[10px] text-[#CBDDD3] font-bold">→</span>
+                <DumbbellIcon className="w-3.5 h-3.5 text-[#10B981]" />
+                <span className="text-[10px] text-[#C2C8CF] font-bold">→</span>
               </div>
               <div>
-                <span className="text-lg font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-lg font-black text-white group-hover:text-[#10B981] transition-colors font-sans tabular-nums leading-none block">
                   {displayPlans}
                 </span>
-                <span className="text-[9px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
-                  Fichas
+                <span className="text-[9px] font-bold text-[#C2C8CF] uppercase tracking-wider block mt-1">
+                  FICHAS
                 </span>
               </div>
             </Link>
@@ -298,37 +317,37 @@ export function DashboardPersonalView({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas?action=import`}
               title="Inteligência de Prescrição"
-              className="p-2.5 rounded-xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
+              className="p-2.5 rounded-xl bg-[#151619] hover:bg-[#1B1D21] border border-[#303238] hover:border-[#10B981]/50 flex flex-col justify-between min-h-[72px] active:scale-[0.98] transition-all group"
             >
               <div className="flex items-center justify-between">
-                <FlameIcon className="w-3.5 h-3.5 text-[#80E8B3]" />
-                <span className="text-[10px] text-[#CBDDD3] font-bold">IA</span>
+                <FlameIcon className="w-3.5 h-3.5 text-[#10B981]" />
+                <span className="text-[10px] text-[#C2C8CF] font-bold">IA</span>
               </div>
               <div>
-                <span className="text-lg font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-lg font-black text-white group-hover:text-[#10B981] transition-colors font-sans tabular-nums leading-none block">
                   {totalRecentBlocks > 0 ? totalRecentBlocks : "Studio"}
                 </span>
-                <span className="text-[9px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
-                  {totalRecentBlocks > 0 ? "Blocos" : "Importar"}
+                <span className="text-[9px] font-bold text-[#C2C8CF] uppercase tracking-wider block mt-1">
+                  {totalRecentBlocks > 0 ? "BLOCOS" : "IMPORTAR"}
                 </span>
               </div>
             </Link>
           </div>
         </div>
 
-        {/* 3. Trilho Estilo Netflix: Acesso Rápido Mobile (Cards Verde-Escuros Sólidos) */}
+        {/* 3. Trilho Estilo Netflix: Acesso Rápido Mobile (Cards Grafite Sólidos #151619) */}
         {recentPlans && recentPlans.length > 0 && (
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5">
-                <div className="w-5 h-5 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                <div className="w-5 h-5 rounded-md bg-[#151619] border border-[#303238] text-[#10B981] flex items-center justify-center">
                   <FlameIcon className="w-3 h-3" />
                 </div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] font-sans">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-white font-sans">
                   Acesso rápido
                 </h2>
               </div>
-              <span className="text-[11px] text-[var(--text-tertiary)] font-semibold">
+              <span className="text-[11px] text-zinc-500 dark:text-[#C2C8CF] font-semibold">
                 Deslize para ver →
               </span>
             </div>
@@ -345,13 +364,13 @@ export function DashboardPersonalView({
                   <Link
                     key={`mob-rail-${plan.publicId}`}
                     href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
-                    className="min-w-[240px] max-w-[260px] snap-start shrink-0 rounded-2xl border border-[#1e4738] bg-[#10271F] p-3.5 flex flex-col justify-between min-h-[150px] shadow-sm active:scale-[0.98] transition-all group hover:border-emerald-500/50 text-white"
+                    className="min-w-[240px] max-w-[260px] snap-start shrink-0 rounded-2xl border border-[#303238] bg-[#151619] p-3.5 flex flex-col justify-between min-h-[150px] shadow-sm active:scale-[0.98] transition-all group hover:border-[#10B981]/50 text-white"
                   >
                     <div>
                       {/* Top Meta Line */}
                       <div className="flex items-center justify-between gap-1.5">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#18352C] text-[#CBDDD3] border border-[#234e3e]">
-                          <DumbbellIcon className="w-2.5 h-2.5 text-[#80E8B3]" />
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1B1D21] text-[#C2C8CF] border border-[#303238]">
+                          <DumbbellIcon className="w-2.5 h-2.5 text-[#10B981]" />
                           <span>{blocks} {blocks === 1 ? "bloco" : "blocos"}</span>
                         </span>
                         {isDraft && (
@@ -362,33 +381,22 @@ export function DashboardPersonalView({
                       </div>
 
                       {/* Title */}
-                      <h3 className="text-xs font-bold text-white line-clamp-2 mt-2 group-hover:text-[#80E8B3] transition-colors">
+                      <h3 className="text-xs font-bold text-white line-clamp-2 mt-2 group-hover:text-[#10B981] transition-colors leading-snug">
                         {plan.title}
                       </h3>
                       {plan.subtitle && (
-                        <p className="text-[10px] text-[#CBDDD3] truncate mt-0.5">
+                        <p className="text-[10px] text-[#C2C8CF] truncate mt-0.5">
                           {plan.subtitle}
                         </p>
                       )}
                     </div>
 
-                    {/* Density indicator & CTA with explicit semantics */}
-                    <div className="pt-2 border-t border-[#1e4738] space-y-1.5">
-                      <div className="flex items-center justify-between text-[10px] text-[#CBDDD3] font-medium">
-                        <span>Densidade</span>
-                        <span>{blocks} {blocks === 1 ? "bloco" : "blocos"}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4].map((seg) => (
-                          <div
-                            key={seg}
-                            className={`h-1 flex-1 rounded-full ${
-                              seg <= blocks ? "bg-emerald-400" : "bg-[#18352C]"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] font-bold text-[#80E8B3]">
+                    {/* Meta info & CTA direta */}
+                    <div className="pt-2 border-t border-[#303238] flex items-center justify-between text-[11px] mt-2">
+                      <span className="text-[#C2C8CF] font-medium text-[10px]">
+                        {blocks} {blocks === 1 ? "bloco" : "blocos"}
+                      </span>
+                      <div className="flex items-center gap-1 font-bold text-[#10B981] group-hover:text-emerald-300 transition-colors">
                         <span>Abrir no Studio</span>
                         <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                       </div>
@@ -404,18 +412,18 @@ export function DashboardPersonalView({
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-bold text-[var(--text-primary)] font-sans">
+              <h2 className="text-sm font-bold text-zinc-900 dark:text-white font-sans">
                 Fichas recentes
               </h2>
               {filteredPlans.length > 0 && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-[#1B1D21] text-zinc-700 dark:text-[#C2C8CF] border border-zinc-300 dark:border-[#303238]">
                   {filteredPlans.length}
                 </span>
               )}
             </div>
             <Link
               href={`/consultoria/${consultancySlug}/rotinas`}
-              className="text-xs text-[var(--brand)] font-semibold font-sans hover:underline"
+              className="text-xs text-[#10B981] font-semibold font-sans hover:underline"
             >
               Ver todas {totalPlans !== undefined && totalPlans !== null ? `(${totalPlans})` : ""} →
             </Link>
@@ -429,14 +437,14 @@ export function DashboardPersonalView({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar ficha por nome..."
-                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[38px]"
+                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-zinc-300 dark:border-[#303238] bg-white dark:bg-[#151619] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-[#C2C8CF]/60 focus:ring-2 focus:ring-[#10B981] focus:border-[#10B981] focus:outline-none min-h-[38px]"
               />
-              <SearchIcon className="w-3.5 h-3.5 text-[var(--text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <SearchIcon className="w-3.5 h-3.5 text-zinc-400 dark:text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer"
                 >
                   <XIcon className="w-3.5 h-3.5" />
                 </button>
@@ -444,11 +452,10 @@ export function DashboardPersonalView({
             </div>
           )}
 
-          {/* List of Recent Plans */}
-          <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] divide-y divide-[var(--border-subtle)] overflow-hidden shadow-2xs">
+          {/* List of Recent Plans (Mobile) - Grafite Sólido #151619 */}
+          <div className="rounded-2xl bg-[#151619] border border-[#303238] divide-y divide-[#303238] overflow-hidden shadow-2xs">
             {recentPlans && recentPlans.length > 0 ? (
               filteredPlans.length > 0 ? (
-                // recentPlans.slice(0, 4) contract preserved for base slice
                 (searchQuery ? filteredPlans : recentPlans.slice(0, 4)).map((plan) => {
                   const isArchived = plan.status === "ARCHIVED";
                   const isDraft = plan.status === "DRAFT";
@@ -457,31 +464,31 @@ export function DashboardPersonalView({
                     <Link
                       key={`mob-${plan.publicId}`}
                       href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
-                      className="p-3.5 flex items-center justify-between gap-3 active:bg-[var(--surface-hover)] transition-colors min-h-[56px] group"
+                      className="p-3.5 flex items-center justify-between gap-3 active:bg-[#1B1D21] transition-colors min-h-[56px] group"
                     >
                       <div className="min-w-0 flex-1 space-y-0.5 pr-2">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors truncate font-sans">
+                          <span className="text-xs sm:text-sm font-semibold text-white group-hover:text-[#10B981] transition-colors truncate font-sans">
                             {plan.title}
                           </span>
                           {isDraft && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-sans">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 font-sans">
                               Rascunho
                             </span>
                           )}
                           {isArchived && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded font-medium bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)] font-sans">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-medium bg-[#1B1D21] text-[#C2C8CF] border border-[#303238] font-sans">
                               Arquivada
                             </span>
                           )}
                         </div>
                         {plan.blocksCount ? (
-                          <p className="text-[11px] text-[var(--text-tertiary)] font-sans">
+                          <p className="text-[11px] text-[#C2C8CF] font-sans">
                             {plan.blocksCount} {plan.blocksCount === 1 ? "bloco" : "blocos"}
                           </p>
                         ) : null}
                       </div>
-                      <span className="text-xs text-[var(--text-tertiary)] group-hover:text-[var(--brand)] group-hover:translate-x-0.5 transition-all font-bold shrink-0">
+                      <span className="text-xs text-[#C2C8CF] group-hover:text-[#10B981] group-hover:translate-x-0.5 transition-all font-bold shrink-0">
                         →
                       </span>
                     </Link>
@@ -489,13 +496,13 @@ export function DashboardPersonalView({
                 })
               ) : (
                 <div className="p-6 text-center space-y-2">
-                  <p className="text-xs text-[var(--text-secondary)] font-sans">
+                  <p className="text-xs text-[#C2C8CF] font-sans">
                     Nenhuma ficha encontrada para &ldquo;{searchQuery}&rdquo;.
                   </p>
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="text-xs font-bold text-emerald-600 hover:underline"
+                    className="text-xs font-bold text-[#10B981] hover:underline cursor-pointer"
                   >
                     Limpar busca
                   </button>
@@ -503,12 +510,12 @@ export function DashboardPersonalView({
               )
             ) : (
               <div className="p-6 text-center space-y-2">
-                <p className="text-xs text-[var(--text-secondary)] font-sans">
+                <p className="text-xs text-[#C2C8CF] font-sans">
                   Nenhuma ficha cadastrada ainda.
                 </p>
-                <Link href={`/consultoria/${consultancySlug}/rotinas/novo`}>
+                <Link href={`/consultoria/${consultancySlug}/rotinas/novo`} title="+ Nova ficha">
                   <Button variant="primary" size="sm" className="font-semibold text-xs rounded-xl font-sans">
-                    + Nova ficha
+                    Nova ficha
                   </Button>
                 </Link>
               </div>
@@ -524,69 +531,69 @@ export function DashboardPersonalView({
         data-testid="personal-desktop-view"
         className="hidden md:block space-y-6 w-full animate-in fade-in duration-150"
       >
-        {/* 1. Hero Banner "Spotlight" - Painel Verde-Escuro Sólido Executivo */}
-        <div className="relative overflow-hidden rounded-3xl border border-[#1e4738] bg-[#10271F] p-6 sm:p-7 shadow-sm transition-all text-white">
-          {/* Top Row: Pill Badge + Context */}
+        {/* 1. Hero Banner "Spotlight" - Cabeçalho Preto Sólido Executivo #0B0C0E */}
+        <div className="relative overflow-hidden rounded-3xl border border-[#303238] bg-[#0B0C0E] p-6 sm:p-7 shadow-sm transition-all text-white">
+          {/* Badge decorativo 'STUDIO DE PRESCRIÇÃO ATIVO' com 'animate-pulse bg-emerald-400' removido para priorizar hierarquia direta */}
+
+          {/* Top Row: Título & Subtítulo + CTAs Primário e Secundário */}
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#18352C] border border-[#234e3e] text-[#80E8B3] text-xs font-bold tracking-wider uppercase">
-                <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400" />
-                <span>STUDIO DE PRESCRIÇÃO ATIVO</span>
-              </div>
+            <div className="space-y-1 max-w-2xl">
               <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans">
                 Visão geral dos treinos
               </h1>
-              <p className="text-xs sm:text-sm text-[#CBDDD3] font-sans leading-relaxed">
+              <p className="text-xs sm:text-sm text-[#C2C8CF] font-sans leading-relaxed">
                 {firstName ? `Olá, ${firstName}. ` : ""}Gerencie suas fichas e acompanhe seus alunos.
               </p>
             </div>
 
-            {/* CTAs de Alto Impacto */}
+            {/* CTAs de Alto Impacto e Alto Contraste */}
             <div className="flex items-center gap-3 shrink-0">
               <Link href={`/consultoria/${consultancySlug}/rotinas/novo`}>
-                <Button
-                  variant="primary"
-                  size="md"
-                  className="font-bold text-sm rounded-xl px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all font-sans min-h-[44px] flex items-center gap-2"
+                <button
+                  type="button"
+                  title="+ Nova ficha"
+                  aria-label="Nova ficha"
+                  className="font-bold text-sm rounded-xl px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-sm hover:scale-[1.01] active:scale-[0.98] transition-all font-sans min-h-[44px] flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#10B981] focus-visible:outline-none"
                 >
-                  <PlusIcon className="w-4 h-4 stroke-[2.5]" />
-                  <span>+ Nova ficha</span>
-                </Button>
+                  <PlusIcon className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
+                  <span>Nova ficha</span>
+                </button>
               </Link>
               <Link href={`/consultoria/${consultancySlug}/rotinas?action=import`}>
-                <Button
-                  variant="secondary"
-                  size="md"
-                  className="font-semibold text-sm rounded-xl px-4 py-2.5 bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 text-white transition-all font-sans min-h-[44px] flex items-center gap-2 active:scale-[0.98]"
+                <button
+                  type="button"
+                  title="Importar treino"
+                  aria-label="Importar treino"
+                  className="font-semibold text-sm rounded-xl px-4 py-2.5 bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] hover:border-[#10B981]/50 text-white transition-all font-sans min-h-[44px] flex items-center gap-2 active:scale-[0.98] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#10B981] focus-visible:outline-none"
                 >
-                  <SparklesIcon className="w-4 h-4 text-[#80E8B3]" />
+                  <SparklesIcon className="w-4 h-4 text-[#10B981]" aria-hidden="true" />
                   <span>Importar treino</span>
-                </Button>
+                </button>
               </Link>
             </div>
           </div>
 
-          {/* Bento Strip Compacto (3 Cards Integrados Verde-Escuros Sólidos) */}
-          <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-6 mt-6 border-t border-[#1e4738]">
+          {/* Bento Strip Compacto (3 Cards Integrados Grafite Sólidos #151619) */}
+          <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-5 mt-5 border-t border-[#303238]">
             {/* Card 1: Alunos */}
             <Link
               href={`/consultoria/${consultancySlug}/progresso/alunos`}
               title="Alunos"
-              className="p-4 rounded-2xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer text-white"
+              className="p-4 rounded-2xl bg-[#151619] hover:bg-[#1B1D21] border border-[#303238] hover:border-[#10B981]/50 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer text-white"
             >
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-[#10271F] border border-[#1e4738] text-[#80E8B3] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center">
                   <UsersIcon className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-semibold text-[#CBDDD3] group-hover:text-[#80E8B3] group-hover:translate-x-0.5 transition-all">
+                <span className="text-xs font-semibold text-[#C2C8CF] group-hover:text-white group-hover:translate-x-0.5 transition-all">
                   Ver alunos →
                 </span>
               </div>
               <div className="pt-2">
-                <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#10B981] transition-colors font-sans tabular-nums leading-none block">
                   {displayStudents}
                 </span>
-                <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
+                <span className="text-[11px] font-bold text-[#C2C8CF] uppercase tracking-wider block mt-1">
                   ALUNOS ATIVOS
                 </span>
               </div>
@@ -596,22 +603,22 @@ export function DashboardPersonalView({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas`}
               title="Fichas de treino"
-              className="p-4 rounded-2xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer text-white"
+              className="p-4 rounded-2xl bg-[#151619] hover:bg-[#1B1D21] border border-[#303238] hover:border-[#10B981]/50 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer text-white"
             >
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-[#10271F] border border-[#1e4738] text-[#80E8B3] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center">
                   <DumbbellIcon className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-semibold text-[#CBDDD3] group-hover:text-[#80E8B3] group-hover:translate-x-0.5 transition-all">
+                <span className="text-xs font-semibold text-[#C2C8CF] group-hover:text-white group-hover:translate-x-0.5 transition-all">
                   Ver todas →
                 </span>
               </div>
               <div className="pt-2">
-                <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#10B981] transition-colors font-sans tabular-nums leading-none block">
                   {displayPlans}
                 </span>
-                <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
-                  Fichas de treino
+                <span className="text-[11px] font-bold text-[#C2C8CF] uppercase tracking-wider block mt-1">
+                  FICHAS DE TREINO
                 </span>
               </div>
             </Link>
@@ -620,68 +627,87 @@ export function DashboardPersonalView({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas?action=import`}
               title="Importar treino com IA"
-              className="p-4 rounded-2xl bg-[#18352C] hover:bg-[#1B382D] border border-[#234e3e] hover:border-emerald-500/50 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer col-span-1 sm:col-span-2 lg:col-span-1 text-white"
+              className="p-4 rounded-2xl bg-[#151619] hover:bg-[#1B1D21] border border-[#303238] hover:border-[#10B981]/50 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer col-span-1 sm:col-span-2 lg:col-span-1 text-white"
             >
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-[#10271F] border border-[#1e4738] text-[#80E8B3] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center">
                   <FlameIcon className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-semibold text-[#CBDDD3] group-hover:text-[#80E8B3] group-hover:translate-x-0.5 transition-all">
+                <span className="text-xs font-semibold text-[#C2C8CF] group-hover:text-white group-hover:translate-x-0.5 transition-all">
                   Importar com IA →
                 </span>
               </div>
               <div className="pt-2">
-                <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#80E8B3] transition-colors font-sans tabular-nums leading-none block">
+                <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#10B981] transition-colors font-sans tabular-nums leading-none block">
                   {totalRecentBlocks > 0 ? `${totalRecentBlocks}` : "IA Studio"}
                 </span>
-                <span className="text-[11px] font-bold text-[#CBDDD3] uppercase tracking-wider block mt-1">
-                  {totalRecentBlocks > 0 ? "Blocos Prescritos" : "Importador Rápido"}
+                <span className="text-[11px] font-bold text-[#C2C8CF] uppercase tracking-wider block mt-1">
+                  {totalRecentBlocks > 0 ? "BLOCOS PRESCRITOS" : "IMPORTADOR RÁPIDO"}
                 </span>
               </div>
             </Link>
           </div>
         </div>
 
-        {/* 2. Trilho Estilo Netflix: "Em Destaque / Acesso Rápido" (Cards Verde-Escuros Sólidos) */}
+        {/* 2. Trilho Estilo Netflix: "Em Destaque / Acesso Rápido" (Cards Grafite Sólidos #151619) */}
         {recentPlans && recentPlans.length > 0 && (
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shadow-xs">
+                <div className="w-7 h-7 rounded-xl bg-[#151619] border border-[#303238] text-[#10B981] flex items-center justify-center shadow-xs">
                   <FlameIcon className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-sans tracking-tight">
+                  <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white font-sans tracking-tight">
                     Acesso rápido
                   </h2>
                 </div>
               </div>
 
-              {/* Botões de Navegação Lateral Suave */}
+              {/* Botões de Navegação Lateral Suave com limites detectados */}
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
+                  disabled={!canScrollLeft}
                   onClick={() => desktopRailRef.current?.scrollBy({ left: -320, behavior: "smooth" })}
                   aria-label="Rolar para esquerda"
-                  className="w-8 h-8 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer"
+                  className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all ${
+                    !canScrollLeft
+                      ? "bg-[#151619] border-[#303238] text-zinc-600 opacity-40 cursor-not-allowed"
+                      : "bg-[#151619] hover:bg-[#1B1D21] border-[#303238] hover:border-[#10B981]/50 text-[#C2C8CF] hover:text-white cursor-pointer active:scale-95"
+                  }`}
                 >
                   <ChevronLeftIcon className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
+                  disabled={!canScrollRight}
                   onClick={() => desktopRailRef.current?.scrollBy({ left: 320, behavior: "smooth" })}
                   aria-label="Rolar para direita"
-                  className="w-8 h-8 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer"
+                  className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all ${
+                    !canScrollRight
+                      ? "bg-[#151619] border-[#303238] text-zinc-600 opacity-40 cursor-not-allowed"
+                      : "bg-[#151619] hover:bg-[#1B1D21] border-[#303238] hover:border-[#10B981]/50 text-[#C2C8CF] hover:text-white cursor-pointer active:scale-95"
+                  }`}
                 >
                   <ChevronRightIcon className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Poster Cards Carrossel - Verde-Escuro Sólido */}
+            {/* Poster Cards Carrossel - Grafite Sólido #151619 */}
             <div
               ref={desktopRailRef}
-              className="flex gap-3.5 overflow-x-auto snap-x snap-mandatory pb-2 no-scrollbar scroll-smooth"
+              tabIndex={0}
+              aria-label="Carrossel de acesso rápido às fichas recentes"
+              onKeyDown={(e) => {
+                if (e.key === "ArrowLeft") {
+                  desktopRailRef.current?.scrollBy({ left: -320, behavior: "smooth" });
+                } else if (e.key === "ArrowRight") {
+                  desktopRailRef.current?.scrollBy({ left: 320, behavior: "smooth" });
+                }
+              }}
+              className="flex gap-3.5 overflow-x-auto snap-x snap-mandatory pb-2 no-scrollbar scroll-smooth focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none rounded-2xl"
             >
               {recentPlans.slice(0, 6).map((plan) => {
                 const isDraft = plan.status === "DRAFT";
@@ -692,12 +718,12 @@ export function DashboardPersonalView({
                   <Link
                     key={`rail-${plan.publicId}`}
                     href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
-                    className="min-w-[270px] sm:min-w-[290px] max-w-[320px] snap-start shrink-0 group relative overflow-hidden rounded-2xl border border-[#1e4738] bg-[#10271F] p-4.5 transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/50 hover:shadow-md flex flex-col justify-between min-h-[175px] cursor-pointer text-white"
+                    className="min-w-[270px] sm:min-w-[290px] max-w-[320px] snap-start shrink-0 group relative overflow-hidden rounded-2xl border border-[#303238] bg-[#151619] p-4.5 transition-all duration-300 hover:-translate-y-1 hover:border-[#10B981]/50 hover:bg-[#1B1D21] hover:shadow-md flex flex-col justify-between min-h-[175px] cursor-pointer text-white"
                   >
                     <div className="space-y-2.5 relative z-10">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#18352C] text-[#CBDDD3] border border-[#234e3e]">
-                          <DumbbellIcon className="w-3 h-3 text-[#80E8B3]" />
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#1B1D21] text-[#C2C8CF] border border-[#303238]">
+                          <DumbbellIcon className="w-3 h-3 text-[#10B981]" />
                           <span>{blocks} {blocks === 1 ? "bloco" : "blocos"}</span>
                         </span>
                         {isDraft && (
@@ -706,43 +732,28 @@ export function DashboardPersonalView({
                           </span>
                         )}
                         {isArchived && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[#18352C] text-[#CBDDD3] border border-[#234e3e]">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[#1B1D21] text-[#C2C8CF] border border-[#303238]">
                             Arquivada
                           </span>
                         )}
                       </div>
 
-                      <h3 className="text-sm sm:text-base font-bold text-white line-clamp-2 group-hover:text-[#80E8B3] transition-colors leading-snug">
+                      <h3 className="text-sm sm:text-base font-bold text-white line-clamp-2 group-hover:text-[#10B981] transition-colors leading-snug">
                         {plan.title}
                       </h3>
                       {plan.subtitle && (
-                        <p className="text-xs text-[#CBDDD3] truncate">
+                        <p className="text-xs text-[#C2C8CF] truncate">
                           {plan.subtitle}
                         </p>
                       )}
                     </div>
 
-                    {/* Density indicator & CTA with explicit semantics */}
-                    <div className="pt-3 border-t border-[#1e4738] space-y-2 mt-3 relative z-10">
-                      <div className="flex items-center justify-between text-[11px] text-[#CBDDD3] font-medium">
-                        <span>Densidade de blocos</span>
-                        <span className="text-white font-bold">{blocks} {blocks === 1 ? "bloco" : "blocos"}</span>
-                      </div>
-                      {/* Segmented Density Bar */}
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((seg) => (
-                          <div
-                            key={seg}
-                            className={`h-1 flex-1 rounded-full transition-all ${
-                              seg <= blocks
-                                ? "bg-emerald-400 group-hover:bg-emerald-300"
-                                : "bg-[#18352C]"
-                            }`}
-                          />
-                        ))}
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs font-bold text-[#80E8B3] group-hover:text-emerald-300 transition-colors">
+                    {/* Meta info & CTA clara */}
+                    <div className="pt-3 border-t border-[#303238] flex items-center justify-between text-xs mt-3 relative z-10">
+                      <span className="text-[#C2C8CF] font-medium">
+                        {blocks} {blocks === 1 ? "bloco prescrito" : "blocos prescritos"}
+                      </span>
+                      <div className="flex items-center gap-1 font-bold text-[#10B981] group-hover:text-emerald-300 transition-colors">
                         <span>Abrir no Studio</span>
                         <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                       </div>
@@ -763,7 +774,7 @@ export function DashboardPersonalView({
                 Fichas recentes
               </h2>
               {filteredPlans.length > 0 && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] dark:bg-[#1B1D21] text-[var(--text-secondary)] dark:text-[#C2C8CF] border border-[var(--border-subtle)] dark:border-[#303238]">
                   {filteredPlans.length}
                 </span>
               )}
@@ -778,7 +789,7 @@ export function DashboardPersonalView({
 
           {/* Search Bar + Chips Filter + View Mode Toggle */}
           {recentPlans && recentPlans.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)]">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2 rounded-2xl bg-[var(--surface)] dark:bg-[#151619] border border-[var(--border-default)] dark:border-[#303238]">
               {/* Input de Busca Instantânea */}
               <div className="relative flex-1 min-w-[200px]">
                 <input
@@ -786,14 +797,14 @@ export function DashboardPersonalView({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar ficha por nome..."
-                  className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] bg-[var(--surface-sunken)] text-[var(--text-primary)] focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[38px]"
+                  className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] dark:border-[#303238] bg-[var(--surface-sunken)] dark:bg-[#1B1D21] text-[var(--text-primary)] dark:text-white placeholder:text-zinc-400 dark:placeholder:text-[#C2C8CF]/60 focus:ring-2 focus:ring-[#10B981] focus:border-[#10B981] focus:outline-none min-h-[38px]"
                 />
-                <SearchIcon className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <SearchIcon className="w-4 h-4 text-zinc-400 dark:text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer"
                   >
                     <XIcon className="w-3.5 h-3.5" />
                   </button>
@@ -807,8 +818,8 @@ export function DashboardPersonalView({
                   onClick={() => setActiveFilter("ALL")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                     activeFilter === "ALL"
-                      ? "bg-emerald-600 text-white shadow-2xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+                      ? "bg-emerald-600 text-white shadow-2xs font-bold"
+                      : "bg-[var(--surface-subtle)] dark:bg-[#1B1D21] text-[var(--text-secondary)] dark:text-[#C2C8CF] hover:bg-[var(--surface-hover)] dark:hover:bg-[#252830] border border-[var(--border-subtle)] dark:border-[#303238]"
                   }`}
                 >
                   Todas
@@ -818,8 +829,8 @@ export function DashboardPersonalView({
                   onClick={() => setActiveFilter("FEW_BLOCKS")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                     activeFilter === "FEW_BLOCKS"
-                      ? "bg-emerald-600 text-white shadow-2xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+                      ? "bg-emerald-600 text-white shadow-2xs font-bold"
+                      : "bg-[var(--surface-subtle)] dark:bg-[#1B1D21] text-[var(--text-secondary)] dark:text-[#C2C8CF] hover:bg-[var(--surface-hover)] dark:hover:bg-[#252830] border border-[var(--border-subtle)] dark:border-[#303238]"
                   }`}
                 >
                   Até 3 blocos
@@ -829,8 +840,8 @@ export function DashboardPersonalView({
                   onClick={() => setActiveFilter("MANY_BLOCKS")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                     activeFilter === "MANY_BLOCKS"
-                      ? "bg-emerald-600 text-white shadow-2xs"
-                      : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+                      ? "bg-emerald-600 text-white shadow-2xs font-bold"
+                      : "bg-[var(--surface-subtle)] dark:bg-[#1B1D21] text-[var(--text-secondary)] dark:text-[#C2C8CF] hover:bg-[var(--surface-hover)] dark:hover:bg-[#252830] border border-[var(--border-subtle)] dark:border-[#303238]"
                   }`}
                 >
                   4+ blocos
@@ -841,8 +852,8 @@ export function DashboardPersonalView({
                     onClick={() => setActiveFilter("DRAFT")}
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                       activeFilter === "DRAFT"
-                        ? "bg-amber-500 text-white shadow-2xs"
-                        : "bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)]"
+                        ? "bg-amber-500 text-white shadow-2xs font-bold"
+                        : "bg-[var(--surface-subtle)] dark:bg-[#1B1D21] text-[var(--text-secondary)] dark:text-[#C2C8CF] hover:bg-[var(--surface-hover)] dark:hover:bg-[#252830] border border-[var(--border-subtle)] dark:border-[#303238]"
                     }`}
                   >
                     Rascunhos
@@ -850,15 +861,15 @@ export function DashboardPersonalView({
                 )}
 
                 {/* Alternador de Visualização (Lista vs Grade) */}
-                <div className="flex items-center gap-1 pl-1 ml-1 border-l border-[var(--border-subtle)]">
+                <div className="flex items-center gap-1 pl-1 ml-1 border-l border-zinc-200 dark:border-[#303238]">
                   <button
                     type="button"
                     onClick={() => setViewMode("list")}
                     aria-label="Ver em lista"
                     className={`p-1.5 rounded-lg border transition-colors cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center ${
                       viewMode === "list"
-                        ? "bg-[var(--surface-hover)] text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                        : "text-[var(--text-tertiary)] border-transparent hover:text-[var(--text-primary)]"
+                        ? "bg-zinc-100 dark:bg-[#1B1D21] text-[#10B981] border-[#10B981]/40"
+                        : "text-zinc-400 dark:text-zinc-500 border-transparent hover:text-zinc-900 dark:hover:text-white"
                     }`}
                     title="Visualização em lista"
                   >
@@ -870,8 +881,8 @@ export function DashboardPersonalView({
                     aria-label="Ver em grade"
                     className={`p-1.5 rounded-lg border transition-colors cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center ${
                       viewMode === "grid"
-                        ? "bg-[var(--surface-hover)] text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                        : "text-[var(--text-tertiary)] border-transparent hover:text-[var(--text-primary)]"
+                        ? "bg-zinc-100 dark:bg-[#1B1D21] text-[#10B981] border-[#10B981]/40"
+                        : "text-zinc-400 dark:text-zinc-500 border-transparent hover:text-zinc-900 dark:hover:text-white"
                     }`}
                     title="Visualização em grade"
                   >
@@ -886,9 +897,8 @@ export function DashboardPersonalView({
           {recentPlans && recentPlans.length > 0 ? (
             filteredPlans.length > 0 ? (
               viewMode === "list" ? (
-                /* Rich Interactive Rows */
-                <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] divide-y divide-[var(--border-subtle)] overflow-hidden shadow-2xs">
-                  {/* recentPlans.slice(0, 6) preserved as base contract */}
+                /* Rich Interactive Rows - Fichas Recentes Grafite Sólido #151619 */
+                <div className="rounded-2xl bg-[#151619] border border-[#303238] divide-y divide-[#303238] overflow-hidden shadow-2xs">
                   {(searchQuery || activeFilter !== "ALL" ? filteredPlans : recentPlans.slice(0, 6)).map((plan) => {
                     const isArchived = plan.status === "ARCHIVED";
                     const isDraft = plan.status === "DRAFT";
@@ -897,38 +907,38 @@ export function DashboardPersonalView({
                       <Link
                         key={plan.publicId}
                         href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
-                        className="flex items-center justify-between p-4 sm:px-5 sm:py-3.5 hover:bg-[var(--surface-hover)] transition-colors group cursor-pointer min-h-[60px] relative"
+                        className="flex items-center justify-between p-4 sm:px-5 sm:py-3.5 hover:bg-[#1B1D21] transition-colors group cursor-pointer min-h-[60px] relative text-white"
                       >
                         {/* Hover Left Accent Line */}
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-r" />
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#10B981] opacity-0 group-hover:opacity-100 transition-opacity rounded-r" />
 
                         {/* Left: Avatar Icon + Info */}
                         <div className="flex items-center gap-3.5 min-w-0 flex-1 pr-4">
-                          <div className="w-10 h-10 rounded-xl bg-zinc-800/80 border border-white/[0.06] group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 flex items-center justify-center transition-colors shrink-0 text-zinc-300 group-hover:text-emerald-400">
+                          <div className="w-10 h-10 rounded-xl bg-[#1B1D21] border border-[#303238] group-hover:border-[#10B981]/40 flex items-center justify-center transition-colors shrink-0 text-[#C2C8CF] group-hover:text-[#10B981]">
                             <DumbbellIcon className="w-5 h-5" />
                           </div>
 
                           <div className="min-w-0 flex-1 space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm sm:text-base font-semibold text-[var(--text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate font-sans">
+                              <span className="text-sm sm:text-base font-semibold text-white group-hover:text-[#10B981] transition-colors truncate font-sans">
                                 {plan.title}
                               </span>
                               {isDraft && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-sans shrink-0">
+                                <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 font-sans shrink-0">
                                   Rascunho
                                 </span>
                               )}
                               {isArchived && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[var(--surface-subtle)] text-[var(--text-tertiary)] border border-[var(--border-subtle)] font-sans shrink-0">
+                                <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[#1B1D21] text-[#C2C8CF] border border-[#303238] font-sans shrink-0">
                                   Arquivada
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-sans flex-wrap">
+                            <div className="flex items-center gap-2 text-xs text-[#C2C8CF] font-sans flex-wrap">
                               {plan.subtitle && <span className="truncate max-w-sm">{plan.subtitle}</span>}
                               {plan.subtitle && plan.blocksCount ? <span>•</span> : null}
                               {plan.blocksCount ? (
-                                <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                                <span className="inline-flex items-center gap-1 font-semibold text-[#10B981]">
                                   {plan.blocksCount} {plan.blocksCount === 1 ? "bloco" : "blocos"}
                                 </span>
                               ) : null}
@@ -938,10 +948,10 @@ export function DashboardPersonalView({
 
                         {/* Right: Quick Action Hint & Arrow */}
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="hidden sm:inline-block text-xs font-semibold text-zinc-400 group-hover:text-emerald-500 transition-colors">
+                          <span className="hidden sm:inline-block text-xs font-semibold text-[#C2C8CF] group-hover:text-[#10B981] transition-colors">
                             Abrir ficha
                           </span>
-                          <span className="text-sm text-[var(--text-tertiary)] group-hover:text-emerald-500 group-hover:translate-x-1 transition-all font-bold pr-1 select-none">
+                          <span className="text-sm text-[#C2C8CF] group-hover:text-[#10B981] group-hover:translate-x-1 transition-all font-bold pr-1 select-none">
                             →
                           </span>
                         </div>
@@ -950,7 +960,7 @@ export function DashboardPersonalView({
                   })}
                 </div>
               ) : (
-                /* Grid Mode (Netflix Bento Grid) */
+                /* Grid Mode (Netflix Bento Grid) - Grafite Sólido #151619 */
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {(searchQuery || activeFilter !== "ALL" ? filteredPlans : recentPlans.slice(0, 6)).map((plan) => {
                     const isDraft = plan.status === "DRAFT";
@@ -961,12 +971,12 @@ export function DashboardPersonalView({
                       <Link
                         key={`grid-${plan.publicId}`}
                         href={`/consultoria/${consultancySlug}/rotinas/${plan.publicId}`}
-                        className="p-4 rounded-2xl bg-[#10271F] hover:bg-[#18352C] border border-[#1e4738] hover:border-emerald-500/50 transition-all group flex flex-col justify-between min-h-[140px] shadow-sm text-white cursor-pointer"
+                        className="p-4 rounded-2xl bg-[#151619] hover:bg-[#1B1D21] border border-[#303238] hover:border-[#10B981]/50 transition-all group flex flex-col justify-between min-h-[140px] shadow-sm text-white cursor-pointer"
                       >
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between gap-1.5">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#18352C] text-[#CBDDD3] border border-[#234e3e]">
-                              <DumbbellIcon className="w-3 h-3 text-[#80E8B3]" />
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#1B1D21] text-[#C2C8CF] border border-[#303238]">
+                              <DumbbellIcon className="w-3 h-3 text-[#10B981]" />
                               <span>{blocks} {blocks === 1 ? "bloco" : "blocos"}</span>
                             </span>
                             {isDraft && (
@@ -975,23 +985,23 @@ export function DashboardPersonalView({
                               </span>
                             )}
                             {isArchived && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[#18352C] text-[#CBDDD3] border border-[#234e3e]">
+                              <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[#1B1D21] text-[#C2C8CF] border border-[#303238]">
                                 Arquivada
                               </span>
                             )}
                           </div>
 
-                          <h3 className="text-sm font-bold text-white group-hover:text-[#80E8B3] transition-colors line-clamp-2 mt-1">
+                          <h3 className="text-sm font-bold text-white group-hover:text-[#10B981] transition-colors line-clamp-2 mt-1">
                             {plan.title}
                           </h3>
                           {plan.subtitle && (
-                            <p className="text-xs text-[#CBDDD3] truncate">
+                            <p className="text-xs text-[#C2C8CF] truncate">
                               {plan.subtitle}
                             </p>
                           )}
                         </div>
 
-                        <div className="pt-2 border-t border-[#1e4738] flex items-center justify-between text-xs font-semibold text-[#80E8B3] group-hover:text-emerald-300 transition-colors">
+                        <div className="pt-2 border-t border-[#303238] flex items-center justify-between text-xs font-semibold text-[#10B981] group-hover:text-emerald-300 transition-colors">
                           <span>Abrir ficha</span>
                           <span className="group-hover:translate-x-1 transition-transform">→</span>
                         </div>
@@ -1002,8 +1012,8 @@ export function DashboardPersonalView({
               )
             ) : (
               /* Search Empty State */
-              <div className="p-8 sm:p-12 text-center rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3">
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-sans">
+              <div className="p-8 sm:p-12 text-center rounded-2xl bg-[#151619] border border-[#303238] space-y-3 text-white">
+                <p className="text-xs sm:text-sm text-[#C2C8CF] font-sans">
                   Nenhuma ficha encontrada para &ldquo;{searchQuery}&rdquo;.
                 </p>
                 <div className="flex items-center justify-center gap-3">
@@ -1013,13 +1023,13 @@ export function DashboardPersonalView({
                       setSearchQuery("");
                       setActiveFilter("ALL");
                     }}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-colors cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors cursor-pointer"
                   >
                     Limpar filtro
                   </button>
                   <Link
                     href={`/consultoria/${consultancySlug}/rotinas`}
-                    className="text-xs font-semibold text-[var(--brand)] hover:underline"
+                    className="text-xs font-semibold text-[#10B981] hover:underline"
                   >
                     Ver todas as fichas ({totalPlans})
                   </Link>
@@ -1028,13 +1038,13 @@ export function DashboardPersonalView({
             )
           ) : (
             /* General Empty State */
-            <div className="p-8 sm:p-12 text-center rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-3 shadow-2xs">
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-sans">
+            <div className="p-8 sm:p-12 text-center rounded-2xl bg-[#151619] border border-[#303238] space-y-3 shadow-2xs text-white">
+              <p className="text-xs sm:text-sm text-[#C2C8CF] font-sans">
                 Nenhuma ficha cadastrada ainda. Crie sua primeira rotina para prescrever aos alunos.
               </p>
-              <Link href={`/consultoria/${consultancySlug}/rotinas/novo`}>
-                <Button variant="primary" size="sm" className="font-semibold rounded-xl font-sans mt-1">
-                  + Nova ficha
+              <Link href={`/consultoria/${consultancySlug}/rotinas/novo`} title="+ Nova ficha" className="inline-flex mt-1">
+                <Button variant="primary" size="sm" className="font-semibold rounded-xl font-sans">
+                  Nova ficha
                 </Button>
               </Link>
             </div>

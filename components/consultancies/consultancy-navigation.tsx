@@ -772,7 +772,7 @@ export function ConsultancyNavigation({
         aria-label="Barra lateral de navegação"
         className={`hidden lg:flex fixed top-0 bottom-0 left-0 w-64 lg:w-72 ${
           isDarkOverview
-            ? "bg-[#111215] border-r border-[#303238] text-white"
+            ? "bg-[#ECEFF2] dark:bg-[#111215] border-r border-[#C5CBD3] dark:border-[#303238] text-[#17191D] dark:text-white"
             : "bg-[var(--surface)] border-r border-[var(--border-default)]"
         } z-30 flex-col justify-between overflow-y-auto select-none print:hidden transition-colors`}
       >
@@ -784,7 +784,7 @@ export function ConsultancyNavigation({
             prefetch={false}
             className={`flex items-center gap-3 p-2 rounded-xl ${
               isDarkOverview
-                ? "hover:bg-[#1B1D21] border border-transparent hover:border-[#303238]"
+                ? "hover:bg-[#DFE3E8] dark:hover:bg-[#1B1D21] border border-transparent hover:border-[#C5CBD3] dark:hover:border-[#303238]"
                 : "hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)]"
             } transition-all group focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-interactive`}
           >
@@ -795,7 +795,7 @@ export function ConsultancyNavigation({
             />
             <div className="min-w-0 flex-1">
               <p className={`text-sm font-semibold ${
-                isDarkOverview ? "text-white" : "text-[var(--text-primary)]"
+                isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"
               } truncate leading-tight transition-colors`}>
                 {consultancyName}
               </p>
@@ -806,7 +806,7 @@ export function ConsultancyNavigation({
                       key={lbl}
                       className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded ${
                         isDarkOverview
-                          ? "bg-[#1B1D21] border border-[#303238] text-[#C2C8CF]"
+                          ? "bg-[#DFE3E8] dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-[#303238] text-[#4B5563] dark:text-[#C2C8CF]"
                           : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]"
                       } uppercase tracking-wider`}
                     >
@@ -838,11 +838,11 @@ export function ConsultancyNavigation({
             {desktopSections.map((section, sIdx) => (
               <div
                 key={section.title || sIdx}
-                className={`space-y-1 ${sIdx > 0 ? `pt-3 border-t ${isDarkOverview ? "border-[#303238]" : "border-[var(--border-subtle)]"}` : ""}`}
+                className={`space-y-1 ${sIdx > 0 ? `pt-3 border-t ${isDarkOverview ? "border-[#C5CBD3] dark:border-[#303238]" : "border-[var(--border-subtle)]"}` : ""}`}
               >
                 {section.title && (
                   <p className={`text-[11px] font-semibold ${
-                    isDarkOverview ? "text-[#8E959E]" : "text-[var(--text-tertiary)]"
+                    isDarkOverview ? "text-[#4B5563] dark:text-[#8E959E]" : "text-[var(--text-tertiary)]"
                   } uppercase tracking-wider px-3.5 mb-2 font-heading`}>
                     {section.title}
                   </p>
@@ -858,10 +858,10 @@ export function ConsultancyNavigation({
                       className={`flex items-center justify-between px-3.5 py-2.5 text-[13px] rounded-xl border transition-all depth-interactive ${
                         active
                           ? isDarkOverview
-                            ? "bg-[#1B1D21] text-white border-[#303238] shadow-xs font-semibold"
+                            ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
                             : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                           : isDarkOverview
-                          ? "text-[#C2C8CF] hover:text-white hover:bg-[#1B1D21] border-transparent font-medium"
+                          ? "text-[#4B5563] hover:text-[#17191D] hover:bg-[#DFE3E8] dark:text-[#C2C8CF] dark:hover:text-white dark:hover:bg-[#1B1D21] border-transparent font-medium"
                           : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                       }`}
                     >
@@ -870,7 +870,7 @@ export function ConsultancyNavigation({
                         <span className="truncate">{item.label}</span>
                       </div>
                       {active && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0 shadow-2xs`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#059669] dark:bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0 shadow-2xs`} />
                       )}
                     </Link>
                   );
@@ -883,14 +883,14 @@ export function ConsultancyNavigation({
         {/* Bottom: User Card, Theme & Actions */}
         <div className={`p-4 border-t ${
           isDarkOverview
-            ? "border-[#303238] bg-[#111215]"
+            ? "border-[#C5CBD3] dark:border-[#303238] bg-[#ECEFF2] dark:bg-[#111215]"
             : "border-[var(--border-default)] bg-[var(--surface)]"
         } space-y-3.5`}>
           {/* User Info Card */}
           <Link
             href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
             className={`flex items-center gap-3 px-1.5 py-1 rounded-xl ${
-              isDarkOverview ? "hover:bg-[#1B1D21]" : "hover:bg-[var(--surface-subtle)]"
+              isDarkOverview ? "hover:bg-[#DFE3E8] dark:hover:bg-[#1B1D21]" : "hover:bg-[var(--surface-subtle)]"
             } transition-colors min-w-0 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]`}
             title="Ver perfil"
           >
@@ -905,13 +905,13 @@ export function ConsultancyNavigation({
             />
             <div className="min-w-0 flex-1">
               <p className={`text-[13px] font-semibold ${
-                isDarkOverview ? "text-white group-hover:text-[#10B981]" : "text-[var(--text-primary)] group-hover:text-[var(--brand)]"
+                isDarkOverview ? "text-[#17191D] group-hover:text-[#059669] dark:text-white dark:group-hover:text-[#10B981]" : "text-[var(--text-primary)] group-hover:text-[var(--brand)]"
               } transition-colors truncate leading-tight`}>
                 {identity.fullName}
               </p>
               {identity.email && (
                 <p className={`text-xs ${
-                  isDarkOverview ? "text-[#C2C8CF]" : "text-[var(--text-tertiary)]"
+                  isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"
                 } truncate leading-tight mt-0.5`}>
                   {identity.email}
                 </p>
@@ -935,10 +935,10 @@ export function ConsultancyNavigation({
               className={`relative flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === "/notificacoes"
                   ? isDarkOverview
-                    ? "bg-[#1B1D21] text-white border-[#303238] shadow-xs font-semibold"
+                    ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
                     : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                   : isDarkOverview
-                  ? "text-[#C2C8CF] hover:text-white hover:bg-[#1B1D21] border-[#303238] font-medium"
+                  ? "text-[#4B5563] hover:text-[#17191D] bg-[#DFE3E8]/60 hover:bg-[#DFE3E8] border-[#C5CBD3] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
               }`}
               title="Notificações"
@@ -947,7 +947,7 @@ export function ConsultancyNavigation({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
               </svg>
               {unreadNotificationsCount > 0 && (
-                <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#10B981] ring-2 ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
+                <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#059669] ring-2 ring-[#ECEFF2] dark:bg-[#10B981] dark:ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
               )}
             </Link>
 
@@ -957,10 +957,10 @@ export function ConsultancyNavigation({
               className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === "/conta/perfil"
                   ? isDarkOverview
-                    ? "bg-[#1B1D21] text-white border-[#303238] shadow-xs font-semibold"
+                    ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
                     : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                   : isDarkOverview
-                  ? "text-[#C2C8CF] hover:text-white hover:bg-[#1B1D21] border-[#303238] font-medium"
+                  ? "text-[#4B5563] hover:text-[#17191D] bg-[#DFE3E8]/60 hover:bg-[#DFE3E8] border-[#C5CBD3] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
               }`}
               title="Meu perfil"
@@ -976,10 +976,10 @@ export function ConsultancyNavigation({
               className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === `/consultoria/${consultancySlug}/ajuda`
                   ? isDarkOverview
-                    ? "bg-[#1B1D21] text-white border-[#303238] shadow-xs font-semibold"
+                    ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
                     : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                   : isDarkOverview
-                  ? "text-[#C2C8CF] hover:text-white hover:bg-[#1B1D21] border-[#303238] font-medium"
+                  ? "text-[#4B5563] hover:text-[#17191D] bg-[#DFE3E8]/60 hover:bg-[#DFE3E8] border-[#C5CBD3] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
               }`}
               title="Central de Ajuda & Suporte"
@@ -993,10 +993,10 @@ export function ConsultancyNavigation({
               className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
                 pathname === "/conta/seguranca"
                   ? isDarkOverview
-                    ? "bg-[#1B1D21] text-white border-[#303238] shadow-xs font-semibold"
+                    ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
                     : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                   : isDarkOverview
-                  ? "text-[#C2C8CF] hover:text-white hover:bg-[#1B1D21] border-[#303238] font-medium"
+                  ? "text-[#4B5563] hover:text-[#17191D] bg-[#DFE3E8]/60 hover:bg-[#DFE3E8] border-[#C5CBD3] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
               }`}
               title="Conta e segurança"
@@ -1014,7 +1014,7 @@ export function ConsultancyNavigation({
               prefetch={false}
               className={`flex items-center justify-center w-full py-2 px-3 text-xs font-semibold ${
                 isDarkOverview
-                  ? "text-white bg-[#1B1D21] hover:bg-[#252830] border border-[#303238]"
+                  ? "text-[#17191D] dark:text-white bg-white dark:bg-[#1B1D21] hover:bg-[#DFE3E8] dark:hover:bg-[#252830] border border-[#C5CBD3] dark:border-[#303238]"
                   : "text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)]"
               } rounded-xl transition-all shadow-2xs depth-interactive`}
             >
@@ -1024,7 +1024,7 @@ export function ConsultancyNavigation({
               logoutAction={logoutFromConsultancyArea}
               className={`flex items-center justify-center w-full py-2 px-3 text-xs font-medium ${
                 isDarkOverview
-                  ? "text-[#C2C8CF] hover:text-red-400 bg-[#1B1D21] hover:bg-red-500/10 border border-[#303238] hover:border-red-500/30"
+                  ? "text-[#4B5563] dark:text-[#C2C8CF] hover:text-red-600 dark:hover:text-red-400 bg-white dark:bg-[#1B1D21] hover:bg-red-50 dark:hover:bg-red-500/10 border border-[#C5CBD3] dark:border-[#303238] hover:border-red-200 dark:hover:border-red-500/30"
                   : "text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] bg-[var(--surface-subtle)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)]"
               } rounded-xl transition-all cursor-pointer depth-interactive`}
             >
@@ -1040,7 +1040,7 @@ export function ConsultancyNavigation({
       <header
         className={`hidden md:flex lg:hidden sticky top-0 z-30 w-full max-w-full min-w-0 ${
           isDarkOverview
-            ? "bg-[#111215] border-b border-[#303238] text-white"
+            ? "bg-[#ECEFF2] dark:bg-[#111215] border-b border-[#C5CBD3] dark:border-[#303238] text-[#17191D] dark:text-white"
             : "bg-[var(--surface)] border-b border-[var(--border-default)]"
         } shadow-2xs print:hidden transition-colors border-specular-t`}
       >
@@ -1057,11 +1057,11 @@ export function ConsultancyNavigation({
               size={32}
             />
             <div className="min-w-0">
-              <p className={`text-xs font-semibold ${isDarkOverview ? "text-white" : "text-[var(--text-primary)]"} truncate leading-tight`}>
+              <p className={`text-xs font-semibold ${isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"} truncate leading-tight`}>
                 {consultancyName}
               </p>
               {primaryRoleLabel && (
-                <p className={`text-[10px] font-medium ${isDarkOverview ? "text-[#C2C8CF]" : "text-[var(--text-tertiary)]"} truncate leading-tight uppercase tracking-wider mt-0.5`}>
+                <p className={`text-[10px] font-medium ${isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"} truncate leading-tight uppercase tracking-wider mt-0.5`}>
                   {primaryRoleLabel}
                 </p>
               )}
@@ -1081,17 +1081,17 @@ export function ConsultancyNavigation({
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl border transition-all depth-interactive ${
                     active
                       ? isDarkOverview
-                        ? "bg-[#1B1D21] text-white border-[#303238] shadow-xs font-semibold"
+                        ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
                         : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                       : isDarkOverview
-                        ? "text-[#C2C8CF] hover:text-white hover:bg-[#1B1D21] border-transparent font-medium"
+                        ? "text-[#4B5563] hover:text-[#17191D] hover:bg-[#DFE3E8] dark:text-[#C2C8CF] dark:hover:text-white dark:hover:bg-[#1B1D21] border-transparent font-medium"
                         : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                   }`}
                 >
                   <NavIcon name={item.iconName} />
                   <span>{item.mobileLabel || item.label}</span>
                   {active && (
-                    <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#059669] dark:bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
                   )}
                 </Link>
               );
@@ -1107,11 +1107,11 @@ export function ConsultancyNavigation({
               aria-label="Abrir menu de navegação e opções"
               className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border ${
                 isDarkOverview
-                  ? "border-[#303238] bg-[#1B1D21] hover:bg-[#252830] text-white"
+                  ? "border-[#C5CBD3] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#DFE3E8] dark:hover:bg-[#252830] text-[#17191D] dark:text-white"
                   : "border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)]"
               } text-xs font-semibold transition-all shadow-2xs depth-interactive cursor-pointer min-h-[36px]`}
             >
-              <svg className={`w-4 h-4 ${isDarkOverview ? "text-[#C2C8CF]" : "text-[var(--text-secondary)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <svg className={`w-4 h-4 ${isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-secondary)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
               <span>Menu</span>
@@ -1126,7 +1126,7 @@ export function ConsultancyNavigation({
       <header
         className={`flex md:hidden sticky top-0 z-30 w-full max-w-full min-w-0 ${
           isDarkOverview
-            ? "bg-[#111215] border-b border-[#303238] text-white"
+            ? "bg-[#ECEFF2] dark:bg-[#111215] border-b border-[#C5CBD3] dark:border-[#303238] text-[#17191D] dark:text-white"
             : "bg-[var(--surface)] border-b border-[var(--border-default)]"
         } shadow-2xs pt-[env(safe-area-inset-top,0px)] print:hidden transition-colors border-specular-t`}
       >
@@ -1143,11 +1143,11 @@ export function ConsultancyNavigation({
               size={30}
             />
             <div className="min-w-0">
-              <p className={`text-xs font-semibold ${isDarkOverview ? "text-white" : "text-[var(--text-primary)]"} truncate leading-tight`}>
+              <p className={`text-xs font-semibold ${isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"} truncate leading-tight`}>
                 {consultancyName}
               </p>
               {primaryRoleLabel && (
-                <p className={`text-[10px] font-medium ${isDarkOverview ? "text-[#C2C8CF]" : "text-[var(--text-tertiary)]"} truncate leading-tight uppercase tracking-wider mt-0.5`}>
+                <p className={`text-[10px] font-medium ${isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"} truncate leading-tight uppercase tracking-wider mt-0.5`}>
                   {primaryRoleLabel}
                 </p>
               )}
@@ -1169,7 +1169,7 @@ export function ConsultancyNavigation({
           aria-label="Navegação rápida móvel"
           className={`md:hidden fixed bottom-0 inset-x-0 z-30 w-full max-w-full min-w-0 ${
             isDarkOverview
-              ? "bg-[#111215] border-t border-[#303238]"
+              ? "bg-[#ECEFF2] dark:bg-[#111215] border-t border-[#C5CBD3] dark:border-[#303238]"
               : "bg-[var(--surface)] border-t border-[var(--border-default)]"
           } pb-[env(safe-area-inset-bottom,0px)] shadow-lg print:hidden transition-all duration-150 border-specular-t`}
         >
@@ -1184,18 +1184,18 @@ export function ConsultancyNavigation({
                   aria-current={active ? "page" : undefined}
                   className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] h-full py-1 px-0.5 transition-all select-none focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                     active
-                      ? isDarkOverview ? "text-[#10B981]" : "text-[var(--brand)]"
-                      : isDarkOverview ? "text-[#C2C8CF] hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      ? isDarkOverview ? "text-[#059669] dark:text-[#10B981]" : "text-[var(--brand)]"
+                      : isDarkOverview ? "text-[#4B5563] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <div
                     className={`px-3 py-1 rounded-full relative flex items-center justify-center transition-all duration-150 ${
                       active
                         ? isDarkOverview
-                          ? "bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/30 shadow-xs"
+                          ? "bg-emerald-500/15 text-[#059669] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
                           : "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
                         : isDarkOverview
-                          ? "border border-transparent group-hover:bg-[#1B1D21]"
+                          ? "border border-transparent group-hover:bg-[#DFE3E8] dark:group-hover:bg-[#1B1D21]"
                           : "border border-transparent group-hover:bg-[var(--surface-hover)]"
                     }`}
                   >
@@ -1204,8 +1204,8 @@ export function ConsultancyNavigation({
                   <span
                     className={`text-[11px] tracking-tight truncate max-w-full leading-tight mt-1 text-center transition-colors duration-150 ${
                       active
-                        ? isDarkOverview ? "font-semibold text-[#10B981]" : "font-semibold text-[var(--brand)]"
-                        : isDarkOverview ? "font-medium text-[#C2C8CF] group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
+                        ? isDarkOverview ? "font-semibold text-[#059669] dark:text-[#10B981]" : "font-semibold text-[var(--brand)]"
+                        : isDarkOverview ? "font-medium text-[#4B5563] group-hover:text-[#17191D] dark:text-[#C2C8CF] dark:group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                     }`}
                   >
                     {item.mobileLabel || item.label}
@@ -1223,18 +1223,18 @@ export function ConsultancyNavigation({
               aria-controls="mobile-navigation-drawer"
               className={`group flex flex-col items-center justify-center flex-1 min-w-0 min-h-[48px] h-full py-1 px-0.5 transition-all select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl ${
                 isMoreButtonActive
-                  ? isDarkOverview ? "text-[#10B981]" : "text-[var(--brand)]"
-                  : isDarkOverview ? "text-[#C2C8CF] hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  ? isDarkOverview ? "text-[#059669] dark:text-[#10B981]" : "text-[var(--brand)]"
+                  : isDarkOverview ? "text-[#4B5563] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               <div
                 className={`px-3 py-1 rounded-full relative flex items-center justify-center transition-all duration-150 ${
                   isMoreButtonActive
                     ? isDarkOverview
-                      ? "bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/30 shadow-xs"
+                      ? "bg-emerald-500/15 text-[#059669] dark:text-[#10B981] border border-emerald-500/30 shadow-xs"
                       : "bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30 shadow-xs"
                     : isDarkOverview
-                      ? "border border-transparent group-hover:bg-[#1B1D21]"
+                      ? "border border-transparent group-hover:bg-[#DFE3E8] dark:group-hover:bg-[#1B1D21]"
                       : "border border-transparent group-hover:bg-[var(--surface-hover)]"
                 }`}
               >
@@ -1249,14 +1249,14 @@ export function ConsultancyNavigation({
                   <circle cx="19" cy="12" r="2" />
                 </svg>
                 {unreadNotificationsCount > 0 && (
-                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#10B981] ring-2 ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
+                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#059669] ring-2 ring-[#ECEFF2] dark:bg-[#10B981] dark:ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
                 )}
               </div>
               <span
                 className={`text-[11px] tracking-tight truncate max-w-full leading-tight mt-1 text-center transition-colors duration-150 ${
                   isMoreButtonActive
-                    ? isDarkOverview ? "font-semibold text-[#10B981]" : "font-semibold text-[var(--brand)]"
-                    : isDarkOverview ? "font-medium text-[#C2C8CF] group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
+                    ? isDarkOverview ? "font-semibold text-[#059669] dark:text-[#10B981]" : "font-semibold text-[var(--brand)]"
+                    : isDarkOverview ? "font-medium text-[#4B5563] group-hover:text-[#17191D] dark:text-[#C2C8CF] dark:group-hover:text-white" : "font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                 }`}
               >
                 Mais
@@ -1284,27 +1284,9 @@ export function ConsultancyNavigation({
             role="dialog"
             aria-label="Mais opções de navegação"
             aria-modal="true"
-            style={
-              isDarkOverview
-                ? {
-                    backgroundColor: "#111215",
-                    color: "#FFFFFF",
-                    borderColor: "#303238",
-                    ["--surface" as string]: "#111215",
-                    ["--surface-subtle" as string]: "#1B1D21",
-                    ["--surface-hover" as string]: "#202228",
-                    ["--border-default" as string]: "#303238",
-                    ["--border-subtle" as string]: "#26282E",
-                    ["--border-strong" as string]: "#42454E",
-                    ["--text-primary" as string]: "#FFFFFF",
-                    ["--text-secondary" as string]: "#C2C8CF",
-                    ["--text-tertiary" as string]: "#8E95A0",
-                  }
-                : undefined
-            }
             className={`relative w-full max-h-[85vh] overflow-y-auto ${
               isDarkOverview
-                ? "bg-[#111215] border-t border-[#303238] text-white"
+                ? "bg-[#ECEFF2] dark:bg-[#111215] border-t border-[#C5CBD3] dark:border-[#303238] text-[#17191D] dark:text-white"
                 : "bg-[var(--surface)] border-t border-[var(--border-default)]"
             } rounded-t-3xl p-5 shadow-2xl z-10 animate-in slide-in-from-bottom-6 duration-200 space-y-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] border-specular-t`}
           >

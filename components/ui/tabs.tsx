@@ -34,7 +34,7 @@ export function Tabs<T extends string = string>({
       aria-orientation="horizontal"
       className={`inline-flex items-center ${
         isDark
-          ? "bg-[#111215] border border-[#303238]"
+          ? "bg-[#ECEFF2] dark:bg-[#111215] border border-[#C5CBD3] dark:border-[#303238]"
           : "bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800"
       } rounded-xl ${containerPadding} gap-1 ${className}`.trim()}
     >
@@ -50,10 +50,10 @@ export function Tabs<T extends string = string>({
             className={`inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 ease-out select-none cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none ${itemPadding} ${
               isActive
                 ? isDark
-                  ? "bg-[#1B1D21] text-white shadow-xs border border-[#303238] font-bold"
+                  ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white shadow-xs border border-[#C5CBD3] dark:border-[#303238] font-bold"
                   : "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs border border-zinc-200 dark:border-white/[0.1] font-bold"
                 : isDark
-                ? "text-[#C2C8CF] hover:text-white hover:bg-[#1B1D21]/60 border border-transparent"
+                ? "text-[#4B5563] hover:text-[#17191D] hover:bg-white/60 dark:text-[#C2C8CF] dark:hover:text-white dark:hover:bg-[#1B1D21]/60 border border-transparent"
                 : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 border border-transparent"
             }`}
           >
@@ -64,10 +64,10 @@ export function Tabs<T extends string = string>({
                 className={`ml-1 px-1.5 py-0.5 rounded-full text-[11px] font-bold leading-none ${
                   isActive
                     ? isDark
-                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
                       : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                     : isDark
-                    ? "bg-[#1B1D21] text-[#C2C8CF] border border-[#303238]"
+                    ? "bg-[#F1F3F5] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#C2C8CF] border border-[#C5CBD3] dark:border-[#303238]"
                     : "bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
                 }`}
               >

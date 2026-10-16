@@ -542,7 +542,7 @@ export function ConsultancyAppShell({
     <div
       className={`min-h-svh w-full max-w-full min-w-0 ${
         themeVariant === "dark-overview"
-          ? "bg-[#202226] text-[#FFFFFF]"
+          ? "bg-[#DDE1E6] dark:bg-[#202226] text-[#17191D] dark:text-[#FFFFFF]"
           : "bg-transparent text-[var(--text-primary)]"
       } flex flex-col lg:pl-72 print:pl-0 selection:bg-[var(--brand-soft)] selection:text-[var(--brand-foreground)] transition-colors`}
     >
@@ -620,7 +620,7 @@ export function ConsultancyAppShell({
       <ActivityHeartbeat slug={consultancySlug} />
       <main
         className={`flex-1 w-full min-w-0 max-w-full mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 lg:pb-10 print:p-0 print:max-w-full ${
-          themeVariant === "dark-overview" ? "bg-[#202226]" : ""
+          themeVariant === "dark-overview" ? "bg-[#DDE1E6] dark:bg-[#202226]" : ""
         } ${effectiveMaxWidthClass} ${className}`.trim()}
       >
         {children}

@@ -99,11 +99,11 @@ export function DashboardAdminView({
       <div className="md:hidden space-y-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] select-none">
         {/* 1. Header & Saudação */}
         <div className="pt-1 px-1 flex items-baseline justify-between gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight font-sans">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#17191D] dark:text-white tracking-tight font-sans">
             {greeting}
           </h1>
           {!hideRoleBadge && (
-            <span className="text-xs text-[#C2C8CF] font-medium font-sans">
+            <span className="text-xs text-[#4B5563] dark:text-[#C2C8CF] font-medium font-sans">
               Administrador
             </span>
           )}
@@ -191,16 +191,16 @@ export function DashboardAdminView({
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between px-1">
             <div className="space-y-0.5">
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-tight font-sans">
+              <h2 className="text-sm sm:text-base font-bold text-[#17191D] dark:text-white tracking-tight font-sans">
                 Operação Rápida
               </h2>
-              <p className="text-[11px] text-[#C2C8CF] font-sans">
+              <p className="text-[11px] text-[#4B5563] dark:text-[#C2C8CF] font-sans">
                 Atalhos estratégicos para o administrador
               </p>
             </div>
             <Link
               href={`/consultoria/${consultancySlug}/operacoes`}
-              className="text-xs font-semibold text-[#10B981] hover:underline min-h-[44px] flex items-center px-1 cursor-pointer font-sans"
+              className="text-xs font-semibold text-[#059669] dark:text-[#10B981] hover:underline min-h-[44px] flex items-center px-1 cursor-pointer font-sans"
             >
               Ver todos →
             </Link>
@@ -263,7 +263,7 @@ export function DashboardAdminView({
         {/* 6. Seção "Acesso Rápido" */}
         <div className="space-y-1.5 pt-1">
           <div className="px-1 flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#C2C8CF] font-sans">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#4B5563] dark:text-[#C2C8CF] font-sans">
               Acesso rápido
             </span>
           </div>

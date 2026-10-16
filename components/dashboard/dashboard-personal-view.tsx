@@ -341,14 +341,14 @@ export function DashboardPersonalView({
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5">
-                <div className="w-5 h-5 rounded-md bg-[#151619] border border-[#303238] text-[#10B981] flex items-center justify-center">
+                <div className="w-5 h-5 rounded-md bg-[#ECEFF2] border border-[#C5CBD3] text-[#059669] dark:bg-[#151619] dark:border-[#303238] dark:text-[#10B981] flex items-center justify-center">
                   <FlameIcon className="w-3 h-3" />
                 </div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-white font-sans">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[#17191D] dark:text-white font-sans">
                   Acesso rápido
                 </h2>
               </div>
-              <span className="text-[11px] text-[#C2C8CF] font-semibold">
+              <span className="text-[11px] text-[#4B5563] dark:text-[#C2C8CF] font-semibold">
                 Deslize para ver →
               </span>
             </div>
@@ -413,18 +413,18 @@ export function DashboardPersonalView({
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-bold text-white font-sans">
+              <h2 className="text-sm font-bold text-[#17191D] dark:text-white font-sans">
                 Fichas recentes
               </h2>
               {filteredPlans.length > 0 && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1B1D21] text-[#C2C8CF] border border-[#303238]">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-[#C2C8CF] border border-[#C5CBD3] dark:border-[#303238]">
                   {filteredPlans.length}
                 </span>
               )}
             </div>
             <Link
               href={`/consultoria/${consultancySlug}/rotinas`}
-              className="text-xs text-[#10B981] font-semibold font-sans hover:underline"
+              className="text-xs text-[#059669] dark:text-[#10B981] font-semibold font-sans hover:underline"
             >
               Ver todas {totalPlans !== undefined && totalPlans !== null ? `(${totalPlans})` : ""} →
             </Link>
@@ -438,14 +438,14 @@ export function DashboardPersonalView({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar ficha por nome..."
-                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#303238] bg-[#1B1D21] text-white placeholder:text-[#C2C8CF]/60 focus:ring-1 focus:ring-[#10B981] focus:border-[#10B981] focus:outline-none min-h-[38px]"
+                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#C5CBD3] dark:border-[#303238] bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white placeholder:text-[#6B7280] dark:placeholder:text-[#C2C8CF]/60 focus:ring-1 focus:ring-[#10B981] focus:border-[#10B981] focus:outline-none min-h-[38px]"
               />
-              <SearchIcon className="w-3.5 h-3.5 text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <SearchIcon className="w-3.5 h-3.5 text-[#6B7280] dark:text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#C2C8CF] hover:text-white cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#6B7280] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white cursor-pointer"
                 >
                   <XIcon className="w-3.5 h-3.5" />
                 </button>
@@ -655,11 +655,11 @@ export function DashboardPersonalView({
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-[#151619] border border-[#303238] text-[#10B981] flex items-center justify-center shadow-xs">
+                <div className="w-7 h-7 rounded-xl bg-[#ECEFF2] border border-[#C5CBD3] text-[#059669] dark:bg-[#151619] dark:border-[#303238] dark:text-[#10B981] flex items-center justify-center shadow-xs">
                   <FlameIcon className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-white font-sans tracking-tight">
+                  <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white font-sans tracking-tight">
                     Acesso rápido
                   </h2>
                 </div>
@@ -674,8 +674,8 @@ export function DashboardPersonalView({
                   aria-label="Rolar para esquerda"
                   className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all ${
                     !canScrollLeft
-                      ? "bg-[#151619] border-[#303238] text-zinc-600 opacity-40 cursor-not-allowed"
-                      : "bg-[#151619] hover:bg-[#1B1D21] border-[#303238] hover:border-[#10B981]/50 text-[#C2C8CF] hover:text-white cursor-pointer active:scale-95"
+                      ? "bg-[#ECEFF2] border-[#C5CBD3] text-zinc-400 dark:bg-[#151619] dark:border-[#303238] dark:text-zinc-600 opacity-40 cursor-not-allowed"
+                      : "bg-[#ECEFF2] hover:bg-[#DFE3E8] border-[#C5CBD3] hover:border-[#10B981] text-[#17191D] dark:bg-[#151619] dark:hover:bg-[#1B1D21] dark:border-[#303238] dark:hover:border-[#10B981]/50 dark:text-[#C2C8CF] dark:hover:text-white cursor-pointer active:scale-95"
                   }`}
                 >
                   <ChevronLeftIcon className="w-4 h-4" />
@@ -687,8 +687,8 @@ export function DashboardPersonalView({
                   aria-label="Rolar para direita"
                   className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all ${
                     !canScrollRight
-                      ? "bg-[#151619] border-[#303238] text-zinc-600 opacity-40 cursor-not-allowed"
-                      : "bg-[#151619] hover:bg-[#1B1D21] border-[#303238] hover:border-[#10B981]/50 text-[#C2C8CF] hover:text-white cursor-pointer active:scale-95"
+                      ? "bg-[#ECEFF2] border-[#C5CBD3] text-zinc-400 dark:bg-[#151619] dark:border-[#303238] dark:text-zinc-600 opacity-40 cursor-not-allowed"
+                      : "bg-[#ECEFF2] hover:bg-[#DFE3E8] border-[#C5CBD3] hover:border-[#10B981] text-[#17191D] dark:bg-[#151619] dark:hover:bg-[#1B1D21] dark:border-[#303238] dark:hover:border-[#10B981]/50 dark:text-[#C2C8CF] dark:hover:text-white cursor-pointer active:scale-95"
                   }`}
                 >
                   <ChevronRightIcon className="w-4 h-4" />
@@ -771,18 +771,18 @@ export function DashboardPersonalView({
           {/* Header & Controls Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-white font-sans tracking-tight">
+              <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white font-sans tracking-tight">
                 Fichas recentes
               </h2>
               {filteredPlans.length > 0 && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#1B1D21] text-[#C2C8CF] border border-[#303238]">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-[#C2C8CF] border border-[#C5CBD3] dark:border-[#303238]">
                   {filteredPlans.length}
                 </span>
               )}
             </div>
 
             <Link href={`/consultoria/${consultancySlug}/rotinas`}>
-              <span className="text-xs text-[#10B981] font-semibold hover:underline font-sans cursor-pointer">
+              <span className="text-xs text-[#059669] dark:text-[#10B981] font-semibold hover:underline font-sans cursor-pointer">
                 Ver todas {totalPlans !== undefined && totalPlans !== null ? `(${totalPlans})` : ""} →
               </span>
             </Link>
@@ -790,7 +790,7 @@ export function DashboardPersonalView({
 
           {/* Search Bar + Chips Filter + View Mode Toggle */}
           {recentPlans && recentPlans.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2 rounded-2xl bg-[#151619] border border-[#303238]">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2 rounded-2xl bg-[#ECEFF2] border border-[#C5CBD3] dark:bg-[#151619] dark:border-[#303238]">
               {/* Input de Busca Instantânea */}
               <div className="relative flex-1 min-w-[200px]">
                 <input
@@ -798,14 +798,14 @@ export function DashboardPersonalView({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar ficha por nome..."
-                  className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border border-[#303238] bg-[#1B1D21] text-white placeholder:text-[#C2C8CF]/60 focus:ring-1 focus:ring-[#10B981] focus:border-[#10B981] focus:outline-none min-h-[38px]"
+                  className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border border-[#C5CBD3] dark:border-[#303238] bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white placeholder:text-[#6B7280] dark:placeholder:text-[#C2C8CF]/60 focus:ring-1 focus:ring-[#10B981] focus:border-[#10B981] focus:outline-none min-h-[38px]"
                 />
-                <SearchIcon className="w-4 h-4 text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <SearchIcon className="w-4 h-4 text-[#6B7280] dark:text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#C2C8CF] hover:text-white cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#6B7280] hover:text-[#17191D] dark:text-[#C2C8CF] dark:hover:text-white cursor-pointer"
                   >
                     <XIcon className="w-3.5 h-3.5" />
                   </button>
@@ -820,7 +820,7 @@ export function DashboardPersonalView({
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                     activeFilter === "ALL"
                       ? "bg-emerald-500 text-zinc-950 font-bold shadow-2xs"
-                      : "bg-[#1B1D21] hover:bg-[#252830] text-[#C2C8CF] hover:text-white border border-[#303238]"
+                      : "bg-white hover:bg-[#DFE3E8] text-[#4B5563] hover:text-[#17191D] border border-[#C5CBD3] dark:bg-[#1B1D21] dark:hover:bg-[#252830] dark:text-[#C2C8CF] dark:hover:text-white dark:border-[#303238]"
                   }`}
                 >
                   Todas
@@ -831,7 +831,7 @@ export function DashboardPersonalView({
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                     activeFilter === "FEW_BLOCKS"
                       ? "bg-emerald-500 text-zinc-950 font-bold shadow-2xs"
-                      : "bg-[#1B1D21] hover:bg-[#252830] text-[#C2C8CF] hover:text-white border border-[#303238]"
+                      : "bg-white hover:bg-[#DFE3E8] text-[#4B5563] hover:text-[#17191D] border border-[#C5CBD3] dark:bg-[#1B1D21] dark:hover:bg-[#252830] dark:text-[#C2C8CF] dark:hover:text-white dark:border-[#303238]"
                   }`}
                 >
                   Até 3 blocos
@@ -842,7 +842,7 @@ export function DashboardPersonalView({
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                     activeFilter === "MANY_BLOCKS"
                       ? "bg-emerald-500 text-zinc-950 font-bold shadow-2xs"
-                      : "bg-[#1B1D21] hover:bg-[#252830] text-[#C2C8CF] hover:text-white border border-[#303238]"
+                      : "bg-white hover:bg-[#DFE3E8] text-[#4B5563] hover:text-[#17191D] border border-[#C5CBD3] dark:bg-[#1B1D21] dark:hover:bg-[#252830] dark:text-[#C2C8CF] dark:hover:text-white dark:border-[#303238]"
                   }`}
                 >
                   4+ blocos
@@ -854,7 +854,7 @@ export function DashboardPersonalView({
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                       activeFilter === "DRAFT"
                         ? "bg-amber-500 text-white shadow-2xs font-bold"
-                        : "bg-[#1B1D21] hover:bg-[#252830] text-[#C2C8CF] hover:text-white border border-[#303238]"
+                        : "bg-white hover:bg-[#DFE3E8] text-[#4B5563] hover:text-[#17191D] border border-[#C5CBD3] dark:bg-[#1B1D21] dark:hover:bg-[#252830] dark:text-[#C2C8CF] dark:hover:text-white dark:border-[#303238]"
                     }`}
                   >
                     Rascunhos
@@ -862,15 +862,15 @@ export function DashboardPersonalView({
                 )}
 
                 {/* Alternador de Visualização (Lista vs Grade) */}
-                <div className="flex items-center gap-1 pl-1 ml-1 border-l border-[#303238]">
+                <div className="flex items-center gap-1 pl-1 ml-1 border-l border-[#C5CBD3] dark:border-[#303238]">
                   <button
                     type="button"
                     onClick={() => setViewMode("list")}
                     aria-label="Ver em lista"
                     className={`p-1.5 rounded-lg border transition-colors cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center ${
                       viewMode === "list"
-                        ? "bg-[#1B1D21] text-[#10B981] border-[#10B981]/50"
-                        : "text-[#C2C8CF] border-transparent hover:text-white hover:bg-[#1B1D21]"
+                        ? "bg-white text-[#059669] border-[#C5CBD3] dark:bg-[#1B1D21] dark:text-[#10B981] dark:border-[#10B981]/50 shadow-2xs"
+                        : "text-[#4B5563] border-transparent hover:text-[#17191D] hover:bg-[#DFE3E8] dark:text-[#C2C8CF] dark:border-transparent dark:hover:text-white dark:hover:bg-[#1B1D21]"
                     }`}
                     title="Visualização em lista"
                   >
@@ -882,8 +882,8 @@ export function DashboardPersonalView({
                     aria-label="Ver em grade"
                     className={`p-1.5 rounded-lg border transition-colors cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center ${
                       viewMode === "grid"
-                        ? "bg-[#1B1D21] text-[#10B981] border-[#10B981]/50"
-                        : "text-[#C2C8CF] border-transparent hover:text-white hover:bg-[#1B1D21]"
+                        ? "bg-white text-[#059669] border-[#C5CBD3] dark:bg-[#1B1D21] dark:text-[#10B981] dark:border-[#10B981]/50 shadow-2xs"
+                        : "text-[#4B5563] border-transparent hover:text-[#17191D] hover:bg-[#DFE3E8] dark:text-[#C2C8CF] dark:border-transparent dark:hover:text-white dark:hover:bg-[#1B1D21]"
                     }`}
                     title="Visualização em grade"
                   >

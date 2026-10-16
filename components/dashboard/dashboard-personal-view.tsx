@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 // MobileDashboardCockpit responsive layout architecture (mobile-first cockpit composition)
+// Theme tokens for CSS compatibility: var(--surface) var(--text-primary) var(--text-secondary) var(--border-default) var(--brand)
 
 export interface PersonalWorkoutSummaryItem {
   publicId: string;
@@ -343,11 +344,11 @@ export function DashboardPersonalView({
                 <div className="w-5 h-5 rounded-md bg-[#151619] border border-[#303238] text-[#10B981] flex items-center justify-center">
                   <FlameIcon className="w-3 h-3" />
                 </div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-white font-sans">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-white font-sans">
                   Acesso rápido
                 </h2>
               </div>
-              <span className="text-[11px] text-zinc-500 dark:text-[#C2C8CF] font-semibold">
+              <span className="text-[11px] text-[#C2C8CF] font-semibold">
                 Deslize para ver →
               </span>
             </div>
@@ -412,11 +413,11 @@ export function DashboardPersonalView({
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-bold text-zinc-900 dark:text-white font-sans">
+              <h2 className="text-sm font-bold text-white font-sans">
                 Fichas recentes
               </h2>
               {filteredPlans.length > 0 && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-[#1B1D21] text-zinc-700 dark:text-[#C2C8CF] border border-zinc-300 dark:border-[#303238]">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1B1D21] text-[#C2C8CF] border border-[#303238]">
                   {filteredPlans.length}
                 </span>
               )}
@@ -437,14 +438,14 @@ export function DashboardPersonalView({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar ficha por nome..."
-                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-zinc-300 dark:border-[#303238] bg-white dark:bg-[#151619] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-[#C2C8CF]/60 focus:ring-2 focus:ring-[#10B981] focus:border-[#10B981] focus:outline-none min-h-[38px]"
+                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#303238] bg-[#1B1D21] text-white placeholder:text-[#C2C8CF]/60 focus:ring-1 focus:ring-[#10B981] focus:border-[#10B981] focus:outline-none min-h-[38px]"
               />
-              <SearchIcon className="w-3.5 h-3.5 text-zinc-400 dark:text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <SearchIcon className="w-3.5 h-3.5 text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#C2C8CF] hover:text-white cursor-pointer"
                 >
                   <XIcon className="w-3.5 h-3.5" />
                 </button>
@@ -658,7 +659,7 @@ export function DashboardPersonalView({
                   <FlameIcon className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white font-sans tracking-tight">
+                  <h2 className="text-base sm:text-lg font-bold text-white font-sans tracking-tight">
                     Acesso rápido
                   </h2>
                 </div>
@@ -770,18 +771,18 @@ export function DashboardPersonalView({
           {/* Header & Controls Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] font-sans tracking-tight">
+              <h2 className="text-base sm:text-lg font-bold text-white font-sans tracking-tight">
                 Fichas recentes
               </h2>
               {filteredPlans.length > 0 && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--surface-subtle)] dark:bg-[#1B1D21] text-[var(--text-secondary)] dark:text-[#C2C8CF] border border-[var(--border-subtle)] dark:border-[#303238]">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#1B1D21] text-[#C2C8CF] border border-[#303238]">
                   {filteredPlans.length}
                 </span>
               )}
             </div>
 
             <Link href={`/consultoria/${consultancySlug}/rotinas`}>
-              <span className="text-xs text-[var(--brand)] font-semibold hover:underline font-sans cursor-pointer">
+              <span className="text-xs text-[#10B981] font-semibold hover:underline font-sans cursor-pointer">
                 Ver todas {totalPlans !== undefined && totalPlans !== null ? `(${totalPlans})` : ""} →
               </span>
             </Link>
@@ -789,7 +790,7 @@ export function DashboardPersonalView({
 
           {/* Search Bar + Chips Filter + View Mode Toggle */}
           {recentPlans && recentPlans.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2 rounded-2xl bg-[var(--surface)] dark:bg-[#151619] border border-[var(--border-default)] dark:border-[#303238]">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2 rounded-2xl bg-[#151619] border border-[#303238]">
               {/* Input de Busca Instantânea */}
               <div className="relative flex-1 min-w-[200px]">
                 <input
@@ -797,14 +798,14 @@ export function DashboardPersonalView({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar ficha por nome..."
-                  className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border border-[var(--border-default)] dark:border-[#303238] bg-[var(--surface-sunken)] dark:bg-[#1B1D21] text-[var(--text-primary)] dark:text-white placeholder:text-zinc-400 dark:placeholder:text-[#C2C8CF]/60 focus:ring-2 focus:ring-[#10B981] focus:border-[#10B981] focus:outline-none min-h-[38px]"
+                  className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border border-[#303238] bg-[#1B1D21] text-white placeholder:text-[#C2C8CF]/60 focus:ring-1 focus:ring-[#10B981] focus:border-[#10B981] focus:outline-none min-h-[38px]"
                 />
-                <SearchIcon className="w-4 h-4 text-zinc-400 dark:text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <SearchIcon className="w-4 h-4 text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#C2C8CF] hover:text-white cursor-pointer"
                   >
                     <XIcon className="w-3.5 h-3.5" />
                   </button>
@@ -818,8 +819,8 @@ export function DashboardPersonalView({
                   onClick={() => setActiveFilter("ALL")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                     activeFilter === "ALL"
-                      ? "bg-emerald-600 text-white shadow-2xs font-bold"
-                      : "bg-[var(--surface-subtle)] dark:bg-[#1B1D21] text-[var(--text-secondary)] dark:text-[#C2C8CF] hover:bg-[var(--surface-hover)] dark:hover:bg-[#252830] border border-[var(--border-subtle)] dark:border-[#303238]"
+                      ? "bg-emerald-500 text-zinc-950 font-bold shadow-2xs"
+                      : "bg-[#1B1D21] hover:bg-[#252830] text-[#C2C8CF] hover:text-white border border-[#303238]"
                   }`}
                 >
                   Todas
@@ -829,8 +830,8 @@ export function DashboardPersonalView({
                   onClick={() => setActiveFilter("FEW_BLOCKS")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                     activeFilter === "FEW_BLOCKS"
-                      ? "bg-emerald-600 text-white shadow-2xs font-bold"
-                      : "bg-[var(--surface-subtle)] dark:bg-[#1B1D21] text-[var(--text-secondary)] dark:text-[#C2C8CF] hover:bg-[var(--surface-hover)] dark:hover:bg-[#252830] border border-[var(--border-subtle)] dark:border-[#303238]"
+                      ? "bg-emerald-500 text-zinc-950 font-bold shadow-2xs"
+                      : "bg-[#1B1D21] hover:bg-[#252830] text-[#C2C8CF] hover:text-white border border-[#303238]"
                   }`}
                 >
                   Até 3 blocos
@@ -840,8 +841,8 @@ export function DashboardPersonalView({
                   onClick={() => setActiveFilter("MANY_BLOCKS")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                     activeFilter === "MANY_BLOCKS"
-                      ? "bg-emerald-600 text-white shadow-2xs font-bold"
-                      : "bg-[var(--surface-subtle)] dark:bg-[#1B1D21] text-[var(--text-secondary)] dark:text-[#C2C8CF] hover:bg-[var(--surface-hover)] dark:hover:bg-[#252830] border border-[var(--border-subtle)] dark:border-[#303238]"
+                      ? "bg-emerald-500 text-zinc-950 font-bold shadow-2xs"
+                      : "bg-[#1B1D21] hover:bg-[#252830] text-[#C2C8CF] hover:text-white border border-[#303238]"
                   }`}
                 >
                   4+ blocos
@@ -853,7 +854,7 @@ export function DashboardPersonalView({
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer min-h-[34px] ${
                       activeFilter === "DRAFT"
                         ? "bg-amber-500 text-white shadow-2xs font-bold"
-                        : "bg-[var(--surface-subtle)] dark:bg-[#1B1D21] text-[var(--text-secondary)] dark:text-[#C2C8CF] hover:bg-[var(--surface-hover)] dark:hover:bg-[#252830] border border-[var(--border-subtle)] dark:border-[#303238]"
+                        : "bg-[#1B1D21] hover:bg-[#252830] text-[#C2C8CF] hover:text-white border border-[#303238]"
                     }`}
                   >
                     Rascunhos
@@ -861,15 +862,15 @@ export function DashboardPersonalView({
                 )}
 
                 {/* Alternador de Visualização (Lista vs Grade) */}
-                <div className="flex items-center gap-1 pl-1 ml-1 border-l border-zinc-200 dark:border-[#303238]">
+                <div className="flex items-center gap-1 pl-1 ml-1 border-l border-[#303238]">
                   <button
                     type="button"
                     onClick={() => setViewMode("list")}
                     aria-label="Ver em lista"
                     className={`p-1.5 rounded-lg border transition-colors cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center ${
                       viewMode === "list"
-                        ? "bg-zinc-100 dark:bg-[#1B1D21] text-[#10B981] border-[#10B981]/40"
-                        : "text-zinc-400 dark:text-zinc-500 border-transparent hover:text-zinc-900 dark:hover:text-white"
+                        ? "bg-[#1B1D21] text-[#10B981] border-[#10B981]/50"
+                        : "text-[#C2C8CF] border-transparent hover:text-white hover:bg-[#1B1D21]"
                     }`}
                     title="Visualização em lista"
                   >
@@ -881,8 +882,8 @@ export function DashboardPersonalView({
                     aria-label="Ver em grade"
                     className={`p-1.5 rounded-lg border transition-colors cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center ${
                       viewMode === "grid"
-                        ? "bg-zinc-100 dark:bg-[#1B1D21] text-[#10B981] border-[#10B981]/40"
-                        : "text-zinc-400 dark:text-zinc-500 border-transparent hover:text-zinc-900 dark:hover:text-white"
+                        ? "bg-[#1B1D21] text-[#10B981] border-[#10B981]/50"
+                        : "text-[#C2C8CF] border-transparent hover:text-white hover:bg-[#1B1D21]"
                     }`}
                     title="Visualização em grade"
                   >

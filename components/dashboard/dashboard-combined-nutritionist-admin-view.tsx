@@ -76,14 +76,15 @@ export function DashboardCombinedNutritionistAdminView({
   return (
     <div className="space-y-5 sm:space-y-6 w-full animate-in fade-in duration-150">
       {/* Role Switcher */}
-      <div className="flex items-center justify-between pb-1 border-b border-[var(--border-subtle)]">
+      <div className="flex items-center justify-between pb-1 border-b border-[#303238]">
         <Tabs
           items={tabs}
           activeId={activeTab}
           onChange={(tab) => setActiveTab(tab)}
+          variant="dark"
           size="md"
         />
-        <span className="text-xs text-[var(--text-tertiary)] hidden sm:inline">
+        <span className="text-xs text-[#C2C8CF] hidden sm:inline font-medium">
           {activeTab === "nutri" ? "Prescrição Nutricional" : "Operação & Finanças"}
         </span>
       </div>

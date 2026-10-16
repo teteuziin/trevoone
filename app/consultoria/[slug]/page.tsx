@@ -478,6 +478,14 @@ export default async function ConsultancyPage({ params }: PageProps) {
       ? studentProgress.entries[1]
       : null;
 
+  const isDarkOverviewTheme = Boolean(
+    isPurePersonal ||
+      isCombinedPersonalAdmin ||
+      isCombinedNutritionistAdmin ||
+      (effectiveMode === "ADMIN" && !isPersonal && !isNutritionist) ||
+      (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" || effectiveMode === "NUTRITIONIST"))
+  );
+
   return (
     <ConsultancyAppShell
       consultancyName={context.consultancyName}
@@ -492,6 +500,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={effectiveState}
       unreadAnnouncements={unreadAnnouncements}
+      themeVariant={isDarkOverviewTheme ? "dark-overview" : "default"}
       maxWidth="full"
     >
       <div className="w-full max-w-[1536px] 2xl:max-w-[1680px] space-y-6 sm:space-y-8">

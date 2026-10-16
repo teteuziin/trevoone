@@ -58,20 +58,21 @@ export function DashboardCombinedPersonalAdminView({
     <div className="space-y-5 sm:space-y-6 w-full animate-in fade-in duration-150">
       {/* 1. Cabeçalho compacto da consultoria (Mobile) */}
       {consultancyName && (
-        <div className="block md:hidden px-1 flex items-center justify-between text-xs text-[var(--text-tertiary)] font-medium font-sans">
+        <div className="block md:hidden px-1 flex items-center justify-between text-xs text-[#C2C8CF] font-medium font-sans">
           <span className="truncate max-w-[200px]">{consultancyName}</span>
         </div>
       )}
 
       {/* 2. Alternância Treinador / Administração */}
-      <div className="flex items-center justify-between pb-1 border-b border-[var(--border-subtle)]">
+      <div className="flex items-center justify-between pb-1 border-b border-[#303238]">
         <Tabs
           items={tabs}
           activeId={activeTab}
           onChange={(tab) => setActiveTab(tab)}
+          variant="dark"
           size="md"
         />
-        <span className="text-xs text-[var(--text-tertiary)] hidden sm:inline">
+        <span className="text-xs text-[#C2C8CF] hidden sm:inline font-medium">
           {activeTab === "coach" ? "Prescrição de Treinos" : "Operação & Finanças"}
         </span>
       </div>

@@ -14,18 +14,22 @@ interface ConsultancyPhotoEditorProps {
   consultancySlug: string;
   consultancyName: string;
   currentLogoUrl?: string | null;
+  variant?: "card" | "embedded";
+  onClose?: () => void;
 }
 
 export function ConsultancyPhotoEditor({
   consultancySlug,
   consultancyName,
   currentLogoUrl = null,
+  variant = "card",
+  onClose,
 }: ConsultancyPhotoEditorProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(variant === "embedded");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imageElement, setImageElement] = useState<HTMLImageElement | null>(null);
   const [zoom, setZoom] = useState<number>(1.0);
@@ -162,6 +166,203 @@ export function ConsultancyPhotoEditor({
       }
     });
   };
+
+  if (variant === "embedded") {
+    return (
+      <div className="rounded-2xl border border-[#303238] bg-[#151619] p-4 sm:p-5 text-white space-y-4 shadow-sm animate-in fade-in duration-200">
+        <div className="flex items-center justify-between pb-3 border-b border-[#303238]">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+            <h4 className="text-sm font-bold text-white font-sans">
+              Configurar Foto & Identidade da Consultoria
+            </h4>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs font-semibold text-[#C2C8CF] hover:text-white px-2 py-1 rounded-lg hover:bg-[#1B1D21] transition-colors cursor-pointer"
+            >
+              ✕ Fechar
+            </button>
+          )}
+        </div>
+
+        {/* Feedback message */}
+        {feedback && (
+          <div
+            className={`p-3 rounded-xl text-xs font-medium ${
+              feedback.type === "success"
+                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                : "bg-red-500/10 text-red-400 border border-red-500/30"
+            }`}
+          >
+            {feedback.message}
+          </div>
+        )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+
+        {!imageElement ? (
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="p-6 sm:p-8 rounded-2xl border-2 border-dashed border-[#303238] hover:border-[#10B981] bg-[#1B1D21] text-center cursor-pointer transition-colors space-y-2 group"
+          >
+            <div className="w-12 h-12 rounded-full bg-emerald-500/15 text-[#10B981] mx-auto flex items-center justify-center transition-transform group-hover:scale-105">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white">
+                Clique para escolher uma imagem
+              </p>
+              <p className="text-[11px] text-[#C2C8CF]">
+                Formatos suportados: JPEG, PNG ou WebP (máx. 5 MB)
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Dual Live Preview: Rounded Badge + Header Banner */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* 1. Square Badge Preview */}
+              <div className="p-3.5 rounded-xl bg-[#1B1D21] border border-[#303238] space-y-2 flex flex-col items-center">
+                <span className="text-[11px] font-bold text-[#C2C8CF] uppercase tracking-wider">
+                  Prévia: Ícone & Badge
+                </span>
+                <div className="relative w-24 h-24 rounded-2xl overflow-hidden border border-[#303238] shadow-xs bg-black">
+                  <canvas ref={canvasRef} className="w-full h-full object-cover" />
+                </div>
+              </div>
+
+              {/* 2. Banner Header Preview */}
+              <div className="p-3.5 rounded-xl bg-[#1B1D21] border border-[#303238] space-y-2 flex flex-col items-center">
+                <span className="text-[11px] font-bold text-[#C2C8CF] uppercase tracking-wider">
+                  Prévia: Topo da Consultoria
+                </span>
+                <div className="relative w-full h-24 rounded-2xl overflow-hidden border border-[#303238] shadow-xs bg-black flex items-center justify-center">
+                  <canvas className="w-full h-full object-cover" style={{ filter: "brightness(0.85)" }} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent flex items-center px-4">
+                    <span className="text-white font-heading font-bold text-sm truncate">
+                      {consultancyName}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Zoom Control */}
+            <div className="p-3.5 rounded-xl bg-[#1B1D21] border border-[#303238] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="zoom-slider-embedded" className="text-xs font-bold text-white">
+                  Enquadramento & Zoom: {zoom.toFixed(1)}x
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setZoom(1.0)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                      zoom === 1.0
+                        ? "bg-emerald-500 text-zinc-950 font-bold"
+                        : "bg-[#151619] text-[#C2C8CF] border border-[#303238] hover:text-white"
+                    }`}
+                  >
+                    1.0x
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setZoom(1.4)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                      zoom === 1.4
+                        ? "bg-emerald-500 text-zinc-950 font-bold"
+                        : "bg-[#151619] text-[#C2C8CF] border border-[#303238] hover:text-white"
+                    }`}
+                  >
+                    1.4x
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setZoom(1.8)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                      zoom === 1.8
+                        ? "bg-emerald-500 text-zinc-950 font-bold"
+                        : "bg-[#151619] text-[#C2C8CF] border border-[#303238] hover:text-white"
+                    }`}
+                  >
+                    1.8x
+                  </button>
+                </div>
+              </div>
+
+              <input
+                id="zoom-slider-embedded"
+                type="range"
+                min="1.0"
+                max="2.5"
+                step="0.05"
+                value={zoom}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="w-full accent-[#10B981] cursor-pointer"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="font-semibold text-xs min-h-[44px] px-3.5 py-2 rounded-xl bg-[#1B1D21] hover:bg-[#252830] text-white border border-[#303238] transition-colors cursor-pointer"
+              >
+                Trocar Imagem
+              </button>
+
+              <div className="flex items-center gap-2">
+                {logoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemove}
+                    disabled={isPending}
+                    className="font-semibold text-xs min-h-[44px] px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-colors cursor-pointer"
+                  >
+                    Remover Foto
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setImageElement(null);
+                    if (onClose) onClose();
+                  }}
+                  className="font-semibold text-xs min-h-[44px] px-3.5 py-2 rounded-xl bg-[#1B1D21] hover:bg-[#252830] text-[#C2C8CF] hover:text-white border border-[#303238] transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isPending}
+                  className="font-bold text-xs min-h-[44px] px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-sm transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isPending ? "Salvando..." : "Salvar Foto Ajustada"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] p-5 sm:p-6 shadow-xs space-y-4 depth-surface">

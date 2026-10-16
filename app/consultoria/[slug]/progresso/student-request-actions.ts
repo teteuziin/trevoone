@@ -11,6 +11,10 @@ import {
   type AvailableFormTemplateOption,
 } from "@/lib/consultancies/student-requests";
 import { requestFormForStudent } from "@/lib/consultancies/custom-forms";
+import {
+  getPersonalStudentDetail,
+  type PersonalStudentDetail,
+} from "@/lib/consultancies/personal-student-hub";
 
 export async function requestStudentPhotosAction(
   slug: string,
@@ -133,3 +137,46 @@ export async function getAvailableFormTemplatesAction(
     return { success: false, error: err instanceof Error ? err.message : "Erro ao carregar modelos." };
   }
 }
+
+export async function getPersonalStudentDetailAction(
+  slug: string,
+  studentMembershipPublicId: string
+): Promise<{ success: boolean; detail?: PersonalStudentDetail; error?: string }> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { success: false, error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const context = await resolveConsultancyContext(session.userId, slug);
+  if (!context) {
+    return { success: false, error: "Acesso negado à consultoria." };
+  }
+
+  const isPersonal = context.roles.includes("PERSONAL");
+  const isNutritionist = context.roles.includes("NUTRITIONIST");
+  const isConsultancyAdmin = context.roles.includes("CONSULTANCY_ADMIN");
+
+  if (!isPersonal && !isNutritionist && !isConsultancyAdmin) {
+    return { success: false, error: "Permissão insuficiente para visualizar dados de alunos." };
+  }
+
+  try {
+    const detail = await getPersonalStudentDetail({
+      consultancyId: context.consultancyId,
+      consultancySlug: slug,
+      studentMembershipPublicId,
+    });
+
+    if (!detail) {
+      return { success: false, error: "Aluno não encontrado ou não vinculado a esta consultoria." };
+    }
+
+    return { success: true, detail };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Erro ao carregar detalhes do aluno.",
+    };
+  }
+}
+

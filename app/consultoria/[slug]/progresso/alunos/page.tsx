@@ -11,10 +11,18 @@ interface PageProps {
   params: Promise<{
     slug: string;
   }>;
+  searchParams?: Promise<{
+    student?: string;
+  }>;
 }
 
-export default async function ProfessionalStudentsProgressListPage({ params }: PageProps) {
+export default async function ProfessionalStudentsProgressListPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { slug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const initialStudentPublicId = resolvedSearchParams?.student;
   const session = await getCurrentSession();
 
   if (!session) {
@@ -65,6 +73,8 @@ export default async function ProfessionalStudentsProgressListPage({ params }: P
           students={students}
           effectiveMode={effectiveMode}
           userRoles={context.roles}
+          professionalName={session.fullName}
+          initialStudentPublicId={initialStudentPublicId}
         />
       </div>
     </ConsultancyAppShell>

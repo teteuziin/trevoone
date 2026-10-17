@@ -11,6 +11,7 @@ import {
 } from "./personal/sections/personal-attention-section";
 import {
   PersonalTodaySection,
+  PersonalTodayBanner,
   type PersonalTodayConsultation,
 } from "./personal/sections/personal-today-section";
 import {
@@ -145,22 +146,37 @@ export function DashboardPersonalView({
         prescribedBlocksCount={computedBlocksCount}
       />
 
-      {/* 2. Pendências e Agenda Lado a Lado no Desktop (Fichas mais próximas do topo) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-start">
-        <PersonalAttentionSection
-          consultancySlug={consultancySlug}
-          studentsWithoutWorkout={studentsWithoutWorkout as StudentAttentionItem[]}
-          draftWorkouts={draftWorkouts}
-          totalStudents={totalStudents ?? 0}
-        />
+      {/* 2. Agenda e Pendências (Layout adaptativo: 60/40 quando há consultas, faixa compacta + largura total quando vazia) */}
+      {normalizedConsultations.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
+          <div className="lg:col-span-7">
+            <PersonalAttentionSection
+              consultancySlug={consultancySlug}
+              studentsWithoutWorkout={studentsWithoutWorkout as StudentAttentionItem[]}
+              draftWorkouts={draftWorkouts}
+              totalStudents={totalStudents ?? 0}
+            />
+          </div>
+          <div className="lg:col-span-5">
+            <PersonalTodaySection
+              consultancySlug={consultancySlug}
+              consultations={normalizedConsultations}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <PersonalTodayBanner consultancySlug={consultancySlug} />
+          <PersonalAttentionSection
+            consultancySlug={consultancySlug}
+            studentsWithoutWorkout={studentsWithoutWorkout as StudentAttentionItem[]}
+            draftWorkouts={draftWorkouts}
+            totalStudents={totalStudents ?? 0}
+          />
+        </div>
+      )}
 
-        <PersonalTodaySection
-          consultancySlug={consultancySlug}
-          consultations={normalizedConsultations}
-        />
-      </div>
-
-      {/* 3. Fichas (Logo abaixo das pendências e agenda, próximo ao topo) */}
+      {/* 3. Fichas (Logo abaixo das pendências e agenda, sem espaços vazios artificiais) */}
       <PersonalWorkoutsTable
         consultancySlug={consultancySlug}
         workouts={tableWorkouts}

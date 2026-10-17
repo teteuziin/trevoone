@@ -887,43 +887,134 @@ export function ConsultancyNavigation({
         </div>
 
         {/* Bottom: User Card, Clear Named Actions, Theme & Exit */}
-        <div className={`p-4 border-t ${
-          isDarkOverview
-            ? "border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#111215]"
-            : "border-[var(--border-default)] bg-[var(--surface)]"
-        } shrink-0 space-y-3`}>
-          {/* User Info Card */}
-          <Link
-            href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
-            className={`flex items-center gap-3 px-2 py-1.5 rounded-xl ${
-              isDarkOverview ? "hover:bg-[#E5E7EB] dark:hover:bg-[#1B1D21]" : "hover:bg-[var(--surface-subtle)]"
-            } transition-colors min-w-0 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]`}
-            title="Ver perfil"
-          >
-            <UserAvatar
-              fullName={identity.fullName}
-              userPublicId={identity.userPublicId}
-              avatarUrl={identity.avatarUrl}
-              hasProfilePhoto={identity.hasProfilePhoto}
-              profilePhotoUpdatedAt={identity.profilePhotoUpdatedAt}
-              shape="circle"
-              size="sm"
-            />
-            <div className="min-w-0 flex-1">
-              <p className={`text-[13px] font-semibold ${
-                isDarkOverview ? "text-[#17191D] group-hover:text-[#10B981] dark:text-white dark:group-hover:text-[#10B981]" : "text-[var(--text-primary)] group-hover:text-[var(--brand)]"
-              } transition-colors truncate leading-tight`}>
-                {identity.fullName}
-              </p>
-              {identity.email && (
-                <p className={`text-xs ${
-                  isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"
-                } truncate leading-tight mt-0.5`}>
-                  {identity.email}
-                </p>
-              )}
+        <div
+          ref={desktopProfileRef}
+          className={`relative p-4 border-t ${
+            isDarkOverview
+              ? "border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#111215]"
+              : "border-[var(--border-default)] bg-[var(--surface)]"
+          } shrink-0 space-y-3`}
+        >
+          {/* Desktop Account Menu Popover (Menu de conta identificado) */}
+          {desktopProfileOpen && (
+            <div
+              role="menu"
+              aria-label="Menu da conta"
+              className="absolute bottom-full left-3 right-3 mb-2 z-50 bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl shadow-xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+            >
+              <div className="px-3 py-1.5 text-[11px] font-bold text-[#6B7280] dark:text-[#8E95A2] uppercase tracking-wider">
+                Menu da conta
+              </div>
+
+              <Link
+                href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
+                onClick={() => setDesktopProfileOpen(false)}
+                role="menuitem"
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
+              >
+                <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+                <span>Meu perfil</span>
+              </Link>
+
+              <Link
+                href="/notificacoes"
+                onClick={() => setDesktopProfileOpen(false)}
+                role="menuitem"
+                className="flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                  </svg>
+                  <span className="truncate">Notificações</span>
+                </div>
+                {unreadNotificationsCount > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-[#10B981] shrink-0" />
+                )}
+              </Link>
+
+              <Link
+                href="/conta/seguranca"
+                onClick={() => setDesktopProfileOpen(false)}
+                role="menuitem"
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
+              >
+                <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+                <span>Segurança e senha</span>
+              </Link>
+
+              <Link
+                href={`/consultoria/${consultancySlug}/ajuda`}
+                onClick={() => setDesktopProfileOpen(false)}
+                role="menuitem"
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-[#17191D] dark:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] transition-colors"
+              >
+                <svg className="w-4 h-4 shrink-0 text-[#6B7280] dark:text-[#8E95A2]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <circle cx="12" cy="12" r="9" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3m.08 4h.01" />
+                </svg>
+                <span>Ajuda e suporte</span>
+              </Link>
             </div>
-          </Link>
+          )}
+
+          {/* User Info Card Trigger */}
+          <button
+            type="button"
+            onClick={() => setDesktopProfileOpen((prev) => !prev)}
+            aria-expanded={desktopProfileOpen}
+            aria-label="Abrir menu de conta"
+            className={`w-full flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-xl text-left ${
+              isDarkOverview
+                ? desktopProfileOpen
+                  ? "bg-[#E5E7EB] dark:bg-[#1B1D21] border border-[#D1D5DB] dark:border-[#303238]"
+                  : "hover:bg-[#E5E7EB] dark:hover:bg-[#1B1D21] border border-transparent"
+                : "hover:bg-[var(--surface-subtle)] border border-transparent"
+            } transition-colors min-w-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10B981]`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <UserAvatar
+                fullName={identity.fullName}
+                userPublicId={identity.userPublicId}
+                avatarUrl={identity.avatarUrl}
+                hasProfilePhoto={identity.hasProfilePhoto}
+                profilePhotoUpdatedAt={identity.profilePhotoUpdatedAt}
+                shape="circle"
+                size="sm"
+              />
+              <div className="min-w-0 flex-1">
+                <p className={`text-[13px] font-semibold ${
+                  isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"
+                } transition-colors truncate leading-tight`}>
+                  {identity.fullName}
+                </p>
+                {identity.email && (
+                  <p className={`text-xs ${
+                    isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-tertiary)]"
+                  } truncate leading-tight mt-0.5`}>
+                    {identity.email}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <svg
+              className={`w-4 h-4 shrink-0 transition-transform ${
+                desktopProfileOpen ? "rotate-180" : ""
+              } text-[#6B7280] dark:text-[#8E95A2]`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
 
 
           {/* Theme Selector */}

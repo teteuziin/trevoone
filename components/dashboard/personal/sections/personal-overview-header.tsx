@@ -81,7 +81,7 @@ export function PersonalOverviewHeader({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/novo`}
               prefetch={false}
-              className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-[#10B981] hover:bg-[#059669] text-white flex items-center justify-center gap-2 shadow-sm active:translate-y-[1px] transition-colors cursor-pointer select-none"
+              className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-sm active:translate-y-[1px] transition-colors cursor-pointer select-none"
             >
               <svg className="w-4 h-4 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />

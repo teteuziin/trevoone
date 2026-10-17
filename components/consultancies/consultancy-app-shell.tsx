@@ -630,9 +630,9 @@ export function ConsultancyAppShell({
       {/* Main Content Area */}
       <ActivityHeartbeat slug={consultancySlug} />
       <main
-        className={`flex-1 w-full min-w-0 max-w-full mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 lg:pb-10 print:p-0 print:max-w-full ${
-          themeVariant === "dark-overview" ? "bg-[#F0F1F3] dark:bg-[#0B0C0E]" : ""
-        } ${effectiveMaxWidthClass} ${className}`.trim()}
+        className={`flex-1 w-full min-w-0 max-w-full mx-auto p-4 sm:p-6 lg:p-8 ${
+          themeVariant === "dark-overview" ? "bg-[#F0F1F3] dark:bg-[#0B0C0E]" : "xl:p-10"
+        } pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 lg:pb-10 print:p-0 print:max-w-full ${effectiveMaxWidthClass} ${className}`.trim()}
       >
         {children}
       </main>

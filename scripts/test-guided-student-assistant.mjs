@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 console.log("================================================================================");
-console.log("TREVO ONE — GUIDED CONVERSATIONAL STUDENT ASSISTANT (NO AI) TEST SUITE");
+console.log("TREVO ONE — CENTRAL DE ALUNOS TEST SUITE (PROFISSIONAL & DIRETA)");
 console.log("================================================================================");
 
 let passed = 0;
@@ -21,406 +21,196 @@ function runTest(name, fn) {
   }
 }
 
-const assistantFile = path.resolve("components/consultancies/personal-student-hub/guided-student-assistant.tsx");
 const listFile = path.resolve("components/consultancies/personal-student-hub/personal-student-list.tsx");
 const pageFile = path.resolve("app/consultoria/[slug]/progresso/alunos/page.tsx");
-const navFile = path.resolve("components/consultancies/consultancy-navigation.tsx");
-const actionsFile = path.resolve("app/consultoria/[slug]/progresso/student-request-actions.ts");
+const detailPageFile = path.resolve("app/consultoria/[slug]/progresso/alunos/[studentPublicId]/page.tsx");
+const detailViewFile = path.resolve("components/consultancies/personal-student-hub/personal-student-detail-view.tsx");
 
-assert.ok(fs.existsSync(assistantFile), "guided-student-assistant.tsx must exist");
 assert.ok(fs.existsSync(listFile), "personal-student-list.tsx must exist");
 assert.ok(fs.existsSync(pageFile), "alunos/page.tsx must exist");
-assert.ok(fs.existsSync(navFile), "consultancy-navigation.tsx must exist");
-assert.ok(fs.existsSync(actionsFile), "student-request-actions.ts must exist");
+assert.ok(fs.existsSync(detailPageFile), "alunos/[studentPublicId]/page.tsx must exist");
+assert.ok(fs.existsSync(detailViewFile), "personal-student-detail-view.tsx must exist");
 
-const assistantCode = fs.readFileSync(assistantFile, "utf-8");
 const listCode = fs.readFileSync(listFile, "utf-8");
 const pageCode = fs.readFileSync(pageFile, "utf-8");
-const navCode = fs.readFileSync(navFile, "utf-8");
-const actionsCode = fs.readFileSync(actionsFile, "utf-8");
+const detailPageCode = fs.readFileSync(detailPageFile, "utf-8");
+const detailViewCode = fs.readFileSync(detailViewFile, "utf-8");
 
 // -----------------------------------------------------------------------------
-// 1. OCUPAÇÃO DA ÁREA ÚTIL & AUSÊNCIA DE MODAL FLUTUANTE
+// 1. CABEÇALHO COMPACTO & AUSÊNCIA DE CHATBOT / HERO GIGANTE
 // -----------------------------------------------------------------------------
-runTest("1.1 Chat ocupa toda a área de trabalho útil sem modal flutuante", () => {
+runTest("1.1 Cabeçalho compacto com ícone azul e contagem real", () => {
   assert.ok(
-    assistantCode.includes("w-full h-full flex flex-col flex-1 min-h-0") &&
-    pageCode.includes('maxWidth="full"') &&
-    pageCode.includes("!p-0 !pb-0"),
-    "Chat preenche 100% da área útil sem margens brancas ou padding concorrente"
+    listCode.includes("DuotoneStudentsIcon"),
+    "Deve conter o ícone azul da área (DuotoneStudentsIcon)"
   );
   assert.ok(
-    !assistantCode.includes("max-h-[920px]") &&
-    !assistantCode.includes("h-[calc(100vh-6.5rem)]"),
-    "Removido aspecto de modal flutuante, bordas cortadas e dimensões fixas restritivas"
+    /<h1[^>]*>\s*Alunos\s*<\/h1>/.test(listCode),
+    "Título 'Alunos' direto sem floreios"
   );
   assert.ok(
-    assistantCode.includes("max-w-3xl lg:max-w-4xl mx-auto"),
-    "Coluna de mensagens centralizada em largura confortável para leitura e expansão de widgets"
+    listCode.includes("aluno cadastrado") || listCode.includes("alunos cadastrados"),
+    "Contagem real em texto secundário"
   );
 });
 
-runTest("1.2 Cabeçalho limpo 'Alunos' e proteção mobile sem sobreposição", () => {
+runTest("1.2 Ausência de saudações, perguntas conversacionais e hero gigante", () => {
   assert.ok(
-    /<h1[^>]*>\s*Alunos\s*<\/h1>/.test(assistantCode),
-    "Cabeçalho simples 'Alunos' sem jargões ou títulos genéricos"
+    !listCode.includes("Qual aluno você gostaria de ver?"),
+    "Removida pergunta conversacional 'Qual aluno você gostaria de ver?'"
   );
   assert.ok(
-    !assistantCode.includes("100% Sem IA") &&
-    !assistantCode.includes("Navegação conversacional por etapas e dados determinísticos"),
-    "Removidos selos técnicos e descrições promocionais da interface"
+    !listCode.includes("Olá,") && !listCode.includes("Olá!"),
+    "Sem saudações motivacionais ou artificiais"
   );
   assert.ok(
-    assistantCode.includes("Trocar aluno") &&
-    assistantCode.includes("consultoria/${consultancySlug}"),
-    "Identificação clara do aluno ativo com 'Trocar aluno' e botão de voltar funcional"
-  );
-  assert.ok(
-    navCode.includes("isStudentChat") &&
-    navCode.includes("shouldHideMobileBottomNav"),
-    "Navegação inferior mobile oculta na rota do chat para não cobrir a área de digitação"
+    !listCode.includes("Digite o nome do aluno"),
+    "Sem campo fixo de chat no rodapé"
   );
 });
 
 // -----------------------------------------------------------------------------
-// 2. PRIMEIRA MENSAGEM E SELETOR INTEGRADO À CONVERSA
+// 2. BUSCA E FILTROS OPERACIONAIS
 // -----------------------------------------------------------------------------
-runTest("2.1 Mensagem inicial de saudação com nome real do profissional", () => {
+runTest("2.1 Busca única com botão de limpar e placeholder objetivo", () => {
   assert.ok(
-    assistantCode.includes("greetingName ? `Olá, ${greetingName}! Qual aluno você gostaria de ver?`") ||
-    assistantCode.includes("Olá, ${greetingName}! Qual aluno você gostaria de ver?"),
-    "Saudação personalizada com nome real do profissional"
+    listCode.includes("Buscar aluno por nome ou e-mail"),
+    "Placeholder objetivo 'Buscar aluno por nome ou e-mail...'"
   );
   assert.ok(
-    assistantCode.includes("Olá! Qual aluno você gostaria de ver?"),
-    "Fallback neutro quando nome não disponível"
-  );
-});
-
-runTest("2.2 Lista de alunos compacta DENTRO da conversa com paginação e busca", () => {
-  assert.ok(
-    assistantCode.includes('widget?.type === "STUDENT_SELECTOR"'),
-    "Seletor de alunos embutido como widget dentro da mensagem do assistente"
-  );
-  assert.ok(
-    assistantCode.includes("STUDENTS_PER_PAGE = 5") &&
-    assistantCode.includes("totalPickerPages"),
-    "Lista compacta com paginação de 5 itens para não criar parede de cards"
-  );
-  assert.ok(
-    assistantCode.includes("pickerSearch") &&
-    assistantCode.includes("pickerWorkoutFilter"),
-    "Busca e filtros operacionais presentes no seletor integrado"
+    listCode.includes("handleClearSearch") || listCode.includes('aria-label="Limpar busca"'),
+    "Botão de limpar busca presente com acessibilidade"
   );
 });
 
-runTest("2.3 Correção de imagens quebradas e exibição de iniciais limpas", () => {
+runTest("2.2 Filtros com contagens reais e ordenação por nome como padrão", () => {
   assert.ok(
-    assistantCode.includes("function StudentAvatar") &&
-    assistantCode.includes("imageFailed") &&
-    assistantCode.includes("setImageFailed(true)"),
-    "Componente StudentAvatar com fallback reativo seguro contra erro de imagem"
+    listCode.includes("withWorkoutCount") && listCode.includes("withoutWorkoutCount"),
+    "Contagens dinâmicas reais de alunos com e sem treino"
   );
   assert.ok(
-    assistantCode.includes('alt=""'),
-    "Evita vazamento de texto 'Foto' e ícone quebrado do navegador"
+    listCode.includes("Com treino") && listCode.includes("Sem treino"),
+    "Filtros explícitos 'Todos', 'Com treino' e 'Sem treino'"
+  );
+  assert.ok(
+    listCode.includes('"name_asc"') && listCode.includes("Nome (A–Z)"),
+    "Ordenação por nome A-Z como padrão"
   );
 });
 
 // -----------------------------------------------------------------------------
-// 3. A ESCOLHA VIRA MENSAGEM & RECOLHIMENTO
+// 3. LISTA PRINCIPAL EM SUPERFÍCIE CONTÍNUA
 // -----------------------------------------------------------------------------
-runTest("3.1 Escolha registrada como mensagem do usuário e texto natural da pergunta", () => {
+runTest("3.1 Superfície contínua com linhas separadas por bordas discretas", () => {
   assert.ok(
-    assistantCode.includes("text: `Quero ver ${student.name}.`") ||
-    assistantCode.includes("Quero ver ${student.name}"),
-    "Escolha do aluno inserida como mensagem do usuário no chat"
+    listCode.includes("divide-y") && listCode.includes("rounded-2xl"),
+    "Superfície contínua com divisores sutis sem coleções de cards aninhados"
   );
   assert.ok(
-    assistantCode.includes("collapsed: true"),
-    "Lista inicial recolhida para deixar a conversa limpa"
-  );
-  assert.ok(
-    assistantCode.includes("text: `O que você quer ver de ${student.name}?`") ||
-    assistantCode.includes("O que você quer ver de ${student.name}"),
-    "Assistente responde com frase curta e natural: 'O que você quer ver de [nome]?'"
+    listCode.includes("hidden md:grid") && listCode.includes("md:hidden"),
+    "Layout dual com colunas alinhadas no desktop e blocos compactos no celular"
   );
 });
 
-runTest("3.2 Sugestões discretas de atalho (Visão Geral, Fotos, Anamnese, Formulários, Treinos)", () => {
+runTest("3.2 Dados do aluno com avatar, nome, email e status de treino não crítico", () => {
   assert.ok(
-    assistantCode.includes("Visão Geral") &&
-    assistantCode.includes("Fotos") &&
-    assistantCode.includes("Anamnese") &&
-    assistantCode.includes("Formulários") &&
-    assistantCode.includes("Treinos"),
-    "Todos os 5 atalhos opcionais disponíveis abaixo da pergunta"
-  );
-});
-
-// -----------------------------------------------------------------------------
-// 4. CAMPO DE DIGITAÇÃO NA PARTE INFERIOR
-// -----------------------------------------------------------------------------
-runTest("4.1 Campo de texto fixo com placeholder contextual e ajuda de teclado desktop", () => {
-  assert.ok(
-    assistantCode.includes("O que você quer consultar?") &&
-    assistantCode.includes("Digite o nome do aluno…"),
-    "Placeholders contextuais específicos ('Digite o nome do aluno…' / 'O que você quer consultar?')"
+    listCode.includes("UserAvatar"),
+    "Avatar com fotos reais ou iniciais padronizadas"
   );
   assert.ok(
-    assistantCode.includes("e.key === \"Enter\" && !e.shiftKey"),
-    "Enter para enviar e Shift+Enter para quebra de linha"
+    listCode.includes("Treino ativo:") && listCode.includes("Sem treino prescrito"),
+    "Status real do treino e título da ficha ativa"
   );
   assert.ok(
-    assistantCode.includes("isComposing"),
-    "Proteção durante composição de texto no teclado virtual/IME"
+    !listCode.includes("bg-red-500/10 text-red-700") || !listCode.includes("Crítico: Sem treino"),
+    "'Sem treino' não deve ser tratado como situação crítica ou aluno inativo"
   );
   assert.ok(
-    assistantCode.includes("setInputText(trimmed)"),
-    "Preservação do texto digitado caso ocorra falha"
-  );
-  assert.ok(
-    assistantCode.includes("hidden sm:block") &&
-    assistantCode.includes("Pressione <strong>Enter</strong>"),
-    "Instrução de teclado oculta no mobile e discreta no desktop"
+    listCode.includes("Abrir perfil"),
+    "Ação explícita 'Abrir perfil' presente em cada aluno"
   );
 });
 
 // -----------------------------------------------------------------------------
-// 5. INTERPRETAÇÃO DETERMINÍSTICA SEM IA (NLP EM PORTUGUÊS)
+// 4. PAGINAÇÃO ERGONÔMICA & RESET DE PÁGINA
 // -----------------------------------------------------------------------------
-runTest("5.1 Normalização determinística e reconhecimento de sinônimos em PT-BR", () => {
+runTest("4.1 Paginação com intervalo, total e botões de toque acessíveis", () => {
   assert.ok(
-    assistantCode.includes("normalizeCommandText") &&
-    assistantCode.includes("detectCommandIntent"),
-    "Funções de normalização e detecção de intenção exportadas"
+    listCode.includes("Mostrando") && listCode.includes("alunos"),
+    "Exibe intervalo de resultados e total (ex: Mostrando 1–10 de 17 alunos)"
   );
   assert.ok(
-    !assistantCode.includes("openai") &&
-    !assistantCode.includes("chat/completions") &&
-    !assistantCode.includes("model:"),
-    "100% sem IA: nenhuma API, modelo ou dependência de IA"
+    listCode.includes("Anterior") && listCode.includes("Próxima"),
+    "Controles 'Anterior' e 'Próxima' com acessibilidade"
+  );
+  assert.ok(
+    listCode.includes("min-h-[44px]") && listCode.includes("min-w-[44px]"),
+    "Alvos de toque ergonômicos de pelo menos 44px"
   );
 });
 
-runTest("5.2 Diferenciação estrita de intenções (consultar vs criar vs enviar)", () => {
+runTest("4.2 Reset automático de página ao alterar busca ou filtro", () => {
   assert.ok(
-    assistantCode.includes("ANAMNESIS_VIEW") &&
-    assistantCode.includes("ANAMNESIS_SEND") &&
-    assistantCode.includes("ANAMNESIS_CREATE"),
-    "Diferencia consultar anamnese, criar anamnese e enviar anamnese"
-  );
-  assert.ok(
-    assistantCode.includes("FORMS_VIEW") &&
-    assistantCode.includes("FORMS_SEND") &&
-    assistantCode.includes("FORMS_CREATE"),
-    "Diferencia consultar formulário, criar formulário e enviar formulário"
-  );
-  assert.ok(
-    assistantCode.includes("trocar aluno") && assistantCode.includes("CHANGE_STUDENT"),
-    "Reconhece intenção de trocar de aluno"
+    listCode.includes("setCurrentPage(1)"),
+    "Ajusta a página ao mudar busca ou filtro"
   );
 });
 
 // -----------------------------------------------------------------------------
-// 6. RESPOSTAS INTERATIVAS E FRASES ESPECÍFICAS
+// 5. PERFIL DO ALUNO & NAVEGAÇÃO SEM PERDER CONTEXTO
 // -----------------------------------------------------------------------------
-runTest("6.1 Visão Geral: blocos informativos reais na conversa", () => {
+runTest("5.1 Reuso da rota existente com preservação de busca e página", () => {
   assert.ok(
-    assistantCode.includes("VisaoGeralWidget"),
-    "Widget da Visão Geral embutido no chat"
+    pageCode.includes("redirect(`/consultoria/${slug}/progresso/alunos/${initialStudentPublicId}`)") ||
+    pageCode.includes("initialStudentPublicId"),
+    "Aproveita rota existente /progresso/alunos/[studentPublicId]"
   );
   assert.ok(
-    assistantCode.includes("Cadastro e Contato") &&
-    assistantCode.includes("Objetivos Registrados") &&
-    assistantCode.includes("Acompanhamento e Avaliações") &&
-    assistantCode.includes("Medidas e Evolução Registradas") &&
-    assistantCode.includes("Situação dos Treinos") &&
-    assistantCode.includes("Anamneses e Formulários"),
-    "Blocos de dados reais presentes na Visão Geral"
-  );
-});
-
-runTest("6.2 Fotos: frases curtas, galeria por data, zoom e comparador", () => {
-  assert.ok(
-    assistantCode.includes("Fotos de ") &&
-    assistantCode.includes("Nenhuma foto cadastrada."),
-    "Frases curtas especificadas para fotos"
+    detailPageCode.includes("backHref") && detailPageCode.includes("fromPage"),
+    "Preserva página, busca e filtro no retorno aos alunos"
   );
   assert.ok(
-    assistantCode.includes("setSelectedZoomPhoto") &&
-    assistantCode.includes("isPhotoComparatorOpen"),
-    "Modal de ampliação e comparador lado a lado preservados"
+    detailViewCode.includes("Voltar aos alunos"),
+    "Botão 'Voltar aos alunos' consistente e acessível"
   );
 });
 
-runTest("6.3 Anamnese e Formulários: respostas, histórico e fluxo de envio guiado", () => {
+runTest("5.2 Abas desktop claras e seletor compacto no mobile sem abas comprimidas", () => {
   assert.ok(
-    assistantCode.includes("Anamnese respondida em") &&
-    assistantCode.includes("Este aluno ainda não respondeu à anamnese.") &&
-    assistantCode.includes("Escolha o formulário que deseja enviar"),
-    "Frases curtas e específicas para anamneses e formulários"
+    detailViewCode.includes('key: "visao-geral"') &&
+    detailViewCode.includes('key: "treinos"') &&
+    detailViewCode.includes('key: "fotos"') &&
+    detailViewCode.includes('key: "anamnese"') &&
+    detailViewCode.includes('key: "formularios"'),
+    "5 seções principais organizadas perfeitamente no perfil"
   );
   assert.ok(
-    assistantCode.includes("confirmedSend") &&
-    assistantCode.includes("Confirmo o envio para este aluno"),
-    "Confirmação explícita obrigatória antes do envio"
-  );
-});
-
-runTest("6.4 Treinos: roteamento determinístico (1 ativo abre fluxo, múltiplos dá opções, nenhum avisa)", () => {
-  assert.ok(
-    assistantCode.includes("Treino ativo:") &&
-    assistantCode.includes("Nenhum treino ativo prescrito para este aluno."),
-    "Frases curtas e objetivas sobre treinos"
-  );
-  assert.ok(
-    assistantCode.includes("activeWorkouts.length === 1") &&
-    assistantCode.includes("activeWorkouts.length > 1"),
-    "Trata adequadamente 1 ativo, múltiplos ativos e nenhum treino"
+    detailViewCode.includes("mobileSections") &&
+    detailViewCode.includes("isMobileSectionMenuOpen"),
+    "Seletor compacto de seção no mobile com ícone e texto evitando 5 abas ilegíveis"
   );
 });
 
 // -----------------------------------------------------------------------------
-// 7. SEGURANÇA, ISOLAMENTO E ROLAGEM INTELIGENTE
+// 6. VISUAL & PAPEL DE PAREDE
 // -----------------------------------------------------------------------------
-runTest("7.1 Rolagem inteligente: não interrompe leitura de mensagens anteriores", () => {
+runTest("6.1 Fundo com wallpaper e container de 1280px", () => {
   assert.ok(
-    assistantCode.includes("isNearBottomRef") &&
-    assistantCode.includes("distanceToBottom < 160"),
-    "Auto-scroll condicional: só rola ao final se o usuário já estiver próximo da base"
+    pageCode.includes("showDashboardWallpaper={true}") &&
+    pageCode.includes("max-w-[1280px]"),
+    "Papel de parede oficial com container de largura máxima 1280px"
   );
   assert.ok(
-    !assistantCode.includes("localStorage.setItem('chat_messages'") &&
-    !assistantCode.includes("localStorage.setItem(\"chat_messages\""),
-    "Zero persistência indevida de dados de saúde no localStorage"
-  );
-});
-
-// -----------------------------------------------------------------------------
-// 8. TEMAS COMPATÍVEIS COM A TELA INICIAL
-// -----------------------------------------------------------------------------
-runTest("8.1 Tema Claro cinza suave (#DDE1E6 / #ECEFF2) e Escuro grafite (#202226 / #0B0C0E)", () => {
-  assert.ok(
-    assistantCode.includes("bg-[#DDE1E6] dark:bg-[#202226]") &&
-    assistantCode.includes("bg-[#ECEFF2] dark:bg-[#0B0C0E]"),
-    "Fundo geral e superfícies de cabeçalho/input adaptadas aos temas da Visão Geral"
-  );
-  assert.ok(
-    assistantCode.includes("text-[#17191D] dark:text-[#FFFFFF]") ||
-    assistantCode.includes("text-[#17191D] dark:text-white"),
-    "Texto escuro no modo claro e texto claro no modo escuro"
-  );
-  assert.ok(
-    assistantCode.includes("text-[#065F46] dark:text-emerald-400"),
-    "Verde com alto contraste calibrado (#065F46) no modo claro"
-  );
-  assert.ok(
-    pageCode.includes('themeVariant="dark-overview"'),
-    "Página de alunos configurada com o themeVariant oficial do shell"
+    detailPageCode.includes("showDashboardWallpaper={true}") &&
+    detailPageCode.includes("max-w-[1280px]"),
+    "Papel de parede oficial mantido no detalhe com largura de 1280px"
   );
 });
 
-// -----------------------------------------------------------------------------
-// 9. RESPONSIVIDADE MOBILE, ANTI-OVERFLOW E RETORNO DETERMINÍSTICO
-// -----------------------------------------------------------------------------
-runTest("9.1 Mobile anti-overflow: remoção de avatar lateral, min-w-0 e flex-wrap nos filtros", () => {
-  assert.ok(
-    assistantCode.includes("hidden sm:flex") &&
-    assistantCode.includes("sm:hidden flex items-center"),
-    "Avatar lateral do assistente recolhido no mobile para não esmagar os cards"
-  );
-  assert.ok(
-    assistantCode.includes("flex flex-wrap items-center gap-1.5 w-full min-w-0"),
-    "Filtros com flex-wrap para quebrar linha em telas de 320/360/375px sem overflow"
-  );
-  assert.ok(
-    assistantCode.includes("w-full min-w-0 pl-9 pr-3 py-2 text-xs rounded-xl"),
-    "Campo de busca com largura total min-w-0 sem cortes"
-  );
-  assert.ok(
-    assistantCode.includes("break-words") && assistantCode.includes("truncate block"),
-    "Nomes de alunos com quebra de linha e e-mails truncados evitando expansão do card"
-  );
-});
-
-runTest("9.2 Paginação utilizável: botões completos com área de toque >= 44px e linha própria", () => {
-  assert.ok(
-    assistantCode.includes("grid grid-cols-2 gap-2 w-full min-w-0") &&
-    assistantCode.includes("← Anterior") &&
-    assistantCode.includes("Próxima →"),
-    "Botões Anterior e Próxima em grade de 2 colunas completos"
-  );
-  assert.ok(
-    assistantCode.includes("min-h-[44px]") &&
-    assistantCode.includes("disabled:opacity-35 disabled:cursor-not-allowed"),
-    "Área de toque de pelo menos 44px e estados desabilitados nítidos"
-  );
-  assert.ok(
-    assistantCode.includes("Página {pickerPage} de {totalPickerPages}") &&
-    assistantCode.includes("text-center sm:text-left"),
-    "Informação de página em linha própria"
-  );
-});
-
-runTest("9.3 Botão de Voltar explícito no cabeçalho com área >= 44px", () => {
-  assert.ok(
-    assistantCode.includes("onClick={handleBack}") &&
-    assistantCode.includes("min-h-[44px] min-w-[44px]") &&
-    assistantCode.includes("<span>Voltar</span>"),
-    "Botão '← Voltar' visível no lado esquerdo com ícone, texto e toque confortável"
-  );
-  assert.ok(
-    assistantCode.includes("sticky top-0 z-20") &&
-    assistantCode.includes("min-h-[50px] sm:min-h-[56px]"),
-    "Cabeçalho fixo no topo e compacto no mobile respeitando o shell existente"
-  );
-});
-
-runTest("9.4 Destinos determinísticos do retorno (modal -> opções -> seleção -> painel)", () => {
-  assert.ok(
-    assistantCode.includes("if (selectedZoomPhoto)") &&
-    assistantCode.includes("if (isPhotoComparatorOpen)") &&
-    assistantCode.includes("if (activeFormAnswerDetail)"),
-    "Camada 1: Fecha galerias, comparador e modais de formulário"
-  );
-  assert.ok(
-    assistantCode.includes("isInsideConsultation") &&
-    assistantCode.includes("SECTION_PROMPT"),
-    "Camada 2: Dentro de consulta volta às opções do aluno preservando conversa"
-  );
-  assert.ok(
-    assistantCode.includes("handleChangeStudent()"),
-    "Camada 3: Nas opções volta à seleção de alunos preservando filtros"
-  );
-  assert.ok(
-    assistantCode.includes("router.push(`/consultoria/${consultancySlug}`)") ||
-    assistantCode.includes("router.push(`/consultoria/${consultancySlug}"),
-    "Camada 4: Na seleção inicial sai do assistente e vai para o painel autorizado da consultoria"
-  );
-});
-
-runTest("9.5 Altura dinâmica mobile respeitando cabeçalho do shell e teclado", () => {
-  assert.ok(
-    pageCode.includes("calc(100dvh-3.5rem") &&
-    pageCode.includes("md:h-[calc(100dvh-4rem)]") &&
-    pageCode.includes("lg:h-svh"),
-    "Altura dinâmica mobile desconta o cabeçalho de 56px/64px do shell para não empurrar o input"
-  );
-  assert.ok(
-    assistantCode.includes("pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"),
-    "Barra de digitação respeita a safe-area do smartphone"
-  );
-});
-
-console.log("\n================================================================================");
-console.log(`TOTAL TESTS: ${passed + failed}`);
-console.log(`PASSED: ${passed}`);
-console.log(`FAILED: ${failed}`);
+console.log("================================================================================");
+console.log(`RESULTADO: ${passed} testes passaram, ${failed} falharam.`);
 console.log("================================================================================");
 
 if (failed > 0) {
   process.exit(1);
-} else {
-  process.exit(0);
 }

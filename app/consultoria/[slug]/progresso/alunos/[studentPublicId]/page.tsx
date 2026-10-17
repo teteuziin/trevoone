@@ -20,12 +20,25 @@ interface PageProps {
     slug: string;
     studentPublicId: string;
   }>;
+  searchParams?: Promise<{
+    fromPage?: string;
+    filter?: string;
+    q?: string;
+  }>;
 }
 
 export default async function ProfessionalStudentProgressDetailPage({
   params,
+  searchParams,
 }: PageProps) {
   const { slug, studentPublicId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const backQuery = new URLSearchParams();
+  if (resolvedSearchParams?.fromPage) backQuery.set("page", resolvedSearchParams.fromPage);
+  if (resolvedSearchParams?.filter) backQuery.set("filter", resolvedSearchParams.filter);
+  if (resolvedSearchParams?.q) backQuery.set("q", resolvedSearchParams.q);
+  const backQueryStr = backQuery.toString();
+  const backHref = `/consultoria/${slug}/progresso/alunos${backQueryStr ? `?${backQueryStr}` : ""}`;
 
   const session = await getCurrentSession();
 
@@ -113,18 +126,24 @@ export default async function ProfessionalStudentProgressDetailPage({
         userName={session.fullName}
         userEmail={session.email}
         userPublicId={session.userPublicId}
-      hasProfilePhoto={session.hasProfilePhoto}
-      profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
+        hasProfilePhoto={session.hasProfilePhoto}
+        profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
         consultancyPublicId={context.consultancyPublicId}
         viewModeState={effectiveState}
+        showDashboardWallpaper={true}
+        themeVariant="dark-overview"
+        maxWidth="default"
       >
-        <PersonalStudentDetailView
-          consultancySlug={slug}
-          detail={detail}
-          studentMonitoring={studentMonitoring}
-          effectiveMode={effectiveMode}
-          userRoles={context.roles}
-        />
+        <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <PersonalStudentDetailView
+            consultancySlug={slug}
+            detail={detail}
+            studentMonitoring={studentMonitoring}
+            effectiveMode={effectiveMode}
+            userRoles={context.roles}
+            backHref={backHref}
+          />
+        </div>
       </ConsultancyAppShell>
     );
   }
@@ -162,14 +181,17 @@ export default async function ProfessionalStudentProgressDetailPage({
       profilePhotoUpdatedAt={session.profilePhotoUpdatedAt}
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={effectiveState}
+      showDashboardWallpaper={true}
+      themeVariant="dark-overview"
+      maxWidth="default"
     >
-      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         <PageHeader
           eyebrow="Acompanhamento 360°"
           title={`Evolução de ${hubData.student.fullName}`}
           description={hubData.student.email}
-          backHref={`/consultoria/${slug}/progresso/alunos`}
-          backLabel={isNutritionist && !isPersonal ? "Voltar para lista de pacientes" : "Voltar para lista de alunos"}
+          backHref={backHref}
+          backLabel={isNutritionist && !isPersonal ? "Voltar para lista de pacientes" : "Voltar aos alunos"}
         />
 
         <Evolution360Hub

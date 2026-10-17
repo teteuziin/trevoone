@@ -13,6 +13,9 @@ interface PageProps {
   }>;
   searchParams?: Promise<{
     student?: string;
+    page?: string;
+    filter?: string;
+    q?: string;
   }>;
 }
 
@@ -51,6 +54,11 @@ export default async function ProfessionalStudentsProgressListPage({
     redirect(`/consultoria/${slug}`);
   }
 
+  // Se um estudante específico foi requisitado por parâmetro, redireciona para a rota existente de perfil
+  if (initialStudentPublicId) {
+    redirect(`/consultoria/${slug}/progresso/alunos/${initialStudentPublicId}`);
+  }
+
   const students = await listPersonalStudents({ consultancyId: context.consultancyId });
 
   return (
@@ -68,17 +76,18 @@ export default async function ProfessionalStudentsProgressListPage({
       viewModeState={effectiveState}
       themeVariant="dark-overview"
       showDashboardWallpaper={true}
-      maxWidth="full"
-      className="!p-0 !pb-0 flex flex-col flex-1 h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] md:h-[calc(100dvh-4rem)] lg:h-svh max-h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] md:max-h-[calc(100dvh-4rem)] lg:max-h-svh overflow-hidden bg-transparent"
+      maxWidth="default"
     >
-      <div className="w-full h-full flex flex-col flex-1 min-h-0 overflow-hidden bg-transparent">
+      <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         <PersonalStudentList
           consultancySlug={slug}
           students={students}
           effectiveMode={effectiveMode}
           userRoles={context.roles}
           professionalName={session.fullName}
-          initialStudentPublicId={initialStudentPublicId}
+          initialPage={resolvedSearchParams?.page ? Number(resolvedSearchParams.page) : 1}
+          initialFilter={resolvedSearchParams?.filter || "all"}
+          initialSearch={resolvedSearchParams?.q || ""}
         />
       </div>
     </ConsultancyAppShell>

@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/account/user-avatar";
 import {
-  MobileTabs,
   MobileCard,
   MobileActionSheet,
   MobileEmptyState,
@@ -28,10 +27,19 @@ interface PersonalStudentDetailViewProps {
   studentMonitoring?: StudentEvaluationResult | null;
   effectiveMode?: string;
   userRoles?: string[];
+  backHref?: string;
 }
 
 type TabKey = "visao-geral" | "radar" | "fotos" | "anamnese" | "formularios" | "treinos" | "avaliacoes";
-type MobileTabKey = "resumo" | "treinos" | "nutricao" | "evolucao" | "mais";
+type MobileTabKey = "resumo" | "visao-geral" | "treinos" | "fotos" | "anamnese" | "formularios" | "nutricao" | "avaliacoes" | "evolucao" | "mais";
+
+function ChevronDownIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+    </svg>
+  );
+}
 
 function LayoutGridIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -156,6 +164,7 @@ export function PersonalStudentDetailView({
   studentMonitoring,
   effectiveMode,
   userRoles = [],
+  backHref,
 }: PersonalStudentDetailViewProps) {
   const router = useRouter();
   const {
@@ -175,6 +184,7 @@ export function PersonalStudentDetailView({
 
   // Mobile active tab
   const [mobileTab, setMobileTab] = useState<MobileTabKey>("resumo");
+  const [isMobileSectionMenuOpen, setIsMobileSectionMenuOpen] = useState(false);
 
   const [selectedFormForModal, setSelectedFormForModal] = useState<StudentFormAnswer | null>(null);
   const [isMobileActionSheetOpen, setIsMobileActionSheetOpen] = useState(false);
@@ -191,18 +201,42 @@ export function PersonalStudentDetailView({
   const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
   const createPlanHref = `/consultoria/${consultancySlug}/planos-v2/novo?student=${student.membershipPublicId}`;
 
-  // Desktop tabs list
+  // Desktop tabs list (Ordered per specification: Visão Geral, Treinos, Fotos, Anamnese, Formulários)
   const desktopTabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }> = [
     { key: "visao-geral", label: "Visão Geral", icon: LayoutGridIcon },
+    { key: "treinos", label: "Treinos", icon: DumbbellIcon, count: workouts.length },
     { key: "fotos", label: "Fotos", icon: PhotoIcon, count: photos.length },
     { key: "anamnese", label: "Anamnese", icon: ClipboardCheckIcon },
     { key: "formularios", label: "Formulários", icon: FileTextIcon, count: forms.length },
-    { key: "treinos", label: "Treinos", icon: DumbbellIcon, count: workouts.length },
   ];
 
   if (measurements.length > 0) {
     desktopTabs.push({ key: "avaliacoes", label: "Avaliações", icon: ScaleIcon, count: measurements.length });
   }
+
+  // Mobile sections list (Compact selector options with icon & text)
+  const mobileSections: Array<{ id: MobileTabKey; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }> = [
+    { id: "resumo", label: "Visão Geral", icon: LayoutGridIcon },
+    { id: "treinos", label: "Treinos", icon: DumbbellIcon, count: workouts.length },
+    { id: "fotos", label: "Fotos", icon: PhotoIcon, count: photos.length },
+    { id: "anamnese", label: "Anamnese", icon: ClipboardCheckIcon },
+    { id: "formularios", label: "Formulários", icon: FileTextIcon, count: forms.length },
+  ];
+
+  if (measurements.length > 0) {
+    mobileSections.push({ id: "avaliacoes", label: "Avaliações", icon: ScaleIcon, count: measurements.length });
+  }
+
+  if (nutrition.length > 0) {
+    mobileSections.push({ id: "nutricao", label: "Nutrição", icon: AppleIcon, count: nutrition.length });
+  }
+
+  const currentMobileSection = mobileSections.find((s) => {
+    if ((mobileTab === "visao-geral" || mobileTab === "resumo") && s.id === "resumo") return true;
+    if (mobileTab === "evolucao" && s.id === "fotos") return true;
+    if (mobileTab === "mais" && s.id === "anamnese") return true;
+    return s.id === mobileTab;
+  }) || mobileSections[0];
 
   // Real active workout vs latest prescribed workout
   const activeWorkout = workouts.find((w) => w.status === "ACTIVE") || null;
@@ -282,8 +316,8 @@ export function PersonalStudentDetailView({
       <div className="md:hidden space-y-4" data-testid="mobile-student-profile">
         {/* Mobile Page Header with prominent Back touch target & More button */}
         <MobilePageHeader
-          backHref={`/consultoria/${consultancySlug}/progresso/alunos`}
-          backLabel="Alunos"
+          backHref={backHref || `/consultoria/${consultancySlug}/progresso/alunos`}
+          backLabel="Voltar aos alunos"
           eyebrow="Perfil do Aluno"
           title={student.name}
           subtitle={overview.objective || "Aluno ativo"}
@@ -373,18 +407,77 @@ export function PersonalStudentDetailView({
           </div>
         </div>
 
-        {/* Mobile Tabs: 4-5 focused categories >= 44px touch targets */}
-        <MobileTabs
-          tabs={[
-            { id: "resumo", label: "Visão Geral", icon: <LayoutGridIcon className="w-4 h-4" /> },
-            { id: "treinos", label: "Treinos", icon: <DumbbellIcon className="w-4 h-4" />, count: workouts.length },
-            { id: "nutricao", label: "Nutrição", icon: <AppleIcon className="w-4 h-4" />, count: nutrition.length },
-            { id: "evolucao", label: "Evolução", icon: <ScaleIcon className="w-4 h-4" />, count: measurements.length + photos.length },
-            { id: "mais", label: "Mais", icon: <MoreDotsIcon className="w-4 h-4" />, count: forms.length + (anamnesis.length > 0 ? 1 : 0) },
-          ]}
-          activeId={mobileTab}
-          onChange={(id) => setMobileTab(id as MobileTabKey)}
-        />
+        {/* Mobile Compact Section Selector (Non-squished, readable, >= 48px target) */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsMobileSectionMenuOpen((prev) => !prev)}
+            className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs min-h-[48px] cursor-pointer transition-colors"
+            aria-expanded={isMobileSectionMenuOpen}
+            aria-label="Alternar seção"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <currentMobileSection.icon className="w-4 h-4 text-[var(--brand)]" />
+              <span className="font-bold text-sm text-[var(--text-primary)]">
+                {currentMobileSection.label}
+              </span>
+              {currentMobileSection.count !== undefined && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-[var(--brand)]/10 text-[var(--brand)]">
+                  {currentMobileSection.count}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+              <span>Seções</span>
+              <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isMobileSectionMenuOpen ? "rotate-180" : ""}`} />
+            </div>
+          </button>
+
+          {isMobileSectionMenuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setIsMobileSectionMenuOpen(false)}
+                aria-hidden="true"
+              />
+              <div className="absolute top-full left-0 right-0 mt-2 z-50 p-2 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl space-y-1">
+                {mobileSections.map((sec) => {
+                  const SecIcon = sec.icon;
+                  const isSelected =
+                    mobileTab === sec.id ||
+                    (sec.id === "resumo" && mobileTab === "visao-geral") ||
+                    (sec.id === "fotos" && mobileTab === "evolucao") ||
+                    (sec.id === "anamnese" && mobileTab === "mais");
+                  return (
+                    <button
+                      key={sec.id}
+                      type="button"
+                      onClick={() => {
+                        setMobileTab(sec.id);
+                        setIsMobileSectionMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-colors min-h-[44px] cursor-pointer ${
+                        isSelected
+                          ? "bg-[var(--brand)]/10 text-[var(--brand)] font-bold"
+                          : "text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <SecIcon className="w-4 h-4" />
+                        <span>{sec.label}</span>
+                      </div>
+                      {sec.count !== undefined && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--surface-subtle)] text-[var(--text-secondary)]">
+                          {sec.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
 
         {/* =====================================================================
             MOBILE TAB 1: RESUMO (Quick overview, key status, no infinite scroll)
@@ -805,13 +898,13 @@ export function PersonalStudentDetailView({
         )}
 
         {/* =====================================================================
-            MOBILE TAB 4: EVOLUÇÃO (Measurements & standardized photos)
+            MOBILE TAB 4: EVOLUÇÃO / FOTOS / AVALIAÇÕES
             ===================================================================== */}
-        {mobileTab === "evolucao" && (
+        {(mobileTab === "evolucao" || mobileTab === "fotos" || mobileTab === "avaliacoes") && (
           <div className="space-y-4" data-testid="mobile-tab-evolucao">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                Evolução &amp; Avaliações
+                {mobileTab === "fotos" ? `Fotos de Evolução (${photos.length})` : mobileTab === "avaliacoes" ? `Medições & Avaliações (${measurements.length})` : "Evolução & Avaliações"}
               </h2>
               <div className="flex items-center gap-2">
                 <Link
@@ -952,116 +1045,122 @@ export function PersonalStudentDetailView({
         )}
 
         {/* =====================================================================
-            MOBILE TAB 5: MAIS (Anamnese, Questionários, Dados Cadastrais)
+            MOBILE TAB 5: MAIS / ANAMNESE / FORMULÁRIOS
             ===================================================================== */}
-        {mobileTab === "mais" && (
+        {(mobileTab === "mais" || mobileTab === "anamnese" || mobileTab === "formularios") && (
           <div className="space-y-4" data-testid="mobile-tab-mais">
             {/* Anamnese Section */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  Anamnese &amp; Histórico
-                </h3>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
-                  className="font-bold min-h-[40px] text-[11px]"
-                >
-                  {anamnesis.length === 0 ? "Solicitar" : "Atualizar"}
-                </Button>
-              </div>
-
-              {anamnesis.length === 0 ? (
-                <MobileEmptyState
-                  title="Anamnese pendente"
-                  description="Solicite o preenchimento da anamnese médica e rotina do aluno."
-                  icon={<ClipboardCheckIcon className="w-7 h-7 text-purple-500" />}
-                />
-              ) : (
-                <div className="space-y-2.5">
-                  {anamnesis.map((section) => (
-                    <MobileCard key={section.title} className="space-y-2.5">
-                      <h4 className="text-[11px] font-bold text-[var(--brand)] uppercase tracking-wider border-b border-[var(--border-subtle)] pb-1.5">
-                        {section.title}
-                      </h4>
-                      <div className="space-y-2">
-                        {section.items.map((item) => (
-                          <div key={item.label} className="space-y-0.5">
-                            <span className="text-[10px] font-semibold text-[var(--text-tertiary)] block">
-                              {item.label}
-                            </span>
-                            <p className="text-xs font-medium text-[var(--text-primary)] leading-relaxed">
-                              {item.value}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </MobileCard>
-                  ))}
+            {(mobileTab === "anamnese" || mobileTab === "mais") && (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    Anamnese &amp; Histórico
+                  </h3>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
+                    className="font-bold min-h-[40px] text-[11px]"
+                  >
+                    {anamnesis.length === 0 ? "Solicitar" : "Atualizar"}
+                  </Button>
                 </div>
-              )}
-            </div>
+
+                {anamnesis.length === 0 ? (
+                  <MobileEmptyState
+                    title="Anamnese pendente"
+                    description="Solicite o preenchimento da anamnese médica e rotina do aluno."
+                    icon={<ClipboardCheckIcon className="w-7 h-7 text-purple-500" />}
+                  />
+                ) : (
+                  <div className="space-y-2.5">
+                    {anamnesis.map((section) => (
+                      <MobileCard key={section.title} className="space-y-2.5">
+                        <h4 className="text-[11px] font-bold text-[var(--brand)] uppercase tracking-wider border-b border-[var(--border-subtle)] pb-1.5">
+                          {section.title}
+                        </h4>
+                        <div className="space-y-2">
+                          {section.items.map((item) => (
+                            <div key={item.label} className="space-y-0.5">
+                              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] block">
+                                {item.label}
+                              </span>
+                              <p className="text-xs font-medium text-[var(--text-primary)] leading-relaxed">
+                                {item.value}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </MobileCard>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Formulários Section */}
-            <div className="space-y-2.5 pt-2 border-t border-[var(--border-subtle)]">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  Formulários ({forms.length})
-                </h3>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
-                  className="font-bold min-h-[40px] text-[11px]"
-                >
-                  + Solicitar
-                </Button>
-              </div>
-
-              {forms.length === 0 ? (
-                <p className="text-xs text-[var(--text-secondary)] italic">
-                  Nenhum questionário respondido.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {forms.map((form) => (
-                    <MobileCard key={form.id} className="p-3.5 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">
-                          {form.title}
-                        </span>
-                        <Badge variant="success" size="sm" className="text-[10px]">
-                          {form.status}
-                        </Badge>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedFormForModal(form)}
-                        className="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl text-xs font-bold text-[var(--brand)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer"
-                      >
-                        <span>Ver respostas</span>
-                        <ChevronRightIcon className="w-3.5 h-3.5" />
-                      </button>
-                    </MobileCard>
-                  ))}
+            {(mobileTab === "formularios" || mobileTab === "mais") && (
+              <div className="space-y-2.5 pt-2 border-t border-[var(--border-subtle)]">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    Formulários ({forms.length})
+                  </h3>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
+                    className="font-bold min-h-[40px] text-[11px]"
+                  >
+                    + Solicitar
+                  </Button>
                 </div>
-              )}
-            </div>
+
+                {forms.length === 0 ? (
+                  <p className="text-xs text-[var(--text-secondary)] italic">
+                    Nenhum questionário respondido.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {forms.map((form) => (
+                      <MobileCard key={form.id} className="p-3.5 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-[var(--text-primary)]">
+                            {form.title}
+                          </span>
+                          <Badge variant="success" size="sm" className="text-[10px]">
+                            {form.status}
+                          </Badge>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFormForModal(form)}
+                          className="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl text-xs font-bold text-[var(--brand)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer"
+                        >
+                          <span>Ver respostas</span>
+                          <ChevronRightIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </MobileCard>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Dados Cadastrais Section */}
-            <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2 pt-3">
-              <h3 className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                Dados Cadastrais
-              </h3>
-              <div className="space-y-1.5 text-xs text-[var(--text-secondary)]">
-                <p>Nome: <span className="font-semibold text-[var(--text-primary)]">{student.name}</span></p>
-                <p>E-mail: <span className="font-semibold text-[var(--text-primary)]">{student.email}</span></p>
-                {student.phone && <p>Telefone: <span className="font-semibold text-[var(--text-primary)]">{student.phone}</span></p>}
-                <p>Status: <span className="font-semibold text-emerald-600 dark:text-emerald-400">Ativo</span></p>
-                <p>Membro desde: <span className="font-semibold text-[var(--text-primary)]">{new Date(student.joinedAt).toLocaleDateString("pt-BR")}</span></p>
+            {mobileTab === "mais" && (
+              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2 pt-3">
+                <h3 className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                  Dados Cadastrais
+                </h3>
+                <div className="space-y-1.5 text-xs text-[var(--text-secondary)]">
+                  <p>Nome: <span className="font-semibold text-[var(--text-primary)]">{student.name}</span></p>
+                  <p>E-mail: <span className="font-semibold text-[var(--text-primary)]">{student.email}</span></p>
+                  {student.phone && <p>Telefone: <span className="font-semibold text-[var(--text-primary)]">{student.phone}</span></p>}
+                  <p>Status: <span className="font-semibold text-emerald-600 dark:text-emerald-400">Ativo</span></p>
+                  <p>Membro desde: <span className="font-semibold text-[var(--text-primary)]">{new Date(student.joinedAt).toLocaleDateString("pt-BR")}</span></p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
@@ -1074,11 +1173,11 @@ export function PersonalStudentDetailView({
         {/* Top Breadcrumb */}
         <div>
           <Link
-            href={`/consultoria/${consultancySlug}/progresso/alunos`}
-            className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] depth-interactive"
+            href={backHref || `/consultoria/${consultancySlug}/progresso/alunos`}
+            className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[44px] depth-interactive"
           >
             <ArrowLeftIcon className="w-4 h-4" />
-            <span>Voltar para lista de alunos</span>
+            <span>Voltar aos alunos</span>
           </Link>
         </div>
 

@@ -47,7 +47,7 @@ export function PersonalTodaySection({
   if (isLoading) {
     return (
       <section aria-label="Compromissos de hoje" className="w-full space-y-2.5">
-        <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
+        <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
           Hoje
         </h2>
         <div className="bg-[#151619] border border-[#303238] rounded-2xl p-4 space-y-2 animate-pulse">
@@ -61,7 +61,7 @@ export function PersonalTodaySection({
   if (isError) {
     return (
       <section aria-label="Compromissos de hoje" className="w-full space-y-2.5">
-        <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
+        <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
           Hoje
         </h2>
         <div className="bg-[#151619] border border-red-500/30 rounded-2xl p-4 flex items-center justify-between gap-4">
@@ -87,7 +87,7 @@ export function PersonalTodaySection({
   return (
     <section aria-label="Compromissos de hoje" className="w-full space-y-2.5">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white leading-tight">
+        <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
           Hoje
         </h2>
       </div>

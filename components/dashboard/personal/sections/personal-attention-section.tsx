@@ -73,7 +73,7 @@ export function PersonalAttentionSection({
   if (isLoading) {
     return (
       <section aria-label="Precisa de atenção" className="w-full space-y-3">
-        <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
+        <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
           Precisa de atenção
         </h2>
         <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 space-y-3 animate-pulse">
@@ -87,7 +87,7 @@ export function PersonalAttentionSection({
   if (isError) {
     return (
       <section aria-label="Precisa de atenção" className="w-full space-y-3">
-        <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
+        <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
           Precisa de atenção
         </h2>
         <div className="bg-[#151619] border border-red-500/30 rounded-2xl p-5 flex items-center justify-between gap-4">
@@ -142,18 +142,18 @@ export function PersonalAttentionSection({
   return (
     <section aria-label="Precisa de atenção" className="w-full space-y-3">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-base sm:text-lg font-bold text-white leading-tight flex items-center gap-2">
+        <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight flex items-center gap-2">
           <span>Precisa de atenção</span>
         </h2>
         {totalPendencias > 0 && (
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
             {totalPendencias} {totalPendencias === 1 ? "pendência" : "pendências"}
           </span>
         )}
       </div>
 
       {totalPendencias === 0 ? (
-        <div className="bg-gradient-to-b from-[#181A1F] to-[#121316] border-t border-white/[0.14] border-x border-b border-black/80 rounded-2xl p-5 shadow-[0_10px_24px_-4px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center gap-3 text-white">
+        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 shadow-sm flex items-center gap-3 text-white">
           <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[#10B981] flex items-center justify-center shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
@@ -164,17 +164,17 @@ export function PersonalAttentionSection({
           </p>
         </div>
       ) : (
-        <div className="bg-gradient-to-b from-[#181A1F] to-[#121316] border-t border-white/[0.14] border-x border-b border-black/80 rounded-2xl divide-y divide-[#2B2E35] overflow-hidden shadow-[0_12px_28px_-6px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div className="bg-[#151619] border border-[#303238] rounded-2xl divide-y divide-[#303238] overflow-hidden shadow-sm">
           {/* Grupo 1: Alunos Ativos sem Ficha */}
           {selectedStudents.map((student) => (
             <div
               key={student.membershipPublicId}
-              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-white/[0.03]"
+              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#1B1D21]/50"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   aria-hidden="true"
-                  className="w-10 h-10 rounded-xl bg-gradient-to-b from-[#22252C] to-[#15171C] border border-white/[0.08] shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)] flex items-center justify-center text-xs font-bold text-white shrink-0 select-none"
+                  className="w-10 h-10 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-xs font-bold text-white shrink-0 select-none"
                 >
                   {getInitials(student.name)}
                 </div>
@@ -183,7 +183,7 @@ export function PersonalAttentionSection({
                     <p className="text-sm font-bold text-white truncate">
                       {student.name}
                     </p>
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-rose-300 bg-rose-500/15 border border-rose-500/30 select-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-rose-300 bg-rose-500/15 border border-rose-500/30 select-none">
                       Sem ficha ativa
                     </span>
                   </div>
@@ -199,7 +199,7 @@ export function PersonalAttentionSection({
                     student.membershipPublicId
                   )}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[40px] px-4 text-xs font-bold text-white bg-gradient-to-b from-[#10B981] to-[#059669] hover:from-[#34D399] hover:to-[#10B981] rounded-lg border-t border-emerald-300/40 border-b border-emerald-950/80 shadow-[0_3px_8px_rgba(16,185,129,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] active:translate-y-[1px] transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center min-h-[40px] px-4 text-xs font-bold text-white bg-[#10B981] hover:bg-[#059669] rounded-lg shadow-sm active:translate-y-[1px] transition-colors cursor-pointer"
                 >
                   Criar ficha
                 </Link>
@@ -211,12 +211,12 @@ export function PersonalAttentionSection({
           {selectedDrafts.map((draft) => (
             <div
               key={draft.publicId}
-              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-white/[0.03]"
+              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#1B1D21]/50"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   aria-hidden="true"
-                  className="w-10 h-10 rounded-xl bg-gradient-to-b from-[#22252C] to-[#15171C] border border-white/[0.08] shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)] flex items-center justify-center text-[#8E95A2] shrink-0 select-none"
+                  className="w-10 h-10 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-[#8E95A2] shrink-0 select-none"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -227,7 +227,7 @@ export function PersonalAttentionSection({
                     <p className="text-sm font-bold text-white truncate">
                       {draft.title}
                     </p>
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-amber-300 bg-amber-500/15 border border-amber-500/30 select-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-amber-300 bg-amber-500/15 border border-amber-500/30 select-none">
                       Rascunho não publicado
                     </span>
                   </div>
@@ -241,7 +241,7 @@ export function PersonalAttentionSection({
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas/${draft.publicId}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[40px] px-4 text-xs font-semibold text-[#E5E7EB] hover:text-white bg-gradient-to-b from-[#24272E] to-[#16181D] hover:from-[#2B2F38] hover:to-[#1B1E24] border-t border-white/[0.18] border-b border-black/90 shadow-[0_3px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)] rounded-lg active:translate-y-[1px] transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center min-h-[40px] px-4 text-xs font-semibold text-[#E5E7EB] hover:text-white bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] rounded-lg shadow-sm active:translate-y-[1px] transition-colors cursor-pointer"
                 >
                   Revisar ficha
                 </Link>
@@ -250,7 +250,7 @@ export function PersonalAttentionSection({
           ))}
 
           {/* Rodapé de Paginação e Navegação */}
-          <div className="p-3.5 bg-[#0F1013] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#8E95A2] font-medium border-t border-black/40">
+          <div className="p-3.5 bg-[#111215] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#8E95A2] font-medium border-t border-[#303238]">
             <span>
               {visibleCount} de {totalPendencias} pendências exibidas
             </span>

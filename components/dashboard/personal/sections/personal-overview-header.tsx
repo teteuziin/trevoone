@@ -51,12 +51,12 @@ export function PersonalOverviewHeader({
 
   return (
     <div className="w-full space-y-4">
-      {/* 1. Header Tátil 3D Executivo */}
-      <div className="relative overflow-hidden p-5 sm:p-6 rounded-2xl bg-gradient-to-b from-[#181A1F] to-[#121316] border-t border-white/[0.14] border-x border-b border-black/80 shadow-[0_12px_28px_-6px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] text-white">
+      {/* 1. Header Card Sólido Executivo */}
+      <div className="p-5 sm:p-6 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm text-white">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#10B981] shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+              <span className="w-2 h-2 rounded-full bg-[#10B981]" />
               <span className="text-xs text-[#8E95A2] font-semibold tracking-wide uppercase">
                 {studentsCount} {studentsCount === 1 ? "aluno sob gestão" : "alunos sob gestão"} · {workoutsCount}{" "}
                 {workoutsCount === 1 ? "ficha ativa" : "fichas ativas"} · {blocksCount} blocos em uso
@@ -66,18 +66,14 @@ export function PersonalOverviewHeader({
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               Visão geral dos treinos
             </h1>
-
-            <p className="text-xs sm:text-sm text-[#8E95A2] font-medium">
-              Gerencie suas fichas e acompanhe seus alunos.
-            </p>
           </div>
 
-          {/* Ações Tácteis 3D Físicas */}
+          {/* Ações */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <Link
               href={`/consultoria/${consultancySlug}/rotinas?action=import`}
               prefetch={false}
-              className="px-4 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-gradient-to-b from-[#24272E] to-[#16181D] hover:from-[#2B2F38] hover:to-[#1B1E24] border-t border-white/[0.18] border-b border-black/90 shadow-[0_3px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)] text-[#E5E7EB] hover:text-white flex items-center justify-center gap-2 active:translate-y-[1px] transition-all cursor-pointer select-none"
+              className="px-4 min-h-[44px] rounded-xl font-semibold text-xs sm:text-sm bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] text-[#E5E7EB] hover:text-white flex items-center justify-center gap-2 active:translate-y-[1px] transition-colors cursor-pointer select-none shadow-sm"
             >
               <svg className="w-4 h-4 text-[#8E95A2]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
@@ -88,30 +84,30 @@ export function PersonalOverviewHeader({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/novo`}
               prefetch={false}
-              className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-b from-[#10B981] to-[#059669] hover:from-[#34D399] hover:to-[#10B981] text-white flex items-center justify-center gap-2 border-t border-emerald-300/40 border-b border-emerald-950/80 shadow-[0_4px_14px_rgba(16,185,129,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] active:translate-y-[1px] transition-all cursor-pointer select-none"
+              className="px-5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm bg-[#10B981] hover:bg-[#059669] text-white flex items-center justify-center gap-2 shadow-sm active:translate-y-[1px] transition-colors cursor-pointer select-none"
             >
               <svg className="w-4 h-4 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-              <span>+ Nova ficha</span>
+              <span>Nova ficha</span>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* 2. Bento Grid 3D — Indicadores Físicos de Desempenho */}
+      {/* 2. Bento Grid Sólido — Indicadores de Desempenho */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {/* Card 1: Alunos */}
         <Link
           href={`/consultoria/${consultancySlug}/progresso/alunos`}
           prefetch={false}
-          className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#181A1F] to-[#121316] hover:from-[#202228] hover:to-[#16171B] border-t border-white/[0.14] border-x border-b border-black/80 shadow-[0_10px_24px_-4px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all group flex flex-col justify-between text-white min-h-[110px] cursor-pointer"
+          className="p-4 sm:p-5 rounded-2xl bg-[#151619] hover:bg-[#1A1C20] border border-[#303238] hover:border-[#42454E] shadow-sm transition-all group flex flex-col justify-between text-white min-h-[110px] cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-[#8E95A2] uppercase tracking-wider">
               Alunos Ativos
             </span>
-            <div className="w-8 h-8 rounded-lg bg-[#0F1013] border border-white/[0.08] text-[#10B981] flex items-center justify-center shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]">
+            <div className="w-8 h-8 rounded-lg bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center">
               <UsersIcon className="w-4 h-4" />
             </div>
           </div>
@@ -129,13 +125,13 @@ export function PersonalOverviewHeader({
         <Link
           href={`/consultoria/${consultancySlug}/rotinas`}
           prefetch={false}
-          className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#181A1F] to-[#121316] hover:from-[#202228] hover:to-[#16171B] border-t border-white/[0.14] border-x border-b border-black/80 shadow-[0_10px_24px_-4px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all group flex flex-col justify-between text-white min-h-[110px] cursor-pointer"
+          className="p-4 sm:p-5 rounded-2xl bg-[#151619] hover:bg-[#1A1C20] border border-[#303238] hover:border-[#42454E] shadow-sm transition-all group flex flex-col justify-between text-white min-h-[110px] cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-[#8E95A2] uppercase tracking-wider">
               Fichas de Treino
             </span>
-            <div className="w-8 h-8 rounded-lg bg-[#0F1013] border border-white/[0.08] text-[#10B981] flex items-center justify-center shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]">
+            <div className="w-8 h-8 rounded-lg bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center">
               <DumbbellIcon className="w-4 h-4" />
             </div>
           </div>
@@ -150,12 +146,12 @@ export function PersonalOverviewHeader({
         </Link>
 
         {/* Card 3: Blocos em Uso */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#181A1F] to-[#121316] border-t border-white/[0.14] border-x border-b border-black/80 shadow-[0_10px_24px_-4px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col justify-between text-white min-h-[110px]">
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm flex flex-col justify-between text-white min-h-[110px]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-[#8E95A2] uppercase tracking-wider">
               Blocos Prescritos
             </span>
-            <div className="w-8 h-8 rounded-lg bg-[#0F1013] border border-white/[0.08] text-[#10B981] flex items-center justify-center shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]">
+            <div className="w-8 h-8 rounded-lg bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center">
               <LayersIcon className="w-4 h-4" />
             </div>
           </div>
@@ -170,12 +166,12 @@ export function PersonalOverviewHeader({
         </div>
       </div>
 
-      {/* Botão Fixo Mobile (+ Nova ficha com sensação 3D) */}
+      {/* Botão Fixo Mobile (Nova ficha) */}
       <Link
         href={`/consultoria/${consultancySlug}/rotinas/novo`}
         prefetch={false}
         aria-label="Criar nova ficha de treino"
-        className="md:hidden fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-4 z-40 min-h-[48px] px-5 rounded-full bg-gradient-to-b from-[#10B981] to-[#059669] text-white font-bold text-sm flex items-center justify-center gap-2 border-t border-emerald-300/40 border-b border-emerald-950/80 shadow-[0_8px_20px_rgba(0,0,0,0.5),0_4px_14px_rgba(16,185,129,0.4),inset_0_1px_0_rgba(255,255,255,0.3)] select-none cursor-pointer focus:outline-none active:translate-y-[2px] transition-transform"
+        className="md:hidden fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-4 z-40 min-h-[48px] px-5 rounded-full bg-[#10B981] hover:bg-[#059669] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg select-none cursor-pointer focus:outline-none active:translate-y-[2px] transition-transform"
       >
         <svg className="w-4 h-4 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />

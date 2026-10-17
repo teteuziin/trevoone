@@ -775,28 +775,27 @@ export function ConsultancyNavigation({
           ========================================================================= */}
       <aside
         aria-label="Barra lateral de navegação"
-        className={`hidden lg:flex fixed top-0 bottom-0 left-0 w-64 lg:w-72 ${
+        className={`hidden lg:flex fixed top-0 bottom-0 left-0 w-64 ${
           isDarkOverview
-            ? "bg-[#ECEFF2] dark:bg-[#111215] border-r border-[#C5CBD3] dark:border-[#303238] text-[#17191D] dark:text-white"
+            ? "bg-[#F9FAFB] dark:bg-[#111215] border-r border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white"
             : "bg-[var(--surface)] border-r border-[var(--border-default)]"
-        } z-30 flex-col justify-between overflow-y-auto select-none print:hidden transition-colors`}
+        } z-30 flex-col justify-between select-none print:hidden transition-colors`}
       >
-        {/* Top: Brand Header & Navigation Sections */}
-        <div className="flex flex-col space-y-5 p-4 sm:p-5">
-          {/* Consultancy Branding */}
+        {/* Top: Brand Header */}
+        <div className="p-4 border-b border-[#E5E7EB] dark:border-[#303238] shrink-0">
           <Link
             href={baseSlugHref}
             prefetch={false}
             className={`flex items-center gap-3 p-2 rounded-xl ${
               isDarkOverview
-                ? "hover:bg-[#DFE3E8] dark:hover:bg-[#1B1D21] border border-transparent hover:border-[#C5CBD3] dark:hover:border-[#303238]"
+                ? "hover:bg-[#E5E7EB] dark:hover:bg-[#1B1D21] border border-transparent hover:border-[#D1D5DB] dark:hover:border-[#303238]"
                 : "hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-default)]"
             } transition-all group focus-visible:outline-2 focus-visible:outline-[var(--brand)] depth-interactive`}
           >
             <ConsultancyLogo
               logoUrl={consultancyLogoUrl}
               name={consultancyName}
-              size={38}
+              size={36}
             />
             <div className="min-w-0 flex-1">
               <p className={`text-sm font-semibold ${
@@ -811,7 +810,7 @@ export function ConsultancyNavigation({
                       key={lbl}
                       className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded ${
                         isDarkOverview
-                          ? "bg-[#DFE3E8] dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-[#303238] text-[#4B5563] dark:text-[#C2C8CF]"
+                          ? "bg-[#E5E7EB] dark:bg-[#1B1D21] border border-[#D1D5DB] dark:border-[#303238] text-[#4B5563] dark:text-[#C2C8CF]"
                           : "bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]"
                       } uppercase tracking-wider`}
                     >
@@ -823,21 +822,9 @@ export function ConsultancyNavigation({
             </div>
           </Link>
 
-          {/* Alternador 3D para Multi-Role (Personal + Admin) */}
-          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.some(o => o.mode === "PERSONAL" && o.isRealRole) && viewModeState.allowedOptions.some(o => o.mode === "ADMIN" && o.isRealRole) && (
-            <div className="pt-1.5 pb-0.5">
-              <CockpitRoleModeSwitcher
-                consultancySlug={consultancySlug}
-                currentMode={viewModeState.effectiveMode}
-                compact={true}
-                className="w-full justify-center"
-              />
-            </div>
-          )}
-
           {/* View Mode Selector ONLY if explicitly in preview mode */}
           {viewModeState?.isPreview && (
-            <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+            <div className="mt-3 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
               <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-1">
                 Modo Demonstração
               </p>
@@ -849,18 +836,20 @@ export function ConsultancyNavigation({
               />
             </div>
           )}
+        </div>
 
-          {/* Navigation Links */}
-          <nav aria-label="Navegação desktop" className="space-y-4 pt-1">
+        {/* Middle: Navigation Links (Scrolls independently) */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <nav aria-label="Navegação desktop" className="space-y-4">
             {desktopSections.map((section, sIdx) => (
               <div
                 key={section.title || sIdx}
-                className={`space-y-1 ${sIdx > 0 ? `pt-3 border-t ${isDarkOverview ? "border-[#C5CBD3] dark:border-[#303238]" : "border-[var(--border-subtle)]"}` : ""}`}
+                className="space-y-1"
               >
                 {section.title && (
                   <p className={`text-[11px] font-semibold ${
                     isDarkOverview ? "text-[#4B5563] dark:text-[#8E959E]" : "text-[var(--text-tertiary)]"
-                  } uppercase tracking-wider px-3.5 mb-2 font-heading`}>
+                  } uppercase tracking-wider px-3 mb-2 font-heading`}>
                     {section.title}
                   </p>
                 )}
@@ -872,22 +861,22 @@ export function ConsultancyNavigation({
                       href={item.href}
                       prefetch={false}
                       aria-current={active ? "page" : undefined}
-                      className={`flex items-center justify-between px-3.5 py-2.5 text-[13px] rounded-xl border transition-all depth-interactive ${
+                      className={`flex items-center justify-between px-3 py-2 text-[13px] min-h-[44px] rounded-xl border transition-all depth-interactive ${
                         active
                           ? isDarkOverview
-                            ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
+                            ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
                             : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                           : isDarkOverview
-                          ? "text-[#4B5563] hover:text-[#17191D] hover:bg-[#DFE3E8] dark:text-[#C2C8CF] dark:hover:text-white dark:hover:bg-[#1B1D21] border-transparent font-medium"
+                          ? "text-[#4B5563] hover:text-[#17191D] hover:bg-[#F3F4F6] dark:text-[#C2C8CF] dark:hover:text-white dark:hover:bg-[#1B1D21] border-transparent font-medium"
                           : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <NavIcon name={item.iconName} />
+                        <NavIcon name={item.iconName} className="w-5 h-5 shrink-0" />
                         <span className="truncate">{item.label}</span>
                       </div>
                       {active && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#065F46] dark:bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0 shadow-2xs`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
                       )}
                     </Link>
                   );
@@ -897,17 +886,17 @@ export function ConsultancyNavigation({
           </nav>
         </div>
 
-        {/* Bottom: User Card, Theme & Actions */}
+        {/* Bottom: User Card, Clear Named Actions, Theme & Exit */}
         <div className={`p-4 border-t ${
           isDarkOverview
-            ? "border-[#C5CBD3] dark:border-[#303238] bg-[#ECEFF2] dark:bg-[#111215]"
+            ? "border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#111215]"
             : "border-[var(--border-default)] bg-[var(--surface)]"
-        } space-y-3.5`}>
+        } shrink-0 space-y-3`}>
           {/* User Info Card */}
           <Link
             href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
-            className={`flex items-center gap-3 px-1.5 py-1 rounded-xl ${
-              isDarkOverview ? "hover:bg-[#DFE3E8] dark:hover:bg-[#1B1D21]" : "hover:bg-[var(--surface-subtle)]"
+            className={`flex items-center gap-3 px-2 py-1.5 rounded-xl ${
+              isDarkOverview ? "hover:bg-[#E5E7EB] dark:hover:bg-[#1B1D21]" : "hover:bg-[var(--surface-subtle)]"
             } transition-colors min-w-0 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]`}
             title="Ver perfil"
           >
@@ -922,7 +911,7 @@ export function ConsultancyNavigation({
             />
             <div className="min-w-0 flex-1">
               <p className={`text-[13px] font-semibold ${
-                isDarkOverview ? "text-[#17191D] group-hover:text-[#065F46] dark:text-white dark:group-hover:text-[#10B981]" : "text-[var(--text-primary)] group-hover:text-[var(--brand)]"
+                isDarkOverview ? "text-[#17191D] group-hover:text-[#10B981] dark:text-white dark:group-hover:text-[#10B981]" : "text-[var(--text-primary)] group-hover:text-[var(--brand)]"
               } transition-colors truncate leading-tight`}>
                 {identity.fullName}
               </p>
@@ -936,6 +925,90 @@ export function ConsultancyNavigation({
             </div>
           </Link>
 
+          {/* Quick Settings & Navigation Links with Clear Names */}
+          <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+            <Link
+              href="/notificacoes"
+              prefetch={false}
+              className={`relative flex items-center gap-2 py-2 px-2.5 rounded-xl text-xs transition-all border depth-interactive min-h-[38px] ${
+                pathname === "/notificacoes"
+                  ? isDarkOverview
+                    ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
+                    : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                  : isDarkOverview
+                  ? "text-[#4B5563] hover:text-[#17191D] bg-white hover:bg-[#F3F4F6] border-[#E5E7EB] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
+              }`}
+              title="Notificações"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+              </svg>
+              <span className="truncate">Notificações</span>
+              {unreadNotificationsCount > 0 && (
+                <span className={`w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0 ml-auto`} />
+              )}
+            </Link>
+
+            <Link
+              href={`/consultoria/${consultancySlug}/ajuda`}
+              prefetch={false}
+              className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-xs transition-all border depth-interactive min-h-[38px] ${
+                pathname === `/consultoria/${consultancySlug}/ajuda`
+                  ? isDarkOverview
+                    ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
+                    : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                  : isDarkOverview
+                  ? "text-[#4B5563] hover:text-[#17191D] bg-white hover:bg-[#F3F4F6] border-[#E5E7EB] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
+              }`}
+              title="Central de Ajuda & Suporte"
+            >
+              <HelpCircle className="w-4 h-4 shrink-0" strokeWidth={1.8} />
+              <span className="truncate">Ajuda</span>
+            </Link>
+
+            <Link
+              href="/conta/seguranca"
+              prefetch={false}
+              className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-xs transition-all border depth-interactive min-h-[38px] ${
+                pathname === "/conta/seguranca"
+                  ? isDarkOverview
+                    ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
+                    : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                  : isDarkOverview
+                  ? "text-[#4B5563] hover:text-[#17191D] bg-white hover:bg-[#F3F4F6] border-[#E5E7EB] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
+              }`}
+              title="Conta e segurança"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              <span className="truncate">Segurança</span>
+            </Link>
+
+            <Link
+              href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
+              prefetch={false}
+              className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-xs transition-all border depth-interactive min-h-[38px] ${
+                pathname === "/conta/perfil"
+                  ? isDarkOverview
+                    ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
+                    : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
+                  : isDarkOverview
+                  ? "text-[#4B5563] hover:text-[#17191D] bg-white hover:bg-[#F3F4F6] border-[#E5E7EB] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
+              }`}
+              title="Meu perfil"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              <span className="truncate">Meu perfil</span>
+            </Link>
+          </div>
+
           {/* Theme Selector */}
           <AppearanceSegmentedControl
             compact
@@ -944,104 +1017,24 @@ export function ConsultancyNavigation({
             className="w-full justify-center"
           />
 
-          {/* Quick Settings & Navigation Links */}
-          <div className="grid grid-cols-4 gap-1 pt-0.5">
-            <Link
-              href="/notificacoes"
-              prefetch={false}
-              className={`relative flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
-                pathname === "/notificacoes"
-                  ? isDarkOverview
-                    ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
-                    : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                  : isDarkOverview
-                  ? "text-[#4B5563] hover:text-[#17191D] bg-[#DFE3E8]/60 hover:bg-[#DFE3E8] border-[#C5CBD3] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
-              }`}
-              title="Notificações"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-              </svg>
-              {unreadNotificationsCount > 0 && (
-                <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#065F46] ring-2 ring-[#ECEFF2] dark:bg-[#10B981] dark:ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
-              )}
-            </Link>
-
-            <Link
-              href={`/conta/perfil?returnTo=${encodeURIComponent(pathname)}`}
-              prefetch={false}
-              className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
-                pathname === "/conta/perfil"
-                  ? isDarkOverview
-                    ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
-                    : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                  : isDarkOverview
-                  ? "text-[#4B5563] hover:text-[#17191D] bg-[#DFE3E8]/60 hover:bg-[#DFE3E8] border-[#C5CBD3] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
-              }`}
-              title="Meu perfil"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-              </svg>
-            </Link>
-
-            <Link
-              href={`/consultoria/${consultancySlug}/ajuda`}
-              prefetch={false}
-              className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
-                pathname === `/consultoria/${consultancySlug}/ajuda`
-                  ? isDarkOverview
-                    ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
-                    : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                  : isDarkOverview
-                  ? "text-[#4B5563] hover:text-[#17191D] bg-[#DFE3E8]/60 hover:bg-[#DFE3E8] border-[#C5CBD3] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
-              }`}
-              title="Central de Ajuda & Suporte"
-            >
-              <HelpCircle className="w-4 h-4" strokeWidth={1.8} />
-            </Link>
-
-            <Link
-              href="/conta/seguranca"
-              prefetch={false}
-              className={`flex items-center justify-center py-2 px-1 rounded-xl text-xs transition-all border depth-interactive ${
-                pathname === "/conta/seguranca"
-                  ? isDarkOverview
-                    ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
-                    : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
-                  : isDarkOverview
-                  ? "text-[#4B5563] hover:text-[#17191D] bg-[#DFE3E8]/60 hover:bg-[#DFE3E8] border-[#C5CBD3] dark:text-[#C2C8CF] dark:hover:text-white dark:bg-transparent dark:hover:bg-[#1B1D21] dark:border-[#303238] font-medium"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-[var(--border-subtle)] font-medium"
-              }`}
-              title="Conta e segurança"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-              </svg>
-            </Link>
-          </div>
-
           {/* Action Buttons */}
           <div className="space-y-1.5 pt-0.5">
             <Link
               href="/selecionar-consultoria"
               prefetch={false}
-              className={`flex items-center justify-center w-full py-2 px-3 text-xs font-semibold ${
+              className={`flex items-center justify-center w-full py-2 px-3 text-xs font-semibold min-h-[38px] ${
                 isDarkOverview
-                  ? "text-[#17191D] dark:text-white bg-white dark:bg-[#1B1D21] hover:bg-[#DFE3E8] dark:hover:bg-[#252830] border border-[#C5CBD3] dark:border-[#303238]"
+                  ? "text-[#17191D] dark:text-white bg-white dark:bg-[#1B1D21] hover:bg-[#E5E7EB] dark:hover:bg-[#252830] border border-[#E5E7EB] dark:border-[#303238]"
                   : "text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)]"
-              } rounded-xl transition-all shadow-2xs depth-interactive`}
+              } rounded-xl transition-all shadow-xs depth-interactive`}
             >
               Trocar consultoria
             </Link>
             <LogoutButton
               logoutAction={logoutFromConsultancyArea}
-              className={`flex items-center justify-center w-full py-2 px-3 text-xs font-medium ${
+              className={`flex items-center justify-center w-full py-2 px-3 text-xs font-medium min-h-[38px] ${
                 isDarkOverview
-                  ? "text-[#4B5563] dark:text-[#C2C8CF] hover:text-red-600 dark:hover:text-red-400 bg-white dark:bg-[#1B1D21] hover:bg-red-50 dark:hover:bg-red-500/10 border border-[#C5CBD3] dark:border-[#303238] hover:border-red-200 dark:hover:border-red-500/30"
+                  ? "text-[#4B5563] dark:text-[#C2C8CF] hover:text-red-600 dark:hover:text-red-400 bg-white dark:bg-[#1B1D21] hover:bg-red-50 dark:hover:bg-red-500/10 border border-[#E5E7EB] dark:border-[#303238] hover:border-red-200 dark:hover:border-red-500/30"
                   : "text-[var(--text-tertiary)] hover:text-[var(--danger-foreground)] bg-[var(--surface-subtle)] hover:bg-[var(--danger-soft)] border border-[var(--border-default)] hover:border-[var(--danger-border)]"
               } rounded-xl transition-all cursor-pointer depth-interactive`}
             >
@@ -1057,7 +1050,7 @@ export function ConsultancyNavigation({
       <header
         className={`hidden md:flex lg:hidden sticky top-0 z-30 w-full max-w-full min-w-0 ${
           isDarkOverview
-            ? "bg-[#ECEFF2] dark:bg-[#111215] border-b border-[#C5CBD3] dark:border-[#303238] text-[#17191D] dark:text-white"
+            ? "bg-[#F9FAFB] dark:bg-[#111215] border-b border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white"
             : "bg-[var(--surface)] border-b border-[var(--border-default)]"
         } shadow-2xs print:hidden transition-colors border-specular-t`}
       >
@@ -1085,7 +1078,7 @@ export function ConsultancyNavigation({
             </div>
           </Link>
 
-          {/* Center: Primary Navigation Tabs (Max 4 items to ensure zero wrapping) */}
+          {/* Center: Primary Navigation Tabs */}
           <nav aria-label="Navegação do tablet" className="flex items-center gap-1">
             {primaryNavItems.slice(0, 4).map((item) => {
               const active = isItemActive(item.href);
@@ -1098,22 +1091,32 @@ export function ConsultancyNavigation({
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl border transition-all depth-interactive ${
                     active
                       ? isDarkOverview
-                        ? "bg-white dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#C5CBD3] dark:border-[#303238] shadow-xs font-semibold"
+                        ? "bg-[#E5E7EB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
                         : "bg-[var(--surface-hover)] text-[var(--text-primary)] border-[var(--border-strong)] shadow-xs font-semibold"
                       : isDarkOverview
-                        ? "text-[#4B5563] hover:text-[#17191D] hover:bg-[#DFE3E8] dark:text-[#C2C8CF] dark:hover:text-white dark:hover:bg-[#1B1D21] border-transparent font-medium"
+                        ? "text-[#4B5563] hover:text-[#17191D] hover:bg-[#F3F4F6] dark:text-[#C2C8CF] dark:hover:text-white dark:hover:bg-[#1B1D21] border-transparent font-medium"
                         : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border-transparent font-medium"
                   }`}
                 >
                   <NavIcon name={item.iconName} />
                   <span>{item.mobileLabel || item.label}</span>
                   {active && (
-                    <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#065F46] dark:bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${isDarkOverview ? "bg-[#10B981]" : "bg-[var(--brand)]"} shrink-0`} />
                   )}
                 </Link>
               );
             })}
           </nav>
+
+          {/* Mode Switcher for Multi-Role on Tablet */}
+          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.some(o => o.mode === "PERSONAL" && o.isRealRole) && viewModeState.allowedOptions.some(o => o.mode === "ADMIN" && o.isRealRole) && (
+            <CockpitRoleModeSwitcher
+              consultancySlug={consultancySlug}
+              currentMode={viewModeState.effectiveMode}
+              compact={true}
+              className="hidden sm:inline-flex"
+            />
+          )}
 
           {/* Right: Notifications & Drawer Menu Toggle */}
           <div className="flex items-center gap-2">
@@ -1124,9 +1127,9 @@ export function ConsultancyNavigation({
               aria-label="Abrir menu de navegação e opções"
               className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border ${
                 isDarkOverview
-                  ? "border-[#C5CBD3] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#DFE3E8] dark:hover:bg-[#252830] text-[#17191D] dark:text-white"
+                  ? "border-[#E5E7EB] dark:border-[#303238] bg-white dark:bg-[#1B1D21] hover:bg-[#F3F4F6] dark:hover:bg-[#252830] text-[#17191D] dark:text-white"
                   : "border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)]"
-              } text-xs font-semibold transition-all shadow-2xs depth-interactive cursor-pointer min-h-[36px]`}
+              } text-xs font-semibold transition-all shadow-xs depth-interactive cursor-pointer min-h-[36px]`}
             >
               <svg className={`w-4 h-4 ${isDarkOverview ? "text-[#4B5563] dark:text-[#C2C8CF]" : "text-[var(--text-secondary)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -1143,23 +1146,36 @@ export function ConsultancyNavigation({
       <header
         className={`flex md:hidden sticky top-0 z-30 w-full max-w-full min-w-0 ${
           isDarkOverview
-            ? "bg-[#ECEFF2] dark:bg-[#111215] border-b border-[#C5CBD3] dark:border-[#303238] text-[#17191D] dark:text-white"
+            ? "bg-[#F9FAFB] dark:bg-[#111215] border-b border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white"
             : "bg-[var(--surface)] border-b border-[var(--border-default)]"
         } shadow-2xs pt-[env(safe-area-inset-top,0px)] print:hidden transition-colors border-specular-t`}
       >
-        <div className="w-full max-w-full min-w-0 px-3.5 h-14 flex items-center justify-between gap-3">
-          {/* Branding */}
+        <div className="w-full max-w-full min-w-0 px-3.5 h-14 flex items-center justify-between gap-2">
+          {/* Left: Branding */}
           <Link
             href={baseSlugHref}
             prefetch={false}
-            className="flex items-center gap-2.5 min-w-0 group focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-1"
+            className="flex items-center gap-2 min-w-0 shrink-0 group focus-visible:outline-2 focus-visible:outline-[var(--brand)] rounded-xl py-1"
           >
             <ConsultancyLogo
               logoUrl={consultancyLogoUrl}
               name={consultancyName}
-              size={30}
+              size={28}
             />
-            <div className="min-w-0">
+          </Link>
+
+          {/* Mode Switcher on Mobile Header (Single switcher for mobile viewport) */}
+          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.some(o => o.mode === "PERSONAL" && o.isRealRole) && viewModeState.allowedOptions.some(o => o.mode === "ADMIN" && o.isRealRole) ? (
+            <div className="flex-1 flex justify-center min-w-0 px-1">
+              <CockpitRoleModeSwitcher
+                consultancySlug={consultancySlug}
+                currentMode={viewModeState.effectiveMode}
+                compact={true}
+                className="scale-95 sm:scale-100"
+              />
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1">
               <p className={`text-xs font-semibold ${isDarkOverview ? "text-[#17191D] dark:text-white" : "text-[var(--text-primary)]"} truncate leading-tight`}>
                 {consultancyName}
               </p>
@@ -1169,10 +1185,10 @@ export function ConsultancyNavigation({
                 </p>
               )}
             </div>
-          </Link>
+          )}
 
           {/* Right Action */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <NotificationBell unreadCount={unreadNotificationsCount} />
           </div>
         </div>
@@ -1186,7 +1202,7 @@ export function ConsultancyNavigation({
           aria-label="Navegação rápida móvel"
           className={`md:hidden fixed bottom-0 inset-x-0 z-30 w-full max-w-full min-w-0 ${
             isDarkOverview
-              ? "bg-[#ECEFF2] dark:bg-[#111215] border-t border-[#C5CBD3] dark:border-[#303238]"
+              ? "bg-[#F9FAFB] dark:bg-[#111215] border-t border-[#E5E7EB] dark:border-[#303238]"
               : "bg-[var(--surface)] border-t border-[var(--border-default)]"
           } pb-[env(safe-area-inset-bottom,0px)] shadow-lg print:hidden transition-all duration-150 border-specular-t`}
         >
@@ -1266,7 +1282,7 @@ export function ConsultancyNavigation({
                   <circle cx="19" cy="12" r="2" />
                 </svg>
                 {unreadNotificationsCount > 0 && (
-                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#065F46] ring-2 ring-[#ECEFF2] dark:bg-[#10B981] dark:ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
+                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDarkOverview ? "bg-[#065F46] ring-2 ring-[#F9FAFB] dark:bg-[#10B981] dark:ring-[#111215]" : "bg-[var(--brand)] ring-2 ring-[var(--surface)]"}`} />
                 )}
               </div>
               <span
@@ -1303,7 +1319,7 @@ export function ConsultancyNavigation({
             aria-modal="true"
             className={`relative w-full max-h-[85vh] overflow-y-auto ${
               isDarkOverview
-                ? "bg-[#ECEFF2] dark:bg-[#111215] border-t border-[#C5CBD3] dark:border-[#303238] text-[#17191D] dark:text-white"
+                ? "bg-[#F9FAFB] dark:bg-[#111215] border-t border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white"
                 : "bg-[var(--surface)] border-t border-[var(--border-default)]"
             } rounded-t-3xl p-5 shadow-2xl z-10 animate-in slide-in-from-bottom-6 duration-200 space-y-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] border-specular-t`}
           >

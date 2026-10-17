@@ -53,24 +53,13 @@ export function DashboardCombinedPersonalAdminView({
 
   return (
     <div className="space-y-5 sm:space-y-6 w-full animate-in fade-in duration-150">
-      {/* 1. Cabeçalho compacto da consultoria (Mobile) */}
-      {consultancyName && (
-        <div className="block md:hidden px-1 flex items-center justify-between text-xs text-[#8E95A2] font-semibold">
-          <span className="truncate max-w-[200px]">{consultancyName}</span>
-        </div>
-      )}
-
-      {/* 2. Alternador de Modo 3D Físico (Treinador vs Administração) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[#303238]/60">
+      {/* Alternador de Modo (Desktop no topo da área principal) */}
+      <div className="hidden lg:flex items-center justify-between pb-3 border-b border-[#E5E7EB] dark:border-[#303238]">
         <CockpitRoleModeSwitcher
           consultancySlug={consultancySlug}
           currentMode={activeTab === "coach" ? "PERSONAL" : "ADMIN"}
           onSwitch={(mode) => setActiveTab(mode === "PERSONAL" ? "coach" : "admin")}
         />
-        <div className="text-xs text-[#8E95A2] flex items-center gap-2 font-medium">
-          <span className={`w-1.5 h-1.5 rounded-full ${activeTab === "coach" ? "bg-[#10B981]" : "bg-[#3B82F6]"}`} />
-          <span>{activeTab === "coach" ? "Modo Ativo: Prescrição de Treinos" : "Modo Ativo: Gestão & Administração"}</span>
-        </div>
       </div>
 
       {activeTab === "coach" ? (

@@ -36,7 +36,7 @@ export function CockpitRoleModeSwitcher({
     <div
       role="group"
       aria-label="Alternar modo de operação da consultoria"
-      className={`inline-flex items-center p-1 rounded-xl bg-[#0E0F12] border border-white/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] select-none ${className}`}
+      className={`inline-flex items-center p-1 rounded-xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] shadow-xs select-none ${className}`}
     >
       {/* Botão Treinador */}
       <button
@@ -44,19 +44,17 @@ export function CockpitRoleModeSwitcher({
         disabled={isPending}
         onClick={() => handleSwitch("PERSONAL")}
         aria-pressed={isCoach}
-        className={`relative inline-flex items-center gap-2 rounded-lg font-semibold transition-all duration-150 cursor-pointer ${
+        className={`relative inline-flex items-center gap-2 rounded-lg font-semibold transition-all duration-150 cursor-pointer whitespace-nowrap ${
           compact ? "px-2.5 py-1 text-xs" : "px-3.5 py-1.5 text-xs sm:text-sm"
         } ${
           isCoach
-            ? "bg-gradient-to-b from-[#282B33] to-[#181A1F] text-white border-t border-white/[0.22] border-b border-black/80 shadow-[0_3px_10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.18)]"
-            : "text-[#8E95A2] hover:text-white hover:bg-white/[0.04]"
+            ? "bg-[#F0F1F3] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
+            : "text-[#4B5563] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] border border-transparent font-medium"
         } active:translate-y-[1px] disabled:opacity-60 disabled:cursor-not-allowed`}
       >
         <span
-          className={`w-2 h-2 rounded-full transition-colors ${
-            isCoach
-              ? "bg-[#10B981] shadow-[0_0_8px_rgba(16,185,129,0.8)]"
-              : "bg-neutral-600"
+          className={`w-2 h-2 rounded-full transition-colors shrink-0 ${
+            isCoach ? "bg-[#10B981]" : "bg-neutral-400 dark:bg-neutral-600"
           }`}
           aria-hidden="true"
         />
@@ -83,19 +81,17 @@ export function CockpitRoleModeSwitcher({
         disabled={isPending}
         onClick={() => handleSwitch("ADMIN")}
         aria-pressed={isAdmin}
-        className={`relative inline-flex items-center gap-2 rounded-lg font-semibold transition-all duration-150 cursor-pointer ${
+        className={`relative inline-flex items-center gap-2 rounded-lg font-semibold transition-all duration-150 cursor-pointer whitespace-nowrap ${
           compact ? "px-2.5 py-1 text-xs" : "px-3.5 py-1.5 text-xs sm:text-sm"
         } ${
           isAdmin
-            ? "bg-gradient-to-b from-[#282B33] to-[#181A1F] text-white border-t border-white/[0.22] border-b border-black/80 shadow-[0_3px_10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.18)]"
-            : "text-[#8E95A2] hover:text-white hover:bg-white/[0.04]"
+            ? "bg-[#F0F1F3] dark:bg-[#1B1D21] text-[#17191D] dark:text-white border border-[#D1D5DB] dark:border-[#303238] shadow-xs font-semibold"
+            : "text-[#4B5563] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1B1D21] border border-transparent font-medium"
         } active:translate-y-[1px] disabled:opacity-60 disabled:cursor-not-allowed`}
       >
         <span
-          className={`w-2 h-2 rounded-full transition-colors ${
-            isAdmin
-              ? "bg-[#3B82F6] shadow-[0_0_8px_rgba(59,130,246,0.8)]"
-              : "bg-neutral-600"
+          className={`w-2 h-2 rounded-full transition-colors shrink-0 ${
+            isAdmin ? "bg-[#3B82F6]" : "bg-neutral-400 dark:bg-neutral-600"
           }`}
           aria-hidden="true"
         />
@@ -115,7 +111,7 @@ export function CockpitRoleModeSwitcher({
       {/* Indicador de carregamento suave */}
       {isPending && (
         <span
-          className="ml-2 w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin shrink-0"
+          className="ml-2 w-3.5 h-3.5 border-2 border-neutral-300 dark:border-neutral-600 border-t-[#10B981] rounded-full animate-spin shrink-0"
           aria-label="Alternando perfil..."
         />
       )}

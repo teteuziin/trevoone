@@ -594,3 +594,64 @@ body {
   color: #FFFFFF !important;
 }
 
+/* =========================================================================
+   TREVO ONE — DASHBOARD WALLPAPER SIGNATURE (TREINADOR & ADMINISTRAÇÃO)
+   ========================================================================= */
+
+.trevo-dashboard-wallpaper {
+  background-color: #F0F1F3;
+  background-repeat: no-repeat;
+  background-position: right bottom;
+  background-size: contain;
+  transition: background-color 200ms ease-out;
+}
+
+/* Light Mode — Landscape (Horizontal / Desktop) */
+@media (orientation: landscape) {
+  .trevo-dashboard-wallpaper {
+    background-image: url("/images/wallpapers/wallpaper-light-desktop.webp");
+  }
+}
+
+/* Light Mode — Portrait (Vertical / Smartphone) */
+@media (orientation: portrait) {
+  .trevo-dashboard-wallpaper {
+    background-image: url("/images/wallpapers/wallpaper-light-mobile.webp");
+  }
+}
+
+/* Dark Mode — System Preference (quando não forçado explicitamente para light) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .trevo-dashboard-wallpaper {
+    background-color: #0B0C0E;
+  }
+  @media (orientation: landscape) {
+    :root:not([data-theme="light"]) .trevo-dashboard-wallpaper {
+      background-image: url("/images/wallpapers/wallpaper-dark-desktop.webp");
+    }
+  }
+  @media (orientation: portrait) {
+    :root:not([data-theme="light"]) .trevo-dashboard-wallpaper {
+      background-image: url("/images/wallpapers/wallpaper-dark-mobile.webp");
+    }
+  }
+}
+
+/* Dark Mode — Explicit (.dark ou [data-theme="dark"]) */
+:is(.dark, [data-theme="dark"]) .trevo-dashboard-wallpaper {
+  background-color: #0B0C0E;
+}
+
+@media (orientation: landscape) {
+  :is(.dark, [data-theme="dark"]) .trevo-dashboard-wallpaper {
+    background-image: url("/images/wallpapers/wallpaper-dark-desktop.webp");
+  }
+}
+
+@media (orientation: portrait) {
+  :is(.dark, [data-theme="dark"]) .trevo-dashboard-wallpaper {
+    background-image: url("/images/wallpapers/wallpaper-dark-mobile.webp");
+  }
+}
+
+

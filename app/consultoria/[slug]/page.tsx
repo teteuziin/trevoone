@@ -541,6 +541,13 @@ export default async function ConsultancyPage({ params }: PageProps) {
       (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN" || effectiveMode === "NUTRITIONIST"))
   );
 
+  const isTrainerOrAdminScreen = Boolean(
+    isPurePersonal ||
+      isCombinedPersonalAdmin ||
+      (effectiveMode === "ADMIN" && !isPersonal && !isNutritionist) ||
+      (effectiveState.isPreview && (effectiveMode === "PERSONAL" || effectiveMode === "ADMIN"))
+  );
+
   return (
     <ConsultancyAppShell
       consultancyName={context.consultancyName}
@@ -556,6 +563,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
       viewModeState={effectiveState}
       unreadAnnouncements={unreadAnnouncements}
       themeVariant={isDarkOverviewTheme ? "dark-overview" : "default"}
+      showDashboardWallpaper={isTrainerOrAdminScreen}
       maxWidth="full"
     >
       <div className="w-full max-w-[1280px] mx-auto space-y-5 sm:space-y-6">

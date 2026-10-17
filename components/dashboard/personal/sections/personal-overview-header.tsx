@@ -2,36 +2,17 @@
 
 import React from "react";
 import Link from "next/link";
+import {
+  DuotoneStudentsIcon,
+  DuotoneTrainingIcon,
+  DuotoneExercisesIcon,
+} from "@/components/ui/icons/duotone-icons";
 
 export interface PersonalOverviewHeaderProps {
   consultancySlug: string;
   totalStudents?: number | null;
   totalWorkouts?: number | null;
   prescribedBlocksCount?: number | null;
-}
-
-function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 5v14M18 5v14M3 9v6M21 9v6M6 12h12" />
-    </svg>
-  );
-}
-
-function UsersIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-    </svg>
-  );
-}
-
-function LayersIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l9.75 5.25 9.75-5.25-4.179-2.25m-15.321 4.5L2.25 16.5l9.75 5.25 9.75-5.25-4.179-2.25m-15.321-9L12 2.25l9.75 5.25-9.75 5.25-9.75-5.25z" />
-    </svg>
-  );
 }
 
 export function PersonalOverviewHeader({
@@ -98,17 +79,17 @@ export function PersonalOverviewHeader({
             prefetch={false}
             className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#1B1D21] transition-colors group cursor-pointer"
           >
-            <div className="w-9 h-9 rounded-lg bg-[#1B1D21] border border-[#303238] group-hover:border-[#42454E] text-[#10B981] flex items-center justify-center shrink-0">
-              <UsersIcon className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-lg bg-[#1B1D21] border border-[#303238] group-hover:border-blue-500/50 flex items-center justify-center shrink-0">
+              <DuotoneStudentsIcon className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-white group-hover:text-[#10B981] transition-colors font-mono tabular-nums">
+                <span className="text-xl font-black text-white group-hover:text-blue-400 transition-colors font-mono tabular-nums">
                   {displayStudents}
                 </span>
                 <span className="text-xs text-[#8E95A2] font-medium truncate">alunos sob gestão</span>
               </div>
-              <span className="text-[11px] text-[#10B981] group-hover:underline block truncate font-medium">
+              <span className="text-[11px] text-blue-400 group-hover:underline block truncate font-medium">
                 Ver alunos →
               </span>
             </div>
@@ -119,25 +100,25 @@ export function PersonalOverviewHeader({
             prefetch={false}
             className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#1B1D21] transition-colors group cursor-pointer sm:border-l sm:border-[#303238]/60 sm:pl-4"
           >
-            <div className="w-9 h-9 rounded-lg bg-[#1B1D21] border border-[#303238] group-hover:border-[#42454E] text-[#10B981] flex items-center justify-center shrink-0">
-              <DumbbellIcon className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-lg bg-[#1B1D21] border border-[#303238] group-hover:border-orange-500/50 flex items-center justify-center shrink-0">
+              <DuotoneTrainingIcon className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-white group-hover:text-[#10B981] transition-colors font-mono tabular-nums">
+                <span className="text-xl font-black text-white group-hover:text-orange-400 transition-colors font-mono tabular-nums">
                   {displayPlans}
                 </span>
                 <span className="text-xs text-[#8E95A2] font-medium truncate">fichas ativas</span>
               </div>
-              <span className="text-[11px] text-[#10B981] group-hover:underline block truncate font-medium">
+              <span className="text-[11px] text-orange-400 group-hover:underline block truncate font-medium">
                 Ver todas →
               </span>
             </div>
           </Link>
 
           <div className="flex items-center gap-3 p-2.5 rounded-xl sm:border-l sm:border-[#303238]/60 sm:pl-4">
-            <div className="w-9 h-9 rounded-lg bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center shrink-0">
-              <LayersIcon className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-lg bg-[#1B1D21] border border-[#303238] flex items-center justify-center shrink-0">
+              <DuotoneExercisesIcon className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-baseline gap-1.5">

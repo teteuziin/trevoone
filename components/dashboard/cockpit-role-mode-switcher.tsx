@@ -3,6 +3,10 @@
 import React, { useTransition } from "react";
 import { setConsultancyViewModeAction } from "@/app/consultoria/[slug]/view-mode/actions";
 import type { ConsultancyPresentationMode } from "@/lib/consultancies/view-mode";
+import {
+  DuotoneTrainingIcon,
+  DuotoneOperationsIcon,
+} from "@/components/ui/icons/duotone-icons";
 
 interface CockpitRoleModeSwitcherProps {
   consultancySlug: string;
@@ -58,20 +62,7 @@ export function CockpitRoleModeSwitcher({
           }`}
           aria-hidden="true"
         />
-        <svg
-          className="w-4 h-4 shrink-0"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-          aria-hidden="true"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 9l3-3 2 2-3 3z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 20l3-3 2 2-3 3z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 10.5l4-4" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17.5 21.5l4-4" />
-        </svg>
+        <DuotoneTrainingIcon className="w-4 h-4 shrink-0" />
         <span>Treinador</span>
       </button>
 
@@ -95,16 +86,7 @@ export function CockpitRoleModeSwitcher({
           }`}
           aria-hidden="true"
         />
-        <svg
-          className="w-4 h-4 shrink-0"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-          aria-hidden="true"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-        </svg>
+        <DuotoneOperationsIcon className="w-4 h-4 shrink-0" />
         <span>Administração</span>
       </button>
 

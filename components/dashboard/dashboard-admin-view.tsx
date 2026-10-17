@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/button";
 import { ConsultancyPhotoEditor } from "@/components/consultancies/consultancy-photo-editor";
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
+import {
+  DuotoneOperationsIcon,
+  DuotoneStudentsIcon,
+  DuotoneFinanceIcon,
+  DuotoneActivityIcon,
+} from "@/components/ui/icons/duotone-icons";
 
 interface DashboardAdminViewProps {
   consultancySlug: string;
@@ -33,47 +39,6 @@ function CameraIcon({ className = "w-4 h-4" }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  );
-}
-
-function SlidersIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  );
-}
-
-function UserPlusIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-    </svg>
-  );
-}
-
-function UsersIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-    </svg>
-  );
-}
-
-function CreditCardIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-    </svg>
-  );
-}
-
-function ActivityIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
     </svg>
   );
 }
@@ -274,8 +239,8 @@ export function DashboardAdminView({
               className="flex items-center justify-between p-3.5 hover:bg-[#1B1D21] active:bg-[#1B1D21] transition-colors group cursor-pointer min-h-[48px]"
             >
               <div className="flex items-center gap-3 min-w-0 pr-2">
-                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center shrink-0">
-                  <UsersIcon className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center shrink-0">
+                  <DuotoneStudentsIcon className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
                   <span className="block text-xs font-semibold text-white group-hover:text-[#10B981] transition-colors truncate font-sans">
@@ -296,8 +261,8 @@ export function DashboardAdminView({
               className="flex items-center justify-between p-3.5 hover:bg-[#1B1D21] active:bg-[#1B1D21] transition-colors group cursor-pointer min-h-[48px]"
             >
               <div className="flex items-center gap-3 min-w-0 pr-2">
-                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center shrink-0">
-                  <CreditCardIcon className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center shrink-0">
+                  <DuotoneFinanceIcon className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
                   <span className="block text-xs font-semibold text-white group-hover:text-[#10B981] transition-colors truncate font-sans">
@@ -318,8 +283,8 @@ export function DashboardAdminView({
               className="flex items-center justify-between p-3.5 hover:bg-[#1B1D21] active:bg-[#1B1D21] transition-colors group cursor-pointer min-h-[48px]"
             >
               <div className="flex items-center gap-3 min-w-0 pr-2">
-                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center shrink-0">
-                  <SlidersIcon className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center shrink-0">
+                  <DuotoneOperationsIcon className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
                   <span className="block text-xs font-semibold text-white group-hover:text-[#10B981] transition-colors truncate font-sans">
@@ -340,8 +305,8 @@ export function DashboardAdminView({
               className="flex items-center justify-between p-3.5 hover:bg-[#1B1D21] active:bg-[#1B1D21] transition-colors group cursor-pointer min-h-[48px]"
             >
               <div className="flex items-center gap-3 min-w-0 pr-2">
-                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center shrink-0">
-                  <ActivityIcon className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center shrink-0">
+                  <DuotoneActivityIcon className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
                   <span className="block text-xs font-semibold text-white group-hover:text-[#10B981] transition-colors truncate font-sans">
@@ -471,7 +436,7 @@ export function DashboardAdminView({
                   aria-label="Operações"
                   className="font-bold text-sm rounded-xl px-4 py-2.5 bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] hover:border-[#10B981]/50 text-white transition-all min-h-[44px] flex items-center gap-2 active:scale-[0.98] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#10B981] focus-visible:outline-none"
                 >
-                  <SlidersIcon className="w-4 h-4 text-[#10B981]" aria-hidden="true" />
+                  <DuotoneOperationsIcon className="w-4 h-4" aria-hidden="true" />
                   <span>Operações</span>
                 </button>
               </Link>
@@ -482,7 +447,7 @@ export function DashboardAdminView({
                   aria-label="Convidar Membro"
                   className="font-bold text-sm rounded-xl px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-sm transition-all min-h-[44px] flex items-center gap-2 active:scale-[0.98] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#10B981] focus-visible:outline-none"
                 >
-                  <UserPlusIcon className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
+                  <DuotoneStudentsIcon className="w-4 h-4" variant="monochrome" aria-hidden="true" />
                   <span>+ Convidar Membro</span>
                 </button>
               </Link>

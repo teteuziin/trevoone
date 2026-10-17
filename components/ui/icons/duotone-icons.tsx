@@ -733,3 +733,159 @@ export function DuotoneReferralsIcon({
   );
 }
 
+/**
+ * Fotos de Evolução — Câmera e Registro Visual (Azul)
+ */
+export function DuotonePhotosIcon({
+  className = "w-5 h-5",
+  size,
+  variant = "duotone",
+}: DuotoneIconProps) {
+  const theme = AREA_ICON_THEMES.students;
+  const isDuotone = variant === "duotone";
+
+  return (
+    <svg
+      className={`${className} shrink-0`}
+      style={size ? { width: size, height: size } : undefined}
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.8}
+      aria-hidden="true"
+    >
+      {/* Moldura da câmera com duotone */}
+      <rect
+        x="3"
+        y="6"
+        width="18"
+        height="15"
+        rx="3"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={isDuotone ? theme.cssStrokeClass : undefined}
+      />
+      {/* Topo do visor */}
+      <path
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M8.5 6V4.5a1.5 1.5 0 011.5-1.5h4a1.5 1.5 0 011.5 1.5V6"
+        className={isDuotone ? `${theme.cssStrokeClass} ${theme.cssFillClass}` : "fill-current/20"}
+      />
+      {/* Lente circular preenchida em duotone */}
+      <circle
+        cx="12"
+        cy="13.5"
+        r="3.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={isDuotone ? `${theme.cssStrokeClass} ${theme.cssFillClass}` : "fill-current/20"}
+      />
+      {/* Indicador de flash */}
+      <circle cx="17.5" cy="9" r="0.8" fill="currentColor" className={isDuotone ? theme.cssStrokeClass : undefined} />
+    </svg>
+  );
+}
+
+/**
+ * Anamnese — Prancheta Clínica e Histórico de Saúde (Violeta)
+ */
+export function DuotoneAnamnesisIcon({
+  className = "w-5 h-5",
+  size,
+  variant = "duotone",
+}: DuotoneIconProps) {
+  const theme = AREA_ICON_THEMES.consultations;
+  const isDuotone = variant === "duotone";
+
+  return (
+    <svg
+      className={`${className} shrink-0`}
+      style={size ? { width: size, height: size } : undefined}
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.8}
+      aria-hidden="true"
+    >
+      {/* Base da prancheta */}
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="16"
+        rx="2.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={isDuotone ? theme.cssStrokeClass : undefined}
+      />
+      {/* Grampo superior em duotone */}
+      <path
+        d="M9 3.5h6a1.5 1.5 0 011.5 1.5v1H7.5V5A1.5 1.5 0 019 3.5z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={isDuotone ? `${theme.cssStrokeClass} ${theme.cssFillClass}` : "fill-current/20"}
+      />
+      {/* Cruz clínica de saúde no centro */}
+      <path
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 10.5v6M9 13.5h6"
+        className={isDuotone ? theme.cssStrokeClass : undefined}
+      />
+    </svg>
+  );
+}
+
+/**
+ * Formulários — Questionários e Termos (Azul-petróleo / Teal)
+ */
+export function DuotoneFormsIcon({
+  className = "w-5 h-5",
+  size,
+  variant = "duotone",
+}: DuotoneIconProps) {
+  const theme = AREA_ICON_THEMES.operations;
+  const isDuotone = variant === "duotone";
+
+  return (
+    <svg
+      className={`${className} shrink-0`}
+      style={size ? { width: size, height: size } : undefined}
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.8}
+      aria-hidden="true"
+    >
+      {/* Folha do documento */}
+      <path
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5 4a1.5 1.5 0 011.5-1.5h8.5l5 5V20a1.5 1.5 0 01-1.5 1.5h-12A1.5 1.5 0 015 20V4z"
+        className={isDuotone ? theme.cssStrokeClass : undefined}
+      />
+      {/* Orelha dobrada com preenchimento duotone */}
+      <path
+        d="M15 2.5V7a1 1 0 001 1h4.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={isDuotone ? `${theme.cssStrokeClass} ${theme.cssFillClass}` : "fill-current/20"}
+      />
+      {/* Linhas de perguntas */}
+      <path
+        stroke="currentColor"
+        strokeLinecap="round"
+        d="M8.5 11.5h7M8.5 14.5h5M8.5 17.5h7"
+        className={isDuotone ? theme.cssStrokeClass : undefined}
+      />
+    </svg>
+  );
+}
+
+

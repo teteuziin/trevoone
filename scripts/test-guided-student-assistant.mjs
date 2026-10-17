@@ -191,6 +191,84 @@ runTest("5.2 Abas desktop claras e seletor compacto no mobile sem abas comprimid
   );
 });
 
+runTest("5.3 Cabeçalho executivo preto/grafite (#151619) com CTA contextual e menu secundário", () => {
+  assert.ok(
+    detailViewCode.includes("bg-[#151619]") && detailViewCode.includes("border-[#303238]"),
+    "Cabeçalho no padrão executivo preto/grafite (#151619, border #303238)"
+  );
+  assert.ok(
+    detailViewCode.includes("Abrir treino") && detailViewCode.includes("Criar treino"),
+    "Ação principal única e contextual: 'Abrir treino' se ativo, 'Criar treino' se nenhum"
+  );
+  assert.ok(
+    detailViewCode.includes("isSecondaryMenuOpen") && detailViewCode.includes("MoreDotsIcon"),
+    "Menu de ações secundárias acessível para fotos, anamnese e formulários"
+  );
+});
+
+runTest("5.4 Ícones duotone coloridos oficiais nas 5 seções do perfil", () => {
+  assert.ok(
+    detailViewCode.includes("DuotoneOverviewIcon") &&
+    detailViewCode.includes("DuotoneTrainingIcon") &&
+    detailViewCode.includes("DuotonePhotosIcon") &&
+    detailViewCode.includes("DuotoneAnamnesisIcon") &&
+    detailViewCode.includes("DuotoneFormsIcon"),
+    "Utiliza os ícones duotone coloridos oficiais para Visão Geral, Treinos, Fotos, Anamnese e Formulários"
+  );
+});
+
+runTest("5.5 Visão Geral com Radar objetivo e campos em branco com 'Não informado'", () => {
+  assert.ok(
+    detailViewCode.includes("Não informado"),
+    "Exibe 'Não informado' para campos de objetivo ou biometria em branco"
+  );
+  assert.ok(
+    !detailViewCode.includes('"Massa Magra + Definição"'),
+    "Não inventa metas falsas ou hardcoded como 'Massa Magra + Definição'"
+  );
+  assert.ok(
+    detailViewCode.includes("grid-cols-1 lg:grid-cols-2"),
+    "Distribuição da Visão Geral em 2 colunas no desktop e 1 no mobile"
+  );
+});
+
+runTest("5.6 Treinos: Destaque moderado no ativo e histórico em lista discreta", () => {
+  assert.ok(
+    detailViewCode.includes("Treino Ativo Atual") || detailViewCode.includes("activeWorkout"),
+    "Destaque moderado para treino ativo atual"
+  );
+  assert.ok(
+    detailViewCode.includes("Histórico de Treinos Anteriores") || detailViewCode.includes("endedWorkouts"),
+    "Histórico de treinos anteriores em lista discreta sem competir visualmente com o atual"
+  );
+  assert.ok(
+    !detailViewCode.includes("Abrir no Criador"),
+    "Substituído 'Abrir no Criador' por destinos claros como 'Abrir treino'"
+  );
+});
+
+runTest("5.7 Fotos com miniaturas proporcionais 3:4 e modal lightbox", () => {
+  assert.ok(
+    detailViewCode.includes("aspect-[3/4]"),
+    "Miniaturas fotográficas nas proporções 3:4 padronizadas"
+  );
+  assert.ok(
+    detailViewCode.includes("lightboxImage") && detailViewCode.includes("setLightboxImage"),
+    "Visualização ampliada (lightbox) ao clicar em qualquer foto"
+  );
+});
+
+runTest("5.8 Anamnese e Formulários refletem dados reais com 'Ver respostas'", () => {
+  assert.ok(
+    detailViewCode.includes("selectedFormForModal") && detailViewCode.includes("Ver respostas"),
+    "Modal de ver respostas presente na aba Formulários"
+  );
+  assert.ok(
+    detailViewCode.includes("tab-anamnese") && detailViewCode.includes("Histórico Clínico"),
+    "Seção Anamnese estruturada com perguntas e respostas limpas"
+  );
+});
+
 // -----------------------------------------------------------------------------
 // 6. VISUAL & PAPEL DE PAREDE
 // -----------------------------------------------------------------------------
@@ -214,3 +292,4 @@ console.log("===================================================================
 if (failed > 0) {
   process.exit(1);
 }
+

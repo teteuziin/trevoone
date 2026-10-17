@@ -7,12 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/account/user-avatar";
 import {
-  MobileCard,
-  MobileActionSheet,
-  MobileEmptyState,
-  MobilePageHeader,
-  type ActionSheetOption,
-} from "@/components/ui/mobile";
+  DuotoneOverviewIcon,
+  DuotoneTrainingIcon,
+  DuotonePhotosIcon,
+  DuotoneAnamnesisIcon,
+  DuotoneFormsIcon,
+} from "@/components/ui/icons/duotone-icons";
 import { PersonalRequestModal, type RequestModalType } from "./personal-request-modal";
 import { StudentNewWorkoutSheet } from "./student-new-workout-sheet";
 import type { StudentEvaluationResult } from "@/lib/monitoring/evaluator";
@@ -30,24 +30,15 @@ interface PersonalStudentDetailViewProps {
   backHref?: string;
 }
 
-type TabKey = "visao-geral" | "radar" | "fotos" | "anamnese" | "formularios" | "treinos" | "avaliacoes";
-type MobileTabKey = "resumo" | "visao-geral" | "treinos" | "fotos" | "anamnese" | "formularios" | "nutricao" | "avaliacoes" | "evolucao" | "mais";
+type TabKey = "visao-geral" | "treinos" | "fotos" | "anamnese" | "formularios" | "avaliacoes" | "nutricao";
 
+// ============================================================================
+// ICONS
+// ============================================================================
 function ChevronDownIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-    </svg>
-  );
-}
-
-function LayoutGridIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" />
     </svg>
   );
 }
@@ -179,15 +170,12 @@ export function PersonalStudentDetailView({
     nutrition = [],
   } = detail;
 
-  // Desktop active tab
   const [activeTab, setActiveTab] = useState<TabKey>("visao-geral");
-
-  // Mobile active tab
-  const [mobileTab, setMobileTab] = useState<MobileTabKey>("resumo");
   const [isMobileSectionMenuOpen, setIsMobileSectionMenuOpen] = useState(false);
+  const [isSecondaryMenuOpen, setIsSecondaryMenuOpen] = useState(false);
 
   const [selectedFormForModal, setSelectedFormForModal] = useState<StudentFormAnswer | null>(null);
-  const [isMobileActionSheetOpen, setIsMobileActionSheetOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; pose: string; date?: string } | null>(null);
   const [isNewWorkoutSheetOpen, setIsNewWorkoutSheetOpen] = useState(false);
   const [requestModal, setRequestModal] = useState<{ isOpen: boolean; type: RequestModalType }>({
     isOpen: false,
@@ -196,191 +184,111 @@ export function PersonalStudentDetailView({
 
   const isNutritionist = effectiveMode === "NUTRITIONIST" || userRoles.includes("NUTRITIONIST");
   const isPersonal = effectiveMode === "PERSONAL" || userRoles.includes("PERSONAL");
-  const isAdmin = effectiveMode === "ADMIN" || effectiveMode === "CONSULTANCY_ADMIN" || userRoles.includes("CONSULTANCY_ADMIN");
 
-  const createWorkoutHref = `/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`;
   const createPlanHref = `/consultoria/${consultancySlug}/planos-v2/novo?student=${student.membershipPublicId}`;
 
-  // Desktop tabs list (Ordered per specification: Visão Geral, Treinos, Fotos, Anamnese, Formulários)
-  const desktopTabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }> = [
-    { key: "visao-geral", label: "Visão Geral", icon: LayoutGridIcon },
-    { key: "treinos", label: "Treinos", icon: DumbbellIcon, count: workouts.length },
-    { key: "fotos", label: "Fotos", icon: PhotoIcon, count: photos.length },
-    { key: "anamnese", label: "Anamnese", icon: ClipboardCheckIcon },
-    { key: "formularios", label: "Formulários", icon: FileTextIcon, count: forms.length },
+  // Real active workout vs ended workouts
+  const activeWorkout = workouts.find((w) => w.status === "ACTIVE") || null;
+  const endedWorkouts = workouts.filter((w) => w.status === "ENDED");
+
+  // Navigation sections list (Ordered per specification)
+  const desktopTabs: Array<{
+    key: TabKey;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    count?: number;
+    badge?: string;
+  }> = [
+    { key: "visao-geral", label: "Visão Geral", icon: DuotoneOverviewIcon },
+    { key: "treinos", label: "Treinos", icon: DuotoneTrainingIcon, count: workouts.length },
+    { key: "fotos", label: "Fotos", icon: DuotonePhotosIcon, count: photos.length },
+    {
+      key: "anamnese",
+      label: "Anamnese",
+      icon: DuotoneAnamnesisIcon,
+      badge: overview.hasAnamnesis ? "Preenchida" : "Pendente",
+    },
+    { key: "formularios", label: "Formulários", icon: DuotoneFormsIcon, count: forms.length },
   ];
 
   if (measurements.length > 0) {
     desktopTabs.push({ key: "avaliacoes", label: "Avaliações", icon: ScaleIcon, count: measurements.length });
   }
 
-  // Mobile sections list (Compact selector options with icon & text)
-  const mobileSections: Array<{ id: MobileTabKey; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }> = [
-    { id: "resumo", label: "Visão Geral", icon: LayoutGridIcon },
-    { id: "treinos", label: "Treinos", icon: DumbbellIcon, count: workouts.length },
-    { id: "fotos", label: "Fotos", icon: PhotoIcon, count: photos.length },
-    { id: "anamnese", label: "Anamnese", icon: ClipboardCheckIcon },
-    { id: "formularios", label: "Formulários", icon: FileTextIcon, count: forms.length },
-  ];
-
-  if (measurements.length > 0) {
-    mobileSections.push({ id: "avaliacoes", label: "Avaliações", icon: ScaleIcon, count: measurements.length });
-  }
-
   if (nutrition.length > 0) {
-    mobileSections.push({ id: "nutricao", label: "Nutrição", icon: AppleIcon, count: nutrition.length });
+    desktopTabs.push({ key: "nutricao", label: "Nutrição", icon: AppleIcon, count: nutrition.length });
   }
 
-  const currentMobileSection = mobileSections.find((s) => {
-    if ((mobileTab === "visao-geral" || mobileTab === "resumo") && s.id === "resumo") return true;
-    if (mobileTab === "evolucao" && s.id === "fotos") return true;
-    if (mobileTab === "mais" && s.id === "anamnese") return true;
-    return s.id === mobileTab;
-  }) || mobileSections[0];
+  // Mobile sections list matching desktop
+  const mobileSections = desktopTabs.map((t) => ({
+    id: t.key,
+    label: t.label,
+    icon: t.icon,
+    count: t.count,
+    badge: t.badge,
+  }));
 
-  // Real active workout vs latest prescribed workout
-  const activeWorkout = workouts.find((w) => w.status === "ACTIVE") || null;
-  const latestPrescribedWorkout = workouts.length > 0 ? workouts[0] : null;
-
-  // Real active nutrition plan
-  const activeNutritionPlan = nutrition.find((n) => n.status === "ACTIVE") || null;
-
-  const hasBiometrics = !!(overview.weightKg || overview.heightCm || overview.age || overview.sex);
-
-  // Mobile action sheet options
-  const mobileActionSheetOptions: ActionSheetOption[] = [
-    ...(isPersonal || isAdmin
-      ? [
-          {
-            id: "new-workout",
-            label: "Criar novo treino",
-            icon: <DumbbellIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
-            onClick: () => setIsNewWorkoutSheetOpen(true),
-          },
-        ]
-      : []),
-    ...(isNutritionist || isAdmin
-      ? [
-          {
-            id: "new-plan",
-            label: "Criar plano alimentar",
-            icon: <AppleIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
-            onClick: () => router.push(createPlanHref),
-          },
-        ]
-      : []),
-    {
-      id: "view-evolution",
-      label: "Abrir Cockpit de Evolução 360°",
-      icon: <ScaleIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
-      onClick: () => router.push(`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`),
-    },
-    {
-      id: "req-photos",
-      label: "Solicitar fotos de evolução",
-      icon: <PhotoIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
-      onClick: () => setRequestModal({ isOpen: true, type: "PHOTOS" }),
-    },
-    {
-      id: "req-anamnesis",
-      label: "Solicitar anamnese",
-      icon: <ClipboardCheckIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
-      onClick: () => setRequestModal({ isOpen: true, type: "ANAMNESIS" }),
-    },
-    {
-      id: "req-form",
-      label: "Solicitar questionário / formulário",
-      icon: <FileTextIcon className="w-5 h-5 text-[var(--text-secondary)]" />,
-      onClick: () => setRequestModal({ isOpen: true, type: "FORM" }),
-    },
-    ...(student.email
-      ? [
-          {
-            id: "email-student",
-            label: "Enviar e-mail para o aluno",
-            icon: <span className="text-base text-[var(--text-secondary)]">✉</span>,
-            onClick: () => {
-              window.location.href = `mailto:${student.email}`;
-            },
-          },
-        ]
-      : []),
-  ];
+  const currentSection =
+    desktopTabs.find((t) => t.key === activeTab) || desktopTabs[0];
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-16">
+    <div className="space-y-5 sm:space-y-6 pb-16">
       {/* =========================================================================
-          MOBILE-NATIVE STUDENT PROFILE VIEW (md:hidden)
-          No infinite scroll, 4-tab thumb navigation, dedicated header & actions
+          BREADCRUMB / VOLTAR AOS ALUNOS (Sem respiro vertical exagerado)
           ========================================================================= */}
-      <div className="md:hidden space-y-4" data-testid="mobile-student-profile">
-        {/* Mobile Page Header with prominent Back touch target & More button */}
-        <MobilePageHeader
-          backHref={backHref || `/consultoria/${consultancySlug}/progresso/alunos`}
-          backLabel="Voltar aos alunos"
-          eyebrow="Perfil do Aluno"
-          title={student.name}
-          subtitle={overview.objective || "Aluno ativo"}
-          actions={
-            <button
-              type="button"
-              aria-label="Mais opções do aluno"
-              onClick={() => setIsMobileActionSheetOpen(true)}
-              className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer transition-colors"
-            >
-              <MoreDotsIcon className="w-5 h-5" />
-            </button>
-          }
-        />
+      <div className="flex items-center justify-between">
+        <Link
+          href={backHref || `/consultoria/${consultancySlug}/progresso/alunos`}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px] cursor-pointer"
+        >
+          <ArrowLeftIcon className="w-4 h-4" />
+          <span>Voltar aos alunos</span>
+        </Link>
+      </div>
 
-        {/* Mobile Student Hero Card */}
-        <div className="p-4 sm:p-5 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs space-y-3.5 depth-surface">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3.5 min-w-0 flex-1">
-              <UserAvatar
-                fullName={student.name}
-                userPublicId={student.userPublicId}
-                size="lg"
-                className="shrink-0 shadow-xs"
-              />
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <h1 className="font-heading text-base font-bold text-[var(--text-primary)] truncate">
+      {/* =========================================================================
+          CABEÇALHO EXECUTIVO DO PERFIL (Padrão Preto/Grafite #151619)
+          ========================================================================= */}
+      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#151619] border border-[#303238] shadow-xs text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
+          {/* Aluno: Avatar + Nome + Badge Ativo + Email */}
+          <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+            <UserAvatar
+              fullName={student.name}
+              userPublicId={student.userPublicId}
+              size="lg"
+              className="shrink-0 shadow-sm border border-[#303238]"
+            />
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="font-heading text-lg sm:text-2xl font-bold text-white tracking-tight truncate">
                   {student.name}
                 </h1>
-                <p className="text-[11px] text-[var(--text-secondary)] truncate">
-                  {student.email}
-                </p>
-                {student.phone && (
-                  <p className="text-[11px] text-[var(--text-tertiary)] truncate">
-                    {student.phone}
-                  </p>
-                )}
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  Ativo
+                </span>
               </div>
+              <p className="text-xs sm:text-sm text-[#9CA3AF] truncate">
+                {student.email}
+                {student.phone ? ` • ${student.phone}` : ""}
+              </p>
             </div>
-
-            <Badge variant="success" size="sm" className="shrink-0 font-bold text-[10px]">
-              Ativo
-            </Badge>
           </div>
 
-          {/* Objective Tag & Quick Status */}
-          {overview.objective && (
-            <div className="flex items-center gap-1.5 p-2 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs">
-              <span className="text-[10px] font-bold text-[var(--brand)] uppercase tracking-wider">
-                Objetivo:
-              </span>
-              <span className="font-medium text-[var(--text-primary)] truncate">
-                {overview.objective}
-              </span>
-            </div>
-          )}
-
-          {/* Primary Mobile Contextual Action (>= 48px touch target) */}
-          <div className="flex items-center gap-2 pt-0.5">
-            {isNutritionist && !isPersonal ? (
+          {/* Ações do Cabeçalho: CTA Contextual Único + Menu Secundário */}
+          <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t border-[#303238] sm:border-0">
+            {activeWorkout ? (
+              <Link
+                href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition-colors min-h-[44px] shadow-sm cursor-pointer"
+              >
+                <DumbbellIcon className="w-4 h-4" />
+                <span>Abrir treino</span>
+              </Link>
+            ) : isNutritionist && !isPersonal ? (
               <Link
                 href={createPlanHref}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs sm:text-sm text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[48px] shadow-sm depth-interactive cursor-pointer"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition-colors min-h-[44px] shadow-sm cursor-pointer"
               >
                 <AppleIcon className="w-4 h-4" />
                 <span>Criar plano alimentar</span>
@@ -389,839 +297,101 @@ export function PersonalStudentDetailView({
               <button
                 type="button"
                 onClick={() => setIsNewWorkoutSheetOpen(true)}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs sm:text-sm text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[48px] shadow-sm depth-interactive cursor-pointer"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition-colors min-h-[44px] shadow-sm cursor-pointer"
               >
                 <PlusIcon className="w-4 h-4" />
                 <span>Criar treino</span>
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => setIsMobileActionSheetOpen(true)}
-              aria-label="Ações secundárias do aluno"
-              className="inline-flex items-center justify-center p-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[48px] min-w-[48px] cursor-pointer shrink-0"
-            >
-              <MoreDotsIcon className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Compact Section Selector (Non-squished, readable, >= 48px target) */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setIsMobileSectionMenuOpen((prev) => !prev)}
-            className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs min-h-[48px] cursor-pointer transition-colors"
-            aria-expanded={isMobileSectionMenuOpen}
-            aria-label="Alternar seção"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <currentMobileSection.icon className="w-4 h-4 text-[var(--brand)]" />
-              <span className="font-bold text-sm text-[var(--text-primary)]">
-                {currentMobileSection.label}
-              </span>
-              {currentMobileSection.count !== undefined && (
-                <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-[var(--brand)]/10 text-[var(--brand)]">
-                  {currentMobileSection.count}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-              <span>Seções</span>
-              <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isMobileSectionMenuOpen ? "rotate-180" : ""}`} />
-            </div>
-          </button>
-
-          {isMobileSectionMenuOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setIsMobileSectionMenuOpen(false)}
-                aria-hidden="true"
-              />
-              <div className="absolute top-full left-0 right-0 mt-2 z-50 p-2 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl space-y-1">
-                {mobileSections.map((sec) => {
-                  const SecIcon = sec.icon;
-                  const isSelected =
-                    mobileTab === sec.id ||
-                    (sec.id === "resumo" && mobileTab === "visao-geral") ||
-                    (sec.id === "fotos" && mobileTab === "evolucao") ||
-                    (sec.id === "anamnese" && mobileTab === "mais");
-                  return (
-                    <button
-                      key={sec.id}
-                      type="button"
-                      onClick={() => {
-                        setMobileTab(sec.id);
-                        setIsMobileSectionMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-colors min-h-[44px] cursor-pointer ${
-                        isSelected
-                          ? "bg-[var(--brand)]/10 text-[var(--brand)] font-bold"
-                          : "text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <SecIcon className="w-4 h-4" />
-                        <span>{sec.label}</span>
-                      </div>
-                      {sec.count !== undefined && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--surface-subtle)] text-[var(--text-secondary)]">
-                          {sec.count}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* =====================================================================
-            MOBILE TAB 1: RESUMO (Quick overview, key status, no infinite scroll)
-            ===================================================================== */}
-        {mobileTab === "resumo" && (
-          <div className="space-y-3.5" data-testid="mobile-tab-resumo">
-            {/* Radar / Alert Banner (if any) */}
-            {studentMonitoring && studentMonitoring.state !== "OK" && (
-              studentMonitoring.state === "INSUFFICIENT_DATA" ? (
-                <div className="p-3 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Radar</span>
-                  <span>Sem treinos ou check-ins recentes registrados.</span>
-                </div>
-              ) : (
-                <div
-                  className={`p-3.5 rounded-2xl border space-y-1.5 ${
-                    studentMonitoring.state === "CRITICAL"
-                      ? "bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400"
-                      : "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider">
-                      {studentMonitoring.state === "CRITICAL" ? "Alerta Crítico" : "Requer Atenção"}
-                    </span>
-                    <Badge variant={studentMonitoring.state === "CRITICAL" ? "danger" : "warning"} size="sm">
-                      Radar
-                    </Badge>
-                  </div>
-                  <p className="text-xs font-semibold">
-                    {studentMonitoring.alerts.find((a) => a.status === "OPEN")?.statement ||
-                      "Aluno com queda de frequência ou pendências registradas."}
-                  </p>
-                </div>
-              )
-            )}
-
-            {/* Quick Metrics: Compact and grouped without wasting vertical screen space */}
-            {hasBiometrics ? (
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                    Peso Atual
-                  </span>
-                  <p className="text-base font-bold text-[var(--text-primary)]">
-                    {overview.weightKg ? `${overview.weightKg} kg` : "—"}
-                  </p>
-                  {overview.lastWeightRecordedOn && (
-                    <p className="text-[10px] text-[var(--text-secondary)]">
-                      em {formatDisplayDate(overview.lastWeightRecordedOn)}
-                    </p>
-                  )}
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                    Altura
-                  </span>
-                  <p className="text-base font-bold text-[var(--text-primary)]">
-                    {overview.heightCm ? `${overview.heightCm} cm` : "—"}
-                  </p>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                    Idade
-                  </span>
-                  <p className="text-base font-bold text-[var(--text-primary)]">
-                    {overview.age ? `${overview.age} anos` : "—"}
-                  </p>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] space-y-0.5 shadow-2xs">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                    Sexo
-                  </span>
-                  <p className="text-base font-bold text-[var(--text-primary)]">
-                    {overview.sex || "—"}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xs text-xs text-[var(--text-secondary)] flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] shrink-0">Biometria:</span>
-                  <span>Dados biométricos não informados pelo aluno.</span>
-                </div>
-                {overview.hasAnamnesis && (
-                  <button
-                    type="button"
-                    onClick={() => setMobileTab("mais")}
-                    className="text-xs font-semibold text-[var(--brand)] hover:underline shrink-0"
-                  >
-                    Anamnese &rarr;
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Treino Atual Card */}
-            <MobileCard className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  <DumbbellIcon className="w-4 h-4 text-[var(--brand)]" />
-                  <span>Treino</span>
-                </div>
-                <Badge variant={activeWorkout ? "success" : latestPrescribedWorkout ? "neutral" : "neutral"} size="sm">
-                  {activeWorkout ? "Ativo" : latestPrescribedWorkout ? "Histórico" : "Sem treino"}
-                </Badge>
-              </div>
-
-              {activeWorkout ? (
-                <div className="space-y-2">
-                  <p className="text-sm font-bold text-[var(--text-primary)]">
-                    {activeWorkout.title}
-                  </p>
-                  <p className="text-[11px] text-[var(--text-secondary)]">
-                    Versão {activeWorkout.versionNumber} • Início: {formatDisplayDate(activeWorkout.startsOn)}
-                  </p>
-                  <Link
-                    href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
-                    className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] transition-colors"
-                  >
-                    <span>Abrir no Criador</span>
-                    <ChevronRightIcon className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              ) : latestPrescribedWorkout ? (
-                <div className="space-y-2">
-                  <p className="text-sm font-bold text-[var(--text-primary)]">
-                    {latestPrescribedWorkout.title}
-                  </p>
-                  <p className="text-[11px] text-[var(--text-secondary)]">
-                    Último treino • Início: {formatDisplayDate(latestPrescribedWorkout.startsOn)}
-                    {latestPrescribedWorkout.endsOn ? ` • Encerrado: ${formatDisplayDate(latestPrescribedWorkout.endsOn)}` : ""}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setIsNewWorkoutSheetOpen(true)}
-                    className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] transition-colors cursor-pointer"
-                  >
-                    <PlusIcon className="w-3.5 h-3.5" />
-                    <span>+ Prescrever novo treino</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    Nenhum treino prescrito no momento.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setIsNewWorkoutSheetOpen(true)}
-                    className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] transition-colors cursor-pointer"
-                  >
-                    <PlusIcon className="w-3.5 h-3.5" />
-                    <span>+ Prescrever treino</span>
-                  </button>
-                </div>
-              )}
-            </MobileCard>
-
-            {/* Nutrição / Plano Alimentar Card */}
-            <MobileCard className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  <AppleIcon className="w-4 h-4 text-amber-500" />
-                  <span>Plano Alimentar</span>
-                </div>
-                <Badge variant={activeNutritionPlan ? "success" : "neutral"} size="sm">
-                  {activeNutritionPlan ? "Ativo" : "Sem plano"}
-                </Badge>
-              </div>
-
-              {activeNutritionPlan ? (
-                <div className="space-y-2">
-                  <p className="text-sm font-bold text-[var(--text-primary)]">
-                    {activeNutritionPlan.title}
-                  </p>
-                  <p className="text-[11px] text-[var(--text-secondary)]">
-                    Versão {activeNutritionPlan.versionNumber} • Início: {formatDisplayDate(activeNutritionPlan.startsOn)}
-                  </p>
-                  <Link
-                    href={`/consultoria/${consultancySlug}/planos-v2/${activeNutritionPlan.planPublicId}`}
-                    className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] transition-colors"
-                  >
-                    <span>Ver plano alimentar</span>
-                    <ChevronRightIcon className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    Nenhum plano alimentar prescrito no momento.
-                  </p>
-                  <Link
-                    href={createPlanHref}
-                    className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] transition-colors"
-                  >
-                    <PlusIcon className="w-3.5 h-3.5" />
-                    <span>+ Prescrever plano alimentar</span>
-                  </Link>
-                </div>
-              )}
-            </MobileCard>
-
-            {/* Evolução & Fotos Summary Card */}
-            <MobileCard className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  <ScaleIcon className="w-4 h-4 text-blue-500" />
-                  <span>Evolução &amp; Fotos</span>
-                </div>
-                <Badge variant={photos.length > 0 ? "brand" : "neutral"} size="sm">
-                  {photos.length} avaliação(ões)
-                </Badge>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  {photos.length > 0
-                    ? `${photos.length} envio(s) de fotos e ${measurements.length} registro(s) de medidas corporais.`
-                    : "Nenhuma avaliação fotográfica anexada até o momento."}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setMobileTab("evolucao")}
-                  className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] transition-colors cursor-pointer"
-                >
-                  <span>Ver evolução e fotos</span>
-                  <ChevronRightIcon className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </MobileCard>
-          </div>
-        )}
-
-        {/* =====================================================================
-            MOBILE TAB 2: TREINOS (Prescribed workouts & execution history)
-            ===================================================================== */}
-        {mobileTab === "treinos" && (
-          <div className="space-y-4" data-testid="mobile-tab-treinos">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                Rotinas de Treino ({workouts.length})
-              </h2>
+            {/* Menu Dropdown de Ações Secundárias */}
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => setIsNewWorkoutSheetOpen(true)}
-                className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer"
+                onClick={() => setIsSecondaryMenuOpen((prev) => !prev)}
+                aria-label="Mais opções do aluno"
+                className="inline-flex items-center justify-center p-2.5 rounded-xl text-[#9CA3AF] hover:text-white bg-[#222429] hover:bg-[#2A2D33] border border-[#3A3D45] min-h-[44px] min-w-[44px] transition-colors cursor-pointer"
               >
-                <PlusIcon className="w-3.5 h-3.5" />
-                <span>Criar treino</span>
+                <MoreDotsIcon className="w-5 h-5" />
               </button>
-            </div>
 
-            {workouts.length === 0 ? (
-              <MobileEmptyState
-                title="Nenhum treino prescrito"
-                description="Monte o primeiro treino personalizado do aluno usando o Criador Modular."
-                icon={<DumbbellIcon className="w-7 h-7 text-[var(--brand)]" />}
-                action={
-                  <button
-                    type="button"
-                    onClick={() => setIsNewWorkoutSheetOpen(true)}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[48px] cursor-pointer"
-                  >
-                    <PlusIcon className="w-4 h-4" />
-                    <span>Criar primeiro treino</span>
-                  </button>
-                }
-              />
-            ) : (
-              <div className="space-y-3">
-                {workouts.map((w) => (
-                  <MobileCard key={w.assignmentPublicId} className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <Badge variant={w.status === "ACTIVE" ? "success" : "neutral"} size="sm">
-                        {w.status === "ACTIVE" ? "Em andamento" : "Encerrado"}
-                      </Badge>
-                      <span className="text-[10px] font-semibold text-[var(--text-tertiary)]">
-                        Versão {w.versionNumber}
-                      </span>
-                    </div>
-
-                    <div className="space-y-0.5">
-                      <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                        {w.title}
-                      </h3>
-                      {w.subtitle && (
-                        <p className="text-xs text-[var(--text-secondary)]">{w.subtitle}</p>
-                      )}
-                    </div>
-
-                    <div className="text-[11px] text-[var(--text-tertiary)] space-y-0.5">
-                      <p>Início: {formatDisplayDate(w.startsOn)} {w.endsOn ? `• Término: ${formatDisplayDate(w.endsOn)}` : ""}</p>
-                      {w.notesForStudent && (
-                        <p className="italic text-[var(--text-secondary)] line-clamp-2">
-                          &quot;{w.notesForStudent}&quot;
-                        </p>
-                      )}
-                    </div>
-
-                    <Link
-                      href={`/consultoria/${consultancySlug}/rotinas/${w.workoutPublicId}?version=${w.versionPublicId}&student=${student.membershipPublicId}`}
-                      className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] transition-colors"
+              {isSecondaryMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsSecondaryMenuOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div className="absolute right-0 mt-2 z-50 w-64 p-1.5 rounded-2xl bg-[#1C1E22] border border-[#303238] shadow-xl space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSecondaryMenuOpen(false);
+                        setRequestModal({ isOpen: true, type: "PHOTOS" });
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#E5E7EB] hover:bg-[#2A2D33] transition-colors min-h-[40px] text-left cursor-pointer"
                     >
-                      <span>Abrir no Criador</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5" />
-                    </Link>
-                  </MobileCard>
-                ))}
-              </div>
-            )}
-
-            {/* Completed Execution Sessions */}
-            {completedSessions.length > 0 && (
-              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-3">
-                <h3 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  Histórico de Execuções ({completedSessions.length})
-                </h3>
-                <div className="divide-y divide-[var(--border-subtle)]">
-                  {completedSessions.map((session) => (
-                    <div key={session.publicId} className="py-2.5 flex items-center justify-between text-xs gap-2">
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <p className="font-bold text-[var(--text-primary)] truncate">
-                          {session.workoutTitle}
-                        </p>
-                        <p className="text-[10px] text-[var(--text-tertiary)]">
-                          {new Date(session.completedAt).toLocaleDateString("pt-BR")} às{" "}
-                          {new Date(session.completedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                        </p>
-                      </div>
-                      <Badge variant="success" size="sm" className="shrink-0 text-[10px]">
-                        {session.completedSetsCount} séries
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* =====================================================================
-            MOBILE TAB 3: NUTRIÇÃO (Nutrition plans & prescribed diets)
-            ===================================================================== */}
-        {mobileTab === "nutricao" && (
-          <div className="space-y-4" data-testid="mobile-tab-nutricao">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                Planos Nutricionais ({nutrition.length})
-              </h2>
-              <Link
-                href={createPlanHref}
-                className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer"
-              >
-                <PlusIcon className="w-3.5 h-3.5" />
-                <span>+ Criar plano</span>
-              </Link>
-            </div>
-
-            {nutrition.length === 0 ? (
-              <MobileEmptyState
-                title="Nenhum plano alimentar"
-                description="Prescreva um cardápio ou plano alimentar nutricional para este aluno."
-                icon={<AppleIcon className="w-7 h-7 text-amber-500" />}
-                action={
-                  <Link
-                    href={createPlanHref}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[48px]"
-                  >
-                    <PlusIcon className="w-4 h-4" />
-                    <span>Prescrever primeiro plano</span>
-                  </Link>
-                }
-              />
-            ) : (
-              <div className="space-y-3">
-                {nutrition.map((n) => (
-                  <MobileCard key={n.assignmentPublicId} className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <Badge variant={n.status === "ACTIVE" ? "success" : "neutral"} size="sm">
-                        {n.status === "ACTIVE" ? "Ativo" : "Encerrado"}
-                      </Badge>
-                      <span className="text-[10px] font-semibold text-[var(--text-tertiary)]">
-                        Versão {n.versionNumber}
-                      </span>
-                    </div>
-
-                    <div className="space-y-0.5">
-                      <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                        {n.title}
-                      </h3>
-                      <p className="text-[11px] text-[var(--text-secondary)]">
-                        Início: {formatDisplayDate(n.startsOn)} {n.endsOn ? `• Término: ${formatDisplayDate(n.endsOn)}` : ""}
-                      </p>
-                    </div>
-
-                    {n.notesForStudent && (
-                      <p className="text-[11px] italic text-[var(--text-tertiary)] line-clamp-2">
-                        &quot;{n.notesForStudent}&quot;
-                      </p>
+                      <PhotoIcon className="w-4 h-4 text-blue-400" />
+                      <span>Solicitar fotos de evolução</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSecondaryMenuOpen(false);
+                        setRequestModal({ isOpen: true, type: "ANAMNESIS" });
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#E5E7EB] hover:bg-[#2A2D33] transition-colors min-h-[40px] text-left cursor-pointer"
+                    >
+                      <ClipboardCheckIcon className="w-4 h-4 text-violet-400" />
+                      <span>Solicitar anamnese</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSecondaryMenuOpen(false);
+                        setRequestModal({ isOpen: true, type: "FORM" });
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#E5E7EB] hover:bg-[#2A2D33] transition-colors min-h-[40px] text-left cursor-pointer"
+                    >
+                      <FileTextIcon className="w-4 h-4 text-teal-400" />
+                      <span>Solicitar questionário / formulário</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSecondaryMenuOpen(false);
+                        router.push(`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#E5E7EB] hover:bg-[#2A2D33] transition-colors min-h-[40px] text-left cursor-pointer"
+                    >
+                      <ScaleIcon className="w-4 h-4 text-amber-400" />
+                      <span>Abrir Cockpit de Evolução 360°</span>
+                    </button>
+                    {student.email && (
+                      <a
+                        href={`mailto:${student.email}`}
+                        onClick={() => setIsSecondaryMenuOpen(false)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#E5E7EB] hover:bg-[#2A2D33] transition-colors min-h-[40px] text-left"
+                      >
+                        <span className="w-4 text-center text-sm text-[#9CA3AF]">✉</span>
+                        <span>Enviar e-mail para o aluno</span>
+                      </a>
                     )}
-
-                    <Link
-                      href={`/consultoria/${consultancySlug}/planos-v2/${n.planPublicId}`}
-                      className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-primary)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] transition-colors"
-                    >
-                      <span>Abrir plano alimentar</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5" />
-                    </Link>
-                  </MobileCard>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* =====================================================================
-            MOBILE TAB 4: EVOLUÇÃO / FOTOS / AVALIAÇÕES
-            ===================================================================== */}
-        {(mobileTab === "evolucao" || mobileTab === "fotos" || mobileTab === "avaliacoes") && (
-          <div className="space-y-4" data-testid="mobile-tab-evolucao">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                {mobileTab === "fotos" ? `Fotos de Evolução (${photos.length})` : mobileTab === "avaliacoes" ? `Medições & Avaliações (${measurements.length})` : "Evolução & Avaliações"}
-              </h2>
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] min-h-[44px] shadow-xs cursor-pointer"
-                >
-                  <ScaleIcon className="w-3.5 h-3.5" />
-                  <span>Cockpit 360°</span>
-                </Link>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
-                  className="font-bold min-h-[44px] text-xs"
-                >
-                  + Fotos
-                </Button>
-              </div>
-            </div>
-
-            {/* Banner card linking directly to the full mobile evolution cockpit */}
-            <Link
-              href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
-              className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:border-[var(--brand)] transition-colors flex items-center justify-between gap-3 min-h-[48px] block shadow-2xs"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center shrink-0">
-                  <ScaleIcon className="w-5 h-5" />
-                </div>
-                <div className="space-y-0.5">
-                  <p className="font-heading text-xs font-bold text-[var(--text-primary)]">
-                    Ver Cockpit de Evolução Completo
-                  </p>
-                  <p className="text-[11px] text-[var(--text-secondary)]">
-                    Comparações de datas, gráficos táteis e fotos de progresso
-                  </p>
-                </div>
-              </div>
-              <ChevronRightIcon className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
-            </Link>
-
-            {/* Medições corporais (Individual touch cards, no broken horizontal table) */}
-            {measurements.length > 0 && (
-              <div className="space-y-2.5">
-                <span className="text-[11px] font-bold text-[var(--text-secondary)] block">
-                  Medições Recentes ({measurements.length})
-                </span>
-                {measurements.map((m, idx) => (
-                  <MobileCard key={`${m.recordedOn}-${idx}`} className="p-3.5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-[var(--text-primary)]">
-                        {m.recordedOn}
-                      </span>
-                      {m.weightKg && (
-                        <span className="font-extrabold text-sm text-[var(--brand)]">
-                          {m.weightKg} kg
-                        </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-[11px] text-[var(--text-secondary)] pt-1 border-t border-[var(--border-subtle)]">
-                      {m.waistCm && <div>Cintura: <span className="font-semibold text-[var(--text-primary)]">{m.waistCm}cm</span></div>}
-                      {m.abdomenCm && <div>Abdômen: <span className="font-semibold text-[var(--text-primary)]">{m.abdomenCm}cm</span></div>}
-                      {m.hipCm && <div>Quadril: <span className="font-semibold text-[var(--text-primary)]">{m.hipCm}cm</span></div>}
-                      {m.armCm && <div>Braço: <span className="font-semibold text-[var(--text-primary)]">{m.armCm}cm</span></div>}
-                      {m.thighCm && <div>Coxa: <span className="font-semibold text-[var(--text-primary)]">{m.thighCm}cm</span></div>}
-                    </div>
-                    {m.note && (
-                      <p className="text-[10px] text-[var(--text-tertiary)] italic">{m.note}</p>
-                    )}
-                  </MobileCard>
-                ))}
-              </div>
-            )}
-
-            {/* Fotos de Evolução */}
-            <div className="space-y-3">
-              <span className="text-[11px] font-bold text-[var(--text-secondary)] block">
-                Fotos de Evolução ({photos.length})
-              </span>
-
-              {photos.length === 0 ? (
-                <MobileEmptyState
-                  title="Nenhuma foto registrada"
-                  description="Solicite as 4 fotos padronizadas do aluno para acompanhar a evolução corporal."
-                  icon={<PhotoIcon className="w-7 h-7 text-blue-500" />}
-                  action={
-                    <Button
-                      variant="primary"
-                      size="md"
-                      onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
-                      className="w-full min-h-[48px] font-bold text-xs"
-                    >
-                      Solicitar fotos
-                    </Button>
-                  }
-                />
-              ) : (
-                <div className="space-y-3">
-                  {photos.map((item, idx) => (
-                    <MobileCard key={item.requestPublicId} className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">
-                          Avaliação #{photos.length - idx}
-                        </span>
-                        <Badge variant={item.status === "APPROVED" ? "success" : "neutral"} size="sm">
-                          {item.status === "APPROVED" ? "Aprovada" : item.status}
-                        </Badge>
-                      </div>
-
-                      {/* 2x2 grid of poses for mobile */}
-                      <div className="grid grid-cols-2 gap-2">
-                        {item.images.map((img) => (
-                          <div
-                            key={img.imagePublicId}
-                            className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-1.5 space-y-1 overflow-hidden"
-                          >
-                            <div className="aspect-[3/4] rounded-lg overflow-hidden bg-black/5 relative">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={img.imageUrl}
-                                alt={`Pose ${img.pose}`}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                            </div>
-                            <p className="text-[10px] font-semibold text-[var(--text-secondary)] text-center capitalize">
-                              {img.pose.replace(/_/g, " ")}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </MobileCard>
-                  ))}
-                </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
-        )}
-
-        {/* =====================================================================
-            MOBILE TAB 5: MAIS / ANAMNESE / FORMULÁRIOS
-            ===================================================================== */}
-        {(mobileTab === "mais" || mobileTab === "anamnese" || mobileTab === "formularios") && (
-          <div className="space-y-4" data-testid="mobile-tab-mais">
-            {/* Anamnese Section */}
-            {(mobileTab === "anamnese" || mobileTab === "mais") && (
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                    Anamnese &amp; Histórico
-                  </h3>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
-                    className="font-bold min-h-[40px] text-[11px]"
-                  >
-                    {anamnesis.length === 0 ? "Solicitar" : "Atualizar"}
-                  </Button>
-                </div>
-
-                {anamnesis.length === 0 ? (
-                  <MobileEmptyState
-                    title="Anamnese pendente"
-                    description="Solicite o preenchimento da anamnese médica e rotina do aluno."
-                    icon={<ClipboardCheckIcon className="w-7 h-7 text-purple-500" />}
-                  />
-                ) : (
-                  <div className="space-y-2.5">
-                    {anamnesis.map((section) => (
-                      <MobileCard key={section.title} className="space-y-2.5">
-                        <h4 className="text-[11px] font-bold text-[var(--brand)] uppercase tracking-wider border-b border-[var(--border-subtle)] pb-1.5">
-                          {section.title}
-                        </h4>
-                        <div className="space-y-2">
-                          {section.items.map((item) => (
-                            <div key={item.label} className="space-y-0.5">
-                              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] block">
-                                {item.label}
-                              </span>
-                              <p className="text-xs font-medium text-[var(--text-primary)] leading-relaxed">
-                                {item.value}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </MobileCard>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Formulários Section */}
-            {(mobileTab === "formularios" || mobileTab === "mais") && (
-              <div className="space-y-2.5 pt-2 border-t border-[var(--border-subtle)]">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                    Formulários ({forms.length})
-                  </h3>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
-                    className="font-bold min-h-[40px] text-[11px]"
-                  >
-                    + Solicitar
-                  </Button>
-                </div>
-
-                {forms.length === 0 ? (
-                  <p className="text-xs text-[var(--text-secondary)] italic">
-                    Nenhum questionário respondido.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {forms.map((form) => (
-                      <MobileCard key={form.id} className="p-3.5 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-[var(--text-primary)]">
-                            {form.title}
-                          </span>
-                          <Badge variant="success" size="sm" className="text-[10px]">
-                            {form.status}
-                          </Badge>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedFormForModal(form)}
-                          className="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl text-xs font-bold text-[var(--brand)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] min-h-[44px] cursor-pointer"
-                        >
-                          <span>Ver respostas</span>
-                          <ChevronRightIcon className="w-3.5 h-3.5" />
-                        </button>
-                      </MobileCard>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Dados Cadastrais Section */}
-            {mobileTab === "mais" && (
-              <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-2 pt-3">
-                <h3 className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  Dados Cadastrais
-                </h3>
-                <div className="space-y-1.5 text-xs text-[var(--text-secondary)]">
-                  <p>Nome: <span className="font-semibold text-[var(--text-primary)]">{student.name}</span></p>
-                  <p>E-mail: <span className="font-semibold text-[var(--text-primary)]">{student.email}</span></p>
-                  {student.phone && <p>Telefone: <span className="font-semibold text-[var(--text-primary)]">{student.phone}</span></p>}
-                  <p>Status: <span className="font-semibold text-emerald-600 dark:text-emerald-400">Ativo</span></p>
-                  <p>Membro desde: <span className="font-semibold text-[var(--text-primary)]">{new Date(student.joinedAt).toLocaleDateString("pt-BR")}</span></p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* =========================================================================
-          DESKTOP-PRESERVED STUDENT PROFILE VIEW (hidden md:block)
-          Preserved 100% without modification for desktop screens
+          NAVEGAÇÃO ENTRE AS SEÇÕES (Superfície Sólida + Ícones Duotone)
           ========================================================================= */}
-      <div className="hidden md:block space-y-6 sm:space-y-8">
-        {/* Top Breadcrumb */}
-        <div>
-          <Link
-            href={backHref || `/consultoria/${consultancySlug}/progresso/alunos`}
-            className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[44px] depth-interactive"
-          >
-            <ArrowLeftIcon className="w-4 h-4" />
-            <span>Voltar aos alunos</span>
-          </Link>
-        </div>
-
-        {/* Header Cockpit Card */}
-        <div className="p-6 sm:p-8 rounded-3xl border border-[var(--border-default)] bg-[var(--surface)] shadow-xs depth-surface flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4 sm:gap-5 min-w-0">
-            <UserAvatar
-              fullName={student.name}
-              userPublicId={student.userPublicId}
-              size="xl"
-              className="shrink-0 shadow-sm"
-            />
-            <div className="space-y-1.5 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-heading text-xl sm:text-2xl lg:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight truncate">
-                  {student.name}
-                </h1>
-                <Badge variant="success" size="sm" className="font-semibold">
-                  Aluno ativo
-                </Badge>
-              </div>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] truncate">
-                {student.email}
-                {student.phone ? ` • ${student.phone}` : ""}
-              </p>
-            </div>
-          </div>
-
-          {/* Primary CTA (Single prominent action) */}
-          <div className="flex items-center gap-3 w-full md:w-auto shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsNewWorkoutSheetOpen(true)}
-              className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-active)] transition-all min-h-[44px] shadow-sm depth-interactive cursor-pointer"
-            >
-              <PlusIcon className="w-4 h-4" />
-              <span>Criar treino</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Navigation Tabs (Desktop aligned) */}
-        <div className="border-b border-[var(--border-default)]">
-          <nav className="flex space-x-2 sm:space-x-4 overflow-x-auto scrollbar-none pb-px" aria-label="Abas do Aluno">
+      {/* Desktop Bar */}
+      <div className="hidden sm:block">
+        <div className="p-1 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-2xs">
+          <nav className="flex space-x-1" aria-label="Seções do Aluno">
             {desktopTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.key;
@@ -1230,23 +400,34 @@ export function PersonalStudentDetailView({
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-3.5 py-3 text-xs sm:text-sm font-bold border-b-2 whitespace-nowrap transition-all cursor-pointer min-h-[44px] ${
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[44px] cursor-pointer ${
                     isActive
-                      ? "border-[var(--brand)] text-[var(--brand)] font-extrabold"
-                      : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
+                      ? "bg-[#F3F4F6] dark:bg-[#222429] text-[#111827] dark:text-white font-extrabold shadow-2xs border border-[#E5E7EB] dark:border-[#3A3D45]"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[#F9FAFB] dark:hover:bg-[#1C1E22]"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4 shrink-0" />
                   <span>{tab.label}</span>
                   {tab.count !== undefined && (
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                         isActive
-                          ? "bg-[var(--brand)] text-[var(--text-inverse)]"
+                          ? "bg-white dark:bg-[#151619] text-[var(--brand)] border border-[var(--border-subtle)]"
                           : "bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
                       }`}
                     >
                       {tab.count}
+                    </span>
+                  )}
+                  {tab.badge && !isActive && (
+                    <span
+                      className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${
+                        tab.badge === "Preenchida"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                      }`}
+                    >
+                      {tab.badge}
                     </span>
                   )}
                 </button>
@@ -1254,811 +435,1011 @@ export function PersonalStudentDetailView({
             })}
           </nav>
         </div>
+      </div>
 
-        {/* TAB 1: VISÃO GERAL */}
-        {activeTab === "visao-geral" && (
-          <div className="space-y-6">
-            {/* RADAR DO ALUNO: Objective monitoring signals */}
-            {studentMonitoring && (
-              <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
-                        Monitoramento &amp; Aderência
-                      </span>
-                      <Badge
-                        variant={
-                          studentMonitoring.state === "CRITICAL"
-                            ? "danger"
-                            : studentMonitoring.state === "ATTENTION"
-                            ? "warning"
-                            : studentMonitoring.state === "INSUFFICIENT_DATA"
-                            ? "neutral"
-                            : "success"
-                        }
-                        size="sm"
-                      >
-                        {studentMonitoring.state === "CRITICAL"
-                          ? "Estado Crítico"
-                          : studentMonitoring.state === "ATTENTION"
-                          ? "Requer Atenção"
-                          : studentMonitoring.state === "INSUFFICIENT_DATA"
-                          ? "Sem dados suficientes"
-                          : "Em Dia"}
-                      </Badge>
+      {/* Mobile Compact Section Selector */}
+      <div className="sm:hidden relative">
+        <button
+          type="button"
+          onClick={() => setIsMobileSectionMenuOpen((prev) => !prev)}
+          className="w-full flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-2xs min-h-[44px] cursor-pointer"
+          aria-expanded={isMobileSectionMenuOpen}
+          aria-label="Alternar seção"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <currentSection.icon className="w-4 h-4" />
+            <span className="font-bold text-xs text-[var(--text-primary)]">
+              {currentSection.label}
+            </span>
+            {currentSection.count !== undefined && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-[var(--brand)]/10 text-[var(--brand)]">
+                {currentSection.count}
+              </span>
+            )}
+            {currentSection.badge && (
+              <span
+                className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${
+                  currentSection.badge === "Preenchida"
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                {currentSection.badge}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
+            <span>Mudar</span>
+            <ChevronDownIcon
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                isMobileSectionMenuOpen ? "rotate-180" : ""
+              }`}
+            />
+          </div>
+        </button>
+
+        {isMobileSectionMenuOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setIsMobileSectionMenuOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="absolute top-full left-0 right-0 mt-1.5 z-50 p-1.5 rounded-2xl bg-white dark:bg-[#1C1E22] border border-[#E5E7EB] dark:border-[#303238] shadow-xl space-y-0.5">
+              {mobileSections.map((sec) => {
+                const SecIcon = sec.icon;
+                const isSelected = activeTab === sec.id;
+                return (
+                  <button
+                    key={sec.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(sec.id as TabKey);
+                      setIsMobileSectionMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors min-h-[44px] cursor-pointer ${
+                      isSelected
+                        ? "bg-[var(--brand)]/10 text-[var(--brand)] font-bold"
+                        : "text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <SecIcon className="w-4 h-4" />
+                      <span>{sec.label}</span>
                     </div>
+                    {sec.count !== undefined && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-[var(--surface-subtle)] text-[var(--text-secondary)]">
+                        {sec.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* =========================================================================
+          SEÇÃO 1: VISÃO GERAL (2 Colunas Desktop, 1 Coluna Mobile)
+          ========================================================================= */}
+      {activeTab === "visao-geral" && (
+        <div className="space-y-5" data-testid="tab-visao-geral">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Coluna 1: Radar do Aluno + Treino Atual */}
+            <div className="space-y-5">
+              {/* Radar do Aluno / Acompanhamento */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
+                      Acompanhamento &amp; Aderência
+                    </span>
                     <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
                       Radar do Aluno
                     </h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("radar")}
-                    className="text-xs font-semibold text-[var(--brand)] hover:underline cursor-pointer"
-                  >
-                    Ver relatório completo &rarr;
-                  </button>
+                  {studentMonitoring ? (
+                    <Badge
+                      variant={
+                        studentMonitoring.state === "CRITICAL"
+                          ? "danger"
+                          : studentMonitoring.state === "ATTENTION"
+                          ? "warning"
+                          : studentMonitoring.state === "INSUFFICIENT_DATA"
+                          ? "neutral"
+                          : "success"
+                      }
+                      size="sm"
+                    >
+                      {studentMonitoring.state === "CRITICAL"
+                        ? "Crítico"
+                        : studentMonitoring.state === "ATTENTION"
+                        ? "Requer Atenção"
+                        : studentMonitoring.state === "INSUFFICIENT_DATA"
+                        ? "Sem Dados Suficientes"
+                        : "Em Dia"}
+                    </Badge>
+                  ) : (
+                    <Badge variant="neutral" size="sm">Monitoramento Normal</Badge>
+                  )}
                 </div>
 
-                {/* Objective Metrics */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                {/* 4 Indicadores Objetivos em Linha Compacta */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                     <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
-                      Último Uso no Trevo
+                      Último Uso
                     </span>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {studentMonitoring.metrics.lastActiveAt
+                    <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                      {studentMonitoring?.metrics.lastActiveAt
                         ? new Date(studentMonitoring.metrics.lastActiveAt).toLocaleDateString("pt-BR", {
                             day: "2-digit",
                             month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
                           })
                         : "Sem registro"}
                     </p>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                     <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
                       Treinos (7d)
                     </span>
                     <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {studentMonitoring.metrics.completedWorkoutsLast7d} concluído(s)
+                      {studentMonitoring?.metrics.completedWorkoutsLast7d ?? 0} concluído(s)
                     </p>
-                    {studentMonitoring.metrics.lastWorkoutDate && (
-                      <span className="text-[10px] text-[var(--text-tertiary)] block">
-                        Último: {studentMonitoring.metrics.lastWorkoutDate}
-                      </span>
-                    )}
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                     <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
                       Check-ins (7d)
                     </span>
                     <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {studentMonitoring.metrics.recentCheckinsCount} registrado(s)
+                      {studentMonitoring?.metrics.recentCheckinsCount ?? 0} registrado(s)
                     </p>
-                    {studentMonitoring.metrics.painReportedCount > 0 && (
-                      <span className="text-[10px] text-[var(--danger-foreground)] font-semibold block">
-                        {studentMonitoring.metrics.painReportedCount} com dor
-                      </span>
-                    )}
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                  <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
                     <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">
                       Nutrição (7d)
                     </span>
                     <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {studentMonitoring.metrics.offPlanDietCount > 0
+                      {studentMonitoring && studentMonitoring.metrics.offPlanDietCount > 0
                         ? `${studentMonitoring.metrics.offPlanDietCount} fora do plano`
-                        : "No plano ou sem desvios"}
+                        : "Sem desvios"}
                     </p>
                   </div>
                 </div>
 
-                {/* Open Alerts (if any) */}
-                {studentMonitoring.alerts.filter((a) => a.status === "OPEN").length > 0 && (
-                  <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
-                    <span className="text-[11px] font-bold text-[var(--text-primary)] block">
-                      Alertas em Aberto
-                    </span>
-                    <div className="space-y-1.5">
+                {/* Alertas em aberto (se houver) */}
+                {studentMonitoring &&
+                  studentMonitoring.alerts.filter((a) => a.status === "OPEN").length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle)]">
                       {studentMonitoring.alerts
                         .filter((a) => a.status === "OPEN")
                         .map((alert) => (
                           <div
                             key={alert.id}
-                            className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-start gap-2.5 text-xs"
+                            className="p-2.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center gap-2 text-xs"
                           >
                             <span
-                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md mt-0.5 shrink-0 ${
+                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
                                 alert.severity === "CRITICAL"
-                                  ? "bg-[var(--danger-soft)] text-[var(--danger-foreground)] border border-[var(--danger-border)]"
-                                  : "bg-[var(--warning-soft)] text-[var(--warning-foreground)] border border-[var(--warning-border)]"
+                                  ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                               }`}
                             >
                               {alert.severity === "CRITICAL" ? "Crítico" : "Atenção"}
                             </span>
-                            <span className="text-[var(--text-primary)] font-medium">
+                            <span className="text-[var(--text-primary)] font-medium truncate">
                               {alert.statement}
                             </span>
                           </div>
                         ))}
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
-            )}
 
-            {/* Key Objective Banner */}
-            <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)]">
-                  Foco &amp; Metas
-                </span>
-                <h2 className="font-heading text-lg font-bold text-[var(--text-primary)]">
-                  {overview.objective || "Objetivo não especificado"}
-                </h2>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Definido durante o preenchimento da anamnese ou prescrição inicial.
-                </p>
-              </div>
-              <Link
-                href={createWorkoutHref}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--brand)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[44px] shrink-0"
-              >
-                <PlusIcon className="w-3.5 h-3.5" />
-                <span>Montar rotina</span>
-              </Link>
-            </div>
+              {/* Treino Atual */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <DuotoneTrainingIcon className="w-5 h-5" />
+                    <h3 className="font-heading text-base font-bold text-[var(--text-primary)]">
+                      Treino Atual
+                    </h3>
+                  </div>
+                  {activeWorkout ? (
+                    <Badge variant="success" size="sm">Em andamento</Badge>
+                  ) : (
+                    <Badge variant="neutral" size="sm">Nenhum ativo</Badge>
+                  )}
+                </div>
 
-            {/* Quick Metrics: Compact and grouped without wasting screen space */}
-            {hasBiometrics ? (
-              <div className="p-5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                  Dados Biométricos
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">Idade</span>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">
-                      {overview.age ? `${overview.age} anos` : "—"}
-                    </p>
-                    {overview.birthDate && (
-                      <p className="text-[10px] text-[var(--text-secondary)]">{formatDisplayDate(overview.birthDate)}</p>
-                    )}
-                  </div>
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">Sexo</span>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">
-                      {overview.sex || "—"}
-                    </p>
-                  </div>
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">Altura</span>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">
-                      {overview.heightCm ? `${overview.heightCm} cm` : "—"}
-                    </p>
-                  </div>
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase block">Peso Atual</span>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">
-                      {overview.weightKg ? `${overview.weightKg} kg` : "—"}
-                    </p>
-                    {overview.lastWeightRecordedOn && (
-                      <p className="text-[10px] text-[var(--text-secondary)]">
-                        em {formatDisplayDate(overview.lastWeightRecordedOn)}
+                {activeWorkout ? (
+                  <div className="space-y-3">
+                    <div className="p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                      <p className="font-heading text-sm font-bold text-[var(--text-primary)] truncate">
+                        {activeWorkout.title}
                       </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="px-5 py-3.5 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2 text-[var(--text-secondary)]">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Biometria:</span>
-                  <span>Dados biométricos (Idade, Sexo, Altura e Peso) ainda não informados na anamnese.</span>
-                </div>
-                {overview.hasAnamnesis && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("anamnese")}
-                    className="text-xs font-semibold text-[var(--brand)] hover:underline shrink-0 cursor-pointer"
-                  >
-                    Ver anamnese &rarr;
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Module Status Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
-              {/* Treinos Card */}
-              <div className="p-5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-3 flex flex-col justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                      Rotinas de Treino
-                    </span>
-                    <Badge variant={overview.activeWorkoutsCount > 0 ? "brand" : "neutral"} size="sm">
-                      {overview.activeWorkoutsCount > 0
-                        ? `${overview.activeWorkoutsCount} ativo`
-                        : overview.latestWorkoutTitle
-                        ? "Histórico"
-                        : "Sem treino"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm font-bold text-[var(--text-primary)] line-clamp-1">
-                    {overview.activeWorkoutsCount > 0
-                      ? overview.latestWorkoutTitle
-                      : overview.latestWorkoutTitle
-                      ? `${overview.latestWorkoutTitle} (encerrado)`
-                      : "Nenhum treino prescrito"}
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    {overview.completedWorkoutsCount} {overview.completedWorkoutsCount === 1 ? "sessão concluída" : "sessões concluídas"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("treinos")}
-                  className="text-xs font-bold text-[var(--brand)] hover:underline flex items-center gap-1 pt-1 min-h-[44px]"
-                >
-                  <span>Gerenciar treinos</span>
-                  <span>→</span>
-                </button>
-              </div>
-
-              {/* Anamnese Card */}
-              <div className="p-5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-3 flex flex-col justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                      Anamnese &amp; Limitações
-                    </span>
-                    <Badge variant={overview.hasAnamnesis ? "success" : "warning"} size="sm">
-                      {overview.hasAnamnesis ? "Preenchida" : "Pendente"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">
-                    {overview.hasAnamnesis ? `${anamnesis.length} seções registradas` : "Aguardando preenchimento"}
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    {overview.hasAnamnesis ? "Histórico de saúde e rotina" : "O aluno ainda não preencheu"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("anamnese")}
-                  className="text-xs font-bold text-[var(--brand)] hover:underline flex items-center gap-1 pt-1 min-h-[44px]"
-                >
-                  <span>Ver anamnese</span>
-                  <span>→</span>
-                </button>
-              </div>
-
-              {/* Fotos Card */}
-              <div className="p-5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-3 flex flex-col justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                      Fotos de Evolução
-                    </span>
-                    <Badge variant={overview.hasPhotos ? "brand" : "neutral"} size="sm">
-                      {photos.length} avaliação(ões)
-                    </Badge>
-                  </div>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">
-                    {overview.hasPhotos ? "Avaliações registradas" : "Nenhuma foto anexada"}
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    {overview.hasPhotos ? "Registros fotográficos padronizados" : "Fotos ainda não enviadas"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("fotos")}
-                  className="text-xs font-bold text-[var(--brand)] hover:underline flex items-center gap-1 pt-1 min-h-[44px]"
-                >
-                  <span>Ver fotos</span>
-                  <span>→</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: FOTOS */}
-        {activeTab === "fotos" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                Registros Fotográficos de Evolução
-              </h2>
-              {photos.length > 0 && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
-                  className="font-bold min-h-[44px]"
-                >
-                  + Solicitar novas fotos
-                </Button>
-              )}
-            </div>
-
-            {photos.length === 0 ? (
-              <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3.5 shadow-xs depth-surface">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
-                  <PhotoIcon className="w-6 h-6" />
-                </div>
-                <div className="space-y-1 max-w-sm mx-auto">
-                  <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                    Nenhuma foto registrada
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                    Solicite o envio das 4 fotos padronizadas para acompanhar visualmente a transformação do aluno.
-                  </p>
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
-                  className="font-bold min-h-[44px]"
-                >
-                  Solicitar fotos
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {photos.map((item, idx) => (
-                  <div
-                    key={item.requestPublicId}
-                    className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-4"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                            Avaliação #{photos.length - idx}
-                          </h3>
-                          <Badge
-                            variant={item.status === "APPROVED" ? "success" : "neutral"}
-                            size="sm"
-                          >
-                            {item.status === "APPROVED" ? "Aprovada" : item.status}
-                          </Badge>
-                        </div>
-                        {item.submittedAt && (
-                          <p className="text-xs text-[var(--text-secondary)]">
-                            Enviada em {new Date(item.submittedAt).toLocaleDateString("pt-BR")}
-                          </p>
+                      {activeWorkout.subtitle && (
+                        <p className="text-xs text-[var(--text-secondary)] truncate">
+                          {activeWorkout.subtitle}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-[var(--text-tertiary)]">
+                        <span>Versão {activeWorkout.versionNumber}</span>
+                        <span>•</span>
+                        <span>Início: {formatDisplayDate(activeWorkout.startsOn)}</span>
+                        {activeWorkout.endsOn && (
+                          <>
+                            <span>•</span>
+                            <span>Término: {formatDisplayDate(activeWorkout.endsOn)}</span>
+                          </>
                         )}
                       </div>
-                      {item.reviewerNotes && (
-                        <p className="text-xs text-[var(--text-secondary)] italic">
-                          Obs: {item.reviewerNotes}
-                        </p>
-                      )}
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {item.images.map((img) => {
-                        const poseLabels: Record<string, string> = {
-                          FRONT: "Frente",
-                          BACK: "Costas",
-                          SIDE_LEFT: "Lateral Esquerda",
-                          SIDE_RIGHT: "Lateral Direita",
-                        };
-                        return (
-                          <div
-                            key={img.imagePublicId}
-                            className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-2 space-y-1.5 overflow-hidden"
-                          >
-                            <div className="aspect-[3/4] rounded-xl overflow-hidden bg-black/5 dark:bg-white/5 relative flex items-center justify-center">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={img.imageUrl}
-                                alt={`Pose ${img.pose}`}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                            </div>
-                            <p className="text-[11px] font-semibold text-[var(--text-primary)] text-center">
-                              {poseLabels[img.pose] || img.pose}
-                            </p>
-                          </div>
-                        );
-                      })}
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
+                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors min-h-[40px] cursor-pointer"
+                      >
+                        <span>Abrir treino</span>
+                        <ChevronRightIcon className="w-3.5 h-3.5" />
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("treinos")}
+                        className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2 min-h-[40px] cursor-pointer"
+                      >
+                        Ver todos os treinos →
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB 3: ANAMNESE */}
-        {activeTab === "anamnese" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                Anamnese &amp; Histórico Clínico
-              </h2>
-              {anamnesis.length > 0 && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
-                  className="font-bold min-h-[44px]"
-                >
-                  Solicitar atualização
-                </Button>
-              )}
-            </div>
-
-            {anamnesis.length === 0 ? (
-              <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3.5 shadow-xs depth-surface">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
-                  <ClipboardCheckIcon className="w-6 h-6" />
-                </div>
-                <div className="space-y-1 max-w-sm mx-auto">
-                  <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                    Anamnese ainda não preenchida
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                    Solicite o preenchimento da anamnese para registrar o histórico de saúde, lesões, rotina e objetivos do aluno.
-                  </p>
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
-                  className="font-bold min-h-[44px]"
-                >
-                  Solicitar anamnese
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                {anamnesis.map((section) => (
-                  <div
-                    key={section.title}
-                    className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-3.5"
-                  >
-                    <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--brand)] border-b border-[var(--border-subtle)] pb-2">
-                      {section.title}
-                    </h3>
-                    <div className="space-y-3">
-                      {section.items.map((item) => (
-                        <div key={item.label} className="space-y-0.5">
-                          <span className="text-[11px] font-semibold text-[var(--text-tertiary)] block">
-                            {item.label}
-                          </span>
-                          <p className="text-xs sm:text-sm font-medium text-[var(--text-primary)] leading-relaxed">
-                            {item.value}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB 4: FORMULÁRIOS */}
-        {activeTab === "formularios" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                Formulários &amp; Questionários
-              </h2>
-              {forms.length > 0 && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
-                  className="font-bold min-h-[44px]"
-                >
-                  + Solicitar formulário
-                </Button>
-              )}
-            </div>
-
-            {forms.length === 0 ? (
-              <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3.5 shadow-xs depth-surface">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
-                  <FileTextIcon className="w-6 h-6" />
-                </div>
-                <div className="space-y-1 max-w-sm mx-auto">
-                  <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                    Nenhum formulário respondido
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                    Envie questionários de rotina, acompanhamento ou termos personalizados para o aluno preencher.
-                  </p>
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
-                  className="font-bold min-h-[44px]"
-                >
-                  Solicitar formulário
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {forms.map((form) => (
-                  <div
-                    key={form.id}
-                    className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-heading text-sm sm:text-base font-bold text-[var(--text-primary)] truncate">
-                          {form.title}
-                        </h3>
-                        <Badge variant="success" size="sm">
-                          {form.status}
-                        </Badge>
-                      </div>
-                      {form.submittedAt && (
-                        <p className="text-xs text-[var(--text-secondary)]">
-                          Respondido em {new Date(form.submittedAt).toLocaleDateString("pt-BR")} às{" "}
-                          {new Date(form.submittedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                        </p>
-                      )}
-                    </div>
-
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Nenhuma rotina de treino ativa no momento para este aluno.
+                    </p>
                     <button
                       type="button"
-                      onClick={() => setSelectedFormForModal(form)}
-                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--brand)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[44px] cursor-pointer shrink-0"
+                      onClick={() => setIsNewWorkoutSheetOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors min-h-[40px] cursor-pointer"
                     >
-                      <span>Ver respostas</span>
-                      <span>→</span>
+                      <PlusIcon className="w-3.5 h-3.5" />
+                      <span>Criar treino</span>
                     </button>
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
 
-        {/* TAB 5: TREINOS */}
-        {activeTab === "treinos" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
+            {/* Coluna 2: Objetivo e Dados Pessoais + Registros */}
+            <div className="space-y-5">
+              {/* Objetivo e Dados Pessoais */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-4">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--brand)] block">
+                    Objetivo Principal
+                  </span>
+                  <p className="font-heading text-base font-bold text-[var(--text-primary)]">
+                    {overview.objective || "Não informado"}
+                  </p>
+                  {!overview.objective && (
+                    <p className="text-[11px] text-[var(--text-tertiary)]">
+                      O aluno ainda não informou sua meta na anamnese ou cadastro.
+                    </p>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                    Dados Biométricos &amp; Cadastrais
+                  </span>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                      <span className="text-[10px] text-[var(--text-tertiary)] block">Peso Atual</span>
+                      <p className="text-sm font-bold text-[var(--text-primary)]">
+                        {overview.weightKg ? `${overview.weightKg} kg` : "Não informado"}
+                      </p>
+                      {overview.lastWeightRecordedOn && (
+                        <span className="text-[10px] text-[var(--text-tertiary)] block">
+                          em {formatDisplayDate(overview.lastWeightRecordedOn)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                      <span className="text-[10px] text-[var(--text-tertiary)] block">Altura</span>
+                      <p className="text-sm font-bold text-[var(--text-primary)]">
+                        {overview.heightCm ? `${overview.heightCm} cm` : "Não informado"}
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                      <span className="text-[10px] text-[var(--text-tertiary)] block">Idade</span>
+                      <p className="text-sm font-bold text-[var(--text-primary)]">
+                        {overview.age ? `${overview.age} anos` : "Não informado"}
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-0.5">
+                      <span className="text-[10px] text-[var(--text-tertiary)] block">Sexo</span>
+                      <p className="text-sm font-bold text-[var(--text-primary)]">
+                        {overview.sex || "Não informado"}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[var(--text-tertiary)] pt-1">
+                    Membro desde: {formatDisplayDate(student.joinedAt)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Registros */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5">
+                <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                  Registros &amp; Documentos
+                </h3>
+                <div className="divide-y divide-[var(--border-subtle)]">
+                  <div className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <DuotonePhotosIcon className="w-4 h-4 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-[var(--text-primary)]">Fotos de Evolução</p>
+                        <p className="text-[11px] text-[var(--text-tertiary)]">
+                          {photos.length > 0 ? `${photos.length} avaliação(ões) registrada(s)` : "Nenhuma foto anexada"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("fotos")}
+                      className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0 min-h-[36px] flex items-center cursor-pointer"
+                    >
+                      Ver fotos →
+                    </button>
+                  </div>
+
+                  <div className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <DuotoneAnamnesisIcon className="w-4 h-4 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-[var(--text-primary)]">Anamnese &amp; Saúde</p>
+                        <p className="text-[11px] text-[var(--text-tertiary)]">
+                          {overview.hasAnamnesis ? `${anamnesis.length} seção(ões) preenchida(s)` : "Aguardando preenchimento"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("anamnese")}
+                      className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0 min-h-[36px] flex items-center cursor-pointer"
+                    >
+                      Ver anamnese →
+                    </button>
+                  </div>
+
+                  <div className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <DuotoneFormsIcon className="w-4 h-4 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-[var(--text-primary)]">Formulários &amp; Questionários</p>
+                        <p className="text-[11px] text-[var(--text-tertiary)]">
+                          {forms.length > 0 ? `${forms.length} formulário(s) respondido(s)` : "Nenhum formulário respondido"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("formularios")}
+                      className="text-xs font-bold text-[var(--brand)] hover:underline shrink-0 min-h-[36px] flex items-center cursor-pointer"
+                    >
+                      Ver formulários →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          SEÇÃO 2: TREINOS (Destaque Moderado Ativo + Histórico Discreto)
+          ========================================================================= */}
+      {activeTab === "treinos" && (
+        <div className="space-y-6" data-testid="tab-treinos">
+          <div className="flex items-center justify-between gap-4">
+            <div>
               <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
                 Treinos Atribuídos ao Aluno
               </h2>
-              {workouts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setIsNewWorkoutSheetOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] shadow-xs cursor-pointer"
-                >
-                  <PlusIcon className="w-3.5 h-3.5" />
-                  <span>Criar treino</span>
-                </button>
-              )}
+              <p className="text-xs text-[var(--text-secondary)]">
+                Gerencie rotinas ativas, revisões de ficha e histórico de prescrição.
+              </p>
             </div>
+            {/* Botão de novo treino na seção Treinos (discreto, não duplica bloco verde gigante) */}
+            <button
+              type="button"
+              onClick={() => setIsNewWorkoutSheetOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-[var(--brand)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[40px] cursor-pointer"
+            >
+              <PlusIcon className="w-3.5 h-3.5" />
+              <span>Novo treino</span>
+            </button>
+          </div>
 
-            {workouts.length === 0 ? (
-              <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-[var(--surface)] text-center space-y-3.5 shadow-xs depth-surface">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
-                  <DumbbellIcon className="w-6 h-6" />
-                </div>
-                <div className="space-y-1 max-w-sm mx-auto">
-                  <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                    Nenhum treino criado para este aluno
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                    Monte a primeira rotina de treino personalizada do zero com o Criador Modular.
-                  </p>
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setIsNewWorkoutSheetOpen(true)}
-                  className="font-bold min-h-[44px] cursor-pointer"
-                >
-                  Criar primeiro treino
-                </Button>
+          {workouts.length === 0 ? (
+            <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-white dark:bg-[#151619] text-center space-y-3.5 shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
+                <DumbbellIcon className="w-6 h-6" />
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
-                  {workouts.map((w) => (
-                    <div
-                      key={w.assignmentPublicId}
-                      className="p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] hover:border-[var(--brand)] shadow-xs transition-all flex flex-col justify-between space-y-4 depth-surface"
+              <div className="space-y-1 max-w-sm mx-auto">
+                <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                  Nenhum treino criado para este aluno
+                </p>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Monte a primeira rotina de treino personalizada com divisões, séries e exercícios.
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsNewWorkoutSheetOpen(true)}
+                className="font-bold min-h-[44px] cursor-pointer"
+              >
+                Criar primeiro treino
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Treino Ativo Atual (Destaque Moderado) */}
+              {activeWorkout && (
+                <div className="p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#151619] border-2 border-emerald-500/30 dark:border-emerald-500/40 shadow-xs space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                        Treino Ativo Atual
+                      </span>
+                      <span className="text-xs font-medium text-[var(--text-tertiary)]">
+                        Versão {activeWorkout.versionNumber}
+                      </span>
+                    </div>
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      Início: {formatDisplayDate(activeWorkout.startsOn)}
+                      {activeWorkout.endsOn ? ` • Término: ${formatDisplayDate(activeWorkout.endsOn)}` : ""}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <h3 className="font-heading text-base sm:text-lg font-bold text-[var(--text-primary)]">
+                      {activeWorkout.title}
+                    </h3>
+                    {activeWorkout.subtitle && (
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        {activeWorkout.subtitle}
+                      </p>
+                    )}
+                    {activeWorkout.notesForStudent && (
+                      <p className="text-xs text-[var(--text-tertiary)] italic pt-1">
+                        &quot;{activeWorkout.notesForStudent}&quot;
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Ação com largura natural no desktop, não bloco verde de 100% */}
+                  <div className="pt-2 flex items-center justify-between gap-3">
+                    <Link
+                      href={`/consultoria/${consultancySlug}/rotinas/${activeWorkout.workoutPublicId}?version=${activeWorkout.versionPublicId}&student=${student.membershipPublicId}`}
+                      className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-500 transition-colors min-h-[40px] cursor-pointer"
                     >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <Badge
-                            variant={w.status === "ACTIVE" ? "success" : "neutral"}
-                            size="sm"
-                          >
-                            {w.status === "ACTIVE" ? "Em andamento" : "Encerrado"}
-                          </Badge>
-                          <span className="text-[11px] font-semibold text-[var(--text-tertiary)]">
-                            Versão {w.versionNumber}
-                          </span>
-                        </div>
+                      <span>Abrir treino</span>
+                      <ChevronRightIcon className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              )}
 
-                        <div className="space-y-1">
-                          <h3 className="font-heading text-base font-bold text-[var(--text-primary)] line-clamp-1">
-                            {w.title}
-                          </h3>
-                          {w.subtitle && (
-                            <p className="text-xs text-[var(--text-secondary)] line-clamp-1">{w.subtitle}</p>
-                          )}
-                        </div>
-
-                        <div className="text-xs text-[var(--text-secondary)] space-y-0.5 pt-1">
-                          <p>Início: {formatDisplayDate(w.startsOn)} {w.endsOn ? `• Término: ${formatDisplayDate(w.endsOn)}` : ""}</p>
-                          {w.notesForStudent && (
-                            <p className="italic text-[var(--text-tertiary)] line-clamp-2">
-                              &quot;{w.notesForStudent}&quot;
+              {/* Histórico de Treinos Anteriores (Lista Discreta) */}
+              {endedWorkouts.length > 0 && (
+                <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3">
+                  <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+                    Histórico de Treinos Anteriores ({endedWorkouts.length})
+                  </h3>
+                  <div className="divide-y divide-[var(--border-subtle)]">
+                    {endedWorkouts.map((w) => (
+                      <div
+                        key={w.assignmentPublicId}
+                        className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs"
+                      >
+                        <div className="space-y-0.5 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-[var(--text-primary)] truncate">
+                              {w.title}
                             </p>
-                          )}
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-subtle)] text-[var(--text-secondary)] font-semibold">
+                              v{w.versionNumber}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[var(--text-tertiary)]">
+                            Período: {formatDisplayDate(w.startsOn)} {w.endsOn ? `– ${formatDisplayDate(w.endsOn)}` : ""}
+                          </p>
                         </div>
-                      </div>
 
-                      <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
                         <Link
                           href={`/consultoria/${consultancySlug}/rotinas/${w.workoutPublicId}?version=${w.versionPublicId}&student=${student.membershipPublicId}`}
-                          className="w-full inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] cursor-pointer"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--brand)] hover:underline border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] min-h-[36px] self-start sm:self-auto cursor-pointer"
                         >
-                          <span>Abrir no Criador</span>
-                          <span>→</span>
+                          <span>Abrir treino</span>
+                          <ChevronRightIcon className="w-3 h-3" />
                         </Link>
                       </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Completed Execution Sessions */}
-                {completedSessions.length > 0 && (
-                  <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-3 mt-6">
-                    <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                      Histórico Recente de Execução (Sessões Concluídas)
-                    </h3>
-                    <div className="divide-y divide-[var(--border-subtle)]">
-                      {completedSessions.map((session) => (
-                        <div
-                          key={session.publicId}
-                          className="py-2.5 flex items-center justify-between text-xs gap-3"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold text-[var(--text-primary)] truncate">
-                              {session.workoutTitle}
-                            </p>
-                            <p className="text-[11px] text-[var(--text-tertiary)]">
-                              {new Date(session.completedAt).toLocaleDateString("pt-BR")} às{" "}
-                              {new Date(session.completedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                            </p>
-                          </div>
-                          <Badge variant="success" size="sm" className="shrink-0">
-                            {session.completedSetsCount} séries concluídas
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
+                    ))}
                   </div>
+                </div>
+              )}
+
+              {/* Histórico Recente de Execução (Sessões Concluídas) */}
+              {completedSessions.length > 0 && (
+                <div className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3">
+                  <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+                    Sessões de Treino Concluídas pelo Aluno ({completedSessions.length})
+                  </h3>
+                  <div className="divide-y divide-[var(--border-subtle)]">
+                    {completedSessions.map((session) => (
+                      <div
+                        key={session.publicId}
+                        className="py-2.5 flex items-center justify-between text-xs gap-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-[var(--text-primary)] truncate">
+                            {session.workoutTitle}
+                          </p>
+                          <p className="text-[11px] text-[var(--text-tertiary)]">
+                            {new Date(session.completedAt).toLocaleDateString("pt-BR")} às{" "}
+                            {new Date(session.completedAt).toLocaleTimeString("pt-BR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                        <Badge variant="success" size="sm" className="shrink-0">
+                          {session.completedSetsCount} séries concluídas
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          SEÇÃO 3: FOTOS (Miniaturas Proporcionais por Data + Lightbox)
+          ========================================================================= */}
+      {activeTab === "fotos" && (
+        <div className="space-y-6" data-testid="tab-fotos">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                Fotos de Evolução Corporal
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Acompanhamento fotográfico nas 4 poses padronizadas.
+              </p>
+            </div>
+            {photos.length > 0 && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
+                className="font-bold min-h-[40px] text-xs"
+              >
+                + Solicitar fotos
+              </Button>
+            )}
+          </div>
+
+          {photos.length === 0 ? (
+            <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-white dark:bg-[#151619] text-center space-y-3.5 shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
+                <PhotoIcon className="w-6 h-6 text-blue-500" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                  Nenhuma foto registrada
+                </p>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Solicite o envio das fotos padronizadas para acompanhar a evolução corporal do aluno.
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setRequestModal({ isOpen: true, type: "PHOTOS" })}
+                className="font-bold min-h-[44px]"
+              >
+                Solicitar fotos
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {photos.map((item, idx) => (
+                <div
+                  key={item.requestPublicId}
+                  className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                        Avaliação #{photos.length - idx}
+                      </h3>
+                      <Badge
+                        variant={item.status === "APPROVED" ? "success" : "neutral"}
+                        size="sm"
+                      >
+                        {item.status === "APPROVED" ? "Aprovada" : item.status}
+                      </Badge>
+                      {item.submittedAt && (
+                        <span className="text-xs text-[var(--text-secondary)]">
+                          em {new Date(item.submittedAt).toLocaleDateString("pt-BR")}
+                        </span>
+                      )}
+                    </div>
+                    {item.reviewerNotes && (
+                      <p className="text-xs text-[var(--text-secondary)] italic">
+                        Obs: {item.reviewerNotes}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Grid de 4 Poses Proporcionais 3:4 */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {item.images.map((img) => {
+                      const poseLabels: Record<string, string> = {
+                        FRONT: "Frente",
+                        BACK: "Costas",
+                        SIDE_LEFT: "Lateral Esquerda",
+                        SIDE_RIGHT: "Lateral Direita",
+                      };
+                      const formattedPose = poseLabels[img.pose] || img.pose.replace(/_/g, " ");
+                      return (
+                        <div
+                          key={img.imagePublicId}
+                          onClick={() =>
+                            setLightboxImage({
+                              url: img.imageUrl,
+                              pose: formattedPose,
+                              date: item.submittedAt
+                                ? new Date(item.submittedAt).toLocaleDateString("pt-BR")
+                                : undefined,
+                            })
+                          }
+                          className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-subtle)] p-2 space-y-1.5 overflow-hidden cursor-pointer hover:border-[var(--brand)] transition-colors group"
+                        >
+                          <div className="aspect-[3/4] rounded-lg overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={img.imageUrl}
+                              alt={`Pose ${formattedPose}`}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              loading="lazy"
+                            />
+                          </div>
+                          <p className="text-[11px] font-semibold text-[var(--text-primary)] text-center capitalize">
+                            {formattedPose}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          SEÇÃO 4: ANAMNESE (Lista Limpa, Agrupada por Tema)
+          ========================================================================= */}
+      {activeTab === "anamnese" && (
+        <div className="space-y-6" data-testid="tab-anamnese">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                Anamnese &amp; Histórico Clínico
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Informações clínicas, histórico de lesões, rotina e restrições.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
+              className="font-bold min-h-[40px] text-xs"
+            >
+              {anamnesis.length === 0 ? "+ Solicitar anamnese" : "Solicitar atualização"}
+            </Button>
+          </div>
+
+          {anamnesis.length === 0 ? (
+            <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-white dark:bg-[#151619] text-center space-y-3.5 shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
+                <ClipboardCheckIcon className="w-6 h-6 text-violet-500" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                  Anamnese ainda não preenchida
+                </p>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Solicite o preenchimento da anamnese para registrar histórico médico, limitações articulares e rotina.
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setRequestModal({ isOpen: true, type: "ANAMNESIS" })}
+                className="font-bold min-h-[44px]"
+              >
+                Solicitar anamnese
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {anamnesis.map((section) => (
+                <div
+                  key={section.title}
+                  className="p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-3.5"
+                >
+                  <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[var(--brand)] border-b border-[var(--border-subtle)] pb-2">
+                    {section.title}
+                  </h3>
+                  <div className="space-y-3">
+                    {section.items.map((item) => (
+                      <div key={item.label} className="space-y-0.5">
+                        <span className="text-[11px] font-semibold text-[var(--text-tertiary)] block">
+                          {item.label}
+                        </span>
+                        <p className="text-xs sm:text-sm font-medium text-[var(--text-primary)] leading-relaxed">
+                          {item.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          SEÇÃO 5: FORMULÁRIOS (Lista de Formulários com Ver Respostas)
+          ========================================================================= */}
+      {activeTab === "formularios" && (
+        <div className="space-y-6" data-testid="tab-formularios">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                Formulários &amp; Questionários
+              </h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Questionários de rotina, termos de consentimento e formulários personalizados.
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
+              className="font-bold min-h-[40px] text-xs"
+            >
+              + Solicitar formulário
+            </Button>
+          </div>
+
+          {forms.length === 0 ? (
+            <div className="p-6 sm:p-8 rounded-2xl border border-[var(--border-default)] bg-white dark:bg-[#151619] text-center space-y-3.5 shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex items-center justify-center mx-auto text-[var(--text-tertiary)]">
+                <FileTextIcon className="w-6 h-6 text-teal-500" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
+                  Nenhum formulário respondido
+                </p>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Envie questionários de rotina, acompanhamento ou termos para o aluno preencher.
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setRequestModal({ isOpen: true, type: "FORM" })}
+                className="font-bold min-h-[44px]"
+              >
+                Solicitar formulário
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {forms.map((form) => (
+                <div
+                  key={form.id}
+                  className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-heading text-sm font-bold text-[var(--text-primary)] truncate">
+                        {form.title}
+                      </h3>
+                      <Badge variant="success" size="sm">
+                        {form.status}
+                      </Badge>
+                    </div>
+                    {form.submittedAt && (
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        Respondido em {new Date(form.submittedAt).toLocaleDateString("pt-BR")} às{" "}
+                        {new Date(form.submittedAt).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFormForModal(form)}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--brand)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)] border border-[var(--border-default)] transition-colors min-h-[40px] cursor-pointer shrink-0"
+                  >
+                    <span>Ver respostas</span>
+                    <ChevronRightIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          SEÇÃO 6: AVALIAÇÕES (Medições Físicas se houver)
+          ========================================================================= */}
+      {activeTab === "avaliacoes" && measurements.length > 0 && (
+        <div className="space-y-4" data-testid="tab-avaliacoes">
+          <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+            Medições &amp; Avaliações Físicas ({measurements.length})
+          </h2>
+          <div className="space-y-3">
+            {measurements.map((m, idx) => (
+              <div
+                key={`${m.recordedOn}-${idx}`}
+                className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-[var(--text-primary)]">
+                    Data: {formatDisplayDate(m.recordedOn)}
+                  </span>
+                  {m.weightKg && (
+                    <span className="font-extrabold text-sm text-[var(--brand)]">
+                      {m.weightKg} kg
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs text-[var(--text-secondary)] pt-2 border-t border-[var(--border-subtle)]">
+                  {m.waistCm && <div>Cintura: <span className="font-semibold text-[var(--text-primary)]">{m.waistCm}cm</span></div>}
+                  {m.abdomenCm && <div>Abdômen: <span className="font-semibold text-[var(--text-primary)]">{m.abdomenCm}cm</span></div>}
+                  {m.hipCm && <div>Quadril: <span className="font-semibold text-[var(--text-primary)]">{m.hipCm}cm</span></div>}
+                  {m.armCm && <div>Braço: <span className="font-semibold text-[var(--text-primary)]">{m.armCm}cm</span></div>}
+                  {m.thighCm && <div>Coxa: <span className="font-semibold text-[var(--text-primary)]">{m.thighCm}cm</span></div>}
+                </div>
+                {m.note && (
+                  <p className="text-[11px] text-[var(--text-tertiary)] italic">{m.note}</p>
                 )}
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          SEÇÃO 7: NUTRIÇÃO (Planos Nutricionais se houver)
+          ========================================================================= */}
+      {activeTab === "nutricao" && nutrition.length > 0 && (
+        <div className="space-y-4" data-testid="tab-nutricao">
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading text-sm font-bold text-[var(--text-primary)]">
+              Planos Nutricionais Prescritos ({nutrition.length})
+            </h2>
+            {isNutritionist && (
+              <Link
+                href={createPlanHref}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 min-h-[40px]"
+              >
+                <PlusIcon className="w-3.5 h-3.5" />
+                <span>Novo plano</span>
+              </Link>
             )}
           </div>
-        )}
-
-        {/* TAB 6: AVALIAÇÕES (MEASUREMENTS) */}
-        {activeTab === "avaliacoes" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs">
-              <div className="space-y-0.5">
-                <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                  Cockpit de Evolução 360° do Aluno
-                </h3>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Compare datas, avalie composição corporal e acompanhe gráficos de evolução.
-                </p>
-              </div>
-              <Link
-                href={`/consultoria/${consultancySlug}/progresso/alunos/${student.membershipPublicId}`}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-[var(--text-inverse)] bg-[var(--brand)] hover:bg-[var(--brand-hover)] transition-all min-h-[44px] shadow-xs cursor-pointer shrink-0"
+          <div className="space-y-3">
+            {nutrition.map((plan) => (
+              <div
+                key={plan.assignmentPublicId}
+                className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#26272B] shadow-xs flex items-center justify-between gap-3"
               >
-                <ScaleIcon className="w-4 h-4" />
-                <span>Abrir Cockpit 360° de Evolução</span>
-              </Link>
-            </div>
-
-            {measurements.length > 0 ? (
-              <div className="p-5 sm:p-6 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xs depth-surface space-y-4">
-                <h3 className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                  Medições Corporais Registradas
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] border-b border-[var(--border-subtle)]">
-                      <tr>
-                        <th className="py-2 pr-3">Data</th>
-                        <th className="py-2 px-3">Peso (kg)</th>
-                        <th className="py-2 px-3">Cintura</th>
-                        <th className="py-2 px-3">Abdômen</th>
-                        <th className="py-2 px-3">Quadril</th>
-                        <th className="py-2 px-3">Braço</th>
-                        <th className="py-2 px-3">Coxa</th>
-                        <th className="py-2 pl-3">Notas</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--border-subtle)]">
-                      {measurements.map((m, idx) => (
-                        <tr key={`${m.recordedOn}-${idx}`} className="text-[var(--text-primary)]">
-                          <td className="py-2.5 pr-3 font-semibold">{m.recordedOn}</td>
-                          <td className="py-2.5 px-3">{m.weightKg != null ? `${m.weightKg} kg` : "—"}</td>
-                          <td className="py-2.5 px-3">{m.waistCm != null ? `${m.waistCm} cm` : "—"}</td>
-                          <td className="py-2.5 px-3">{m.abdomenCm != null ? `${m.abdomenCm} cm` : "—"}</td>
-                          <td className="py-2.5 px-3">{m.hipCm != null ? `${m.hipCm} cm` : "—"}</td>
-                          <td className="py-2.5 px-3">{m.armCm != null ? `${m.armCm} cm` : "—"}</td>
-                          <td className="py-2.5 px-3">{m.thighCm != null ? `${m.thighCm} cm` : "—"}</td>
-                          <td className="py-2.5 pl-3 text-[var(--text-secondary)]">{m.note || "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm text-[var(--text-primary)]">
+                      {plan.title}
+                    </p>
+                    <Badge variant={plan.status === "ACTIVE" ? "success" : "neutral"} size="sm">
+                      {plan.status === "ACTIVE" ? "Ativo" : "Encerrado"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    Início: {formatDisplayDate(plan.startsOn)} {plan.endsOn ? `– ${formatDisplayDate(plan.endsOn)}` : ""}
+                  </p>
                 </div>
               </div>
-            ) : (
-              <div className="p-8 rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] text-center space-y-2">
-                <p className="font-heading text-sm font-bold text-[var(--text-primary)]">
-                  Nenhuma medição corporal registrada
-                </p>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Acesse o Cockpit de Evolução para registrar novas avaliações e medições.
-                </p>
-              </div>
-            )}
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* =========================================================================
-          SHARED MOBILE ACTION SHEET (••• Contextual actions)
+          MODAL: LIGHTBOX DE FOTOS
           ========================================================================= */}
-      <MobileActionSheet
-        isOpen={isMobileActionSheetOpen}
-        onClose={() => setIsMobileActionSheetOpen(false)}
-        title={`Ações para ${student.name}`}
-        options={mobileActionSheetOptions}
-      />
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="relative max-w-lg w-full bg-[#151619] border border-[#303238] rounded-2xl overflow-hidden p-4 space-y-3 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-heading text-sm font-bold text-white capitalize">
+                  {lightboxImage.pose}
+                </p>
+                {lightboxImage.date && (
+                  <p className="text-xs text-[#9CA3AF]">{lightboxImage.date}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="p-2 rounded-xl text-[#9CA3AF] hover:text-white bg-[#222429] hover:bg-[#2A2D33] min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                aria-label="Fechar ampliação"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="aspect-[3/4] max-h-[70vh] rounded-xl overflow-hidden bg-black flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lightboxImage.url}
+                alt={lightboxImage.pose}
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================================
-          MODAL: SOLICITAÇÃO AO ALUNO (FOTOS, ANAMNESE, FORMULÁRIO)
-          ========================================================================= */}
-      <PersonalRequestModal
-        isOpen={requestModal.isOpen}
-        onClose={() => setRequestModal((prev) => ({ ...prev, isOpen: false }))}
-        type={requestModal.type}
-        consultancySlug={consultancySlug}
-        studentMembershipPublicId={student.membershipPublicId}
-        studentName={student.name}
-      />
-
-      {/* =========================================================================
-          MODAL: VER RESPOSTAS DO FORMULÁRIO (Responsive)
+          MODAL: VER RESPOSTAS DO FORMULÁRIO (Responsivo)
           ========================================================================= */}
       {selectedFormForModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div
-            className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl bg-[var(--surface)] border border-[var(--border-default)] shadow-2xl p-5 sm:p-7 space-y-4"
+            className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] shadow-2xl p-5 sm:p-7 space-y-4"
             role="dialog"
             aria-modal="true"
           >
@@ -2069,7 +1450,11 @@ export function PersonalStudentDetailView({
                 </h3>
                 {selectedFormForModal.submittedAt && (
                   <p className="text-xs text-[var(--text-secondary)]">
-                    Enviado em {new Date(selectedFormForModal.submittedAt).toLocaleDateString("pt-BR")}
+                    Enviado em {new Date(selectedFormForModal.submittedAt).toLocaleDateString("pt-BR")} às{" "}
+                    {new Date(selectedFormForModal.submittedAt).toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </p>
                 )}
               </div>
@@ -2088,7 +1473,10 @@ export function PersonalStudentDetailView({
                 <p className="text-xs text-[var(--text-secondary)]">Nenhuma resposta registrada.</p>
               ) : (
                 selectedFormForModal.questions.map((q, idx) => (
-                  <div key={idx} className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1">
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] space-y-1"
+                  >
                     <span className="text-[11px] font-bold text-[var(--text-secondary)] block">
                       {q.question}
                     </span>
@@ -2114,7 +1502,17 @@ export function PersonalStudentDetailView({
         </div>
       )}
 
-      {/* Sheet to choose between new workout from scratch or reusable template */}
+      {/* Modal para Solicitar Fotos, Anamnese ou Formulário */}
+      <PersonalRequestModal
+        isOpen={requestModal.isOpen}
+        onClose={() => setRequestModal((prev) => ({ ...prev, isOpen: false }))}
+        type={requestModal.type}
+        consultancySlug={consultancySlug}
+        studentMembershipPublicId={student.membershipPublicId}
+        studentName={student.name}
+      />
+
+      {/* Sheet para Criar Treino */}
       <StudentNewWorkoutSheet
         isOpen={isNewWorkoutSheetOpen}
         onClose={() => setIsNewWorkoutSheetOpen(false)}

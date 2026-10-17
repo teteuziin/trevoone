@@ -499,6 +499,72 @@ export async function getPersonalStudentDetail(params: {
       }
     }
 
+    // 3.5. Detect submitted custom anamnesis forms to populate anamnesis sections and biometrics if not set by intake
+    const customAnamnesisQuestions: Array<{ label: string; value: string }> = [];
+    let customAnamnesisTitle = "Anamnese & Histórico de Saúde";
+
+    if (Array.isArray(customForms) && customForms.length > 0) {
+      for (const row of customForms) {
+        const isCustomAnamnesis =
+          String(row.template_title).toLowerCase().includes("anamnes") ||
+          String(row.template_title).toLowerCase().includes("saúde") ||
+          String(row.template_title).toLowerCase().includes("saude") ||
+          String(row.template_title).toLowerCase().includes("histórico") ||
+          String(row.template_title).toLowerCase().includes("historico");
+
+        if (isCustomAnamnesis && (row.status === "SUBMITTED" || row.status === "REVIEWED" || row.status === "APPROVED")) {
+          customAnamnesisTitle = String(row.template_title || "Anamnese & Histórico de Saúde");
+          let parsedAnswers: Record<string, unknown> = {};
+          let parsedFields: Array<{ id: string; label: string }> = [];
+          try {
+            parsedAnswers = typeof row.responses_json === "string"
+              ? JSON.parse(row.responses_json)
+              : (row.responses_json || {});
+            parsedFields = typeof row.fields_json === "string"
+              ? JSON.parse(row.fields_json)
+              : (row.fields_json || []);
+          } catch {
+            // ignore malformed
+          }
+
+          const labelMap = new Map<string, string>();
+          for (const f of parsedFields) {
+            if (f.id && f.label) labelMap.set(f.id, f.label);
+          }
+
+          for (const [k, v] of Object.entries(parsedAnswers)) {
+            if (v !== null && v !== undefined && v !== "") {
+              const label = labelMap.get(k) || k;
+              const valStr = String(v).trim();
+              if (valStr) {
+                customAnamnesisQuestions.push({ label, value: valStr });
+
+                const lowerL = label.toLowerCase();
+                if (!mergedResponses.main_goal && (lowerL.includes("objetivo") || lowerL.includes("meta"))) {
+                  mergedResponses.main_goal = valStr;
+                }
+                if (!mergedResponses.weight && lowerL.includes("peso")) {
+                  mergedResponses.weight = valStr;
+                }
+                if (!mergedResponses.height && lowerL.includes("altura")) {
+                  mergedResponses.height = valStr;
+                }
+                if (!mergedResponses.birth_date && (lowerL.includes("nascimento") || lowerL.includes("data de nasc"))) {
+                  mergedResponses.birth_date = valStr;
+                }
+                if (!mergedResponses.age && lowerL.includes("idade")) {
+                  mergedResponses.age = valStr;
+                }
+                if (!mergedResponses.sex && (lowerL.includes("sexo") || lowerL.includes("gênero") || lowerL.includes("genero"))) {
+                  mergedResponses.sex = valStr;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     // 4. Fetch Physical Progress Entries (weight & measurements)
     const [progressRows] = await connection.execute<RowDataPacket[]>(
       `SELECT
@@ -774,6 +840,47 @@ export async function getPersonalStudentDetail(params: {
     }
     if (lifestyleItems.length > 0) {
       anamnesis.push({ title: "Estilo de Vida & Hábitos", items: lifestyleItems });
+    }
+
+    // If intake submissions didn't yield anamnesis sections, build from custom anamnesis responses
+    if (anamnesis.length === 0 && customAnamnesisQuestions.length > 0) {
+      const healthKeywords = ["saúde", "saude", "doença", "doenca", "problema", "lesão", "lesao", "lesões", "lesoes", "cirurgia", "medicamento", "remedio", "remédio", "restrição", "restricao", "dor", "médic", "medic", "patologia", "cardíac", "cardiac", "pressão", "pressao", "articula"];
+      const activityKeywords = ["atividade", "treino", "exercício", "exercicio", "frequência", "frequencia", "tempo", "aeróbic", "aerobic", "cardio", "esporte", "modalidade", "academia", "horário", "horario"];
+      const goalKeywords = ["objetivo", "meta", "expectativa", "resultado", "foco", "desejo", "alvo"];
+      const lifestyleKeywords = ["sono", "dormir", "água", "agua", "hídric", "hidric", "fumo", "fumar", "tabagismo", "álcool", "alcool", "bebida", "alimenta", "dieta", "refeição", "refeicao", "estresse", "rotina"];
+
+      const cHealth: Array<{ label: string; value: string }> = [];
+      const cActivity: Array<{ label: string; value: string }> = [];
+      const cGoals: Array<{ label: string; value: string }> = [];
+      const cLifestyle: Array<{ label: string; value: string }> = [];
+      const cGeneral: Array<{ label: string; value: string }> = [];
+
+      for (const item of customAnamnesisQuestions) {
+        const l = item.label.toLowerCase();
+        if (healthKeywords.some((k) => l.includes(k))) {
+          cHealth.push(item);
+        } else if (activityKeywords.some((k) => l.includes(k))) {
+          cActivity.push(item);
+        } else if (goalKeywords.some((k) => l.includes(k))) {
+          cGoals.push(item);
+        } else if (lifestyleKeywords.some((k) => l.includes(k))) {
+          cLifestyle.push(item);
+        } else {
+          cGeneral.push(item);
+        }
+      }
+
+      if (cHealth.length > 0) anamnesis.push({ title: "Histórico de Saúde & Limitações", items: cHealth });
+      if (cActivity.length > 0) anamnesis.push({ title: "Atividade Física & Rotina de Treino", items: cActivity });
+      if (cGoals.length > 0) anamnesis.push({ title: "Objetivos & Metas", items: cGoals });
+      if (cLifestyle.length > 0) anamnesis.push({ title: "Estilo de Vida & Hábitos", items: cLifestyle });
+      if (cGeneral.length > 0) {
+        if (anamnesis.length === 0) {
+          anamnesis.push({ title: customAnamnesisTitle, items: cGeneral });
+        } else {
+          anamnesis.push({ title: "Informações Gerais & Complementares", items: cGeneral });
+        }
+      }
     }
 
     // 8.5. Fetch Prescribed Nutrition V2 Plans

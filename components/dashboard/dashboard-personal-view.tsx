@@ -145,21 +145,22 @@ export function DashboardPersonalView({
         prescribedBlocksCount={computedBlocksCount}
       />
 
-      {/* 2. Precisa de Atenção (Fila prioritária 3D com ações imediatas) */}
-      <PersonalAttentionSection
-        consultancySlug={consultancySlug}
-        studentsWithoutWorkout={studentsWithoutWorkout as StudentAttentionItem[]}
-        draftWorkouts={draftWorkouts}
-        totalStudents={totalStudents ?? 0}
-      />
+      {/* 2. Pendências e Agenda Lado a Lado no Desktop (Fichas mais próximas do topo) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-start">
+        <PersonalAttentionSection
+          consultancySlug={consultancySlug}
+          studentsWithoutWorkout={studentsWithoutWorkout as StudentAttentionItem[]}
+          draftWorkouts={draftWorkouts}
+          totalStudents={totalStudents ?? 0}
+        />
 
-      {/* 3. Hoje (Agenda do dia com estado honesto e janela [-10min, +30min]) */}
-      <PersonalTodaySection
-        consultancySlug={consultancySlug}
-        consultations={normalizedConsultations}
-      />
+        <PersonalTodaySection
+          consultancySlug={consultancySlug}
+          consultations={normalizedConsultations}
+        />
+      </div>
 
-      {/* 4. Fichas (Tabela unificada desktop 3D de 6 colunas + lista mobile vertical) */}
+      {/* 3. Fichas (Logo abaixo das pendências e agenda, próximo ao topo) */}
       <PersonalWorkoutsTable
         consultancySlug={consultancySlug}
         workouts={tableWorkouts}

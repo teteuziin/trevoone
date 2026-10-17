@@ -180,13 +180,13 @@ export function PersonalWorkoutsTable({
   return (
     <section id="fichas" aria-label="Fichas de treino" className="w-full space-y-3.5">
       {/* 1. Header e Controles da Seção Fichas */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm space-y-3.5">
+      <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] shadow-xs space-y-3.5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-baseline gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
+            <h2 className="text-base sm:text-lg font-bold text-[#17191D] dark:text-white leading-tight">
               Fichas
             </h2>
-            <span className="text-xs text-[#8E95A2] font-semibold tabular-nums font-mono">
+            <span className="text-xs text-[#6B7280] dark:text-[#8E95A2] font-semibold tabular-nums font-mono">
               ({totalWorkouts || workouts.length})
             </span>
           </div>
@@ -194,12 +194,12 @@ export function PersonalWorkoutsTable({
           {/* Filtros e Ordenação */}
           <div className="flex flex-wrap items-center gap-2 max-w-full">
             {/* Seletor de Ordenação */}
-            <div className="flex items-center gap-1.5 text-xs text-[#8E95A2] shrink-0 font-medium">
+            <div className="flex items-center gap-1.5 text-xs text-[#6B7280] dark:text-[#8E95A2] shrink-0 font-medium">
               <span className="hidden sm:inline">Ordem:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="min-h-[44px] px-3 bg-[#1B1D21] border border-[#303238] rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#10B981] cursor-pointer"
+                className="min-h-[44px] px-3 bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] rounded-xl text-xs font-semibold text-[#17191D] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#10B981] cursor-pointer"
                 aria-label="Critério de ordenação das fichas"
               >
                 <option value="oldest">Atualizações mais antigas</option>
@@ -209,14 +209,14 @@ export function PersonalWorkoutsTable({
             </div>
 
             {/* Filtros Rápidos de Status */}
-            <div className="inline-flex flex-wrap rounded-xl p-1 bg-[#1B1D21] border border-[#303238] max-w-full">
+            <div className="inline-flex flex-wrap rounded-xl p-1 bg-[#F3F4F6] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] max-w-full">
               <button
                 type="button"
                 onClick={() => setStatusFilter("ALL")}
                 className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   statusFilter === "ALL"
-                    ? "bg-[#282B32] text-white border border-[#3E424B] shadow-xs"
-                    : "text-[#8E95A2] hover:text-white"
+                    ? "bg-white dark:bg-[#282B32] text-[#17191D] dark:text-white border border-[#D1D5DB] dark:border-[#3E424B] shadow-xs"
+                    : "text-[#6B7280] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white"
                 } active:translate-y-[1px]`}
               >
                 Todas
@@ -226,8 +226,8 @@ export function PersonalWorkoutsTable({
                 onClick={() => setStatusFilter("DRAFT")}
                 className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   statusFilter === "DRAFT"
-                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs"
-                    : "text-[#8E95A2] hover:text-white"
+                    ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-xs"
+                    : "text-[#6B7280] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white"
                 } active:translate-y-[1px]`}
               >
                 Rascunhos
@@ -237,8 +237,8 @@ export function PersonalWorkoutsTable({
                 onClick={() => setStatusFilter("PUBLISHED")}
                 className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   statusFilter === "PUBLISHED"
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-xs"
-                    : "text-[#8E95A2] hover:text-white"
+                    ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-xs"
+                    : "text-[#6B7280] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white"
                 } active:translate-y-[1px]`}
               >
                 Publicadas
@@ -246,14 +246,14 @@ export function PersonalWorkoutsTable({
             </div>
 
             {/* Filtros por Quantidade de Blocos */}
-            <div className="inline-flex flex-wrap rounded-xl p-1 bg-[#1B1D21] border border-[#303238] max-w-full">
+            <div className="inline-flex flex-wrap rounded-xl p-1 bg-[#F3F4F6] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] max-w-full">
               <button
                 type="button"
                 onClick={() => setBlocksFilter("ALL")}
                 className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   blocksFilter === "ALL"
-                    ? "bg-[#282B32] text-white border border-[#3E424B] shadow-xs"
-                    : "text-[#8E95A2] hover:text-white"
+                    ? "bg-white dark:bg-[#282B32] text-[#17191D] dark:text-white border border-[#D1D5DB] dark:border-[#3E424B] shadow-xs"
+                    : "text-[#6B7280] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white"
                 } active:translate-y-[1px]`}
               >
                 Todos os blocos
@@ -263,8 +263,8 @@ export function PersonalWorkoutsTable({
                 onClick={() => setBlocksFilter("FEW_BLOCKS")}
                 className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   blocksFilter === "FEW_BLOCKS"
-                    ? "bg-[#282B32] text-white border border-[#3E424B] shadow-xs"
-                    : "text-[#8E95A2] hover:text-white"
+                    ? "bg-white dark:bg-[#282B32] text-[#17191D] dark:text-white border border-[#D1D5DB] dark:border-[#3E424B] shadow-xs"
+                    : "text-[#6B7280] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white"
                 } active:translate-y-[1px]`}
               >
                 Até 3 blocos
@@ -274,8 +274,8 @@ export function PersonalWorkoutsTable({
                 onClick={() => setBlocksFilter("MANY_BLOCKS")}
                 className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   blocksFilter === "MANY_BLOCKS"
-                    ? "bg-[#282B32] text-white border border-[#3E424B] shadow-xs"
-                    : "text-[#8E95A2] hover:text-white"
+                    ? "bg-white dark:bg-[#282B32] text-[#17191D] dark:text-white border border-[#D1D5DB] dark:border-[#3E424B] shadow-xs"
+                    : "text-[#6B7280] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white"
                 } active:translate-y-[1px]`}
               >
                 4+ blocos
@@ -292,10 +292,10 @@ export function PersonalWorkoutsTable({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por nome da ficha ou aluno..."
-              className="w-full h-[44px] pl-9 pr-12 text-xs sm:text-sm font-medium bg-[#1B1D21] border border-[#303238] rounded-xl text-white placeholder:text-[#8E95A2] focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+              className="w-full h-[44px] pl-9 pr-12 text-xs sm:text-sm font-medium bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] rounded-xl text-[#17191D] dark:text-white placeholder:text-[#9CA3AF] dark:placeholder:text-[#8E95A2] focus:outline-none focus:ring-2 focus:ring-[#10B981]"
             />
             <svg
-              className="w-4 h-4 text-[#8E95A2] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              className="w-4 h-4 text-[#9CA3AF] dark:text-[#8E95A2] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -310,7 +310,7 @@ export function PersonalWorkoutsTable({
                 type="button"
                 onClick={() => setSearchTerm("")}
                 aria-label="Limpar busca"
-                className="absolute right-0 top-0 h-full w-[44px] min-h-[44px] min-w-[44px] flex items-center justify-center rounded-r-xl text-[#8E95A2] hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
+                className="absolute right-0 top-0 h-full w-[44px] min-h-[44px] min-w-[44px] flex items-center justify-center rounded-r-xl text-[#9CA3AF] dark:text-[#8E95A2] hover:text-[#17191D] dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-colors cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -323,8 +323,8 @@ export function PersonalWorkoutsTable({
 
       {/* 2. Tabela Desktop ou Lista Mobile */}
       {filteredWorkouts.length === 0 ? (
-        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-8 text-center space-y-3 shadow-sm">
-          <p className="text-sm font-medium text-[#8E95A2]">
+        <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl p-8 text-center space-y-3 shadow-xs">
+          <p className="text-sm font-medium text-[#6B7280] dark:text-[#8E95A2]">
             {searchTerm.trim() || statusFilter !== "ALL" || blocksFilter !== "ALL"
               ? "Nenhuma ficha encontrada para os filtros aplicados."
               : "Nenhuma ficha cadastrada ainda."}
@@ -333,7 +333,7 @@ export function PersonalWorkoutsTable({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/novo`}
               prefetch={false}
-              className="inline-flex mt-2 px-5 py-2.5 bg-[#10B981] hover:bg-[#059669] text-white font-bold text-xs rounded-xl shadow-sm active:translate-y-[1px] transition-colors cursor-pointer"
+              className="inline-flex mt-2 px-5 py-2.5 bg-[#10B981] hover:bg-[#059669] text-white font-bold text-xs rounded-xl shadow-xs active:translate-y-[1px] transition-colors cursor-pointer"
             >
               + Nova ficha
             </Link>
@@ -342,32 +342,32 @@ export function PersonalWorkoutsTable({
       ) : (
         <>
           {/* VISÃO DESKTOP: TABELA DE 6 COLUNAS */}
-          <div className="hidden md:block bg-[#151619] border border-[#303238] rounded-2xl overflow-hidden shadow-sm">
+          <div className="hidden md:block bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl overflow-hidden shadow-xs">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-[#1B1D21] border-b border-[#303238]">
+              <thead className="bg-[#F9FAFB] dark:bg-[#1B1D21] border-b border-[#E5E7EB] dark:border-[#303238]">
                 <tr>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#6B7280] dark:text-[#8E95A2] uppercase tracking-wider">
                     Aluno
                   </th>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#6B7280] dark:text-[#8E95A2] uppercase tracking-wider">
                     Ficha
                   </th>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#6B7280] dark:text-[#8E95A2] uppercase tracking-wider">
                     Blocos
                   </th>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#6B7280] dark:text-[#8E95A2] uppercase tracking-wider">
                     Atualizada em
                   </th>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#6B7280] dark:text-[#8E95A2] uppercase tracking-wider">
                     Status
                   </th>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider text-right">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#6B7280] dark:text-[#8E95A2] uppercase tracking-wider text-right">
                     Ação
                   </th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-[#303238]">
+              <tbody className="divide-y divide-[#E5E7EB] dark:divide-[#303238]">
                 {filteredWorkouts.map((workout) => {
                   const isDraft =
                     workout.status === "DRAFT" ||
@@ -377,15 +377,15 @@ export function PersonalWorkoutsTable({
                   return (
                     <tr
                       key={workout.publicId}
-                      className="h-[52px] hover:bg-[#1B1D21]/50 transition-colors"
+                      className="h-[52px] hover:bg-[#F9FAFB] dark:hover:bg-[#1B1D21]/50 transition-colors"
                     >
                       {/* Aluno */}
-                      <td className="py-3 px-4 text-sm font-semibold text-white">
+                      <td className="py-3 px-4 text-sm font-semibold text-[#17191D] dark:text-white">
                         {resolveStudentDisplay(workout)}
                       </td>
 
                       {/* Ficha */}
-                      <td className="py-3 px-4 text-sm font-bold text-white max-w-xs truncate">
+                      <td className="py-3 px-4 text-sm font-bold text-[#17191D] dark:text-white max-w-xs truncate">
                         {workout.title}
                       </td>
 
@@ -395,18 +395,18 @@ export function PersonalWorkoutsTable({
                       </td>
 
                       {/* Atualizada em */}
-                      <td className="py-3 px-4 text-xs font-normal text-[#8E95A2] tabular-nums font-mono">
+                      <td className="py-3 px-4 text-xs font-normal text-[#6B7280] dark:text-[#8E95A2] tabular-nums font-mono">
                         {formatDate(workout.updatedAt)}
                       </td>
 
                       {/* Status */}
                       <td className="py-3 px-4">
                         {isDraft ? (
-                          <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 select-none">
+                          <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/10 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 dark:border-amber-500/30 select-none">
                             Rascunho
                           </span>
                         ) : (
-                          <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 select-none">
+                          <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 dark:border-emerald-500/30 select-none">
                             Publicada
                           </span>
                         )}
@@ -417,7 +417,7 @@ export function PersonalWorkoutsTable({
                         <Link
                           href={`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`}
                           prefetch={false}
-                          className="inline-flex items-center text-sm font-bold text-[#10B981] hover:text-emerald-300 hover:underline"
+                          className="inline-flex items-center text-sm font-bold text-[#10B981] hover:text-emerald-600 dark:hover:text-emerald-300 hover:underline"
                         >
                           Abrir ficha
                         </Link>
@@ -430,7 +430,7 @@ export function PersonalWorkoutsTable({
           </div>
 
           {/* VISÃO MOBILE: LISTA VERTICAL */}
-          <div className="md:hidden bg-[#151619] border border-[#303238] rounded-2xl divide-y divide-[#303238] overflow-hidden shadow-sm">
+          <div className="md:hidden bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl divide-y divide-[#E5E7EB] dark:divide-[#303238] overflow-hidden shadow-xs">
             {filteredWorkouts.map((workout) => {
               const isDraft =
                 workout.status === "DRAFT" ||
@@ -443,7 +443,7 @@ export function PersonalWorkoutsTable({
                   onClick={() =>
                     router.push(`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`)
                   }
-                  className="p-4 min-h-[64px] flex flex-col justify-center gap-1.5 active:bg-[#1B1D21]/50 cursor-pointer transition-colors"
+                  className="p-4 min-h-[64px] flex flex-col justify-center gap-1.5 active:bg-[#F3F4F6] dark:active:bg-[#1B1D21]/50 cursor-pointer transition-colors"
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
@@ -455,22 +455,22 @@ export function PersonalWorkoutsTable({
                   }}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-bold text-white leading-snug">
+                    <p className="text-sm font-bold text-[#17191D] dark:text-white leading-snug">
                       {workout.title}
                     </p>
                     {isDraft ? (
-                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0 select-none">
+                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/10 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 dark:border-amber-500/30 shrink-0 select-none">
                         Rascunho
                       </span>
                     ) : (
-                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0 select-none">
+                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 dark:border-emerald-500/30 shrink-0 select-none">
                         Publicada
                       </span>
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#8E95A2] font-medium">
-                    <span className="font-semibold text-white">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#6B7280] dark:text-[#8E95A2] font-medium">
+                    <span className="font-semibold text-[#17191D] dark:text-white">
                       {resolveStudentDisplay(workout)}
                     </span>
                     <span>·</span>

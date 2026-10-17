@@ -93,20 +93,20 @@ export function PersonalTodaySection({
       </div>
 
       {items.length === 0 ? (
-        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 flex items-center justify-between shadow-sm">
-          <p className="text-sm font-normal text-[#C2C8CF]">
+        <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl p-5 flex items-center justify-between shadow-xs">
+          <p className="text-sm font-normal text-[#4B5563] dark:text-[#C2C8CF]">
             Nenhuma consulta agendada para hoje.
           </p>
           <Link
             href={`/consultoria/${consultancySlug}/consultas`}
             prefetch={false}
-            className="text-xs sm:text-sm font-semibold text-[#10B981] hover:text-emerald-300 transition-colors"
+            className="text-xs sm:text-sm font-semibold text-[#10B981] hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors"
           >
             Ver agenda →
           </Link>
         </div>
       ) : (
-        <div className="bg-[#151619] border border-[#303238] rounded-2xl divide-y divide-[#303238] overflow-hidden shadow-sm">
+        <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl divide-y divide-[#E5E7EB] dark:divide-[#303238] overflow-hidden shadow-xs">
           {items.map((consultation) => {
             const isJoinable = canJoinRoom(consultation);
             const targetHref = consultation.href || `/consultoria/${consultancySlug}/consultas`;
@@ -114,17 +114,17 @@ export function PersonalTodaySection({
             return (
               <div
                 key={consultation.publicId}
-                className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#1B1D21]"
+                className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#F9FAFB] dark:hover:bg-[#1B1D21]"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-12 h-10 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-xs font-bold font-mono text-[#10B981] shrink-0 tabular-nums">
+                  <div className="w-12 h-10 rounded-xl bg-[#F0F1F3] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] flex items-center justify-center text-xs font-bold font-mono text-[#10B981] shrink-0 tabular-nums">
                     {consultation.timeFormatted}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-white truncate">
+                    <p className="text-sm font-semibold text-[#17191D] dark:text-white truncate">
                       {consultation.studentName}
                     </p>
-                    <p className="text-xs text-[#C2C8CF] mt-0.5 truncate">
+                    <p className="text-xs text-[#6B7280] dark:text-[#C2C8CF] mt-0.5 truncate">
                       {consultation.type || "Consulta por vídeo"}
                     </p>
                   </div>
@@ -135,7 +135,7 @@ export function PersonalTodaySection({
                     <Link
                       href={targetHref}
                       prefetch={false}
-                      className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-4 py-2 text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 rounded-lg shadow-sm transition-colors"
+                      className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-4 py-2 text-xs font-bold text-white bg-[#10B981] hover:bg-[#059669] rounded-lg shadow-xs transition-colors"
                     >
                       Entrar na sala
                     </Link>
@@ -143,7 +143,7 @@ export function PersonalTodaySection({
                     <Link
                       href={targetHref}
                       prefetch={false}
-                      className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-3.5 py-1.5 text-xs font-semibold text-[#C2C8CF] hover:text-white bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] rounded-lg transition-colors"
+                      className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-3.5 py-1.5 text-xs font-semibold text-[#17191D] dark:text-[#C2C8CF] hover:text-[#17191D] dark:hover:text-white bg-[#F3F4F6] hover:bg-[#E5E7EB] dark:bg-[#1B1D21] dark:hover:bg-[#252830] border border-[#E5E7EB] dark:border-[#303238] rounded-lg shadow-xs transition-colors"
                     >
                       Ver detalhes
                     </Link>

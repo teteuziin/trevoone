@@ -558,7 +558,7 @@ export default async function ConsultancyPage({ params }: PageProps) {
       themeVariant={isDarkOverviewTheme ? "dark-overview" : "default"}
       maxWidth="full"
     >
-      <div className="w-full max-w-[1536px] 2xl:max-w-[1680px] space-y-6 sm:space-y-8">
+      <div className="w-full max-w-6xl mx-auto space-y-6 sm:space-y-8">
         {/* Context Header Compacto (oculta para Nutricionista e Personal que possuem cabeçalho unificado próprio) */}
         {!(isPureNutritionist || isCombinedNutritionistAdmin || isPurePersonal || isCombinedPersonalAdmin) && (
           <DashboardContext

@@ -40,8 +40,6 @@ export function PersonalOverviewHeader({
   totalWorkouts,
   prescribedBlocksCount = 0,
 }: PersonalOverviewHeaderProps) {
-  const studentsCount = totalStudents ?? 0;
-  const workoutsCount = totalWorkouts ?? 0;
   const blocksCount = prescribedBlocksCount ?? 0;
 
   const displayStudents =
@@ -50,16 +48,15 @@ export function PersonalOverviewHeader({
     totalWorkouts !== undefined && totalWorkouts !== null ? totalWorkouts : "—";
 
   return (
-    <div className="w-full space-y-4">
-      {/* 1. Header Card Sólido Executivo */}
+    <div className="w-full">
+      {/* 1. Header Card Sólido Executivo com Indicadores Integrados Compactos */}
       <div className="p-5 sm:p-6 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm text-white">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#10B981]" />
               <span className="text-xs text-[#8E95A2] font-semibold tracking-wide uppercase">
-                {studentsCount} {studentsCount === 1 ? "aluno sob gestão" : "alunos sob gestão"} · {workoutsCount}{" "}
-                {workoutsCount === 1 ? "ficha ativa" : "fichas ativas"} · {blocksCount} blocos em uso
+                Treinador · Painel de Prescrição
               </span>
             </div>
 
@@ -93,75 +90,66 @@ export function PersonalOverviewHeader({
             </Link>
           </div>
         </div>
-      </div>
 
-      {/* 2. Bento Grid Sólido — Indicadores de Desempenho */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        {/* Card 1: Alunos */}
-        <Link
-          href={`/consultoria/${consultancySlug}/progresso/alunos`}
-          prefetch={false}
-          className="p-4 sm:p-5 rounded-2xl bg-[#151619] hover:bg-[#1A1C20] border border-[#303238] hover:border-[#42454E] shadow-sm transition-all group flex flex-col justify-between text-white min-h-[110px] cursor-pointer"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-[#8E95A2] uppercase tracking-wider">
-              Alunos Ativos
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center">
+        {/* Linha de Indicadores Compactos Integrados (sem blocos gigantes separados) */}
+        <div className="mt-5 pt-4 border-t border-[#303238] grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <Link
+            href={`/consultoria/${consultancySlug}/progresso/alunos`}
+            prefetch={false}
+            className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#1B1D21] transition-colors group cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-lg bg-[#1B1D21] border border-[#303238] group-hover:border-[#42454E] text-[#10B981] flex items-center justify-center shrink-0">
               <UsersIcon className="w-4 h-4" />
             </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#10B981] transition-colors tabular-nums font-mono">
-              {displayStudents}
-            </span>
-            <span className="text-xs font-semibold text-[#10B981] group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-              Ver alunos →
-            </span>
-          </div>
-        </Link>
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-white group-hover:text-[#10B981] transition-colors font-mono tabular-nums">
+                  {displayStudents}
+                </span>
+                <span className="text-xs text-[#8E95A2] font-medium truncate">alunos sob gestão</span>
+              </div>
+              <span className="text-[11px] text-[#10B981] group-hover:underline block truncate font-medium">
+                Ver alunos →
+              </span>
+            </div>
+          </Link>
 
-        {/* Card 2: Fichas de Treino */}
-        <Link
-          href={`/consultoria/${consultancySlug}/rotinas`}
-          prefetch={false}
-          className="p-4 sm:p-5 rounded-2xl bg-[#151619] hover:bg-[#1A1C20] border border-[#303238] hover:border-[#42454E] shadow-sm transition-all group flex flex-col justify-between text-white min-h-[110px] cursor-pointer"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-[#8E95A2] uppercase tracking-wider">
-              Fichas de Treino
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center">
+          <Link
+            href={`/consultoria/${consultancySlug}/rotinas`}
+            prefetch={false}
+            className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#1B1D21] transition-colors group cursor-pointer sm:border-l sm:border-[#303238]/60 sm:pl-4"
+          >
+            <div className="w-9 h-9 rounded-lg bg-[#1B1D21] border border-[#303238] group-hover:border-[#42454E] text-[#10B981] flex items-center justify-center shrink-0">
               <DumbbellIcon className="w-4 h-4" />
             </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-black text-white group-hover:text-[#10B981] transition-colors tabular-nums font-mono">
-              {displayPlans}
-            </span>
-            <span className="text-xs font-semibold text-[#10B981] group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-              Ver todas →
-            </span>
-          </div>
-        </Link>
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-white group-hover:text-[#10B981] transition-colors font-mono tabular-nums">
+                  {displayPlans}
+                </span>
+                <span className="text-xs text-[#8E95A2] font-medium truncate">fichas ativas</span>
+              </div>
+              <span className="text-[11px] text-[#10B981] group-hover:underline block truncate font-medium">
+                Ver todas →
+              </span>
+            </div>
+          </Link>
 
-        {/* Card 3: Blocos em Uso */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm flex flex-col justify-between text-white min-h-[110px]">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-[#8E95A2] uppercase tracking-wider">
-              Blocos Prescritos
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center">
+          <div className="flex items-center gap-3 p-2.5 rounded-xl sm:border-l sm:border-[#303238]/60 sm:pl-4">
+            <div className="w-9 h-9 rounded-lg bg-[#1B1D21] border border-[#303238] text-[#10B981] flex items-center justify-center shrink-0">
               <LayersIcon className="w-4 h-4" />
             </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-black text-white tabular-nums font-mono">
-              {blocksCount}
-            </span>
-            <span className="text-xs text-[#8E95A2] font-semibold uppercase tracking-wider">
-              Volume em uso
-            </span>
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-white font-mono tabular-nums">
+                  {blocksCount}
+                </span>
+                <span className="text-xs text-[#8E95A2] font-medium truncate">blocos em uso</span>
+              </div>
+              <span className="text-[11px] text-[#8E95A2] block truncate font-medium">
+                Prescritos
+              </span>
+            </div>
           </div>
         </div>
       </div>

@@ -153,41 +153,41 @@ export function PersonalAttentionSection({
       </div>
 
       {totalPendencias === 0 ? (
-        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 shadow-sm flex items-center gap-3 text-white">
+        <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl p-5 shadow-xs flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[#10B981] flex items-center justify-center shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
           </div>
-          <p className="text-sm font-medium text-[#C2C8CF]">
+          <p className="text-sm font-medium text-[#4B5563] dark:text-[#C2C8CF]">
             Todos os seus alunos possuem fichas ativas e não há rascunhos pendentes.
           </p>
         </div>
       ) : (
-        <div className="bg-[#151619] border border-[#303238] rounded-2xl divide-y divide-[#303238] overflow-hidden shadow-sm">
+        <div className="bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl divide-y divide-[#E5E7EB] dark:divide-[#303238] overflow-hidden shadow-xs">
           {/* Grupo 1: Alunos Ativos sem Ficha */}
           {selectedStudents.map((student) => (
             <div
               key={student.membershipPublicId}
-              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#1B1D21]/50"
+              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#F9FAFB] dark:hover:bg-[#1B1D21]/50"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   aria-hidden="true"
-                  className="w-10 h-10 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-xs font-bold text-white shrink-0 select-none"
+                  className="w-10 h-10 rounded-xl bg-[#F3F4F6] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] flex items-center justify-center text-xs font-bold text-[#17191D] dark:text-white shrink-0 select-none"
                 >
                   {getInitials(student.name)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-bold text-white truncate">
+                    <p className="text-sm font-bold text-[#17191D] dark:text-white truncate">
                       {student.name}
                     </p>
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-rose-300 bg-rose-500/15 border border-rose-500/30 select-none">
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-rose-600 dark:text-rose-300 bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 dark:border-rose-500/30 select-none">
                       Sem ficha ativa
                     </span>
                   </div>
-                  <p className="text-xs text-[#8E95A2] mt-0.5 font-medium">
+                  <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-0.5 font-medium">
                     {formatMemberSince(student.joinedAt)}
                   </p>
                 </div>
@@ -199,7 +199,7 @@ export function PersonalAttentionSection({
                     student.membershipPublicId
                   )}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[40px] px-4 text-xs font-bold text-white bg-[#10B981] hover:bg-[#059669] rounded-lg shadow-sm active:translate-y-[1px] transition-colors cursor-pointer"
+                  className="inline-flex items-center justify-center min-h-[40px] px-4 text-xs font-bold text-white bg-[#10B981] hover:bg-[#059669] rounded-lg shadow-xs active:translate-y-[1px] transition-colors cursor-pointer"
                 >
                   Criar ficha
                 </Link>
@@ -211,12 +211,12 @@ export function PersonalAttentionSection({
           {selectedDrafts.map((draft) => (
             <div
               key={draft.publicId}
-              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#1B1D21]/50"
+              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#F9FAFB] dark:hover:bg-[#1B1D21]/50"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   aria-hidden="true"
-                  className="w-10 h-10 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-[#8E95A2] shrink-0 select-none"
+                  className="w-10 h-10 rounded-xl bg-[#F3F4F6] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] flex items-center justify-center text-[#6B7280] dark:text-[#8E95A2] shrink-0 select-none"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -224,14 +224,14 @@ export function PersonalAttentionSection({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-bold text-white truncate">
+                    <p className="text-sm font-bold text-[#17191D] dark:text-white truncate">
                       {draft.title}
                     </p>
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-amber-300 bg-amber-500/15 border border-amber-500/30 select-none">
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-amber-700 dark:text-amber-300 bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 dark:border-amber-500/30 select-none">
                       Rascunho não publicado
                     </span>
                   </div>
-                  <p className="text-xs text-[#8E95A2] mt-0.5 font-medium">
+                  <p className="text-xs text-[#6B7280] dark:text-[#8E95A2] mt-0.5 font-medium">
                     {formatEditedDate(draft.updatedAt)}
                   </p>
                 </div>
@@ -241,7 +241,7 @@ export function PersonalAttentionSection({
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas/${draft.publicId}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[40px] px-4 text-xs font-semibold text-[#E5E7EB] hover:text-white bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] rounded-lg shadow-sm active:translate-y-[1px] transition-colors cursor-pointer"
+                  className="inline-flex items-center justify-center min-h-[40px] px-4 text-xs font-semibold text-[#17191D] dark:text-[#E5E7EB] hover:text-[#17191D] dark:hover:text-white bg-[#F3F4F6] hover:bg-[#E5E7EB] dark:bg-[#1B1D21] dark:hover:bg-[#252830] border border-[#E5E7EB] dark:border-[#303238] rounded-lg shadow-xs active:translate-y-[1px] transition-colors cursor-pointer"
                 >
                   Revisar ficha
                 </Link>
@@ -250,7 +250,7 @@ export function PersonalAttentionSection({
           ))}
 
           {/* Rodapé de Paginação e Navegação */}
-          <div className="p-3.5 bg-[#111215] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#8E95A2] font-medium border-t border-[#303238]">
+          <div className="p-3.5 bg-[#F9FAFB] dark:bg-[#111215] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#6B7280] dark:text-[#8E95A2] font-medium border-t border-[#E5E7EB] dark:border-[#303238]">
             <span>
               {visibleCount} de {totalPendencias} pendências exibidas
             </span>
@@ -259,7 +259,7 @@ export function PersonalAttentionSection({
               <Link
                 href={`/consultoria/${consultancySlug}/progresso/alunos`}
                 prefetch={false}
-                className="text-[#10B981] hover:text-emerald-300 font-semibold transition-colors"
+                className="text-[#10B981] hover:text-emerald-600 dark:hover:text-emerald-300 font-semibold transition-colors"
               >
                 Ver todos os alunos ({totalStudents}) →
               </Link>
@@ -268,7 +268,7 @@ export function PersonalAttentionSection({
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas?status=draft`}
                   prefetch={false}
-                  className="text-[#10B981] hover:text-emerald-300 font-semibold transition-colors"
+                  className="text-[#10B981] hover:text-emerald-600 dark:hover:text-emerald-300 font-semibold transition-colors"
                 >
                   Ver rascunhos ({sortedDrafts.length}) →
                 </Link>

@@ -58,7 +58,7 @@ function formatEditedDate(isoDateString?: string | null): string {
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 export function PersonalAttentionSection({
@@ -70,38 +70,35 @@ export function PersonalAttentionSection({
   isError = false,
   onRetry,
 }: PersonalAttentionSectionProps) {
-  // Estado de Carregamento (Skeleton D3 / D4)
   if (isLoading) {
     return (
       <section aria-label="Precisa de atenção" className="w-full space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--cockpit-text-primary)] leading-tight">
+        <h2 className="text-lg font-bold text-white leading-tight">
           Precisa de atenção
         </h2>
-        <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg p-4 space-y-3 animate-pulse">
-          <div className="h-4 bg-[var(--cockpit-surface-subtle)] rounded w-1/3" />
-          <div className="h-10 bg-[var(--cockpit-surface-subtle)] rounded w-full" />
-          <div className="h-10 bg-[var(--cockpit-surface-subtle)] rounded w-full" />
+        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 space-y-3 animate-pulse">
+          <div className="h-4 bg-[#1B1D21] rounded w-1/4" />
+          <div className="h-12 bg-[#1B1D21] rounded w-full" />
         </div>
       </section>
     );
   }
 
-  // Estado de Erro com Ação de Retentativa
   if (isError) {
     return (
       <section aria-label="Precisa de atenção" className="w-full space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--cockpit-text-primary)] leading-tight">
+        <h2 className="text-lg font-bold text-white leading-tight">
           Precisa de atenção
         </h2>
-        <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p className="text-sm font-medium text-[var(--cockpit-text-secondary)]">
-            Não foi possível carregar as pendências.
+        <div className="bg-[#151619] border border-red-500/30 rounded-2xl p-5 flex items-center justify-between gap-4">
+          <p className="text-sm font-normal text-red-300">
+            Não foi possível carregar as pendências no momento.
           </p>
           {onRetry && (
             <button
               type="button"
               onClick={onRetry}
-              className="inline-flex items-center justify-center px-3.5 min-h-[44px] text-sm font-semibold text-[var(--cockpit-text-primary)] bg-[var(--cockpit-surface-subtle)] hover:bg-[var(--cockpit-border-default)] rounded-md transition-colors cursor-pointer select-none"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1B1D21] text-white border border-[#303238] hover:border-red-500/40 cursor-pointer"
             >
               Tentar novamente
             </button>
@@ -111,11 +108,11 @@ export function PersonalAttentionSection({
     );
   }
 
-  // 1. Ordenação Determinística das Filas:
-  // P1: Alunos sem treino por cm.created_at ASC (mais antigos esperando primeiro), desempate por nome
+  // 1. Algoritmo de Ordenação Determinística:
+  // P1: Alunos sem treino ordenados por joinedAt ASC (mais antigos primeiro), desempate por nome alfabético
   const sortedStudents = [...studentsWithoutWorkout].sort((a, b) => {
-    const timeA = new Date(a.joinedAt).getTime() || 0;
-    const timeB = new Date(b.joinedAt).getTime() || 0;
+    const timeA = new Date(a.joinedAt).getTime();
+    const timeB = new Date(b.joinedAt).getTime();
     if (timeA !== timeB) return timeA - timeB;
     return a.name.localeCompare(b.name, "pt-BR");
   });
@@ -145,44 +142,50 @@ export function PersonalAttentionSection({
   const visibleCount = selectedStudents.length + selectedDrafts.length;
 
   return (
-    <section aria-label="Precisa de atenção" className="w-full space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[var(--cockpit-text-primary)] leading-tight">
+    <section aria-label="Precisa de atenção" className="w-full space-y-2.5">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white leading-tight">
           Precisa de atenção
         </h2>
+        {totalPendencias > 0 && (
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            {totalPendencias} pendência(s)
+          </span>
+        )}
       </div>
 
       {totalPendencias === 0 ? (
-        <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg p-5">
-          <p className="text-sm font-normal text-[var(--cockpit-text-secondary)]">
+        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 shadow-sm">
+          <p className="text-sm font-normal text-[#C2C8CF]">
             Nenhuma pendência identificada.
           </p>
         </div>
       ) : (
-        <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg divide-y divide-[var(--cockpit-border-default)] overflow-hidden">
+        <div className="bg-[#151619] border border-[#303238] rounded-2xl divide-y divide-[#303238] overflow-hidden shadow-sm">
           {/* Grupo 1: Alunos Ativos sem Ficha */}
           {selectedStudents.map((student) => (
             <div
               key={student.membershipPublicId}
-              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 transition-colors hover:bg-[var(--cockpit-surface-subtle)]"
+              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 transition-colors hover:bg-[#1B1D21]"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   aria-hidden="true"
-                  className="w-9 h-9 rounded-md bg-[var(--cockpit-surface-subtle)] border border-[var(--cockpit-border-default)] flex items-center justify-center text-xs font-bold text-[var(--cockpit-text-primary)] shrink-0 select-none"
+                  className="w-9 h-9 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-xs font-bold text-white shrink-0 select-none"
                 >
                   {getInitials(student.name)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-[var(--cockpit-text-primary)] truncate">
+                    <p className="text-sm font-semibold text-white truncate">
                       {student.name}
                     </p>
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-[var(--cockpit-status-danger-text)] bg-[var(--cockpit-status-danger-bg)] border border-[var(--cockpit-status-danger-border)] select-none">
+                    {/* Badge com Alta Cor de Hierarquia: Vermelho/Coral */}
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-rose-300 bg-rose-500/20 border border-rose-500/30 select-none">
                       Sem ficha ativa
                     </span>
                   </div>
-                  <p className="text-xs text-[var(--cockpit-text-secondary)] mt-0.5 font-normal">
+                  <p className="text-xs text-[#C2C8CF] mt-0.5 font-normal">
                     {formatMemberSince(student.joinedAt)}
                   </p>
                 </div>
@@ -194,7 +197,7 @@ export function PersonalAttentionSection({
                     student.membershipPublicId
                   )}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-3 text-sm font-semibold text-[var(--cockpit-action-primary)] hover:underline rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)]"
+                  className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-3.5 py-1.5 text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#10B981]"
                 >
                   Criar ficha
                 </Link>
@@ -206,12 +209,12 @@ export function PersonalAttentionSection({
           {selectedDrafts.map((draft) => (
             <div
               key={draft.publicId}
-              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 transition-colors hover:bg-[var(--cockpit-surface-subtle)]"
+              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 transition-colors hover:bg-[#1B1D21]"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   aria-hidden="true"
-                  className="w-9 h-9 rounded-md bg-[var(--cockpit-surface-subtle)] border border-[var(--cockpit-border-default)] flex items-center justify-center text-[var(--cockpit-text-secondary)] shrink-0 select-none"
+                  className="w-9 h-9 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-[#C2C8CF] shrink-0 select-none"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -219,14 +222,15 @@ export function PersonalAttentionSection({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-[var(--cockpit-text-primary)] truncate">
+                    <p className="text-sm font-semibold text-white truncate">
                       {draft.title}
                     </p>
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-[var(--cockpit-status-neutral-text)] bg-[var(--cockpit-status-neutral-bg)] border border-[var(--cockpit-border-default)] select-none">
+                    {/* Badge com Alta Cor de Hierarquia: Âmbar */}
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-amber-300 bg-amber-500/20 border border-amber-500/30 select-none">
                       Rascunho não publicado
                     </span>
                   </div>
-                  <p className="text-xs text-[var(--cockpit-text-secondary)] mt-0.5 font-normal">
+                  <p className="text-xs text-[#C2C8CF] mt-0.5 font-normal">
                     {formatEditedDate(draft.updatedAt)}
                   </p>
                 </div>
@@ -236,7 +240,7 @@ export function PersonalAttentionSection({
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas/${draft.publicId}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-3 text-sm font-semibold text-[var(--cockpit-action-primary)] hover:underline rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)]"
+                  className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] hover:border-[#10B981]/50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#10B981]"
                 >
                   Revisar ficha
                 </Link>
@@ -244,40 +248,32 @@ export function PersonalAttentionSection({
             </div>
           ))}
 
-          {/* Rodapé Informativo e de Navegação com Destinos Honestos */}
-          {totalPendencias > 0 && (
-            <div className="p-3 bg-[var(--cockpit-surface-subtle)] flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-[var(--cockpit-text-secondary)]">
-              <span className="font-medium">
-                {visibleCount === totalPendencias
-                  ? `${totalPendencias} ${totalPendencias === 1 ? "pendência" : "pendências"}`
-                  : `${visibleCount} de ${totalPendencias} pendências`}
-              </span>
+          {/* Rodapé Honesto de Paginação e Navegação */}
+          <div className="p-3 sm:p-3.5 bg-[#121316] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#C2C8CF] font-normal">
+            <span>
+              {visibleCount} de {totalPendencias} pendências
+            </span>
 
-              <div className="flex flex-wrap items-center gap-3">
-                {sortedStudents.length > 0 && (
-                  <Link
-                    href={`/consultoria/${consultancySlug}/progresso/alunos`}
-                    prefetch={false}
-                    className="min-h-[44px] sm:min-h-0 inline-flex items-center text-sm font-medium text-[var(--cockpit-action-primary)] hover:underline cursor-pointer"
-                  >
-                    Ver todos os alunos ({totalStudents})
-                  </Link>
-                )}
-                {sortedStudents.length > 0 && sortedDrafts.length > 0 && (
-                  <span aria-hidden="true" className="text-[var(--cockpit-border-default)]">·</span>
-                )}
-                {sortedDrafts.length > 0 && (
-                  <Link
-                    href={`/consultoria/${consultancySlug}/rotinas?status=DRAFT`}
-                    prefetch={false}
-                    className="min-h-[44px] sm:min-h-0 inline-flex items-center text-sm font-medium text-[var(--cockpit-action-primary)] hover:underline cursor-pointer"
-                  >
-                    Ver rascunhos ({sortedDrafts.length})
-                  </Link>
-                )}
-              </div>
+            <div className="flex items-center gap-4">
+              <Link
+                href={`/consultoria/${consultancySlug}/progresso/alunos`}
+                prefetch={false}
+                className="text-[#10B981] hover:text-emerald-300 font-semibold transition-colors"
+              >
+                Ver todos os alunos ({totalStudents})
+              </Link>
+
+              {sortedDrafts.length > 0 && (
+                <Link
+                  href={`/consultoria/${consultancySlug}/rotinas?status=draft`}
+                  prefetch={false}
+                  className="text-[#10B981] hover:text-emerald-300 font-semibold transition-colors"
+                >
+                  Ver rascunhos ({sortedDrafts.length})
+                </Link>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
     </section>

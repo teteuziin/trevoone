@@ -44,37 +44,35 @@ export function PersonalTodaySection({
   isError = false,
   onRetry,
 }: PersonalTodaySectionProps) {
-  // Estado de Carregamento
   if (isLoading) {
     return (
-      <section aria-label="Compromissos de hoje" className="w-full space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--cockpit-text-primary)] leading-tight">
+      <section aria-label="Compromissos de hoje" className="w-full space-y-2.5">
+        <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
           Hoje
         </h2>
-        <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg p-4 space-y-2 animate-pulse">
-          <div className="h-4 bg-[var(--cockpit-surface-subtle)] rounded w-1/4" />
-          <div className="h-10 bg-[var(--cockpit-surface-subtle)] rounded w-full" />
+        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-4 space-y-2 animate-pulse">
+          <div className="h-4 bg-[#1B1D21] rounded w-1/4" />
+          <div className="h-10 bg-[#1B1D21] rounded w-full" />
         </div>
       </section>
     );
   }
 
-  // Estado de Erro
   if (isError) {
     return (
-      <section aria-label="Compromissos de hoje" className="w-full space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--cockpit-text-primary)] leading-tight">
+      <section aria-label="Compromissos de hoje" className="w-full space-y-2.5">
+        <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
           Hoje
         </h2>
-        <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p className="text-sm font-medium text-[var(--cockpit-text-secondary)]">
+        <div className="bg-[#151619] border border-red-500/30 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <p className="text-sm font-normal text-red-300">
             Não foi possível carregar a agenda de hoje.
           </p>
           {onRetry && (
             <button
               type="button"
               onClick={onRetry}
-              className="inline-flex items-center justify-center px-3.5 min-h-[44px] text-sm font-semibold text-[var(--cockpit-text-primary)] bg-[var(--cockpit-surface-subtle)] hover:bg-[var(--cockpit-border-default)] rounded-md transition-colors cursor-pointer select-none"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1B1D21] text-white border border-[#303238] hover:border-red-500/40 cursor-pointer"
             >
               Tentar novamente
             </button>
@@ -87,65 +85,69 @@ export function PersonalTodaySection({
   const items = consultations || [];
 
   return (
-    <section aria-label="Compromissos de hoje" className="w-full space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[var(--cockpit-text-primary)] leading-tight">
+    <section aria-label="Compromissos de hoje" className="w-full space-y-2.5">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white leading-tight">
           Hoje
         </h2>
       </div>
 
       {items.length === 0 ? (
-        <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p className="text-sm font-normal text-[var(--cockpit-text-secondary)]">
+        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 flex items-center justify-between shadow-sm">
+          <p className="text-sm font-normal text-[#C2C8CF]">
             Nenhuma consulta agendada para hoje.
           </p>
           <Link
             href={`/consultoria/${consultancySlug}/consultas`}
             prefetch={false}
-            className="inline-flex items-center justify-center min-h-[44px] px-3.5 text-sm font-semibold text-[var(--cockpit-action-primary)] hover:underline rounded-md select-none focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)]"
+            className="text-xs sm:text-sm font-semibold text-[#10B981] hover:text-emerald-300 transition-colors"
           >
-            Ver agenda
+            Ver agenda →
           </Link>
         </div>
       ) : (
-        <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg divide-y divide-[var(--cockpit-border-default)] overflow-hidden">
-          {items.map((item) => {
-            const joinAllowed = canJoinRoom(item);
-            const destinationHref = joinAllowed
-              ? `/consultoria/${consultancySlug}/consultas/${item.publicId}/sala`
-              : `/consultoria/${consultancySlug}/consultas`;
+        <div className="bg-[#151619] border border-[#303238] rounded-2xl divide-y divide-[#303238] overflow-hidden shadow-sm">
+          {items.map((consultation) => {
+            const isJoinable = canJoinRoom(consultation);
+            const targetHref = consultation.href || `/consultoria/${consultancySlug}/consultas`;
 
             return (
               <div
-                key={item.publicId}
-                className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 transition-colors hover:bg-[var(--cockpit-surface-subtle)]"
+                key={consultation.publicId}
+                className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-[#1B1D21]"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="text-sm font-semibold text-[var(--cockpit-text-primary)] tabular-nums px-2.5 py-1 rounded bg-[var(--cockpit-surface-subtle)] border border-[var(--cockpit-border-default)] shrink-0">
-                    {item.timeFormatted}
+                  <div className="w-12 h-10 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-xs font-bold font-mono text-[#10B981] shrink-0 tabular-nums">
+                    {consultation.timeFormatted}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-[var(--cockpit-text-primary)] truncate">
-                      {item.studentName}
+                    <p className="text-sm font-semibold text-white truncate">
+                      {consultation.studentName}
                     </p>
-                    <p className="text-xs text-[var(--cockpit-text-secondary)] mt-0.5">
-                      {item.type || "Consulta por vídeo"}
+                    <p className="text-xs text-[#C2C8CF] mt-0.5 truncate">
+                      {consultation.type || "Consulta por vídeo"}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-end sm:shrink-0 pt-1 sm:pt-0">
-                  <Link
-                    href={destinationHref}
-                    prefetch={false}
-                    className={`inline-flex items-center justify-center min-h-[44px] px-3.5 text-sm font-semibold rounded-md select-none focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)] ${
-                      joinAllowed
-                        ? "text-white bg-[var(--cockpit-action-primary)] hover:bg-[var(--cockpit-action-hover)]"
-                        : "text-[var(--cockpit-action-primary)] hover:underline"
-                    }`}
-                  >
-                    {joinAllowed ? "Acessar sala" : "Ver detalhes"}
-                  </Link>
+                  {isJoinable ? (
+                    <Link
+                      href={targetHref}
+                      prefetch={false}
+                      className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-4 py-2 text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 rounded-lg shadow-sm transition-colors"
+                    >
+                      Entrar na sala
+                    </Link>
+                  ) : (
+                    <Link
+                      href={targetHref}
+                      prefetch={false}
+                      className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-3.5 py-1.5 text-xs font-semibold text-[#C2C8CF] hover:text-white bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] rounded-lg transition-colors"
+                    >
+                      Ver detalhes
+                    </Link>
+                  )}
                 </div>
               </div>
             );

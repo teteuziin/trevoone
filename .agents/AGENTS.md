@@ -93,8 +93,12 @@ Este documento contém as **regras permanentes de arquitetura, desenvolvimento, 
 - Focar exclusivamente na tarefa solicitada. Não alterar o que está funcionando.
 
 # 36, 37 & 38. PROCESSO, VALIDAÇÕES E GIT
-- Executar `npm run lint` e `npm run build`.
-- Não fazer commit ou push automático sem permissão.
+- Executar os testes da feature, `npm run qa:full`, `npm run lint` e `npm run build` (`next build --webpack`).
+- **REGRA PERMANENTE DE FLUXO DE ENTREGA**: Ao concluir uma alteração solicitada pelo usuário, executar o fluxo completo sem interrupção:
+  `IMPLEMENTAR → TESTAR → REVISAR DIFF → COMMIT → PUSH → VERIFICAR PRODUÇÃO`.
+- Não parar em “pronto localmente” nem solicitar novamente autorização para commit, push e publicação das alterações solicitadas. A avaliação visual será feita pelo usuário em produção.
+- Limites da autorização: não inclui alterações fora de escopo, operações destrutivas, movimentações financeiras ou mudanças em dados reais para testes.
+- Se houver falha bloqueante, conflito que coloque trabalho existente em risco ou falta de acesso necessário, parar nesse ponto e explicar o bloqueio concreto com evidências.
 
 # 39 & 40. BANCO DE PRODUÇÃO E AMBIENTE
 - NUNCA executar DROP, TRUNCATE ou alterações destrutivas em produção.

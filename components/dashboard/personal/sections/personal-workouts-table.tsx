@@ -114,7 +114,6 @@ export function filterAndSortWorkouts({
   // 3. Filtro por quantidade de blocos (dimensão independente combinável)
   if (blocksFilter !== "ALL") {
     result = result.filter((w) => {
-      // Se a contagem for ausente (null ou undefined), não categoriza em faixa específica
       if (w.blocksCount === undefined || w.blocksCount === null || typeof w.blocksCount !== "number" || isNaN(w.blocksCount)) {
         return false;
       }
@@ -129,19 +128,12 @@ export function filterAndSortWorkouts({
     if (sortBy === "name") {
       return a.title.localeCompare(b.title, "pt-BR");
     }
-
     const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
     const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-
-    // Tratamento definido para datas ausentes: ficam ao final
-    if (!timeA && timeB) return 1;
-    if (timeA && !timeB) return -1;
-    if (!timeA && !timeB) return a.title.localeCompare(b.title, "pt-BR");
-
-    if (sortBy === "oldest") {
-      return timeA - timeB; // Atualizações mais antigas primeiro (ordenação padrão)
+    if (sortBy === "recent") {
+      return timeB - timeA;
     }
-    return timeB - timeA; // Mais recentes primeiro
+    return timeA - timeB; // oldest
   });
 
   return result;
@@ -173,161 +165,162 @@ export function PersonalWorkoutsTable({
   if (isLoading) {
     return (
       <section aria-label="Fichas de treino" className="w-full space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--cockpit-text-primary)]">Fichas</h2>
-        <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg p-5 space-y-3 animate-pulse">
-          <div className="h-10 bg-[var(--cockpit-surface-subtle)] rounded w-full" />
-          <div className="h-12 bg-[var(--cockpit-surface-subtle)] rounded w-full" />
-          <div className="h-12 bg-[var(--cockpit-surface-subtle)] rounded w-full" />
+        <h2 className="text-lg font-bold text-white">Fichas</h2>
+        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 space-y-3 animate-pulse">
+          <div className="h-10 bg-[#1B1D21] rounded w-full" />
+          <div className="h-12 bg-[#1B1D21] rounded w-full" />
         </div>
       </section>
     );
   }
 
   return (
-    <section id="fichas" aria-label="Fichas de treino" className="w-full space-y-4">
-      {/* Cabeçalho da Seção com Título D2 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-lg font-semibold text-[var(--cockpit-text-primary)] leading-tight">
-            Fichas
-          </h2>
-          <span className="text-xs text-[var(--cockpit-text-secondary)] font-normal tabular-nums">
-            ({totalWorkouts || workouts.length})
-          </span>
+    <section id="fichas" aria-label="Fichas de treino" className="w-full space-y-3.5">
+      {/* 1. Header e Controles da Seção Fichas */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white leading-tight font-sans">
+              Fichas
+            </h2>
+            <span className="text-xs text-[#C2C8CF] font-medium tabular-nums">
+              ({totalWorkouts || workouts.length})
+            </span>
+          </div>
+
+          {/* Filtros e Ordenação */}
+          <div className="flex flex-wrap items-center gap-2 max-w-full">
+            {/* Seletor de Ordenação */}
+            <div className="flex items-center gap-1.5 text-xs text-[#C2C8CF] shrink-0">
+              <span className="hidden sm:inline">Ordem:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="min-h-[44px] px-3 bg-[#1B1D21] border border-[#303238] rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#10B981] cursor-pointer"
+                aria-label="Critério de ordenação das fichas"
+              >
+                <option value="oldest">Atualizações mais antigas</option>
+                <option value="recent">Atualizações mais recentes</option>
+                <option value="name">Nome (A-Z)</option>
+              </select>
+            </div>
+
+            {/* Filtros Rápidos de Status */}
+            <div className="inline-flex flex-wrap rounded-xl p-1 bg-[#1B1D21] border border-[#303238] max-w-full">
+              <button
+                type="button"
+                onClick={() => setStatusFilter("ALL")}
+                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                  statusFilter === "ALL"
+                    ? "bg-[#151619] text-white shadow-xs border border-[#303238]"
+                    : "text-[#C2C8CF] hover:text-white"
+                }`}
+              >
+                Todas
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("DRAFT")}
+                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                  statusFilter === "DRAFT"
+                    ? "bg-amber-500/20 text-amber-300 shadow-xs border border-amber-500/30"
+                    : "text-[#C2C8CF] hover:text-white"
+                }`}
+              >
+                Rascunhos
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("PUBLISHED")}
+                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                  statusFilter === "PUBLISHED"
+                    ? "bg-emerald-500/20 text-emerald-300 shadow-xs border border-emerald-500/30"
+                    : "text-[#C2C8CF] hover:text-white"
+                }`}
+              >
+                Publicadas
+              </button>
+            </div>
+
+            {/* Filtros por Quantidade de Blocos */}
+            <div className="inline-flex flex-wrap rounded-xl p-1 bg-[#1B1D21] border border-[#303238] max-w-full">
+              <button
+                type="button"
+                onClick={() => setBlocksFilter("ALL")}
+                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                  blocksFilter === "ALL"
+                    ? "bg-[#151619] text-white shadow-xs border border-[#303238]"
+                    : "text-[#C2C8CF] hover:text-white"
+                }`}
+              >
+                Todos os blocos
+              </button>
+              <button
+                type="button"
+                onClick={() => setBlocksFilter("FEW_BLOCKS")}
+                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                  blocksFilter === "FEW_BLOCKS"
+                    ? "bg-[#151619] text-white shadow-xs border border-[#303238]"
+                    : "text-[#C2C8CF] hover:text-white"
+                }`}
+              >
+                Até 3 blocos
+              </button>
+              <button
+                type="button"
+                onClick={() => setBlocksFilter("MANY_BLOCKS")}
+                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                  blocksFilter === "MANY_BLOCKS"
+                    ? "bg-[#151619] text-white shadow-xs border border-[#303238]"
+                    : "text-[#C2C8CF] hover:text-white"
+                }`}
+              >
+                4+ blocos
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Filtros e Ordenação */}
-        <div className="flex flex-wrap items-center gap-2 max-w-full">
-          {/* Seletor de Ordenação */}
-          <div className="flex items-center gap-1.5 text-xs text-[var(--cockpit-text-secondary)] shrink-0">
-            <span className="hidden sm:inline">Ordem:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="min-h-[44px] px-2.5 bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-md text-xs font-medium text-[var(--cockpit-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)] cursor-pointer"
-              aria-label="Critério de ordenação das fichas"
+        {/* Campo de Busca Harmonizado */}
+        <div className="w-full">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por nome da ficha ou aluno..."
+              className="w-full h-[44px] pl-9 pr-12 text-xs sm:text-sm font-medium bg-[#1B1D21] border border-[#303238] rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+            />
+            <svg
+              className="w-4 h-4 text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
             >
-              <option value="oldest">Atualizações mais antigas</option>
-              <option value="recent">Atualizações mais recentes</option>
-              <option value="name">Nome (A-Z)</option>
-            </select>
-          </div>
-
-          {/* Filtros Rápidos de Status (Alvos >= 44px) */}
-          <div className="inline-flex flex-wrap rounded-md p-0.5 bg-[var(--cockpit-surface-subtle)] border border-[var(--cockpit-border-default)] max-w-full">
-            <button
-              type="button"
-              onClick={() => setStatusFilter("ALL")}
-              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
-                statusFilter === "ALL"
-                  ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
-                  : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
-              }`}
-            >
-              Todas
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("DRAFT")}
-              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
-                statusFilter === "DRAFT"
-                  ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
-                  : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
-              }`}
-            >
-              Rascunhos
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("PUBLISHED")}
-              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
-                statusFilter === "PUBLISHED"
-                  ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
-                  : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
-              }`}
-            >
-              Publicadas
-            </button>
-          </div>
-
-          {/* Filtros por Quantidade de Blocos (Alvos >= 44px com quebra responsiva no celular) */}
-          <div className="inline-flex flex-wrap rounded-md p-0.5 bg-[var(--cockpit-surface-subtle)] border border-[var(--cockpit-border-default)] max-w-full">
-            <button
-              type="button"
-              onClick={() => setBlocksFilter("ALL")}
-              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
-                blocksFilter === "ALL"
-                  ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
-                  : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
-              }`}
-            >
-              Todos os blocos
-            </button>
-            <button
-              type="button"
-              onClick={() => setBlocksFilter("FEW_BLOCKS")}
-              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
-                blocksFilter === "FEW_BLOCKS"
-                  ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
-                  : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
-              }`}
-            >
-              Até 3 blocos
-            </button>
-            <button
-              type="button"
-              onClick={() => setBlocksFilter("MANY_BLOCKS")}
-              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
-                blocksFilter === "MANY_BLOCKS"
-                  ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
-                  : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
-              }`}
-            >
-              4+ blocos
-            </button>
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            {searchTerm.trim().length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                aria-label="Limpar busca"
+                className="absolute right-0 top-0 h-full w-[44px] min-h-[44px] min-w-[44px] flex items-center justify-center rounded-r-xl text-[#C2C8CF] hover:text-white hover:bg-[#252830] transition-colors cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Campo de Busca Harmonizado (h-[44px]) com Botão de Limpar Busca Integral */}
-      <div className="w-full">
-        <div className="relative">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nome da ficha ou aluno..."
-            className="w-full h-[44px] pl-9 pr-12 text-sm font-normal bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-md text-[var(--cockpit-text-primary)] placeholder:text-[var(--cockpit-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)]"
-          />
-          <svg
-            className="w-4 h-4 text-[var(--cockpit-text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="M21 21l-4.35-4.35" />
-          </svg>
-          {searchTerm.trim().length > 0 && (
-            <button
-              type="button"
-              onClick={() => setSearchTerm("")}
-              aria-label="Limpar busca"
-              className="absolute right-0 top-0 h-full w-[44px] min-h-[44px] min-w-[44px] flex items-center justify-center rounded-r-md text-[var(--cockpit-text-tertiary)] hover:text-[var(--cockpit-text-primary)] hover:bg-[var(--cockpit-surface-subtle)] transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)]"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Conteúdo: Tabela (Desktop) ou Lista Vertical (Mobile) */}
+      {/* 2. Tabela Desktop ou Lista Mobile */}
       {filteredWorkouts.length === 0 ? (
-        <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg p-8 text-center space-y-3">
-          <p className="text-sm font-medium text-[var(--cockpit-text-secondary)]">
+        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-8 text-center space-y-3">
+          <p className="text-sm font-medium text-[#C2C8CF]">
             {searchTerm.trim() || statusFilter !== "ALL" || blocksFilter !== "ALL"
               ? "Nenhuma ficha encontrada para os filtros aplicados."
               : "Nenhuma ficha cadastrada ainda."}
@@ -336,125 +329,145 @@ export function PersonalWorkoutsTable({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/novo`}
               prefetch={false}
-              className="inline-flex items-center justify-center min-h-[44px] px-4 text-sm font-semibold text-white bg-[var(--cockpit-action-primary)] hover:bg-[var(--cockpit-action-hover)] rounded-md transition-colors select-none"
+              className="inline-flex mt-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs rounded-xl shadow-xs transition-colors"
             >
-              Criar primeira ficha
+              + Nova ficha
             </Link>
           )}
         </div>
       ) : (
         <>
-          {/* 1. VISÃO DESKTOP: TABELA DE 6 COLUNAS */}
-          <div className="hidden md:block bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg overflow-hidden">
+          {/* VISÃO DESKTOP: TABELA DE 6 COLUNAS */}
+          <div className="hidden md:block bg-[#151619] border border-[#303238] rounded-2xl overflow-hidden shadow-sm">
             <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[var(--cockpit-surface-subtle)] border-b border-[var(--cockpit-border-default)]">
-                  <th scope="col" className="py-2.5 px-4 text-[11px] font-bold uppercase tracking-wider text-[var(--cockpit-text-tertiary)]">
+              <thead className="bg-[#121316] border-b border-[#303238]">
+                <tr>
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider">
                     Aluno
                   </th>
-                  <th scope="col" className="py-2.5 px-4 text-[11px] font-bold uppercase tracking-wider text-[var(--cockpit-text-tertiary)]">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider">
                     Ficha
                   </th>
-                  <th scope="col" className="py-2.5 px-4 text-[11px] font-bold uppercase tracking-wider text-[var(--cockpit-text-tertiary)]">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider">
                     Blocos
                   </th>
-                  <th scope="col" className="py-2.5 px-4 text-[11px] font-bold uppercase tracking-wider text-[var(--cockpit-text-tertiary)]">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider">
                     Atualizada em
                   </th>
-                  <th scope="col" className="py-2.5 px-4 text-[11px] font-bold uppercase tracking-wider text-[var(--cockpit-text-tertiary)]">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider">
                     Status
                   </th>
-                  <th scope="col" className="py-2.5 px-4 text-[11px] font-bold uppercase tracking-wider text-[var(--cockpit-text-tertiary)] text-right">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider text-right">
                     Ação
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--cockpit-border-default)]">
-                {filteredWorkouts.map((workout) => (
-                  <tr
-                    key={workout.publicId}
-                    className="h-[48px] hover:bg-[var(--cockpit-surface-subtle)] transition-colors"
-                  >
-                    {/* Aluno */}
-                    <td className="py-2.5 px-4 text-sm font-medium text-[var(--cockpit-text-primary)]">
-                      {resolveStudentDisplay(workout)}
-                    </td>
+              <tbody className="divide-y divide-[#303238]">
+                {filteredWorkouts.map((workout) => {
+                  const isDraft = workout.status === "DRAFT" || workout.currentVersionStatus === "DRAFT" || workout.hasActiveDraft;
 
-                    {/* Ficha */}
-                    <td className="py-2.5 px-4 text-sm font-semibold text-[var(--cockpit-text-primary)] max-w-xs truncate">
-                      {workout.title}
-                    </td>
+                  return (
+                    <tr
+                      key={workout.publicId}
+                      className="h-[52px] hover:bg-[#1B1D21] transition-colors"
+                    >
+                      {/* Aluno */}
+                      <td className="py-3 px-4 text-sm font-medium text-white">
+                        {resolveStudentDisplay(workout)}
+                      </td>
 
-                    {/* Blocos (Preserva 0 real e exibe traço quando ausente) */}
-                    <td className="py-2.5 px-4 text-xs font-normal text-[var(--cockpit-text-secondary)] tabular-nums">
-                      {formatBlocksCount(workout.blocksCount)}
-                    </td>
+                      {/* Ficha */}
+                      <td className="py-3 px-4 text-sm font-bold text-white max-w-xs truncate">
+                        {workout.title}
+                      </td>
 
-                    {/* Atualizada em */}
-                    <td className="py-2.5 px-4 text-xs font-normal text-[var(--cockpit-text-secondary)] tabular-nums">
-                      {formatDate(workout.updatedAt)}
-                    </td>
+                      {/* Blocos */}
+                      <td className="py-3 px-4 text-xs font-bold text-[#10B981] tabular-nums">
+                        {formatBlocksCount(workout.blocksCount)}
+                      </td>
 
-                    {/* Status (Badge Neutro) */}
-                    <td className="py-2.5 px-4">
-                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-[var(--cockpit-status-neutral-text)] bg-[var(--cockpit-status-neutral-bg)] border border-[var(--cockpit-border-default)] select-none">
-                        {resolveStatusLabel(workout)}
-                      </span>
-                    </td>
+                      {/* Atualizada em */}
+                      <td className="py-3 px-4 text-xs font-normal text-[#C2C8CF] tabular-nums">
+                        {formatDate(workout.updatedAt)}
+                      </td>
 
-                    {/* Ação */}
-                    <td className="py-2.5 px-4 text-right">
-                      <Link
-                        href={`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`}
-                        prefetch={false}
-                        className="inline-flex items-center text-sm font-semibold text-[var(--cockpit-action-primary)] hover:underline"
-                      >
-                        Abrir ficha
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      {/* Status com Cores de Hierarquia */}
+                      <td className="py-3 px-4">
+                        {isDraft ? (
+                          <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 select-none">
+                            Rascunho
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 select-none">
+                            Publicada
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Ação */}
+                      <td className="py-3 px-4 text-right">
+                        <Link
+                          href={`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`}
+                          prefetch={false}
+                          className="inline-flex items-center text-sm font-bold text-[#10B981] hover:text-emerald-300 hover:underline"
+                        >
+                          Abrir ficha
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          {/* 2. VISÃO MOBILE: LISTA VERTICAL DE LINHAS */}
-          <div className="md:hidden bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg divide-y divide-[var(--cockpit-border-default)] overflow-hidden">
-            {filteredWorkouts.map((workout) => (
-              <div
-                key={workout.publicId}
-                onClick={() => router.push(`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`)}
-                className="p-4 min-h-[64px] flex flex-col justify-center gap-1.5 active:bg-[var(--cockpit-surface-subtle)] cursor-pointer transition-colors"
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    router.push(`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`);
-                  }
-                }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-[var(--cockpit-text-primary)] leading-snug">
-                    {workout.title}
-                  </p>
-                  <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-[var(--cockpit-status-neutral-text)] bg-[var(--cockpit-status-neutral-bg)] border border-[var(--cockpit-border-default)] shrink-0">
-                    {resolveStatusLabel(workout)}
-                  </span>
-                </div>
+          {/* VISÃO MOBILE: LISTA VERTICAL DE LINHAS */}
+          <div className="md:hidden bg-[#151619] border border-[#303238] rounded-2xl divide-y divide-[#303238] overflow-hidden shadow-sm">
+            {filteredWorkouts.map((workout) => {
+              const isDraft = workout.status === "DRAFT" || workout.currentVersionStatus === "DRAFT" || workout.hasActiveDraft;
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--cockpit-text-secondary)] font-normal">
-                  <span className="font-medium text-[var(--cockpit-text-primary)]">
-                    {resolveStudentDisplay(workout)}
-                  </span>
-                  <span>·</span>
-                  <span className="tabular-nums">
-                    {formatBlocksCount(workout.blocksCount)}
-                  </span>
-                  <span>·</span>
-                  <span className="tabular-nums">{formatDate(workout.updatedAt)}</span>
+              return (
+                <div
+                  key={workout.publicId}
+                  onClick={() => router.push(`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`)}
+                  className="p-4 min-h-[64px] flex flex-col justify-center gap-1.5 active:bg-[#1B1D21] cursor-pointer transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      router.push(`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`);
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-bold text-white leading-snug">
+                      {workout.title}
+                    </p>
+                    {isDraft ? (
+                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 select-none">
+                        Rascunho
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0 select-none">
+                        Publicada
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#C2C8CF] font-normal">
+                    <span className="font-semibold text-white">
+                      {resolveStudentDisplay(workout)}
+                    </span>
+                    <span>·</span>
+                    <span className="tabular-nums font-bold text-[#10B981]">
+                      {formatBlocksCount(workout.blocksCount)}
+                    </span>
+                    <span>·</span>
+                    <span className="tabular-nums">{formatDate(workout.updatedAt)}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}

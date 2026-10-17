@@ -5,6 +5,9 @@ import {
   PersonalOverviewHeader,
 } from "./personal/sections/personal-overview-header";
 import {
+  PersonalWorkoutSlider,
+} from "./personal/sections/personal-workout-slider";
+import {
   PersonalAttentionSection,
   type StudentAttentionItem,
   type DraftAttentionItem,
@@ -101,7 +104,7 @@ export function DashboardPersonalView({
       }));
   }, [activeWorkouts]);
 
-  // Formatação das linhas para a tabela única
+  // Formatação das linhas para a tabela única e slider
   const tableWorkouts: PersonalWorkoutRow[] = useMemo(() => {
     return activeWorkouts.map((w) => ({
       publicId: w.publicId,
@@ -136,8 +139,8 @@ export function DashboardPersonalView({
   }, [todayConsultations]);
 
   return (
-    <div className="w-full space-y-6 pb-12">
-      {/* 1. Cabeçalho Compacto (D1 24px + Linha de Contexto D4 12px) */}
+    <div className="w-full space-y-5 sm:space-y-6 pb-12">
+      {/* 1. Cabeçalho Executivo Grafite e Métricas Bento */}
       <PersonalOverviewHeader
         consultancySlug={consultancySlug}
         totalStudents={totalStudents}
@@ -145,7 +148,13 @@ export function DashboardPersonalView({
         prescribedBlocksCount={computedBlocksCount}
       />
 
-      {/* 2. Precisa de Atenção (Cota dinâmica 3+2, ordenação determinística e rodapé honesto) */}
+      {/* 2. Sliders e Rolamento Automático (Acesso rápido aos treinos) */}
+      <PersonalWorkoutSlider
+        consultancySlug={consultancySlug}
+        workouts={tableWorkouts}
+      />
+
+      {/* 3. Precisa de Atenção (Cota dinâmica 3+2 com cores fortes de hierarquia) */}
       <PersonalAttentionSection
         consultancySlug={consultancySlug}
         studentsWithoutWorkout={studentsWithoutWorkout as StudentAttentionItem[]}
@@ -153,13 +162,13 @@ export function DashboardPersonalView({
         totalStudents={totalStudents ?? 0}
       />
 
-      {/* 3. Hoje (Agenda do dia com estado vazio honesto e janela [-10min, +30min]) */}
+      {/* 4. Hoje (Agenda do dia com estado vazio honesto e janela [-10min, +30min]) */}
       <PersonalTodaySection
         consultancySlug={consultancySlug}
         consultations={normalizedConsultations}
       />
 
-      {/* 4. Fichas (Tabela unificada desktop de 6 colunas + lista mobile vertical) */}
+      {/* 5. Fichas (Tabela unificada desktop de 6 colunas + lista mobile vertical) */}
       <PersonalWorkoutsTable
         consultancySlug={consultancySlug}
         workouts={tableWorkouts}
@@ -196,4 +205,3 @@ export function DashboardPersonalView({
 // /rotinas`
 // Nenhuma ficha cadastrada ainda
 // =========================================================================
-

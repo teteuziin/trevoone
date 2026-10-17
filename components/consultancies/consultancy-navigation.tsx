@@ -11,6 +11,7 @@ import { ConsultancyLogo } from "@/components/brand/consultancy-logo";
 import { logoutFromConsultancyArea } from "@/app/selecionar-consultoria/actions";
 import { NotificationBell, LogoutButton } from "@/components/notifications/notification-bell";
 import { ViewModeSelector } from "./view-mode-selector";
+import { CockpitRoleModeSwitcher } from "@/components/dashboard/cockpit-role-mode-switcher";
 import { FirstAccessTutorial } from "@/components/onboarding/first-access-tutorial";
 import type { EffectiveViewModeState } from "@/lib/consultancies/view-mode";
 
@@ -821,6 +822,18 @@ export function ConsultancyNavigation({
               )}
             </div>
           </Link>
+
+          {/* Alternador 3D para Multi-Role (Personal + Admin) */}
+          {viewModeState && !viewModeState.isPreview && viewModeState.allowedOptions.some(o => o.mode === "PERSONAL" && o.isRealRole) && viewModeState.allowedOptions.some(o => o.mode === "ADMIN" && o.isRealRole) && (
+            <div className="pt-1.5 pb-0.5">
+              <CockpitRoleModeSwitcher
+                consultancySlug={consultancySlug}
+                currentMode={viewModeState.effectiveMode}
+                compact={true}
+                className="w-full justify-center"
+              />
+            </div>
+          )}
 
           {/* View Mode Selector ONLY if explicitly in preview mode */}
           {viewModeState?.isPreview && (

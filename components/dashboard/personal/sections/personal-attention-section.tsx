@@ -73,7 +73,7 @@ export function PersonalAttentionSection({
   if (isLoading) {
     return (
       <section aria-label="Precisa de atenção" className="w-full space-y-3">
-        <h2 className="text-lg font-bold text-white leading-tight">
+        <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
           Precisa de atenção
         </h2>
         <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 space-y-3 animate-pulse">
@@ -87,7 +87,7 @@ export function PersonalAttentionSection({
   if (isError) {
     return (
       <section aria-label="Precisa de atenção" className="w-full space-y-3">
-        <h2 className="text-lg font-bold text-white leading-tight">
+        <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
           Precisa de atenção
         </h2>
         <div className="bg-[#151619] border border-red-500/30 rounded-2xl p-5 flex items-center justify-between gap-4">
@@ -98,7 +98,7 @@ export function PersonalAttentionSection({
             <button
               type="button"
               onClick={onRetry}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1B1D21] text-white border border-[#303238] hover:border-red-500/40 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-[#1B1D21] text-white border border-[#303238] hover:border-red-500/40 cursor-pointer active:translate-y-[1px]"
             >
               Tentar novamente
             </button>
@@ -108,8 +108,7 @@ export function PersonalAttentionSection({
     );
   }
 
-  // 1. Algoritmo de Ordenação Determinística:
-  // P1: Alunos sem treino ordenados por joinedAt ASC (mais antigos primeiro), desempate por nome alfabético
+  // Ordenação determinística
   const sortedStudents = [...studentsWithoutWorkout].sort((a, b) => {
     const timeA = new Date(a.joinedAt).getTime();
     const timeB = new Date(b.joinedAt).getTime();
@@ -117,7 +116,6 @@ export function PersonalAttentionSection({
     return a.name.localeCompare(b.name, "pt-BR");
   });
 
-  // P2: Rascunhos por updatedAt DESC (trabalhado mais recentemente primeiro), desempate por título
   const sortedDrafts = [...draftWorkouts].sort((a, b) => {
     const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
     const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
@@ -125,7 +123,7 @@ export function PersonalAttentionSection({
     return a.title.localeCompare(b.title, "pt-BR");
   });
 
-  // 2. Algoritmo da Cota Dinâmica (Teto total = 5):
+  // Cota dinâmica (Teto total = 5)
   const quota1 = Math.min(sortedStudents.length, 3);
   const quota2 = Math.min(sortedDrafts.length, 2);
   let remainingSlots = 5 - (quota1 + quota2);
@@ -142,50 +140,54 @@ export function PersonalAttentionSection({
   const visibleCount = selectedStudents.length + selectedDrafts.length;
 
   return (
-    <section aria-label="Precisa de atenção" className="w-full space-y-2.5">
+    <section aria-label="Precisa de atenção" className="w-full space-y-3">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white leading-tight">
-          Precisa de atenção
+        <h2 className="text-base sm:text-lg font-bold text-white leading-tight flex items-center gap-2">
+          <span>Precisa de atenção</span>
         </h2>
         {totalPendencias > 0 && (
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
-            {totalPendencias} pendência(s)
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
+            {totalPendencias} {totalPendencias === 1 ? "pendência" : "pendências"}
           </span>
         )}
       </div>
 
       {totalPendencias === 0 ? (
-        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 shadow-sm">
-          <p className="text-sm font-normal text-[#C2C8CF]">
-            Nenhuma pendência identificada.
+        <div className="bg-gradient-to-b from-[#181A1F] to-[#121316] border-t border-white/[0.14] border-x border-b border-black/80 rounded-2xl p-5 shadow-[0_10px_24px_-4px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center gap-3 text-white">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[#10B981] flex items-center justify-center shrink-0">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-[#C2C8CF]">
+            Todos os seus alunos possuem fichas ativas e não há rascunhos pendentes.
           </p>
         </div>
       ) : (
-        <div className="bg-[#151619] border border-[#303238] rounded-2xl divide-y divide-[#303238] overflow-hidden shadow-sm">
+        <div className="bg-gradient-to-b from-[#181A1F] to-[#121316] border-t border-white/[0.14] border-x border-b border-black/80 rounded-2xl divide-y divide-[#2B2E35] overflow-hidden shadow-[0_12px_28px_-6px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)]">
           {/* Grupo 1: Alunos Ativos sem Ficha */}
           {selectedStudents.map((student) => (
             <div
               key={student.membershipPublicId}
-              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 transition-colors hover:bg-[#1B1D21]"
+              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-white/[0.03]"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   aria-hidden="true"
-                  className="w-9 h-9 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-xs font-bold text-white shrink-0 select-none"
+                  className="w-10 h-10 rounded-xl bg-gradient-to-b from-[#22252C] to-[#15171C] border border-white/[0.08] shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)] flex items-center justify-center text-xs font-bold text-white shrink-0 select-none"
                 >
                   {getInitials(student.name)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-white truncate">
+                    <p className="text-sm font-bold text-white truncate">
                       {student.name}
                     </p>
-                    {/* Badge com Alta Cor de Hierarquia: Vermelho/Coral */}
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-rose-300 bg-rose-500/20 border border-rose-500/30 select-none">
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-rose-300 bg-rose-500/15 border border-rose-500/30 select-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
                       Sem ficha ativa
                     </span>
                   </div>
-                  <p className="text-xs text-[#C2C8CF] mt-0.5 font-normal">
+                  <p className="text-xs text-[#8E95A2] mt-0.5 font-medium">
                     {formatMemberSince(student.joinedAt)}
                   </p>
                 </div>
@@ -197,7 +199,7 @@ export function PersonalAttentionSection({
                     student.membershipPublicId
                   )}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-3.5 py-1.5 text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+                  className="inline-flex items-center justify-center min-h-[40px] px-4 text-xs font-bold text-white bg-gradient-to-b from-[#10B981] to-[#059669] hover:from-[#34D399] hover:to-[#10B981] rounded-lg border-t border-emerald-300/40 border-b border-emerald-950/80 shadow-[0_3px_8px_rgba(16,185,129,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] active:translate-y-[1px] transition-all cursor-pointer"
                 >
                   Criar ficha
                 </Link>
@@ -209,12 +211,12 @@ export function PersonalAttentionSection({
           {selectedDrafts.map((draft) => (
             <div
               key={draft.publicId}
-              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 transition-colors hover:bg-[#1B1D21]"
+              className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors hover:bg-white/[0.03]"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   aria-hidden="true"
-                  className="w-9 h-9 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-[#C2C8CF] shrink-0 select-none"
+                  className="w-10 h-10 rounded-xl bg-gradient-to-b from-[#22252C] to-[#15171C] border border-white/[0.08] shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)] flex items-center justify-center text-[#8E95A2] shrink-0 select-none"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -222,15 +224,14 @@ export function PersonalAttentionSection({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-white truncate">
+                    <p className="text-sm font-bold text-white truncate">
                       {draft.title}
                     </p>
-                    {/* Badge com Alta Cor de Hierarquia: Âmbar */}
-                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-amber-300 bg-amber-500/20 border border-amber-500/30 select-none">
+                    <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-amber-300 bg-amber-500/15 border border-amber-500/30 select-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
                       Rascunho não publicado
                     </span>
                   </div>
-                  <p className="text-xs text-[#C2C8CF] mt-0.5 font-normal">
+                  <p className="text-xs text-[#8E95A2] mt-0.5 font-medium">
                     {formatEditedDate(draft.updatedAt)}
                   </p>
                 </div>
@@ -240,7 +241,7 @@ export function PersonalAttentionSection({
                 <Link
                   href={`/consultoria/${consultancySlug}/rotinas/${draft.publicId}`}
                   prefetch={false}
-                  className="inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] hover:border-[#10B981]/50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+                  className="inline-flex items-center justify-center min-h-[40px] px-4 text-xs font-semibold text-[#E5E7EB] hover:text-white bg-gradient-to-b from-[#24272E] to-[#16181D] hover:from-[#2B2F38] hover:to-[#1B1E24] border-t border-white/[0.18] border-b border-black/90 shadow-[0_3px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)] rounded-lg active:translate-y-[1px] transition-all cursor-pointer"
                 >
                   Revisar ficha
                 </Link>
@@ -248,10 +249,10 @@ export function PersonalAttentionSection({
             </div>
           ))}
 
-          {/* Rodapé Honesto de Paginação e Navegação */}
-          <div className="p-3 sm:p-3.5 bg-[#121316] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#C2C8CF] font-normal">
+          {/* Rodapé de Paginação e Navegação */}
+          <div className="p-3.5 bg-[#0F1013] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#8E95A2] font-medium border-t border-black/40">
             <span>
-              {visibleCount} de {totalPendencias} pendências
+              {visibleCount} de {totalPendencias} pendências exibidas
             </span>
 
             <div className="flex items-center gap-4">
@@ -260,7 +261,7 @@ export function PersonalAttentionSection({
                 prefetch={false}
                 className="text-[#10B981] hover:text-emerald-300 font-semibold transition-colors"
               >
-                Ver todos os alunos ({totalStudents})
+                Ver todos os alunos ({totalStudents}) →
               </Link>
 
               {sortedDrafts.length > 0 && (
@@ -269,7 +270,7 @@ export function PersonalAttentionSection({
                   prefetch={false}
                   className="text-[#10B981] hover:text-emerald-300 font-semibold transition-colors"
                 >
-                  Ver rascunhos ({sortedDrafts.length})
+                  Ver rascunhos ({sortedDrafts.length}) →
                 </Link>
               )}
             </div>

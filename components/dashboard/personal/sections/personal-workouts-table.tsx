@@ -101,20 +101,23 @@ export function filterAndSortWorkouts({
     });
   }
 
-  // 2. Filtro de status (dimensão independente)
+  // 2. Filtro de Status
   if (statusFilter !== "ALL") {
     result = result.filter((w) => {
-      const isDraft = w.currentVersionStatus === "DRAFT" || w.status === "DRAFT" || w.hasActiveDraft;
+      const isDraft =
+        w.status === "DRAFT" ||
+        w.currentVersionStatus === "DRAFT" ||
+        w.hasActiveDraft;
       if (statusFilter === "DRAFT") return isDraft;
-      if (statusFilter === "PUBLISHED") return !isDraft && w.status !== "ARCHIVED";
+      if (statusFilter === "PUBLISHED") return !isDraft;
       return true;
     });
   }
 
-  // 3. Filtro por quantidade de blocos (dimensão independente combinável)
+  // 3. Filtro por Quantidade de Blocos
   if (blocksFilter !== "ALL") {
     result = result.filter((w) => {
-      if (w.blocksCount === undefined || w.blocksCount === null || typeof w.blocksCount !== "number" || isNaN(w.blocksCount)) {
+      if (typeof w.blocksCount !== "number" || isNaN(w.blocksCount)) {
         return false;
       }
       if (blocksFilter === "FEW_BLOCKS") return w.blocksCount <= 3;
@@ -165,7 +168,7 @@ export function PersonalWorkoutsTable({
   if (isLoading) {
     return (
       <section aria-label="Fichas de treino" className="w-full space-y-4">
-        <h2 className="text-lg font-bold text-white">Fichas</h2>
+        <h2 className="text-base sm:text-lg font-bold text-white">Fichas</h2>
         <div className="bg-[#151619] border border-[#303238] rounded-2xl p-5 space-y-3 animate-pulse">
           <div className="h-10 bg-[#1B1D21] rounded w-full" />
           <div className="h-12 bg-[#1B1D21] rounded w-full" />
@@ -176,27 +179,27 @@ export function PersonalWorkoutsTable({
 
   return (
     <section id="fichas" aria-label="Fichas de treino" className="w-full space-y-3.5">
-      {/* 1. Header e Controles da Seção Fichas */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[#151619] border border-[#303238] shadow-sm space-y-3.5">
+      {/* 1. Header e Controles 3D da Seção Fichas */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#181A1F] to-[#121316] border-t border-white/[0.14] border-x border-b border-black/80 shadow-[0_12px_28px_-6px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] space-y-3.5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-baseline gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-white leading-tight font-sans">
+            <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
               Fichas
             </h2>
-            <span className="text-xs text-[#C2C8CF] font-medium tabular-nums">
+            <span className="text-xs text-[#8E95A2] font-semibold tabular-nums font-mono">
               ({totalWorkouts || workouts.length})
             </span>
           </div>
 
-          {/* Filtros e Ordenação */}
+          {/* Filtros e Ordenação com Relevo Físico */}
           <div className="flex flex-wrap items-center gap-2 max-w-full">
             {/* Seletor de Ordenação */}
-            <div className="flex items-center gap-1.5 text-xs text-[#C2C8CF] shrink-0">
+            <div className="flex items-center gap-1.5 text-xs text-[#8E95A2] shrink-0 font-medium">
               <span className="hidden sm:inline">Ordem:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="min-h-[44px] px-3 bg-[#1B1D21] border border-[#303238] rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#10B981] cursor-pointer"
+                className="min-h-[44px] px-3 bg-[#0E0F12] border border-white/[0.08] shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)] rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#10B981] cursor-pointer"
                 aria-label="Critério de ordenação das fichas"
               >
                 <option value="oldest">Atualizações mais antigas</option>
@@ -205,75 +208,75 @@ export function PersonalWorkoutsTable({
               </select>
             </div>
 
-            {/* Filtros Rápidos de Status */}
-            <div className="inline-flex flex-wrap rounded-xl p-1 bg-[#1B1D21] border border-[#303238] max-w-full">
+            {/* Filtros Rápidos de Status 3D */}
+            <div className="inline-flex flex-wrap rounded-xl p-1 bg-[#0E0F12] border border-white/[0.08] shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)] max-w-full">
               <button
                 type="button"
                 onClick={() => setStatusFilter("ALL")}
-                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   statusFilter === "ALL"
-                    ? "bg-[#151619] text-white shadow-xs border border-[#303238]"
-                    : "text-[#C2C8CF] hover:text-white"
-                }`}
+                    ? "bg-gradient-to-b from-[#282B33] to-[#181A1F] text-white border-t border-white/[0.2] border-b border-black/80 shadow-[0_2px_6px_rgba(0,0,0,0.4)]"
+                    : "text-[#8E95A2] hover:text-white"
+                } active:translate-y-[1px]`}
               >
                 Todas
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter("DRAFT")}
-                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   statusFilter === "DRAFT"
-                    ? "bg-amber-500/20 text-amber-300 shadow-xs border border-amber-500/30"
-                    : "text-[#C2C8CF] hover:text-white"
-                }`}
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-[0_2px_6px_rgba(0,0,0,0.4)]"
+                    : "text-[#8E95A2] hover:text-white"
+                } active:translate-y-[1px]`}
               >
                 Rascunhos
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter("PUBLISHED")}
-                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   statusFilter === "PUBLISHED"
-                    ? "bg-emerald-500/20 text-emerald-300 shadow-xs border border-emerald-500/30"
-                    : "text-[#C2C8CF] hover:text-white"
-                }`}
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-[0_2px_6px_rgba(0,0,0,0.4)]"
+                    : "text-[#8E95A2] hover:text-white"
+                } active:translate-y-[1px]`}
               >
                 Publicadas
               </button>
             </div>
 
-            {/* Filtros por Quantidade de Blocos */}
-            <div className="inline-flex flex-wrap rounded-xl p-1 bg-[#1B1D21] border border-[#303238] max-w-full">
+            {/* Filtros por Quantidade de Blocos 3D */}
+            <div className="inline-flex flex-wrap rounded-xl p-1 bg-[#0E0F12] border border-white/[0.08] shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)] max-w-full">
               <button
                 type="button"
                 onClick={() => setBlocksFilter("ALL")}
-                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   blocksFilter === "ALL"
-                    ? "bg-[#151619] text-white shadow-xs border border-[#303238]"
-                    : "text-[#C2C8CF] hover:text-white"
-                }`}
+                    ? "bg-gradient-to-b from-[#282B33] to-[#181A1F] text-white border-t border-white/[0.2] border-b border-black/80 shadow-[0_2px_6px_rgba(0,0,0,0.4)]"
+                    : "text-[#8E95A2] hover:text-white"
+                } active:translate-y-[1px]`}
               >
                 Todos os blocos
               </button>
               <button
                 type="button"
                 onClick={() => setBlocksFilter("FEW_BLOCKS")}
-                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   blocksFilter === "FEW_BLOCKS"
-                    ? "bg-[#151619] text-white shadow-xs border border-[#303238]"
-                    : "text-[#C2C8CF] hover:text-white"
-                }`}
+                    ? "bg-gradient-to-b from-[#282B33] to-[#181A1F] text-white border-t border-white/[0.2] border-b border-black/80 shadow-[0_2px_6px_rgba(0,0,0,0.4)]"
+                    : "text-[#8E95A2] hover:text-white"
+                } active:translate-y-[1px]`}
               >
                 Até 3 blocos
               </button>
               <button
                 type="button"
                 onClick={() => setBlocksFilter("MANY_BLOCKS")}
-                className={`px-3 min-h-[38px] flex items-center justify-center text-xs font-semibold rounded-lg transition-colors select-none cursor-pointer ${
+                className={`px-3 min-h-[36px] flex items-center justify-center text-xs font-semibold rounded-lg transition-all select-none cursor-pointer ${
                   blocksFilter === "MANY_BLOCKS"
-                    ? "bg-[#151619] text-white shadow-xs border border-[#303238]"
-                    : "text-[#C2C8CF] hover:text-white"
-                }`}
+                    ? "bg-gradient-to-b from-[#282B33] to-[#181A1F] text-white border-t border-white/[0.2] border-b border-black/80 shadow-[0_2px_6px_rgba(0,0,0,0.4)]"
+                    : "text-[#8E95A2] hover:text-white"
+                } active:translate-y-[1px]`}
               >
                 4+ blocos
               </button>
@@ -281,7 +284,7 @@ export function PersonalWorkoutsTable({
           </div>
         </div>
 
-        {/* Campo de Busca Harmonizado */}
+        {/* Campo de Busca com Profundidade Tátil */}
         <div className="w-full">
           <div className="relative">
             <input
@@ -289,14 +292,15 @@ export function PersonalWorkoutsTable({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por nome da ficha ou aluno..."
-              className="w-full h-[44px] pl-9 pr-12 text-xs sm:text-sm font-medium bg-[#1B1D21] border border-[#303238] rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+              className="w-full h-[44px] pl-9 pr-12 text-xs sm:text-sm font-medium bg-[#0E0F12] border border-white/[0.08] shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
             />
             <svg
-              className="w-4 h-4 text-[#C2C8CF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              className="w-4 h-4 text-[#8E95A2] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth={2}
+              aria-hidden="true"
             >
               <circle cx="11" cy="11" r="8" />
               <path d="M21 21l-4.35-4.35" />
@@ -306,7 +310,7 @@ export function PersonalWorkoutsTable({
                 type="button"
                 onClick={() => setSearchTerm("")}
                 aria-label="Limpar busca"
-                className="absolute right-0 top-0 h-full w-[44px] min-h-[44px] min-w-[44px] flex items-center justify-center rounded-r-xl text-[#C2C8CF] hover:text-white hover:bg-[#252830] transition-colors cursor-pointer"
+                className="absolute right-0 top-0 h-full w-[44px] min-h-[44px] min-w-[44px] flex items-center justify-center rounded-r-xl text-[#8E95A2] hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -319,8 +323,8 @@ export function PersonalWorkoutsTable({
 
       {/* 2. Tabela Desktop ou Lista Mobile */}
       {filteredWorkouts.length === 0 ? (
-        <div className="bg-[#151619] border border-[#303238] rounded-2xl p-8 text-center space-y-3">
-          <p className="text-sm font-medium text-[#C2C8CF]">
+        <div className="bg-gradient-to-b from-[#181A1F] to-[#121316] border-t border-white/[0.14] border-x border-b border-black/80 rounded-2xl p-8 text-center space-y-3 shadow-[0_10px_24px_-4px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <p className="text-sm font-medium text-[#8E95A2]">
             {searchTerm.trim() || statusFilter !== "ALL" || blocksFilter !== "ALL"
               ? "Nenhuma ficha encontrada para os filtros aplicados."
               : "Nenhuma ficha cadastrada ainda."}
@@ -329,7 +333,7 @@ export function PersonalWorkoutsTable({
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/novo`}
               prefetch={false}
-              className="inline-flex mt-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs rounded-xl shadow-xs transition-colors"
+              className="inline-flex mt-2 px-5 py-2.5 bg-gradient-to-b from-[#10B981] to-[#059669] hover:from-[#34D399] hover:to-[#10B981] text-white font-bold text-xs rounded-xl border-t border-emerald-300/40 border-b border-emerald-950/80 shadow-[0_4px_14px_rgba(16,185,129,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] active:translate-y-[1px] transition-all cursor-pointer"
             >
               + Nova ficha
             </Link>
@@ -337,42 +341,46 @@ export function PersonalWorkoutsTable({
         </div>
       ) : (
         <>
-          {/* VISÃO DESKTOP: TABELA DE 6 COLUNAS */}
-          <div className="hidden md:block bg-[#151619] border border-[#303238] rounded-2xl overflow-hidden shadow-sm">
+          {/* VISÃO DESKTOP: TABELA DE 6 COLUNAS 3D */}
+          <div className="hidden md:block bg-gradient-to-b from-[#181A1F] to-[#121316] border-t border-white/[0.14] border-x border-b border-black/80 rounded-2xl overflow-hidden shadow-[0_12px_28px_-6px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)]">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-[#121316] border-b border-[#303238]">
+              <thead className="bg-[#0F1013] border-b border-black/60">
                 <tr>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider">
                     Aluno
                   </th>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider">
                     Ficha
                   </th>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider">
                     Blocos
                   </th>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider">
                     Atualizada em
                   </th>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider">
                     Status
                   </th>
-                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#C2C8CF] uppercase tracking-wider text-right">
+                  <th scope="col" className="py-3 px-4 text-xs font-bold text-[#8E95A2] uppercase tracking-wider text-right">
                     Ação
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#303238]">
+
+              <tbody className="divide-y divide-[#282B32]">
                 {filteredWorkouts.map((workout) => {
-                  const isDraft = workout.status === "DRAFT" || workout.currentVersionStatus === "DRAFT" || workout.hasActiveDraft;
+                  const isDraft =
+                    workout.status === "DRAFT" ||
+                    workout.currentVersionStatus === "DRAFT" ||
+                    workout.hasActiveDraft;
 
                   return (
                     <tr
                       key={workout.publicId}
-                      className="h-[52px] hover:bg-[#1B1D21] transition-colors"
+                      className="h-[52px] hover:bg-white/[0.03] transition-colors"
                     >
                       {/* Aluno */}
-                      <td className="py-3 px-4 text-sm font-medium text-white">
+                      <td className="py-3 px-4 text-sm font-semibold text-white">
                         {resolveStudentDisplay(workout)}
                       </td>
 
@@ -382,23 +390,23 @@ export function PersonalWorkoutsTable({
                       </td>
 
                       {/* Blocos */}
-                      <td className="py-3 px-4 text-xs font-bold text-[#10B981] tabular-nums">
+                      <td className="py-3 px-4 text-xs font-bold text-[#10B981] tabular-nums font-mono">
                         {formatBlocksCount(workout.blocksCount)}
                       </td>
 
                       {/* Atualizada em */}
-                      <td className="py-3 px-4 text-xs font-normal text-[#C2C8CF] tabular-nums">
+                      <td className="py-3 px-4 text-xs font-normal text-[#8E95A2] tabular-nums font-mono">
                         {formatDate(workout.updatedAt)}
                       </td>
 
-                      {/* Status com Cores de Hierarquia */}
+                      {/* Status com Cores de Hierarquia 3D */}
                       <td className="py-3 px-4">
                         {isDraft ? (
-                          <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 select-none">
+                          <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 select-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
                             Rascunho
                           </span>
                         ) : (
-                          <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 select-none">
+                          <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 select-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
                             Publicada
                           </span>
                         )}
@@ -421,21 +429,28 @@ export function PersonalWorkoutsTable({
             </table>
           </div>
 
-          {/* VISÃO MOBILE: LISTA VERTICAL DE LINHAS */}
-          <div className="md:hidden bg-[#151619] border border-[#303238] rounded-2xl divide-y divide-[#303238] overflow-hidden shadow-sm">
+          {/* VISÃO MOBILE: LISTA VERTICAL DE CARTÕES TÁCTEIS 3D */}
+          <div className="md:hidden bg-gradient-to-b from-[#181A1F] to-[#121316] border-t border-white/[0.14] border-x border-b border-black/80 rounded-2xl divide-y divide-[#282B32] overflow-hidden shadow-[0_12px_28px_-6px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)]">
             {filteredWorkouts.map((workout) => {
-              const isDraft = workout.status === "DRAFT" || workout.currentVersionStatus === "DRAFT" || workout.hasActiveDraft;
+              const isDraft =
+                workout.status === "DRAFT" ||
+                workout.currentVersionStatus === "DRAFT" ||
+                workout.hasActiveDraft;
 
               return (
                 <div
                   key={workout.publicId}
-                  onClick={() => router.push(`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`)}
-                  className="p-4 min-h-[64px] flex flex-col justify-center gap-1.5 active:bg-[#1B1D21] cursor-pointer transition-colors"
+                  onClick={() =>
+                    router.push(`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`)
+                  }
+                  className="p-4 min-h-[64px] flex flex-col justify-center gap-1.5 active:bg-white/[0.05] cursor-pointer transition-colors"
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
-                      router.push(`/consultoria/${consultancySlug}/rotinas/${workout.publicId}`);
+                      router.push(
+                        `/consultoria/${consultancySlug}/rotinas/${workout.publicId}`
+                      );
                     }
                   }}
                 >
@@ -444,26 +459,26 @@ export function PersonalWorkoutsTable({
                       {workout.title}
                     </p>
                     {isDraft ? (
-                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 select-none">
+                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0 select-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
                         Rascunho
                       </span>
                     ) : (
-                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0 select-none">
+                      <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0 select-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
                         Publicada
                       </span>
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#C2C8CF] font-normal">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#8E95A2] font-medium">
                     <span className="font-semibold text-white">
                       {resolveStudentDisplay(workout)}
                     </span>
                     <span>·</span>
-                    <span className="tabular-nums font-bold text-[#10B981]">
+                    <span className="tabular-nums font-bold text-[#10B981] font-mono">
                       {formatBlocksCount(workout.blocksCount)}
                     </span>
                     <span>·</span>
-                    <span className="tabular-nums">{formatDate(workout.updatedAt)}</span>
+                    <span className="tabular-nums font-mono">{formatDate(workout.updatedAt)}</span>
                   </div>
                 </div>
               );

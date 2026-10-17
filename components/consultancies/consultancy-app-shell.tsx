@@ -58,11 +58,18 @@ export function ConsultancyAppShell({
   // Only when explicitly in preview mode (e.g. admin previewing student), restrict to that mode.
   const safeRoles = Array.isArray(roles) ? roles : [];
   const isPreview = viewModeState?.isPreview ?? false;
+  const isMultiRolePersonalAdmin = safeRoles.includes("PERSONAL") && safeRoles.includes("CONSULTANCY_ADMIN");
   const presentationRoles: ConsultancyRole[] = isPreview && viewModeState?.effectiveMode
     ? [
         viewModeState.effectiveMode === "ADMIN"
           ? "CONSULTANCY_ADMIN"
           : (viewModeState.effectiveMode as ConsultancyRole),
+      ]
+    : isMultiRolePersonalAdmin && viewModeState?.effectiveMode
+    ? [
+        viewModeState.effectiveMode === "ADMIN"
+          ? "CONSULTANCY_ADMIN"
+          : "PERSONAL",
       ]
     : safeRoles;
 
@@ -519,11 +526,15 @@ export function ConsultancyAppShell({
     return 0;
   });
   const roleLabels: string[] = [];
-  for (const r of sortedRolesForLabels) {
-    if (r === "INFLUENCER") {
-      roleLabels.push("Influenciador", "VIP");
-    } else {
-      roleLabels.push(ROLE_LABELS[r] || r);
+  if (isMultiRolePersonalAdmin && viewModeState?.effectiveMode) {
+    roleLabels.push(viewModeState.effectiveMode === "ADMIN" ? "Administrador da Consultoria" : "Personal Trainer");
+  } else {
+    for (const r of sortedRolesForLabels) {
+      if (r === "INFLUENCER") {
+        roleLabels.push("Influenciador", "VIP");
+      } else {
+        roleLabels.push(ROLE_LABELS[r] || r);
+      }
     }
   }
 

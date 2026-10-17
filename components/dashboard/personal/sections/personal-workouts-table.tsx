@@ -27,10 +27,11 @@ export interface PersonalWorkoutsTableProps {
   isLoading?: boolean;
 }
 
-type SortOption = "oldest" | "recent" | "name";
-type FilterOption = "ALL" | "DRAFT" | "PUBLISHED";
+export type SortOption = "oldest" | "recent" | "name";
+export type StatusFilterOption = "ALL" | "DRAFT" | "PUBLISHED";
+export type BlocksFilterOption = "ALL" | "FEW_BLOCKS" | "MANY_BLOCKS";
 
-function formatDate(isoString?: string | null): string {
+export function formatDate(isoString?: string | null): string {
   if (!isoString) return "Não disponível";
   try {
     const d = new Date(isoString);
@@ -44,7 +45,7 @@ function formatDate(isoString?: string | null): string {
   }
 }
 
-function resolveStudentDisplay(w: PersonalWorkoutRow): string {
+export function resolveStudentDisplay(w: PersonalWorkoutRow): string {
   if (w.isTemplate) return "Modelo";
   if (w.activeAssignmentsCount && w.activeAssignmentsCount > 1) {
     return `Múltiplos alunos (${w.activeAssignmentsCount})`;
@@ -55,7 +56,7 @@ function resolveStudentDisplay(w: PersonalWorkoutRow): string {
   return "Sem aluno";
 }
 
-function resolveStatusLabel(w: PersonalWorkoutRow): string {
+export function resolveStatusLabel(w: PersonalWorkoutRow): string {
   if (w.currentVersionStatus === "DRAFT" || w.status === "DRAFT" || w.hasActiveDraft) {
     return "Rascunho";
   }
@@ -63,6 +64,87 @@ function resolveStatusLabel(w: PersonalWorkoutRow): string {
     return "Arquivada";
   }
   return "Publicada";
+}
+
+export function formatBlocksCount(blocksCount?: number | null): string {
+  if (typeof blocksCount === "number" && !isNaN(blocksCount)) {
+    return `${blocksCount} ${blocksCount === 1 ? "bloco" : "blocos"}`;
+  }
+  return "—";
+}
+
+export interface FilterAndSortWorkoutsParams {
+  workouts: PersonalWorkoutRow[];
+  searchTerm: string;
+  statusFilter: StatusFilterOption;
+  blocksFilter: BlocksFilterOption;
+  sortBy: SortOption;
+}
+
+export function filterAndSortWorkouts({
+  workouts,
+  searchTerm,
+  statusFilter,
+  blocksFilter,
+  sortBy,
+}: FilterAndSortWorkoutsParams): PersonalWorkoutRow[] {
+  let result = [...workouts];
+
+  // 1. Busca textual (nome da ficha ou aluno)
+  if (searchTerm.trim()) {
+    const q = searchTerm.trim().toLowerCase();
+    result = result.filter((w) => {
+      const titleMatch = w.title.toLowerCase().includes(q);
+      const student = resolveStudentDisplay(w).toLowerCase();
+      const studentMatch = student.includes(q);
+      return titleMatch || studentMatch;
+    });
+  }
+
+  // 2. Filtro de status (dimensão independente)
+  if (statusFilter !== "ALL") {
+    result = result.filter((w) => {
+      const isDraft = w.currentVersionStatus === "DRAFT" || w.status === "DRAFT" || w.hasActiveDraft;
+      if (statusFilter === "DRAFT") return isDraft;
+      if (statusFilter === "PUBLISHED") return !isDraft && w.status !== "ARCHIVED";
+      return true;
+    });
+  }
+
+  // 3. Filtro por quantidade de blocos (dimensão independente combinável)
+  if (blocksFilter !== "ALL") {
+    result = result.filter((w) => {
+      // Se a contagem for ausente (null ou undefined), não categoriza em faixa específica
+      if (w.blocksCount === undefined || w.blocksCount === null || typeof w.blocksCount !== "number" || isNaN(w.blocksCount)) {
+        return false;
+      }
+      if (blocksFilter === "FEW_BLOCKS") return w.blocksCount <= 3;
+      if (blocksFilter === "MANY_BLOCKS") return w.blocksCount >= 4;
+      return true;
+    });
+  }
+
+  // 4. Ordenação
+  result.sort((a, b) => {
+    if (sortBy === "name") {
+      return a.title.localeCompare(b.title, "pt-BR");
+    }
+
+    const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+
+    // Tratamento definido para datas ausentes: ficam ao final
+    if (!timeA && timeB) return 1;
+    if (timeA && !timeB) return -1;
+    if (!timeA && !timeB) return a.title.localeCompare(b.title, "pt-BR");
+
+    if (sortBy === "oldest") {
+      return timeA - timeB; // Atualizações mais antigas primeiro (ordenação padrão)
+    }
+    return timeB - timeA; // Mais recentes primeiro
+  });
+
+  return result;
 }
 
 export function PersonalWorkoutsTable({
@@ -74,55 +156,19 @@ export function PersonalWorkoutsTable({
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("oldest");
-  const [statusFilter, setStatusFilter] = useState<FilterOption>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterOption>("ALL");
+  const [blocksFilter, setBlocksFilter] = useState<BlocksFilterOption>("ALL");
 
   // Filtro e Ordenação Determinística
   const filteredWorkouts = useMemo(() => {
-    let result = [...workouts];
-
-    // 1. Busca textual (nome da ficha ou aluno)
-    if (searchTerm.trim()) {
-      const q = searchTerm.trim().toLowerCase();
-      result = result.filter((w) => {
-        const titleMatch = w.title.toLowerCase().includes(q);
-        const student = resolveStudentDisplay(w).toLowerCase();
-        const studentMatch = student.includes(q);
-        return titleMatch || studentMatch;
-      });
-    }
-
-    // 2. Filtro de status
-    if (statusFilter !== "ALL") {
-      result = result.filter((w) => {
-        const isDraft = w.currentVersionStatus === "DRAFT" || w.status === "DRAFT" || w.hasActiveDraft;
-        if (statusFilter === "DRAFT") return isDraft;
-        if (statusFilter === "PUBLISHED") return !isDraft && w.status !== "ARCHIVED";
-        return true;
-      });
-    }
-
-    // 3. Ordenação
-    result.sort((a, b) => {
-      if (sortBy === "name") {
-        return a.title.localeCompare(b.title, "pt-BR");
-      }
-
-      const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-      const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-
-      // Tratamento definido para datas ausentes: ficam ao final
-      if (!timeA && timeB) return 1;
-      if (timeA && !timeB) return -1;
-      if (!timeA && !timeB) return a.title.localeCompare(b.title, "pt-BR");
-
-      if (sortBy === "oldest") {
-        return timeA - timeB; // Atualizações mais antigas primeiro (ordenação padrão)
-      }
-      return timeB - timeA; // Mais recentes primeiro
+    return filterAndSortWorkouts({
+      workouts,
+      searchTerm,
+      statusFilter,
+      blocksFilter,
+      sortBy,
     });
-
-    return result;
-  }, [workouts, searchTerm, statusFilter, sortBy]);
+  }, [workouts, searchTerm, statusFilter, blocksFilter, sortBy]);
 
   if (isLoading) {
     return (
@@ -151,14 +197,14 @@ export function PersonalWorkoutsTable({
         </div>
 
         {/* Filtros e Ordenação */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-w-full">
           {/* Seletor de Ordenação */}
-          <div className="flex items-center gap-1.5 text-xs text-[var(--cockpit-text-secondary)]">
+          <div className="flex items-center gap-1.5 text-xs text-[var(--cockpit-text-secondary)] shrink-0">
             <span className="hidden sm:inline">Ordem:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="h-[36px] px-2.5 bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-md text-xs font-medium text-[var(--cockpit-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)]"
+              className="min-h-[44px] px-2.5 bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-md text-xs font-medium text-[var(--cockpit-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)] cursor-pointer"
               aria-label="Critério de ordenação das fichas"
             >
               <option value="oldest">Atualizações mais antigas</option>
@@ -167,12 +213,12 @@ export function PersonalWorkoutsTable({
             </select>
           </div>
 
-          {/* Filtros Rápidos de Status */}
-          <div className="inline-flex rounded-md p-0.5 bg-[var(--cockpit-surface-subtle)] border border-[var(--cockpit-border-default)]">
+          {/* Filtros Rápidos de Status (Alvos >= 44px) */}
+          <div className="inline-flex flex-wrap rounded-md p-0.5 bg-[var(--cockpit-surface-subtle)] border border-[var(--cockpit-border-default)] max-w-full">
             <button
               type="button"
               onClick={() => setStatusFilter("ALL")}
-              className={`px-2.5 h-[32px] text-xs font-medium rounded transition-colors select-none ${
+              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
                 statusFilter === "ALL"
                   ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
                   : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
@@ -183,7 +229,7 @@ export function PersonalWorkoutsTable({
             <button
               type="button"
               onClick={() => setStatusFilter("DRAFT")}
-              className={`px-2.5 h-[32px] text-xs font-medium rounded transition-colors select-none ${
+              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
                 statusFilter === "DRAFT"
                   ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
                   : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
@@ -194,7 +240,7 @@ export function PersonalWorkoutsTable({
             <button
               type="button"
               onClick={() => setStatusFilter("PUBLISHED")}
-              className={`px-2.5 h-[32px] text-xs font-medium rounded transition-colors select-none ${
+              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
                 statusFilter === "PUBLISHED"
                   ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
                   : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
@@ -203,10 +249,47 @@ export function PersonalWorkoutsTable({
               Publicadas
             </button>
           </div>
+
+          {/* Filtros por Quantidade de Blocos (Alvos >= 44px com quebra responsiva no celular) */}
+          <div className="inline-flex flex-wrap rounded-md p-0.5 bg-[var(--cockpit-surface-subtle)] border border-[var(--cockpit-border-default)] max-w-full">
+            <button
+              type="button"
+              onClick={() => setBlocksFilter("ALL")}
+              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
+                blocksFilter === "ALL"
+                  ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
+                  : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
+              }`}
+            >
+              Todos os blocos
+            </button>
+            <button
+              type="button"
+              onClick={() => setBlocksFilter("FEW_BLOCKS")}
+              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
+                blocksFilter === "FEW_BLOCKS"
+                  ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
+                  : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
+              }`}
+            >
+              Até 3 blocos
+            </button>
+            <button
+              type="button"
+              onClick={() => setBlocksFilter("MANY_BLOCKS")}
+              className={`px-3 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium rounded transition-colors select-none ${
+                blocksFilter === "MANY_BLOCKS"
+                  ? "bg-[var(--cockpit-surface-default)] text-[var(--cockpit-text-primary)] font-semibold shadow-xs"
+                  : "text-[var(--cockpit-text-secondary)] hover:text-[var(--cockpit-text-primary)]"
+              }`}
+            >
+              4+ blocos
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Campo de Busca D3 / 40px */}
+      {/* Campo de Busca Harmonizado (h-[44px]) com Botão de Limpar Busca Integral */}
       <div className="w-full">
         <div className="relative">
           <input
@@ -214,7 +297,7 @@ export function PersonalWorkoutsTable({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por nome da ficha ou aluno..."
-            className="w-full h-[40px] pl-9 pr-4 text-sm font-normal bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-md text-[var(--cockpit-text-primary)] placeholder:text-[var(--cockpit-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)]"
+            className="w-full h-[44px] pl-9 pr-12 text-sm font-normal bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-md text-[var(--cockpit-text-primary)] placeholder:text-[var(--cockpit-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)]"
           />
           <svg
             className="w-4 h-4 text-[var(--cockpit-text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -226,6 +309,18 @@ export function PersonalWorkoutsTable({
             <circle cx="11" cy="11" r="8" />
             <path d="M21 21l-4.35-4.35" />
           </svg>
+          {searchTerm.trim().length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              aria-label="Limpar busca"
+              className="absolute right-0 top-0 h-full w-[44px] min-h-[44px] min-w-[44px] flex items-center justify-center rounded-r-md text-[var(--cockpit-text-tertiary)] hover:text-[var(--cockpit-text-primary)] hover:bg-[var(--cockpit-surface-subtle)] transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--cockpit-accent-brand)]"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -233,11 +328,11 @@ export function PersonalWorkoutsTable({
       {filteredWorkouts.length === 0 ? (
         <div className="bg-[var(--cockpit-surface-default)] border border-[var(--cockpit-border-default)] rounded-lg p-8 text-center space-y-3">
           <p className="text-sm font-medium text-[var(--cockpit-text-secondary)]">
-            {searchTerm.trim() || statusFilter !== "ALL"
+            {searchTerm.trim() || statusFilter !== "ALL" || blocksFilter !== "ALL"
               ? "Nenhuma ficha encontrada para os filtros aplicados."
               : "Nenhuma ficha cadastrada ainda."}
           </p>
-          {!searchTerm.trim() && statusFilter === "ALL" && (
+          {!searchTerm.trim() && statusFilter === "ALL" && blocksFilter === "ALL" && (
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/novo`}
               prefetch={false}
@@ -290,9 +385,9 @@ export function PersonalWorkoutsTable({
                       {workout.title}
                     </td>
 
-                    {/* Blocos */}
+                    {/* Blocos (Preserva 0 real e exibe traço quando ausente) */}
                     <td className="py-2.5 px-4 text-xs font-normal text-[var(--cockpit-text-secondary)] tabular-nums">
-                      {workout.blocksCount ?? 0} {workout.blocksCount === 1 ? "bloco" : "blocos"}
+                      {formatBlocksCount(workout.blocksCount)}
                     </td>
 
                     {/* Atualizada em */}
@@ -353,7 +448,7 @@ export function PersonalWorkoutsTable({
                   </span>
                   <span>·</span>
                   <span className="tabular-nums">
-                    {workout.blocksCount ?? 0} {workout.blocksCount === 1 ? "bloco" : "blocos"}
+                    {formatBlocksCount(workout.blocksCount)}
                   </span>
                   <span>·</span>
                   <span className="tabular-nums">{formatDate(workout.updatedAt)}</span>

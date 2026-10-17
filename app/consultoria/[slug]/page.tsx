@@ -92,6 +92,9 @@ export default async function ConsultancyPage({ params }: PageProps) {
   const isPureNutritionist =
     (effectiveMode === "NUTRITIONIST" && !isConsultancyAdmin) ||
     (effectiveState.isPreview && effectiveMode === "NUTRITIONIST");
+  const isPureAdmin =
+    (effectiveMode === "ADMIN" && !isPersonal && !isNutritionist) ||
+    (effectiveState.isPreview && effectiveMode === "ADMIN");
   const isMultiRoleStudentInfluencer = isStudent && isInfluencer && !effectiveState.isPreview;
 
   const needStudentData =
@@ -567,8 +570,8 @@ export default async function ConsultancyPage({ params }: PageProps) {
       maxWidth="full"
     >
       <div className="w-full max-w-[1280px] mx-auto space-y-5 sm:space-y-6">
-        {/* Context Header Compacto (oculta para Nutricionista e Personal que possuem cabeçalho unificado próprio) */}
-        {!(isPureNutritionist || isCombinedNutritionistAdmin || isPurePersonal || isCombinedPersonalAdmin) && (
+        {/* Context Header Compacto (oculta para Nutricionista, Personal e Admin que possuem cabeçalho executivo próprio) */}
+        {!(isPureNutritionist || isCombinedNutritionistAdmin || isPurePersonal || isCombinedPersonalAdmin || isPureAdmin) && (
           <DashboardContext
             userName={session.fullName}
             consultancyName={context.consultancyName}

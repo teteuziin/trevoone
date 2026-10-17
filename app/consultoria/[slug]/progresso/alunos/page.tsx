@@ -67,10 +67,11 @@ export default async function ProfessionalStudentsProgressListPage({
       consultancyPublicId={context.consultancyPublicId}
       viewModeState={effectiveState}
       themeVariant="dark-overview"
+      showDashboardWallpaper={true}
       maxWidth="full"
-      className="!p-0 !pb-0 flex flex-col flex-1 h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] md:h-[calc(100dvh-4rem)] lg:h-svh max-h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] md:max-h-[calc(100dvh-4rem)] lg:max-h-svh overflow-hidden"
+      className="!p-0 !pb-0 flex flex-col flex-1 h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] md:h-[calc(100dvh-4rem)] lg:h-svh max-h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] md:max-h-[calc(100dvh-4rem)] lg:max-h-svh overflow-hidden bg-transparent"
     >
-      <div className="w-full h-full flex flex-col flex-1 min-h-0 overflow-hidden">
+      <div className="w-full h-full flex flex-col flex-1 min-h-0 overflow-hidden bg-transparent">
         <PersonalStudentList
           consultancySlug={slug}
           students={students}

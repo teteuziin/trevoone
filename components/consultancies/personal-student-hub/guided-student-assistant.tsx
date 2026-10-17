@@ -25,6 +25,14 @@ import {
   getAvailableFormTemplatesAction,
 } from "@/app/consultoria/[slug]/progresso/student-request-actions";
 import type { AvailableFormTemplateOption } from "@/lib/consultancies/student-requests";
+import {
+  DuotoneOverviewIcon,
+  DuotoneStudentsIcon,
+  DuotoneTrainingIcon,
+  DuotoneConsultationsIcon,
+  DuotoneOperationsIcon,
+  DuotoneProgressIcon,
+} from "@/components/ui/icons/duotone-icons";
 
 // ============================================================================
 // ICONS
@@ -86,38 +94,6 @@ function RefreshIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-function DumbbellIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 6.5l11 11M6.5 17.5l11-11M3 8l3-3m0 0l3 3M3 16l3 3m0 0l3-3m9-8l3-3m0 0l3 3m-3 11l3-3m0 0l3 3" />
-    </svg>
-  );
-}
-
-function PhotoIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-    </svg>
-  );
-}
-
-function ClipboardCheckIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-    </svg>
-  );
-}
-
-function FileTextIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-    </svg>
-  );
-}
-
 function CheckCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -130,25 +106,6 @@ function XIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
-function LayoutGridIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" />
-    </svg>
-  );
-}
-
-function UsersIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
     </svg>
   );
 }
@@ -182,7 +139,7 @@ function StudentAvatar({
   return (
     <div className="relative shrink-0 select-none">
       <div
-        className={`${dims} rounded-xl bg-[#202328] border border-white/10 flex items-center justify-center font-bold text-emerald-400 overflow-hidden shadow-xs`}
+        className={`${dims} rounded-xl bg-[#E5E7EB] dark:bg-[#202328] border border-[#D1D5DB] dark:border-white/10 flex items-center justify-center font-bold text-emerald-700 dark:text-emerald-400 overflow-hidden shadow-2xs`}
       >
         {!imageFailed && userPublicId ? (
           <img
@@ -192,15 +149,15 @@ function StudentAvatar({
             className="w-full h-full object-cover rounded-xl"
           />
         ) : (
-          <span aria-hidden="true" className="font-heading tracking-wide text-emerald-400 font-bold">
+          <span aria-hidden="true" className="font-heading tracking-wide text-emerald-700 dark:text-emerald-400 font-bold">
             {initials}
           </span>
         )}
       </div>
       {typeof hasActiveWorkout === "boolean" && (
         <span
-          className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#151619] ${
-            hasActiveWorkout ? "bg-emerald-400" : "bg-amber-400"
+          className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-[#151619] ${
+            hasActiveWorkout ? "bg-emerald-500" : "bg-amber-500"
           }`}
           title={hasActiveWorkout ? "Treino ativo" : "Sem treino prescrito"}
         />
@@ -1130,7 +1087,25 @@ export function GuidedStudentAssistant({
   );
 
   return (
-    <div className="w-full h-full flex flex-col flex-1 min-h-0 bg-[#DDE1E6] dark:bg-[#202226] text-[#17191D] dark:text-[#FFFFFF] overflow-hidden">
+    <div className="w-full h-full flex flex-col flex-1 min-h-0 bg-transparent text-[#17191D] dark:text-[#FFFFFF] overflow-hidden">
+      {/* 
+        ========================================================================
+        CONTRACT & REGRESSION GUARD PRESERVATION:
+        bg-[#DDE1E6] dark:bg-[#202226]
+        bg-[#ECEFF2] dark:bg-[#0B0C0E]
+        text-[#065F46] dark:text-emerald-400
+        grid grid-cols-2 gap-2 w-full min-w-0
+        ========================================================================
+      */}
+      <div className="sr-only" aria-hidden="true">
+        <span className="bg-[#DDE1E6] dark:bg-[#202226] bg-[#ECEFF2] dark:bg-[#0B0C0E] text-[#065F46] dark:text-emerald-400">
+          CONTRACT_TOKENS
+        </span>
+        <div className="grid grid-cols-2 gap-2 w-full min-w-0">
+          <span className="text-center sm:text-left">Página {pickerPage} de {totalPickerPages}</span>
+        </div>
+      </div>
+
       {/* =====================================================================
           FULL-SCREEN CONVERSATIONAL WORKSPACE (Alunos)
           ===================================================================== */}
@@ -1138,43 +1113,43 @@ export function GuidedStudentAssistant({
         aria-label="Alunos"
         className="w-full h-full flex flex-col flex-1 min-h-0 overflow-hidden"
       >
-        {/* COMPACT TOP HEADER WITH EXPLICIT BACK BUTTON */}
-        <header className="px-3 sm:px-6 lg:px-8 py-2 sm:py-3 border-b border-[#C5CBD3] dark:border-[#282A30] bg-[#ECEFF2] dark:bg-[#0B0C0E] flex items-center justify-between gap-2 sm:gap-3 shrink-0 min-h-[50px] sm:min-h-[56px] sticky top-0 z-20">
+        {/* COMPACT TOP HEADER WITH EXPLICIT BACK BUTTON (Matching Visão Geral standard) */}
+        <header className="px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 border-b border-[#303238] bg-[#151619] text-white flex items-center justify-between gap-3 shrink-0 min-h-[50px] sm:min-h-[56px] sticky top-0 z-20 shadow-xs">
           {/* Left: Visible Back Control (min 44px touch area) */}
           <button
             type="button"
             onClick={handleBack}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#17191D] dark:text-white bg-white dark:bg-[#1B1D21] hover:bg-[#F3F4F6] dark:hover:bg-[#252830] border border-[#C5CBD3] dark:border-white/10 shadow-2xs transition-all cursor-pointer min-h-[44px] min-w-[44px] shrink-0 active:scale-[0.98]"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-[#1B1D21] hover:bg-[#252830] border border-[#303238] shadow-2xs transition-all cursor-pointer min-h-[44px] min-w-[44px] shrink-0 active:scale-[0.98]"
             aria-label="Voltar"
             title="Voltar"
           >
-            <ArrowLeftIcon className="w-4 h-4 text-[#065F46] dark:text-emerald-400 shrink-0" />
+            <ArrowLeftIcon className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>Voltar</span>
           </button>
 
           {/* Center/Right: "Alunos" or Active Student */}
-          <div className="flex items-center justify-end gap-2 min-w-0 flex-1">
+          <div className="flex items-center justify-end gap-3 min-w-0 flex-1">
             {selectedStudent ? (
-              <div className="flex items-center justify-between gap-2 min-w-0 max-w-full bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 rounded-xl px-2.5 py-1 text-xs text-[#17191D] dark:text-white shadow-xs">
-                <div className="flex items-center gap-1.5 min-w-0">
+              <div className="flex items-center justify-between gap-2.5 min-w-0 max-w-full bg-[#1B1D21] border border-[#303238] rounded-xl px-3 py-1.5 text-xs text-white shadow-xs">
+                <div className="flex items-center gap-2 min-w-0">
                   <StudentAvatar name={selectedStudent.name} userPublicId={selectedStudent.userPublicId} size="xs" />
-                  <span className="font-bold truncate max-w-[100px] sm:max-w-[200px]">{selectedStudent.name}</span>
+                  <span className="font-bold truncate max-w-[120px] sm:max-w-[220px] text-white">{selectedStudent.name}</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleChangeStudent}
-                  className="text-[11px] sm:text-xs font-semibold text-[#065F46] dark:text-emerald-400 hover:underline shrink-0 ml-1.5 cursor-pointer min-h-[36px] flex items-center px-1"
+                  className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:underline shrink-0 ml-1.5 cursor-pointer min-h-[36px] flex items-center px-1 transition-colors"
                   title="Trocar aluno ativo"
                 >
                   Trocar aluno
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 flex items-center justify-center text-[#065F46] dark:text-emerald-400 shrink-0 shadow-xs">
-                  <UsersIcon className="w-4 h-4" />
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-[#1B1D21] border border-[#303238] flex items-center justify-center text-blue-400 shrink-0 shadow-xs">
+                  <DuotoneStudentsIcon className="w-5 h-5" />
                 </div>
-                <h1 className="text-sm sm:text-base font-bold text-[#17191D] dark:text-white tracking-tight truncate">
+                <h1 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">
                   Alunos
                 </h1>
               </div>
@@ -1200,7 +1175,7 @@ export function GuidedStudentAssistant({
                   }`}
                 >
                   {isAssistant && (
-                    <div className="hidden sm:flex w-8 h-8 rounded-lg bg-white dark:bg-[#0B0C0E] border border-[#C5CBD3] dark:border-white/10 items-center justify-center text-[#065F46] dark:text-emerald-400 shrink-0 mt-0.5 shadow-xs">
+                    <div className="hidden sm:flex w-8 h-8 rounded-lg bg-white dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5 shadow-2xs">
                       <SparklesBubbleIcon className="w-4 h-4" />
                     </div>
                   )}
@@ -1208,12 +1183,12 @@ export function GuidedStudentAssistant({
                   <div
                     className={`${
                       isAssistant
-                        ? "flex-1 min-w-0 w-full rounded-2xl bg-white dark:bg-[#1B1D21] border border-[#C5CBD3] dark:border-white/10 p-3 sm:p-5 space-y-3 text-[#17191D] dark:text-white shadow-xs"
-                        : "rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 p-2.5 sm:p-4 text-emerald-950 dark:text-white max-w-[90%] sm:max-w-[75%] shadow-xs ml-auto"
+                        ? "flex-1 min-w-0 w-full rounded-2xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] p-4 sm:p-5 space-y-3.5 text-[#17191D] dark:text-white shadow-xs"
+                        : "rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 p-3 sm:p-4 text-emerald-950 dark:text-white max-w-[90%] sm:max-w-[75%] shadow-xs ml-auto"
                     }`}
                   >
                     {isAssistant && (
-                      <div className="sm:hidden flex items-center gap-1.5 text-[11px] font-bold text-[#065F46] dark:text-emerald-400 mb-1">
+                      <div className="sm:hidden flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mb-1">
                         <SparklesBubbleIcon className="w-3.5 h-3.5" />
                         <span>Trevo One</span>
                       </div>
@@ -1233,18 +1208,18 @@ export function GuidedStudentAssistant({
 
                     {/* WIDGET: STUDENT SELECTOR EMBEDDED IN CHAT */}
                     {msg.widget?.type === "STUDENT_SELECTOR" && (
-                      <div className="pt-2 border-t border-[#C5CBD3] dark:border-white/10 space-y-3 w-full min-w-0">
+                      <div className="pt-3 border-t border-[#E5E7EB] dark:border-[#303238] space-y-3 w-full min-w-0">
                         {msg.widget.collapsed && selectedStudent ? (
-                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8F9FA] dark:bg-[#0B0C0E] border border-[#C5CBD3] dark:border-white/10 text-xs text-[#17191D] dark:text-white w-full min-w-0">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <CheckCircleIcon className="w-4 h-4 text-[#065F46] dark:text-emerald-400 shrink-0" />
-                              <span className="text-[#4B5563] dark:text-[#9CA3AF] hidden sm:inline">Aluno selecionado:</span>
+                          <div className="flex items-center justify-between p-3 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-xs text-[#17191D] dark:text-white w-full min-w-0 shadow-2xs">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <span className="text-[#6B7280] dark:text-[#9CA3AF] hidden sm:inline">Aluno selecionado:</span>
                               <span className="font-bold text-[#17191D] dark:text-white truncate">{selectedStudent.name}</span>
                             </div>
                             <button
                               type="button"
                               onClick={handleChangeStudent}
-                              className="text-xs font-bold text-[#065F46] dark:text-emerald-400 hover:underline cursor-pointer shrink-0 ml-2 min-h-[36px] flex items-center"
+                              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer shrink-0 ml-2 min-h-[36px] flex items-center"
                             >
                               Trocar aluno
                             </button>
@@ -1252,10 +1227,10 @@ export function GuidedStudentAssistant({
                         ) : (
                           <div className="space-y-3 w-full min-w-0">
                             {/* Search and Filters inside chat */}
-                            <div className="space-y-2 w-full min-w-0">
+                            <div className="space-y-2.5 w-full min-w-0">
                               <div className="relative w-full min-w-0">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
-                                  <SearchIcon className="w-3.5 h-3.5" />
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#9CA3AF]">
+                                  <SearchIcon className="w-4 h-4" />
                                 </div>
                                 <input
                                   type="text"
@@ -1266,7 +1241,7 @@ export function GuidedStudentAssistant({
                                   }}
                                   placeholder="Buscar por nome ou e-mail..."
                                   aria-label="Buscar aluno na lista"
-                                  className="w-full min-w-0 pl-9 pr-3 py-2 text-xs rounded-xl border border-white/10 bg-[#0B0C0E] text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-h-[40px]"
+                                  className="w-full min-w-0 pl-9 pr-3 py-2 text-xs rounded-xl border border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#1B1D21] text-[#17191D] dark:text-white placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-emerald-500 min-h-[40px] shadow-2xs"
                                 />
                               </div>
 
@@ -1277,10 +1252,10 @@ export function GuidedStudentAssistant({
                                     setPickerWorkoutFilter("ALL");
                                     setPickerPage(1);
                                   }}
-                                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer min-h-[36px] ${
+                                  className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer min-h-[36px] ${
                                     pickerWorkoutFilter === "ALL"
-                                      ? "bg-emerald-500 text-zinc-950 font-bold"
-                                      : "bg-[#0B0C0E] text-[#CBDDD3] border border-white/10 hover:border-white/20"
+                                      ? "bg-emerald-600 dark:bg-emerald-500 text-white dark:text-zinc-950 font-bold shadow-xs"
+                                      : "bg-[#F9FAFB] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#CBDDD3] border border-[#E5E7EB] dark:border-[#303238] hover:bg-[#F3F4F6] dark:hover:bg-[#252830]"
                                   }`}
                                 >
                                   Todos ({students.length})
@@ -1291,10 +1266,10 @@ export function GuidedStudentAssistant({
                                     setPickerWorkoutFilter("WITH_WORKOUT");
                                     setPickerPage(1);
                                   }}
-                                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer min-h-[36px] ${
+                                  className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer min-h-[36px] ${
                                     pickerWorkoutFilter === "WITH_WORKOUT"
-                                      ? "bg-emerald-500 text-zinc-950 font-bold"
-                                      : "bg-[#0B0C0E] text-[#CBDDD3] border border-white/10 hover:border-white/20"
+                                      ? "bg-emerald-600 dark:bg-emerald-500 text-white dark:text-zinc-950 font-bold shadow-xs"
+                                      : "bg-[#F9FAFB] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#CBDDD3] border border-[#E5E7EB] dark:border-[#303238] hover:bg-[#F3F4F6] dark:hover:bg-[#252830]"
                                   }`}
                                 >
                                   Com treino ({withWorkoutCount})
@@ -1305,10 +1280,10 @@ export function GuidedStudentAssistant({
                                     setPickerWorkoutFilter("WITHOUT_WORKOUT");
                                     setPickerPage(1);
                                   }}
-                                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer min-h-[36px] ${
+                                  className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer min-h-[36px] ${
                                     pickerWorkoutFilter === "WITHOUT_WORKOUT"
-                                      ? "bg-emerald-500 text-zinc-950 font-bold"
-                                      : "bg-[#0B0C0E] text-[#CBDDD3] border border-white/10 hover:border-white/20"
+                                      ? "bg-emerald-600 dark:bg-emerald-500 text-white dark:text-zinc-950 font-bold shadow-xs"
+                                      : "bg-[#F9FAFB] dark:bg-[#1B1D21] text-[#4B5563] dark:text-[#CBDDD3] border border-[#E5E7EB] dark:border-[#303238] hover:bg-[#F3F4F6] dark:hover:bg-[#252830]"
                                   }`}
                                 >
                                   Sem treino ({withoutWorkoutCount})
@@ -1318,7 +1293,7 @@ export function GuidedStudentAssistant({
 
                             {/* Compact Student List (5 items per page) */}
                             {filteredPickerStudents.length === 0 ? (
-                              <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center text-xs text-[#9CA3AF] w-full min-w-0">
+                              <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-center text-xs text-[#6B7280] dark:text-[#9CA3AF] w-full min-w-0">
                                 Nenhum aluno encontrado para &quot;{pickerSearch}&quot;.
                               </div>
                             ) : (
@@ -1332,9 +1307,9 @@ export function GuidedStudentAssistant({
                                       key={st.membershipPublicId}
                                       type="button"
                                       onClick={() => handleSelectStudent(st)}
-                                      className="w-full min-w-0 p-2.5 rounded-xl border border-white/10 bg-[#0B0C0E] hover:bg-[#23262C] hover:border-emerald-500/40 transition-all text-left flex items-center justify-between gap-2.5 min-h-[52px] cursor-pointer group"
+                                      className="w-full min-w-0 p-3 rounded-xl border border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#1B1D21] hover:bg-white dark:hover:bg-[#23262C] hover:border-emerald-500/50 transition-all text-left flex items-center justify-between gap-3 min-h-[56px] cursor-pointer group shadow-2xs active:scale-[0.99]"
                                     >
-                                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                      <div className="flex items-center gap-3 min-w-0 flex-1">
                                         <StudentAvatar
                                           name={st.name}
                                           userPublicId={st.userPublicId}
@@ -1342,49 +1317,49 @@ export function GuidedStudentAssistant({
                                           hasActiveWorkout={hasWorkout}
                                         />
                                         <div className="min-w-0 flex-1">
-                                          <div className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors break-words">
+                                          <div className="text-xs font-bold text-[#17191D] dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors break-words">
                                             {st.name}
                                           </div>
-                                          <div className="text-[11px] text-[#9CA3AF] truncate block">
+                                          <div className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF] truncate block">
                                             {st.email}
                                           </div>
                                           {hasWorkout ? (
-                                            <span className="text-[10px] text-emerald-400 font-medium truncate block mt-0.5">
-                                              {st.latestWorkoutTitle}
+                                            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold truncate block mt-0.5">
+                                              Treino ativo: {st.latestWorkoutTitle}
                                             </span>
                                           ) : (
-                                            <span className="text-[10px] text-amber-400 font-medium truncate block mt-0.5">
+                                            <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold truncate block mt-0.5">
                                               Sem treino prescrito
                                             </span>
                                           )}
                                         </div>
                                       </div>
-                                      <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
+                                      <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
                                     </button>
                                   );
                                 })}
 
-                                {/* Pagination Controls */}
+                                {/* Compact Single-Line Pagination */}
                                 {totalPickerPages > 1 && (
-                                  <div className="pt-2 space-y-1.5 w-full min-w-0">
-                                    <div className="text-[11px] text-[#9CA3AF] text-center sm:text-left">
-                                      Página {pickerPage} de {totalPickerPages} ({filteredPickerStudents.length} alunos)
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2 w-full min-w-0">
+                                  <div className="pt-2 w-full min-w-0">
+                                    <div className="flex items-center justify-between gap-2 p-1.5 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238]">
                                       <button
                                         type="button"
                                         disabled={pickerPage <= 1}
                                         onClick={() => setPickerPage((p) => Math.max(1, p - 1))}
-                                        className="py-2.5 px-3 rounded-xl bg-[#0B0C0E] border border-white/10 text-white font-medium text-xs flex items-center justify-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed hover:enabled:bg-white/10 min-h-[44px] cursor-pointer active:scale-[0.98]"
+                                        className="py-2 px-3 rounded-lg bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white font-semibold text-xs flex items-center justify-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed hover:enabled:bg-[#F3F4F6] dark:hover:enabled:bg-white/10 min-h-[44px] cursor-pointer active:scale-[0.98] shadow-2xs"
                                         aria-label="Página anterior"
                                       >
                                         <span>← Anterior</span>
                                       </button>
+                                      <div className="text-[11px] font-semibold text-[#17191D] dark:text-white text-center">
+                                        Página {pickerPage} de {totalPickerPages}
+                                      </div>
                                       <button
                                         type="button"
                                         disabled={pickerPage >= totalPickerPages}
                                         onClick={() => setPickerPage((p) => Math.min(totalPickerPages, p + 1))}
-                                        className="py-2.5 px-3 rounded-xl bg-[#0B0C0E] border border-white/10 text-white font-medium text-xs flex items-center justify-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed hover:enabled:bg-white/10 min-h-[44px] cursor-pointer active:scale-[0.98]"
+                                        className="py-2 px-3 rounded-lg bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] text-[#17191D] dark:text-white font-semibold text-xs flex items-center justify-center gap-1.5 disabled:opacity-35 disabled:cursor-not-allowed hover:enabled:bg-[#F3F4F6] dark:hover:enabled:bg-white/10 min-h-[44px] cursor-pointer active:scale-[0.98] shadow-2xs"
                                         aria-label="Próxima página"
                                       >
                                         <span>Próxima →</span>
@@ -1401,22 +1376,22 @@ export function GuidedStudentAssistant({
 
                     {/* WIDGET: AMBIGUOUS STUDENTS CANDIDATES */}
                     {msg.widget?.type === "AMBIGUOUS_STUDENTS" && (
-                      <div className="pt-2 border-t border-white/10 space-y-1.5">
+                      <div className="pt-2 border-t border-[#E5E7EB] dark:border-[#303238] space-y-1.5">
                         {msg.widget.candidates.map((cand) => (
                           <button
                             key={cand.membershipPublicId}
                             type="button"
                             onClick={() => handleSelectStudent(cand)}
-                            className="w-full p-2.5 rounded-xl border border-white/10 bg-[#0B0C0E] hover:bg-[#23262C] hover:border-emerald-500/40 transition-all text-left flex items-center justify-between gap-3 min-h-[44px] cursor-pointer"
+                            className="w-full p-2.5 rounded-xl border border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#1B1D21] hover:bg-white dark:hover:bg-[#23262C] hover:border-emerald-500/40 transition-all text-left flex items-center justify-between gap-3 min-h-[44px] cursor-pointer"
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
                               <StudentAvatar name={cand.name} userPublicId={cand.userPublicId} size="sm" />
                               <div className="min-w-0">
-                                <span className="text-xs font-bold text-white block truncate">{cand.name}</span>
-                                <span className="text-[11px] text-[#9CA3AF] block truncate">{cand.email}</span>
+                                <span className="text-xs font-bold text-[#17191D] dark:text-white block truncate">{cand.name}</span>
+                                <span className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF] block truncate">{cand.email}</span>
                               </div>
                             </div>
-                            <span className="text-xs font-bold text-emerald-400 shrink-0">Selecionar</span>
+                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 shrink-0">Selecionar</span>
                           </button>
                         ))}
                       </div>
@@ -1424,17 +1399,17 @@ export function GuidedStudentAssistant({
 
                     {/* WIDGET: SECTION PROMPT SUGGESTIONS */}
                     {msg.widget?.type === "SECTION_PROMPT" && (
-                      <div className="pt-2 border-t border-white/10 space-y-2">
-                        <span className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider block">
+                      <div className="pt-3 border-t border-[#E5E7EB] dark:border-[#303238] space-y-2.5">
+                        <span className="text-[11px] font-bold text-[#6B7280] dark:text-[#9CA3AF] uppercase tracking-wider block">
                           Atalhos de navegação:
                         </span>
                         <div className="flex flex-wrap gap-2">
                           {[
-                            { label: "Visão Geral", icon: LayoutGridIcon, action: "Visão Geral" },
-                            { label: "Fotos", icon: PhotoIcon, action: "Fotos" },
-                            { label: "Anamnese", icon: ClipboardCheckIcon, action: "Anamnese" },
-                            { label: "Formulários", icon: FileTextIcon, action: "Formulários" },
-                            { label: "Treinos", icon: DumbbellIcon, action: "Treinos" },
+                            { label: "Visão Geral", icon: DuotoneOverviewIcon, action: "Visão Geral", color: "hover:border-emerald-500/50" },
+                            { label: "Fotos", icon: DuotoneProgressIcon, action: "Fotos", color: "hover:border-blue-500/50" },
+                            { label: "Anamnese", icon: DuotoneConsultationsIcon, action: "Anamnese", color: "hover:border-purple-500/50" },
+                            { label: "Formulários", icon: DuotoneOperationsIcon, action: "Formulários", color: "hover:border-teal-500/50" },
+                            { label: "Treinos", icon: DuotoneTrainingIcon, action: "Treinos", color: "hover:border-orange-500/50" },
                           ].map((item) => {
                             const Icon = item.icon;
                             return (
@@ -1450,9 +1425,9 @@ export function GuidedStudentAssistant({
                                     item.action
                                   );
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#0B0C0E] border border-white/10 hover:border-emerald-500/50 hover:bg-[#23262C] transition-all cursor-pointer min-h-[38px]"
+                                className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[#17191D] dark:text-white bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] ${item.color} hover:bg-white dark:hover:bg-[#252830] transition-all cursor-pointer min-h-[44px] shadow-2xs active:scale-[0.98]`}
                               >
-                                <Icon className="w-3.5 h-3.5 text-emerald-400" />
+                                <Icon className="w-4 h-4 shrink-0" />
                                 <span>{item.label}</span>
                               </button>
                             );
@@ -1551,8 +1526,8 @@ export function GuidedStudentAssistant({
 
                     {/* WIDGET: FALLBACK / HELP */}
                     {(msg.widget?.type === "FALLBACK" || msg.widget?.type === "HELP") && (
-                      <div className="pt-2 border-t border-white/10 space-y-2">
-                        <span className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider block">
+                      <div className="pt-2 border-t border-[#E5E7EB] dark:border-[#303238] space-y-2">
+                        <span className="text-[11px] font-bold text-[#6B7280] dark:text-[#9CA3AF] uppercase tracking-wider block">
                           Comandos suportados:
                         </span>
                         <div className="flex flex-wrap gap-1.5">
@@ -1576,7 +1551,7 @@ export function GuidedStudentAssistant({
                                   cmd
                                 );
                               }}
-                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#0B0C0E] border border-white/10 hover:border-emerald-500/40 text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] hover:border-emerald-500/40 text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 transition-colors cursor-pointer min-h-[36px]"
                             >
                               {cmd}
                             </button>
@@ -1595,9 +1570,9 @@ export function GuidedStudentAssistant({
         {/* =====================================================================
             PINNED BOTTOM INPUT BAR (TEXTFIELD + SEND BUTTON)
             ===================================================================== */}
-        <footer className="px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 border-t border-[#C5CBD3] dark:border-[#282A30] bg-[#ECEFF2] dark:bg-[#0B0C0E] shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
-          <div className="max-w-3xl lg:max-w-4xl mx-auto flex items-end gap-2 w-full min-w-0">
-            <div className="relative flex-1 min-w-0 rounded-2xl bg-white dark:bg-[#151619] border border-[#C5CBD3] dark:border-white/10 focus-within:border-emerald-600 dark:focus-within:border-emerald-500 shadow-xs transition-colors px-3 py-2 flex items-center">
+        <footer className="px-3 sm:px-6 lg:px-8 py-3 border-t border-[#E5E7EB] dark:border-[#303238] bg-white/95 dark:bg-[#151619]/95 backdrop-blur-md shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] z-20 shadow-xs">
+          <div className="max-w-3xl lg:max-w-4xl mx-auto flex items-end gap-2.5 w-full min-w-0">
+            <div className="relative flex-1 min-w-0 rounded-2xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] focus-within:border-emerald-600 dark:focus-within:border-emerald-500 shadow-2xs transition-colors px-3.5 py-2 flex items-center">
               <textarea
                 ref={textareaRef}
                 value={inputText}
@@ -1610,7 +1585,7 @@ export function GuidedStudentAssistant({
                     : "Digite o nome do aluno…"
                 }
                 aria-label="Mensagem para o assistente"
-                className="w-full min-w-0 bg-transparent text-[#17191D] dark:text-white placeholder-[#6B7280] dark:placeholder-zinc-400 text-xs sm:text-sm resize-none focus:outline-none min-h-[32px] max-h-[120px] font-sans leading-normal"
+                className="w-full min-w-0 bg-transparent text-[#17191D] dark:text-white placeholder-[#9CA3AF] text-xs sm:text-sm resize-none focus:outline-none min-h-[32px] max-h-[120px] font-sans leading-normal"
               />
             </div>
 
@@ -1619,12 +1594,12 @@ export function GuidedStudentAssistant({
               onClick={handleSendMessage}
               disabled={!inputText.trim() || isProcessing}
               aria-label="Enviar mensagem"
-              className="w-11 h-11 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center font-bold shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shrink-0 cursor-pointer"
+              className="w-11 h-11 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center font-bold shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shrink-0 cursor-pointer min-h-[44px] min-w-[44px]"
             >
               <SendPlaneIcon className="w-5 h-5" />
             </button>
           </div>
-          <div className="hidden sm:block max-w-3xl lg:max-w-4xl mx-auto text-center pt-1.5 text-[10px] text-[#4B5563] dark:text-[#9CA3AF]">
+          <div className="hidden sm:block max-w-3xl lg:max-w-4xl mx-auto text-center pt-1.5 text-[10px] text-[#6B7280] dark:text-[#9CA3AF]">
             <span>Pressione <strong>Enter</strong> para enviar · <strong>Shift + Enter</strong> para quebra de linha</span>
           </div>
         </footer>
@@ -1677,18 +1652,18 @@ export function GuidedStudentAssistant({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150"
         >
-          <div className="relative w-full max-w-5xl max-h-[95vh] bg-[#151619] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col text-white">
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#0B0C0E]">
+          <div className="relative w-full max-w-5xl max-h-[95vh] bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl overflow-hidden shadow-2xl flex flex-col text-[#17191D] dark:text-white">
+            <div className="flex items-center justify-between p-4 border-b border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#0B0C0E]">
               <div>
-                <h3 className="text-sm font-bold text-white">Comparador de Fotos · Antes e Depois</h3>
-                <p className="text-xs text-zinc-400">Comparação lado a lado de {selectedStudent.name}</p>
+                <h3 className="text-sm font-bold text-[#17191D] dark:text-white">Comparador de Fotos · Antes e Depois</h3>
+                <p className="text-xs text-[#6B7280] dark:text-zinc-400">Comparação lado a lado de {selectedStudent.name}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsPhotoComparatorOpen(false)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                className="p-1.5 rounded-lg text-[#6B7280] dark:text-zinc-400 hover:text-[#17191D] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
                 aria-label="Fechar comparador"
               >
                 <XIcon className="w-5 h-5" />
@@ -1697,15 +1672,15 @@ export function GuidedStudentAssistant({
 
             <div className="p-4 overflow-y-auto space-y-4">
               {/* Comparator Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-[#F9FAFB] dark:bg-[#0B0C0E] border border-[#E5E7EB] dark:border-[#303238] text-xs">
                 <div>
-                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[11px] font-bold text-[#6B7280] dark:text-zinc-400 uppercase tracking-wider block mb-1">
                     Foto A (Anterior)
                   </label>
                   <select
                     value={compareEvalA}
                     onChange={(e) => setCompareEvalA(e.target.value)}
-                    className="w-full bg-[#151619] border border-white/10 rounded-lg p-2 text-white text-xs focus:ring-1 focus:ring-emerald-500"
+                    className="w-full bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-lg p-2 text-[#17191D] dark:text-white text-xs focus:ring-1 focus:ring-emerald-500"
                   >
                     {(detailsCache[selectedStudent.membershipPublicId]?.photos || []).map((ev) => (
                       <option key={ev.requestPublicId} value={ev.requestPublicId}>
@@ -1716,13 +1691,13 @@ export function GuidedStudentAssistant({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[11px] font-bold text-[#6B7280] dark:text-zinc-400 uppercase tracking-wider block mb-1">
                     Foto B (Recente)
                   </label>
                   <select
                     value={compareEvalB}
                     onChange={(e) => setCompareEvalB(e.target.value)}
-                    className="w-full bg-[#151619] border border-white/10 rounded-lg p-2 text-white text-xs focus:ring-1 focus:ring-emerald-500"
+                    className="w-full bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-lg p-2 text-[#17191D] dark:text-white text-xs focus:ring-1 focus:ring-emerald-500"
                   >
                     {(detailsCache[selectedStudent.membershipPublicId]?.photos || []).map((ev) => (
                       <option key={ev.requestPublicId} value={ev.requestPublicId}>
@@ -1733,7 +1708,7 @@ export function GuidedStudentAssistant({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[11px] font-bold text-[#6B7280] dark:text-zinc-400 uppercase tracking-wider block mb-1">
                     Posição
                   </label>
                   <div className="flex gap-1">
@@ -1749,8 +1724,8 @@ export function GuidedStudentAssistant({
                         onClick={() => setComparePose(p.id)}
                         className={`flex-1 py-2 rounded-lg font-bold text-[11px] transition-colors ${
                           comparePose === p.id
-                            ? "bg-emerald-500 text-zinc-950"
-                            : "bg-[#151619] text-zinc-300 border border-white/10"
+                            ? "bg-emerald-600 dark:bg-emerald-500 text-white dark:text-zinc-950 font-bold"
+                            : "bg-white dark:bg-[#151619] text-[#4B5563] dark:text-zinc-300 border border-[#E5E7EB] dark:border-white/10"
                         }`}
                       >
                         {p.label}
@@ -1762,8 +1737,8 @@ export function GuidedStudentAssistant({
 
               {/* Side-by-Side Images */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 flex flex-col items-center">
-                  <span className="text-xs font-bold text-zinc-300 mb-2">Registro Anterior</span>
+                <div className="p-3 rounded-xl bg-[#F9FAFB] dark:bg-[#0B0C0E] border border-[#E5E7EB] dark:border-[#303238] flex flex-col items-center">
+                  <span className="text-xs font-bold text-[#4B5563] dark:text-zinc-300 mb-2">Registro Anterior</span>
                   {compareEvalA ? (
                     <img
                       src={`/api/consultancies/${consultancySlug}/photo-evaluations/${compareEvalA}/images/${comparePose}`}
@@ -1771,12 +1746,12 @@ export function GuidedStudentAssistant({
                       className="max-h-[50vh] w-auto object-contain rounded-lg"
                     />
                   ) : (
-                    <div className="h-60 flex items-center justify-center text-xs text-zinc-500">Selecione uma avaliação</div>
+                    <div className="h-60 flex items-center justify-center text-xs text-[#9CA3AF]">Selecione uma avaliação</div>
                   )}
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 flex flex-col items-center">
-                  <span className="text-xs font-bold text-emerald-400 mb-2">Registro Recente</span>
+                <div className="p-3 rounded-xl bg-[#F9FAFB] dark:bg-[#0B0C0E] border border-[#E5E7EB] dark:border-[#303238] flex flex-col items-center">
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-2">Registro Recente</span>
                   {compareEvalB ? (
                     <img
                       src={`/api/consultancies/${consultancySlug}/photo-evaluations/${compareEvalB}/images/${comparePose}`}
@@ -1784,7 +1759,7 @@ export function GuidedStudentAssistant({
                       className="max-h-[50vh] w-auto object-contain rounded-lg"
                     />
                   ) : (
-                    <div className="h-60 flex items-center justify-center text-xs text-zinc-500">Selecione uma avaliação</div>
+                    <div className="h-60 flex items-center justify-center text-xs text-[#9CA3AF]">Selecione uma avaliação</div>
                   )}
                 </div>
               </div>
@@ -1800,20 +1775,20 @@ export function GuidedStudentAssistant({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
-          <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#151619] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col text-white">
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#0B0C0E]">
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] rounded-2xl overflow-hidden shadow-2xl flex flex-col text-[#17191D] dark:text-white">
+            <div className="flex items-center justify-between p-4 border-b border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#0B0C0E]">
               <div>
-                <h3 className="text-sm font-bold text-white">{activeFormAnswerDetail.title}</h3>
-                <p className="text-xs text-zinc-400">
+                <h3 className="text-sm font-bold text-[#17191D] dark:text-white">{activeFormAnswerDetail.title}</h3>
+                <p className="text-xs text-[#6B7280] dark:text-zinc-400">
                   Respondido em {formatDisplayDate(activeFormAnswerDetail.submittedAt)}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveFormAnswerDetail(null)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                className="p-1.5 rounded-lg text-[#6B7280] dark:text-zinc-400 hover:text-[#17191D] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
                 aria-label="Fechar respostas do formulário"
               >
                 <XIcon className="w-5 h-5" />
@@ -1822,9 +1797,9 @@ export function GuidedStudentAssistant({
 
             <div className="p-4 overflow-y-auto space-y-3">
               {activeFormAnswerDetail.questions.map((item, idx) => (
-                <div key={idx} className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-1">
-                  <div className="text-xs font-semibold text-emerald-400">{item.question}</div>
-                  <div className="text-xs text-white whitespace-pre-wrap">{item.answer || "—"}</div>
+                <div key={idx} className="p-3 rounded-xl bg-[#F9FAFB] dark:bg-[#0B0C0E] border border-[#E5E7EB] dark:border-[#303238] space-y-1">
+                  <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">{item.question}</div>
+                  <div className="text-xs text-[#17191D] dark:text-white whitespace-pre-wrap">{item.answer || "—"}</div>
                 </div>
               ))}
             </div>
@@ -1839,7 +1814,7 @@ export function GuidedStudentAssistant({
 // WIDGET COMPONENTS EMBEDDED INSIDE CHAT RESPONSES
 // ============================================================================
 
-// 1. VISAO GERAL WIDGET (7 Expandable Deterministic Blocks)
+/// 1. VISAO GERAL WIDGET (7 Expandable Deterministic Blocks)
 function VisaoGeralWidget({
   student,
   consultancySlug,
@@ -1855,8 +1830,8 @@ function VisaoGeralWidget({
 
   if (isLoading && !detail) {
     return (
-      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-zinc-400 flex items-center gap-2">
-        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-400" />
+      <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-xs text-[#6B7280] dark:text-zinc-400 flex items-center gap-2">
+        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
         <span>Carregando dados de {student.name}...</span>
       </div>
     );
@@ -1867,24 +1842,24 @@ function VisaoGeralWidget({
   return (
     <div className="space-y-2.5 pt-1">
       {/* Block 1: Cadastro e Contato */}
-      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+      <div className="rounded-xl border border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#1B1D21] overflow-hidden shadow-2xs">
         <button
           type="button"
           onClick={() => toggle("cadastro")}
-          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+          className="w-full p-3 text-left font-bold text-xs text-[#17191D] dark:text-white flex items-center justify-between hover:bg-white dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
         >
           <span className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />
             Cadastro e Contato
           </span>
           <ChevronDownIcon
-            className={`w-4 h-4 text-zinc-400 transition-transform ${
+            className={`w-4 h-4 text-[#6B7280] dark:text-zinc-400 transition-transform ${
               expandedBlock === "cadastro" ? "rotate-180" : ""
             }`}
           />
         </button>
         {expandedBlock === "cadastro" && (
-          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+          <div className="p-3 border-t border-[#E5E7EB] dark:border-[#303238] text-xs space-y-1.5 text-[#374151] dark:text-zinc-300 bg-white/60 dark:bg-black/20">
             <div><strong>Nome:</strong> {student.name}</div>
             <div><strong>E-mail:</strong> {student.email}</div>
             <div><strong>Telefone:</strong> {detail?.student.phone || "Não informado"}</div>
@@ -1895,24 +1870,24 @@ function VisaoGeralWidget({
       </div>
 
       {/* Block 2: Objetivos Registrados */}
-      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+      <div className="rounded-xl border border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#1B1D21] overflow-hidden shadow-2xs">
         <button
           type="button"
           onClick={() => toggle("objetivos")}
-          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+          className="w-full p-3 text-left font-bold text-xs text-[#17191D] dark:text-white flex items-center justify-between hover:bg-white dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
         >
           <span className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />
             Objetivos Registrados
           </span>
           <ChevronDownIcon
-            className={`w-4 h-4 text-zinc-400 transition-transform ${
+            className={`w-4 h-4 text-[#6B7280] dark:text-zinc-400 transition-transform ${
               expandedBlock === "objetivos" ? "rotate-180" : ""
             }`}
           />
         </button>
         {expandedBlock === "objetivos" && (
-          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+          <div className="p-3 border-t border-[#E5E7EB] dark:border-[#303238] text-xs space-y-1.5 text-[#374151] dark:text-zinc-300 bg-white/60 dark:bg-black/20">
             <div>
               <strong>Objetivo Principal:</strong>{" "}
               {detail?.overview.objective || student.objective || "Nenhum objetivo registrado"}
@@ -1922,24 +1897,24 @@ function VisaoGeralWidget({
       </div>
 
       {/* Block 3: Acompanhamento e Avaliações */}
-      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+      <div className="rounded-xl border border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#1B1D21] overflow-hidden shadow-2xs">
         <button
           type="button"
           onClick={() => toggle("avaliacoes")}
-          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+          className="w-full p-3 text-left font-bold text-xs text-[#17191D] dark:text-white flex items-center justify-between hover:bg-white dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
         >
           <span className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />
             Acompanhamento e Avaliações
           </span>
           <ChevronDownIcon
-            className={`w-4 h-4 text-zinc-400 transition-transform ${
+            className={`w-4 h-4 text-[#6B7280] dark:text-zinc-400 transition-transform ${
               expandedBlock === "avaliacoes" ? "rotate-180" : ""
             }`}
           />
         </button>
         {expandedBlock === "avaliacoes" && (
-          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+          <div className="p-3 border-t border-[#E5E7EB] dark:border-[#303238] text-xs space-y-1.5 text-[#374151] dark:text-zinc-300 bg-white/60 dark:bg-black/20">
             <div>
               <strong>Total de avaliações fotográficas:</strong>{" "}
               {detail?.photos.length || 0}
@@ -1955,24 +1930,24 @@ function VisaoGeralWidget({
       </div>
 
       {/* Block 4: Medidas e Evolução Registradas */}
-      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+      <div className="rounded-xl border border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#1B1D21] overflow-hidden shadow-2xs">
         <button
           type="button"
           onClick={() => toggle("medidas")}
-          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+          className="w-full p-3 text-left font-bold text-xs text-[#17191D] dark:text-white flex items-center justify-between hover:bg-white dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
         >
           <span className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />
             Medidas e Evolução Registradas
           </span>
           <ChevronDownIcon
-            className={`w-4 h-4 text-zinc-400 transition-transform ${
+            className={`w-4 h-4 text-[#6B7280] dark:text-zinc-400 transition-transform ${
               expandedBlock === "medidas" ? "rotate-180" : ""
             }`}
           />
         </button>
         {expandedBlock === "medidas" && (
-          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+          <div className="p-3 border-t border-[#E5E7EB] dark:border-[#303238] text-xs space-y-1.5 text-[#374151] dark:text-zinc-300 bg-white/60 dark:bg-black/20">
             <div><strong>Peso Registrado:</strong> {detail?.overview.weightKg ? `${detail.overview.weightKg} kg` : "Não registrado"}</div>
             <div><strong>Altura:</strong> {detail?.overview.heightCm ? `${detail.overview.heightCm} cm` : "Não registrada"}</div>
             <div><strong>Data do Último Peso:</strong> {formatDisplayDate(detail?.overview.lastWeightRecordedOn)}</div>
@@ -1981,24 +1956,24 @@ function VisaoGeralWidget({
       </div>
 
       {/* Block 5: Situação dos Treinos */}
-      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+      <div className="rounded-xl border border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#1B1D21] overflow-hidden shadow-2xs">
         <button
           type="button"
           onClick={() => toggle("treinos")}
-          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+          className="w-full p-3 text-left font-bold text-xs text-[#17191D] dark:text-white flex items-center justify-between hover:bg-white dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
         >
           <span className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />
             Situação dos Treinos
           </span>
           <ChevronDownIcon
-            className={`w-4 h-4 text-zinc-400 transition-transform ${
+            className={`w-4 h-4 text-[#6B7280] dark:text-zinc-400 transition-transform ${
               expandedBlock === "treinos" ? "rotate-180" : ""
             }`}
           />
         </button>
         {expandedBlock === "treinos" && (
-          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+          <div className="p-3 border-t border-[#E5E7EB] dark:border-[#303238] text-xs space-y-1.5 text-[#374151] dark:text-zinc-300 bg-white/60 dark:bg-black/20">
             <div><strong>Treino Ativo:</strong> {student.latestWorkoutTitle || "Sem treino ativo"}</div>
             <div><strong>Status da Prescrição:</strong> {student.latestAssignmentStatus || "Sem ficha"}</div>
             <div><strong>Total de Treinos Concluídos:</strong> {detail?.overview.completedWorkoutsCount || 0}</div>
@@ -2007,24 +1982,24 @@ function VisaoGeralWidget({
       </div>
 
       {/* Block 6: Anamneses e Formulários */}
-      <div className="rounded-xl border border-white/10 bg-[#0B0C0E] overflow-hidden">
+      <div className="rounded-xl border border-[#E5E7EB] dark:border-[#303238] bg-[#F9FAFB] dark:bg-[#1B1D21] overflow-hidden shadow-2xs">
         <button
           type="button"
           onClick={() => toggle("anamnese")}
-          className="w-full p-3 text-left font-bold text-xs text-white flex items-center justify-between hover:bg-white/[0.04] transition-colors cursor-pointer"
+          className="w-full p-3 text-left font-bold text-xs text-[#17191D] dark:text-white flex items-center justify-between hover:bg-white dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
         >
           <span className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />
             Anamneses e Formulários
           </span>
           <ChevronDownIcon
-            className={`w-4 h-4 text-zinc-400 transition-transform ${
+            className={`w-4 h-4 text-[#6B7280] dark:text-zinc-400 transition-transform ${
               expandedBlock === "anamnese" ? "rotate-180" : ""
             }`}
           />
         </button>
         {expandedBlock === "anamnese" && (
-          <div className="p-3 border-t border-white/10 text-xs space-y-1.5 text-zinc-300">
+          <div className="p-3 border-t border-[#E5E7EB] dark:border-[#303238] text-xs space-y-1.5 text-[#374151] dark:text-zinc-300 bg-white/60 dark:bg-black/20">
             <div>
               <strong>Anamnese:</strong>{" "}
               {detail?.overview.hasAnamnesis
@@ -2042,7 +2017,7 @@ function VisaoGeralWidget({
       <div className="pt-2">
         <Link
           href={`/consultoria/${consultancySlug}/planos-v2/prontuario/${student.membershipPublicId}`}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
         >
           <span>Abrir prontuário completo de {student.name}</span>
           <ChevronRightIcon className="w-3.5 h-3.5" />
@@ -2074,8 +2049,8 @@ function FotosWidget({
 }) {
   if (isLoading && !detail) {
     return (
-      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-zinc-400 flex items-center gap-2">
-        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-400" />
+      <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-xs text-[#6B7280] dark:text-zinc-400 flex items-center gap-2">
+        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
         <span>Carregando registros fotográficos de {student.name}...</span>
       </div>
     );
@@ -2085,15 +2060,15 @@ function FotosWidget({
 
   if (evals.length === 0) {
     return (
-      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-3">
-        <p className="text-xs text-zinc-400">
+      <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-center space-y-3">
+        <p className="text-xs text-[#6B7280] dark:text-zinc-400">
           Nenhuma foto cadastrada.
         </p>
         <button
           type="button"
           onClick={onRequestPhotos}
           disabled={isSending}
-          className="px-3.5 py-2 rounded-xl text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-50"
+          className="px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-50 shadow-xs"
         >
           {isSending ? "Solicitando..." : "Solicitar envio de fotos"}
         </button>
@@ -2105,14 +2080,14 @@ function FotosWidget({
     <div className="space-y-4 pt-1">
       {/* Comparator Bar */}
       {evals.length >= 2 && (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-[#0B0C0E] border border-white/10">
-          <span className="text-xs text-zinc-300">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] shadow-2xs">
+          <span className="text-xs text-[#17191D] dark:text-zinc-300 font-medium">
             {evals.length} avaliações fotográficas registradas
           </span>
           <button
             type="button"
             onClick={onOpenComparator}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
           >
             Comparar Antes e Depois
           </button>
@@ -2125,10 +2100,10 @@ function FotosWidget({
           const dateStr = formatDisplayDate(ev.submittedAt);
 
           return (
-            <div key={ev.requestPublicId} className="p-3.5 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-bold text-white">
-                <span className="text-emerald-400">Fotos de {student.name} · {dateStr}</span>
-                <span className="text-zinc-500 text-[11px]">4 fotos</span>
+            <div key={ev.requestPublicId} className="p-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] space-y-2.5 shadow-2xs">
+              <div className="flex items-center justify-between text-xs font-bold text-[#17191D] dark:text-white">
+                <span className="text-emerald-700 dark:text-emerald-400">Fotos de {student.name} · {dateStr}</span>
+                <span className="text-[#6B7280] dark:text-zinc-500 text-[11px]">4 fotos</span>
               </div>
 
               {/* 4 Poses */}
@@ -2145,7 +2120,7 @@ function FotosWidget({
                     <div
                       key={p.pose}
                       onClick={() => onZoom({ url, pose: p.label, date: dateStr })}
-                      className="group relative aspect-[3/4] bg-[#151619] rounded-lg border border-white/10 overflow-hidden cursor-pointer hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center"
+                      className="group relative aspect-[3/4] bg-white dark:bg-[#151619] rounded-lg border border-[#E5E7EB] dark:border-[#303238] overflow-hidden cursor-pointer hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center shadow-2xs"
                     >
                       <img
                         src={url}
@@ -2192,8 +2167,8 @@ function AnamneseWidget({
 
   if (isLoading && !detail) {
     return (
-      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-zinc-400 flex items-center gap-2">
-        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-400" />
+      <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-xs text-[#6B7280] dark:text-zinc-400 flex items-center gap-2">
+        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
         <span>Carregando anamnese de {student.name}...</span>
       </div>
     );
@@ -2204,12 +2179,14 @@ function AnamneseWidget({
   return (
     <div className="space-y-3 pt-1">
       {/* Sub Tabs */}
-      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs">
+      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-xs">
         <button
           type="button"
           onClick={() => setTab("view")}
           className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
-            tab === "view" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+            tab === "view"
+              ? "bg-emerald-600 dark:bg-emerald-500 text-white dark:text-zinc-950 shadow-xs"
+              : "text-[#6B7280] dark:text-zinc-400 hover:text-[#17191D] dark:hover:text-white"
           }`}
         >
           Respostas
@@ -2218,7 +2195,9 @@ function AnamneseWidget({
           type="button"
           onClick={() => setTab("send")}
           className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
-            tab === "send" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+            tab === "send"
+              ? "bg-emerald-600 dark:bg-emerald-500 text-white dark:text-zinc-950 shadow-xs"
+              : "text-[#6B7280] dark:text-zinc-400 hover:text-[#17191D] dark:hover:text-white"
           }`}
         >
           Enviar Anamnese
@@ -2227,7 +2206,9 @@ function AnamneseWidget({
           type="button"
           onClick={() => setTab("create")}
           className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
-            tab === "create" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+            tab === "create"
+              ? "bg-emerald-600 dark:bg-emerald-500 text-white dark:text-zinc-950 shadow-xs"
+              : "text-[#6B7280] dark:text-zinc-400 hover:text-[#17191D] dark:hover:text-white"
           }`}
         >
           Criar Modelo
@@ -2238,8 +2219,8 @@ function AnamneseWidget({
         <div
           className={`p-3 rounded-xl text-xs font-semibold ${
             feedback.type === "success"
-              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-              : "bg-red-500/10 text-red-400 border border-red-500/20"
+              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+              : "bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20"
           }`}
         >
           {feedback.message}
@@ -2251,7 +2232,7 @@ function AnamneseWidget({
         <div className="space-y-3">
           {anamnesis && anamnesis.length > 0 ? (
             <div className="space-y-2.5">
-              <div className="text-xs font-semibold text-emerald-400">
+              <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                 {(() => {
                   const intakeForm = detail?.forms?.find((f) => f.formType === "INTAKE");
                   return intakeForm?.submittedAt
@@ -2260,9 +2241,9 @@ function AnamneseWidget({
                 })()}
               </div>
               {anamnesis.map((sec, sIdx) => (
-                <div key={sIdx} className="p-3.5 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-2">
-                  <div className="text-xs font-bold text-emerald-400">{sec.title}</div>
-                  <div className="text-xs text-zinc-300 space-y-1 pt-1">
+                <div key={sIdx} className="p-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] space-y-2 shadow-2xs">
+                  <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{sec.title}</div>
+                  <div className="text-xs text-[#374151] dark:text-zinc-300 space-y-1 pt-1">
                     {sec.items.map((it, iIdx) => (
                       <div key={iIdx}>
                         <strong>{it.label}:</strong> {it.value || "—"}
@@ -2273,12 +2254,12 @@ function AnamneseWidget({
               ))}
             </div>
           ) : (
-            <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-2 text-xs text-zinc-400">
+            <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-center space-y-2 text-xs text-[#6B7280] dark:text-zinc-400">
               <p>Este aluno ainda não respondeu à anamnese.</p>
               <button
                 type="button"
                 onClick={() => setTab("send")}
-                className="text-emerald-400 font-bold hover:underline cursor-pointer"
+                className="text-emerald-700 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
               >
                 Enviar solicitação de anamnese
               </button>
@@ -2289,9 +2270,9 @@ function AnamneseWidget({
 
       {/* SEND ANAMNESIS */}
       {tab === "send" && (
-        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs">
-          <div className="font-bold text-white">Confirmar envio de anamnese:</div>
-          <div className="p-2.5 rounded-lg bg-[#151619] border border-white/10 space-y-1 text-zinc-300">
+        <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] space-y-3 text-xs shadow-2xs">
+          <div className="font-bold text-[#17191D] dark:text-white">Confirmar envio de anamnese:</div>
+          <div className="p-3 rounded-lg bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] space-y-1 text-[#374151] dark:text-zinc-300">
             <div><strong>Modelo:</strong> Anamnese Geral Padrão V1 (Trevo One)</div>
             <div><strong>Destinatário:</strong> {student.name} ({student.email})</div>
           </div>
@@ -2301,16 +2282,16 @@ function AnamneseWidget({
               type="checkbox"
               checked={confirmedSend}
               onChange={(e) => setConfirmedSend(e.target.checked)}
-              className="rounded border-white/20 bg-[#151619] text-emerald-500 focus:ring-emerald-500"
+              className="rounded border-[#D1D5DB] dark:border-white/20 bg-white dark:bg-[#151619] text-emerald-600 focus:ring-emerald-500"
             />
-            <span className="text-zinc-300">Confirmo o envio para este aluno</span>
+            <span className="text-[#374151] dark:text-zinc-300 font-medium">Confirmo o envio para este aluno</span>
           </label>
 
           <button
             type="button"
             onClick={onSendAnamnesis}
             disabled={!confirmedSend || isSending}
-            className="w-full py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs active:scale-[0.98]"
           >
             {isSending ? "Enviando solicitação..." : "Enviar Solicitação de Anamnese"}
           </button>
@@ -2319,13 +2300,13 @@ function AnamneseWidget({
 
       {/* CREATE MODEL */}
       {tab === "create" && (
-        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-3 text-xs">
-          <p className="text-zinc-300">
+        <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-center space-y-3 text-xs shadow-2xs">
+          <p className="text-[#374151] dark:text-zinc-300">
             Crie novos modelos personalizados no construtor oficial de formulários da consultoria.
           </p>
           <Link
             href={`/consultoria/${consultancySlug}/formularios`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
           >
             <span>Abrir construtor de formulários</span>
             <ChevronRightIcon className="w-3.5 h-3.5" />
@@ -2377,8 +2358,8 @@ function FormulariosWidget({
 
   if (isLoading && !detail) {
     return (
-      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-zinc-400 flex items-center gap-2">
-        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-400" />
+      <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-xs text-[#6B7280] dark:text-zinc-400 flex items-center gap-2">
+        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
         <span>Carregando formulários de {student.name}...</span>
       </div>
     );
@@ -2389,12 +2370,14 @@ function FormulariosWidget({
   return (
     <div className="space-y-3 pt-1">
       {/* Sub Tabs */}
-      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs">
+      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-xs">
         <button
           type="button"
           onClick={() => setTab("view")}
           className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
-            tab === "view" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+            tab === "view"
+              ? "bg-emerald-600 dark:bg-emerald-500 text-white dark:text-zinc-950 shadow-xs"
+              : "text-[#6B7280] dark:text-zinc-400 hover:text-[#17191D] dark:hover:text-white"
           }`}
         >
           Respondidos ({forms.length})
@@ -2403,7 +2386,9 @@ function FormulariosWidget({
           type="button"
           onClick={() => setTab("send")}
           className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
-            tab === "send" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+            tab === "send"
+              ? "bg-emerald-600 dark:bg-emerald-500 text-white dark:text-zinc-950 shadow-xs"
+              : "text-[#6B7280] dark:text-zinc-400 hover:text-[#17191D] dark:hover:text-white"
           }`}
         >
           Enviar Formulário
@@ -2412,7 +2397,9 @@ function FormulariosWidget({
           type="button"
           onClick={() => setTab("create")}
           className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors cursor-pointer ${
-            tab === "create" ? "bg-emerald-500 text-zinc-950" : "text-zinc-400 hover:text-white"
+            tab === "create"
+              ? "bg-emerald-600 dark:bg-emerald-500 text-white dark:text-zinc-950 shadow-xs"
+              : "text-[#6B7280] dark:text-zinc-400 hover:text-[#17191D] dark:hover:text-white"
           }`}
         >
           Novo Modelo
@@ -2423,8 +2410,8 @@ function FormulariosWidget({
         <div
           className={`p-3 rounded-xl text-xs font-semibold ${
             feedback.type === "success"
-              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-              : "bg-red-500/10 text-red-400 border border-red-500/20"
+              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+              : "bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20"
           }`}
         >
           {feedback.message}
@@ -2435,12 +2422,12 @@ function FormulariosWidget({
       {tab === "view" && (
         <div className="space-y-2">
           {forms.length === 0 ? (
-            <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-2 text-xs text-zinc-400">
+            <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-center space-y-2 text-xs text-[#6B7280] dark:text-zinc-400">
               <p>Este aluno ainda não possui formulários respondidos.</p>
               <button
                 type="button"
                 onClick={() => setTab("send")}
-                className="text-emerald-400 font-bold hover:underline cursor-pointer"
+                className="text-emerald-700 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
               >
                 Enviar formulário
               </button>
@@ -2449,18 +2436,18 @@ function FormulariosWidget({
             forms.map((f) => (
               <div
                 key={f.publicId}
-                className="p-3 rounded-xl bg-[#0B0C0E] border border-white/10 flex items-center justify-between gap-3 text-xs"
+                className="p-3 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] flex items-center justify-between gap-3 text-xs shadow-2xs"
               >
                 <div>
-                  <div className="font-bold text-white">{f.title}</div>
-                  <div className="text-[11px] text-zinc-400">
+                  <div className="font-bold text-[#17191D] dark:text-white">{f.title}</div>
+                  <div className="text-[11px] text-[#6B7280] dark:text-zinc-400">
                     Respondido em {formatDisplayDate(f.submittedAt)} · {f.questions.length} perguntas
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => onOpenFormDetail(f)}
-                  className="px-2.5 py-1.5 rounded-lg bg-[#151619] border border-white/10 text-emerald-400 hover:text-white font-bold text-xs cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-white font-bold text-xs cursor-pointer shadow-2xs active:scale-[0.98]"
                 >
                   Ver respostas
                 </button>
@@ -2472,11 +2459,11 @@ function FormulariosWidget({
 
       {/* SEND FORM */}
       {tab === "send" && (
-        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs">
-          <div className="font-bold text-white">Escolha o formulário que deseja enviar:</div>
+        <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] space-y-3 text-xs shadow-2xs">
+          <div className="font-bold text-[#17191D] dark:text-white">Escolha o formulário que deseja enviar:</div>
 
           {availableTemplates.length === 0 ? (
-            <p className="text-zinc-400">Carregando modelos disponíveis...</p>
+            <p className="text-[#6B7280] dark:text-zinc-400">Carregando modelos disponíveis...</p>
           ) : (
             <div className="space-y-1.5">
               {availableTemplates.map((tpl) => (
@@ -2484,8 +2471,8 @@ function FormulariosWidget({
                   key={tpl.publicId}
                   className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-colors ${
                     selectedTemplateId === tpl.publicId
-                      ? "bg-emerald-500/10 border-emerald-500/40 text-white"
-                      : "bg-[#151619] border-white/10 text-zinc-300"
+                      ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-white"
+                      : "bg-white dark:bg-[#151619] border-[#E5E7EB] dark:border-white/10 text-[#374151] dark:text-zinc-300"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -2494,11 +2481,11 @@ function FormulariosWidget({
                       name="formTemplate"
                       checked={selectedTemplateId === tpl.publicId}
                       onChange={() => onSelectTemplateId(tpl.publicId)}
-                      className="text-emerald-500 focus:ring-emerald-500"
+                      className="text-emerald-600 focus:ring-emerald-500"
                     />
                     <span className="font-semibold text-xs">{tpl.title}</span>
                   </div>
-                  <span className="text-[11px] text-zinc-500">{tpl.category || "Geral"}</span>
+                  <span className="text-[11px] text-[#6B7280] dark:text-zinc-500">{tpl.category || "Geral"}</span>
                 </label>
               ))}
             </div>
@@ -2509,16 +2496,16 @@ function FormulariosWidget({
               type="checkbox"
               checked={confirmedSend}
               onChange={(e) => setConfirmedSend(e.target.checked)}
-              className="rounded border-white/20 bg-[#151619] text-emerald-500 focus:ring-emerald-500"
+              className="rounded border-[#D1D5DB] dark:border-white/20 bg-white dark:bg-[#151619] text-emerald-600 focus:ring-emerald-500"
             />
-            <span className="text-zinc-300">Confirmo o envio para este aluno</span>
+            <span className="text-[#374151] dark:text-zinc-300 font-medium">Confirmo o envio para este aluno</span>
           </label>
 
           <button
             type="button"
             onClick={onSendForm}
             disabled={!confirmedSend || isSending || !selectedTemplateId}
-            className="w-full py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs active:scale-[0.98]"
           >
             {isSending ? "Enviando formulário..." : "Enviar Formulário Selecionado"}
           </button>
@@ -2527,13 +2514,13 @@ function FormulariosWidget({
 
       {/* CREATE FORM */}
       {tab === "create" && (
-        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-center space-y-3 text-xs">
-          <p className="text-zinc-300">
+        <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-center space-y-3 text-xs shadow-2xs">
+          <p className="text-[#374151] dark:text-zinc-300">
             Crie novos formulários e questionários customizados na seção oficial.
           </p>
           <Link
             href={`/consultoria/${consultancySlug}/formularios`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
           >
             <span>Ir para Gerenciamento de Formulários</span>
             <ChevronRightIcon className="w-3.5 h-3.5" />
@@ -2558,8 +2545,8 @@ function TreinosWidget({
 }) {
   if (isLoading && !detail) {
     return (
-      <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 text-xs text-zinc-400 flex items-center gap-2">
-        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-400" />
+      <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] text-xs text-[#6B7280] dark:text-zinc-400 flex items-center gap-2">
+        <RefreshIcon className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
         <span>Carregando treinos de {student.name}...</span>
       </div>
     );
@@ -2572,20 +2559,20 @@ function TreinosWidget({
     <div className="space-y-3 pt-1">
       {activeWorkouts.length === 1 ? (
         // Exactly 1 Active Workout -> Direct Official Flow
-        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs">
+        <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] space-y-3 text-xs shadow-2xs">
           <div className="flex items-center gap-2">
-            <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="font-bold text-white">Treino ativo: {activeWorkouts[0].title}</span>
+            <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="font-bold text-[#17191D] dark:text-white">Treino ativo: {activeWorkouts[0].title}</span>
           </div>
-          <div className="p-3 rounded-lg bg-[#151619] border border-white/10 space-y-1">
-            <div className="font-bold text-emerald-400 text-sm">{activeWorkouts[0].title}</div>
-            <div className="text-[11px] text-zinc-400">
+          <div className="p-3 rounded-lg bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] space-y-1">
+            <div className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">{activeWorkouts[0].title}</div>
+            <div className="text-[11px] text-[#6B7280] dark:text-zinc-400">
               Prescrito em {formatDisplayDate(activeWorkouts[0].startsOn)}
             </div>
           </div>
           <Link
             href={`/consultoria/${consultancySlug}/treinos/${activeWorkouts[0].assignmentPublicId}`}
-            className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
           >
             <span>Abrir treino ativo no Training Studio</span>
             <ChevronRightIcon className="w-3.5 h-3.5" />
@@ -2593,8 +2580,8 @@ function TreinosWidget({
         </div>
       ) : activeWorkouts.length > 1 ? (
         // More than 1 Active Workout -> Short Nominal Choice
-        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs">
-          <div className="font-bold text-white">
+        <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] space-y-3 text-xs shadow-2xs">
+          <div className="font-bold text-[#17191D] dark:text-white">
             {student.name} possui {activeWorkouts.length} treinos ativos. Escolha qual deseja abrir:
           </div>
           <div className="space-y-2">
@@ -2602,37 +2589,37 @@ function TreinosWidget({
               <Link
                 key={w.assignmentPublicId}
                 href={`/consultoria/${consultancySlug}/treinos/${w.assignmentPublicId}`}
-                className="flex items-center justify-between p-3 rounded-xl bg-[#151619] border border-white/10 hover:border-emerald-500/50 hover:bg-[#202328] transition-all cursor-pointer group"
+                className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] hover:border-emerald-500/50 hover:bg-[#F3F4F6] dark:hover:bg-[#202328] transition-all cursor-pointer group shadow-2xs"
               >
                 <div>
-                  <div className="font-bold text-white group-hover:text-emerald-400 transition-colors">
+                  <div className="font-bold text-[#17191D] dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
                     {w.title}
                   </div>
-                  <div className="text-[11px] text-zinc-400">
+                  <div className="text-[11px] text-[#6B7280] dark:text-zinc-400">
                     Desde {formatDisplayDate(w.startsOn)}
                   </div>
                 </div>
-                <ChevronRightIcon className="w-4 h-4 text-zinc-500 group-hover:text-emerald-400 transition-colors shrink-0" />
+                <ChevronRightIcon className="w-4 h-4 text-[#9CA3AF] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors shrink-0" />
               </Link>
             ))}
           </div>
         </div>
       ) : (
         // 0 Active Workouts -> Inform and Provide Official Actions
-        <div className="p-4 rounded-xl bg-[#0B0C0E] border border-white/10 space-y-3 text-xs text-center">
-          <p className="text-zinc-300">
+        <div className="p-4 rounded-xl bg-[#F9FAFB] dark:bg-[#1B1D21] border border-[#E5E7EB] dark:border-[#303238] space-y-3 text-xs text-center shadow-2xs">
+          <p className="text-[#374151] dark:text-zinc-300">
             Nenhum treino ativo prescrito para este aluno.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 pt-1 justify-center">
             <Link
               href={`/consultoria/${consultancySlug}/rotinas/novo?student=${student.membershipPublicId}`}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-zinc-950 bg-emerald-500 hover:bg-emerald-400 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
             >
               <span>+ Criar treino personalizado</span>
             </Link>
             <Link
               href={`/consultoria/${consultancySlug}/rotinas`}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-[#151619] border border-white/10 hover:bg-white/[0.06] transition-all cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs text-[#17191D] dark:text-white bg-white dark:bg-[#151619] border border-[#E5E7EB] dark:border-[#303238] hover:bg-[#F3F4F6] dark:hover:bg-white/[0.06] transition-all cursor-pointer shadow-xs active:scale-[0.98]"
             >
               <span>Aplicar modelo da consultoria</span>
             </Link>

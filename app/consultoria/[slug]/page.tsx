@@ -161,13 +161,62 @@ export default async function ConsultancyPage({ params }: PageProps) {
         try {
           const tCtx = await resolveTrainingAccessContext(slug);
           if (!tCtx || !tCtx.canAuthorTraining) return null;
-          const [res, personalStudents] = await Promise.all([
-            listWorkoutsForProfessional(tCtx, { limit: 6 }),
+          const tz = context.consultancyTimezone || "America/Sao_Paulo";
+          const todayDateStr = getConsultancyLocalDate(tz, new Date());
+
+          const [res, personalStudents, upcomingConsultations] = await Promise.all([
+            listWorkoutsForProfessional(tCtx, { limit: 50 }),
             listPersonalStudents({ consultancyId: context.consultancyId }).catch(() => null),
+            context.membershipId
+              ? listUpcomingConsultationsForProfessional(context.consultancyId, context.membershipId, 50).catch(() => null)
+              : Promise.resolve(null),
           ]);
+
+          const todayConsultations = upcomingConsultations
+            ? upcomingConsultations
+                .filter((c) => {
+                  const itemDateStr = getConsultancyLocalDate(tz, c.scheduledStartAt);
+                  return itemDateStr === todayDateStr;
+                })
+                .map((c) => ({
+                  publicId: c.publicId,
+                  studentName: c.counterpartName,
+                  timeFormatted: new Intl.DateTimeFormat("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: tz,
+                  }).format(c.scheduledStartAt),
+                  type: c.title || "Consulta por vídeo",
+                  status: c.status,
+                  scheduledStartAt: c.scheduledStartAt.toISOString(),
+                  scheduledEndAt: c.scheduledEndAt.toISOString(),
+                  href: `/consultoria/${slug}/consultas`,
+                }))
+            : [];
+
+          const studentsWithoutWorkout = personalStudents
+            ? personalStudents
+                .filter((s) => !s.latestWorkoutTitle || s.latestAssignmentStatus !== "ACTIVE")
+                .map((s) => ({
+                  membershipPublicId: s.membershipPublicId,
+                  userPublicId: s.userPublicId,
+                  name: s.name,
+                  email: s.email,
+                  joinedAt: s.joinedAt,
+                }))
+            : [];
+
+          const prescribedBlocksCount = (res.items || []).reduce(
+            (acc, w) => acc + (w.blocksCount || 0),
+            0
+          );
+
           return {
             total: res.total,
             totalStudents: personalStudents ? personalStudents.length : null,
+            prescribedBlocksCount,
+            todayConsultations,
+            studentsWithoutWorkout,
             items: res.items.map((w) => ({
               publicId: w.publicId,
               title: w.title,
@@ -176,6 +225,12 @@ export default async function ConsultancyPage({ params }: PageProps) {
               difficultyLevel: w.difficultyLevel,
               blocksCount: w.blocksCount,
               currentVersionStatus: w.currentVersionStatus,
+              assignedStudentName: w.assignedStudentName || null,
+              activeAssignmentsCount: w.activeAssignmentsCount || 0,
+              isTemplate: Boolean(w.isTemplate),
+              updatedAt: w.updatedAt ? w.updatedAt.toISOString() : null,
+              hasActiveDraft: Boolean(w.hasActiveDraft),
+              draftVersionNumber: w.draftVersionNumber ?? null,
             })),
           };
         } catch {
@@ -523,8 +578,13 @@ export default async function ConsultancyPage({ params }: PageProps) {
             overview={adminOverview}
             platformAccess={context.platformAccess}
             recentPlans={personalPlansResult?.items || []}
+            workouts={personalPlansResult?.items || []}
             totalPlans={personalPlansResult?.total}
+            totalWorkouts={personalPlansResult?.total}
             totalStudents={personalPlansResult?.totalStudents ?? adminOverview?.students}
+            prescribedBlocksCount={personalPlansResult?.prescribedBlocksCount}
+            studentsWithoutWorkout={personalPlansResult?.studentsWithoutWorkout || []}
+            todayConsultations={personalPlansResult?.todayConsultations ?? null}
           />
         )}
 
@@ -593,8 +653,13 @@ export default async function ConsultancyPage({ params }: PageProps) {
             consultancyName={context.consultancyName}
             userName={session.fullName}
             recentPlans={personalPlansResult?.items || []}
+            workouts={personalPlansResult?.items || []}
             totalPlans={personalPlansResult?.total}
+            totalWorkouts={personalPlansResult?.total}
             totalStudents={personalPlansResult?.totalStudents ?? adminOverview?.students}
+            prescribedBlocksCount={personalPlansResult?.prescribedBlocksCount}
+            studentsWithoutWorkout={personalPlansResult?.studentsWithoutWorkout || []}
+            todayConsultations={personalPlansResult?.todayConsultations ?? null}
           />
         )}
 

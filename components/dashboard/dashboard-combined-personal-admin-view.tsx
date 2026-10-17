@@ -2,7 +2,12 @@
 
 import React, { useState } from "react";
 import { Tabs, type TabItem } from "@/components/ui/tabs";
-import { DashboardPersonalView, type PersonalWorkoutSummaryItem } from "./dashboard-personal-view";
+import {
+  DashboardPersonalView,
+  type PersonalWorkoutSummaryItem,
+  type StudentWithoutWorkoutItem,
+  type PersonalTodayConsultationItem,
+} from "./dashboard-personal-view";
 import { DashboardAdminView } from "./dashboard-admin-view";
 import type { ConsultancyAdminOverview } from "@/lib/consultancies/admin";
 import type { PlatformEffectiveAccessState } from "@/lib/platform-admin/billing";
@@ -14,9 +19,14 @@ interface DashboardCombinedPersonalAdminViewProps {
   userName?: string;
   overview: ConsultancyAdminOverview | null;
   platformAccess?: PlatformEffectiveAccessState;
-  recentPlans: PersonalWorkoutSummaryItem[];
+  recentPlans?: PersonalWorkoutSummaryItem[];
+  workouts?: PersonalWorkoutSummaryItem[];
   totalPlans?: number;
+  totalWorkouts?: number;
   totalStudents?: number | null;
+  prescribedBlocksCount?: number | null;
+  studentsWithoutWorkout?: StudentWithoutWorkoutItem[];
+  todayConsultations?: PersonalTodayConsultationItem[] | null;
 }
 
 export function DashboardCombinedPersonalAdminView({
@@ -26,9 +36,14 @@ export function DashboardCombinedPersonalAdminView({
   userName,
   overview,
   platformAccess,
-  recentPlans,
+  recentPlans = [],
+  workouts,
   totalPlans = 0,
+  totalWorkouts,
   totalStudents,
+  prescribedBlocksCount,
+  studentsWithoutWorkout = [],
+  todayConsultations = null,
 }: DashboardCombinedPersonalAdminViewProps) {
   const [activeTab, setActiveTab] = useState<"coach" | "admin">("coach");
 
@@ -83,8 +98,13 @@ export function DashboardCombinedPersonalAdminView({
           consultancyName={consultancyName}
           userName={userName}
           recentPlans={recentPlans}
+          workouts={workouts}
           totalPlans={totalPlans}
+          totalWorkouts={totalWorkouts}
           totalStudents={totalStudents ?? overview?.students}
+          prescribedBlocksCount={prescribedBlocksCount}
+          studentsWithoutWorkout={studentsWithoutWorkout}
+          todayConsultations={todayConsultations}
           hideRoleBadge={true}
         />
       ) : (

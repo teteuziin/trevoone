@@ -89,7 +89,27 @@
   --wallpaper-pattern-opacity: 0;
   --wallpaper-watermark-color: #090a0d;
   --wallpaper-watermark-opacity: 0.025;
+
+  /* Trainer Cockpit Tokens (Fase 3 - Light Theme) */
+  --cockpit-bg-canvas: #f4f5f7;
+  --cockpit-surface-default: #ffffff;
+  --cockpit-surface-subtle: #edf0f3;
+  --cockpit-border-default: #e2e5e9;
+  --cockpit-border-subtle: #eceef2;
+  --cockpit-text-primary: #17191d;
+  --cockpit-text-secondary: #4b5563;
+  --cockpit-text-tertiary: #6b7280;
+  --cockpit-action-primary: #065f46;
+  --cockpit-action-hover: #047857;
+  --cockpit-action-active: #03543f;
+  --cockpit-accent-brand: #10b981;
+  --cockpit-status-neutral-bg: #f3f4f6;
+  --cockpit-status-neutral-text: #374151;
+  --cockpit-status-danger-bg: #fef2f2;
+  --cockpit-status-danger-text: #991b1b;
+  --cockpit-status-danger-border: #fecaca;
 }
+
 
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -177,6 +197,25 @@
   --wallpaper-pattern-opacity: 0;
   --wallpaper-watermark-color: #34d399;
   --wallpaper-watermark-opacity: 0.03;
+
+  /* Trainer Cockpit Tokens (Fase 3 - Dark Theme) */
+  --cockpit-bg-canvas: #202226;
+  --cockpit-surface-default: #151619;
+  --cockpit-surface-subtle: #1b1d21;
+  --cockpit-border-default: #303238;
+  --cockpit-border-subtle: #252830;
+  --cockpit-text-primary: #ffffff;
+  --cockpit-text-secondary: #c2c8cf;
+  --cockpit-text-tertiary: #8e959e;
+  --cockpit-action-primary: #065f46;
+  --cockpit-action-hover: #047857;
+  --cockpit-action-active: #03543f;
+  --cockpit-accent-brand: #10b981;
+  --cockpit-status-neutral-bg: #252830;
+  --cockpit-status-neutral-text: #e5e7eb;
+  --cockpit-status-danger-bg: #321414;
+  --cockpit-status-danger-text: #f87171;
+  --cockpit-status-danger-border: #5c1d1d;
 }
 
 @media (prefers-color-scheme: dark) {
